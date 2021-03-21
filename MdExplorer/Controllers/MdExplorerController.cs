@@ -19,21 +19,30 @@ namespace MdExplorer.Controllers
     [Route("MdExplorer/{*url}")]
     public class MdExplorerController : ControllerBase
     {
-        private readonly ILogger<MdExplorerController> _logger;
-        private string _path;
+        private readonly ILogger<MdExplorerController> _logger;        
 
         public MdExplorerController(ILogger<MdExplorerController> logger)
         {
             _logger = logger;
-            _path = @"D:\Documents\Issues\C1233-1235-AssetMonitorDesign\Asset-DB-Design\GISAssetDesign.md";
+            
         }
 
         [HttpGet]
-        public async Task<ContentResult> GetAsync()
+        public async Task<IActionResult> GetAsync()
         {
             var relativePath = Request.Path.ToString().Replace("MdExplorer","Documentation").Replace("/",@"\");
-            var filePath = System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);        
-            filePath = string.Concat(filePath, relativePath,".md");
+            var relativePathExtension = Path.GetExtension(relativePath);                      
+            var filePath = System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+
+            if (relativePathExtension != "" && relativePathExtension != ".md")
+            {
+                filePath = string.Concat(filePath, relativePath);
+                var data = System.IO.File.ReadAllBytes(filePath);
+                var test = new FileContentResult(data, "image/" + relativePathExtension);
+                return test;
+            }
+
+            filePath = string.Concat(filePath, relativePath,".md");            
 
             string readText = System.IO.File.ReadAllText(filePath);
 
