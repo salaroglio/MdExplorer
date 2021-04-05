@@ -8,9 +8,10 @@ import { MaterialModule } from "./shared/material.module";
 import { FlexLayoutModule } from '@angular/flex-layout';
 import { Routes, RouterModule } from '@angular/router';
 
-//const routes: Routes = [
-//    {path: 'main', loadChildren:()=>import('./main/main.module').then(m=>m.MainModule)}
-//];
+const routes: Routes = [
+    { path: 'main', loadChildren: () => import('./main/main.module').then(m => m.MainModule) },
+    {path:'**', redirectTo:'main'}
+];
 
 
 @NgModule({
@@ -20,7 +21,7 @@ import { Routes, RouterModule } from '@angular/router';
     imports: [
         BrowserModule,
         BrowserAnimationsModule,
-        //RouterModule.forRoot(routes),
+        RouterModule.forRoot(routes),
         FlexLayoutModule,
         MaterialModule,
         FormsModule,
