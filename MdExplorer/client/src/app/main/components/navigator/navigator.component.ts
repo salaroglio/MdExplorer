@@ -2,12 +2,8 @@ import { Component, OnInit } from '@angular/core';
 
 @Component({
   selector: 'app-navigator',
-  template: `
-    <p>
-      navigator works!
-    </p>
-  `,
-  styles: [
+  templateUrl: 'navigator.component.html',
+  styleUrls: ['navigator.component.css'
   ]
 })
 export class NavigatorComponent implements OnInit {

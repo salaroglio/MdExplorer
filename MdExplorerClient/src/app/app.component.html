@@ -1,0 +1,19 @@
+<!--The content below is only a placeholder and can be replaced.-->
+<div style="text-align:center">
+  <div>
+    <h1>
+      Welcome to {{title}}!!
+    </h1>
+    <!-- <img src='../assets/images/MdExplorer.png'>   -->
+  </div>  
+  
+  <div>
+   Your filesystem folder path:<input id="folderToExplore" >
+  </div>
+  <div>
+    <button (click) ="onCheckUrl()"  >Open folder with Markdown to explore</button>    
+  </div>
+  <a  (click) ="onSend('/home')" href="#">test</a>
+  <div [innerHtml] ="myHtml"></div>
+  <iframe #myIframe [src]="iFrameUrl | safe"></iframe>
+</div>
