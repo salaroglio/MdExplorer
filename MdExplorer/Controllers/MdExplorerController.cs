@@ -19,20 +19,31 @@ namespace MdExplorer.Controllers
     [Route("MdExplorer/{*url}")]
     public class MdExplorerController : ControllerBase
     {
-        private readonly ILogger<MdExplorerController> _logger;        
+        private readonly ILogger<MdExplorerController> _logger;
+        private readonly FileSystemWatcher _fileSystemWatcher;
 
-        public MdExplorerController(ILogger<MdExplorerController> logger)
+        public MdExplorerController(ILogger<MdExplorerController> logger, FileSystemWatcher fileSystemWatcher)
         {
             _logger = logger;
-            
+            _fileSystemWatcher = fileSystemWatcher;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAsync()
-        {
-            var relativePath = Request.Path.ToString().Replace("MdExplorer","Documentation").Replace("/",@"\");
-            var relativePathExtension = Path.GetExtension(relativePath);                      
-            var filePath = System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+        {            
+            var filePath = _fileSystemWatcher.Path;
+            var relativePathExtension = string.Empty;
+            var relativePath = string.Empty;
+            if (filePath == string.Empty)
+            {
+                relativePath = Request.Path.ToString().Replace("MdExplorer", "Documentation").Replace("/", @"\");                
+                filePath = System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            }
+            else
+            {
+                relativePath = Request.Path.ToString().Replace("MdExplorer", string.Empty).Replace("/", @"\");
+            }
+            relativePathExtension = Path.GetExtension(relativePath);
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
@@ -42,7 +53,17 @@ namespace MdExplorer.Controllers
                 return test;
             }
 
-            filePath = string.Concat(filePath, relativePath,".md");            
+            
+            if (relativePathExtension == ".md" )
+            {
+                filePath = string.Concat(filePath, relativePath);
+            }
+            else
+            {
+                filePath = string.Concat(filePath, relativePath, ".md");
+            }
+
+                       
 
             string readText = System.IO.File.ReadAllText(filePath);
 
@@ -69,6 +90,12 @@ namespace MdExplorer.Controllers
                 item.ParentNode.RemoveChild(item);
             }
 
+            var anchors = doc1.FirstChild.SelectNodes(@"//a");
+            foreach (XmlNode itemAnchor in anchors)
+            {
+                
+            }
+
             return new ContentResult
             {
                 ContentType = "text/html",
@@ -86,7 +113,7 @@ namespace MdExplorer.Controllers
             });
 
             var myHttpClient = new HttpClient();
-            var response = await myHttpClient.PostAsync("http://172.25.74.116:8080/form", formContent);
+            var response = await myHttpClient.PostAsync("http://172.25.74.116:8080/form", formContent);//
             var content = await response.Content.ReadAsStringAsync();
             HtmlDocument mydoc = new HtmlDocument();
             mydoc.LoadHtml(content);
@@ -100,7 +127,6 @@ namespace MdExplorer.Controllers
             return content;
 
         }
-
     }
 
 

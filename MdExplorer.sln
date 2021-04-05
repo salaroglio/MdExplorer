@@ -3,7 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31025.194
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer", "MdExplorer\MdExplorer.csproj", "{28EA8C73-D2FF-422A-88D0-584B0FF2B29C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer", "MdExplorer\MdExplorer.csproj", "{28EA8C73-D2FF-422A-88D0-584B0FF2B29C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.bll", "MdExplorer.bll\MdExplorer.bll.csproj", "{69140720-FE2F-4833-B7C5-122D6F83F6C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MDExplorer.dal", "MDExplorer.dal\MDExplorer.dal.csproj", "{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{28EA8C73-D2FF-422A-88D0-584B0FF2B29C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{28EA8C73-D2FF-422A-88D0-584B0FF2B29C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{28EA8C73-D2FF-422A-88D0-584B0FF2B29C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69140720-FE2F-4833-B7C5-122D6F83F6C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69140720-FE2F-4833-B7C5-122D6F83F6C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69140720-FE2F-4833-B7C5-122D6F83F6C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69140720-FE2F-4833-B7C5-122D6F83F6C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

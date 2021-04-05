@@ -22,14 +22,13 @@ namespace MdExplorer.Controllers
         public async Task<ContentResult> GetAsync()
         {
             var comment = "@startuml\r\nBob -> Alice : hello\r\n@enduml";
-
             var formContent = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("text", comment),
             });
 
             var myHttpClient = new HttpClient();
-            var response = await myHttpClient.PostAsync("http://172.25.74.116:8080/form", formContent);
+            var response = await myHttpClient.PostAsync("http://www.plantuml.com/plantuml/form", formContent); //"http://172.25.74.116:8080/form"
             var content = await response.Content.ReadAsStringAsync();
             HtmlDocument mydoc = new HtmlDocument();
             mydoc.LoadHtml(content);
