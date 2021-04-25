@@ -38,7 +38,7 @@ namespace MdExplorer
             services.AddSignalR();
 
             services.AddControllers();
-            services.AddSingleton<FileSystemWatcher>();
+            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher {Path=@".\Documents" });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
