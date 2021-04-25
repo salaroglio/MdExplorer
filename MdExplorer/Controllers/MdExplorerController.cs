@@ -1,6 +1,8 @@
 ﻿using HtmlAgilityPack;
 using Markdig;
 using Markdig.Renderers;
+using MdExplorer.Abstractions.Models;
+using MdExplorer.Implementations.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -16,7 +18,7 @@ using System.Xml;
 namespace MdExplorer.Controllers
 {
     [ApiController]
-    [Route("MdExplorer/{*url}")]
+    [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : ControllerBase
     {
         private readonly ILogger<MdExplorerController> _logger;
@@ -28,21 +30,47 @@ namespace MdExplorer.Controllers
             _fileSystemWatcher = fileSystemWatcher;
         }
 
+
+        /// <summary>
+        /// Good start for keeping html using angualar
+        /// </summary>
+        /// <param name="mdFile"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public async Task<IActionResult> GetPageAsync(MdFile mdFile)
+        {
+            var filePath = _fileSystemWatcher.Path;
+            filePath = filePath + mdFile.Path;
+
+            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
+
+            var markDownFeature = new MarkDownFeature(pipeline);
+            string html = await markDownFeature.GetHtmlAsync(filePath);                         
+
+            return new ContentResult
+            {
+                ContentType = "text/html",
+                Content = html,
+            };
+        }
+
+       
+
+
+        /// <summary>
+        /// Get all goodies available in html
+        /// It's good to get images for example
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {            
             var filePath = _fileSystemWatcher.Path;
             var relativePathExtension = string.Empty;
             var relativePath = string.Empty;
-            if (filePath == string.Empty)
-            {
-                relativePath = Request.Path.ToString().Replace("MdExplorer", "Documentation").Replace("/", @"\");                
-                filePath = System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            }
-            else
-            {
-                relativePath = Request.Path.ToString().Replace("MdExplorer", string.Empty).Replace("/", @"\");
-            }
+            
+            relativePath = Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\");
+            
             relativePathExtension = Path.GetExtension(relativePath);
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
@@ -91,10 +119,6 @@ namespace MdExplorer.Controllers
             }
 
             var anchors = doc1.FirstChild.SelectNodes(@"//a");
-            foreach (XmlNode itemAnchor in anchors)
-            {
-                
-            }
 
             return new ContentResult
             {

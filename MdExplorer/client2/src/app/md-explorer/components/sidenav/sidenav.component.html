@@ -1,0 +1,20 @@
+<mat-sidenav-container class="app-sidenav-container">
+  <mat-sidenav #sidenav class="app-sidenav mat-elevation-z10"
+               [opened]="!isScreenSmall"
+               [mode]="!isScreenSmall ? 'side':'over'">
+    <mat-toolbar color="primary">Markdown files</mat-toolbar>
+    <mat-nav-list>
+      <mat-list-item *ngFor="let mdFile of mdFiles | async">
+        <a matLine [routerLink]="['/main',mdFile.path]">{{mdFile.name}}</a>
+      </mat-list-item>
+    </mat-nav-list>
+    
+  </mat-sidenav>
+
+
+  <div class="app-sidenav-content">
+    <app-toolbar (toggleSidenav)="sidenav.toggle()"></app-toolbar>
+    <router-outlet></router-outlet>
+
+  </div>
+</mat-sidenav-container>
