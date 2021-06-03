@@ -28,16 +28,10 @@
       </mat-tree-node>
     </mat-tree>
 
-    <!--<mat-nav-list>
-      <mat-list-item *ngFor="let mdFile of mdFiles | async">
-        <a matLine [routerLink]="['/main',mdFile]">{{mdFile.name}}</a>
-      </mat-list-item>
-    </mat-nav-list>-->
-
   </mat-sidenav>
 
 
-  <div class="app-sidenav-content">
+  <div class="app-sidenav-content" style="height:100%;">
     <app-toolbar (toggleSidenav)="sidenav.toggle()"></app-toolbar>
     <router-outlet></router-outlet>
   </div>

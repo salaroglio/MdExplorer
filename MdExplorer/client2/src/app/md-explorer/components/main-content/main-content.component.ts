@@ -32,8 +32,7 @@ export class MainContentComponent implements OnInit {
 
 
   ngOnInit(): void {
-    this.route.params.subscribe(params => {
-      debugger;
+    this.route.params.subscribe(params => {      
       const path = params['path'];
       const name = params['name'];
       if (path != undefined) {        
