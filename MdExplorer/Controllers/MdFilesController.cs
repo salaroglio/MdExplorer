@@ -24,14 +24,52 @@ namespace MdExplorer.Controllers
         public IActionResult GetAllMdFiles()
         {
             var currentPath = _fileSystemWatcher.Path;
-            var list = new List<MdFile>();
-            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_=>Path.GetExtension(_)==".md"))
+
+            var list = new List< FileInfoNode>();
+
+            foreach (var itemFolder in Directory.GetDirectories(currentPath))
             {
-                var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
-                list.Add(new MdFile { Name = Path.GetFileName(itemFile), Path = patchedItemFile });
+                var node = CreateNodeFolder(itemFolder);
+                list.Add(node);
             }
-             
-            return Ok(list);
+
+            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
+            {
+                var node = CreateNodeMdFile(itemFile);
+                list.Add(node);
+            }
+
+            return Ok( list);
+        }
+
+        private FileInfoNode CreateNodeMdFile(string itemFile)
+        {
+            var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+            var node = new FileInfoNode { Name = Path.GetFileName(itemFile), Path = patchedItemFile, Type = "mdFile" };
+            return node;
+        }
+
+        private FileInfoNode CreateNodeFolder(string itemFolder)
+        {
+            var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
+            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), Path = patchedItemFolfer, Type = "folder" };
+            ExploreNodes(node, itemFolder);
+            return node;
+        }
+
+        private void ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
+        {
+            foreach (var itemFolder in Directory.GetDirectories(pathFile))
+            {
+                FileInfoNode node = CreateNodeFolder(itemFolder);
+                fileInfoNode.Childrens.Add(node);
+            }
+
+            foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
+            {
+                var node = CreateNodeMdFile(itemFile);
+                fileInfoNode.Childrens.Add(node);
+            }
         }
     }
 }

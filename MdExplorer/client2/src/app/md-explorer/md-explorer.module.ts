@@ -9,6 +9,7 @@ import { MdExplorerComponent } from './md-explorer.component';
 import { Routes, RouterModule } from '@angular/router';
 import { MdFileService } from './services/md-file.service';
 import { HttpClientModule } from '@angular/common/http';
+import { SafePipe } from './pipes/safePipe';
 
 
 const routes: Routes = [{
@@ -24,7 +25,7 @@ const routes: Routes = [{
   declarations: [
     SidenavComponent,
     ToolbarComponent,
-    
+    SafePipe,
     MainContentComponent,
     MdExplorerComponent    
   ],

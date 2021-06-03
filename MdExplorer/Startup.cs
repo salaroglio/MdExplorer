@@ -1,6 +1,7 @@
 using MdExplorer.HubConfig;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -61,6 +62,20 @@ namespace MdExplorer
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+
+                endpoints.Map(
+
+                    pattern: "/client2/{name:alpha}/{**anything}",
+                    async context =>
+                    {
+                        context.Response.Redirect("/client2/index.html");
+                    }
+                    );
+                //endpoints.MapGet("/client2/**name", async context =>
+                //{
+                //    var name = context.Request.RouteValues["name"];
+                //    await context.Response.WriteAsync($"Hello {name}!");
+                //});
                 endpoints.MapHub<ChartHub>("/chart");
             });
         }

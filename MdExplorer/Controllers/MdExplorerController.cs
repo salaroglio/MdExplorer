@@ -37,7 +37,7 @@ namespace MdExplorer.Controllers
         /// <param name="mdFile"></param>
         /// <returns></returns>
         [HttpPost]
-        public async Task<IActionResult> GetPageAsync(MdFile mdFile)
+        public async Task<IActionResult> GetPageAsync(FileInfoNode mdFile)
         {
             var filePath = _fileSystemWatcher.Path;
             filePath = filePath + mdFile.Path;
@@ -45,7 +45,19 @@ namespace MdExplorer.Controllers
             var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
 
             var markDownFeature = new MarkDownFeature(pipeline);
-            string html = await markDownFeature.GetHtmlAsync(filePath);                         
+            string html = await markDownFeature.GetHtmlAsync(filePath);
+
+            XmlDocument doc1 = new XmlDocument();
+            doc1.LoadXml(html);
+            var elements = doc1.FirstChild.SelectNodes("//a");
+            foreach (XmlNode itemElement in elements)
+            {
+                var htmlClass = doc1.CreateAttribute("(click)");
+                htmlClass.InnerText = "gettAlert()";
+                itemElement.Attributes.Append(htmlClass);
+            }
+
+            html = doc1.InnerXml;
 
             return new ContentResult
             {
@@ -105,6 +117,14 @@ namespace MdExplorer.Controllers
             var resultToParse = "<MainHTML>" + result + "</MainHTML>";
             XmlDocument doc1 = new XmlDocument();
             doc1.LoadXml(resultToParse);
+            var elementsA = doc1.FirstChild.SelectNodes("//a");
+            foreach (XmlNode itemElement in elementsA)
+            {
+                var htmlClass = doc1.CreateAttribute("class");
+                htmlClass.InnerText = "mdExplorerLink";
+                itemElement.Attributes.Append(htmlClass);
+            }
+
             var elements = doc1.FirstChild.SelectNodes(@"//pre/code[@class='language-plantuml']");
 
             foreach (XmlNode item in elements)
@@ -116,9 +136,7 @@ namespace MdExplorer.Controllers
 
                 item.ParentNode.AppendChild(importedNode);
                 item.ParentNode.RemoveChild(item);
-            }
-
-            var anchors = doc1.FirstChild.SelectNodes(@"//a");
+            }           
 
             return new ContentResult
             {

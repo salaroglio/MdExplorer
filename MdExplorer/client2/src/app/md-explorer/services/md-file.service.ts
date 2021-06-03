@@ -26,7 +26,7 @@ export class MdFileService {
 
 
   loadAll() {
-    const url = '/api/mdfiles';
+    const url = '../api/mdfiles';
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
         this.dataStore.mdFiles = data;
@@ -38,7 +38,7 @@ export class MdFileService {
   }
 
   GetHtml(path: string) { //, currentFile: MdFile
-    const url = 'api/mdexplorer/' + path;
+    const url = '../api/mdexplorer/' + path;
     return this.http.get(url, { responseType: 'text' })//, currentFile
       
   }

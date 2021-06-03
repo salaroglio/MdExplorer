@@ -5,15 +5,15 @@ VisualStudioVersion = 16.0.31025.194
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Service", "MdExplorer\MdExplorer.Service.csproj", "{28EA8C73-D2FF-422A-88D0-584B0FF2B29C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.bll", "MdExplorer.bll\MdExplorer.bll.csproj", "{69140720-FE2F-4833-B7C5-122D6F83F6C3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Features", "MdExplorer.bll\MdExplorer.Features.csproj", "{69140720-FE2F-4833-B7C5-122D6F83F6C3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MDExplorer.dal", "MDExplorer.dal\MDExplorer.dal.csproj", "{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MDExplorer.DataAccess", "MDExplorer.dal\MDExplorer.DataAccess.csproj", "{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Tests", "MdExplorer.Tests\MdExplorer.Tests.csproj", "{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Tests", "MdExplorer.Tests\MdExplorer.Tests.csproj", "{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Abstractions", "MdExplorer.Abstractions\MdExplorer.Abstractions.csproj", "{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Abstractions", "MdExplorer.Abstractions\MdExplorer.Abstractions.csproj", "{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Implementations", "MdExplorer.Implementations\MdExplorer.Implementations.csproj", "{EF663F91-98EB-475F-AFCE-E399F64E4D08}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Implementations", "MdExplorer.Implementations\MdExplorer.Implementations.csproj", "{EF663F91-98EB-475F-AFCE-E399F64E4D08}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
