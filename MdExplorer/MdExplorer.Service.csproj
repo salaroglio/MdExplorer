@@ -67,6 +67,48 @@
     <None Update="Documentation\test1.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Documents\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\api.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\linked.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\multimatch.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\no-linked.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\no-match.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\no.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\plus.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\plusColorato.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\CustomFiles\question.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\Design.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\SequenceDiagrams\Details.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\SequenceDiagrams\Grid.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Documents\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Documents\Home.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -74,7 +116,7 @@
 
   <ItemGroup>
     <Folder Include="client2\src\app\md-explorer\services\" />
-    <Folder Include="wwwroot\" />
+    <Folder Include="client2\src\app\wwwroot\" />
   </ItemGroup>
 
   <ItemGroup>

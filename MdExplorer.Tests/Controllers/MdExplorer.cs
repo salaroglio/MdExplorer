@@ -23,7 +23,7 @@ namespace MdExplorer.Tests.Controllers
             mockWatcher.Path = @".\Documentation";
             var controller = new MdExplorerController(mockLogger.Object, mockWatcher);
 
-            var mdFile = new MdFile { Name = "home.md", Path = "Home.md" };
+            var mdFile = new FileInfoNode { Name = "home.md", Path = "Home.md" };
 
             var something = await controller.GetPageAsync(mdFile);
             
