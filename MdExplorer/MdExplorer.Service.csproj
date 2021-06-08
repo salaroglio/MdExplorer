@@ -13,60 +13,42 @@
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot\client2\favicon.ico" />
+    <Content Remove="wwwroot\client2\index.html" />
+    <Content Remove="wwwroot\client2\main.js" />
+    <Content Remove="wwwroot\client2\md-explorer-md-explorer-module.js" />
+    <Content Remove="wwwroot\client2\polyfills.js" />
+    <Content Remove="wwwroot\client2\runtime.js" />
+    <Content Remove="wwwroot\client2\styles.css" />
+    <Content Remove="wwwroot\client2\vendor.js" />
+    <Content Remove="wwwroot\test.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
+    <EmbeddedResource Include="wwwroot\client2\index.html" />
+    <EmbeddedResource Include="wwwroot\client2\main.js" />
+    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js" />
+    <EmbeddedResource Include="wwwroot\client2\polyfills.js" />
+    <EmbeddedResource Include="wwwroot\client2\runtime.js" />
+    <EmbeddedResource Include="wwwroot\client2\styles.css" />
+    <EmbeddedResource Include="wwwroot\client2\vendor.js" />
+    <EmbeddedResource Include="wwwroot\test.html" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="HtmlAgilityPack" Version="1.11.31" />
     <PackageReference Include="Markdig" Version="0.24.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Documentation\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\api.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\linked.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\multimatch.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\no-linked.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\no-match.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\no.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\plus.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\plusColorato.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\CustomFiles\question.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\Design.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\SequenceDiagrams\Details.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\SequenceDiagrams\Grid.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\Home.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documentation\test1.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+   
     <None Update="Documents\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -114,10 +96,10 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
+  <!--<ItemGroup>
     <Folder Include="client2\src\app\md-explorer\services\" />
     <Folder Include="client2\src\app\wwwroot\" />
-  </ItemGroup>
+  </ItemGroup>-->
 
   <ItemGroup>
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
