@@ -12,7 +12,7 @@
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
-      "launchUrl": "/client2/index.html",
+      "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
@@ -20,7 +20,7 @@
     "MdExplorer": {
       "commandName": "Project",
       "commandLineArgs": "D:\\Personale\\ProgettoDocumentazione\\Monitoring.wiki\\Home.md",
-      "launchUrl": "/client2/index.html",
+      "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },

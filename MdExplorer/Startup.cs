@@ -39,14 +39,14 @@ namespace MdExplorer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddCors(options =>
-            {
-                options.AddPolicy("CorsPolicy", builder => builder
-                .WithOrigins("http://localhost:4200")
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials());
-            });
+            //services.AddCors(options =>
+            //{
+            //    options.AddPolicy("CorsPolicy", builder => builder
+            //    .WithOrigins("http://localhost:4200")
+            //    .AllowAnyMethod()
+            //    .AllowAnyHeader()
+            //    .AllowCredentials());
+            //});
             services.AddSignalR();
 
             services.AddControllers();
@@ -74,21 +74,25 @@ namespace MdExplorer
             app.UseCors("CorsPolicy");
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
 
+#if !DEBUG
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new EmbeddedFileProvider(
                 assembly: Assembly.Load(new AssemblyName("MdExplorer.Service")),
                 baseNamespace: "MdExplorer.Service.wwwroot")
             });
-
+#else
+            app.UseStaticFiles();
+#endif
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+#if !DEBUG
                 endpoints.CreateApplicationBuilder()
                 .UseMiddleware< ServerAddressMiddleware>().Build();
-
+#endif
                 endpoints.Map(
 
                     pattern: "/client2/{name:alpha}/{**anything}",
@@ -99,22 +103,13 @@ namespace MdExplorer
                     );
                 endpoints.MapHub<ChartHub>("/chart");
             });
+#if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
           {
               DiscoverAddresses(app.ServerFeatures);
           });
-            var currentDirectory = Directory.GetCurrentDirectory();
-            logger.LogInformation($"Current Directory:{currentDirectory}");
-            //env.ContentRootPath = System.Reflection.Assembly.GetEntryAssembly().Location;
-            var p = System.Reflection.Assembly.GetEntryAssembly().Location;
-            p = p.Substring(0, p.LastIndexOf(@"\") + 1);
-            logger.LogInformation($"Location:{p}" );
-            logger.LogInformation($"CurrontRootPath:{env.ContentRootPath}");
-            string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            logger.LogInformation($"assemblyPath:{assemblyPath}");
-            var lastchance = Path.GetDirectoryName(new System.Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath);
-            logger.LogInformation($"lastchance:{lastchance}");
+#endif
 
         }
 
