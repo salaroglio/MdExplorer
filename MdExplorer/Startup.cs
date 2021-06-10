@@ -50,13 +50,19 @@ namespace MdExplorer
             services.AddSignalR();
 
             services.AddControllers();
+            ConfigFileSystemWatchers(services);
+
+        }
+
+        private static void ConfigFileSystemWatchers(IServiceCollection services)
+        {
             var defaultPath = @".\Documents";
-            if (Args.Length>0)
+            if (Args.Length > 0)
             {
                 defaultPath = Path.GetDirectoryName(Args[0]);
             }
-            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher {Path= defaultPath });
 
+            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher { Path = defaultPath });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -71,9 +77,9 @@ namespace MdExplorer
 
             app.UseRouting();
            
-            app.UseCors("CorsPolicy");
+            //app.UseCors("CorsPolicy");
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
-
+            
 #if !DEBUG
             app.UseStaticFiles(new StaticFileOptions
             {
@@ -90,8 +96,8 @@ namespace MdExplorer
             {
                 endpoints.MapControllers();
 #if !DEBUG
-                endpoints.CreateApplicationBuilder()
-                .UseMiddleware< ServerAddressMiddleware>().Build();
+                //endpoints.CreateApplicationBuilder()
+                //.UseMiddleware< ServerAddressMiddleware>().Build();
 #endif
                 endpoints.Map(
 
