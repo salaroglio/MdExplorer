@@ -94,7 +94,7 @@
     <None Update="Documents\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\Home.md">
+    <None Update="Documents\Main.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
