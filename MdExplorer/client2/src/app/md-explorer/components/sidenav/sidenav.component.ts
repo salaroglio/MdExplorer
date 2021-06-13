@@ -7,6 +7,9 @@ import { MdFileService } from '../../services/md-file.service';
 import { Observable } from 'rxjs';
 import { MdFile } from '../../models/md-file';
 import { IFileInfoNode } from '../../models/IFileInfoNode';
+import { MonitorMDService } from '../../services/monitor-md.service';
+import { Router, ActivatedRoute } from '@angular/router';
+import { debug } from 'node:console';
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -49,10 +52,14 @@ export class SidenavComponent implements OnInit {
 
   public isScreenSmall: boolean;
   constructor(private breakpointObserver: BreakpointObserver
-    , private mdFileService: MdFileService
+    , private mdFileService: MdFileService,
+    
+    private router:Router
   ) {
     this.dataSource.data = TREE_DATA;
+    
   }
+
 
   ngOnInit(): void {
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
@@ -69,6 +76,10 @@ export class SidenavComponent implements OnInit {
     this.mdFiles.subscribe(data => {
       console.log(data);
     });
+
+    
   }
+
+ 
 
 }

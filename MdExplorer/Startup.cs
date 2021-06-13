@@ -1,5 +1,5 @@
-using MdExplorer.HubConfig;
-using MdExplorer.Service.Middleware;
+using MdExplorer.Hubs;
+using MdExplorer.Service.HostedServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -39,30 +39,23 @@ namespace MdExplorer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            //services.AddCors(options =>
-            //{
-            //    options.AddPolicy("CorsPolicy", builder => builder
-            //    .WithOrigins("http://localhost:4200")
-            //    .AllowAnyMethod()
-            //    .AllowAnyHeader()
-            //    .AllowCredentials());
-            //});
+            services = ConfigFileSystemWatchers(services);
+            services.AddHostedService<MonitorMDHostedService>();
             services.AddSignalR();
-
             services.AddControllers();
-            ConfigFileSystemWatchers(services);
-
         }
 
-        private static void ConfigFileSystemWatchers(IServiceCollection services)
+        private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)
         {
             var defaultPath = @".\Documents";
             if (Args.Length > 0)
             {
                 defaultPath = Path.GetDirectoryName(Args[0]);
             }
-
-            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher { Path = defaultPath });
+            var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
+            
+            services.AddSingleton<FileSystemWatcher>(_fileSystemWatcher);
+            return services;
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -95,10 +88,7 @@ namespace MdExplorer
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-#if !DEBUG
-                //endpoints.CreateApplicationBuilder()
-                //.UseMiddleware< ServerAddressMiddleware>().Build();
-#endif
+
                 endpoints.Map(
 
                     pattern: "/client2/{name:alpha}/{**anything}",
@@ -107,7 +97,7 @@ namespace MdExplorer
                         context.Response.Redirect("/client2/index.html");
                     }
                     );
-                endpoints.MapHub<ChartHub>("/chart");
+                endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
 #if !DEBUG
             lifetime.ApplicationStarted.Register(
