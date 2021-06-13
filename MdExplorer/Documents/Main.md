@@ -42,6 +42,6 @@ Già fa schifo il template che viene messo in .net Core per angular 8... quindi 
 -- terminal di visual studio
 ng build --base-href /client/ --watch
 
-
+test gghhdfdf
 
 ```
