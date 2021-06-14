@@ -22,6 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
     <Content Remove="wwwroot\client2\main.js" />
@@ -30,10 +31,11 @@
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\styles.css" />
     <Content Remove="wwwroot\client2\vendor.js" />
-    <Content Remove="wwwroot\test.html" />
+    <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />
     <EmbeddedResource Include="wwwroot\client2\main.js" />
@@ -42,7 +44,7 @@
     <EmbeddedResource Include="wwwroot\client2\runtime.js" />
     <EmbeddedResource Include="wwwroot\client2\styles.css" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js" />
-    <EmbeddedResource Include="wwwroot\test.html" />
+    <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
 
   <ItemGroup>

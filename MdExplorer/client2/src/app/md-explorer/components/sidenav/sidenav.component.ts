@@ -10,6 +10,7 @@ import { IFileInfoNode } from '../../models/IFileInfoNode';
 import { MonitorMDService } from '../../services/monitor-md.service';
 import { Router, ActivatedRoute } from '@angular/router';
 import { debug } from 'node:console';
+import { getLocaleDateTimeFormat } from '@angular/common';
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -80,6 +81,10 @@ export class SidenavComponent implements OnInit {
     
   }
 
+  public getNode(node: any) {
+    node.id = new Date();
+    this.router.navigate(['/main', node.path]);
+  }
  
 
 }

@@ -3,8 +3,10 @@ using Markdig;
 using Markdig.Renderers;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Implementations.Features;
+using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,6 +15,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Xml;
 
 namespace MdExplorer.Controllers
@@ -23,11 +26,15 @@ namespace MdExplorer.Controllers
     {
         private readonly ILogger<MdExplorerController> _logger;
         private readonly FileSystemWatcher _fileSystemWatcher;
+        private readonly IOptions<MdExplorerAppSettings> _options;
 
-        public MdExplorerController(ILogger<MdExplorerController> logger, FileSystemWatcher fileSystemWatcher)
+        public MdExplorerController(ILogger<MdExplorerController> logger, 
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options)
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
+            this._options = options;
         }
 
 
@@ -81,7 +88,7 @@ namespace MdExplorer.Controllers
             var relativePathExtension = string.Empty;
             var relativePath = string.Empty;
             
-            relativePath = Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\");
+            relativePath = HttpUtility.UrlDecode( Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\"));
             
             relativePathExtension = Path.GetExtension(relativePath);
 
@@ -155,7 +162,7 @@ namespace MdExplorer.Controllers
             });
 
             var myHttpClient = new HttpClient();
-            var response = await myHttpClient.PostAsync("http://172.30.125.191:8080/form", formContent);//
+            var response = await myHttpClient.PostAsync($"http://{_options.Value.PlantumlServer}:8080/form", formContent);//
             var content = await response.Content.ReadAsStringAsync();
             HtmlDocument mydoc = new HtmlDocument();
             mydoc.LoadHtml(content);
