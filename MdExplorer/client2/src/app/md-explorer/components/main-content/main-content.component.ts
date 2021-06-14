@@ -16,7 +16,7 @@ export class MainContentComponent implements OnInit {
 
   mdFile: MdFile;
   html: string;
-  htmlSource: string = '../test.html';
+  htmlSource: string = '../welcome.html';
 
   helloWorld: IWorkWithElement = (msg) => {
     alert('this is the callback');

@@ -1,5 +1,6 @@
 using MdExplorer.Hubs;
 using MdExplorer.Service.HostedServices;
+using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -43,6 +44,7 @@ namespace MdExplorer
             services.AddHostedService<MonitorMDHostedService>();
             services.AddSignalR();
             services.AddControllers();
+            services.Configure<MdExplorerAppSettings>(Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
         }
 
         private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)

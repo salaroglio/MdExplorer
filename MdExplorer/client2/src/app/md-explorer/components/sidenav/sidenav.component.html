@@ -12,7 +12,7 @@
             {{'text_snippet'}}
           </mat-icon>
         </button>
-        <a class="" [routerLink]="['/main',node.path]">{{node.name}}</a>
+        <a style="cursor:pointer" (click)="getNode(node)" >{{node.name}}</a>
         <!--{{node.name}}-->
       </mat-tree-node>
       <!-- This is the tree node template for expandable nodes -->
