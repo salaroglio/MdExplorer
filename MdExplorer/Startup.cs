@@ -101,13 +101,13 @@ namespace MdExplorer
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
-#if !DEBUG
+//#if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
           {
               DiscoverAddresses(app.ServerFeatures);
           });
-#endif
+//#endif
 
         }
 
@@ -133,7 +133,8 @@ namespace MdExplorer
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     url = url.Replace("&", "^&");
-                    Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
+                    var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
+                    var processStarted= Process.Start(processToStart);                                     
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
@@ -149,6 +150,12 @@ namespace MdExplorer
                 }
             }
         }
+
+        private void ProcessStarted_Exited(object sender, EventArgs e)
+        {
+           
+        }
+       
     }
 
 }

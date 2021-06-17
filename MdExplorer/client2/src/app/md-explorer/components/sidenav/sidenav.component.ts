@@ -11,6 +11,8 @@ import { MonitorMDService } from '../../services/monitor-md.service';
 import { Router, ActivatedRoute } from '@angular/router';
 import { debug } from 'node:console';
 import { getLocaleDateTimeFormat } from '@angular/common';
+import { MainContentComponent } from '../main-content/main-content.component';
+import { SideNavDataService } from '../../services/side-nav-data.service';
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -53,9 +55,9 @@ export class SidenavComponent implements OnInit {
 
   public isScreenSmall: boolean;
   constructor(private breakpointObserver: BreakpointObserver
-    , private mdFileService: MdFileService,
-    
-    private router:Router
+    , private mdFileService: MdFileService,    
+    private router: Router,
+    private sideNavDataService: SideNavDataService
   ) {
     this.dataSource.data = TREE_DATA;
     
@@ -82,8 +84,10 @@ export class SidenavComponent implements OnInit {
   }
 
   public getNode(node: any) {
-    node.id = new Date();
-    this.router.navigate(['/main', node.path]);
+    var dateTime = new Date();
+    this.sideNavDataService.currentPath = node.path;
+    this.sideNavDataService.currentName = node.name;
+    this.router.navigate(['/main', dateTime.getTime()]);
   }
  
 

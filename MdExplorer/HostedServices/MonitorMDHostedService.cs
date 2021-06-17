@@ -19,7 +19,9 @@ namespace MdExplorer.Service.HostedServices
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ILogger<MonitorMDHostedService> _logger;
 
-        public MonitorMDHostedService(IHubContext<MonitorMDHub> hubContext, FileSystemWatcher fileSystemWatcher, ILogger<MonitorMDHostedService> logger)
+        public MonitorMDHostedService(IHubContext<MonitorMDHub> hubContext, 
+                FileSystemWatcher fileSystemWatcher, 
+                ILogger<MonitorMDHostedService> logger)
         {
             _hubContext = hubContext;
             _fileSystemWatcher = fileSystemWatcher;
@@ -28,12 +30,12 @@ namespace MdExplorer.Service.HostedServices
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"monitored path: { _fileSystemWatcher.Path}");
+            _logger.LogInformation($"monitored path: { _fileSystemWatcher.Path}");            
             _fileSystemWatcher.NotifyFilter = NotifyFilters.LastWrite;
             _fileSystemWatcher.Filter = "*.md";
             _fileSystemWatcher.IncludeSubdirectories = true;
             _fileSystemWatcher.EnableRaisingEvents = true;
-            _fileSystemWatcher.Changed += ChangeWithLove;
+            _fileSystemWatcher.Changed += ChangeWithLove;            
             return Task.CompletedTask;
         }
 

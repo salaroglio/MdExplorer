@@ -6,6 +6,4 @@ export class MdFile implements IFileInfoNode{
   path: string;
   type: string;
   children: [];
-
-  
 }

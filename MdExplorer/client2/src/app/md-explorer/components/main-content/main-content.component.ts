@@ -5,6 +5,7 @@ import { HrefInterceptorService, IWorkWithElement } from '../../services/href-in
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MonitorMDService } from '../../services/monitor-md.service';
+import { SideNavDataService } from '../../services/side-nav-data.service';
 
 
 @Component({
@@ -29,7 +30,8 @@ export class MainContentComponent implements OnInit {
     private service: MdFileService,
     private sanitizer: DomSanitizer,
     private monitorMDService: MonitorMDService,
-    private zone: NgZone
+    private zone: NgZone,
+    private sideNavDataService: SideNavDataService
   ) {
     
     this.monitorMDService.startConnection();
@@ -38,8 +40,7 @@ export class MainContentComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {      
-      const path = params['path'];      
-      const name = params['name'];
+      const path = this.sideNavDataService.currentPath;
       if (path != undefined) {        
         //this.service.GetHtml(path).subscribe(data => {          
         //  this.html = data;
