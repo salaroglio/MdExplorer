@@ -23,4 +23,11 @@ export class MonitorMDService {
       callback(data, objectThis);
     });
   }
+
+  public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('markdownfileisprocessed', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
 }

@@ -1,10 +1,14 @@
 ﻿using HtmlAgilityPack;
 using Markdig;
+using Markdig.Extensions.JiraLinks;
 using Markdig.Renderers;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Hubs;
 using MdExplorer.Implementations.Features;
+using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
@@ -27,16 +31,21 @@ namespace MdExplorer.Controllers
         private readonly ILogger<MdExplorerController> _logger;
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IOptions<MdExplorerAppSettings> _options;
+        private readonly IHubContext<MonitorMDHub> _hubContext;
 
-        public MdExplorerController(ILogger<MdExplorerController> logger, 
+        public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
-            IOptions<MdExplorerAppSettings> options)
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext
+            )
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
             this._options = options;
+            _hubContext = hubContext;
         }
 
+        
 
         /// <summary>
         /// Good start for keeping html using angualar
@@ -73,7 +82,7 @@ namespace MdExplorer.Controllers
             };
         }
 
-       
+
 
 
         /// <summary>
@@ -83,25 +92,28 @@ namespace MdExplorer.Controllers
         /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> GetAsync()
-        {            
+        {
             var filePath = _fileSystemWatcher.Path;
+            
             var relativePathExtension = string.Empty;
             var relativePath = string.Empty;
+
+            relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\"));
+
             
-            relativePath = HttpUtility.UrlDecode( Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\"));
-            
+
             relativePathExtension = Path.GetExtension(relativePath);
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
                 filePath = string.Concat(filePath, relativePath);
                 var data = System.IO.File.ReadAllBytes(filePath);
-                var test = new FileContentResult(data, "image/" + relativePathExtension);
-                return test;
+                var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
+                return notMdFile;
             }
+           
 
-            
-            if (relativePathExtension == ".md" )
+            if (relativePathExtension == ".md")
             {
                 filePath = string.Concat(filePath, relativePath);
             }
@@ -110,11 +122,23 @@ namespace MdExplorer.Controllers
                 filePath = string.Concat(filePath, relativePath, ".md");
             }
 
-                       
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = filePath,
+                Name = Path.GetFileName(filePath)
+            };
+            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             string readText = System.IO.File.ReadAllText(filePath);
 
-            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
+            
+            var pipeline = new MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()
+                .UsePipeTables()
+                .UseBootstrap()
+                .UseJiraLinks(new JiraLinkOptions(@"https://jira.swarco.com"))
+                .UseEmojiAndSmiley()
+                .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
             StringWriter tw = new StringWriter();
@@ -136,14 +160,14 @@ namespace MdExplorer.Controllers
 
             foreach (XmlNode item in elements)
             {
-                
+
                 XmlDocument doc2 = new XmlDocument();
                 doc2.LoadXml(await GetSVG(item.InnerText));
-                var importedNode = doc1.ImportNode(doc2.ChildNodes[1],true);
+                var importedNode = doc1.ImportNode(doc2.ChildNodes[1], true);
 
                 item.ParentNode.AppendChild(importedNode);
                 item.ParentNode.RemoveChild(item);
-            }           
+            }
 
             return new ContentResult
             {

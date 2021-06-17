@@ -20,7 +20,6 @@
     "MdExplorer": {
       "commandName": "Project",
       "commandLineArgs": "D:\\Sviluppi\\Omnia\\documents\\technotes2018-08-06-SAFERtec-Keycloak.md",
-      "launchBrowser": true,
       "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
