@@ -2,9 +2,13 @@
   <button mat-button (click)="toggleSidenav.emit()">
     <mat-icon>menu</mat-icon>
   </button>
-  <button mat-button (click)="openDialog()">
-    <mat-icon>settings</mat-icon>
-  </button>
-
   <span>{{TitleToShow}}</span>
+  <div align="end">
+    <button mat-button (click)="openDialog()">
+      <mat-icon>settings</mat-icon>
+    </button>
+  </div>
+
+
+
 </mat-toolbar>

@@ -12,7 +12,7 @@ namespace MdExplorer.Controllers
 {
     [ApiController]
     [Route("api/MdFiles")]
-    public class MdFilesController:ControllerBase
+    public class MdFilesController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
 
@@ -20,12 +20,16 @@ namespace MdExplorer.Controllers
         {
             _fileSystemWatcher = fileSystemWatcher;
         }
+
+
+       
+
         [HttpGet]
         public IActionResult GetAllMdFiles()
         {
             var currentPath = _fileSystemWatcher.Path;
 
-            var list = new List< FileInfoNode>();
+            var list = new List<FileInfoNode>();
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath))
             {
@@ -39,7 +43,7 @@ namespace MdExplorer.Controllers
                 list.Add(node);
             }
 
-            return Ok( list);
+            return Ok(list);
         }
 
         private FileInfoNode CreateNodeMdFile(string itemFile)
