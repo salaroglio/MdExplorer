@@ -101,13 +101,13 @@ namespace MdExplorer
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
-//#if !DEBUG
+#if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
           {
               DiscoverAddresses(app.ServerFeatures);
           });
-//#endif
+#endif
 
         }
 

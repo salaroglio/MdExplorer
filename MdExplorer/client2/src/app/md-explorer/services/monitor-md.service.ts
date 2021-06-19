@@ -6,7 +6,12 @@ import * as signalR from "@microsoft/signalr";
 })
 export class MonitorMDService {
 
+  constructor() {
+    this.startConnection();
+  }
+
   private hubConnection: signalR.HubConnection
+
   public startConnection = () => {
     
     this.hubConnection = new signalR.HubConnectionBuilder()

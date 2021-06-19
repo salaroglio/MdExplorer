@@ -34,7 +34,7 @@ export class MainContentComponent implements OnInit {
     private sideNavDataService: SideNavDataService
   ) {
     
-    this.monitorMDService.startConnection();
+    //this.monitorMDService.startConnection();
     this.monitorMDService.addMarkdownFileListener(this.updateModifiedMarkDown, this);
   }
 
