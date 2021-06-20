@@ -43,6 +43,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Ad.Tools.Dal" Version="2.1.0" />
+    <PackageReference Include="Ad.Tools.FluentMigrator" Version="1.1.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.31" />
     <PackageReference Include="Markdig" Version="0.24.0" />
   </ItemGroup>
@@ -103,7 +105,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
+    <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
     <ProjectReference Include="..\MdExplorer.Implementations\MdExplorer.Implementations.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
   </ItemGroup>
 
 
