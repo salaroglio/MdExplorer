@@ -1,5 +1,10 @@
+using Ad.Tools.Dal;
+using Ad.Tools.Dal.Concrete;
+using Ad.Tools.FluentMigrator;
 using MdExplorer.HubConfig;
+using MdExplorer.Migrations;
 using MdExplorer.Service.Middleware;
+using MDExplorer.DataAccess.Mapping;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -21,6 +26,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 
 namespace MdExplorer
 {
@@ -56,6 +62,14 @@ namespace MdExplorer
                 defaultPath = Path.GetDirectoryName(Args[0]);
             }
             services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher {Path= defaultPath });
+            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
+            var databasePath = @$"Data Source={appdata}\MdExplorer.db";
+            services.AddFluentMigratorFeatures(databasePath,
+                                                DatabaseConfigurations.ConfigureSQLite, 
+                                                typeof(Migration0).Assembly);
+            services.AddDalFeatures(typeof(SettingsMap).Assembly,
+                                    new DatabaseSQLite(),
+                                    databasePath);
 
         }
 
