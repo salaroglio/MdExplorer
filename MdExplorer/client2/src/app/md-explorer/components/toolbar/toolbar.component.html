@@ -1,7 +1,14 @@
 <mat-toolbar color="primary">
-  <button mat-button class="sidenav-toggle" (click)="toggleSidenav.emit()">
+  <button mat-button (click)="toggleSidenav.emit()">
     <mat-icon>menu</mat-icon>
   </button>
+  <span>{{TitleToShow}}</span>
+  <div align="end">
+    <button mat-button (click)="openDialog()">
+      <mat-icon>settings</mat-icon>
+    </button>
+  </div>
 
-  <span>MdExplorer</span>
+
+
 </mat-toolbar>

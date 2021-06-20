@@ -25,11 +25,10 @@ namespace MdExplorer
             
             var toReturn = Host.CreateDefaultBuilder(args)
                .ConfigureWebHostDefaults(webBuilder =>
-               {
-                   var p = System.Reflection.Assembly.GetEntryAssembly().Location;
-                   p = p.Substring(0, p.LastIndexOf(@"\") + 1);
-                  
+               {                 
+#if !DEBUG
                    webBuilder.UseUrls("https://127.0.0.1:0");
+#endif
                    webBuilder.UseStartup<Startup>();
                });
             return toReturn;
