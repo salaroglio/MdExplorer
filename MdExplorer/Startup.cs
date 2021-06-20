@@ -1,3 +1,6 @@
+using MdExplorer.Hubs;
+using MdExplorer.Service.HostedServices;
+using MdExplorer.Service.Models;
 using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
 using Ad.Tools.FluentMigrator;
@@ -45,19 +48,17 @@ namespace MdExplorer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddCors(options =>
-            {
-                options.AddPolicy("CorsPolicy", builder => builder
-                .WithOrigins("http://localhost:4200")
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials());
-            });
+            services = ConfigFileSystemWatchers(services);
+            services.AddHostedService<MonitorMDHostedService>();
             services.AddSignalR();
-
             services.AddControllers();
+            services.Configure<MdExplorerAppSettings>(Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
+        }
+
+        private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)
+        {
             var defaultPath = @".\Documents";
-            if (Args.Length>0)
+            if (Args.Length > 0)
             {
                 defaultPath = Path.GetDirectoryName(Args[0]);
             }
@@ -71,6 +72,10 @@ namespace MdExplorer
                                     new DatabaseSQLite(),
                                     databasePath);
 
+            var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
+            
+            services.AddSingleton<FileSystemWatcher>(_fileSystemWatcher);
+            return services;
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -85,23 +90,24 @@ namespace MdExplorer
 
             app.UseRouting();
            
-            app.UseCors("CorsPolicy");
+            //app.UseCors("CorsPolicy");
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
-
+            
+#if !DEBUG
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new EmbeddedFileProvider(
                 assembly: Assembly.Load(new AssemblyName("MdExplorer.Service")),
                 baseNamespace: "MdExplorer.Service.wwwroot")
             });
-
+#else
+            app.UseStaticFiles();
+#endif
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.CreateApplicationBuilder()
-                .UseMiddleware< ServerAddressMiddleware>().Build();
 
                 endpoints.Map(
 
@@ -111,24 +117,15 @@ namespace MdExplorer
                         context.Response.Redirect("/client2/index.html");
                     }
                     );
-                endpoints.MapHub<ChartHub>("/chart");
+                endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
+#if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
           {
               DiscoverAddresses(app.ServerFeatures);
           });
-            var currentDirectory = Directory.GetCurrentDirectory();
-            logger.LogInformation($"Current Directory:{currentDirectory}");
-            //env.ContentRootPath = System.Reflection.Assembly.GetEntryAssembly().Location;
-            var p = System.Reflection.Assembly.GetEntryAssembly().Location;
-            p = p.Substring(0, p.LastIndexOf(@"\") + 1);
-            logger.LogInformation($"Location:{p}" );
-            logger.LogInformation($"CurrontRootPath:{env.ContentRootPath}");
-            string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            logger.LogInformation($"assemblyPath:{assemblyPath}");
-            var lastchance = Path.GetDirectoryName(new System.Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath);
-            logger.LogInformation($"lastchance:{lastchance}");
+#endif
 
         }
 
@@ -154,7 +151,8 @@ namespace MdExplorer
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     url = url.Replace("&", "^&");
-                    Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
+                    var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
+                    var processStarted= Process.Start(processToStart);                                     
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
@@ -170,6 +168,12 @@ namespace MdExplorer
                 }
             }
         }
+
+        private void ProcessStarted_Exited(object sender, EventArgs e)
+        {
+           
+        }
+       
     }
 
 }

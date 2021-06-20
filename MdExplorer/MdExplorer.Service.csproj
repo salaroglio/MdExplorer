@@ -5,6 +5,7 @@
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
+    <Nullable>annotations</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -16,9 +17,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
     <Content Remove="wwwroot\client2\main.js" />
@@ -27,10 +31,11 @@
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\styles.css" />
     <Content Remove="wwwroot\client2\vendor.js" />
-    <Content Remove="wwwroot\test.html" />
+    <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />
     <EmbeddedResource Include="wwwroot\client2\main.js" />
@@ -39,14 +44,14 @@
     <EmbeddedResource Include="wwwroot\client2\runtime.js" />
     <EmbeddedResource Include="wwwroot\client2\styles.css" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js" />
-    <EmbeddedResource Include="wwwroot\test.html" />
+    <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Ad.Tools.Dal" Version="2.1.0" />
     <PackageReference Include="Ad.Tools.FluentMigrator" Version="1.1.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.31" />
-    <PackageReference Include="Markdig" Version="0.24.0" />
+    <PackageReference Include="Markdig" Version="0.25.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -93,7 +98,7 @@
     <None Update="Documents\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\Home.md">
+    <None Update="Documents\Main.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

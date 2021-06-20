@@ -10,6 +10,7 @@ import { Routes, RouterModule } from '@angular/router';
 import { MdFileService } from './services/md-file.service';
 import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
+import { SettingsComponent } from './components/settings/settings.component';
 
 
 const routes: Routes = [{
@@ -27,7 +28,8 @@ const routes: Routes = [{
     ToolbarComponent,
     SafePipe,
     MainContentComponent,
-    MdExplorerComponent    
+    MdExplorerComponent,
+    SettingsComponent    
   ],
   imports: [
     CommonModule,
