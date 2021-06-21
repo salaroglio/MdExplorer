@@ -4,32 +4,23 @@ using MdExplorer.Service.Models;
 using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
 using Ad.Tools.FluentMigrator;
-using MdExplorer.HubConfig;
 using MdExplorer.Migrations;
-using MdExplorer.Service.Middleware;
 using MDExplorer.DataAccess.Mapping;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using static Ad.Tools.FluentMigrator.FluentMigratorDI;
+using Ad.Tools.FluentMigrator.Interfaces;
 
 namespace MdExplorer
 {
@@ -40,7 +31,7 @@ namespace MdExplorer
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-         
+
         }
 
         public IConfiguration Configuration { get; }
@@ -49,7 +40,19 @@ namespace MdExplorer
         public void ConfigureServices(IServiceCollection services)
         {
             services = ConfigFileSystemWatchers(services);
+            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
+#if DEBUG
+            appdata = ".";
+#endif
+            var databasePath = @$"Data Source={appdata}\MdExplorer.db";
+            services.AddFluentMigratorFeatures(databasePath,
+                                                DatabaseConfigurations.ConfigureSQLite,
+                                                typeof(Migration0).Assembly);
+            //services.AddDalFeatures(typeof(SettingsMap).Assembly,
+            //                        new DatabaseSQLite(),
+            //                        databasePath);
             services.AddHostedService<MonitorMDHostedService>();
+            services.AddHostedService<MigratorHostedService>();
             services.AddSignalR();
             services.AddControllers();
             services.Configure<MdExplorerAppSettings>(Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
@@ -60,20 +63,21 @@ namespace MdExplorer
             var defaultPath = @".\Documents";
             if (Args.Length > 0)
             {
-                defaultPath = Path.GetDirectoryName(Args[0]);
+                if (File.Exists(Path.GetDirectoryName(Args[0])))
+                {
+                    defaultPath = Path.GetDirectoryName(Args[0]);
+                }                
             }
-            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher {Path= defaultPath });
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = @$"Data Source={appdata}\MdExplorer.db";
-            services.AddFluentMigratorFeatures(databasePath,
-                                                DatabaseConfigurations.ConfigureSQLite, 
-                                                typeof(Migration0).Assembly);
-            services.AddDalFeatures(typeof(SettingsMap).Assembly,
-                                    new DatabaseSQLite(),
-                                    databasePath);
+
+
+            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher { Path = defaultPath });
+
+
+            
+            
 
             var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
-            
+
             services.AddSingleton<FileSystemWatcher>(_fileSystemWatcher);
             return services;
         }
@@ -89,10 +93,10 @@ namespace MdExplorer
             app.UseHttpsRedirection();
 
             app.UseRouting();
-           
+
             //app.UseCors("CorsPolicy");
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
-            
+
 #if !DEBUG
             app.UseStaticFiles(new StaticFileOptions
             {
@@ -126,15 +130,15 @@ namespace MdExplorer
               DiscoverAddresses(app.ServerFeatures);
           });
 #endif
-
+         
         }
 
-         void DiscoverAddresses(IFeatureCollection features)
+        void DiscoverAddresses(IFeatureCollection features)
         {
             var addressFeature = features.Get<IServerAddressesFeature>();
             // Do something with the addresses
             foreach (var addresses in addressFeature.Addresses)
-            {                
+            {
                 OpenUrl($"{addresses}/client2/index.html");
             }
         }
@@ -152,7 +156,7 @@ namespace MdExplorer
                 {
                     url = url.Replace("&", "^&");
                     var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
-                    var processStarted= Process.Start(processToStart);                                     
+                    var processStarted = Process.Start(processToStart);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
@@ -171,9 +175,9 @@ namespace MdExplorer
 
         private void ProcessStarted_Exited(object sender, EventArgs e)
         {
-           
+
         }
-       
+
     }
 
 }
