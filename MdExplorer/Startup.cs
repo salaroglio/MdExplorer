@@ -21,6 +21,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 using Ad.Tools.FluentMigrator.Interfaces;
+using Microsoft.Extensions.FileProviders;
 
 namespace MdExplorer
 {
@@ -40,19 +41,13 @@ namespace MdExplorer
         public void ConfigureServices(IServiceCollection services)
         {
             services = ConfigFileSystemWatchers(services);
+
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-#if DEBUG
-            appdata = ".";
-#endif
-            var databasePath = @$"Data Source={appdata}\MdExplorer.db";
-            services.AddFluentMigratorFeatures(databasePath,
-                                                DatabaseConfigurations.ConfigureSQLite,
-                                                typeof(Migration0).Assembly);
-            //services.AddDalFeatures(typeof(SettingsMap).Assembly,
-            //                        new DatabaseSQLite(),
-            //                        databasePath);
-            services.AddHostedService<MonitorMDHostedService>();
-            services.AddHostedService<MigratorHostedService>();
+            var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
+            services.AddDalFeatures(typeof(SettingsMap).Assembly,
+                                    new DatabaseSQLite(),
+                                    databasePath);
+
             services.AddSignalR();
             services.AddControllers();
             services.Configure<MdExplorerAppSettings>(Configuration.GetSection(MdExplorerAppSettings.MdExplorer));

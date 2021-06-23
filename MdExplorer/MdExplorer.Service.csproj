@@ -35,6 +35,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="MdExplorer.db" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <EmbeddedResource Include="MdExplorer.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />
@@ -50,8 +58,9 @@
   <ItemGroup>
     <PackageReference Include="Ad.Tools.Dal" Version="2.1.0" />
     <PackageReference Include="Ad.Tools.FluentMigrator" Version="1.1.1" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.11.31" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="Markdig" Version="0.25.0" />
+    <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -98,9 +107,6 @@
     <None Update="Documents\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\Main.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <!--<ItemGroup>
@@ -113,6 +119,37 @@
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
     <ProjectReference Include="..\MdExplorer.Implementations\MdExplorer.Implementations.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="MdExplorer.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="package-lock.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
 
