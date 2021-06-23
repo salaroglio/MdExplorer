@@ -1,4 +1,7 @@
-﻿using Ad.Tools.FluentMigrator.Interfaces;
+﻿using Ad.Tools.FluentMigrator;
+using Ad.Tools.FluentMigrator.Interfaces;
+using MdExplorer.Migrations;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -7,17 +10,29 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 
 namespace MdExplorer.Service.HostedServices
 {
     public class MigratorHostedService : IHostedService
     {
         private readonly IEngineMigrator _migrator;
+        private readonly IServiceCollection _services;
 
-        public MigratorHostedService(IEngineMigrator migrator, 
+        public MigratorHostedService( 
             ILogger<MigratorHostedService> logger)
         {
-            _migrator = migrator;
+            
+            _services = new ServiceCollection();
+            var appdata = Environment.GetEnvironmentVariable("LocalAppData");           
+            logger.LogInformation($@"Upgrade database in: {appdata}");
+            var databasePath = @$"Data Source={appdata}\MdExplorer.db";
+            _services.AddFluentMigratorFeatures(databasePath,
+                                                DatabaseConfigurations.ConfigureSQLite,
+                                                typeof(Migration0).Assembly);
+            var builder = _services.BuildServiceProvider();
+
+            _migrator = builder.GetService< IEngineMigrator>();
         }
         public Task StartAsync(CancellationToken cancellationToken)
         {

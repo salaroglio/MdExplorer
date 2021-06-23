@@ -10,5 +10,7 @@ namespace MdExplorer.Service.Models
     {
         public const string MdExplorer = "MdExplorer";
         public string PlantumlServer { get; set; }
+        public string JiraServer { get; set; }
+
     }
 }

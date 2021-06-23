@@ -1,5 +1,8 @@
+using MdExplorer.Service;
+using MdExplorer.Service.HostedServices;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -14,9 +17,19 @@ namespace MdExplorer
     {
         public static void Main(string[] args)
         {
-            
+            InitializeApplicationPreparingDb();
             CreateHostBuilder(args).Build().Run();
-            
+
+        }
+
+        private static void InitializeApplicationPreparingDb()
+        {
+            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
+            var currentDb = $@"{appdata}\MdExplorer.db";
+            if (!File.Exists(currentDb))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.MdExplorer.db", currentDb);
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
@@ -30,7 +43,13 @@ namespace MdExplorer
                    webBuilder.UseUrls("https://127.0.0.1:0");
 #endif
                    webBuilder.UseStartup<Startup>();
+               })
+               .ConfigureServices(services =>
+               {                   
+                   services.AddHostedService<MonitorMDHostedService>();
+                   services.AddHostedService<MigratorHostedService>();
                });
+            ;
             return toReturn;
         }
            
