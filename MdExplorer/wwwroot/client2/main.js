@@ -7,7 +7,7 @@
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! D:\Personale\ProgettoDocumentazione\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
+module.exports = __webpack_require__(/*! E:\Sviluppo\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
 
 
 /***/ }),
@@ -227,7 +227,6 @@ class AppComponent {
         this.currentFolder = currentFolder;
         this.title = 'client2';
         currentFolder.folderName.subscribe((data) => {
-            debugger;
             this.titleService.setTitle(data.currentFolder);
         });
         currentFolder.loadFolderName();
@@ -252,22 +251,30 @@ AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineCompo
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "AppCurrentFolderService", function() { return AppCurrentFolderService; });
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ "qCKp");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../Models/MdSettings */ "WJkQ");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+
 
 
 
 class AppCurrentFolderService {
     constructor(http) {
         this.http = http;
-        this.dataStore = { folderName: 'cucu' };
+        this.dataStore = {
+            folderName: 'cucu', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ name: 'PlantumlServer' })]
+        };
         this._folderName = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]('test');
+        this._Settings = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
     }
     get folderName() {
         return this._folderName.asObservable();
     }
+    get settings() {
+        return this._Settings.asObservable();
+    }
     loadFolderName() {
-        const url = '../api/AppCurrentFolder';
+        const url = '../api/AppSettings/GetCurrentFolder';
         return this.http.get(url)
             .subscribe(data => {
             this.dataStore.folderName = data;
@@ -276,9 +283,37 @@ class AppCurrentFolderService {
             console.log("failed to fetch working folder name");
         });
     }
+    loadSettings() {
+        const url = '../api/AppSettings/GetSettings';
+        return this.http.get(url)
+            .subscribe(data => {
+            this.dataStore.settings = data;
+            this._Settings.next(Object.assign({}, this.dataStore).settings);
+        }, error => {
+        });
+    }
 }
-AppCurrentFolderService.ɵfac = function AppCurrentFolderService_Factory(t) { return new (t || AppCurrentFolderService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"])); };
-AppCurrentFolderService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: AppCurrentFolderService, factory: AppCurrentFolderService.ɵfac, providedIn: 'root' });
+AppCurrentFolderService.ɵfac = function AppCurrentFolderService_Factory(t) { return new (t || AppCurrentFolderService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };
+AppCurrentFolderService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: AppCurrentFolderService, factory: AppCurrentFolderService.ɵfac, providedIn: 'root' });
+
+
+/***/ }),
+
+/***/ "WJkQ":
+/*!**************************************!*\
+  !*** ./src/app/Models/MdSettings.ts ***!
+  \**************************************/
+/*! exports provided: MdSetting */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdSetting", function() { return MdSetting; });
+class MdSetting {
+    constructor(init) {
+        Object.assign(this, init);
+    }
+}
 
 
 /***/ }),

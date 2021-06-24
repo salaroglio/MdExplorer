@@ -29,7 +29,7 @@ namespace MdExplorer.Service.HostedServices
             var databasePath = @$"Data Source={appdata}\MdExplorer.db";
             _services.AddFluentMigratorFeatures(databasePath,
                                                 DatabaseConfigurations.ConfigureSQLite,
-                                                typeof(Migration0).Assembly);
+                                                typeof(M2021_06_23_001).Assembly);
             var builder = _services.BuildServiceProvider();
 
             _migrator = builder.GetService< IEngineMigrator>();

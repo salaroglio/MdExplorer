@@ -10,8 +10,7 @@ import { AppCurrentFolderService } from './services/app-current-folder.service';
 export class AppComponent {
   title = 'client2';
   constructor(private titleService: Title, private currentFolder: AppCurrentFolderService) {
-    currentFolder.folderName.subscribe((data:any) => {
-      debugger;
+    currentFolder.folderName.subscribe((data:any) => {      
       this.titleService.setTitle(data.currentFolder);
     });
     currentFolder.loadFolderName();

@@ -17,7 +17,7 @@ export class HrefInterceptorService {
   }
 
   setCallback(workWithElement: IWorkWithElement) {
-    debugger;
+    
     this._workWithElement = workWithElement;
     
   }
@@ -30,7 +30,7 @@ export class HrefInterceptorService {
      // && element.attributes['class'] != undefined
      // && element.attributes['class'].nodeValue === 'mdExplorerLink'
     ) {
-      debugger;
+      
       var variable = this._name;
       this._workWithElement(element);
       console.log("intercept!");

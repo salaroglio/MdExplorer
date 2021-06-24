@@ -1,4 +1,8 @@
 import { Component, OnInit } from '@angular/core';
+import { MatDialogRef } from '@angular/material/dialog';
+import { IMdSetting } from '../../../Models/IMdSetting'
+import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
+
 
 @Component({
   selector: 'app-settings',
@@ -7,9 +11,29 @@ import { Component, OnInit } from '@angular/core';
 })
 export class SettingsComponent implements OnInit {
 
-  constructor() { }
+  plantumlServer: string;
+  jiraServer: string;
 
-  ngOnInit(): void {
+  constructor(private appCurrentFolder: AppCurrentFolderService,
+    private dialogRef: MatDialogRef<SettingsComponent>
+  ) {
+
+  }
+
+  ngOnInit(): void {    
+    this.appCurrentFolder.loadSettings();
+    this.appCurrentFolder.settings.subscribe((data:any) => {
+      var settings = data.settings as IMdSetting[];
+      this.plantumlServer = settings.filter(_ => _.name === "PlantumlServer")[0].valueString || null;
+    });
+  }
+
+  save() {
+
+  }
+
+  dismiss() {
+
   }
 
 }
