@@ -22,6 +22,7 @@ using System.Runtime.InteropServices;
 using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 using Ad.Tools.FluentMigrator.Interfaces;
 using Microsoft.Extensions.FileProviders;
+//using MdExplorer.Service.Filters;
 
 namespace MdExplorer
 {
@@ -41,7 +42,7 @@ namespace MdExplorer
         public void ConfigureServices(IServiceCollection services)
         {
             services = ConfigFileSystemWatchers(services);
-
+            
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
@@ -49,7 +50,10 @@ namespace MdExplorer
                                     databasePath);
 
             services.AddSignalR();
-            services.AddControllers();
+            services.AddControllers(config =>
+            {
+                //config.Filters.Add<TransactionActionFilter>();
+            });
             services.Configure<MdExplorerAppSettings>(Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
         }
 

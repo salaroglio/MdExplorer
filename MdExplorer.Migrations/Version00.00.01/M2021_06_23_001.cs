@@ -3,8 +3,8 @@ using System;
 
 namespace MdExplorer.Migrations
 {
-    [Migration(0, "Creazione database")]
-    public class Migration0 : Migration
+    [Migration(20210603001, "Creazione database")]
+    public class M2021_06_23_001 : Migration
     {
         public override void Up()
         {

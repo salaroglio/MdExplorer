@@ -1,4 +1,5 @@
-﻿using HtmlAgilityPack;
+﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using HtmlAgilityPack;
 using Markdig;
 using Markdig.Extensions.JiraLinks;
 using Markdig.Renderers;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,6 +23,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
+using Ad.Tools.Dal.Extensions;
 
 namespace MdExplorer.Controllers
 {
@@ -32,17 +35,20 @@ namespace MdExplorer.Controllers
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IOptions<MdExplorerAppSettings> _options;
         private readonly IHubContext<MonitorMDHub> _hubContext;
+        private readonly ISession _session;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
-            IHubContext<MonitorMDHub> hubContext
+            IHubContext<MonitorMDHub> hubContext,
+            ISession session
             )
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
             this._options = options;
             _hubContext = hubContext;
+            _session = session;
         }
 
         
@@ -123,13 +129,14 @@ namespace MdExplorer.Controllers
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             string readText = System.IO.File.ReadAllText(filePath);
-
+            var settingDal = _session.GetDal<Setting>();
+            var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
                 .UsePipeTables()
                 .UseBootstrap()
-                .UseJiraLinks(new JiraLinkOptions(@"https://jira.swarco.com"))
+                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"
                 .UseEmojiAndSmiley()
                 .Build();
 
@@ -212,7 +219,11 @@ namespace MdExplorer.Controllers
             });
 
             var myHttpClient = new HttpClient();
-            var response = await myHttpClient.PostAsync($"http://{_options.Value.PlantumlServer}:8080/form", formContent);//
+
+            var settingDal = _session.GetDal<Setting>();
+            var plantumlServer = settingDal.GetList().Where(_ => _.Name == "PlantumlServer").FirstOrDefault()?.ValueString;
+
+            var response = await myHttpClient.PostAsync($"http://{plantumlServer}:8080/form", formContent);//_options.Value.PlantumlServer
             var content = await response.Content.ReadAsStringAsync();
             HtmlDocument mydoc = new HtmlDocument();
             mydoc.LoadHtml(content);

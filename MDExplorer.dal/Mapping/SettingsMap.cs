@@ -12,7 +12,7 @@ namespace MDExplorer.DataAccess.Mapping
     {
         public SettingsMap()
         {
-            Table("Settings");
+            Table("Setting");
             Id(_ => _.Id).GeneratedBy.GuidComb();
             Map(_ => _.Name).Not.Nullable();
             Map(_ => _.ValueDateTime).Nullable();
