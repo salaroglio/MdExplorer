@@ -21,7 +21,7 @@ export class AppCurrentFolderService {
   constructor(private http: HttpClient) {
     
     this.dataStore = {
-      folderName: 'cucu', settings: [new MdSetting({ name: 'PlantumlServer' })]}
+      folderName: 'cucu', settings: [new MdSetting({ id:'test', name: 'PlantumlServer' })]}
     this._folderName = new BehaviorSubject<string>('test');
     this._Settings = new BehaviorSubject<IMdSetting[]>([]);
   }
@@ -57,6 +57,13 @@ export class AppCurrentFolderService {
         , error => {
 
         });
+  }
+
+  saveSettings() {
+    const url = '../api/AppSettings/SetSettings';
+    debugger;
+    var test = { settings: this.dataStore.settings };
+    return this.http.post<IMdSetting[]>(url, this.dataStore.settings);
   }
 
 }

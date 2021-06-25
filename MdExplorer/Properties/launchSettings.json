@@ -20,7 +20,7 @@
     },
     "MdExplorer": {
       "commandName": "Project",
-      "commandLineArgs": "D:\\Documents\\Issues\\C1328S-19 ARPAV new endpoint\\1-AnalisiFunzionale.md",
+      "commandLineArgs": "\"D:\\Documents\\Issues\\C1328S-19 ARPAV new endpoint\\1-AnalisiFunzionale.md\"",
       "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

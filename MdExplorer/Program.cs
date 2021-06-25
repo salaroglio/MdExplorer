@@ -45,7 +45,7 @@ namespace MdExplorer
                    webBuilder.UseStartup<Startup>();
                })
                .ConfigureServices(services =>
-               {                   
+               {
                    services.AddHostedService<MonitorMDHostedService>();
                    services.AddHostedService<MigratorHostedService>();
                });

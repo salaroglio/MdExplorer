@@ -30,19 +30,20 @@ namespace MdExplorer
     {
         public static string[] Args;
 
+        
+
+        public IConfiguration _Configuration { get; }
+
         public Startup(IConfiguration configuration)
         {
-            Configuration = configuration;
-
+            _Configuration = configuration;
         }
-
-        public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services = ConfigFileSystemWatchers(services);
-            
+            services.Configure<MdExplorerAppSettings>(_Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
+            services = ConfigFileSystemWatchers(services);                        
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
@@ -54,7 +55,7 @@ namespace MdExplorer
             {
                 //config.Filters.Add<TransactionActionFilter>();
             });
-            services.Configure<MdExplorerAppSettings>(Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
+            
         }
 
         private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)
@@ -62,23 +63,30 @@ namespace MdExplorer
             var defaultPath = @".\Documents";
             if (Args.Length > 0)
             {
-                if (File.Exists(Path.GetDirectoryName(Args[0])))
+                if (File.Exists(Args[0]))
                 {
-                    defaultPath = Path.GetDirectoryName(Args[0]);
-                }                
+                    var directoryName = Path.GetDirectoryName(Args[0]);
+                    defaultPath = directoryName;
+                }
             }
-
-
+            LogStartup(defaultPath);
             services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher { Path = defaultPath });
-
-
-            
-            
-
             var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
-
             services.AddSingleton<FileSystemWatcher>(_fileSystemWatcher);
             return services;
+        }
+
+        private void LogStartup(string defaultPath)
+        {
+            var createStartupLog = Convert.ToBoolean( _Configuration.GetSection(@"MdExplorer:CreateStartupLog").Value) ;            
+            if (createStartupLog)
+            {
+                var test = File.CreateText("startup.txt");
+                test.WriteLine($@"args: {Args[0]}");
+                test.WriteLine($"defaultPath: {defaultPath}");
+                test.Flush();
+                test.Close();
+            }            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -91,9 +99,7 @@ namespace MdExplorer
 
             app.UseHttpsRedirection();
 
-            app.UseRouting();
-
-            //app.UseCors("CorsPolicy");
+            app.UseRouting();            
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
 
 #if !DEBUG

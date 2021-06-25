@@ -11,6 +11,7 @@ namespace MdExplorer.Service.Models
         public const string MdExplorer = "MdExplorer";
         public string PlantumlServer { get; set; }
         public string JiraServer { get; set; }
+        public bool CreateStartupLog { get; set; }
 
     }
 }

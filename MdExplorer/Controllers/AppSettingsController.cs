@@ -14,7 +14,7 @@ namespace MdExplorer.Service.Controllers
 {
     [ApiController]
     [Route("api/AppSettings/{action}")] //AppCurrentFolder
-    public class AppSettingsController:ControllerBase
+    public class AppSettingsController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ISession _session;
@@ -42,14 +42,26 @@ namespace MdExplorer.Service.Controllers
         }
 
         [HttpPost]
-        public IActionResult SetSettings(Setting[] settings)
+        public IActionResult SetSettings(Settings settings)
         {
             var settingsDal = _session.GetDal<Setting>();
-            foreach (var item in settings)
+            _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
+            foreach (var item in settings.settings)
             {
-                settingsDal.Save(item);
+                var dbItem = settingsDal.GetList().Where(_ => _.Id == item.Id).FirstOrDefault();
+                dbItem.ValueDateTime = item.ValueDateTime;
+                dbItem.ValueDecimal = item.ValueDecimal;
+                dbItem.ValueInt = item.ValueInt;
+                dbItem.ValueString = item.ValueString;
+                settingsDal.Save(dbItem);
             }
-            return Ok(new { response = "done" });
+            _session.Commit();
+            return Ok(new { response = "settings saved" });
+        }
+
+        public class Settings
+        {
+            public Setting[] settings { get; set; }
         }
 
     }
