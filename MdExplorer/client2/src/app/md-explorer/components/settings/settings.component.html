@@ -4,7 +4,13 @@
   <div class="example-container">
     <mat-form-field appearance="outline">
       <mat-label>Plantuml server path</mat-label>
-      <input matInput  [(ngModel)]="plantumlServer" placeholder="PlantumlServerPath" >
+      <input matInput [(ngModel)]="plantumlServer" placeholder="PlantumlServerPath">
+
+      <mat-hint>Hint</mat-hint>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Jira server path</mat-label>
+      <input matInput [(ngModel)]="jiraServer" placeholder="JiraServerPath">
 
       <mat-hint>Hint</mat-hint>
     </mat-form-field>

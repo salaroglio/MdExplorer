@@ -262,7 +262,7 @@ class AppCurrentFolderService {
     constructor(http) {
         this.http = http;
         this.dataStore = {
-            folderName: 'cucu', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ name: 'PlantumlServer' })]
+            folderName: 'cucu', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ id: 'test', name: 'PlantumlServer' })]
         };
         this._folderName = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]('test');
         this._Settings = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
@@ -291,6 +291,12 @@ class AppCurrentFolderService {
             this._Settings.next(Object.assign({}, this.dataStore).settings);
         }, error => {
         });
+    }
+    saveSettings() {
+        const url = '../api/AppSettings/SetSettings';
+        debugger;
+        var test = { settings: this.dataStore.settings };
+        return this.http.post(url, this.dataStore.settings);
     }
 }
 AppCurrentFolderService.ɵfac = function AppCurrentFolderService_Factory(t) { return new (t || AppCurrentFolderService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };

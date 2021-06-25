@@ -51,7 +51,7 @@ namespace MdExplorer.Controllers
             _session = session;
         }
 
-        
+
 
         /// <summary>
         /// Good start for keeping html using angualar
@@ -127,8 +127,14 @@ namespace MdExplorer.Controllers
                 Name = Path.GetFileName(filePath)
             };
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            var readText = string.Empty;
+            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var sr = new StreamReader(fs, Encoding.Default))
+            {
+                readText = sr.ReadToEnd();
+            }
+            
 
-            string readText = System.IO.File.ReadAllText(filePath);
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
 
@@ -169,7 +175,7 @@ namespace MdExplorer.Controllers
 
                 item.ParentNode.AppendChild(importedNode);
                 item.ParentNode.RemoveChild(item);
-            }           
+            }
 
             return new ContentResult
             {
