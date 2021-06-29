@@ -56,8 +56,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Ad.Tools.Dal" Version="3.1.4" />
-    <PackageReference Include="Ad.Tools.FluentMigrator" Version="1.1.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
@@ -115,6 +113,9 @@
   </ItemGroup>-->
 
   <ItemGroup>
+    <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />
+    <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
+    <ProjectReference Include="..\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj" />
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
     <ProjectReference Include="..\MdExplorer.Implementations\MdExplorer.Implementations.csproj" />
