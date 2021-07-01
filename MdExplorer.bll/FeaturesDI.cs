@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
-namespace MdExplorer.bll
+namespace MdExplorer.Features
 {
     public static class FeaturesDI
     {
@@ -11,6 +11,7 @@ namespace MdExplorer.bll
 
             services.AddSingleton<ICommandFactory, CommandFactory>();
             services.AddTransient(_ => _.GetService<ICommandFactory>().GetCommands());
+            services.AddTransient<ICommandRunnerHtml, CommandRunnerHtml>();
             return services;
         }
     }

@@ -22,6 +22,7 @@ using System.Runtime.InteropServices;
 using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 using Ad.Tools.FluentMigrator.Interfaces;
 using Microsoft.Extensions.FileProviders;
+using MdExplorer.Features;
 //using MdExplorer.Service.Filters;
 
 namespace MdExplorer
@@ -49,7 +50,7 @@ namespace MdExplorer
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(),
                                     databasePath);
-
+            services.AddMDExplorerCommands();
             services.AddSignalR();
             services.AddControllers(config =>
             {

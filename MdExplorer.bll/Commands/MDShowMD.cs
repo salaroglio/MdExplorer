@@ -8,9 +8,11 @@ namespace MdExplorer.Features.Commands
 {
     public class MDShowMD : ICommand
     {
+        public string ServerAddress { get; set; }
+
         public string TransformInNewMDFromMD(string markdown)
         {
-            // Devo cercare dentro markdown il comando m↓show-md(pathfile)
+            // Devo cercare dentro markdown il comando m↓ShowMd(pathfile)
             // potrei usare le regular expression
             return markdown;
         }

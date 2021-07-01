@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Hosting.Server.Features;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,7 +10,16 @@ namespace MdExplorer.Features.Commands
 {
     public class CommandFactory : ICommandFactory
     {
-        static object lockGetCommands;
+        private readonly string _serverAddress;
+        private static object lockGetCommands;
+
+        public CommandFactory(IServerAddressesFeature serverAddresses)
+        {
+            this._serverAddress = serverAddresses.Addresses.First();
+        }
+        
+        
+
         public ICommand[] GetCommands()
         {
             // E' facile, tiro su tutte le classi presenti dentro ICommand,
@@ -25,5 +35,6 @@ namespace MdExplorer.Features.Commands
                 return listToReturn.ToArray();
             }            
         }
+
     }
 }
