@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public interface ICommand
+    public interface ICommandRunnerHtml:ICommandRunner
     {
-        string TransformInNewMDFromMD(string markdown);
+        
     }
 }

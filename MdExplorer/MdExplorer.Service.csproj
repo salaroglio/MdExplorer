@@ -117,6 +117,7 @@
     <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
     <ProjectReference Include="..\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj" />
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
+    <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
     <ProjectReference Include="..\MdExplorer.Implementations\MdExplorer.Implementations.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />

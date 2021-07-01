@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class CommandRunnerHtml : ICommandRunner
+    public class CommandRunnerHtml : ICommandRunnerHtml
     {
         private readonly ICommand[] _commands;
 
