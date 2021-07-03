@@ -9,5 +9,6 @@ namespace MdExplorer.Features.Commands
     public interface ICommandFactory
     {
         ICommand[] GetCommands();
+        //string ServerAddress { get; set; }
     }
 }

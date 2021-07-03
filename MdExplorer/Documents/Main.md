@@ -30,6 +30,7 @@ managing branches and merge.
 ### Configurable plantuml server
 
 
+m↓ShowMd(architecture\MainArchitecture.md)
 
 
 # E' un server

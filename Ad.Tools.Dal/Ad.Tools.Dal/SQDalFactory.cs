@@ -20,58 +20,12 @@ namespace Ad.Tools.Dal
         }
 
         public ISession OpenSession()
-        {
-            if (_session == null)
-                _session = _sessionFactory.OpenSession();
-            else
-            {
-                if (!_session.IsOpen)
-                {
-                    _session = _sessionFactory.OpenSession();
-                }
-            }
-            _logger.LogDebug("Open Session");
-            return _session;
-        }
-
-        //public void BeginTransaction()
-        //{
-        //    if (_transaction != null && _transaction.IsActive)
-        //        return;
-        //    _transaction = _session.BeginTransaction();
-        //    _logger.LogDebug("Begin Transaction");
-        //}
-
-        //public void CommitTransaction()
-        //{
-        //    if (_transaction == null)
-        //        return;
-        //    else if (!_transaction.IsActive)
-        //    {
-        //        return;
-        //    }
-        //    _transaction.Commit();
-        //    _logger.LogDebug("Commit Transaction");
-        //}
-
-        //public void RollbackTransaction()
-        //{
-        //    if (_transaction != null && !_transaction.IsActive)
-        //        return;
-        //    _transaction.Rollback();
-        //}
-
+        {            
+            return _sessionFactory.OpenSession(); ;
+        }       
 
         public void CloseSession()
-        {
-            if (_session == null)
-            {
-                return;
-            }
-            else if (!_session.IsOpen)
-            {
-                return;
-            }
+        {           
             _session.Close();
             _session.Dispose();
         }

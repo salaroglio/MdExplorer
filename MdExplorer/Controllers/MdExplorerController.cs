@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
 using Ad.Tools.Dal.Extensions;
+using MdExplorer.Features.Commands;
 
 namespace MdExplorer.Controllers
 {
@@ -36,12 +37,14 @@ namespace MdExplorer.Controllers
         private readonly IOptions<MdExplorerAppSettings> _options;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ISession _session;
+        private readonly ICommandRunner _commandRunner;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
-            ISession session
+            ISession session,
+            ICommandRunnerHtml commandRunner
             )
         {
             _logger = logger;
@@ -49,6 +52,7 @@ namespace MdExplorer.Controllers
             this._options = options;
             _hubContext = hubContext;
             _session = session;
+            _commandRunner = commandRunner;
         }
 
 
@@ -99,6 +103,7 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
+            
             var filePath = _fileSystemWatcher.Path;
             var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\"));
             var relativePathExtension = Path.GetExtension(relativePath);
@@ -133,7 +138,8 @@ namespace MdExplorer.Controllers
             {
                 readText = sr.ReadToEnd();
             }
-            
+
+            readText = _commandRunner.CreateMD(readText);
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
