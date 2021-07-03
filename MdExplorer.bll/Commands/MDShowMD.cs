@@ -6,18 +6,19 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
+using System.Xml;
 
 namespace MdExplorer.Features.Commands
 {
     public class MDShowMD : ICommand
     {
-        
+
         public MDShowMD(string ServerAddress)
         {
             _serverAddress = ServerAddress;
         }
         private readonly string _serverAddress;
-        
+
 
         public string TransformInNewMDFromMD(string markdown)
         {
@@ -44,8 +45,60 @@ namespace MdExplorer.Features.Commands
                         var result = response.Result;
                         var taskRead = result.Content.ReadAsStringAsync();
                         taskRead.Wait();
-                        var stringToReplace = taskRead.Result;
-                        markdown = markdown.Replace(allElementToReplace, stringToReplace);
+                         
+                        XmlDocument doc1 = new XmlDocument();
+                        var tagStyle = @"<style>
+                                #overlay {
+                                  position:relative;
+                                  top: 0;
+                                  left: 0;
+                                  right: 0;
+                                  bottom: 0;
+                                  border:solid;
+                                  /*background-color: lightgreen;  Black background with opacity */
+                                  z-index: 2; /* Specify a stack order in case you're using a different order for other elements */
+                                  cursor: pointer; /* Add a pointer on hover */
+                                }
+                                /*Important:*/
+                                .link-spanner{
+                                  position:absolute; 
+                                  width:100%;
+                                  height:100%;
+                                  top:0;
+                                  left: 0;
+                                  z-index: 1;
+
+                                  /* edit: fixes overlap error in IE7/8, 
+                                     make sure you have an empty gif 
+                                  background-image: url('empty.gif');*/
+                                }  
+                                </style>" + "\r\n";
+                        
+                        var nodeDiv = doc1.CreateElement("div");
+                        nodeDiv.InnerXml = taskRead.Result;
+
+                        var attributeId = doc1.CreateAttribute("id");
+                        attributeId.Value = "overlay";
+                        nodeDiv.Attributes.Append(attributeId);                                                
+                        //nodeDiv.AppendChild(styleNode);
+
+                        var nodeA = doc1.CreateElement("a");
+                        var attraHref = doc1.CreateAttribute("href");
+                        attraHref.Value = uriUrl.AbsoluteUri;
+                        nodeA.Attributes.Append(attraHref);
+                        nodeDiv.AppendChild(nodeA);
+
+                        var nodeSpan = doc1.CreateElement("span");
+                        var attrTitle = doc1.CreateAttribute("title");
+                        attrTitle.Value = fileName;
+                        nodeSpan.Attributes.Append(attrTitle);
+                        var spanClass = doc1.CreateAttribute("class");
+                        spanClass.Value = "link-spanner";
+                        nodeSpan.Attributes.Append(spanClass);
+                        nodeA.AppendChild(nodeSpan);
+
+                        var stringToReplace = nodeDiv.OuterXml;
+                        markdown = tagStyle + markdown.Replace(allElementToReplace, stringToReplace);
                     }
                 }
 
