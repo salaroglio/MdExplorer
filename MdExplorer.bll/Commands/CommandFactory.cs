@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Hosting.Server.Features;
+﻿using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,14 +12,26 @@ namespace MdExplorer.Features.Commands
 {
     public class CommandFactory : ICommandFactory
     {
-        private readonly string _serverAddress;
-        private static object lockGetCommands;
-
-        public CommandFactory(IServerAddressesFeature serverAddresses)
-        {
-            this._serverAddress = serverAddresses.Addresses.First();
-        }
         
+        private static object lockGetCommands = new object();      
+        private readonly IServer _server;
+
+        private string _serverAddress { get; set; }
+
+
+        public CommandFactory(IServer server)//IServerAddressesFeature serverAddresses
+        {
+            _server = server;
+            var features = _server.Features;
+            var addressesFeature = features.Get<IServerAddressesFeature>();
+            
+            var enumAddress = addressesFeature.Addresses.GetEnumerator();
+            enumAddress.MoveNext();
+            _serverAddress = enumAddress.Current;
+
+            //this._serverAddress = serverAddresses.Addresses.First();
+        }
+
         
 
         public ICommand[] GetCommands()
@@ -27,10 +41,10 @@ namespace MdExplorer.Features.Commands
             lock (lockGetCommands)
             {
                 var listToReturn = new List<ICommand>();
-                var messengers = Assembly.GetExecutingAssembly().GetTypes().Where(_ => (typeof(ICommand).IsAssignableFrom(_)));
+                var messengers = Assembly.GetExecutingAssembly().GetTypes().Where(_ => (typeof(ICommand).IsAssignableFrom(_) && !_.IsInterface));
                 foreach (var item in messengers)
                 {
-                    listToReturn.Add((ICommand)Activator.CreateInstance(item));
+                    listToReturn.Add((ICommand)Activator.CreateInstance(item,args: new string[] { _serverAddress }));
                 }
                 return listToReturn.ToArray();
             }            

@@ -28,3 +28,16 @@ MdClient->Carlo: show new html
 
 @enduml
 ```
+
+
+#if DEBUG
+            lifetime.ApplicationStarted.Register(
+          () =>
+          {
+              var meraviglia = services.GetService<ICommandFactory>();
+              var addressFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
+              var enumAddress = addressFeature.Addresses.GetEnumerator();
+              enumAddress.MoveNext();
+              meraviglia.ServerAddress = enumAddress.Current;
+          });
+#endif

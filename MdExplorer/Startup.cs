@@ -23,6 +23,8 @@ using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 using Ad.Tools.FluentMigrator.Interfaces;
 using Microsoft.Extensions.FileProviders;
 using MdExplorer.Features;
+using MdExplorer.Features.Commands;
+using System.Collections.Generic;
 //using MdExplorer.Service.Filters;
 
 namespace MdExplorer
@@ -91,7 +93,7 @@ namespace MdExplorer
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, ILogger<Startup> logger)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
             if (env.IsDevelopment())
             {
@@ -136,7 +138,8 @@ namespace MdExplorer
               DiscoverAddresses(app.ServerFeatures);
           });
 #endif
-         
+
+
         }
 
         void DiscoverAddresses(IFeatureCollection features)

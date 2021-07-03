@@ -8,7 +8,7 @@ namespace MdExplorer.Features.Commands
 {
     public interface ICommand
     {
-        string ServerAddress { get; set; }
+        //string ServerAddress { get; set; }
         string TransformInNewMDFromMD(string markdown);
     }
 }

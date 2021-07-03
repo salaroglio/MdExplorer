@@ -23,7 +23,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ad.Tools.Dal.Abstractions",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ad.Tools.FluentMigrator", "Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj", "{02D82A56-3F23-433C-B642-792A92F7CB8D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Markdig.Extensions", "MdExplorer.Markdig.Extensions\MdExplorer.Markdig.Extensions.csproj", "{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Markdig.Extensions", "MdExplorer.Markdig.Extensions\MdExplorer.Markdig.Extensions.csproj", "{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Features.Tests", "MdExplorer.Features.Tests\MdExplorer.Features.Tests.csproj", "{43B3843C-9638-4894-9781-F7CD93059799}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -75,6 +77,10 @@ Global
 		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{43B3843C-9638-4894-9781-F7CD93059799}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43B3843C-9638-4894-9781-F7CD93059799}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43B3843C-9638-4894-9781-F7CD93059799}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43B3843C-9638-4894-9781-F7CD93059799}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
