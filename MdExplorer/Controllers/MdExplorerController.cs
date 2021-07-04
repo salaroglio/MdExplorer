@@ -57,40 +57,40 @@ namespace MdExplorer.Controllers
 
 
 
-        /// <summary>
-        /// Good start for keeping html using angualar
-        /// </summary>
-        /// <param name="mdFile"></param>
-        /// <returns></returns>
-        [HttpPost]
-        public async Task<IActionResult> GetPageAsync(FileInfoNode mdFile)
-        {
-            var filePath = _fileSystemWatcher.Path;
-            filePath = filePath + mdFile.Path;
+        ///// <summary>
+        ///// Good start for keeping html using angualar
+        ///// </summary>
+        ///// <param name="mdFile"></param>
+        ///// <returns></returns>
+        //[HttpPost]
+        //public async Task<IActionResult> GetPageAsync(FileInfoNode mdFile)
+        //{
+        //    var filePath = _fileSystemWatcher.Path;
+        //    filePath = filePath + mdFile.Path;
 
-            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
+        //    var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
 
-            var markDownFeature = new MarkDownFeature(pipeline);
-            string html = await markDownFeature.GetHtmlAsync(filePath);
+        //    var markDownFeature = new MarkDownFeature(pipeline);
+        //    string html = await markDownFeature.GetHtmlAsync(filePath);
 
-            XmlDocument doc1 = new XmlDocument();
-            doc1.LoadXml(html);
-            var elements = doc1.FirstChild.SelectNodes("//a");
-            foreach (XmlNode itemElement in elements)
-            {
-                var htmlClass = doc1.CreateAttribute("(click)");
-                htmlClass.InnerText = "gettAlert()";
-                itemElement.Attributes.Append(htmlClass);
-            }
+        //    XmlDocument doc1 = new XmlDocument();
+        //    doc1.LoadXml(html);
+        //    var elements = doc1.FirstChild.SelectNodes("//a");
+        //    foreach (XmlNode itemElement in elements)
+        //    {
+        //        var htmlClass = doc1.CreateAttribute("(click)");
+        //        htmlClass.InnerText = "gettAlert()";
+        //        itemElement.Attributes.Append(htmlClass);
+        //    }
 
-            html = doc1.InnerXml;
+        //    html = doc1.InnerXml;
 
-            return new ContentResult
-            {
-                ContentType = "text/html",
-                Content = html,
-            };
-        }
+        //    return new ContentResult
+        //    {
+        //        ContentType = "text/html",
+        //        Content = html,
+        //    };
+        //}
 
 
 
@@ -131,7 +131,7 @@ namespace MdExplorer.Controllers
                 Path = filePath,
                 Name = Path.GetFileName(filePath)
             };
-            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            
             var readText = string.Empty;
             using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var sr = new StreamReader(fs, Encoding.Default))
@@ -139,7 +139,7 @@ namespace MdExplorer.Controllers
                 readText = sr.ReadToEnd();
             }
 
-            readText = _commandRunner.CreateMD(readText);
+           
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -153,6 +153,7 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
+            result = _commandRunner.CreateMD(result);
             StringWriter tw = new StringWriter();
             var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 
@@ -182,6 +183,7 @@ namespace MdExplorer.Controllers
                 item.ParentNode.AppendChild(importedNode);
                 item.ParentNode.RemoveChild(item);
             }
+            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             return new ContentResult
             {
@@ -199,6 +201,7 @@ namespace MdExplorer.Controllers
             //AddLink(doc1, head);
             var body = doc1.CreateElement("body");
             html.AppendChild(body);
+            //resultToParse = resultToParse.Replace("--&gt;</g>", "--&gt</g>")
             body.InnerXml = resultToParse;
         }
 

@@ -1,0 +1,17 @@
+﻿using MdExplorer.Features.Interfaces;
+using Microsoft.AspNetCore.Hosting.Server;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace MdExplorer.Features.Commands
+{
+    public class CommandFactoryPdf : CommandFactory<ICommandPdf>, ICommandFactoryPdf
+    {
+        public CommandFactoryPdf(IServer server, IServiceProvider serviceProvider) : base(server, serviceProvider)
+        {
+        }
+    }
+}
