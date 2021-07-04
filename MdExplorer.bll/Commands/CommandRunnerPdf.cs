@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class CommandRunnerHtml : CommandRunner, ICommandRunnerHtml
+    public class CommandRunnerPdf : CommandRunner, ICommandRunnerPdf
     {
-        public CommandRunnerHtml(ICommandHtml[] commands) : base(commands)
+        public CommandRunnerPdf(ICommandPdf[] commands): base(commands)
         {
+
         }
     }
 }

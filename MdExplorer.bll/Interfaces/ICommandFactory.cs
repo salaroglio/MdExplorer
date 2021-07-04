@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public interface ICommandFactory
+    public interface ICommandFactory<T>
     {
-        ICommand[] GetCommands();
+        T[] GetCommands();
         //string ServerAddress { get; set; }
     }
 }

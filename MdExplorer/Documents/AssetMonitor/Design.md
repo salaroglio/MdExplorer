@@ -6,9 +6,10 @@
 ## [1] GIS MATCH
 Aggiungere uno nuovo stato: GIS MATCH come Parameters
 
-### [UML Asset Monitor States](./StateDiagrams/AssetMonitorStates)
 
-###Icons
+m↓ShowMd(AssetMonitor\StateDiagrams\AssetMonitorStates.md)
+
+### Icons
 
 ![alt text](CustomFiles/plus.png "Title") NEW ![alt text](CustomFiles/linked.png "Title") LINKED ![alt text](CustomFiles/no-linked.png "Title") MISMATCH 
 ![alt text](CustomFiles/multimatch.png "Title") MULTI_MATCH ![alt text](CustomFiles/no-match.png "Title") NO_MATCH ![alt text](CustomFiles/question.png "Title") LOST
@@ -45,8 +46,10 @@ Gli asset non gestiti da RMC tipo il palo della luce avrà il gis last update va
 Per quel specifico endpoint sono riuscito a parlarci l'ultima volta ieri alle 15, mi aspetto di vedere quella data nel campo last update per tutti gli asset gestiti da quel endpoint.
 <!-- blank line -->
 
-### [UML Sequence diagram Grid](./SequenceDiagrams/Grid)
-### [UML Sequence diagram Details](./SequenceDiagrams/Details)
+
+m↓ShowMd(AssetMonitor\SequenceDiagrams\Grid.md)
+
+m↓ShowMd(AssetMonitor\SequenceDiagrams\Details.md)
 
 ---
 

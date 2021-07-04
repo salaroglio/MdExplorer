@@ -10,7 +10,7 @@ namespace MdExplorer.Features.Tests
         public void Should_Get_MdShowMd()
         {
             var textToPars = "m↓ShowMd(file.md)";
-            var command = new MDShowMD("");
+            var command = new MDShowMD("",null);
             var match = command.GetMatches(textToPars);
             Assert.AreEqual(match.Count, 1);
         }
@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Tests
         public void Should_Get_MdShowMd_And_The_Content_Inside_Parenthesis()
         {
             var textToPars = "m↓ShowMd(file.md)";
-            var command = new MDShowMD("");
+            var command = new MDShowMD("",null);
             var match = command.GetMatches(textToPars);
             var stringMatched = match[0].Groups[1].Value;
             Assert.AreEqual(stringMatched, "file.md");

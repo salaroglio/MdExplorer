@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MdExplorer.Features.Interfaces;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -10,15 +12,16 @@ using System.Xml;
 
 namespace MdExplorer.Features.Commands
 {
-    public class MDShowMD : ICommand
+    public class MDShowMD : ICommandHtml
     {
 
-        public MDShowMD(string ServerAddress)
+        public MDShowMD(string ServerAddress, ILogger<MDShowMD> logger)
         {
             _serverAddress = ServerAddress;
+            _logger = logger;
         }
         private readonly string _serverAddress;
-
+        private readonly ILogger<MDShowMD> _logger;
 
         public string TransformInNewMDFromMD(string markdown)
         {
@@ -33,10 +36,18 @@ namespace MdExplorer.Features.Commands
             {
                 var fileName = item.Groups[1].Value;
                 var allElementToReplace = item.Groups[0].Value;
-                using (var httpClient = new HttpClient())
+                var httpClientHandler = new HttpClientHandler();
+                httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
+                {
+                    return true;
+                };                
+                
+                using (var httpClient = new HttpClient(httpClientHandler))
                 {
                     var queryEncoded = HttpUtility.UrlEncode(fileName);
+                    
                     var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
+                    _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
                     var response = httpClient.GetAsync(uriUrl);
                     response.Wait();
 
