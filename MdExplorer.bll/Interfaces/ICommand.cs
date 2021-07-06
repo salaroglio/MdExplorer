@@ -11,6 +11,7 @@ namespace MdExplorer.Features.Commands
     {
         //string ServerAddress { get; set; }
         string  TransformInNewMDFromMD(string markdown);
+        string TransformAfterConversion(string text);
         public MatchCollection GetMatches(string markdown);
     }
 }

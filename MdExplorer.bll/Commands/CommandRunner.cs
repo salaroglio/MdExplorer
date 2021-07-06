@@ -15,7 +15,8 @@ namespace MdExplorer.Features.Commands
         {            
             _commands = commands;
         }
-        public string CreateMD(string markdownText)
+
+        public string TransformInNewMDFromMD(string markdownText)
         {
             foreach (var item in _commands)
             {
@@ -23,5 +24,16 @@ namespace MdExplorer.Features.Commands
             }
             return markdownText;
         }
+
+        public string TransformAfterConversion(string markdownText)
+        {
+            foreach (var item in _commands)
+            {
+                markdownText = item.TransformAfterConversion(markdownText);
+            }
+            return markdownText;
+        }
+
+        
     }
 }
