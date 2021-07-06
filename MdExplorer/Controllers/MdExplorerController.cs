@@ -57,44 +57,6 @@ namespace MdExplorer.Controllers
 
 
 
-        ///// <summary>
-        ///// Good start for keeping html using angualar
-        ///// </summary>
-        ///// <param name="mdFile"></param>
-        ///// <returns></returns>
-        //[HttpPost]
-        //public async Task<IActionResult> GetPageAsync(FileInfoNode mdFile)
-        //{
-        //    var filePath = _fileSystemWatcher.Path;
-        //    filePath = filePath + mdFile.Path;
-
-        //    var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
-
-        //    var markDownFeature = new MarkDownFeature(pipeline);
-        //    string html = await markDownFeature.GetHtmlAsync(filePath);
-
-        //    XmlDocument doc1 = new XmlDocument();
-        //    doc1.LoadXml(html);
-        //    var elements = doc1.FirstChild.SelectNodes("//a");
-        //    foreach (XmlNode itemElement in elements)
-        //    {
-        //        var htmlClass = doc1.CreateAttribute("(click)");
-        //        htmlClass.InnerText = "gettAlert()";
-        //        itemElement.Attributes.Append(htmlClass);
-        //    }
-
-        //    html = doc1.InnerXml;
-
-        //    return new ContentResult
-        //    {
-        //        ContentType = "text/html",
-        //        Content = html,
-        //    };
-        //}
-
-
-
-
         /// <summary>
         /// Get all goodies available in html
         /// It's good to get images for example
@@ -138,8 +100,8 @@ namespace MdExplorer.Controllers
             {
                 readText = sr.ReadToEnd();
             }
+            readText  = _commandRunner.TransformInNewMDFromMD(readText);
 
-           
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -153,7 +115,7 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-            result = _commandRunner.CreateMD(result);
+            result = _commandRunner.TransformAfterConversion(result);
             StringWriter tw = new StringWriter();
             var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 

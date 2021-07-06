@@ -1,4 +1,4 @@
-# Livello 2
+# Definizione della parte Front end `<Sviluppatore 2>`
 
+qui scrive qualcosa lo sviluppatore 1
 
-m↓ShowMd(Architecture\livello3.md)

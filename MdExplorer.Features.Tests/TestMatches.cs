@@ -24,5 +24,22 @@ namespace MdExplorer.Features.Tests
             var stringMatched = match[0].Groups[1].Value;
             Assert.AreEqual(stringMatched, "file.md");
         }
+
+        [TestMethod]
+        public void Should_Get_FromPlantumlToPng_And_The_Content_Inside_BackTicks()
+        {
+            var textToPars = @"```plantuml 
+                                    @startuml 
+                            @enduml ```";
+                               
+            var command = new FromPlantumlToPng("", null,null);
+            var match = command.GetMatches(textToPars);
+            var stringMatched = match[0].Groups[1].Value;
+            Assert.AreEqual(stringMatched, @" 
+                                    @startuml 
+                            @enduml ");
+        }
+
+        
     }
 }
