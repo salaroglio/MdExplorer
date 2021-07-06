@@ -8,6 +8,7 @@ namespace MdExplorer.Features.Commands
 {
     public interface ICommandRunner
     {
-        string CreateMD(string markdownText);
+        string TransformAfterConversion(string markdownText);
+        string TransformInNewMDFromMD(string markdown);
     }
 }

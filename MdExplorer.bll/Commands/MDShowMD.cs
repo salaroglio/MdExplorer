@@ -25,7 +25,7 @@ namespace MdExplorer.Features.Commands
 
         public virtual string TransformInNewMDFromMD(string markdown)
         {
-            return string.Empty;
+            return markdown;
         }
 
         public MatchCollection GetMatches(string markdown)
@@ -36,5 +36,9 @@ namespace MdExplorer.Features.Commands
             return matches;
         }
 
+        public virtual string TransformAfterConversion(string text)
+        {
+            return text;
+        }
     }
 }

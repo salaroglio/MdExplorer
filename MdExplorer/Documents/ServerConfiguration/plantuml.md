@@ -29,7 +29,7 @@ MdClient->Carlo: show new html
 @enduml
 ```
 
-
+``` c#
 #if DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
@@ -41,3 +41,4 @@ MdClient->Carlo: show new html
               meraviglia.ServerAddress = enumAddress.Current;
           });
 #endif
+```
