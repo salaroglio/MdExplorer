@@ -18,7 +18,7 @@ namespace MdExplorer.Features.Commands.html
         {
         }
 
-        override public string TransformInNewMDFromMD(string markdown)
+        override public string TransformAfterConversion(string markdown)
         {
             // Devo cercare dentro markdown il comando m↓ShowMd(pathfile)
             // potrei usare le regular expression
