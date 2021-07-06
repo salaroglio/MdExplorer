@@ -1,5 +1,6 @@
-﻿# Main Architecture
+﻿# Main Architecture `<Projet Manager>`
 
-Soo... here we are. Trying to make documentation using MDExplorer
+Questa parte ci pensa il capo progetto a definirla
+Ad esempio magari con un grafico
+m↓ShowMd(AssetMonitor\StateDiagrams\AssetMonitorStates.md)
 
-m↓ShowMd(Architecture\livello2.md)
