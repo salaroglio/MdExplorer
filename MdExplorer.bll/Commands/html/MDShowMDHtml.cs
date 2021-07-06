@@ -14,7 +14,7 @@ namespace MdExplorer.Features.Commands.html
 {
     public class MDShowMDHtml : MDShowMD, ICommandHtml
     {
-        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMD> logger) : base(ServerAddress, logger)
+        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger) : base(ServerAddress, logger)
         {
         }
 

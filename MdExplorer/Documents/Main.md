@@ -31,8 +31,6 @@ managing branches and merge.
 
 
 
-m↓ShowMd(Architecture\MainArchitecture.md)
-
 # E' un server
 
 Già già... è server .net core 3.1 con dentro Angular 11.
