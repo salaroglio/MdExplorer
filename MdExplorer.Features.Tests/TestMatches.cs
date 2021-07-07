@@ -40,6 +40,28 @@ namespace MdExplorer.Features.Tests
                             @enduml ");
         }
 
-        
+        [TestMethod]
+        public void Should_Get_FromPlantumlToPng_Double_Groups()
+        {
+            var textToPars = @"```plantuml 
+                                    @startuml 
+                    testo 1
+                            @enduml ```
+                testo inutile
+                ```plantuml 
+                                    @startuml 
+                        daje
+                            @enduml ```";
+
+            var command = new FromPlantumlToPng("", null, null);
+            var match = command.GetMatches(textToPars);
+            var stringMatched0 = match[0].Groups[1].Value;
+            var stringMatched1 = match[1].Groups[1].Value;
+            Assert.AreEqual(stringMatched0, @" 
+                                    @startuml 
+                            @enduml ");
+        }
+
+
     }
 }
