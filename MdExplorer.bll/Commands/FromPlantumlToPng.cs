@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
+using PlantUml.Net;
 
 namespace MdExplorer.Features.Commands
 {
@@ -39,7 +40,7 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"```plantuml([^```]*)",
+            Regex rx = new Regex(@"```plantuml([^```]*)```",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;
@@ -62,8 +63,9 @@ namespace MdExplorer.Features.Commands
         public string TransformInNewMDFromMD(string markdown)
         {
             // Crea la directory
+
             
-            var directoryInfo = Directory.CreateDirectory(".Md");
+            var directoryInfo = Directory.CreateDirectory(".md");
 
             var matches = GetMatches(markdown);
 
@@ -71,16 +73,36 @@ namespace MdExplorer.Features.Commands
             {
                 var text = item.Groups[1].Value;
 
-                var taskSvg = GetSVG(text);
+                var taskSvg = GetSVGFromJar(text);
+
                 taskSvg.Wait();
 
                 var res = taskSvg.Result;
-
-                File.WriteAllBytes($"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{text.GetHashCode()}.png", res);
+                var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{text.GetHashCode()}.png";
+                _logger.LogInformation($"preparing temporary file: {filePath}");
+                if (!File.Exists(filePath))
+                    File.WriteAllBytes(filePath, res);
+                var markdownTest = markdown.Replace(item.Groups[0].Value, $@"![]({filePath.Replace("\\", "/")})");
+                File.WriteAllText(filePath + "test.md", markdownTest);
             }
-           
-            return markdown;
 
+            return markdown;
+            
+        }
+
+        private async Task<byte[]> GetSVGFromJar(string plantumlcode)
+        {
+            var factory = new RendererFactory();
+
+            var renderer = factory.CreateRenderer(new PlantUmlSettings() {
+                JavaPath = @"C:\Program Files\Java\jre1.8.0_291\bin\javaw.exe",
+                LocalGraphvizDotPath = @"E:\Sviluppo\MdExplorer\InstallBinaries\Graphviz\bin\dot.exe",
+                RenderingMode = RenderingMode.Local,
+                LocalPlantUmlPath= @"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
+            });
+
+            var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Png);
+            return bytes;
         }
 
         private async Task<byte[]> GetSVG(string plantumlCode)
