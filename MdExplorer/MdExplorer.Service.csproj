@@ -63,46 +63,46 @@
 
   <ItemGroup>
    
-    <None Update="Documents\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
+    <None Update="Documents\Tests\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\api.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\api.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\linked.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\linked.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\multimatch.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\multimatch.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\no-linked.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\no-linked.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\no-match.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\no-match.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\no.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\no.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\plus.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\plus.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\plusColorato.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\plusColorato.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\question.png">
+    <None Update="Documents\Tests\AssetMonitor\CustomFiles\question.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\Design.md">
+    <None Update="Documents\Tests\AssetMonitor\Design.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\SequenceDiagrams\Details.md">
+    <None Update="Documents\Tests\AssetMonitor\SequenceDiagrams\Details.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\SequenceDiagrams\Grid.md">
+    <None Update="Documents\Tests\AssetMonitor\SequenceDiagrams\Grid.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Documents\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
+    <None Update="Documents\Tests\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

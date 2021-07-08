@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
     <PackageReference Include="NHibernate" Version="5.3.9" />
+    <PackageReference Include="PlantUml.Net" Version="1.2.58" />
   </ItemGroup>
 
   <ItemGroup>

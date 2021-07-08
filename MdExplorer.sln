@@ -23,9 +23,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ad.Tools.Dal.Abstractions",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ad.Tools.FluentMigrator", "Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj", "{02D82A56-3F23-433C-B642-792A92F7CB8D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Markdig.Extensions", "MdExplorer.Markdig.Extensions\MdExplorer.Markdig.Extensions.csproj", "{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Features.Tests", "MdExplorer.Features.Tests\MdExplorer.Features.Tests.csproj", "{43B3843C-9638-4894-9781-F7CD93059799}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Features.Tests", "MdExplorer.Features.Tests\MdExplorer.Features.Tests.csproj", "{43B3843C-9638-4894-9781-F7CD93059799}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "InstallBinaries", "InstallBinaries", "{7C670A67-EA99-4DA5-92C8-56907BABBF24}"
+	ProjectSection(SolutionItems) = preProject
+		InstallBinaries\plantuml.jar = InstallBinaries\plantuml.jar
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Ad.Tools", "Ad.Tools", "{18E1FA4F-50F8-4E87-B373-E4BAA69D6DA2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,10 +78,6 @@ Global
 		{02D82A56-3F23-433C-B642-792A92F7CB8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{02D82A56-3F23-433C-B642-792A92F7CB8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{02D82A56-3F23-433C-B642-792A92F7CB8D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9EF515AD-F8DA-4BA9-AFAC-40D2320F593C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{43B3843C-9638-4894-9781-F7CD93059799}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{43B3843C-9638-4894-9781-F7CD93059799}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{43B3843C-9638-4894-9781-F7CD93059799}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -84,6 +85,11 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A34602F1-D9BA-487B-88A7-F3ED84D4FAED} = {18E1FA4F-50F8-4E87-B373-E4BAA69D6DA2}
+		{B0D8AD88-5C29-4092-A845-0A4DD4A71D99} = {18E1FA4F-50F8-4E87-B373-E4BAA69D6DA2}
+		{02D82A56-3F23-433C-B642-792A92F7CB8D} = {18E1FA4F-50F8-4E87-B373-E4BAA69D6DA2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8262B491-47A0-4B4D-8A57-6C3D6A8FDD3E}

@@ -47,7 +47,12 @@ namespace MdExplorer.Service.HostedServices
         DateTime lastRead = DateTime.MinValue;
         private void ChangeWithLove(object sender, FileSystemEventArgs e)
         {
-            
+            var trafficLight1 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
+            var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md");
+            if (trafficLight1 || trafficLight2)
+            {
+                return;
+            }
             var lastWriteTime = File.GetLastWriteTime(e.FullPath);
             if (lastWriteTime > lastRead)
             {
