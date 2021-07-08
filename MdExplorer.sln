@@ -13,8 +13,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Tests", "MdExplo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Abstractions", "MdExplorer.Abstractions\MdExplorer.Abstractions.csproj", "{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Implementations", "MdExplorer.Implementations\MdExplorer.Implementations.csproj", "{EF663F91-98EB-475F-AFCE-E399F64E4D08}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Migrations", "MdExplorer.Migrations\MdExplorer.Migrations.csproj", "{CD81B656-C664-49C5-851E-E6CFF7DEE917}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ad.Tools.Dal", "Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj", "{A34602F1-D9BA-487B-88A7-F3ED84D4FAED}"
@@ -58,10 +56,6 @@ Global
 		{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EF663F91-98EB-475F-AFCE-E399F64E4D08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EF663F91-98EB-475F-AFCE-E399F64E4D08}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EF663F91-98EB-475F-AFCE-E399F64E4D08}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EF663F91-98EB-475F-AFCE-E399F64E4D08}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CD81B656-C664-49C5-851E-E6CFF7DEE917}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CD81B656-C664-49C5-851E-E6CFF7DEE917}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CD81B656-C664-49C5-851E-E6CFF7DEE917}.Release|Any CPU.ActiveCfg = Release|Any CPU
