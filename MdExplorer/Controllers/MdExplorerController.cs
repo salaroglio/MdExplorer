@@ -5,7 +5,6 @@ using Markdig.Extensions.JiraLinks;
 using Markdig.Renderers;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Hubs;
-using MdExplorer.Implementations.Features;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
