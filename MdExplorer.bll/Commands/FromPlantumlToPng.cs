@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
 using PlantUml.Net;
+using System.Security.Cryptography;
 
 namespace MdExplorer.Features.Commands
 {
@@ -61,12 +62,12 @@ namespace MdExplorer.Features.Commands
         /// <param name="markdown"></param>
         /// <returns></returns>
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
-        {            
+        {
             var directoryInfo = Directory.CreateDirectory(".md");
-            var level = requestInfo.CurrentQueryRequest.Split("\\").Count()-2;
+            var level = requestInfo.CurrentQueryRequest.Split("\\").Count() - 2;
 
             var backPath = string.Empty;
-            for (int i = 0; i<level;i++)
+            for (int i = 0; i < level; i++)
             {
                 if (i == 0)
                 {
@@ -76,22 +77,26 @@ namespace MdExplorer.Features.Commands
                 {
                     backPath += "\\..";
                 }
-                
+
             }
 
             var matches = GetMatches(markdown);
             foreach (Match item in matches)
             {
                 var text = item.Groups[1].Value;
-                var taskSvg = GetSVGFromJar(text);
-                taskSvg.Wait();
-                var res = taskSvg.Result;
-                var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{text.GetHashCode()}.png";
-                var markdownFilePath = $"{backPath}\\.md\\{text.GetHashCode()}.png";
-                _logger.LogInformation($"preparing temporary file: {filePath}");
+                var textHash = HashString(text, Encoding.UTF8);
+                var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
                 if (!File.Exists(filePath))
+                {
+                    var taskSvg = GetSVGFromJar(text);
+                    taskSvg.Wait();
+                    var res = taskSvg.Result;
                     File.WriteAllBytes(filePath, res);
-                var referenceUrl =  $@"![]({markdownFilePath.Replace("\\", "/")})";
+                    _logger.LogInformation($"write file: {filePath}");
+                }
+
+                var markdownFilePath = $"{backPath}\\.md\\{textHash}.png";                
+                var referenceUrl = $@"![]({markdownFilePath.Replace("\\", "/")})";
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdownTest);
             }
@@ -103,11 +108,12 @@ namespace MdExplorer.Features.Commands
             var factory = new RendererFactory();
             var settingDal = _session.GetDal<Setting>();
             var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
-            var renderer = factory.CreateRenderer(new PlantUmlSettings() {
+            var renderer = factory.CreateRenderer(new PlantUmlSettings()
+            {
                 JavaPath = @"C:\Program Files\Java\jre1.8.0_291\bin\javaw.exe",
-                //LocalGraphvizDotPath = @"E:\Sviluppo\MdExplorer\InstallBinaries\Graphviz\bin\dot.exe",
+                LocalGraphvizDotPath = @"D:\InstallBinaries\Graphviz\bin\dot.exe",
                 RenderingMode = RenderingMode.Local,
-                LocalPlantUmlPath= plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
+                LocalPlantUmlPath = plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
             });
 
             var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Png);
@@ -137,10 +143,45 @@ namespace MdExplorer.Features.Commands
             //url = urls[0].Attributes["href"].Value;
 
             response = await myHttpClient.GetAsync(url);
-            content = await response.Content.ReadAsStringAsync();            
-            
+            content = await response.Content.ReadAsStringAsync();
+
             return await response.Content.ReadAsByteArrayAsync();
 
+        }
+
+        public string HashString(string value, Encoding encoding = null)
+        {
+            if (encoding == null)
+            {
+                encoding = Encoding.ASCII;
+            }
+            byte[] bytes = encoding.GetBytes(value);
+            byte[] hash = Hash(bytes);
+            string result = String(hash);
+            return result;
+        }
+
+        public string String(byte[] hash)
+        {
+            /*https://stackoverflow.com/questions/1300890/
+              md5-hash-with-salt-for-keeping-password-in-db-in-c-sharp*/
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < hash.Length; i++)
+            {
+                sb.Append(hash[i].ToString("x2"));     /*do not make it X2*/
+            }
+            var result = sb.ToString();
+            return result;
+        }
+
+        public byte[] Hash(byte[] value)
+        {
+            /*https://support.microsoft.com/en-za/help/307020/
+              how-to-compute-and-compare-hash-values-by-using-visual-cs*/
+            /*https://andrewlock.net/why-is-string-gethashcode-
+              different-each-time-i-run-my-program-in-net-core*/
+            byte[] result = MD5.Create().ComputeHash(value);
+            return result;
         }
     }
 }
