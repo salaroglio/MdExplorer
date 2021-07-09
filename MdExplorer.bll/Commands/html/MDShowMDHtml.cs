@@ -30,6 +30,11 @@ namespace MdExplorer.Features.Commands.html
 
             foreach (Match item in matches)
             {
+                // here you should compose the path adding missing part
+                // the missing part is the distance from the root folder and the current file
+                // you can build this using requestInfo.currentqueryrequest
+
+                
                 var fileName = item.Groups[1].Value;
                 var allElementToReplace = item.Groups[0].Value;
                 var httpClientHandler = new HttpClientHandler();
