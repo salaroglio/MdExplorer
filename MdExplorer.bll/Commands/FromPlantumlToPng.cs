@@ -61,44 +61,53 @@ namespace MdExplorer.Features.Commands
         /// <param name="markdown"></param>
         /// <returns></returns>
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
-        {
-            // Crea la directory
-
-            
+        {            
             var directoryInfo = Directory.CreateDirectory(".md");
+            var level = requestInfo.CurrentQueryRequest.Split("\\").Count()-2;
+
+            var backPath = string.Empty;
+            for (int i = 0; i<level;i++)
+            {
+                if (i == 0)
+                {
+                    backPath += "..";
+                }
+                else
+                {
+                    backPath += "\\..";
+                }
+                
+            }
 
             var matches = GetMatches(markdown);
-
             foreach (Match item in matches)
             {
                 var text = item.Groups[1].Value;
-
                 var taskSvg = GetSVGFromJar(text);
-
                 taskSvg.Wait();
-
                 var res = taskSvg.Result;
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{text.GetHashCode()}.png";
+                var markdownFilePath = $"{backPath}\\.md\\{text.GetHashCode()}.png";
                 _logger.LogInformation($"preparing temporary file: {filePath}");
                 if (!File.Exists(filePath))
                     File.WriteAllBytes(filePath, res);
-                var markdownTest = markdown.Replace(item.Groups[0].Value, $@"![]({filePath.Replace("\\", "/")})");
-                File.WriteAllText(filePath + "test.md", markdownTest);
+                var referenceUrl =  $@"![]({markdownFilePath.Replace("\\", "/")})";
+                markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
+                //File.WriteAllText(filePath + "test.md", markdownTest);
             }
-
             return markdown;
-            
         }
 
         private async Task<byte[]> GetSVGFromJar(string plantumlcode)
         {
             var factory = new RendererFactory();
-
+            var settingDal = _session.GetDal<Setting>();
+            var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
             var renderer = factory.CreateRenderer(new PlantUmlSettings() {
                 JavaPath = @"C:\Program Files\Java\jre1.8.0_291\bin\javaw.exe",
-                LocalGraphvizDotPath = @"E:\Sviluppo\MdExplorer\InstallBinaries\Graphviz\bin\dot.exe",
+                //LocalGraphvizDotPath = @"E:\Sviluppo\MdExplorer\InstallBinaries\Graphviz\bin\dot.exe",
                 RenderingMode = RenderingMode.Local,
-                LocalPlantUmlPath= @"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
+                LocalPlantUmlPath= plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
             });
 
             var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Png);

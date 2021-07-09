@@ -66,7 +66,7 @@ namespace MdExplorer.Controllers
         {
             
             var filePath = _fileSystemWatcher.Path;
-            var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\"));
+            var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer//", string.Empty).Replace("/", @"\"));
             var relativePathExtension = Path.GetExtension(relativePath);
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
@@ -101,7 +101,8 @@ namespace MdExplorer.Controllers
             }
             var requestInfo = new RequestInfo()
             {
-                CurrentQueryRequest = relativePath
+                CurrentQueryRequest = relativePath,
+                CurrentRoot = _fileSystemWatcher.Path
             };
 
             readText  = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
