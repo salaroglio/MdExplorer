@@ -1,4 +1,5 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace MdExplorer.Features.Commands.pdf
         {
         }
 
-        public override string TransformInNewMDFromMD(string markdown)
+        public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var matches = GetMatches(markdown);
 

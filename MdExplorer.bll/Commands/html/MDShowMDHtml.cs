@@ -1,4 +1,5 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace MdExplorer.Features.Commands.html
         {
         }
 
-        override public string TransformAfterConversion(string markdown)
+        override public string TransformAfterConversion(string markdown, RequestInfo requestInfo)
         {
             // Devo cercare dentro markdown il comando m↓ShowMd(pathfile)
             // potrei usare le regular expression

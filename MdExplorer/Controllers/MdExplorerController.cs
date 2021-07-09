@@ -99,7 +99,12 @@ namespace MdExplorer.Controllers
             {
                 readText = sr.ReadToEnd();
             }
-            readText  = _commandRunner.TransformInNewMDFromMD(readText);
+            var requestInfo = new RequestInfo()
+            {
+                CurrentQueryRequest = relativePath
+            };
+
+            readText  = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
 
             var settingDal = _session.GetDal<Setting>();
@@ -114,7 +119,7 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-            result = _commandRunner.TransformAfterConversion(result);
+            result = _commandRunner.TransformAfterConversion(result, requestInfo);
             StringWriter tw = new StringWriter();
             var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 

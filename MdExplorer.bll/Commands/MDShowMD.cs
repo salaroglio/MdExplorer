@@ -1,4 +1,5 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -23,7 +24,7 @@ namespace MdExplorer.Features.Commands
         protected readonly string _serverAddress;
         protected readonly ILogger<MDShowMD> _logger;
 
-        public virtual string TransformInNewMDFromMD(string markdown)
+        public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             return markdown;
         }
@@ -36,7 +37,7 @@ namespace MdExplorer.Features.Commands
             return matches;
         }
 
-        public virtual string TransformAfterConversion(string text)
+        public virtual string TransformAfterConversion(string text, RequestInfo requestInfo)
         {
             return text;
         }

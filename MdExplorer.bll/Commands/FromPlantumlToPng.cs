@@ -46,7 +46,7 @@ namespace MdExplorer.Features.Commands
             return matches;
         }
 
-        public virtual string TransformAfterConversion(string text)
+        public virtual string TransformAfterConversion(string text, RequestInfo requestInfo)
         {
             // Nothing to do
             return text;
@@ -60,7 +60,7 @@ namespace MdExplorer.Features.Commands
         /// </summary>
         /// <param name="markdown"></param>
         /// <returns></returns>
-        public string TransformInNewMDFromMD(string markdown)
+        public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             // Crea la directory
 
