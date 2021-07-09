@@ -9,5 +9,6 @@ namespace MdExplorer.Abstractions.Models
     public class RequestInfo
     {
         public string CurrentQueryRequest { get; set; }
+        public string CurrentRoot { get; set; }
     }
 }
