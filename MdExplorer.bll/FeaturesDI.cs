@@ -1,6 +1,7 @@
 ﻿using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using PlantUml.Net;
 using System;
 
 namespace MdExplorer.Features
@@ -15,6 +16,8 @@ namespace MdExplorer.Features
             services.AddSingleton<ICommandFactoryPdf, CommandFactoryPdf>();
             services.AddTransient(_ => _.GetService<ICommandFactoryPdf>().GetCommands());
             services.AddTransient<ICommandRunnerHtml, CommandRunnerHtml>();
+            services.AddSingleton<RendererFactory>();
+            services.AddSingleton<PlantumlServer>();
             return services;
         }
     }

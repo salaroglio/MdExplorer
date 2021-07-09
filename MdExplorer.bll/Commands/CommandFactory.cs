@@ -28,15 +28,20 @@ namespace MdExplorer.Features.Commands
         private static object lockGetCommands = new object();      
         private readonly IServer _server;
         private readonly IServiceProvider _serviceProvider;
-        private readonly IDALFactory _dalFactory;        
+        private readonly IDALFactory _dalFactory;
+        private readonly PlantumlServer _plantumlServer;
 
         private string _serverAddress { get; set; }
 
-        public CommandFactory(IServer server, IServiceProvider serviceProvider, IDALFactory dalFactory)//IServerAddressesFeature serverAddresses
+        public CommandFactory(IServer server, 
+                                IServiceProvider serviceProvider, 
+                                IDALFactory dalFactory,
+                                PlantumlServer plantumlServer)//IServerAddressesFeature serverAddresses
         {
             _server = server;
             _serviceProvider = serviceProvider;
             _dalFactory = dalFactory;
+            _plantumlServer = plantumlServer;
             var features = _server.Features;
             var addressesFeature = features.Get<IServerAddressesFeature>();
             
@@ -83,6 +88,10 @@ namespace MdExplorer.Features.Commands
                         if (param.Name == "session")
                         {
                             paramsTo.Add(session);
+                        }
+                        if (param.Name == "plantumlServer")
+                        {
+                            paramsTo.Add(_plantumlServer);
                         }
                     }
                     listToReturn.Add((T)Activator.CreateInstance(item,args: paramsTo.ToArray())); //new object[] { _serverAddress, currentLogger }

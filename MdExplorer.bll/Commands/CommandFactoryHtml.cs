@@ -13,7 +13,8 @@ namespace MdExplorer.Features.Commands
 {
     public class CommandFactoryHtml : CommandFactory<ICommandHtml>, ICommandFactoryHtml
     {
-        public CommandFactoryHtml(IServer server, IServiceProvider serviceProvider, IDALFactory dalFactory) : base(server, serviceProvider, dalFactory)
+        public CommandFactoryHtml(IServer server, IServiceProvider serviceProvider, IDALFactory dalFactory, PlantumlServer plantumlServer) 
+            : base(server, serviceProvider, dalFactory, plantumlServer)
         {
         }
         
