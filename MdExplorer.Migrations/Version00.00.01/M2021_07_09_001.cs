@@ -12,7 +12,8 @@ namespace MdExplorer.Migrations.Version000001
     {        
         public override void Up()
         {
-            Insert.IntoTable("Setting").Row(new { Id = Guid.NewGuid().ToByteArray(), Name = @"PlantumlLocalPath\plantuml.jar", ValueString = @"D:\InstallBinaries" });            
+            Insert.IntoTable("Setting").Row(new { Id = Guid.NewGuid().ToByteArray(), Name = @"PlantumlLocalPath",
+                ValueString = @"D:\InstallBinaries\plantuml.jar" });            
         }
 
         public override void Down()

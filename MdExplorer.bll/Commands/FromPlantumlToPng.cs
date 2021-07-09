@@ -26,12 +26,17 @@ namespace MdExplorer.Features.Commands
         private readonly string _serverAddress;
         private readonly ILogger<FromPlantumlToPng> _logger;
         private readonly ISession _session;
+        private readonly PlantumlServer _plantumlServer;
 
-        public FromPlantumlToPng(string ServerAddress, ILogger<FromPlantumlToPng> logger, ISession session)
+        public FromPlantumlToPng(string ServerAddress, 
+                ILogger<FromPlantumlToPng> logger, 
+                ISession session,
+                PlantumlServer plantumlServer)
         {
             _serverAddress = ServerAddress;
             _logger = logger;
             _session = session;
+            _plantumlServer = plantumlServer;
         }
 
         public void Dispose()
@@ -88,7 +93,7 @@ namespace MdExplorer.Features.Commands
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
                 if (!File.Exists(filePath))
                 {
-                    var taskSvg = GetSVGFromJar(text);
+                    var taskSvg = _plantumlServer.GetSVGFromJar(text);
                     taskSvg.Wait();
                     var res = taskSvg.Result;
                     File.WriteAllBytes(filePath, res);
@@ -103,22 +108,7 @@ namespace MdExplorer.Features.Commands
             return markdown;
         }
 
-        private async Task<byte[]> GetSVGFromJar(string plantumlcode)
-        {
-            var factory = new RendererFactory();
-            var settingDal = _session.GetDal<Setting>();
-            var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
-            var renderer = factory.CreateRenderer(new PlantUmlSettings()
-            {
-                JavaPath = @"C:\Program Files\Java\jre1.8.0_291\bin\javaw.exe",
-                LocalGraphvizDotPath = @"D:\InstallBinaries\Graphviz\bin\dot.exe",
-                RenderingMode = RenderingMode.Local,
-                LocalPlantUmlPath = plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
-            });
-
-            var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Png);
-            return bytes;
-        }
+       
 
         private async Task<byte[]> GetSVG(string plantumlCode)
         {
