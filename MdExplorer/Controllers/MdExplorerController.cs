@@ -67,6 +67,7 @@ namespace MdExplorer.Controllers
             
             var filePath = _fileSystemWatcher.Path;
             var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer//", string.Empty).Replace("/", @"\"));
+            relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer/", string.Empty).Replace("/", @"\"));
             var relativePathExtension = Path.GetExtension(relativePath);
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
