@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Hosting;
@@ -30,18 +31,21 @@ namespace MdExplorer.Features.Commands
         private readonly IServiceProvider _serviceProvider;
         private readonly IDALFactory _dalFactory;
         private readonly PlantumlServer _plantumlServer;
+        private readonly Helper _helper;
 
         private string _serverAddress { get; set; }
 
         public CommandFactory(IServer server, 
                                 IServiceProvider serviceProvider, 
                                 IDALFactory dalFactory,
-                                PlantumlServer plantumlServer)//IServerAddressesFeature serverAddresses
+                                PlantumlServer plantumlServer,
+                                Helper helper)//IServerAddressesFeature serverAddresses
         {
             _server = server;
             _serviceProvider = serviceProvider;
             _dalFactory = dalFactory;
             _plantumlServer = plantumlServer;
+            _helper = helper;
             var features = _server.Features;
             var addressesFeature = features.Get<IServerAddressesFeature>();
             
@@ -92,6 +96,10 @@ namespace MdExplorer.Features.Commands
                         if (param.Name == "plantumlServer")
                         {
                             paramsTo.Add(_plantumlServer);
+                        }
+                        if (param.Name == "helper")
+                        {
+                            paramsTo.Add(_helper);
                         }
                     }
                     listToReturn.Add((T)Activator.CreateInstance(item,args: paramsTo.ToArray())); //new object[] { _serverAddress, currentLogger }

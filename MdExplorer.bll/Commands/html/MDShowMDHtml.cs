@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -15,8 +16,11 @@ namespace MdExplorer.Features.Commands.html
 {
     public class MDShowMDHtml : MDShowMD, ICommandHtml
     {
-        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger) : base(ServerAddress, logger)
+        private readonly Helper _helper;
+
+        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger,Helper helper) : base(ServerAddress, logger)
         {
+            _helper = helper;
         }
 
         override public string TransformAfterConversion(string markdown, RequestInfo requestInfo)
@@ -61,6 +65,7 @@ namespace MdExplorer.Features.Commands.html
 
                 using (var httpClient = new HttpClient(httpClientHandler))
                 {
+                    fileName = _helper.NormalizePath(fileName);
                     var queryEncoded = HttpUtility.UrlEncode(fileName);
 
                     var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
@@ -113,6 +118,7 @@ namespace MdExplorer.Features.Commands.html
                         var nodeA = doc1.CreateElement("a");
                         var attraHref = doc1.CreateAttribute("href");
                         attraHref.Value = uriUrl.AbsoluteUri;
+
                         nodeA.Attributes.Append(attraHref);
                         nodeDiv.AppendChild(nodeA);
 
