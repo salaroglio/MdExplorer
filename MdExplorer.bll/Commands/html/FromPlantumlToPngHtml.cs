@@ -1,4 +1,5 @@
 ﻿using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using NHibernate;
 using System;
@@ -17,8 +18,8 @@ namespace MdExplorer.Features.Commands.html
     /// </summary>
     public class FromPlantumlToPngHtml : FromPlantumlToPng, ICommandHtml
     {
-        public FromPlantumlToPngHtml(string ServerAddress, ILogger<FromPlantumlToPng> logger, ISession session, PlantumlServer plantumlServer) 
-            : base(ServerAddress, logger, session, plantumlServer)
+        public FromPlantumlToPngHtml(string ServerAddress, ILogger<FromPlantumlToPng> logger, ISession session, PlantumlServer plantumlServer, Helper helper) 
+            : base(ServerAddress, logger, session, plantumlServer, helper)
         {
         }
     }

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using HtmlAgilityPack;
 using PlantUml.Net;
 using System.Security.Cryptography;
+using MdExplorer.Features.Utilities;
 
 namespace MdExplorer.Features.Commands
 {
@@ -27,16 +28,19 @@ namespace MdExplorer.Features.Commands
         private readonly ILogger<FromPlantumlToPng> _logger;
         private readonly ISession _session;
         private readonly PlantumlServer _plantumlServer;
+        private readonly Helper _helper;
 
         public FromPlantumlToPng(string ServerAddress, 
                 ILogger<FromPlantumlToPng> logger, 
                 ISession session,
-                PlantumlServer plantumlServer)
+                PlantumlServer plantumlServer,
+                Helper helper)
         {
             _serverAddress = ServerAddress;
             _logger = logger;
             _session = session;
             _plantumlServer = plantumlServer;
+            _helper = helper;
         }
 
         public void Dispose()
@@ -69,7 +73,7 @@ namespace MdExplorer.Features.Commands
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var directoryInfo = Directory.CreateDirectory(".md");
-            string backPath = getBackPth(requestInfo);
+            string backPath = _helper.GetBackPath(requestInfo);
 
             var matches = GetMatches(markdown);
             foreach (Match item in matches)
@@ -95,39 +99,9 @@ namespace MdExplorer.Features.Commands
             return markdown;
         }
 
-        private string getBackPth(RequestInfo requestInfo)
-        {
-            var counter = 0;
-            var arrayToInvestigate = requestInfo.CurrentQueryRequest.Split("\\").ToDictionary(_=>counter++);
-            var itemToCompress = arrayToInvestigate.Where(_ => _.Value.Contains(".."));
-            var newCompressedPath = new Dictionary<int, string>();
+        
 
-            foreach (var item in itemToCompress.OrderByDescending(_=>_.Key))
-            {
-                arrayToInvestigate.Remove(item.Key);
-                arrayToInvestigate.Remove(item.Key - 1);
-            }
-
-            //var pseudoPathToEvaluate = requestInfo.CurrentQueryRequest.Replace("..\\", string.Empty).Split("\\");
-            var level = arrayToInvestigate.Count() - 2;
-            _logger.LogInformation($"level: {level}");
-            _logger.LogInformation($"requestInfo.CurrentQueryRequest: {requestInfo.CurrentQueryRequest}");
-            var backPath = string.Empty;
-            for (int i = 0; i < level; i++)
-            {
-                if (i == 0)
-                {
-                    backPath += "..";
-                }
-                else
-                {
-                    backPath += "\\..";
-                }
-
-            }
-
-            return backPath;
-        }
+            
 
 
         private async Task<byte[]> GetSVG(string plantumlCode)

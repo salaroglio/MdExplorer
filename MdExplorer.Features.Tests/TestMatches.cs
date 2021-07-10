@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Tests
                                     @startuml 
                             @enduml ```";
                                
-            var command = new FromPlantumlToPng("", null,null,null);
+            var command = new FromPlantumlToPng("", null,null,null,null);
             var match = command.GetMatches(textToPars);
             var stringMatched = match[0].Groups[1].Value;
             Assert.AreEqual(stringMatched, @" 
@@ -53,7 +53,7 @@ namespace MdExplorer.Features.Tests
                         daje
                             @enduml ```";
 
-            var command = new FromPlantumlToPng("", null, null,null);
+            var command = new FromPlantumlToPng("", null, null,null,null);
             var match = command.GetMatches(textToPars);
             var stringMatched0 = match[0].Groups[1].Value;
             var stringMatched1 = match[1].Groups[1].Value;
