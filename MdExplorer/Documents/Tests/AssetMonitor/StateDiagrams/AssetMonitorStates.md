@@ -1,3 +1,4 @@
+
 ```plantuml
 @startuml
 
@@ -12,6 +13,7 @@ LOST // asset was linked, but now has been deleted from GIS
 
 @enduml
 ```
+
 ```plantuml
 @startuml
 New:GIS LU NULL

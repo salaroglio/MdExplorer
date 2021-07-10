@@ -69,21 +69,7 @@ namespace MdExplorer.Features.Commands
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var directoryInfo = Directory.CreateDirectory(".md");
-            var level = requestInfo.CurrentQueryRequest.Split("\\").Count() - 2;
-
-            var backPath = string.Empty;
-            for (int i = 0; i < level; i++)
-            {
-                if (i == 0)
-                {
-                    backPath += "..";
-                }
-                else
-                {
-                    backPath += "\\..";
-                }
-
-            }
+            string backPath = getBackPth(requestInfo);
 
             var matches = GetMatches(markdown);
             foreach (Match item in matches)
@@ -100,15 +86,49 @@ namespace MdExplorer.Features.Commands
                     _logger.LogInformation($"write file: {filePath}");
                 }
 
-                var markdownFilePath = $"{backPath}\\.md\\{textHash}.png";                
+                var markdownFilePath = $"{backPath}\\.md\\{textHash}.png";
                 var referenceUrl = $@"![]({markdownFilePath.Replace("\\", "/")})";
+                _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdownTest);
             }
             return markdown;
         }
 
-       
+        private string getBackPth(RequestInfo requestInfo)
+        {
+            var counter = 0;
+            var arrayToInvestigate = requestInfo.CurrentQueryRequest.Split("\\").ToDictionary(_=>counter++);
+            var itemToCompress = arrayToInvestigate.Where(_ => _.Value.Contains(".."));
+            var newCompressedPath = new Dictionary<int, string>();
+
+            foreach (var item in itemToCompress.OrderByDescending(_=>_.Key))
+            {
+                arrayToInvestigate.Remove(item.Key);
+                arrayToInvestigate.Remove(item.Key - 1);
+            }
+
+            //var pseudoPathToEvaluate = requestInfo.CurrentQueryRequest.Replace("..\\", string.Empty).Split("\\");
+            var level = arrayToInvestigate.Count() - 2;
+            _logger.LogInformation($"level: {level}");
+            _logger.LogInformation($"requestInfo.CurrentQueryRequest: {requestInfo.CurrentQueryRequest}");
+            var backPath = string.Empty;
+            for (int i = 0; i < level; i++)
+            {
+                if (i == 0)
+                {
+                    backPath += "..";
+                }
+                else
+                {
+                    backPath += "\\..";
+                }
+
+            }
+
+            return backPath;
+        }
+
 
         private async Task<byte[]> GetSVG(string plantumlCode)
         {

@@ -33,9 +33,25 @@ namespace MdExplorer.Features.Commands.html
                 // here you should compose the path adding missing part
                 // the missing part is the distance from the root folder and the current file
                 // you can build this using requestInfo.currentqueryrequest
+                var listOfItem = requestInfo.CurrentQueryRequest.Split("\\",options: StringSplitOptions.RemoveEmptyEntries).ToList();
+                listOfItem.RemoveAt(listOfItem.Count - 1);
+                var currentWebFolder = string.Empty;
+                foreach (var item1 in listOfItem)
+                {
+                    if (item1 == listOfItem.First())
+                    {
+                        currentWebFolder = item1;
+                    }
+                    else
+                    {
+                        currentWebFolder += "\\" + item1;
+                    }
 
-                
-                var fileName = item.Groups[1].Value;
+                    
+                }
+
+                 currentWebFolder = string.Join("\\", listOfItem.ToArray());
+                var fileName = currentWebFolder + "\\" + item.Groups[1].Value;
                 var allElementToReplace = item.Groups[0].Value;
                 var httpClientHandler = new HttpClientHandler();
                 httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
