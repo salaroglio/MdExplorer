@@ -57,22 +57,7 @@ namespace Ad.Tools.Dal
 
         private static IPersistenceConfigurer CreateConfiguration(string connectionString, IDatabase db)
         {
-            IPersistenceConfigurer toReturn=null;
-            //switch (databaseType)
-            //{
-            //    case DatabaseTypeEnum.SQLite:
-            //        toReturn = SQLiteConfiguration.Standard.ConnectionString(connectionString);
-            //        break;
-            //    case DatabaseTypeEnum.SQLServer:
-            //        toReturn = MsSqlConfiguration.MsSql2012.ConnectionString(connectionString);
-            //        break;
-            //    case DatabaseTypeEnum.MySQLOrMariaDB:
-            //        toReturn = MySQLConfiguration.Standard.ConnectionString(connectionString);
-            //        break;
-
-            //    default:
-            //        break;
-            //}
+            IPersistenceConfigurer toReturn=null;       
             toReturn = db.Config(connectionString);
 
             return toReturn;
