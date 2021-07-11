@@ -28,7 +28,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformAfterConversion(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in _commands)
+            foreach (var item in _commands.OrderBy(_=>_.Priority))
             {
                 markdownText = item.TransformAfterConversion(markdownText, requestInfo);
             }

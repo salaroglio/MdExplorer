@@ -63,5 +63,28 @@ namespace MdExplorer.Features.Tests
         }
 
 
+        [TestMethod]
+        public void Should_Get_Link_To_Reset_BackPath_Coming_from_Transform_In_PNG()
+        {
+            var textToParse = $@"# Oggi facciamo un esperimento per capire che cosa succede con determinati link
+
+                            ![](..\..\..\..\.md\-12344455.md)
+
+
+                            davvero è una noia mortale perché devo intercettare parecchi esempi
+
+                            ![](..\..\..\..\.md\3333.md)
+
+                            ![testo](caricamento.md)";
+
+            var command = new FromPlantumlToPng("", null, null, null, null);
+            var match = command.GetMatchesAfterConversion(textToParse);
+            var stringMatched0 = match[0].Groups[2].Value;
+            
+            Assert.AreEqual(stringMatched0, @"-12344455");
+            Assert.AreEqual(match.Count, 2);
+        }
+
+
     }
 }
