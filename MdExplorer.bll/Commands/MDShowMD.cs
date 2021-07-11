@@ -15,6 +15,7 @@ namespace MdExplorer.Features.Commands
 {
     public class MDShowMD : ICommand
     {
+        public int Priority { get; set; } = 10;
 
         public MDShowMD(string ServerAddress, ILogger<MDShowMD> logger)
         {

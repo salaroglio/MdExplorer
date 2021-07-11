@@ -30,6 +30,8 @@ namespace MdExplorer.Features.Commands
         private readonly PlantumlServer _plantumlServer;
         private readonly Helper _helper;
 
+        public int Priority { get; set; } = 20;
+
         public FromPlantumlToPng(string ServerAddress, 
                 ILogger<FromPlantumlToPng> logger, 
                 ISession session,
@@ -56,10 +58,28 @@ namespace MdExplorer.Features.Commands
             return matches;
         }
 
-        public virtual string TransformAfterConversion(string text, RequestInfo requestInfo)
+
+        public MatchCollection GetMatchesAfterConversion(string html)
         {
-            // Nothing to do
-            return text;
+            Regex rx = new Regex(@"<img src=\""[^md]*\.md/([^\.png]*).png",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(html);
+            return matches;
+        }
+
+        public virtual string TransformAfterConversion(string html, RequestInfo requestInfo)
+        {            
+            var matches = GetMatchesAfterConversion(html);
+            string backPath = _helper.GetBackPath(requestInfo);
+
+            foreach (Match item in matches)
+            {
+                var stringMatched0 = item.Groups[1].Value;
+                var referenceUrl = $"<img src=\"{backPath.Replace("\\","/")}/.md/{stringMatched0}.png";                
+                html = html.Replace(item.Groups[0].Value, referenceUrl);
+            }
+            
+            return html;
         }
 
         /// <summary>
@@ -104,34 +124,34 @@ namespace MdExplorer.Features.Commands
             
 
 
-        private async Task<byte[]> GetSVG(string plantumlCode)
-        {
-            var comment = plantumlCode;
+        //private async Task<byte[]> GetSVG(string plantumlCode)
+        //{
+        //    var comment = plantumlCode;
 
-            var formContent = new FormUrlEncodedContent(new[]
-            {
-                new KeyValuePair<string, string>("text", comment),
-            });
+        //    var formContent = new FormUrlEncodedContent(new[]
+        //    {
+        //        new KeyValuePair<string, string>("text", comment),
+        //    });
 
-            var myHttpClient = new HttpClient();
+        //    var myHttpClient = new HttpClient();
 
-            var settingDal = _session.GetDal<Setting>();
-            var plantumlServer = settingDal.GetList().Where(_ => _.Name == "PlantumlServer").FirstOrDefault()?.ValueString;
+        //    var settingDal = _session.GetDal<Setting>();
+        //    var plantumlServer = settingDal.GetList().Where(_ => _.Name == "PlantumlServer").FirstOrDefault()?.ValueString;
 
-            var response = await myHttpClient.PostAsync($"http://{plantumlServer}:8080/form", formContent);//_options.Value.PlantumlServer
-            var content = await response.Content.ReadAsStringAsync();
-            HtmlDocument mydoc = new HtmlDocument();
-            mydoc.LoadHtml(content);
-            var url = mydoc.DocumentNode.SelectSingleNode(@"//input[@name='url']").Attributes["value"].Value;
-            //var urls = mydoc.DocumentNode.SelectNodes(@"//a");
-            //url = urls[0].Attributes["href"].Value;
+        //    var response = await myHttpClient.PostAsync($"http://{plantumlServer}:8080/form", formContent);//_options.Value.PlantumlServer
+        //    var content = await response.Content.ReadAsStringAsync();
+        //    HtmlDocument mydoc = new HtmlDocument();
+        //    mydoc.LoadHtml(content);
+        //    var url = mydoc.DocumentNode.SelectSingleNode(@"//input[@name='url']").Attributes["value"].Value;
+        //    //var urls = mydoc.DocumentNode.SelectNodes(@"//a");
+        //    //url = urls[0].Attributes["href"].Value;
 
-            response = await myHttpClient.GetAsync(url);
-            content = await response.Content.ReadAsStringAsync();
+        //    response = await myHttpClient.GetAsync(url);
+        //    content = await response.Content.ReadAsStringAsync();
 
-            return await response.Content.ReadAsByteArrayAsync();
+        //    return await response.Content.ReadAsByteArrayAsync();
 
-        }
+        //}
 
         public string HashString(string value, Encoding encoding = null)
         {
