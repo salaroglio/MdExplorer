@@ -106,8 +106,11 @@ namespace MdExplorer.Controllers
                 CurrentRoot = _fileSystemWatcher.Path
             };
 
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePath));
+
             readText  = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
+            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
