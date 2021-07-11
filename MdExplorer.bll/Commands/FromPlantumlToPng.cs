@@ -92,7 +92,7 @@ namespace MdExplorer.Features.Commands
         /// <returns></returns>
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
-            var directoryInfo = Directory.CreateDirectory(".md");
+            var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + "\\.md");
             string backPath = _helper.GetBackPath(requestInfo);
 
             var matches = GetMatches(markdown);
