@@ -31,7 +31,7 @@ namespace MdExplorer.Features.Commands
         private readonly Helper _helper;
 
         public int Priority { get; set; } = 20;
-
+        public string Name { get; set; } = "FromPlantumlToPng";
         public FromPlantumlToPng(string ServerAddress, 
                 ILogger<FromPlantumlToPng> logger, 
                 ISession session,
