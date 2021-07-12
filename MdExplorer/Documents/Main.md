@@ -9,7 +9,7 @@ il disegno di un mockup
 definizione del diagramma  entità relazioni e relative spiegazioni
 definizione degli test script  
 definizione della architettura dell'applicativo 
-* [Architecture](Architecture/MainArchitecture.md)
+* [Architecture](.\TechNotes\Architecture\MainArchitecture.md)
 * Programming
 	* [At startup of MDExplorer](Programming/MDExplorer.Service/startup.md) 
 	* [How Works Autorefresh?](Programming/MDExplorer.Service/HowWorksAutoRefresh.md)
@@ -30,7 +30,7 @@ managing branches and merge.
 ### Configurable plantuml server
 
    
-# E' un server
+# E' un server 
 
 Già già... è server .net core 3.1 con dentro Angular 11.
 

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Migrations.Version000001
 {
-    [Migration(20210709002, "Insert new settings")]
+    [Migration(20210709002, "Insert new setting: JavaPath and LocalGraphVizDotPath")]
     public class M2021_07_09_002 : Migration
     {
         public override void Up()

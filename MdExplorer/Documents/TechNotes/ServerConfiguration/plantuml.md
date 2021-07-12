@@ -8,7 +8,8 @@ e poi eseguire le linee di codice
 - docker run -d -p 8080:8080 plantuml/plantuml-server:jetty
 
 e poi lasciare i processi aperti, che ti diano il server per generare i file
-``` plantuml
+
+```plantuml
 @startuml
 actor Carlo 
 participant "Visual studio Code" as VSC #cyan
@@ -29,7 +30,7 @@ MdClient->Carlo: show new html
 @enduml
 ```
 
-``` c#
+```c#
 #if DEBUG
             lifetime.ApplicationStarted.Register(
           () =>

@@ -63,8 +63,13 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult OpenFile(string path)
         {
+            
+            var settingDal = _session.GetDal<Setting>();
+            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString 
+                ?? @"C:\Users\Carlo Salaroglio\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+            
             var currentPath = path.Replace(@"\\",@"\"); // pulitura da mettere a posto
-            var dosCommand = @"""C:\Users\Carlo Salaroglio\AppData\Local\Programs\Microsoft VS Code\Code.exe"" """ + currentPath + "\"";
+            var dosCommand = $@"""{editorPath}"" """ + currentPath + "\"";
             Process.Start(dosCommand);
             return Ok(new { message="opened" });
         }
