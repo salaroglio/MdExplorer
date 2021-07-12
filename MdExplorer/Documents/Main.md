@@ -29,8 +29,7 @@ Adding a sidebar just to update markdown text file
 managing branches and merge.
 ### Configurable plantuml server
 
-
-
+   
 # E' un server
 
 Già già... è server .net core 3.1 con dentro Angular 11.

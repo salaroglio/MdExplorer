@@ -60,8 +60,7 @@ export class AppCurrentFolderService {
   }
 
   saveSettings() {
-    const url = '../api/AppSettings/SetSettings';
-    debugger;
+    const url = '../api/AppSettings/SetSettings';    
     var test = { settings: this.dataStore.settings };
     return this.http.post<IMdSetting[]>(url, this.dataStore.settings);
   }

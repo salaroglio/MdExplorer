@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using NHibernate;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -57,6 +58,15 @@ namespace MdExplorer.Service.Controllers
             }
             _session.Commit();
             return Ok(new { response = "settings saved" });
+        }
+
+        [HttpGet]
+        public IActionResult OpenFile(string path)
+        {
+            var currentPath = path.Replace(@"\\",@"\"); // pulitura da mettere a posto
+            var dosCommand = @"""C:\Users\Carlo Salaroglio\AppData\Local\Programs\Microsoft VS Code\Code.exe"" """ + currentPath + "\"";
+            Process.Start(dosCommand);
+            return Ok(new { message="opened" });
         }
 
         public class Settings
