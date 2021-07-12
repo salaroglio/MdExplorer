@@ -79,5 +79,16 @@ namespace MdExplorer.Service.Controllers
             public Setting[] settings { get; set; }
         }
 
-    }
+        [HttpGet]
+        public IActionResult KillServer()
+        {
+           var processes =  Process.GetProcesses();
+            foreach (var item in processes)
+            {
+                item.Close();
+            }
+            return Ok(new { message = "self-destruct activated" });
+        }
+
+        }
 }
