@@ -65,4 +65,11 @@ export class AppCurrentFolderService {
     return this.http.post<IMdSetting[]>(url, this.dataStore.settings);
   }
 
+  killServer() {
+    const url = '../api/AppSettings/KillServer';
+    return this.http.get(url).subscribe(data => {
+      debugger;
+    });
+  }
+
 }
