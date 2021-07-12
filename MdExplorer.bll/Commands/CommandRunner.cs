@@ -26,6 +26,11 @@ namespace MdExplorer.Features.Commands
             return markdownText;
         }
 
+        public ICommand[] GetAllCommands()
+        {
+            return _commands;
+        }
+
         public string TransformAfterConversion(string markdownText, RequestInfo requestInfo)
         {
             foreach (var item in _commands.OrderBy(_=>_.Priority))

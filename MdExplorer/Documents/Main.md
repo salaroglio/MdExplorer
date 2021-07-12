@@ -9,7 +9,7 @@ il disegno di un mockup
 definizione del diagramma  entità relazioni e relative spiegazioni
 definizione degli test script  
 definizione della architettura dell'applicativo 
-* [Architecture](.\TechNotes\Architecture\MainArchitecture.md)
+
 * Programming
 	* [At startup of MDExplorer](Programming/MDExplorer.Service/startup.md) 
 	* [How Works Autorefresh?](Programming/MDExplorer.Service/HowWorksAutoRefresh.md)

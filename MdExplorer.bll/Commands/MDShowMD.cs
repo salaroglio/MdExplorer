@@ -16,7 +16,7 @@ namespace MdExplorer.Features.Commands
     public class MDShowMD : ICommand
     {
         public int Priority { get; set; } = 10;
-
+        public string Name { get; set; } = "MDShowMD";
         public MDShowMD(string ServerAddress, ILogger<MDShowMD> logger)
         {
             _serverAddress = ServerAddress;
