@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Migrations.Version000001
 {
-    [Migration(20210623002,"Insert new settings")]
+    [Migration(20210623002,"Insert new setting: PlantumlServer and JiraServer")]
     public class M2021_06_23_002 : Migration
     {
        
