@@ -3,6 +3,7 @@
 @startuml
 
 enum GisMatch {
+    funziona così
 NEW // has never been started a search for this asset
 LINKED // asset found and linked with RMC
 NO_MATCH // asset not found, there is no match between RMC and GIS

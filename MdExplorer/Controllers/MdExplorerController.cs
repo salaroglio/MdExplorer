@@ -154,7 +154,7 @@ namespace MdExplorer.Controllers
             //    item.ParentNode.AppendChild(importedNode);
             //    item.ParentNode.RemoveChild(item);
             //}
-            //await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             return new ContentResult
             {
@@ -176,53 +176,7 @@ namespace MdExplorer.Controllers
             body.InnerXml = resultToParse;
         }
 
-        //private static void AddLink(XmlDocument doc1, XmlElement head)
-        //{
-        //    var link = doc1.CreateElement("link");
-        //    head.AppendChild(link);
-        //    //<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.css" integrity="sha384-knaESGLxlQRSHWSJ+ZbTX6/L1bJZWBsBYGb2O+g64XHFuO7CbIj9Pkf1aaVXzIZJ" crossorigin="anonymous">
-        //    var rel = doc1.CreateAttribute("rel");
-        //    link.Attributes.Append(rel);
-        //    rel.InnerText = @"stylesheet";
-        //    var href = doc1.CreateAttribute("href");
-        //    href.InnerText = "https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.css";
-        //    link.Attributes.Append(href);
-        //    var integrity = doc1.CreateAttribute("integrity");
-        //    link.Attributes.Append(integrity);
-        //    integrity.InnerText = @"sha384-knaESGLxlQRSHWSJ+ZbTX6/L1bJZWBsBYGb2O+g64XHFuO7CbIj9Pkf1aaVXzIZJ";
-        //    var crossOrigin = doc1.CreateAttribute("crossorigin");
-        //    link.Attributes.Append(crossOrigin);
-        //    crossOrigin.InnerText = "anonymous";
-        //}
-
-        //private async Task<string> GetSVG(string plantumlCode)
-        //{
-        //    var comment = plantumlCode;
-
-        //    var formContent = new FormUrlEncodedContent(new[]
-        //    {
-        //        new KeyValuePair<string, string>("text", comment),
-        //    });
-
-        //    var myHttpClient = new HttpClient();
-
-        //    var settingDal = _session.GetDal<Setting>();
-        //    var plantumlServer = settingDal.GetList().Where(_ => _.Name == "PlantumlServer").FirstOrDefault()?.ValueString;
-
-        //    var response = await myHttpClient.PostAsync($"http://{plantumlServer}:8080/form", formContent);//_options.Value.PlantumlServer
-        //    var content = await response.Content.ReadAsStringAsync();
-        //    HtmlDocument mydoc = new HtmlDocument();
-        //    mydoc.LoadHtml(content);
-        //    var url = mydoc.DocumentNode.SelectSingleNode(@"//input[@name='url']").Attributes["value"].Value;
-        //    var urls = mydoc.DocumentNode.SelectNodes(@"//a");
-        //    url = urls[1].Attributes["href"].Value;
-
-        //    response = await myHttpClient.GetAsync(url);
-        //    content = await response.Content.ReadAsStringAsync();
-
-        //    return content;
-
-        //}
+       
     }
 
 

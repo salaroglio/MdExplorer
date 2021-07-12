@@ -294,7 +294,6 @@ class AppCurrentFolderService {
     }
     saveSettings() {
         const url = '../api/AppSettings/SetSettings';
-        debugger;
         var test = { settings: this.dataStore.settings };
         return this.http.post(url, this.dataStore.settings);
     }
