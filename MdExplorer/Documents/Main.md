@@ -1,3 +1,5 @@
+pandoc -N --template=template.tex --variable mainfont="Palatino Linotype" --variable sansfont="Lucida Sans" --variable monofont="Arial" --variable fontsize=8pt --variable version=2.0 __test.md --pdf-engine=pdflatex --toc -o example14pdf.tex
+
 # MD Explorer Docs
 MDExplorer ha lo scopo di facilitare la VISUALIZZAZIONE dei file MD.
 Eventualmente anche di editarli, ma deve essere uno strumento facile per visualizzare 
