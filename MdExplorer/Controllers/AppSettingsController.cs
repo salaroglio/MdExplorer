@@ -83,10 +83,10 @@ namespace MdExplorer.Service.Controllers
         public IActionResult KillServer()
         {
            var processes =  Process.GetProcesses();
-            foreach (var item in processes)
-            {
-                item.Close();
-            }
+            //foreach (var item in processes)
+            //{
+            //    item.Close();
+            //}
             return Ok(new { message = "self-destruct activated" });
         }
 

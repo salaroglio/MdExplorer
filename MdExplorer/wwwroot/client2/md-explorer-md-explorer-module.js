@@ -2261,10 +2261,17 @@ class ToolbarComponent {
     updateModifiedMarkDown(data, objectThis) {
         console.log(data);
         objectThis.TitleToShow = data.name;
-        objectThis.currentPath = data.path;
+        objectThis.absolutePath = data.path;
+        objectThis.relativePath = data.relativePath;
     }
     OpenEditor() {
-        const url = '../api/AppSettings/OpenFile?path=' + this.currentPath;
+        debugger;
+        const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
+        return this.http.get(url)
+            .subscribe(data => { console.log(data); });
+    }
+    Export() {
+        const url = '../api/mdexport/' + this.relativePath;
         return this.http.get(url)
             .subscribe(data => { console.log(data); });
     }
@@ -2285,7 +2292,7 @@ ToolbarComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineC
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](7, "button", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function ToolbarComponent_Template_button_click_7_listener() { return ctx.OpenEditor(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function ToolbarComponent_Template_button_click_7_listener() { return ctx.Export(); });
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](8, "mat-icon");
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](9, "import_export");
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();

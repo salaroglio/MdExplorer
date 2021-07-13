@@ -28,7 +28,7 @@ namespace MdExplorer.Features.Commands
         private readonly ILogger<FromPlantumlToPng> _logger;
         private readonly ISession _session;
         private readonly PlantumlServer _plantumlServer;
-        private readonly Helper _helper;
+        private readonly IHelper _helper;
 
         public int Priority { get; set; } = 20;
         public string Name { get; set; } = "FromPlantumlToPng";
@@ -36,7 +36,7 @@ namespace MdExplorer.Features.Commands
                 ILogger<FromPlantumlToPng> logger, 
                 ISession session,
                 PlantumlServer plantumlServer,
-                Helper helper)
+                IHelper helper)
         {
             _serverAddress = ServerAddress;
             _logger = logger;

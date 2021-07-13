@@ -94,6 +94,9 @@ namespace MdExplorer.Service.Controllers
 
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
+
+            System.IO.File.WriteAllText("__test.md", readText);
+
             return new ContentResult
             {
                 ContentType = "text/html",

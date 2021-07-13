@@ -16,9 +16,9 @@ namespace MdExplorer.Features.Commands.html
 {
     public class MDShowMDHtml : MDShowMD, ICommandHtml
     {
-        private readonly Helper _helper;
+        private readonly IHelper _helper;
 
-        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger,Helper helper) : base(ServerAddress, logger)
+        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger,IHelper helper) : base(ServerAddress, logger)
         {
             _helper = helper;
         }

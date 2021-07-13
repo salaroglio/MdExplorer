@@ -18,7 +18,7 @@ namespace MdExplorer.Features.Commands
                         IServiceProvider serviceProvider, 
                         IDALFactory dalFactory, 
                         PlantumlServer plantumlServer,
-                        Helper helper) 
+                        IHelperHtml helper) 
             : base(server, serviceProvider, dalFactory, plantumlServer, helper)
         {
         }

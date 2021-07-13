@@ -31,7 +31,7 @@ namespace MdExplorer.Features.Commands
         private readonly IServiceProvider _serviceProvider;
         private readonly IDALFactory _dalFactory;
         private readonly PlantumlServer _plantumlServer;
-        private readonly Helper _helper;
+        private readonly IHelper _helper;
 
         private string _serverAddress { get; set; }
 
@@ -39,7 +39,8 @@ namespace MdExplorer.Features.Commands
                                 IServiceProvider serviceProvider, 
                                 IDALFactory dalFactory,
                                 PlantumlServer plantumlServer,
-                                Helper helper)//IServerAddressesFeature serverAddresses
+                                IHelper helper
+            )//IServerAddressesFeature serverAddresses
         {
             _server = server;
             _serviceProvider = serviceProvider;
@@ -84,15 +85,19 @@ namespace MdExplorer.Features.Commands
                         if (param.Name == "ServerAddress")
                         {
                             paramsTo.Add(_serverAddress);
+                            
                         }
                         if (param.Name == "logger")
                         {
                             paramsTo.Add(currentLogger);
+                            
                         }
                         if (param.Name == "session")
                         {
                             paramsTo.Add(session);
+                            
                         }
+
                         if (param.Name == "plantumlServer")
                         {
                             paramsTo.Add(_plantumlServer);

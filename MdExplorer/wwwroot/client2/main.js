@@ -7,7 +7,7 @@
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! D:\Personale\ProgettoDocumentazione\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
+module.exports = __webpack_require__(/*! E:\Sviluppo\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
 
 
 /***/ }),

@@ -12,7 +12,8 @@ import { SettingsComponent } from '../settings/settings.component';
 })
 export class ToolbarComponent implements OnInit {
   TitleToShow: string;
-  currentPath: string;
+  absolutePath: string;
+  relativePath: string;
 
   @Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -45,13 +46,21 @@ export class ToolbarComponent implements OnInit {
   private updateModifiedMarkDown(data: any, objectThis: any) {
     console.log(data);    
     objectThis.TitleToShow = data.name;
-    objectThis.currentPath = data.path;
+    objectThis.absolutePath = data.path;
+    objectThis.relativePath = data.relativePath;
   }
 
   OpenEditor() {
-    const url = '../api/AppSettings/OpenFile?path=' + this.currentPath;
+    debugger;
+    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
     return this.http.get(url)
       .subscribe(data => { console.log(data)});
   }
 
+  Export() {
+    const url = '../api/mdexport/' + this.relativePath;
+    return this.http.get(url)
+      .subscribe(data => { console.log(data) });
+  }
+   
 }
