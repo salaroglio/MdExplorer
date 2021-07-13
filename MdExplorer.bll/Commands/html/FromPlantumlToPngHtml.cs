@@ -18,7 +18,7 @@ namespace MdExplorer.Features.Commands.html
     /// </summary>
     public class FromPlantumlToPngHtml : FromPlantumlToPng, ICommandHtml
     {
-        public FromPlantumlToPngHtml(string ServerAddress, ILogger<FromPlantumlToPng> logger, ISession session, PlantumlServer plantumlServer, Helper helper) 
+        public FromPlantumlToPngHtml(string ServerAddress, ILogger<FromPlantumlToPng> logger, ISession session, PlantumlServer plantumlServer, IHelperHtml helper) 
             : base(ServerAddress, logger, session, plantumlServer, helper)
         {
         }

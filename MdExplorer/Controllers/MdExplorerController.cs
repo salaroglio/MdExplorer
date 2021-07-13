@@ -91,7 +91,8 @@ namespace MdExplorer.Controllers
             var monitoredMd = new MonitoredMDModel
             {
                 Path = filePath,
-                Name = Path.GetFileName(filePath)
+                Name = Path.GetFileName(filePath),
+                RelativePath = filePath.Replace(_fileSystemWatcher.Path, string.Empty)
             };
             
             var readText = string.Empty;

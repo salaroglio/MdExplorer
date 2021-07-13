@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Utilities
 {
-    public class Helper
+    public class Helper : IHelper
     {
         private readonly ILogger<Helper> _logger;
 
@@ -24,7 +24,7 @@ namespace MdExplorer.Features.Utilities
         }
 
 
-        public string GetBackPath(RequestInfo requestInfo)
+        public virtual string GetBackPath(RequestInfo requestInfo)
         {
             var correctTODelete = requestInfo.CurrentQueryRequest.Replace("\\\\", "\\");
             Dictionary<int, string> arrayToInvestigate = NomalizeArray(correctTODelete);

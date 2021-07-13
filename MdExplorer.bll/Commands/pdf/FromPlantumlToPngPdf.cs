@@ -16,7 +16,7 @@ namespace MdExplorer.Features.Commands.pdf
                     ILogger<FromPlantumlToPng> logger, 
                     ISession session, 
                     PlantumlServer plantumlServer, 
-                    Helper helper) : base(ServerAddress, logger, session, plantumlServer, helper)
+                    IHelperPdf helper) : base(ServerAddress, logger, session, plantumlServer, helper)
         {
         }
     }

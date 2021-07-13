@@ -17,9 +17,11 @@ namespace MdExplorer.Features
             services.AddSingleton<ICommandFactoryPdf, CommandFactoryPdf>();
             services.AddTransient(_ => _.GetService<ICommandFactoryPdf>().GetCommands());
             services.AddTransient<ICommandRunnerHtml, CommandRunnerHtml>();
+            services.AddTransient<ICommandRunnerPdf, CommandRunnerPdf>();
             services.AddSingleton<RendererFactory>();
             services.AddSingleton<PlantumlServer>();
-            services.AddTransient<Helper>();
+            services.AddTransient<IHelperPdf, HelperPdf>();
+            services.AddTransient<IHelperHtml, HelperHtml>();
             return services;
         }
     }
