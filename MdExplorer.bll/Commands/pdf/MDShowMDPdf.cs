@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -14,8 +15,11 @@ namespace MdExplorer.Features.Commands.pdf
 {
     public class MDShowMDPdf : MDShowMD, ICommandPdf
     {
-        public MDShowMDPdf(string ServerAddress, ILogger<MDShowMDPdf> logger) : base(ServerAddress, logger)
+        private readonly IHelper _helper;
+
+        public MDShowMDPdf(string ServerAddress, ILogger<MDShowMDPdf> logger, IHelper helper) : base(ServerAddress, logger)
         {
+            _helper = helper;
         }
 
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
@@ -24,7 +28,28 @@ namespace MdExplorer.Features.Commands.pdf
 
             foreach (Match item in matches)
             {
-                var fileName = item.Groups[1].Value;
+                // here you should compose the path adding missing part
+                // the missing part is the distance from the root folder and the current file
+                // you can build this using requestInfo.currentqueryrequest
+                var listOfItem = requestInfo.CurrentQueryRequest.Split("\\", options: StringSplitOptions.RemoveEmptyEntries).ToList();
+                listOfItem.RemoveAt(listOfItem.Count - 1);
+                var currentWebFolder = string.Empty;
+                foreach (var item1 in listOfItem)
+                {
+                    if (item1 == listOfItem.First())
+                    {
+                        currentWebFolder = item1;
+                    }
+                    else
+                    {
+                        currentWebFolder += "\\" + item1;
+                    }
+
+
+                }
+
+                currentWebFolder = string.Join("\\", listOfItem.ToArray());
+                var fileName = currentWebFolder + "\\" + item.Groups[1].Value;
                 var allElementToReplace = item.Groups[0].Value;
                 var httpClientHandler = new HttpClientHandler();
                 httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
@@ -34,9 +59,10 @@ namespace MdExplorer.Features.Commands.pdf
 
                 using (var httpClient = new HttpClient(httpClientHandler))
                 {
+                    fileName = _helper.NormalizePath(fileName);
                     var queryEncoded = HttpUtility.UrlEncode(fileName);
 
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
+                    var uriUrl = new Uri($@"{_serverAddress}/api/mdcreatemd/{queryEncoded}");
                     _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
                     var response = httpClient.GetAsync(uriUrl);
                     response.Wait();
