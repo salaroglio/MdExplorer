@@ -78,7 +78,7 @@ namespace MdExplorer.Controllers
                 {
                     fileInfoNode.Childrens.Add(node);
                 }                
-                isEmpty = isempty;
+                isEmpty = isEmpty && isempty;
             }
 
             foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
