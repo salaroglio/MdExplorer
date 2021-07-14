@@ -22,6 +22,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Documents\**" />
+    <Content Remove="Documents\**" />
+    <EmbeddedResource Remove="Documents\**" />
+    <None Remove="Documents\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
@@ -59,52 +66,6 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-   
-    <None Update="Documents\Tests\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\api.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\linked.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\multimatch.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\no-linked.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\no-match.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\no.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\plus.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\plusColorato.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\CustomFiles\question.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\Design.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\SequenceDiagrams\Details.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\SequenceDiagrams\Grid.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\Tests\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <!--<ItemGroup>
@@ -150,8 +111,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Documents\TechNotes\Funzionale\CasiDUso\" />
-    <Folder Include="Documents\TechNotes\Tecnica\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
