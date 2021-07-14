@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -64,6 +65,40 @@ namespace MdExplorer.Features.Utilities
             }
 
             return arrayToInvestigate;
+        }
+        public string GetHashString(string value, Encoding encoding = null)
+        {
+            if (encoding == null)
+            {
+                encoding = Encoding.ASCII;
+            }
+            byte[] bytes = encoding.GetBytes(value);
+            byte[] hash = Hash(bytes);
+            string result = String(hash);
+            return result;
+        }
+
+        public string String(byte[] hash)
+        {
+            /*https://stackoverflow.com/questions/1300890/
+              md5-hash-with-salt-for-keeping-password-in-db-in-c-sharp*/
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < hash.Length; i++)
+            {
+                sb.Append(hash[i].ToString("x2"));     /*do not make it X2*/
+            }
+            var result = sb.ToString();
+            return result;
+        }
+
+        public byte[] Hash(byte[] value)
+        {
+            /*https://support.microsoft.com/en-za/help/307020/
+              how-to-compute-and-compare-hash-values-by-using-visual-cs*/
+            /*https://andrewlock.net/why-is-string-gethashcode-
+              different-each-time-i-run-my-program-in-net-core*/
+            byte[] result = MD5.Create().ComputeHash(value);
+            return result;
         }
     }
 }

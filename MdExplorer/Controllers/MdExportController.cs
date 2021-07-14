@@ -1,6 +1,7 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
@@ -29,13 +30,16 @@ namespace MdExplorer.Service.Controllers
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ISession _session;
         private readonly ICommandRunner _commandRunner;
+        private readonly IHelperPdf _helperPdf;
 
         public MdExportController(ILogger<MdExportController> logger,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             ISession session,
-            ICommandRunnerPdf commandRunner)
+            ICommandRunnerPdf commandRunner,
+            IHelperPdf helperPdf
+            )
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
@@ -43,6 +47,7 @@ namespace MdExplorer.Service.Controllers
             _hubContext = hubContext;
             _session = session;
             _commandRunner = commandRunner;
+            _helperPdf = helperPdf;
         }
         [HttpGet]
         public async Task<IActionResult> GetAsync()
@@ -88,8 +93,11 @@ namespace MdExplorer.Service.Controllers
 
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
+            //pandoc - N--template = template.tex--variable mainfont = "Palatino Linotype"--variable sansfont = "Lucida Sans"--variable monofont = "Arial"--variable fontsize = 8pt--variable version = 2.0 __test.md--pdf - engine = pdflatex--toc - o example14pdf.tex
             // TODO: Use Pandoc to create document
-            System.IO.File.WriteAllText("__test.md", readText);
+            var currentGuid = _helperPdf.GetHashString(readText);
+
+            System.IO.File.WriteAllText($".\\.md\\{currentGuid}.md", readText);
 
             return new ContentResult
             {

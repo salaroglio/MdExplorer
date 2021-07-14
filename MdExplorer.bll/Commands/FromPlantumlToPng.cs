@@ -99,7 +99,7 @@ namespace MdExplorer.Features.Commands
             foreach (Match item in matches)
             {
                 var text = item.Groups[1].Value;
-                var textHash = HashString(text, Encoding.UTF8);
+                var textHash = _helper.GetHashString(text, Encoding.UTF8);
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
                 if (!File.Exists(filePath))
                 {
@@ -121,71 +121,8 @@ namespace MdExplorer.Features.Commands
 
         
 
-            
+                    
 
-
-        //private async Task<byte[]> GetSVG(string plantumlCode)
-        //{
-        //    var comment = plantumlCode;
-
-        //    var formContent = new FormUrlEncodedContent(new[]
-        //    {
-        //        new KeyValuePair<string, string>("text", comment),
-        //    });
-
-        //    var myHttpClient = new HttpClient();
-
-        //    var settingDal = _session.GetDal<Setting>();
-        //    var plantumlServer = settingDal.GetList().Where(_ => _.Name == "PlantumlServer").FirstOrDefault()?.ValueString;
-
-        //    var response = await myHttpClient.PostAsync($"http://{plantumlServer}:8080/form", formContent);//_options.Value.PlantumlServer
-        //    var content = await response.Content.ReadAsStringAsync();
-        //    HtmlDocument mydoc = new HtmlDocument();
-        //    mydoc.LoadHtml(content);
-        //    var url = mydoc.DocumentNode.SelectSingleNode(@"//input[@name='url']").Attributes["value"].Value;
-        //    //var urls = mydoc.DocumentNode.SelectNodes(@"//a");
-        //    //url = urls[0].Attributes["href"].Value;
-
-        //    response = await myHttpClient.GetAsync(url);
-        //    content = await response.Content.ReadAsStringAsync();
-
-        //    return await response.Content.ReadAsByteArrayAsync();
-
-        //}
-
-        public string HashString(string value, Encoding encoding = null)
-        {
-            if (encoding == null)
-            {
-                encoding = Encoding.ASCII;
-            }
-            byte[] bytes = encoding.GetBytes(value);
-            byte[] hash = Hash(bytes);
-            string result = String(hash);
-            return result;
-        }
-
-        public string String(byte[] hash)
-        {
-            /*https://stackoverflow.com/questions/1300890/
-              md5-hash-with-salt-for-keeping-password-in-db-in-c-sharp*/
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < hash.Length; i++)
-            {
-                sb.Append(hash[i].ToString("x2"));     /*do not make it X2*/
-            }
-            var result = sb.ToString();
-            return result;
-        }
-
-        public byte[] Hash(byte[] value)
-        {
-            /*https://support.microsoft.com/en-za/help/307020/
-              how-to-compute-and-compare-hash-values-by-using-visual-cs*/
-            /*https://andrewlock.net/why-is-string-gethashcode-
-              different-each-time-i-run-my-program-in-net-core*/
-            byte[] result = MD5.Create().ComputeHash(value);
-            return result;
-        }
+        
     }
 }
