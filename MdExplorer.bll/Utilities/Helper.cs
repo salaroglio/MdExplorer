@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Utilities
 
         public string NormalizePath(string requestInfo)
         {
-            var dictionary = NomalizeArray(requestInfo);
+            var dictionary = NomalizeArray(requestInfo);            
             return string.Join("\\", dictionary.Select(_ => _.Value));
         }
 
@@ -46,6 +46,7 @@ namespace MdExplorer.Features.Utilities
                 }
 
             }
+            backPath += "\\.md";
             return backPath;
         }
 
