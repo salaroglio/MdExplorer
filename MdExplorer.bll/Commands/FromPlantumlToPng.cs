@@ -75,7 +75,7 @@ namespace MdExplorer.Features.Commands
             foreach (Match item in matches)
             {
                 var stringMatched0 = item.Groups[1].Value;
-                var referenceUrl = $"<img src=\"{backPath.Replace("\\","/")}/.md/{stringMatched0}.png";                
+                var referenceUrl = $"<img src=\"{backPath.Replace("\\","/")}/{stringMatched0}.png";                
                 html = html.Replace(item.Groups[0].Value, referenceUrl);
             }
             
@@ -110,7 +110,7 @@ namespace MdExplorer.Features.Commands
                     _logger.LogInformation($"write file: {filePath}");
                 }
 
-                var markdownFilePath = $"{backPath}\\.md\\{textHash}.png";
+                var markdownFilePath = $"{backPath}\\{textHash}.png";
                 var referenceUrl = $@"![]({markdownFilePath.Replace("\\", "/")})";
                 _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
