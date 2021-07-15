@@ -32,6 +32,7 @@ namespace MdExplorer.Service.Controllers
         private readonly ISession _session;
         private readonly ICommandRunner _commandRunner;
         private readonly IHelperPdf _helperPdf;
+        private MonitoredMDModel monitoredMd;
 
         public MdExportController(ILogger<MdExportController> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -101,12 +102,20 @@ namespace MdExplorer.Service.Controllers
             var currentFilePath = $".\\.md\\{currentGuid}.md";
             var currentFilePdfPath = filePath.Replace("\\\\","\\").Replace(".md", ".pdf");
             System.IO.File.WriteAllText(currentFilePath, readText);
-            var processCommand = $"pandoc {currentFilePath} -o {currentFilePdfPath} --from markdown --template=eisvogel.tex --listings --toc";
+            var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=eisvogel.tex --listings --toc";
             var finalCommand = $"/c {processCommand}";
             var processToStart = new ProcessStartInfo("cmd", finalCommand) { CreateNoWindow = false };
-            var processStarted = Process.Start(processToStart);
             
+            var processStarted = Process.Start(processToStart);
+            processStarted.EnableRaisingEvents = true;
+            monitoredMd = new MonitoredMDModel
+            {
+                Path = filePath,
+                Name = Path.GetFileName(filePath),
+                RelativePath = filePath.Replace(_fileSystemWatcher.Path, string.Empty)
+            };
 
+            processStarted.Exited += ProcessStarted_Exited; 
 
             return new ContentResult
             {
@@ -115,5 +124,11 @@ namespace MdExplorer.Service.Controllers
             };
         }
 
+        private async void ProcessStarted_Exited(object? sender, EventArgs e)
+        {
+            await _hubContext.Clients.All.SendAsync("pdfisready", monitoredMd);
+
+            //throw new NotImplementedException();
+        }
     }
 }

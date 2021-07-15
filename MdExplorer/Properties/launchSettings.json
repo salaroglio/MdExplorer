@@ -20,7 +20,7 @@
     },
     "MdExplorer": {
       "commandName": "Project",
-      "commandLineArgs": "E:\\Sviluppo\\md-explorer-docs\\Documents\\Main.md",
+      "commandLineArgs": "\"D:\\Sviluppi\\Omnia\\documents\\handovers\\Salaroglio Carlo\\Handover.md\"",
       "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
