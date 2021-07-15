@@ -42,11 +42,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="eisvogel.tex" />
     <None Remove="MdExplorer.db" />
   </ItemGroup>
 
 
   <ItemGroup>
+    <EmbeddedResource Include="eisvogel.tex" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
