@@ -99,14 +99,13 @@ namespace MdExplorer.Service.Controllers
 
                 Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
-                //pandoc 7f53b5a1e5f8982380d283a17efea45a.md -o 7f53b5a1e5f8982380d283a17efea45a.pdf --from markdown --template=eisvogel.tex --listings --toc
 
                 // TODO: Use Pandoc to create document
                 var currentGuid = _helperPdf.GetHashString(readText);
                 var currentFilePath = $".\\.md\\{currentGuid}.md";
                 var currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", ".pdf");
                 System.IO.File.WriteAllText(currentFilePath, readText);
-                var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=eisvogel.tex --listings --toc";
+                var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=.\.md\eisvogel.tex --listings --toc";
                 var finalCommand = $"/c {processCommand}";
                 var processToStart = new ProcessStartInfo("cmd", finalCommand) { CreateNoWindow = false };
 

@@ -29,6 +29,7 @@ namespace MdExplorer
             if (!File.Exists(currentDb))
             {
                 FileUtil.ExtractResFile("MdExplorer.Service.MdExplorer.db", currentDb);
+                FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", @".\md\eisvogel.tex");
             }
         }
 

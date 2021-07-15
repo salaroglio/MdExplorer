@@ -39,7 +39,7 @@ namespace MdExplorer.Service.Controllers
             {
                 filePath = string.Concat(filePath, relativePath);
                 var data = System.IO.File.ReadAllBytes(filePath);
-                var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
+                var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);                
                 return notMdFile;
             }
 
