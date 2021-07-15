@@ -7,7 +7,7 @@
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! E:\Sviluppo\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
+module.exports = __webpack_require__(/*! D:\Personale\ProgettoDocumentazione\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
 
 
 /***/ }),
@@ -270,7 +270,7 @@ class AppCurrentFolderService {
     constructor(http) {
         this.http = http;
         this.dataStore = {
-            folderName: 'cucu', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ id: 'test', name: 'PlantumlServer' })]
+            folderName: 'test', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ id: 'test', name: 'PlantumlServer' })]
         };
         this._folderName = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]('test');
         this._Settings = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);

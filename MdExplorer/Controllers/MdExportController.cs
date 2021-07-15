@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NHibernate;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -33,6 +34,7 @@ namespace MdExplorer.Service.Controllers
         private readonly ICommandRunner _commandRunner;
         private readonly IHelperPdf _helperPdf;
         private MonitoredMDModel monitoredMd;
+        private ConcurrentDictionary<int, string> concurrentProcessInfo = new ConcurrentDictionary<int, string>();
 
         public MdExportController(ILogger<MdExportController> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -52,83 +54,89 @@ namespace MdExplorer.Service.Controllers
             _helperPdf = helperPdf;
         }
         [HttpGet]
-        public async Task<IActionResult> GetAsync()
+        public async Task<IActionResult> GetAsync(string connectionId )
         {
-            var filePath = _fileSystemWatcher.Path;
-            var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexport//", string.Empty).Replace("/", @"\"));
-            relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexport/", string.Empty).Replace("/", @"\"));
-            var relativePathExtension = Path.GetExtension(relativePath);
-
-            if (relativePathExtension != "" && relativePathExtension != ".md")
+            try
             {
-                filePath = string.Concat(filePath, relativePath);
-                var data = System.IO.File.ReadAllBytes(filePath);
-                var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
-                return notMdFile;
+                var filePath = _fileSystemWatcher.Path;
+                var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexport//", string.Empty).Replace("/", @"\"));
+                relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexport/", string.Empty).Replace("/", @"\"));
+                var relativePathExtension = Path.GetExtension(relativePath);
+
+                if (relativePathExtension != "" && relativePathExtension != ".md")
+                {
+                    filePath = string.Concat(filePath, relativePath);
+                    var data = System.IO.File.ReadAllBytes(filePath);
+                    var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
+                    return notMdFile;
+                }
+
+
+                if (relativePathExtension == ".md")
+                {
+                    filePath = string.Concat(filePath, relativePath);
+                }
+                else
+                {
+                    filePath = string.Concat(filePath, relativePath, ".md");
+                }
+
+                var readText = string.Empty;
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs, Encoding.Default))
+                {
+                    readText = sr.ReadToEnd();
+                }
+                var requestInfo = new RequestInfo()
+                {
+                    CurrentQueryRequest = relativePath,
+                    CurrentRoot = _fileSystemWatcher.Path
+                };
+
+                Directory.SetCurrentDirectory(Path.GetDirectoryName(filePath));
+
+                readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+
+                Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+
+                //pandoc 7f53b5a1e5f8982380d283a17efea45a.md -o 7f53b5a1e5f8982380d283a17efea45a.pdf --from markdown --template=eisvogel.tex --listings --toc
+
+                // TODO: Use Pandoc to create document
+                var currentGuid = _helperPdf.GetHashString(readText);
+                var currentFilePath = $".\\.md\\{currentGuid}.md";
+                var currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", ".pdf");
+                System.IO.File.WriteAllText(currentFilePath, readText);
+                var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=eisvogel.tex --listings --toc";
+                var finalCommand = $"/c {processCommand}";
+                var processToStart = new ProcessStartInfo("cmd", finalCommand) { CreateNoWindow = false };
+
+                var processStarted = Process.Start(processToStart);
+                processStarted.EnableRaisingEvents = true;
+                monitoredMd = new MonitoredMDModel
+                {
+                    Path = filePath,
+                    Name = Path.GetFileName(filePath),
+                    RelativePath = filePath.Replace(_fileSystemWatcher.Path, string.Empty),
+                    ConnectionId = connectionId
+                };
+
+                processStarted.Exited += ProcessStarted_Exited;
+                return new ContentResult
+                {
+                    ContentType = "application/json",
+                    Content = "{\"message\":\"done\"}"
+                };
             }
-
-
-            if (relativePathExtension == ".md")
+            catch (Exception ex)
             {
-                filePath = string.Concat(filePath, relativePath);
-            }
-            else
-            {
-                filePath = string.Concat(filePath, relativePath, ".md");
-            }
-           
-            var readText = string.Empty;
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var sr = new StreamReader(fs, Encoding.Default))
-            {
-                readText = sr.ReadToEnd();
-            }
-            var requestInfo = new RequestInfo()
-            {
-                CurrentQueryRequest = relativePath,
-                CurrentRoot = _fileSystemWatcher.Path
-            };
-
-            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePath));            
-
-            readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
-
-            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
-
-            //pandoc 7f53b5a1e5f8982380d283a17efea45a.md -o 7f53b5a1e5f8982380d283a17efea45a.pdf --from markdown --template=eisvogel.tex --listings --toc
-
-            // TODO: Use Pandoc to create document
-            var currentGuid = _helperPdf.GetHashString(readText);
-            var currentFilePath = $".\\.md\\{currentGuid}.md";
-            var currentFilePdfPath = filePath.Replace("\\\\","\\").Replace(".md", ".pdf");
-            System.IO.File.WriteAllText(currentFilePath, readText);
-            var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=eisvogel.tex --listings --toc";
-            var finalCommand = $"/c {processCommand}";
-            var processToStart = new ProcessStartInfo("cmd", finalCommand) { CreateNoWindow = false };
-            
-            var processStarted = Process.Start(processToStart);
-            processStarted.EnableRaisingEvents = true;
-            monitoredMd = new MonitoredMDModel
-            {
-                Path = filePath,
-                Name = Path.GetFileName(filePath),
-                RelativePath = filePath.Replace(_fileSystemWatcher.Path, string.Empty)
-            };
-
-            processStarted.Exited += ProcessStarted_Exited; 
-
-            return new ContentResult
-            {
-                ContentType = "text/html",
-                Content = "done"
-            };
+                var ms = ex.Message;
+                throw;
+            }                                  
         }
 
-        private async void ProcessStarted_Exited(object? sender, EventArgs e)
-        {
-            await _hubContext.Clients.All.SendAsync("pdfisready", monitoredMd);
-
-            //throw new NotImplementedException();
+        private void ProcessStarted_Exited(object? sender, EventArgs e)
+        {            
+            _hubContext.Clients.Client(connectionId:monitoredMd.ConnectionId).SendAsync("pdfisready", monitoredMd).Wait();            
         }
     }
 }
