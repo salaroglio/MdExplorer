@@ -13,7 +13,7 @@ export class MonitorMDService {
   private hubConnection: signalR.HubConnection
 
   public startConnection = () => {
-    
+
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl('../signalr/monitormd')
       .build();
@@ -24,7 +24,7 @@ export class MonitorMDService {
   }
 
   public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('markdownfileischanged', (data) => {      
+    this.hubConnection.on('markdownfileischanged', (data) => {
       callback(data, objectThis);
     });
   }
@@ -32,7 +32,28 @@ export class MonitorMDService {
   public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('markdownfileisprocessed', (data) => {
       callback(data, objectThis);
+    });   
+  }
+
+  public addPdfIsReadyListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('pdfisready', (data) => {
+      callback(data, objectThis);
     });
   }
+
+  public addConnectionIdListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
+    this.hubConnection.on('getconnectionid', (data) => {      
+      callback(data, objectThis);
+    });
+  }
+
+  public getConnectionId(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.invoke('GetConnectionId')
+      .then(function (connectionId) {        
+        callback(connectionId, objectThis);        
+      });
+  }
+
+  
 
 }
