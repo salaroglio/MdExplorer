@@ -16,7 +16,7 @@ namespace MdExplorer.Features.Utilities
 
         public override string GetBackPath(RequestInfo requestInfo)
         {
-            return ".";
+            return ".\\.md";
         }
     }
 }
