@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using NHibernate;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -93,16 +94,24 @@ namespace MdExplorer.Service.Controllers
 
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
-            //pandoc - N--template = template.tex--variable mainfont = "Palatino Linotype"--variable sansfont = "Lucida Sans"--variable monofont = "Arial"--variable fontsize = 8pt--variable version = 2.0 __test.md--pdf - engine = pdflatex--toc - o example14pdf.tex
+            //pandoc 7f53b5a1e5f8982380d283a17efea45a.md -o 7f53b5a1e5f8982380d283a17efea45a.pdf --from markdown --template=eisvogel.tex --listings --toc
+
             // TODO: Use Pandoc to create document
             var currentGuid = _helperPdf.GetHashString(readText);
+            var currentFilePath = $".\\.md\\{currentGuid}.md";
+            var currentFilePdfPath = filePath.Replace("\\\\","\\").Replace(".md", ".pdf");
+            System.IO.File.WriteAllText(currentFilePath, readText);
+            var processCommand = $"pandoc {currentFilePath} -o {currentFilePdfPath} --from markdown --template=eisvogel.tex --listings --toc";
+            var finalCommand = $"/c {processCommand}";
+            var processToStart = new ProcessStartInfo("cmd", finalCommand) { CreateNoWindow = false };
+            var processStarted = Process.Start(processToStart);
+            
 
-            System.IO.File.WriteAllText($".\\.md\\{currentGuid}.md", readText);
 
             return new ContentResult
             {
                 ContentType = "text/html",
-                Content = ""
+                Content = "done"
             };
         }
 
