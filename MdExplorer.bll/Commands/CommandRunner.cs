@@ -40,6 +40,16 @@ namespace MdExplorer.Features.Commands
             return markdownText;
         }
 
+        public string PrepareMetadataBasedOnMD(string markdownText, RequestInfo requestInfo)
+        {
+            foreach (var item in _commands.OrderBy(_ => _.Priority))
+            {
+                markdownText = item.PrepareMetadataBasedOnMD(markdownText, requestInfo);
+            }
+            return markdownText;
+        }
+        
+
 
     }
 }

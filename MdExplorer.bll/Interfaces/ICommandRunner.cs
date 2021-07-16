@@ -11,6 +11,7 @@ namespace MdExplorer.Features.Commands
     {
         string TransformAfterConversion(string markdownText, RequestInfo requestInfo);
         string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo);
+        string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo);
         public ICommand[] GetAllCommands();
 
     }

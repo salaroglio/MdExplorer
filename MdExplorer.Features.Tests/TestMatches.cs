@@ -86,5 +86,24 @@ namespace MdExplorer.Features.Tests
         }
 
 
+        [TestMethod]
+        public void Should_match_images()
+        {
+            var textToParse = $@"testo di prova
+                ![alt text](Icons\plus.png ""Title"")
+                prova di nuovo 
+            ![alt text](Icons\plus.png ""Title"")
+                    ne deve prendere 2
+                ";
+                
+
+            var command = new ManageImages( null, null);
+            var match = command.GetMatches(textToParse);
+            var stringMatched0 = match[0].Groups[2].Value;
+
+            Assert.AreEqual(stringMatched0, @"-12344455");
+            Assert.AreEqual(match.Count, 2);
+        }
+
     }
 }

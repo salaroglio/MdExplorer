@@ -84,7 +84,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult OpenChromePdf(string path)
         {
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c start {path}") { 
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{path}\"") { 
                 
                 CreateNoWindow = false };
             Process.Start(processToStart);
@@ -100,11 +100,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult KillServer()
         {
-           var processes =  Process.GetProcesses();
-            //foreach (var item in processes)
-            //{
-            //    item.Close();
-            //}
+            Environment.Exit(0);
             return Ok(new { message = "self-destruct activated" });
         }
 
