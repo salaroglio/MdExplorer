@@ -119,10 +119,10 @@ namespace MdExplorer.Features.Commands
             return markdown;
         }
 
-        
-
-                    
-
-        
+        public string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo)
+        {
+            // Do nothing
+            return markdown;
+        }
     }
 }

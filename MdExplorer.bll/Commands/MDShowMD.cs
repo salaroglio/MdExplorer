@@ -42,5 +42,11 @@ namespace MdExplorer.Features.Commands
         {
             return text;
         }
+
+        public string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo)
+        {
+            //nothing to do
+            return markdown;
+        }
     }
 }
