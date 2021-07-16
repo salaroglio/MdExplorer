@@ -38,6 +38,8 @@
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\styles.css" />
     <Content Remove="wwwroot\client2\vendor.js" />
+    <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
+    <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
 
@@ -61,6 +63,8 @@
     <EmbeddedResource Include="wwwroot\client2\runtime.js" />
     <EmbeddedResource Include="wwwroot\client2\styles.css" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js" />
+    <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
+    <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
 

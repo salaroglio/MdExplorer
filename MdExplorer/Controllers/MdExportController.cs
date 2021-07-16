@@ -107,19 +107,26 @@ namespace MdExplorer.Service.Controllers
                 System.IO.File.WriteAllText(currentFilePath, readText);
                 var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=.\.md\eisvogel.tex --listings --toc";
                 var finalCommand = $"/c {processCommand}";
-                var processToStart = new ProcessStartInfo("cmd", finalCommand) { CreateNoWindow = false };
+                var processToStart = new ProcessStartInfo("cmd", finalCommand) { 
+                                      
+                    //RedirectStandardOutput = true,
+                    //RedirectStandardError = true,
+                    CreateNoWindow = false };
+                
 
                 var processStarted = Process.Start(processToStart);
+                
                 processStarted.EnableRaisingEvents = true;
                 monitoredMd = new MonitoredMDModel
                 {
-                    Path = filePath,
-                    Name = Path.GetFileName(filePath),
-                    RelativePath = filePath.Replace(_fileSystemWatcher.Path, string.Empty),
+                    Path = currentFilePdfPath,
+                    Name = Path.GetFileName(currentFilePdfPath),
+                    RelativePath = currentFilePdfPath.Replace(_fileSystemWatcher.Path, string.Empty),
                     ConnectionId = connectionId
                 };
 
                 processStarted.Exited += ProcessStarted_Exited;
+                
                 return new ContentResult
                 {
                     ContentType = "application/json",
@@ -133,8 +140,11 @@ namespace MdExplorer.Service.Controllers
             }                                  
         }
 
+       
+
         private void ProcessStarted_Exited(object? sender, EventArgs e)
-        {            
+        {
+            monitoredMd.Action = "Open Folder";
             _hubContext.Clients.Client(connectionId:monitoredMd.ConnectionId).SendAsync("pdfisready", monitoredMd).Wait();            
         }
     }

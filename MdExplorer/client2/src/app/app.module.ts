@@ -5,6 +5,7 @@ import { FlexLayoutModule } from '@angular/flex-layout';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
+
 //import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { MaterialModule } from "./shared/material.module";
@@ -17,7 +18,8 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    
   ],
   imports: [
     BrowserModule,
@@ -27,6 +29,8 @@ const routes: Routes = [
     FormsModule,
     BrowserAnimationsModule,
     HttpClientModule
+    
+    
   ],
   providers: [],
   bootstrap: [AppComponent]

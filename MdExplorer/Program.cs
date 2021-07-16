@@ -26,11 +26,12 @@ namespace MdExplorer
         {
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var currentDb = $@"{appdata}\MdExplorer.db";
+            
             if (!File.Exists(currentDb))
             {
-                FileUtil.ExtractResFile("MdExplorer.Service.MdExplorer.db", currentDb);
-                FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", @".\md\eisvogel.tex");
+                FileUtil.ExtractResFile("MdExplorer.Service.MdExplorer.db", currentDb);                
             }
+            
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)

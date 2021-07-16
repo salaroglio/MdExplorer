@@ -74,7 +74,12 @@ namespace MdExplorer.Controllers
             {
                 filePath = string.Concat(filePath, relativePath);
                 var data = System.IO.File.ReadAllBytes(filePath);
-                var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
+                var currentContetType = $"image/{relativePathExtension}" ;
+                if (relativePathExtension == "pdf")
+                {
+                    currentContetType = $"application/{relativePathExtension}";
+                }
+                var notMdFile = new FileContentResult(data, currentContetType);
                 return notMdFile;
             }
 
