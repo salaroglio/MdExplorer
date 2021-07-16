@@ -73,6 +73,24 @@ namespace MdExplorer.Service.Controllers
             Process.Start(dosCommand);
             return Ok(new { message="opened" });
         }
+        [HttpGet]
+        public IActionResult OpenFolder(string path)
+        {
+            var pathToOpen = Path.GetDirectoryName(path);
+            Process.Start("explorer.exe", pathToOpen);
+            return Ok(new { message = "opened" });
+        }
+
+        [HttpGet]
+        public IActionResult OpenChromePdf(string path)
+        {
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c start {path}") { 
+                
+                CreateNoWindow = false };
+            Process.Start(processToStart);
+            
+            return Ok(new { message = "opened" });
+        }
 
         public class Settings
         {

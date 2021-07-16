@@ -25,6 +25,7 @@ using Microsoft.Extensions.FileProviders;
 using MdExplorer.Features;
 using MdExplorer.Features.Commands;
 using System.Collections.Generic;
+using MdExplorer.Service;
 //using MdExplorer.Service.Filters;
 
 namespace MdExplorer
@@ -46,7 +47,8 @@ namespace MdExplorer
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<MdExplorerAppSettings>(_Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
-            services = ConfigFileSystemWatchers(services);                        
+            services = ConfigFileSystemWatchers(services);
+            ConfigTemplates(Args[0]);
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
@@ -59,6 +61,13 @@ namespace MdExplorer
                 //config.Filters.Add<TransactionActionFilter>();
             });
             
+        }
+
+        private void ConfigTemplates(string mdPath)
+        {
+            var directory =$"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md" ;
+            Directory.CreateDirectory(directory);
+            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}eisvogel.tex");
         }
 
         private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)

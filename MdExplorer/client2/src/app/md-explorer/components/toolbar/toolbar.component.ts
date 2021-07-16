@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { MonitorMDService } from '../../services/monitor-md.service';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { SettingsComponent } from '../settings/settings.component';
@@ -23,7 +24,8 @@ export class ToolbarComponent implements OnInit {
     public dialog: MatDialog,
     private monitorMDService: MonitorMDService,
     private http: HttpClient,
-    private _snackBar: MatSnackBar
+    private _snackBar: MatSnackBar,
+    private router: Router,
   ) {
     this.TitleToShow = "M↓Explorer";
   }
@@ -55,7 +57,17 @@ export class ToolbarComponent implements OnInit {
 
   private showPdfIsready(data: any, objectThis: ToolbarComponent) {
    
-    objectThis._snackBar.open("pdf is ready", data.path, { duration: 2000, verticalPosition: 'top' });
+    let snackRef = objectThis._snackBar.open("pdf is ready", "Open folder", { duration: 5000, verticalPosition: 'top' });
+    snackRef.onAction().subscribe(() => {
+      //var dateTime = new Date();
+      //debugger;
+      //objectThis.sideNavDataService.currentPath = data.relativePath;
+      //objectThis.sideNavDataService.currentName = data.name;
+      //objectThis.router.navigate(['/main', dateTime.getTime()]);
+      const url = '../api/AppSettings/OpenChromePdf?path=' + data.path;
+      return objectThis.http.get(url)
+        .subscribe(data => { console.log(data) });
+    });
   }
 
   private updateModifiedMarkDown(data: any, objectThis: any) {
