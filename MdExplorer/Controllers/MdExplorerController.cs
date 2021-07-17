@@ -24,37 +24,24 @@ using System.Web;
 using System.Xml;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Commands;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Features.Interfaces;
 
 namespace MdExplorer.Controllers
 {
     [ApiController]
     [Route("/api/MdExplorer/{*url}")]
-    public class MdExplorerController : ControllerBase
+    public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        private readonly ILogger<MdExplorerController> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IOptions<MdExplorerAppSettings> _options;
-        private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly ISession _session;
-        private readonly ICommandRunner _commandRunner;
-
-        public MdExplorerController(ILogger<MdExplorerController> logger,
-            FileSystemWatcher fileSystemWatcher,
-            IOptions<MdExplorerAppSettings> options,
-            IHubContext<MonitorMDHub> hubContext,
-            ISession session,
+        public MdExplorerController(ILogger<MdExplorerController> logger, 
+            FileSystemWatcher fileSystemWatcher, 
+            IOptions<MdExplorerAppSettings> options, 
+            IHubContext<MonitorMDHub> hubContext, 
+            ISession session, 
             ICommandRunnerHtml commandRunner
-            )
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
         {
-            _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            this._options = options;
-            _hubContext = hubContext;
-            _session = session;
-            _commandRunner = commandRunner;
         }
-
-
 
         /// <summary>
         /// Get all goodies available in html
@@ -64,17 +51,17 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            
-            var filePath = _fileSystemWatcher.Path;
-            var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer//", string.Empty).Replace("/", @"\"));
-            relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer/", string.Empty).Replace("/", @"\"));
-            var relativePathExtension = Path.GetExtension(relativePath);
+
+            var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
+            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
+            var relativePathExtension = Path.GetExtension(relativePathFileSystem);
+
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
-                filePath = string.Concat(filePath, relativePath);
-                var data = System.IO.File.ReadAllBytes(filePath);
-                var currentContetType = $"image/{relativePathExtension}" ;
+                var filePathSystem = string.Concat(rootPathSystem, relativePathFileSystem);
+                var data = System.IO.File.ReadAllBytes(filePathSystem);
+                var currentContetType = $"image/{relativePathExtension}";
                 if (relativePathExtension == "pdf")
                 {
                     currentContetType = $"application/{relativePathExtension}";
@@ -83,38 +70,38 @@ namespace MdExplorer.Controllers
                 return notMdFile;
             }
 
-
+            var filePathSystem1 = string.Empty;
             if (relativePathExtension == ".md")
             {
-                filePath = string.Concat(filePath, relativePath);
+                filePathSystem1 = string.Concat(rootPathSystem, relativePathFileSystem);
             }
             else
             {
-                filePath = string.Concat(filePath, relativePath, ".md");
+                filePathSystem1 = string.Concat(rootPathSystem, relativePathFileSystem, ".md");
             }
 
             var monitoredMd = new MonitoredMDModel
             {
-                Path = filePath,
-                Name = Path.GetFileName(filePath),
-                RelativePath = filePath.Replace(_fileSystemWatcher.Path, string.Empty)
+                Path = filePathSystem1,
+                Name = Path.GetFileName(filePathSystem1),
+                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty)
             };
-            
+
             var readText = string.Empty;
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var sr = new StreamReader(fs, Encoding.Default))
             {
                 readText = sr.ReadToEnd();
             }
             var requestInfo = new RequestInfo()
             {
-                CurrentQueryRequest = relativePath,
+                CurrentQueryRequest = relativePathFileSystem,
                 CurrentRoot = _fileSystemWatcher.Path
             };
 
-            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePath));
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePathSystem1));
 
-            readText  = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+            readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
@@ -125,8 +112,9 @@ namespace MdExplorer.Controllers
                 .UseAdvancedExtensions()
                 .UsePipeTables()
                 .UseBootstrap()
-                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"
+                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
                 .UseEmojiAndSmiley()
+                .UseYamlFrontMatter()
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
@@ -150,16 +138,7 @@ namespace MdExplorer.Controllers
 
             var elements = doc1.FirstChild.SelectNodes(@"//pre/code[@class='language-plantuml']");
 
-            //foreach (XmlNode item in elements)
-            //{
 
-            //    XmlDocument doc2 = new XmlDocument();
-            //    doc2.LoadXml(await GetSVG(item.InnerText));
-            //    var importedNode = doc1.ImportNode(doc2.ChildNodes[1], true);
-
-            //    item.ParentNode.AppendChild(importedNode);
-            //    item.ParentNode.RemoveChild(item);
-            //}
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             return new ContentResult
@@ -168,6 +147,8 @@ namespace MdExplorer.Controllers
                 Content = doc1.InnerXml
             };
         }
+
+        
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1)
         {

@@ -21,9 +21,6 @@ namespace MdExplorer.Controllers
             _fileSystemWatcher = fileSystemWatcher;
         }
 
-
-       
-
         [HttpGet]
         public IActionResult GetAllMdFiles()
         {
