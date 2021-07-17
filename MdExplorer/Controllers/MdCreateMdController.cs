@@ -26,7 +26,11 @@ namespace MdExplorer.Service.Controllers
     [Route("/api/mdcreatemd/{*url}")]
     public class MdCreateMdController : MdControllerBase<MdCreateMdController>
     {
-        public MdCreateMdController(ILogger<MdCreateMdController> logger, FileSystemWatcher fileSystemWatcher, IOptions<MdExplorerAppSettings> options, IHubContext<MonitorMDHub> hubContext, ISession session, ICommandRunnerPdf commandRunner) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
+        public MdCreateMdController(ILogger<MdCreateMdController> logger, 
+            FileSystemWatcher fileSystemWatcher, IOptions<MdExplorerAppSettings> options, 
+            IHubContext<MonitorMDHub> hubContext, ISession session, 
+            ICommandRunnerPdf commandRunner
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
         {
         }
 
@@ -68,8 +72,9 @@ namespace MdExplorer.Service.Controllers
             };
 
             Directory.SetCurrentDirectory(Path.GetDirectoryName(filePath));
-
+            
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+            readText = _commandRunner.PrepareMetadataBasedOnMD(readText, requestInfo);
 
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);            
 
