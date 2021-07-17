@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Commands.html
     {
         private readonly IHelper _helper;
 
-        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger,IHelper helper) : base(ServerAddress, logger)
+        public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger, IHelper helper) : base(ServerAddress, logger)
         {
             _helper = helper;
         }
@@ -51,11 +51,9 @@ namespace MdExplorer.Features.Commands.html
                     {
                         currentWebFolder += Path.DirectorySeparatorChar + item1;
                     }
-
-                    
                 }
 
-                 currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
+                currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
                 var fileName = currentWebFolder + Path.DirectorySeparatorChar + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
                 var allElementToReplace = item.Groups[0].Value;
                 var httpClientHandler = new HttpClientHandler();

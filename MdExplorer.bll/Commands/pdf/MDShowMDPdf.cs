@@ -48,7 +48,7 @@ namespace MdExplorer.Features.Commands.pdf
                 }
 
                 currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                var fileName = currentWebFolder + Path.DirectorySeparatorChar  + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
+                var fileName = currentWebFolder + Path.DirectorySeparatorChar + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
                 var allElementToReplace = item.Groups[0].Value;
                 var httpClientHandler = new HttpClientHandler();
                 httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
@@ -70,7 +70,7 @@ namespace MdExplorer.Features.Commands.pdf
                         var result = response.Result;
                         var taskRead = result.Content.ReadAsStringAsync();
                         taskRead.Wait();
-                        markdown = markdown.Replace(allElementToReplace, taskRead.Result);                        
+                        markdown = markdown.Replace(allElementToReplace, taskRead.Result);
                     }
                 }
             }
