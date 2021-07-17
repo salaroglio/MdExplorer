@@ -19,6 +19,9 @@ using System.Web;
 
 namespace MdExplorer.Service.Controllers
 {
+    /// <summary>
+    /// Usata dal command PDF per estrarre i dati senza generare HTML, ma rimanendo solo in MarkDown
+    /// </summary>
     [ApiController]
     [Route("/api/mdcreatemd/{*url}")]
     public class MdCreateMdController : MdControllerBase<MdCreateMdController>
@@ -30,7 +33,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            var filePath = _fileSystemWatcher.Path;            
+            var filePath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar;            
             var relativePath = GetRelativePathFileSystem("mdcreatemd");
             var relativePathExtension = Path.GetExtension(relativePath);
 
