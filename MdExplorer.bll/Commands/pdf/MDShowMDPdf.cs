@@ -4,6 +4,7 @@ using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -31,7 +32,7 @@ namespace MdExplorer.Features.Commands.pdf
                 // here you should compose the path adding missing part
                 // the missing part is the distance from the root folder and the current file
                 // you can build this using requestInfo.currentqueryrequest
-                var listOfItem = requestInfo.CurrentQueryRequest.Split("\\", options: StringSplitOptions.RemoveEmptyEntries).ToList();
+                var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
                 listOfItem.RemoveAt(listOfItem.Count - 1);
                 var currentWebFolder = string.Empty;
                 foreach (var item1 in listOfItem)
@@ -42,14 +43,12 @@ namespace MdExplorer.Features.Commands.pdf
                     }
                     else
                     {
-                        currentWebFolder += "\\" + item1;
+                        currentWebFolder += Path.DirectorySeparatorChar + item1;
                     }
-
-
                 }
 
-                currentWebFolder = string.Join("\\", listOfItem.ToArray());
-                var fileName = currentWebFolder + "\\" + item.Groups[1].Value;
+                currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
+                var fileName = currentWebFolder + Path.DirectorySeparatorChar  + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
                 var allElementToReplace = item.Groups[0].Value;
                 var httpClientHandler = new HttpClientHandler();
                 httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
