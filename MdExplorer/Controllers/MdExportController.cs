@@ -22,45 +22,64 @@ using System.Web;
 
 namespace MdExplorer.Service.Controllers
 {
+    /// <summary>
+    /// classe dedicata all'esportazione
+    /// </summary>
     [ApiController]
     [Route("/api/mdexport/{*url}")]
-    public class MdExportController : ControllerBase
+    public class MdExportController : MdControllerBase<MdExportController>
     {
-        private readonly ILogger<MdExportController> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IOptions<MdExplorerAppSettings> _options;
-        private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly ISession _session;
-        private readonly ICommandRunner _commandRunner;
         private readonly IHelperPdf _helperPdf;
+        /// <summary>
+        /// Variabile di scambio dati con l'evento di chiusura del processo Pandoc
+        /// </summary>
         private MonitoredMDModel monitoredMd;
-        private ConcurrentDictionary<int, string> concurrentProcessInfo = new ConcurrentDictionary<int, string>();
-
         public MdExportController(ILogger<MdExportController> logger,
-            FileSystemWatcher fileSystemWatcher,
-            IOptions<MdExplorerAppSettings> options,
-            IHubContext<MonitorMDHub> hubContext,
-            ISession session,
-            ICommandRunnerPdf commandRunner,
-            IHelperPdf helperPdf
-            )
+                FileSystemWatcher fileSystemWatcher,
+                IOptions<MdExplorerAppSettings> options,
+                IHubContext<MonitorMDHub> hubContext,
+                ISession session,
+                ICommandRunnerPdf commandRunner,
+                IHelperPdf helperPdf
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
         {
-            _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            this._options = options;
-            _hubContext = hubContext;
-            _session = session;
-            _commandRunner = commandRunner;
             _helperPdf = helperPdf;
         }
+
+        //private readonly ILogger<MdExportController> _logger;
+        //private readonly FileSystemWatcher _fileSystemWatcher;
+        //private readonly IOptions<MdExplorerAppSettings> _options;
+        //private readonly IHubContext<MonitorMDHub> _hubContext;
+        //private readonly ISession _session;
+        //private readonly ICommandRunner _commandRunner;
+
+
+        //private ConcurrentDictionary<int, string> concurrentProcessInfo = new ConcurrentDictionary<int, string>();
+
+        //public MdExportController(ILogger<MdExportController> logger,
+        //    FileSystemWatcher fileSystemWatcher,
+        //    IOptions<MdExplorerAppSettings> options,
+        //    IHubContext<MonitorMDHub> hubContext,
+        //    ISession session,
+        //    ICommandRunnerPdf commandRunner,
+        //    IHelperPdf helperPdf
+        //    )
+        //{
+        //    _logger = logger;
+        //    _fileSystemWatcher = fileSystemWatcher;
+        //    this._options = options;
+        //    _hubContext = hubContext;
+        //    _session = session;
+        //    _commandRunner = commandRunner;
+
+        //}
         [HttpGet]
-        public async Task<IActionResult> GetAsync(string connectionId )
+        public async Task<IActionResult> GetAsync(string connectionId)
         {
             try
             {
                 var filePath = _fileSystemWatcher.Path;
-                var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexport//", string.Empty).Replace("/", @"\"));
-                relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexport/", string.Empty).Replace("/", @"\"));
+                var relativePath = GetRelativePathFileSystem("mdexport");
                 var relativePathExtension = Path.GetExtension(relativePath);
 
                 if (relativePathExtension != "" && relativePathExtension != ".md")
@@ -108,15 +127,17 @@ namespace MdExplorer.Service.Controllers
                 System.IO.File.WriteAllText(currentFilePath, readText);
                 var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=.\.md\eisvogel.tex --listings --toc";
                 var finalCommand = $"/c {processCommand}";
-                var processToStart = new ProcessStartInfo("cmd", finalCommand) { 
-                                      
+                var processToStart = new ProcessStartInfo("cmd", finalCommand)
+                {
+
                     //RedirectStandardOutput = true,
                     //RedirectStandardError = true,
-                    CreateNoWindow = false };
-                
+                    CreateNoWindow = false
+                };
+
 
                 var processStarted = Process.Start(processToStart);
-                
+
                 processStarted.EnableRaisingEvents = true;
                 monitoredMd = new MonitoredMDModel
                 {
@@ -127,7 +148,7 @@ namespace MdExplorer.Service.Controllers
                 };
 
                 processStarted.Exited += ProcessStarted_Exited;
-                
+
                 return new ContentResult
                 {
                     ContentType = "application/json",
@@ -138,15 +159,15 @@ namespace MdExplorer.Service.Controllers
             {
                 var ms = ex.Message;
                 throw;
-            }                                  
+            }
         }
 
-       
+
 
         private void ProcessStarted_Exited(object? sender, EventArgs e)
         {
             monitoredMd.Action = "Open Folder";
-            _hubContext.Clients.Client(connectionId:monitoredMd.ConnectionId).SendAsync("pdfisready", monitoredMd).Wait();            
+            _hubContext.Clients.Client(connectionId: monitoredMd.ConnectionId).SendAsync("pdfisready", monitoredMd).Wait();
         }
     }
 }

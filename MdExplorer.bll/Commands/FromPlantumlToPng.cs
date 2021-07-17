@@ -92,7 +92,7 @@ namespace MdExplorer.Features.Commands
         /// <returns></returns>
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
-            var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + "\\.md");
+            var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);
 
             var matches = GetMatches(markdown);
@@ -110,8 +110,8 @@ namespace MdExplorer.Features.Commands
                     _logger.LogInformation($"write file: {filePath}");
                 }
 
-                var markdownFilePath = $"{backPath}\\{textHash}.png";
-                var referenceUrl = $@"![]({markdownFilePath.Replace("\\", "/")})";
+                var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.png";
+                var referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
                 _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdownTest);

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -27,11 +28,11 @@ namespace MdExplorer.Features.Utilities
 
         public virtual string GetBackPath(RequestInfo requestInfo)
         {
-            var correctTODelete = requestInfo.CurrentQueryRequest.Replace("\\\\", "\\");
-            Dictionary<int, string> arrayToInvestigate = NomalizeArray(correctTODelete);
+            //var correctTODelete = requestInfo.CurrentQueryRequest.Replace("\\\\", "\\");
+            Dictionary<int, string> arrayToInvestigate = NomalizeArray(requestInfo.CurrentQueryRequest);
 
             //var pseudoPathToEvaluate = requestInfo.CurrentQueryRequest.Replace("..\\", string.Empty).Split("\\");
-            var level = arrayToInvestigate.Count() - 1;
+            var level = arrayToInvestigate.Count()-1;
             _logger.LogInformation($"level: {level}");
             _logger.LogInformation($"requestInfo.CurrentQueryRequest: {requestInfo.CurrentQueryRequest}");
             var backPath = string.Empty;
@@ -54,15 +55,27 @@ namespace MdExplorer.Features.Utilities
         private static Dictionary<int, string> NomalizeArray(string requestInfo)
         {
             var counter = 0;
-            var arrayToInvestigate = requestInfo.Split("\\").ToDictionary(_ => counter++);
-            var itemToCompress = arrayToInvestigate.Where(_ => _.Value.Contains(".."));
+            var arrayToInvestigate = requestInfo.Split(Path.DirectorySeparatorChar).ToDictionary(_ =>  counter++);
+            var itemToCompress = arrayToInvestigate.Where(_ => _.Value.Contains("..")).ToList();
             var newCompressedPath = new Dictionary<int, string>();
 
-            foreach (var item in itemToCompress.OrderByDescending(_ => _.Key))
+
+            var counter1 = 0;
+            while (itemToCompress.Count()>0)
             {
-                arrayToInvestigate.Remove(item.Key);
-                arrayToInvestigate.Remove(item.Key - 1);
+                foreach (var item in itemToCompress.OrderBy(_ => _.Key))
+                {
+                    arrayToInvestigate.Remove(item.Key);
+                    var currentKey = item.Key - (2 * counter1) - 1;
+                    arrayToInvestigate.Remove(currentKey);
+                    itemToCompress.Remove(item);
+                    break;
+                }
+                //ricostruisco l'indice
+                counter1 ++;                 
+                
             }
+            
 
             return arrayToInvestigate;
         }

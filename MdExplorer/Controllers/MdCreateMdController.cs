@@ -30,9 +30,8 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            var filePath = _fileSystemWatcher.Path;
-            var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdcreatemd//", string.Empty).Replace("/", @"\"));
-            relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdcreatemd/", string.Empty).Replace("/", @"\"));
+            var filePath = _fileSystemWatcher.Path;            
+            var relativePath = GetRelativePathFileSystem("mdcreatemd");
             var relativePathExtension = Path.GetExtension(relativePath);
 
             if (relativePathExtension != "" && relativePathExtension != ".md")

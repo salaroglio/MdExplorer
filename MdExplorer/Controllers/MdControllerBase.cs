@@ -31,7 +31,7 @@ namespace MdExplorer.Service.Controllers
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             ISession session,
-            ICommandRunnerPdf commandRunner)
+            ICommandRunner commandRunner)
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
@@ -39,8 +39,13 @@ namespace MdExplorer.Service.Controllers
             _hubContext = hubContext;
             _session = session;
             _commandRunner = commandRunner;
-        }      
+        }
 
+        protected string GetRelativePathFileSystem(string controllerName)
+        {
+            //mdexplorer
+            return HttpUtility.UrlDecode(Request.Path.ToString().Replace($"/api/{controllerName}/", string.Empty).Replace('/', Path.DirectorySeparatorChar));
+        }
 
     }
 }
