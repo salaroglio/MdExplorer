@@ -2287,13 +2287,8 @@ class ToolbarComponent {
             .subscribe(data => { console.log(data); });
     }
     showPdfIsready(data, objectThis) {
-        let snackRef = objectThis._snackBar.open("pdf is ready", "Open folder", { duration: 5000, verticalPosition: 'top' });
+        let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds, "Open folder", { duration: 5000, verticalPosition: 'top' });
         snackRef.onAction().subscribe(() => {
-            //var dateTime = new Date();
-            //debugger;
-            //objectThis.sideNavDataService.currentPath = data.relativePath;
-            //objectThis.sideNavDataService.currentName = data.name;
-            //objectThis.router.navigate(['/main', dateTime.getTime()]);
             const url = '../api/AppSettings/OpenChromePdf?path=' + data.path;
             return objectThis.http.get(url)
                 .subscribe(data => { console.log(data); });
