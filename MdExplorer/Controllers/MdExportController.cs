@@ -45,32 +45,7 @@ namespace MdExplorer.Service.Controllers
         {
             _helperPdf = helperPdf;
         }
-
-        //private readonly ILogger<MdExportController> _logger;
-        //private readonly FileSystemWatcher _fileSystemWatcher;
-        //private readonly IOptions<MdExplorerAppSettings> _options;
-        //private readonly IHubContext<MonitorMDHub> _hubContext;
-        //private readonly ISession _session;
-        //private readonly ICommandRunner _commandRunner;
-
-
-        //private ConcurrentDictionary<int, string> concurrentProcessInfo = new ConcurrentDictionary<int, string>();
-
-        //public MdExportController(ILogger<MdExportController> logger,
-        //    FileSystemWatcher fileSystemWatcher,
-        //    IOptions<MdExplorerAppSettings> options,
-        //    IHubContext<MonitorMDHub> hubContext,
-        //    ISession session,
-        //    ICommandRunnerPdf commandRunner,
-        //    IHelperPdf helperPdf
-        //    )
-        //{
-        //    _logger = logger;
-        //    _fileSystemWatcher = fileSystemWatcher;
-        //    this._options = options;
-        //    _hubContext = hubContext;
-        //    _session = session;
-        //    _commandRunner = commandRunner;
+       
 
         //}
         [HttpGet]
@@ -125,7 +100,7 @@ namespace MdExplorer.Service.Controllers
                 var currentFilePath = $".\\.md\\{currentGuid}.md";
                 var currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", ".pdf");
                 System.IO.File.WriteAllText(currentFilePath, readText);
-                var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=xelatex --template=.\.md\eisvogel.tex --listings --toc";
+                var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=pdflatex --template=.\.md\eisvogel.tex";
                 var finalCommand = $"/c {processCommand}";
                 var processToStart = new ProcessStartInfo("cmd", finalCommand)
                 {
@@ -144,7 +119,9 @@ namespace MdExplorer.Service.Controllers
                     Path = currentFilePdfPath,
                     Name = Path.GetFileName(currentFilePdfPath),
                     RelativePath = currentFilePdfPath.Replace(_fileSystemWatcher.Path, string.Empty),
-                    ConnectionId = connectionId
+                    ConnectionId = connectionId,
+                    StartExportTime = DateTime.Now
+                    
                 };
 
                 processStarted.Exited += ProcessStarted_Exited;
@@ -167,6 +144,7 @@ namespace MdExplorer.Service.Controllers
         private void ProcessStarted_Exited(object? sender, EventArgs e)
         {
             monitoredMd.Action = "Open Folder";
+            monitoredMd.StopExportTime = DateTime.Now;
             _hubContext.Clients.Client(connectionId: monitoredMd.ConnectionId).SendAsync("pdfisready", monitoredMd).Wait();
         }
     }

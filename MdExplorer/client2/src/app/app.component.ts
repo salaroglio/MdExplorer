@@ -12,7 +12,6 @@ export class AppComponent {
   unloadHandler(event) {
     // E' stato dato il comando di chiusura del tab o di chrome
     // spegni il serverino che si è acceso
-    debugger;
     this.currentFolder.killServer();
   }
   title = 'client2';
