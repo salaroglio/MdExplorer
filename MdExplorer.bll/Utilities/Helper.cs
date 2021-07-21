@@ -35,12 +35,12 @@ namespace MdExplorer.Features.Utilities
             var level = arrayToInvestigate.Count()-1;
             _logger.LogInformation($"level: {level}");
             _logger.LogInformation($"requestInfo.CurrentQueryRequest: {requestInfo.CurrentQueryRequest}");
-            var backPath = string.Empty;
+            var backPath = ".";
             for (int i = 0; i < level; i++)
             {
                 if (i == 0)
                 {
-                    backPath += "..";
+                    backPath += ".";
                 }
                 else
                 {

@@ -100,7 +100,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult KillServer()
         {
-            Environment.Exit(0);
+            //Environment.Exit(0);
             return Ok(new { message = "self-destruct activated" });
         }
 
