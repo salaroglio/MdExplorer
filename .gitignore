@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/MdExplorer/.Md
+/InstallBinaries
+/MdExplorer/Documents/.md
+/MdExplorer/Documents/Tests/CarloSalaroglio/.md
+/MdExplorer/Documents/Tests/AssetMonitor/StateDiagrams/.md

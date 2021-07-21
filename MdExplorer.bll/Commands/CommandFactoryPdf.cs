@@ -1,5 +1,8 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
+using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +13,12 @@ namespace MdExplorer.Features.Commands
 {
     public class CommandFactoryPdf : CommandFactory<ICommandPdf>, ICommandFactoryPdf
     {
-        public CommandFactoryPdf(IServer server, IServiceProvider serviceProvider) : base(server, serviceProvider)
+        public CommandFactoryPdf(IServer server, 
+                    IServiceProvider serviceProvider, 
+                    IDALFactory dalFactory, 
+                    PlantumlServer plantumlServer,
+                    IHelperPdf helper) 
+            : base(server, serviceProvider, dalFactory, plantumlServer,helper)
         {
         }
     }

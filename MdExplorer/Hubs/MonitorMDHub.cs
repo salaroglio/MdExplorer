@@ -11,8 +11,14 @@ namespace MdExplorer.Hubs
 {
     public class MonitorMDHub:Hub
     {
-     
-       
-        //public async Task BroadcastMarkdownData(List<MarkdownModel> data) => await Clients.All.SendAsync("broadcastmarkdowndata", data);
+
+        public string GetConnectionId()
+        {
+            return Context.ConnectionId;
+        }
+
+        //public async Task GetConnectionId()
+        //    => await Clients.Client(Context.ConnectionId).SendAsync("getconnectionid", Context.ConnectionId);
+                
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MdExplorer.Abstractions.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,10 @@ namespace MdExplorer.Features.Commands
 {
     public interface ICommandRunner
     {
-        string CreateMD(string markdownText);
+        string TransformAfterConversion(string markdownText, RequestInfo requestInfo);
+        string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo);
+        string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo);
+        public ICommand[] GetAllCommands();
+
     }
 }

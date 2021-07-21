@@ -1,8 +1,11 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,30 +15,46 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
+    /// <summary>
+    /// La factory ha lo scopo di creare gli array di command per conto della 
+    /// dependency injection. Questa factory "aggiunge" ai commands una serie di parametri
+    /// precotti tipo l'indirizzo del server di MdExplorer (è dinamico, ogni volta si inventa una porta nuova)
+    /// il log. Per cui è possibile loggare dentro i commands
+    /// ISession, per cui è possibile accedere al database SQLite ed avere le info che servono
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class CommandFactory<T> : ICommandFactory<T> where T:ICommand
     {
         
         private static object lockGetCommands = new object();      
         private readonly IServer _server;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IDALFactory _dalFactory;
+        private readonly PlantumlServer _plantumlServer;
+        private readonly IHelper _helper;
 
         private string _serverAddress { get; set; }
 
-
-        public CommandFactory(IServer server, IServiceProvider serviceProvider)//IServerAddressesFeature serverAddresses
+        public CommandFactory(IServer server, 
+                                IServiceProvider serviceProvider, 
+                                IDALFactory dalFactory,
+                                PlantumlServer plantumlServer,
+                                IHelper helper
+            )//IServerAddressesFeature serverAddresses
         {
             _server = server;
             _serviceProvider = serviceProvider;
+            _dalFactory = dalFactory;
+            _plantumlServer = plantumlServer;
+            _helper = helper;
             var features = _server.Features;
             var addressesFeature = features.Get<IServerAddressesFeature>();
             
             var enumAddress = addressesFeature.Addresses.GetEnumerator();
             enumAddress.MoveNext();
-            _serverAddress = enumAddress.Current;
+            _serverAddress = enumAddress.Current;            
 
-        }
-
-        
+        }        
 
         public T[] GetCommands()
         {
@@ -44,13 +63,51 @@ namespace MdExplorer.Features.Commands
             lock (lockGetCommands)
             {
                 var listToReturn = new List<T>();
-                var messengers = Assembly.GetExecutingAssembly().GetTypes().Where(_ => (typeof(T).IsAssignableFrom(_) && !_.IsInterface));
-                foreach (var item in messengers)
+
+                var commandInstances = Assembly.GetExecutingAssembly().GetTypes().Where(_ => (typeof(T).IsAssignableFrom(_) && !_.IsInterface));
+
+                foreach (var item in commandInstances)
                 {
+                    
                     Type loggerType = typeof(ILogger<>);
                     Type genericLogger = loggerType.MakeGenericType(item);
                     var currentLogger =  _serviceProvider.GetService(genericLogger);
-                    listToReturn.Add((T)Activator.CreateInstance(item,args: new object[] { _serverAddress, currentLogger }));
+
+                    var session = _dalFactory.OpenSession();
+
+                    // preparazione dell'array di parameters da passare
+                    var ctors = item.GetConstructors();
+                    // al momento gestisco un solo constructor
+                    var ctor = ctors[0];
+                    var paramsTo = new List<object>();
+                    foreach (var param in ctor.GetParameters())
+                    {
+                        if (param.Name == "ServerAddress")
+                        {
+                            paramsTo.Add(_serverAddress);
+                            
+                        }
+                        if (param.Name == "logger")
+                        {
+                            paramsTo.Add(currentLogger);
+                            
+                        }
+                        if (param.Name == "session")
+                        {
+                            paramsTo.Add(session);
+                            
+                        }
+
+                        if (param.Name == "plantumlServer")
+                        {
+                            paramsTo.Add(_plantumlServer);
+                        }
+                        if (param.Name == "helper")
+                        {
+                            paramsTo.Add(_helper);
+                        }
+                    }
+                    listToReturn.Add((T)Activator.CreateInstance(item,args: paramsTo.ToArray())); //new object[] { _serverAddress, currentLogger }
                 }
                 return listToReturn.ToArray();
             }            

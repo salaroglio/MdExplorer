@@ -5,7 +5,6 @@ using Markdig.Extensions.JiraLinks;
 using Markdig.Renderers;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Hubs;
-using MdExplorer.Implementations.Features;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -25,75 +24,24 @@ using System.Web;
 using System.Xml;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Commands;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Features.Interfaces;
 
 namespace MdExplorer.Controllers
 {
     [ApiController]
     [Route("/api/MdExplorer/{*url}")]
-    public class MdExplorerController : ControllerBase
+    public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        private readonly ILogger<MdExplorerController> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IOptions<MdExplorerAppSettings> _options;
-        private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly ISession _session;
-        private readonly ICommandRunner _commandRunner;
-
-        public MdExplorerController(ILogger<MdExplorerController> logger,
-            FileSystemWatcher fileSystemWatcher,
-            IOptions<MdExplorerAppSettings> options,
-            IHubContext<MonitorMDHub> hubContext,
-            ISession session,
+        public MdExplorerController(ILogger<MdExplorerController> logger, 
+            FileSystemWatcher fileSystemWatcher, 
+            IOptions<MdExplorerAppSettings> options, 
+            IHubContext<MonitorMDHub> hubContext, 
+            ISession session, 
             ICommandRunnerHtml commandRunner
-            )
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
         {
-            _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            this._options = options;
-            _hubContext = hubContext;
-            _session = session;
-            _commandRunner = commandRunner;
         }
-
-
-
-        ///// <summary>
-        ///// Good start for keeping html using angualar
-        ///// </summary>
-        ///// <param name="mdFile"></param>
-        ///// <returns></returns>
-        //[HttpPost]
-        //public async Task<IActionResult> GetPageAsync(FileInfoNode mdFile)
-        //{
-        //    var filePath = _fileSystemWatcher.Path;
-        //    filePath = filePath + mdFile.Path;
-
-        //    var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UsePipeTables().UseBootstrap().Build();
-
-        //    var markDownFeature = new MarkDownFeature(pipeline);
-        //    string html = await markDownFeature.GetHtmlAsync(filePath);
-
-        //    XmlDocument doc1 = new XmlDocument();
-        //    doc1.LoadXml(html);
-        //    var elements = doc1.FirstChild.SelectNodes("//a");
-        //    foreach (XmlNode itemElement in elements)
-        //    {
-        //        var htmlClass = doc1.CreateAttribute("(click)");
-        //        htmlClass.InnerText = "gettAlert()";
-        //        itemElement.Attributes.Append(htmlClass);
-        //    }
-
-        //    html = doc1.InnerXml;
-
-        //    return new ContentResult
-        //    {
-        //        ContentType = "text/html",
-        //        Content = html,
-        //    };
-        //}
-
-
-
 
         /// <summary>
         /// Get all goodies available in html
@@ -103,43 +51,59 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            
-            var filePath = _fileSystemWatcher.Path;
-            var relativePath = HttpUtility.UrlDecode(Request.Path.ToString().Replace("api/mdexplorer", string.Empty).Replace("/", @"\"));
-            var relativePathExtension = Path.GetExtension(relativePath);
+
+            var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
+            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
+            var relativePathExtension = Path.GetExtension(relativePathFileSystem);
+
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
-                filePath = string.Concat(filePath, relativePath);
-                var data = System.IO.File.ReadAllBytes(filePath);
-                var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
+                var filePathSystem = string.Concat(rootPathSystem, relativePathFileSystem);
+                var data = System.IO.File.ReadAllBytes(filePathSystem);
+                var currentContetType = $"image/{relativePathExtension}";
+                if (relativePathExtension == "pdf")
+                {
+                    currentContetType = $"application/{relativePathExtension}";
+                }
+                var notMdFile = new FileContentResult(data, currentContetType);
                 return notMdFile;
             }
 
-
+            var filePathSystem1 = string.Empty;
             if (relativePathExtension == ".md")
             {
-                filePath = string.Concat(filePath, relativePath);
+                filePathSystem1 = string.Concat(rootPathSystem, relativePathFileSystem);
             }
             else
             {
-                filePath = string.Concat(filePath, relativePath, ".md");
+                filePathSystem1 = string.Concat(rootPathSystem, relativePathFileSystem, ".md");
             }
 
             var monitoredMd = new MonitoredMDModel
             {
-                Path = filePath,
-                Name = Path.GetFileName(filePath)
+                Path = filePathSystem1,
+                Name = Path.GetFileName(filePathSystem1),
+                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty)
             };
-            
+
             var readText = string.Empty;
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var sr = new StreamReader(fs, Encoding.Default))
             {
                 readText = sr.ReadToEnd();
             }
+            var requestInfo = new RequestInfo()
+            {
+                CurrentQueryRequest = relativePathFileSystem,
+                CurrentRoot = _fileSystemWatcher.Path
+            };
 
-           
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePathSystem1));
+
+            readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+
+            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -148,12 +112,13 @@ namespace MdExplorer.Controllers
                 .UseAdvancedExtensions()
                 .UsePipeTables()
                 .UseBootstrap()
-                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"
+                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
                 .UseEmojiAndSmiley()
+                .UseYamlFrontMatter()
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-            result = _commandRunner.CreateMD(result);
+            result = _commandRunner.TransformAfterConversion(result, requestInfo);
             StringWriter tw = new StringWriter();
             var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 
@@ -173,16 +138,7 @@ namespace MdExplorer.Controllers
 
             var elements = doc1.FirstChild.SelectNodes(@"//pre/code[@class='language-plantuml']");
 
-            foreach (XmlNode item in elements)
-            {
 
-                XmlDocument doc2 = new XmlDocument();
-                doc2.LoadXml(await GetSVG(item.InnerText));
-                var importedNode = doc1.ImportNode(doc2.ChildNodes[1], true);
-
-                item.ParentNode.AppendChild(importedNode);
-                item.ParentNode.RemoveChild(item);
-            }
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             return new ContentResult
@@ -191,6 +147,8 @@ namespace MdExplorer.Controllers
                 Content = doc1.InnerXml
             };
         }
+
+        
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1)
         {
@@ -205,53 +163,7 @@ namespace MdExplorer.Controllers
             body.InnerXml = resultToParse;
         }
 
-        private static void AddLink(XmlDocument doc1, XmlElement head)
-        {
-            var link = doc1.CreateElement("link");
-            head.AppendChild(link);
-            //<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.css" integrity="sha384-knaESGLxlQRSHWSJ+ZbTX6/L1bJZWBsBYGb2O+g64XHFuO7CbIj9Pkf1aaVXzIZJ" crossorigin="anonymous">
-            var rel = doc1.CreateAttribute("rel");
-            link.Attributes.Append(rel);
-            rel.InnerText = @"stylesheet";
-            var href = doc1.CreateAttribute("href");
-            href.InnerText = "https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.css";
-            link.Attributes.Append(href);
-            var integrity = doc1.CreateAttribute("integrity");
-            link.Attributes.Append(integrity);
-            integrity.InnerText = @"sha384-knaESGLxlQRSHWSJ+ZbTX6/L1bJZWBsBYGb2O+g64XHFuO7CbIj9Pkf1aaVXzIZJ";
-            var crossOrigin = doc1.CreateAttribute("crossorigin");
-            link.Attributes.Append(crossOrigin);
-            crossOrigin.InnerText = "anonymous";
-        }
-
-        private async Task<string> GetSVG(string plantumlCode)
-        {
-            var comment = plantumlCode;
-
-            var formContent = new FormUrlEncodedContent(new[]
-            {
-                new KeyValuePair<string, string>("text", comment),
-            });
-
-            var myHttpClient = new HttpClient();
-
-            var settingDal = _session.GetDal<Setting>();
-            var plantumlServer = settingDal.GetList().Where(_ => _.Name == "PlantumlServer").FirstOrDefault()?.ValueString;
-
-            var response = await myHttpClient.PostAsync($"http://{plantumlServer}:8080/form", formContent);//_options.Value.PlantumlServer
-            var content = await response.Content.ReadAsStringAsync();
-            HtmlDocument mydoc = new HtmlDocument();
-            mydoc.LoadHtml(content);
-            var url = mydoc.DocumentNode.SelectSingleNode(@"//input[@name='url']").Attributes["value"].Value;
-            var urls = mydoc.DocumentNode.SelectNodes(@"//a");
-            url = urls[1].Attributes["href"].Value;
-
-            response = await myHttpClient.GetAsync(url);
-            content = await response.Content.ReadAsStringAsync();
-
-            return content;
-
-        }
+       
     }
 
 

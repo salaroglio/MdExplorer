@@ -22,6 +22,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Documents\**" />
+    <Content Remove="Documents\**" />
+    <EmbeddedResource Remove="Documents\**" />
+    <None Remove="Documents\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
@@ -31,15 +38,19 @@
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\styles.css" />
     <Content Remove="wwwroot\client2\vendor.js" />
+    <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
+    <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="eisvogel.tex" />
     <None Remove="MdExplorer.db" />
   </ItemGroup>
 
 
   <ItemGroup>
+    <EmbeddedResource Include="eisvogel.tex" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -52,6 +63,8 @@
     <EmbeddedResource Include="wwwroot\client2\runtime.js" />
     <EmbeddedResource Include="wwwroot\client2\styles.css" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js" />
+    <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
+    <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
 
@@ -59,52 +72,6 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-   
-    <None Update="Documents\AssetMonitor\CRMS-EAMS-RMCSS_Integr_UseCase_20210216_CGML.docx">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\api.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\linked.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\multimatch.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\no-linked.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\no-match.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\no.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\plus.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\plusColorato.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\CustomFiles\question.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\Design.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\SequenceDiagrams\Details.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\SequenceDiagrams\Grid.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Documents\AssetMonitor\StateDiagrams\AssetMonitorStates.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <!--<ItemGroup>
@@ -119,7 +86,6 @@
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
-    <ProjectReference Include="..\MdExplorer.Implementations\MdExplorer.Implementations.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
   </ItemGroup>
 

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using NHibernate;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -59,10 +60,49 @@ namespace MdExplorer.Service.Controllers
             return Ok(new { response = "settings saved" });
         }
 
+        [HttpGet]
+        public IActionResult OpenFile(string path)
+        {
+            
+            var settingDal = _session.GetDal<Setting>();
+            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString 
+                ?? @"C:\Users\Carlo Salaroglio\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+            
+            var currentPath = path.Replace(@"\\",@"\"); // pulitura da mettere a posto
+            var dosCommand = $@"""{editorPath}"" """ + currentPath + "\"";
+            Process.Start(dosCommand);
+            return Ok(new { message="opened" });
+        }
+        [HttpGet]
+        public IActionResult OpenFolder(string path)
+        {
+            var pathToOpen = Path.GetDirectoryName(path);
+            Process.Start("explorer.exe", pathToOpen);
+            return Ok(new { message = "opened" });
+        }
+
+        [HttpGet]
+        public IActionResult OpenChromePdf(string path)
+        {
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{path}\"") { 
+                
+                CreateNoWindow = false };
+            Process.Start(processToStart);
+            
+            return Ok(new { message = "opened" });
+        }
+
         public class Settings
         {
             public Setting[] settings { get; set; }
         }
 
-    }
+        [HttpGet]
+        public IActionResult KillServer()
+        {
+            //Environment.Exit(0);
+            return Ok(new { message = "self-destruct activated" });
+        }
+
+        }
 }

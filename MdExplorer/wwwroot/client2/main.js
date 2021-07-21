@@ -231,9 +231,16 @@ class AppComponent {
         });
         currentFolder.loadFolderName();
     }
+    unloadHandler(event) {
+        // E' stato dato il comando di chiusura del tab o di chrome
+        // spegni il serverino che si è acceso
+        this.currentFolder.killServer();
+    }
 }
 AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_1__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_app_current_folder_service__WEBPACK_IMPORTED_MODULE_2__["AppCurrentFolderService"])); };
-AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: AppComponent, selectors: [["app-root"]], decls: 1, vars: 0, template: function AppComponent_Template(rf, ctx) { if (rf & 1) {
+AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: AppComponent, selectors: [["app-root"]], hostBindings: function AppComponent_HostBindings(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) { return ctx.unloadHandler($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresolveWindow"]);
+    } }, decls: 1, vars: 0, template: function AppComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelement"](0, "router-outlet");
     } }, directives: [_angular_router__WEBPACK_IMPORTED_MODULE_3__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGIiwiZmlsZSI6ImFwcC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5mbGV4LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWZsb3c6IHJvdyB3cmFwO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgZmxleC13cmFwOiB3cmFwOyAgXHJcbn1cclxuXHJcbi5mbGV4LWl0ZW0ge1xyXG4gIGJhY2tncm91bmQ6IHRvbWF0bztcclxufVxyXG5cclxuIl19 */"] });
 
@@ -262,7 +269,7 @@ class AppCurrentFolderService {
     constructor(http) {
         this.http = http;
         this.dataStore = {
-            folderName: 'cucu', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ id: 'test', name: 'PlantumlServer' })]
+            folderName: 'test', settings: [new _Models_MdSettings__WEBPACK_IMPORTED_MODULE_1__["MdSetting"]({ id: 'test', name: 'PlantumlServer' })]
         };
         this._folderName = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]('test');
         this._Settings = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
@@ -294,9 +301,14 @@ class AppCurrentFolderService {
     }
     saveSettings() {
         const url = '../api/AppSettings/SetSettings';
-        debugger;
         var test = { settings: this.dataStore.settings };
         return this.http.post(url, this.dataStore.settings);
+    }
+    killServer() {
+        const url = '../api/AppSettings/KillServer';
+        return this.http.get(url).subscribe(data => {
+            debugger;
+        });
     }
 }
 AppCurrentFolderService.ɵfac = function AppCurrentFolderService_Factory(t) { return new (t || AppCurrentFolderService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };

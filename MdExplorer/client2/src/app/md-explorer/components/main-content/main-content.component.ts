@@ -45,8 +45,8 @@ export class MainContentComponent implements OnInit {
         //this.service.GetHtml(path).subscribe(data => {          
         //  this.html = data;
         //});
-        let dateTime = new Date();
-        this.htmlSource = '../api/mdexplorer/' + path  + '?time=' + dateTime;
+        let dateTime = new Date().getTime()/1000;
+        this.htmlSource = '../api/mdexplorer' + path  + '?time=' + dateTime;
           
       }
        

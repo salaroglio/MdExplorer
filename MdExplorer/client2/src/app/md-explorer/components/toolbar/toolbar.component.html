@@ -2,6 +2,12 @@
   <button mat-button (click)="toggleSidenav.emit()">
     <mat-icon>menu</mat-icon>
   </button>
+  <button mat-button (click)="OpenEditor()">
+    <mat-icon>edit</mat-icon>
+  </button>
+  <button mat-button (click)="Export()">
+    <mat-icon>import_export</mat-icon>
+  </button>
   <span>{{TitleToShow}}</span>
   <div align="end">
     <button mat-button (click)="openDialog()">
