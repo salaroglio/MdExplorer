@@ -21,9 +21,6 @@ namespace MdExplorer.Controllers
             _fileSystemWatcher = fileSystemWatcher;
         }
 
-
-       
-
         [HttpGet]
         public IActionResult GetAllMdFiles()
         {
@@ -31,10 +28,13 @@ namespace MdExplorer.Controllers
 
             var list = new List<FileInfoNode>();
 
-            foreach (var itemFolder in Directory.GetDirectories(currentPath))
+            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_=>!_.Contains(".md")))
             {
-                var node = CreateNodeFolder(itemFolder);
-                list.Add(node);
+                (var node, var isempty) = CreateNodeFolder(itemFolder);
+                if (!isempty)
+                {
+                    list.Add(node);
+                }                
             }
 
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
@@ -42,6 +42,9 @@ namespace MdExplorer.Controllers
                 var node = CreateNodeMdFile(itemFile);
                 list.Add(node);
             }
+
+            // nettificazione dei folder che non contengono md
+
 
             return Ok(list);
         }
@@ -53,27 +56,35 @@ namespace MdExplorer.Controllers
             return node;
         }
 
-        private FileInfoNode CreateNodeFolder(string itemFolder)
+        private (FileInfoNode,bool) CreateNodeFolder(string itemFolder)
         {
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
             var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), Path = patchedItemFolfer, Type = "folder" };
-            ExploreNodes(node, itemFolder);
-            return node;
+            var isEmpty = ExploreNodes(node, itemFolder);            
+            return (node, isEmpty);
         }
 
-        private void ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
+        private bool ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
         {
-            foreach (var itemFolder in Directory.GetDirectories(pathFile))
+            var isEmpty = true;
+
+            foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_=>!_.Contains(".md")))
             {
-                FileInfoNode node = CreateNodeFolder(itemFolder);
-                fileInfoNode.Childrens.Add(node);
+                (FileInfoNode node, bool isempty )= CreateNodeFolder(itemFolder);
+                if (!isempty)
+                {
+                    fileInfoNode.Childrens.Add(node);
+                }                
+                isEmpty = isEmpty && isempty;
             }
 
             foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
             {
                 var node = CreateNodeMdFile(itemFile);
                 fileInfoNode.Childrens.Add(node);
+                isEmpty = false;
             }
+            return isEmpty;
         }
     }
 }
