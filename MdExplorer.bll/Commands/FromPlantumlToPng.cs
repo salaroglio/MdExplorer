@@ -103,7 +103,7 @@ namespace MdExplorer.Features.Commands
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
                 if (!File.Exists(filePath))
                 {
-                    var taskSvg = _plantumlServer.GetSVGFromJar(text);
+                    var taskSvg = _plantumlServer.GetPngFromJar(text);
                     taskSvg.Wait();
                     var res = taskSvg.Result;
                     File.WriteAllBytes(filePath, res);

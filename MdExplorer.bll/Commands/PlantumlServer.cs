@@ -22,26 +22,44 @@ namespace MdExplorer.Features.Commands
             _rendererFactory = rendererFactory;
         }
 
-        public  async Task<byte[]> GetSVGFromJar(string plantumlcode)
+        public  async Task<byte[]> GetSvgFromJar(string plantumlcode)
         {
             //var factory = new RendererFactory();
             using (var session = _dalFactory.OpenSession())
             {
-                var settingDal = session.GetDal<Setting>();
-                var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
-                var javaPath = settingDal.GetList().Where(_ => _.Name == "JavaPath").FirstOrDefault()?.ValueString;
-                var localGraphvizDotPath = settingDal.GetList().Where(_ => _.Name == "LocalGraphvizDotPath").FirstOrDefault()?.ValueString;
-                var renderer = _rendererFactory.CreateRenderer(new PlantUmlSettings()
-                {
-                    JavaPath = javaPath,
-                    LocalGraphvizDotPath = localGraphvizDotPath,
-                    RenderingMode = RenderingMode.Local,
-                    LocalPlantUmlPath = plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
-                });
+                IPlantUmlRenderer renderer = getRenderer(session);
 
-                var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Png);
+                var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Svg);
                 return bytes;
-            }             
+            }
+        }
+
+        public async Task<byte[]> GetPngFromJar(string plantumlcode)
+        {
+            //var factory = new RendererFactory();
+            using (var session = _dalFactory.OpenSession())
+            {
+                IPlantUmlRenderer renderer = getRenderer(session);
+
+                var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Svg);
+                return bytes;
+            }
+        }
+
+        private IPlantUmlRenderer getRenderer(ISession session)
+        {
+            var settingDal = session.GetDal<Setting>();
+            var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
+            var javaPath = settingDal.GetList().Where(_ => _.Name == "JavaPath").FirstOrDefault()?.ValueString;
+            var localGraphvizDotPath = settingDal.GetList().Where(_ => _.Name == "LocalGraphvizDotPath").FirstOrDefault()?.ValueString;
+            var renderer = _rendererFactory.CreateRenderer(new PlantUmlSettings()
+            {
+                JavaPath = javaPath,
+                LocalGraphvizDotPath = localGraphvizDotPath,
+                RenderingMode = RenderingMode.Local,
+                LocalPlantUmlPath = plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
+            });
+            return renderer;
         }
     }
 }
