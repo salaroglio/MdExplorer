@@ -59,7 +59,7 @@ namespace MdExplorer.Features.Commands.pdf
                 var referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
                 _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
-                //File.WriteAllText(filePath + "test.md", markdownTest);
+                //File.WriteAllText(filePath + "test.md", markdown);
             }
             return markdown;
         }

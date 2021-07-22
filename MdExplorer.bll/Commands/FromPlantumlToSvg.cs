@@ -114,7 +114,7 @@ namespace MdExplorer.Features.Commands
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.svg"; //text.GetHashCode()
                 if (!File.Exists(filePath))
                 {
-                    var taskSvg = _plantumlServer.GetPngFromJar(text);
+                    var taskSvg = _plantumlServer.GetSvgFromJar(text);
                     taskSvg.Wait();
                     var res = taskSvg.Result;
                     File.WriteAllBytes(filePath, res);

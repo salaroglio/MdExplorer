@@ -99,7 +99,7 @@ namespace MdExplorer.Service.Controllers
                 string currentFilePdfPath;
                 Process processStarted;
 
-                StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
+                //StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
                 StartNewProcess(filePath, readText, "docx", out currentFilePdfPath, out processStarted);
 
                 processStarted.EnableRaisingEvents = true;
