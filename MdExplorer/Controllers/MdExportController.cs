@@ -96,22 +96,11 @@ namespace MdExplorer.Service.Controllers
 
 
                 // TODO: Use Pandoc to create document
-                var currentGuid = _helperPdf.GetHashString(readText);
-                var currentFilePath = $".\\.md\\{currentGuid}.md";
-                var currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", ".pdf");
-                System.IO.File.WriteAllText(currentFilePath, readText);
-                var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown --pdf-engine=pdflatex --template=.\.md\eisvogel.tex";
-                var finalCommand = $"/c {processCommand}";
-                var processToStart = new ProcessStartInfo("cmd", finalCommand)
-                {
+                string currentFilePdfPath;
+                Process processStarted;
 
-                    //RedirectStandardOutput = true,
-                    //RedirectStandardError = true,
-                    CreateNoWindow = false
-                };
-
-
-                var processStarted = Process.Start(processToStart);
+                StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
+                StartNewProcess(filePath, readText, "docx", out currentFilePdfPath, out processStarted);
 
                 processStarted.EnableRaisingEvents = true;
                 monitoredMd = new MonitoredMDModel
@@ -121,7 +110,7 @@ namespace MdExplorer.Service.Controllers
                     RelativePath = currentFilePdfPath.Replace(_fileSystemWatcher.Path, string.Empty),
                     ConnectionId = connectionId,
                     StartExportTime = DateTime.Now
-                    
+
                 };
 
                 processStarted.Exited += ProcessStarted_Exited;
@@ -139,7 +128,21 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
-
+        private void StartNewProcess(string filePath, string readText,string format, out string currentFilePdfPath, out Process processStarted)
+        {
+            var currentGuid = _helperPdf.GetHashString(readText);
+            var currentFilePath = $".\\.md\\{currentGuid}.md";
+            currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{format}");
+            System.IO.File.WriteAllText(currentFilePath, readText);
+            var setPdf = format == "pdf" ? $@"--pdf-engine=pdflatex --template=.\.md\eisvogel.tex" : string.Empty;
+            var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown {setPdf}";
+            var finalCommand = $"/c {processCommand}";
+            var processToStart = new ProcessStartInfo("cmd", finalCommand)
+            {
+                CreateNoWindow = false
+            };
+            processStarted = Process.Start(processToStart);
+        }
 
         private void ProcessStarted_Exited(object? sender, EventArgs e)
         {
