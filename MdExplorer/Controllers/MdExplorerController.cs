@@ -61,10 +61,14 @@ namespace MdExplorer.Controllers
             {
                 var filePathSystem = string.Concat(rootPathSystem, relativePathFileSystem);
                 var data = System.IO.File.ReadAllBytes(filePathSystem);
-                var currentContetType = $"image/{relativePathExtension}";
-                if (relativePathExtension == "pdf")
+                var currentContetType = $"image/{relativePathExtension.Replace(".",string.Empty)}";
+                if (relativePathExtension == ".pdf")
                 {
                     currentContetType = $"application/{relativePathExtension}";
+                }
+                if (relativePathExtension == ".svg")
+                {
+                    currentContetType = $"image/svg+xml";
                 }
                 var notMdFile = new FileContentResult(data, currentContetType);
                 return notMdFile;

@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Commands
         }
         public int Priority { get; set; } = 30;
         public string Name { get; set; } = "ManageImages";
-
+        public bool Enabled { get; set; } = true;
         public MatchCollection GetMatches(string markdown)
         {
             // ![alt text](Icons\plus.png "Title")

@@ -40,7 +40,7 @@ namespace MdExplorer.Features.Utilities
             {
                 if (i == 0)
                 {
-                    backPath += ".";
+                    backPath = ".";
                 }
                 else
                 {
