@@ -20,7 +20,7 @@
     },
     "MdExplorer": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\Users\\Carlo\\Documents\\2-personale\\sviluppo\\ibl-banca\\lavorazione-preliminare\\ibl-servicing-singolo-gestore.md",
+      "commandLineArgs": "C:\\Users\\Carlo\\Documents\\2-personale\\sviluppo\\ibl-banca\\lavorazione-preliminare\\1a.md",
       "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

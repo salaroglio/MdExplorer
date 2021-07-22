@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformInNewMDFromMD(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in _commands)
+            foreach (var item in _commands.OrderBy(_ => _.Priority).Where(_=>_.Enabled))
             {
                 markdownText = item.TransformInNewMDFromMD(markdownText, requestInfo);
             }
@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformAfterConversion(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in _commands.OrderBy(_=>_.Priority))
+            foreach (var item in _commands.OrderBy(_=>_.Priority).Where(_ => _.Enabled))
             {
                 markdownText = item.TransformAfterConversion(markdownText, requestInfo);
             }
@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Commands
 
         public string PrepareMetadataBasedOnMD(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in _commands.OrderBy(_ => _.Priority))
+            foreach (var item in _commands.OrderBy(_ => _.Priority).Where(_ => _.Enabled))
             {
                 markdownText = item.PrepareMetadataBasedOnMD(markdownText, requestInfo);
             }
