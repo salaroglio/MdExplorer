@@ -94,7 +94,7 @@ namespace MdExplorer.Features.Commands
         /// </summary>
         /// <param name="markdown"></param>
         /// <returns></returns>
-        public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
+        public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);

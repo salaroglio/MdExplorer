@@ -16,11 +16,11 @@ namespace MdExplorer.Features.Commands
 {
     public class FromPlantumlToSvg : ICommand, IDisposable
     {
-        private readonly string _serverAddress;
-        private readonly ILogger<FromPlantumlToSvg> _logger;
-        private readonly ISession _session;
-        private readonly PlantumlServer _plantumlServer;
-        private readonly IHelper _helper;
+        protected readonly string _serverAddress;
+        protected readonly ILogger<FromPlantumlToSvg> _logger;
+        protected readonly ISession _session;
+        protected readonly PlantumlServer _plantumlServer;
+        protected readonly IHelper _helper;
 
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 20;
@@ -101,7 +101,7 @@ namespace MdExplorer.Features.Commands
         /// </summary>
         /// <param name="markdown"></param>
         /// <returns></returns>
-        public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
+        public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);
