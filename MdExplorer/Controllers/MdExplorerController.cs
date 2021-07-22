@@ -122,7 +122,12 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
+
+            
+
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
+            
+
             StringWriter tw = new StringWriter();
             var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 
