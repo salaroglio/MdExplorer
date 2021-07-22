@@ -41,7 +41,7 @@ namespace MdExplorer.Features.Commands
             {
                 IPlantUmlRenderer renderer = getRenderer(session);
 
-                var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Svg);
+                var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Png);
                 return bytes;
             }
         }
