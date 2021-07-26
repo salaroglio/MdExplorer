@@ -26,6 +26,8 @@ using MdExplorer.Features;
 using MdExplorer.Features.Commands;
 using System.Collections.Generic;
 using MdExplorer.Service;
+using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Service.Utilities;
 //using MdExplorer.Service.Filters;
 
 namespace MdExplorer
@@ -52,7 +54,7 @@ namespace MdExplorer
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
-                                    new DatabaseSQLite(),
+                                    new DatabaseSQLite(),typeof(ISessionDBSettings),
                                     databasePath);
             services.AddMDExplorerCommands();
             services.AddSignalR();

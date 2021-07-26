@@ -6,6 +6,7 @@ using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -39,7 +40,7 @@ namespace MdExplorer.Service.Controllers
                 FileSystemWatcher fileSystemWatcher,
                 IOptions<MdExplorerAppSettings> options,
                 IHubContext<MonitorMDHub> hubContext,
-                ISessionDB session,
+                ISessionDBSettings session,
                 ICommandRunnerPdf commandRunner,
                 IHelperPdf helperPdf
             ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
