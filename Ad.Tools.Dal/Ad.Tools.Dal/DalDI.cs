@@ -39,7 +39,7 @@ namespace Ad.Tools.Dal
 
 
         public static IServiceCollection AddDalFeatures(this IServiceCollection services, Assembly assembly,
-            IDatabase databaseType,
+            IDatabase databaseType,Type currentInterface,
             string connectionString)
         {            
             var config = CreateConfiguration(connectionString, databaseType);
@@ -50,7 +50,7 @@ namespace Ad.Tools.Dal
             services.AddSingleton(sessionFactory);
             services.AddLogging();
             services.AddSingleton<IDALFactory, SQDalFactory>();
-            services.AddScoped(_ => _.GetService<IDALFactory>().OpenSession());
+            services.AddScoped(currentInterface,_ => _.GetService<IDALFactory>().OpenSession());
 
             return services;
         }

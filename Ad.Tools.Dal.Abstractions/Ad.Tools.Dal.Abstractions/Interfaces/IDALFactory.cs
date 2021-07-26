@@ -10,9 +10,6 @@ namespace Ad.Tools.Dal.Abstractions.Interfaces
     public interface IDALFactory
     {
         ISessionDB OpenSession();
-        //void BeginTransaction();
-        //void CommitTransaction();
-        //void RollbackTransaction();
         void CloseSession();
         IDAL<T> GetDAL<T>();
     }
