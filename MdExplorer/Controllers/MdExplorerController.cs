@@ -100,14 +100,11 @@ namespace MdExplorer.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = _fileSystemWatcher.Path
+                CurrentRoot = _fileSystemWatcher.Path,
+                AbsolutePathFile = filePathSystem1
             };
 
-            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePathSystem1));
-
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
-
-            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -123,7 +120,7 @@ namespace MdExplorer.Controllers
 
             var result = Markdown.ToHtml(readText, pipeline);
 
-            
+            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
             

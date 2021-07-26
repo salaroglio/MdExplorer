@@ -99,6 +99,8 @@ namespace MdExplorer.Features.Commands
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);
 
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
+
             var matches = GetMatches(markdown);
             foreach (Match item in matches)
             {
@@ -120,6 +122,9 @@ namespace MdExplorer.Features.Commands
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdownTest);
             }
+
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
+
             return markdown;
         }
 
