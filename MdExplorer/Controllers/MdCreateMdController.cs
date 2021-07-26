@@ -68,15 +68,12 @@ namespace MdExplorer.Service.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePath,
-                CurrentRoot = _fileSystemWatcher.Path
+                CurrentRoot = _fileSystemWatcher.Path,
+                AbsolutePathFile = filePath
             };
 
-            Directory.SetCurrentDirectory(Path.GetDirectoryName(filePath));
-            
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
             readText = _commandRunner.PrepareMetadataBasedOnMD(readText, requestInfo);
-
-            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);            
 
             return new ContentResult
             {

@@ -62,14 +62,13 @@ namespace MdExplorer.Features.Commands
         {
             var matches = GetMatchesAfterConversion(html);
             string backPath = _helper.GetBackPath(requestInfo);
-
             foreach (Match itemMatch in matches)
             {
                 XmlDocument doc = new XmlDocument();
 
                 var stringMatched0 = itemMatch.Groups[1].Value;
                 var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.svg";
-                doc.Load($"{backPath}{Path.DirectorySeparatorChar}{stringMatched0}.svg");
+                doc.Load($".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatched0}.svg");
                 var nodeToParse = doc.LastChild;
                 XmlNamespaceManager m = new XmlNamespaceManager(doc.NameTable);
                 m.AddNamespace("myns", "http://www.w3.org/2000/svg");
@@ -89,7 +88,6 @@ namespace MdExplorer.Features.Commands
                 var toReplace = nodeToParse.OuterXml;
                 html = html.Replace(itemMatch.Groups[0].Value, toReplace);
             }
-
             return html;
         }
 
@@ -105,6 +103,7 @@ namespace MdExplorer.Features.Commands
         {
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 
             var matches = GetMatches(markdown);
             foreach (Match item in matches)
@@ -126,6 +125,7 @@ namespace MdExplorer.Features.Commands
                 _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
             }
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;
         }
 
