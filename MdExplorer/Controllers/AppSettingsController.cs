@@ -18,9 +18,9 @@ namespace MdExplorer.Service.Controllers
     public class AppSettingsController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly ISession _session;
+        private readonly ISessionDB _session;
 
-        public AppSettingsController(FileSystemWatcher fileSystemWatcher, ISession session)
+        public AppSettingsController(FileSystemWatcher fileSystemWatcher, ISessionDB session)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _session = session;

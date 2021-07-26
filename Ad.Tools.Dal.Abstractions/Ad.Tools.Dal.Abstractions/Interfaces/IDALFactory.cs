@@ -9,7 +9,7 @@ namespace Ad.Tools.Dal.Abstractions.Interfaces
 {
     public interface IDALFactory
     {
-        ISession OpenSession();
+        ISessionDB OpenSession();
         //void BeginTransaction();
         //void CommitTransaction();
         //void RollbackTransaction();

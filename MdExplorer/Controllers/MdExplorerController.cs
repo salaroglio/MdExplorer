@@ -36,8 +36,8 @@ namespace MdExplorer.Controllers
         public MdExplorerController(ILogger<MdExplorerController> logger, 
             FileSystemWatcher fileSystemWatcher, 
             IOptions<MdExplorerAppSettings> options, 
-            IHubContext<MonitorMDHub> hubContext, 
-            ISession session, 
+            IHubContext<MonitorMDHub> hubContext,
+            ISessionDB session, 
             ICommandRunnerHtml commandRunner
             ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
         {

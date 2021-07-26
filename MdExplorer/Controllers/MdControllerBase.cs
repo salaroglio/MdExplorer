@@ -1,4 +1,5 @@
-﻿using MdExplorer.Features.Commands;
+﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Hubs;
 using MdExplorer.Service.Models;
@@ -23,14 +24,14 @@ namespace MdExplorer.Service.Controllers
         protected readonly FileSystemWatcher _fileSystemWatcher;
         protected readonly IOptions<MdExplorerAppSettings> _options;
         protected readonly IHubContext<MonitorMDHub> _hubContext;
-        protected readonly ISession _session;
+        protected readonly ISessionDB _session;
         protected readonly ICommandRunner _commandRunner;
 
         public MdControllerBase(ILogger<T> logger,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
-            ISession session,
+            ISessionDB session,
             ICommandRunner commandRunner)
         {
             _logger = logger;
