@@ -46,7 +46,7 @@ namespace MdExplorer.Features.Commands
             }
         }
 
-        private IPlantUmlRenderer getRenderer(ISession session)
+        private IPlantUmlRenderer getRenderer(ISessionDB session)
         {
             var settingDal = session.GetDal<Setting>();
             var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;

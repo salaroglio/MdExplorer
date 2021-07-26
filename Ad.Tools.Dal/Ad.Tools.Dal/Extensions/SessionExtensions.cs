@@ -10,7 +10,7 @@ namespace Ad.Tools.Dal.Extensions
 {
     public static class SessionExtensions
     {
-        public static IDAL<T> GetDal<T>(this ISession session)
+        public static IDAL<T> GetDal<T>(this ISessionDB session)
         {
             return new Dal<T>(session);
         }

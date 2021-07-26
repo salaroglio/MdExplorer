@@ -8,7 +8,7 @@ namespace Ad.Tools.Dal
     public class SQDalFactory : IDALFactory
     {
         private ISessionFactory _sessionFactory;
-        private ISession _session;
+        private ISessionDB _session;
         private ITransaction _transaction;
         private ILogger _logger;        
         
@@ -19,9 +19,9 @@ namespace Ad.Tools.Dal
             _sessionFactory = sessionFactory;
         }
 
-        public ISession OpenSession()
+        public ISessionDB OpenSession()
         {            
-            return _sessionFactory.OpenSession(); ;
+            return (ISessionDB) _sessionFactory.OpenSession(); ;
         }       
 
         public void CloseSession()

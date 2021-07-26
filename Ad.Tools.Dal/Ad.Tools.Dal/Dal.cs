@@ -7,9 +7,9 @@ namespace Ad.Tools.Dal
     public class Dal<T> : IDAL<T>
 
     {
-        private readonly ISession session;
+        private readonly ISessionDB session;
 
-        public Dal(ISession session)
+        public Dal(ISessionDB session)
         {
             this.session = session;
         }
