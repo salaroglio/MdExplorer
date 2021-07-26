@@ -14,6 +14,7 @@ using HtmlAgilityPack;
 using PlantUml.Net;
 using System.Security.Cryptography;
 using MdExplorer.Features.Utilities;
+using Ad.Tools.Dal.Abstractions.Interfaces;
 
 namespace MdExplorer.Features.Commands
 {
@@ -28,7 +29,7 @@ namespace MdExplorer.Features.Commands
 
         private readonly string _serverAddress;
         private readonly ILogger<FromPlantumlToPng> _logger;
-        private readonly ISession _session;
+        private readonly ISessionDB _session;
         private readonly PlantumlServer _plantumlServer;
         private readonly IHelper _helper;
 
@@ -37,8 +38,8 @@ namespace MdExplorer.Features.Commands
         public int Priority { get; set; } = 20;
         public string Name { get; set; } = "FromPlantumlToPng";
         public FromPlantumlToPng(string ServerAddress, 
-                ILogger<FromPlantumlToPng> logger, 
-                ISession session,
+                ILogger<FromPlantumlToPng> logger,
+                ISessionDB session,
                 PlantumlServer plantumlServer,
                 IHelper helper)
         {

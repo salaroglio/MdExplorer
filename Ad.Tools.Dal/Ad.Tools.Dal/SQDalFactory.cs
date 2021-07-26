@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using Ad.Tools.Dal.Decorators;
 using Microsoft.Extensions.Logging;
 using NHibernate;
 using System;
@@ -20,8 +21,9 @@ namespace Ad.Tools.Dal
         }
 
         public ISessionDB OpenSession()
-        {            
-            return (ISessionDB) _sessionFactory.OpenSession(); ;
+        {
+            var sessionDB = new SessionDB(_sessionFactory.OpenSession());
+            return sessionDB;
         }       
 
         public void CloseSession()

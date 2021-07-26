@@ -15,12 +15,12 @@ namespace Ad.Tools.Dal.Extensions
             return new Dal<T>(session);
         }
 
-        public static void Commit (this ISession session)
+        public static void Commit (this ISessionDB session)
         {
             session.GetCurrentTransaction()?.Commit();
         }
 
-        public static void Rollback(this ISession session)
+        public static void Rollback(this ISessionDB session)
         {
             session.GetCurrentTransaction()?.Rollback();
         }
