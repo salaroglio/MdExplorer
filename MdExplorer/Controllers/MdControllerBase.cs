@@ -25,7 +25,7 @@ namespace MdExplorer.Service.Controllers
         protected readonly FileSystemWatcher _fileSystemWatcher;
         protected readonly IOptions<MdExplorerAppSettings> _options;
         protected readonly IHubContext<MonitorMDHub> _hubContext;
-        protected readonly ISessionDB _session;
+        protected readonly IUserSettingsDB _session;
         protected readonly ICommandRunner _commandRunner;
 
         public MdControllerBase(ILogger<T> logger,
