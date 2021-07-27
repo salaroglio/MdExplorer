@@ -174,24 +174,24 @@ namespace Ad.Tools.Dal.Decorators
             throw new NotImplementedException();
         }
 
-        public ISessionDB OpenSession(DbConnection connection)
+        public T OpenSession(DbConnection connection)
         {
-            return (ISessionDB)_sessionFactory.OpenSession(connection);
+            return (T)_sessionFactory.OpenSession(connection);
         }
 
-        public ISessionDB OpenSession(IInterceptor sessionLocalInterceptor)
+        public T OpenSession(IInterceptor sessionLocalInterceptor)
         {
-            return (ISessionDB)_sessionFactory.OpenSession(sessionLocalInterceptor);
+            return (T)_sessionFactory.OpenSession(sessionLocalInterceptor);
         }
 
-        public ISessionDB OpenSession(DbConnection conn, IInterceptor sessionLocalInterceptor)
+        public T OpenSession(DbConnection conn, IInterceptor sessionLocalInterceptor)
         {
-            return (ISessionDB)_sessionFactory.OpenSession(conn, sessionLocalInterceptor);
+            return (T)_sessionFactory.OpenSession(conn, sessionLocalInterceptor);
         }
 
-        public ISessionDB OpenSession()
+        public T OpenSession()
         {
-            return (ISessionDB)_sessionFactory.OpenSession();
+            return (T)_sessionFactory.OpenSession();
         }
 
         public IStatelessSession OpenStatelessSession()

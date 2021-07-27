@@ -13,10 +13,10 @@ namespace MdExplorer.Features.Commands
 {
     public class PlantumlServer
     {
-        private readonly IDALFactory _dalFactory;
+        private readonly IDALFactory<ISessionDB> _dalFactory;
         private readonly RendererFactory _rendererFactory;
 
-        public PlantumlServer(IDALFactory dalFactory, RendererFactory rendererFactory)
+        public PlantumlServer(IDALFactory<ISessionDB> dalFactory, RendererFactory rendererFactory)
         {
             _dalFactory = dalFactory;
             _rendererFactory = rendererFactory;
