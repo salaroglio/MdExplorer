@@ -15,8 +15,8 @@ namespace MdExplorer.Features.Commands
     public class CommandFactoryHtml : CommandFactory<ICommandHtml>, ICommandFactoryHtml
     {
         public CommandFactoryHtml(IServer server, 
-                        IServiceProvider serviceProvider, 
-                        IDALFactory dalFactory, 
+                        IServiceProvider serviceProvider,
+                        IDALFactory<ISessionDB> dalFactory, 
                         PlantumlServer plantumlServer,
                         IHelperHtml helper) 
             : base(server, serviceProvider, dalFactory, plantumlServer, helper)

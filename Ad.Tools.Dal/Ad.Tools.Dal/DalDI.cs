@@ -30,12 +30,7 @@ namespace Ad.Tools.Dal
             public string ConnectionString { get; set; }
         }
 
-        public static IServiceCollection AddDalFeatures(this IServiceCollection services, IList<Configuration> configurations)
-        {
-            services.AddSingleton(configurations);            
-            services.AddSingleton<IDalMetafactory,DalMetafactory>();            
-            return services;
-        }
+       
 
 
         public static IServiceCollection AddDalFeatures(this IServiceCollection services, Assembly assembly,
@@ -49,8 +44,19 @@ namespace Ad.Tools.Dal
                 .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
             services.AddSingleton(sessionFactory);
             services.AddLogging();
-            services.AddSingleton<IDALFactory, SQDalFactory>();
-            services.AddScoped(currentInterface,_ => _.GetService<IDALFactory>().OpenSession());
+            Type IdalFactoryType = typeof(IDALFactory<>);
+            Type genericIDalFactory = IdalFactoryType.MakeGenericType(currentInterface);
+
+            Type sqlDalFactoryType = typeof(SQDalFactory<>);
+            Type genericSqlDalFactoryType = sqlDalFactoryType.MakeGenericType(currentInterface);
+
+            
+            services.AddSingleton(genericIDalFactory, genericSqlDalFactoryType);
+            
+
+            services.AddScoped(currentInterface, _ => {
+                return ((dynamic) _.GetService(genericIDalFactory)).OpenSession();
+                });
 
             return services;
         }

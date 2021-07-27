@@ -14,8 +14,8 @@ namespace MdExplorer.Features.Commands
     public class CommandFactoryPdf : CommandFactory<ICommandPdf>, ICommandFactoryPdf
     {
         public CommandFactoryPdf(IServer server, 
-                    IServiceProvider serviceProvider, 
-                    IDALFactory dalFactory, 
+                    IServiceProvider serviceProvider,
+                    IDALFactory<ISessionDB> dalFactory, 
                     PlantumlServer plantumlServer,
                     IHelperPdf helper) 
             : base(server, serviceProvider, dalFactory, plantumlServer,helper)

@@ -1,7 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Models;
-using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using NHibernate;
 using System;
@@ -19,9 +18,9 @@ namespace MdExplorer.Service.Controllers
     public class AppSettingsController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly ISessionDB _session;
+        private readonly Ad.Tools.Dal.Abstractions.Interfaces.ISessionDB _session;
 
-        public AppSettingsController(FileSystemWatcher fileSystemWatcher, ISessionDBSettings session)
+        public AppSettingsController(FileSystemWatcher fileSystemWatcher, ISessionDB session)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _session = session;

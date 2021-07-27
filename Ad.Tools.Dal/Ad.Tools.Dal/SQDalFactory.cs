@@ -6,7 +6,7 @@ using System;
 
 namespace Ad.Tools.Dal
 {
-    public class SQDalFactory : IDALFactory
+    public class SQDalFactory<T1> : IDALFactory<T1> where T1:ISessionDB
     {
         private ISessionFactory _sessionFactory;
         private ISessionDB _session;
@@ -14,23 +14,17 @@ namespace Ad.Tools.Dal
         private ILogger _logger;        
         
 
-        public SQDalFactory(ILogger<SQDalFactory> logger, ISessionFactory sessionFactory)
+        public SQDalFactory(ILogger<SQDalFactory<T1>> logger, ISessionFactory sessionFactory)
         {
             _logger = logger;
             _sessionFactory = sessionFactory;
         }
 
-        public ISessionDB OpenSession()
+        public T1 OpenSession() 
         {
             var sessionDB = new SessionDB(_sessionFactory.OpenSession());
-            return sessionDB;
-        }       
-
-        public void CloseSession()
-        {           
-            _session.Close();
-            _session.Dispose();
-        }
+            return (T1) Convert.ChangeType( sessionDB,typeof(T1));
+        }              
 
         public IDAL<T> GetDAL<T>()
         {
@@ -42,5 +36,6 @@ namespace Ad.Tools.Dal
         {
             throw new NotImplementedException();
         }
+       
     }
 }

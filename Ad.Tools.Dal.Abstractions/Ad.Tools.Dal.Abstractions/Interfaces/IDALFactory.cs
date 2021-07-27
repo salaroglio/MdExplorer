@@ -7,10 +7,9 @@ using System.Threading.Tasks;
 
 namespace Ad.Tools.Dal.Abstractions.Interfaces
 {
-    public interface IDALFactory
+    public interface IDALFactory<T1> where T1:ISessionDB
     {
-        ISessionDB OpenSession();
-        void CloseSession();
+        T1 OpenSession();
         IDAL<T> GetDAL<T>();
     }
 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Service.Utilities
 {
-    public interface ISessionDBSettings:ISessionDB
+    public interface IUserSettingsDB:ISessionDB
     {
         
     }

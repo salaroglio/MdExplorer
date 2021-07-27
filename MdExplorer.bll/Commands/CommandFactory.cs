@@ -29,15 +29,15 @@ namespace MdExplorer.Features.Commands
         private static object lockGetCommands = new object();      
         private readonly IServer _server;
         private readonly IServiceProvider _serviceProvider;
-        private readonly IDALFactory _dalFactory;
+        private readonly IDALFactory<ISessionDB> _dalFactory;
         private readonly PlantumlServer _plantumlServer;
         private readonly IHelper _helper;
 
         private string _serverAddress { get; set; }
 
         public CommandFactory(IServer server, 
-                                IServiceProvider serviceProvider, 
-                                IDALFactory dalFactory,
+                                IServiceProvider serviceProvider,
+                                IDALFactory<ISessionDB> dalFactory,
                                 PlantumlServer plantumlServer,
                                 IHelper helper
             )//IServerAddressesFeature serverAddresses
