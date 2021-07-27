@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
@@ -19,7 +20,7 @@ namespace MdExplorer.Features.Commands
     {
         protected readonly string _serverAddress;
         protected readonly ILogger<FromPlantumlToSvg> _logger;
-        protected readonly ISessionDB _session;
+        protected readonly IUserSettingsDB _session;
         protected readonly PlantumlServer _plantumlServer;
         protected readonly IHelper _helper;
 
@@ -28,7 +29,7 @@ namespace MdExplorer.Features.Commands
         public string Name { get; set; } = "FromPlantumlToPng";
         public FromPlantumlToSvg(string ServerAddress,
                 ILogger<FromPlantumlToSvg> logger,
-                ISessionDB session,
+                IUserSettingsDB session,
                 PlantumlServer plantumlServer,
                 IHelper helper)
         {

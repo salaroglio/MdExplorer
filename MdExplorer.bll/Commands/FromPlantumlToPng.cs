@@ -15,6 +15,7 @@ using PlantUml.Net;
 using System.Security.Cryptography;
 using MdExplorer.Features.Utilities;
 using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 
 namespace MdExplorer.Features.Commands
 {
@@ -29,7 +30,7 @@ namespace MdExplorer.Features.Commands
 
         private readonly string _serverAddress;
         private readonly ILogger<FromPlantumlToPng> _logger;
-        private readonly ISessionDB _session;
+        private readonly IUserSettingsDB _session;
         private readonly PlantumlServer _plantumlServer;
         private readonly IHelper _helper;
 
@@ -39,7 +40,7 @@ namespace MdExplorer.Features.Commands
         public string Name { get; set; } = "FromPlantumlToPng";
         public FromPlantumlToPng(string ServerAddress, 
                 ILogger<FromPlantumlToPng> logger,
-                ISessionDB session,
+                IUserSettingsDB session,
                 PlantumlServer plantumlServer,
                 IHelper helper)
         {

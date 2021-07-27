@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
@@ -19,7 +20,7 @@ namespace MdExplorer.Features.Commands.html
     /// </summary>
     public class FromPlantumlToPngHtml : FromPlantumlToPng, ICommandHtml
     {
-        public FromPlantumlToPngHtml(string ServerAddress, ILogger<FromPlantumlToPng> logger, ISessionDB session, PlantumlServer plantumlServer, IHelperHtml helper) 
+        public FromPlantumlToPngHtml(string ServerAddress, ILogger<FromPlantumlToPng> logger, IUserSettingsDB session, PlantumlServer plantumlServer, IHelperHtml helper) 
             : base(ServerAddress, logger, session, plantumlServer, helper)
         {
         }

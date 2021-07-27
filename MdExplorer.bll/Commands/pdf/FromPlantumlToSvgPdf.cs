@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
@@ -16,7 +17,7 @@ namespace MdExplorer.Features.Commands.pdf
 {
     public class FromPlantumlToSvgPdf : FromPlantumlToSvg, ICommandPdf
     {
-        public FromPlantumlToSvgPdf(string ServerAddress, ILogger<FromPlantumlToSvg> logger, ISessionDB session, PlantumlServer plantumlServer, IHelper helper)
+        public FromPlantumlToSvgPdf(string ServerAddress, ILogger<FromPlantumlToSvg> logger, IUserSettingsDB session, PlantumlServer plantumlServer, IHelper helper)
             : base(ServerAddress, logger, session, plantumlServer, helper)
         {
         }

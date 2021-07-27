@@ -26,6 +26,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Commands;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Abstractions.DB;
 
 namespace MdExplorer.Controllers
 {
@@ -37,7 +38,7 @@ namespace MdExplorer.Controllers
             FileSystemWatcher fileSystemWatcher, 
             IOptions<MdExplorerAppSettings> options, 
             IHubContext<MonitorMDHub> hubContext,
-            ISessionDB session, 
+            IUserSettingsDB session, 
             ICommandRunnerHtml commandRunner
             ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
         {

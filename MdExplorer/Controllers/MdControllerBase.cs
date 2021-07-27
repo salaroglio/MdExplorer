@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Hubs;
@@ -31,7 +32,7 @@ namespace MdExplorer.Service.Controllers
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
-            ISessionDB session,
+            IUserSettingsDB session,
             ICommandRunner commandRunner)
         {
             _logger = logger;

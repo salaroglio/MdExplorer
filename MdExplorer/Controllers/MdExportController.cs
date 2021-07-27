@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
@@ -39,7 +40,7 @@ namespace MdExplorer.Service.Controllers
                 FileSystemWatcher fileSystemWatcher,
                 IOptions<MdExplorerAppSettings> options,
                 IHubContext<MonitorMDHub> hubContext,
-                ISessionDB session,
+                IUserSettingsDB session,
                 ICommandRunnerPdf commandRunner,
                 IHelperPdf helperPdf
             ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
