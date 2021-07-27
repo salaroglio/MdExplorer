@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using NHibernate;
 using PlantUml.Net;
@@ -13,10 +14,10 @@ namespace MdExplorer.Features.Commands
 {
     public class PlantumlServer
     {
-        private readonly IDALFactory<ISessionDB> _dalFactory;
+        private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly RendererFactory _rendererFactory;
 
-        public PlantumlServer(IDALFactory<ISessionDB> dalFactory, RendererFactory rendererFactory)
+        public PlantumlServer(IDALFactory<IUserSettingsDB> dalFactory, RendererFactory rendererFactory)
         {
             _dalFactory = dalFactory;
             _rendererFactory = rendererFactory;

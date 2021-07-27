@@ -10,6 +10,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -722,7 +723,9 @@ namespace Ad.Tools.Dal.Decorators
 
         public object ToType(Type conversionType, IFormatProvider provider)
         {
-            return this;
+            var sessionDB = Assembly.GetAssembly(conversionType).GetTypes().Where(_ => (conversionType.IsAssignableFrom(_) && !_.IsInterface)).FirstOrDefault();
+            var toReturn = Activator.CreateInstance(sessionDB, args: _implementation);
+            return toReturn;
         }
 
         public ushort ToUInt16(IFormatProvider provider)

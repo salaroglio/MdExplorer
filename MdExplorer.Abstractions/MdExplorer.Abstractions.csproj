@@ -8,4 +8,9 @@
     <PackageReference Include="Markdig" Version="0.24.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />
+    <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
+  </ItemGroup>
+
 </Project>

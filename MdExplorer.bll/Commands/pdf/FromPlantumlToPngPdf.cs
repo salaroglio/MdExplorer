@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,7 @@ namespace MdExplorer.Features.Commands.pdf
     {
         public FromPlantumlToPngPdf(string ServerAddress, 
                     ILogger<FromPlantumlToPng> logger,
-                    ISessionDB session, 
+                    IUserSettingsDB session, 
                     PlantumlServer plantumlServer, 
                     IHelperPdf helper) : base(ServerAddress, logger, session, plantumlServer, helper)
         {

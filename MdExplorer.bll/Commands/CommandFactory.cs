@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -29,7 +30,7 @@ namespace MdExplorer.Features.Commands
         private static object lockGetCommands = new object();      
         private readonly IServer _server;
         private readonly IServiceProvider _serviceProvider;
-        private readonly IDALFactory<ISessionDB> _dalFactory;
+        private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly PlantumlServer _plantumlServer;
         private readonly IHelper _helper;
 
@@ -37,7 +38,7 @@ namespace MdExplorer.Features.Commands
 
         public CommandFactory(IServer server, 
                                 IServiceProvider serviceProvider,
-                                IDALFactory<ISessionDB> dalFactory,
+                                IDALFactory<IUserSettingsDB> dalFactory,
                                 PlantumlServer plantumlServer,
                                 IHelper helper
             )//IServerAddressesFeature serverAddresses
