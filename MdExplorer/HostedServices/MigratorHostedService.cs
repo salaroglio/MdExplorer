@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.FluentMigrator;
 using Ad.Tools.FluentMigrator.Interfaces;
+using FluentMigrator.Runner;
 using MdExplorer.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,20 +20,26 @@ namespace MdExplorer.Service.HostedServices
         private readonly IEngineMigrator _migrator;
         private readonly IServiceCollection _services;
 
-        public MigratorHostedService( 
+        public MigratorHostedService(
             ILogger<MigratorHostedService> logger)
         {
-            
+
             _services = new ServiceCollection();
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");           
+            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             logger.LogInformation($@"Upgrade database in: {appdata}");
-            var databasePath = @$"Data Source={appdata}\MdExplorer.db";
-            _services.AddFluentMigratorFeatures(databasePath,
-                                                DatabaseConfigurations.ConfigureSQLite,
-                                                typeof(M2021_06_23_001).Assembly);
+            var databasePath = @$"Data Source={appdata}\MdExplorer.db";            
+            _services.AddFluentMigratorFeatures(
+                                            (rb) => {
+                                                rb.AddSQLite()
+                                                .WithGlobalConnectionString(databasePath)
+                                                .ScanIn(typeof(M2021_06_23_001).Assembly)
+                                                .For.Migrations();
+                                            }, "SQLite");
+
+           
             var builder = _services.BuildServiceProvider();
 
-            _migrator = builder.GetService< IEngineMigrator>();
+            _migrator = builder.GetService<IEngineMigrator>();
         }
         public Task StartAsync(CancellationToken cancellationToken)
         {

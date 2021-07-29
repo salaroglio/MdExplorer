@@ -39,8 +39,9 @@ namespace MdExplorer.Controllers
             IOptions<MdExplorerAppSettings> options, 
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB session, 
+            IEngineDB engineDB,
             ICommandRunnerHtml commandRunner
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
         }
 
@@ -52,6 +53,9 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
+            var relDal = _engineDB.GetDal<Relationship>();
+            var list = relDal.GetList().ToList();
+
 
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");

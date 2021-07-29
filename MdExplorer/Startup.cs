@@ -1,10 +1,7 @@
 using MdExplorer.Hubs;
-using MdExplorer.Service.HostedServices;
 using MdExplorer.Service.Models;
 using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
-using Ad.Tools.FluentMigrator;
-using MdExplorer.Migrations;
 using MDExplorer.DataAccess.Mapping;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -13,21 +10,16 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using static Ad.Tools.FluentMigrator.FluentMigratorDI;
-using Ad.Tools.FluentMigrator.Interfaces;
-using Microsoft.Extensions.FileProviders;
 using MdExplorer.Features;
-using MdExplorer.Features.Commands;
-using System.Collections.Generic;
 using MdExplorer.Service;
-using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.DataAccess.Engine;
+using MdExplorer.Features.Utilities;
 
 namespace MdExplorer
 {
@@ -52,9 +44,18 @@ namespace MdExplorer
             ConfigTemplates(Args[0]);
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
+            var currentDirectory = Path.GetDirectoryName(Args[0]);
+            var hash = Helper.HGetHashString(currentDirectory);
+            var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
+            
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(),typeof(IUserSettingsDB),
                                     databasePath);
+
+            services.AddDalFeatures(typeof(RelationshipMap).Assembly,
+                                   new DatabaseSQLite(), typeof(IEngineDB),
+                                   databasePathEngine);
+
             services.AddMDExplorerCommands();
             services.AddSignalR();
             services.AddControllers(config =>

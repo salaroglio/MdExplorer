@@ -30,9 +30,9 @@ namespace MdExplorer.Service.Controllers
     {
         public MdCreateMdController(ILogger<MdCreateMdController> logger, 
             FileSystemWatcher fileSystemWatcher, IOptions<MdExplorerAppSettings> options, 
-            IHubContext<MonitorMDHub> hubContext, IUserSettingsDB session, 
+            IHubContext<MonitorMDHub> hubContext, IUserSettingsDB session, IEngineDB engineDB,
             ICommandRunnerPdf commandRunner
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
         }
 

@@ -41,9 +41,10 @@ namespace MdExplorer.Service.Controllers
                 IOptions<MdExplorerAppSettings> options,
                 IHubContext<MonitorMDHub> hubContext,
                 IUserSettingsDB session,
+                IEngineDB engineDB,
                 ICommandRunnerPdf commandRunner,
                 IHelperPdf helperPdf
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, commandRunner)
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
             _helperPdf = helperPdf;
         }

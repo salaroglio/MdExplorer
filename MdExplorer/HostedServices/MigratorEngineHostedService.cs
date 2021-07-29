@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.FluentMigrator.Interfaces;
 using FluentMigrator.Runner;
+using MdExplorer.Features.Utilities;
 using MdExplorer.Migrations.EngineDb.Version202107;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,11 +21,18 @@ namespace MdExplorer.Service.HostedServices
         private readonly IEngineMigrator _migrator;
         private readonly IServiceCollection _services;
 
-        public MigratorEngineHostedService(ILogger<MigratorEngineHostedService> logger)
+        public MigratorEngineHostedService(ILogger<MigratorEngineHostedService> logger, 
+            FileSystemWatcher fileSystemWatcher)
         {
             _services = new ServiceCollection();            
-            logger.LogInformation($@"Upgrade database in: {Directory.GetCurrentDirectory()}"); 
-            var databaseEngine = @$"Data Source=.\MdEngine.db";            
+            
+            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
+            var hash = Helper.HGetHashString(fileSystemWatcher.Path);
+            var databaseEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
+            
+
+            logger.LogInformation($@"Upgrade database in: {databaseEngine}");
+
             _services.AddFluentMigratorFeatures(
                                             (rb) => {
                                                 rb.AddSQLite()
