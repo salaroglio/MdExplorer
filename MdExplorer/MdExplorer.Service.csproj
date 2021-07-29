@@ -86,6 +86,7 @@
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations.EngineDb\MdExplorer.Migrations.EngineDb.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
   </ItemGroup>
 
