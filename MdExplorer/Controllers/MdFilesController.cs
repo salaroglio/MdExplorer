@@ -1,4 +1,6 @@
-﻿using MdExplorer.Abstractions.Models;
+﻿using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Models;
 using MdExplorer.Models;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -16,9 +18,12 @@ namespace MdExplorer.Controllers
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
 
-        public MdFilesController(FileSystemWatcher fileSystemWatcher)
+        public IEngineDB _engineDB { get; }
+
+        public MdFilesController(FileSystemWatcher fileSystemWatcher,IEngineDB engineDB)
         {
             _fileSystemWatcher = fileSystemWatcher;
+            _engineDB = engineDB;
         }
 
         [HttpGet]
@@ -45,7 +50,22 @@ namespace MdExplorer.Controllers
 
             // nettificazione dei folder che non contengono md
 
+            _engineDB.BeginTransaction();
 
+            foreach (var item in list)
+            {
+                var relationship = new Relationship
+                {
+                    FileName = item.Name,
+                    LinkPath = item.Path,
+                    Path = item.Path,
+                    
+                };
+                
+                var relDal = _engineDB.GetDal<Relationship>();
+                relDal.Save(relationship);
+            }
+            _engineDB.Commit();
             return Ok(list);
         }
 

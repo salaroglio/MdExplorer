@@ -33,6 +33,7 @@ namespace MdExplorer.Service.Controllers
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB session,
+            IEngineDB engineDB,
             ICommandRunner commandRunner)
         {
             _logger = logger;
@@ -40,8 +41,11 @@ namespace MdExplorer.Service.Controllers
             this._options = options;
             _hubContext = hubContext;
             _session = session;
+            _engineDB = engineDB;
             _commandRunner = commandRunner;
         }
+
+        public IEngineDB _engineDB { get; }
 
         protected string GetRelativePathFileSystem(string controllerName)
         {

@@ -45,12 +45,14 @@
 
   <ItemGroup>
     <None Remove="eisvogel.tex" />
+    <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
   </ItemGroup>
 
 
   <ItemGroup>
     <EmbeddedResource Include="eisvogel.tex" />
+    <EmbeddedResource Include="MdEngine.db" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -86,6 +88,7 @@
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
+    <ProjectReference Include="..\MdExplorer.DataAccess.Engine\MdExplorer.DataAccess.Engine.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations.EngineDb\MdExplorer.Migrations.EngineDb.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
   </ItemGroup>

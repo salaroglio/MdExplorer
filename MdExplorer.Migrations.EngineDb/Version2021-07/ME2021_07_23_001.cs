@@ -17,7 +17,7 @@ namespace MdExplorer.Migrations.EngineDb.Version202107
                 .WithColumn("FileName").AsString(255).NotNullable()
                 .WithColumn("Path").AsString(int.MaxValue).NotNullable()
                 .WithColumn("LinkPath").AsString(int.MaxValue).NotNullable()
-                .WithColumn("ParentId").AsGuid().NotNullable();
+                .WithColumn("ParentId").AsGuid().Nullable();
         }
 
         public override void Down()
