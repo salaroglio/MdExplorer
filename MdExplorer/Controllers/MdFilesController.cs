@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -31,15 +32,15 @@ namespace MdExplorer.Controllers
         {
             var currentPath = _fileSystemWatcher.Path;
 
-            var list = new List<FileInfoNode>();
+            var list = new List<IFileInfoNode>();
 
-            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_=>!_.Contains(".md")))
+            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
                 (var node, var isempty) = CreateNodeFolder(itemFolder);
                 if (!isempty)
                 {
                     list.Add(node);
-                }                
+                }
             }
 
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
@@ -48,10 +49,18 @@ namespace MdExplorer.Controllers
                 list.Add(node);
             }
 
-            // nettificazione dei folder che non contengono md
-
+            // nettificazione dei folder che non contengono md            
             _engineDB.BeginTransaction();
+            _engineDB.Delete("from Relationship");
+            SaveRealationships(list);
+            _engineDB.Commit();
+            return Ok(list);
+        }
 
+        private void SaveRealationships(IList<IFileInfoNode> list,Guid? parentId=null )
+        {
+            // clean all data
+            
             foreach (var item in list)
             {
                 var relationship = new Relationship
@@ -59,14 +68,17 @@ namespace MdExplorer.Controllers
                     FileName = item.Name,
                     LinkPath = item.Path,
                     Path = item.Path,
-                    
                 };
-                
+
                 var relDal = _engineDB.GetDal<Relationship>();
                 relDal.Save(relationship);
+                _engineDB.Flush();
+                if (item.Childrens.Count>0)
+                {
+                    SaveRealationships(item.Childrens, relationship.Id);
+                }
             }
-            _engineDB.Commit();
-            return Ok(list);
+            
         }
 
         private FileInfoNode CreateNodeMdFile(string itemFile)

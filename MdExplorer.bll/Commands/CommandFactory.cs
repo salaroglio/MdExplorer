@@ -65,7 +65,8 @@ namespace MdExplorer.Features.Commands
             {
                 var listToReturn = new List<T>();
 
-                var commandInstances = Assembly.GetExecutingAssembly().GetTypes().Where(_ => (typeof(T).IsAssignableFrom(_) && !_.IsInterface));
+                var commandInstances = Assembly.GetExecutingAssembly().GetTypes()
+                    .Where(_ => (typeof(T).IsAssignableFrom(_) && !_.IsInterface));
 
                 foreach (var item in commandInstances)
                 {
@@ -96,9 +97,7 @@ namespace MdExplorer.Features.Commands
                         if (param.Name == "session")
                         {
                             paramsTo.Add(session);
-                            
                         }
-
                         if (param.Name == "plantumlServer")
                         {
                             paramsTo.Add(_plantumlServer);
