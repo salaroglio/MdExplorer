@@ -13,9 +13,6 @@ namespace MdExplorer.DataAccess.Engine
             Map(_ => _.Path).Not.Nullable();
             Map(_ => _.LinkPath).Not.Nullable();
             Map(_ => _.ParentId).Nullable();
-
         }
-        
-
     }
 }
