@@ -16,7 +16,7 @@ namespace MdExplorer.Migrations.EngineDb.Version202107
                 .WithColumn("Id").AsGuid().PrimaryKey()
                 .WithColumn("FileName").AsString(255).NotNullable()
                 .WithColumn("Path").AsString(int.MaxValue).NotNullable()
-                .WithColumn("LinkPath").AsString(int.MaxValue).NotNullable()
+                .WithColumn("LinkPath").AsString(int.MaxValue).Nullable()
                 .WithColumn("ParentId").AsGuid().Nullable();
         }
 

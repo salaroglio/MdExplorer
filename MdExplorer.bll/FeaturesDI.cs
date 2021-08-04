@@ -1,5 +1,7 @@
-﻿using MdExplorer.Features.Commands;
+﻿using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.LinkModifiers;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -22,6 +24,8 @@ namespace MdExplorer.Features
             services.AddSingleton<PlantumlServer>();
             services.AddTransient<IHelperPdf, HelperPdf>();
             services.AddTransient<IHelperHtml, HelperHtml>();
+            services.AddTransient<IGetModifier, GetLinkForDocument>();
+
             return services;
         }
     }
