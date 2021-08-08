@@ -20,6 +20,7 @@ using MdExplorer.Service;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.DataAccess.Engine;
 using MdExplorer.Features.Utilities;
+using Microsoft.Extensions.FileProviders;
 
 namespace MdExplorer
 {
