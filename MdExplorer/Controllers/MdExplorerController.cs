@@ -176,39 +176,58 @@ namespace MdExplorer.Controllers
             html.AppendChild(body);
 
             var script = doc1.CreateElement("script");
-            script.InnerText = @"var canvas = document.createElement('canvas');
-            document.body.appendChild(canvas);
+            script.InnerText = @"
+            
+            function toggleMdCanvas(){
+                if (window.toggleCanvas == 'undefined')
+                {
+                    window.toggleCanvas = false;
+                }
+                
+                if(window.toggleCanvas){
+                    window.canvas.remove();
+                    window.toggleCanvas = !window.toggleCanvas;
+                   return;
+                }
+                window.toggleCanvas = !window.toggleCanvas;
+                window.canvas = document.createElement('canvas');
+                document.body.appendChild(canvas);
 
-            // some hotfixes... ( ≖_≖)
-            document.body.style.margin = 0;
-            canvas.style.position = 'absolute';
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            canvas.style.top = 0;
-            canvas.style.left = 0;
+                // some hotfixes... ( ≖_≖)
+                //document.body.style.margin = 0;
+                canvas.style.position = 'absolute';           
+                canvas.style.top = 40;
+                canvas.style.left = 0;
 
-            // get canvas 2D context and set him correct size
-            var ctx = canvas.getContext('2d');
-            resize();
+                // get canvas 2D context and set him correct size
+                window.ctx = canvas.getContext('2d');
+                resize();
 
-            // last known position
-            var pos = { x: 0, y: 0 };
+                // last known position
+                window.shiftY = -40;
+                window.pos = { x: 0, y: 0 };
+                window.scrollPos = { x: 0, y: window.shiftY};
 
-            window.addEventListener('resize', resize);
-            document.addEventListener('mousemove', draw);
-            document.addEventListener('mousedown', setPosition);
-            document.addEventListener('mouseenter', setPosition);
-
+                window.addEventListener('resize', resize);
+                document.addEventListener('mousemove', draw);
+                document.addEventListener('mousedown', setPosition);
+                document.addEventListener('mouseenter', setPosition);
+                document.addEventListener('scroll', scrollPosition);
+            }            
+            function scrollPosition(e){                
+                scrollPos.x = window.scrollX;
+                scrollPos.y = window.scrollY + window.shiftY;                
+            }
             // new position from mouse event
             function setPosition(e) {
-              pos.x = e.clientX;
-              pos.y = e.clientY;
+              pos.x = scrollPos.x + e.clientX;
+              pos.y = scrollPos.y + e.clientY;
             }
 
             // resize canvas
             function resize() {
-              ctx.canvas.width = window.innerWidth;
-              ctx.canvas.height = window.innerHeight;
+              ctx.canvas.width = window.innerWidth;               
+              ctx.canvas.height = document.documentElement.scrollHeight;
             }
 
             function draw(e) {
@@ -219,7 +238,7 @@ namespace MdExplorer.Controllers
 
               ctx.lineWidth = 5;
               ctx.lineCap = 'round';
-              ctx.strokeStyle = '#c0392b';
+              ctx.strokeStyle = '#2bc02d';
 
               ctx.moveTo(pos.x, pos.y); // from
               setPosition(e);
@@ -227,9 +246,22 @@ namespace MdExplorer.Controllers
 
               ctx.stroke(); // draw it!
             }";
-            html.AppendChild(script);
-            //resultToParse = resultToParse.Replace("--&gt;</g>", "--&gt</g>")
-            body.InnerXml = resultToParse;
+            head.AppendChild(script);
+            
+            var a = doc1.CreateElement("a");
+            var aAtt = doc1.CreateAttribute("onClick");
+            var aAtt1 = doc1.CreateAttribute("href");
+            aAtt1.Value = "#";
+            a.Attributes.Append(aAtt1);
+            a.Attributes.Append(aAtt);
+            aAtt.Value = "toggleMdCanvas()";
+            var imgEl = doc1.CreateElement("img");
+            a.AppendChild(imgEl);
+            var srcImg = doc1.CreateAttribute("src");
+            srcImg.Value = "../../assets/draw.png";
+            imgEl.Attributes.Append(srcImg);
+            body.AppendChild(a);
+            body.InnerXml += resultToParse;
         }
 
        
