@@ -1,4 +1,5 @@
-﻿using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+﻿using MdExplorer.Features.ActionLinkModifiers;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
@@ -6,6 +7,7 @@ using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
 using System;
+using System.Collections.Generic;
 
 namespace MdExplorer.Features
 {
@@ -22,10 +24,15 @@ namespace MdExplorer.Features
             services.AddTransient<ICommandRunnerPdf, CommandRunnerPdf>();
             services.AddSingleton<RendererFactory>();
             services.AddSingleton<PlantumlServer>();
+            services.AddTransient<IHelper, Helper>();
             services.AddTransient<IHelperPdf, HelperPdf>();
             services.AddTransient<IHelperHtml, HelperHtml>();
-            services.AddTransient<IGetModifier, GetLinkForDocument>();
-
+            services.AddTransient(typeof(IGetModifier[]),_=> {
+                var listOfModfier = new List<IGetModifier>();                
+                listOfModfier.Add(new GetLinkFromMarkdown());
+                listOfModfier.Add(new GetLinkImgFromPlantuml());
+                return listOfModfier.ToArray();
+                } );
             return services;
         }
     }

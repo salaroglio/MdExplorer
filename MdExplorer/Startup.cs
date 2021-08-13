@@ -53,7 +53,7 @@ namespace MdExplorer
                                     new DatabaseSQLite(),typeof(IUserSettingsDB),
                                     databasePath);
 
-            services.AddDalFeatures(typeof(RelationshipMap).Assembly,
+            services.AddDalFeatures(typeof(MarkdownFileMap).Assembly,
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
 
