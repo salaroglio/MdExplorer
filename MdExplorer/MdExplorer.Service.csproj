@@ -29,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
@@ -56,6 +57,7 @@
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />

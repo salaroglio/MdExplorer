@@ -53,7 +53,7 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            var relDal = _engineDB.GetDal<Relationship>();
+            var relDal = _engineDB.GetDal<MarkdownFile>();
             var list = relDal.GetList().ToList();
 
 

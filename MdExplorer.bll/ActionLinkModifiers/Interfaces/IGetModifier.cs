@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MdExplorer.Abstractions.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ namespace MdExplorer.Features.ActionLinkModifiers.Interfaces
 {
     public interface IGetModifier
     {
-        string[] GetLinks(string markdown);
+        LinkDetail[] GetLinks(string markdown);
+        LinkDetail[] GetLinksFromFile(string filepath);
     }
 }

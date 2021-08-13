@@ -7,22 +7,24 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Migrations.EngineDb.Version202107
 {
-    [Migration(20210723001, "New ENgine Database")]
-    public class ME2021_07_23_001 : Migration
+    [Migration(20210809001, "Added LinkInsideMarkdown and FK")]
+    public class ME2021_08_09_001 : Migration
     {
         public override void Up()
         {
-            Create.Table("MarkdownFile")
+            Create.Table("LinkInsideMarkdown")
                 .WithColumn("Id").AsGuid().PrimaryKey()
-                .WithColumn("FileName").AsString(255).NotNullable()
                 .WithColumn("Path").AsString(int.MaxValue).NotNullable()
-                .WithColumn("LinkPath").AsString(int.MaxValue).Nullable();                
+                .WithColumn("MarkdownFileId").AsGuid();
+
+            Create.ForeignKey("LinkInsideMarkdown_MarkdownFile_MarkdownFileId")
+                .FromTable("LinkInsideMarkdown").ForeignColumn("MarkdownFileId").ToTable("MarkdownFile")
+                .PrimaryColumn("Id");
         }
 
         public override void Down()
         {
             throw new NotImplementedException();
         }
-        
     }
 }

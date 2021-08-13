@@ -6,13 +6,12 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Abstractions.Models
 {
-    public class Relationship
+    public class MarkdownFile
     {
         public virtual Guid Id { get; set; }
         public virtual string FileName { get; set; }
         public virtual string Path { get; set; }
         public virtual string LinkPath { get; set; }
-        public virtual Guid ParentId { get; set; }
-
+        public virtual string FileType { get; set; }
     }
 }

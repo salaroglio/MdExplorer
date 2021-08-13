@@ -11,6 +11,7 @@ namespace MdExplorer.Abstractions.Models
     {
         public string Name { get; set; }
         public string Path { get; set; }
+        public string FullPath { get; set; }
         public string Type { get; set; }
         public IList<IFileInfoNode> Childrens { get; set; } = new List<IFileInfoNode>();
     }
