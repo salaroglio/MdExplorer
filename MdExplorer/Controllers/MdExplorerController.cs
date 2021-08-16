@@ -247,7 +247,18 @@ namespace MdExplorer.Controllers
               ctx.stroke(); // draw it!
             }";
             head.AppendChild(script);
+
+            var bootStrap = doc1.CreateElement("link");
+            head.AppendChild(bootStrap);
+            var bootAttRel = doc1.CreateAttribute("rel");
+            bootAttRel.Value = "stylesheet";
+            bootStrap.Attributes.Append(bootAttRel);
+            var bootAttHref = doc1.CreateAttribute("href");
+            bootAttHref.Value = @"/bootstrap/css/bootstrap.css";
+            bootStrap.Attributes.Append(bootAttHref);
             
+
+
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
             var aAtt1 = doc1.CreateAttribute("href");
