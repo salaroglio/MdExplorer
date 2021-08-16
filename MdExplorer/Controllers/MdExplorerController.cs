@@ -258,7 +258,7 @@ namespace MdExplorer.Controllers
             var imgEl = doc1.CreateElement("img");
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
-            srcImg.Value = "../../assets/draw.png";
+            srcImg.Value = "/assets/draw.png";
             imgEl.Attributes.Append(srcImg);
             body.AppendChild(a);
             body.InnerXml += resultToParse;

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.ActionLinkModifiers
 {
-    public class GetLinkImgFromPlantuml : IGetModifier
+    public class GetLinkImgFromPlantuml : IManageLink
     {
         public LinkDetail[] GetLinks(string markdown)
         {
@@ -46,6 +46,13 @@ namespace MdExplorer.Features.ActionLinkModifiers
         {
             var markdown = File.ReadAllText(filepath);
             return GetLinks(markdown);
+        }
+
+        public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
+        {
+            var markdown = File.ReadAllText(filepath);
+            markdown = markdown.Replace(oldLink, newLink);
+            File.WriteAllText(filepath, markdown);
         }
     }
 }

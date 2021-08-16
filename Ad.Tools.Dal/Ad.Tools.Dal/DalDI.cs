@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions;
 using Ad.Tools.Dal.Abstractions.Interfaces;
+using Ad.Tools.Dal.Decorators;
 using Antlr.Runtime.Misc;
 using FluentNHibernate.Cfg;
 using FluentNHibernate.Cfg.Db;
@@ -39,10 +40,20 @@ namespace Ad.Tools.Dal
         {            
             var config = CreateConfiguration(connectionString, databaseType);
 
-            var sessionFactory = Fluently.Configure()
-                .Database(config)
-                .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
-            services.AddSingleton(sessionFactory);
+            //var sessionFactory = Fluently.Configure()
+            //    .Database(config)
+            //    .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
+
+            Type ISessionFactoryDB = typeof(ISessionFactoryDB<>);
+            Type genericISessionFactoryDB = ISessionFactoryDB.MakeGenericType(currentInterface);
+
+            Type sessionFactoryDB = typeof(SessionFactoryDB<>);
+            Type genericSessionFactoryDB = sessionFactoryDB.MakeGenericType(currentInterface);
+
+            services.AddSingleton(genericISessionFactoryDB,
+               Activator.CreateInstance(genericSessionFactoryDB,config,assembly));
+
+            //services.AddSingleton();
             services.AddLogging();
             Type IdalFactoryType = typeof(IDALFactory<>);
             Type genericIDalFactory = IdalFactoryType.MakeGenericType(currentInterface);

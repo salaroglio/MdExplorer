@@ -1,4 +1,5 @@
-﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+﻿using Ad.Tools.Dal.Abstractions;
+using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Decorators;
 using Microsoft.Extensions.Logging;
 using NHibernate;
@@ -10,11 +11,10 @@ namespace Ad.Tools.Dal
     {
         private ISessionFactory _sessionFactory;
         private ISessionDB _session;
-        private ITransaction _transaction;
         private ILogger _logger;        
         
 
-        public SQDalFactory(ILogger<SQDalFactory<T1>> logger, ISessionFactory sessionFactory)
+        public SQDalFactory(ILogger<SQDalFactory<T1>> logger, ISessionFactoryDB<T1> sessionFactory)
         {
             _logger = logger;
             _sessionFactory = sessionFactory;

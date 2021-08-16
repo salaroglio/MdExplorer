@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.LinkModifiers
 {
-    public class GetLinkFromMarkdown: IGetModifier
+    public class GetLinkFromMarkdown: IManageLink
     {
         public LinkDetail[] GetLinks(string mardown)
         {
@@ -34,6 +34,13 @@ namespace MdExplorer.Features.LinkModifiers
         {
             var markdown = File.ReadAllText(filepath);
             return GetLinks(markdown);
+        }
+
+        public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
+        {
+            var markdown = File.ReadAllText(filepath);
+            markdown = markdown.Replace(oldLink, newLink);
+            File.WriteAllText(filepath,markdown);
         }
     }
 }

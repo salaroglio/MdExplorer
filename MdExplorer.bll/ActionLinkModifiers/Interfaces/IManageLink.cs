@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.ActionLinkModifiers.Interfaces
 {
-    public interface IGetModifier
+    public interface IManageLink
     {
         LinkDetail[] GetLinks(string markdown);
         LinkDetail[] GetLinksFromFile(string filepath);
+        void SetLinkIntoFile(string filepath, string oldLink, string newLink);
     }
 }
