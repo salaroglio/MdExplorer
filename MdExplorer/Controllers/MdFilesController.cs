@@ -21,13 +21,13 @@ namespace MdExplorer.Controllers
     public class MdFilesController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IGetModifier[] _getModifiers;
+        private readonly IManageLink[] _getModifiers;
         private readonly IHelper _helper;
 
         public IEngineDB _engineDB { get; }
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
-            IEngineDB engineDB, IGetModifier[] getModifiers, IHelper helper )
+            IEngineDB engineDB, IManageLink[] getModifiers, IHelper helper )
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;

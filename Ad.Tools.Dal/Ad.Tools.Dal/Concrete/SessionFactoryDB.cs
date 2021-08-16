@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 
 namespace Ad.Tools.Dal.Decorators
 {
-    public class SessionFactoryDB<T> :  IConvertible where T : ISessionDB
+    public class SessionFactoryDB<T> : ISessionFactoryDB<T>, IConvertible where T : ISessionDB
     {
         private ISessionFactory _sessionFactory;        
 
@@ -154,9 +154,9 @@ namespace Ad.Tools.Dal.Decorators
             return _sessionFactory.GetCollectionMetadata(roleName);
         }
 
-        public ISessionDB GetCurrentSession()
+        public ISession GetCurrentSession()
         {
-            return (ISessionDB) _sessionFactory.GetCurrentSession();
+            return  _sessionFactory.GetCurrentSession();
         }
 
         public FilterDefinition GetFilterDefinition(string filterName)
@@ -174,24 +174,24 @@ namespace Ad.Tools.Dal.Decorators
             throw new NotImplementedException();
         }
 
-        public T OpenSession(DbConnection connection)
+        public ISession OpenSession(DbConnection connection)
         {
-            return (T)_sessionFactory.OpenSession(connection);
+            return _sessionFactory.OpenSession(connection);
         }
 
-        public T OpenSession(IInterceptor sessionLocalInterceptor)
+        public ISession OpenSession(IInterceptor sessionLocalInterceptor)
         {
-            return (T)_sessionFactory.OpenSession(sessionLocalInterceptor);
+            return _sessionFactory.OpenSession(sessionLocalInterceptor);
         }
 
-        public T OpenSession(DbConnection conn, IInterceptor sessionLocalInterceptor)
+        public ISession OpenSession(DbConnection conn, IInterceptor sessionLocalInterceptor)
         {
-            return (T)_sessionFactory.OpenSession(conn, sessionLocalInterceptor);
+            return _sessionFactory.OpenSession(conn, sessionLocalInterceptor);
         }
 
-        public T OpenSession()
+        public ISession OpenSession()
         {
-            return (T)_sessionFactory.OpenSession();
+            return _sessionFactory.OpenSession();
         }
 
         public IStatelessSession OpenStatelessSession()
@@ -293,5 +293,26 @@ namespace Ad.Tools.Dal.Decorators
         {
             throw new NotImplementedException();
         }
+       
+
+        //ISession ISessionFactory.OpenSession(DbConnection connection)
+        //{
+        //    throw new NotImplementedException();
+        //}
+
+        //ISession ISessionFactory.OpenSession(IInterceptor sessionLocalInterceptor)
+        //{
+        //    throw new NotImplementedException();
+        //}
+
+        //ISession ISessionFactory.OpenSession(DbConnection conn, IInterceptor sessionLocalInterceptor)
+        //{
+        //    throw new NotImplementedException();
+        //}
+
+        //ISession ISessionFactory.OpenSession()
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 }
