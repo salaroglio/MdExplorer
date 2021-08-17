@@ -133,8 +133,26 @@ namespace MdExplorer.Controllers
             StringWriter tw = new StringWriter();
             var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 
+            // <a onClick=""toggleMdCanvas()"" href=""#""><img src=""/assets/draw.png"" /></a>
 
-            var resultToParse = "<MainHTML>" + result + "</MainHTML>";
+            var resultToParse = @"<MainHTML>
+                    <div class=""container"">
+                        <div class=""row"">
+                            <div class=""col-1"">
+                                <div class=""sticky-top"">
+                               
+                                </div>
+                            </div>
+                            <div class=""col-10"">
+                    " + 
+                    result +
+                    @"      </div>
+                            <div class=""col-1"">
+                            </div>
+                        </div>
+                    </div>
+                    </MainHTML>
+                    ";
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1);
 
@@ -147,7 +165,7 @@ namespace MdExplorer.Controllers
                 itemElement.Attributes.Append(htmlClass);
             }
 
-            var elements = doc1.FirstChild.SelectNodes(@"//pre/code[@class='language-plantuml']");
+            //var elements = doc1.FirstChild.SelectNodes(@"//pre/code[@class='language-plantuml']");
 
 
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
@@ -191,6 +209,7 @@ namespace MdExplorer.Controllers
                 }
                 window.toggleCanvas = !window.toggleCanvas;
                 window.canvas = document.createElement('canvas');
+                window.canvas.setAttribute('id','writeCanvas');
                 document.body.appendChild(canvas);
 
                 // some hotfixes... ( ≖_≖)
@@ -245,7 +264,9 @@ namespace MdExplorer.Controllers
               ctx.lineTo(pos.x, pos.y); // to
 
               ctx.stroke(); // draw it!
-            }";
+            }
+            //toggleMdCanvas();
+            ";
             head.AppendChild(script);
 
             var bootStrap = doc1.CreateElement("link");
