@@ -13,6 +13,7 @@ namespace MdExplorer.DataAccess.Engine
             Map(_ => _.Path).Not.Nullable();
             Map(_ => _.LinkPath).Not.Nullable();
             Map(_ => _.FileType).Not.Nullable();
+            HasMany(x => x.Links).Cascade.All();
         }
     }
 }
