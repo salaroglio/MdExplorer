@@ -29,8 +29,9 @@ namespace MdExplorer.Features
             services.AddTransient<IHelperHtml, HelperHtml>();
             services.AddTransient(typeof(IManageLink[]),_=> {
                 var listOfModfier = new List<IManageLink>();                
-                listOfModfier.Add(new GetLinkFromMarkdown());
+                listOfModfier.Add(new GetImagesFromMarkdown());
                 listOfModfier.Add(new GetLinkImgFromPlantuml());
+                listOfModfier.Add(new GetLinkFromMarkdown());
                 return listOfModfier.ToArray();
                 } );
             return services;

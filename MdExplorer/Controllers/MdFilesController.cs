@@ -60,7 +60,9 @@ namespace MdExplorer.Controllers
             // nettificazione dei folder che non contengono md            
             _engineDB.BeginTransaction();
             _engineDB.Delete("from LinkInsideMarkdown");
+            _engineDB.Flush();
             _engineDB.Delete("from MarkdownFile");
+            _engineDB.Flush();
             
             SaveRealationships(list);
             _engineDB.Commit();

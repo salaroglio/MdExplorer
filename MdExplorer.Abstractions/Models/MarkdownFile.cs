@@ -13,5 +13,8 @@ namespace MdExplorer.Abstractions.Models
         public virtual string Path { get; set; }
         public virtual string LinkPath { get; set; }
         public virtual string FileType { get; set; }
+
+        public virtual IList<LinkInsideMarkdown> Links { get; set; } = new List<LinkInsideMarkdown>();   
+
     }
 }

@@ -82,8 +82,9 @@ namespace MdExplorer.Service.HostedServices
                 else
                 {
                     // gestisci il rename di un file
-                    var linkDal = engineDb.GetDal<LinkInsideMarkdown>();
-                    var affectedFiles = linkDal.GetList().Where(_ => _.FullPath.Contains(oldFullPath)).GroupBy(_ => _.MarkdownFile);
+                    var linkDal = engineDb.GetDal<MarkdownFile>();
+                    var affectedFiles = linkDal.GetList().Where(_ => _.Links.Any(l => l.FullPath.Contains(oldFullPath)));
+                        //linkDal.GetList().Where(_ => _.FullPath.Contains(oldFullPath)).GroupBy(_ => _.MarkdownFile);
                     var oldFileName = Path.GetFileName(oldFullPath);
                     var newFileName = Path.GetFileName(newFullPath);
 
@@ -91,7 +92,7 @@ namespace MdExplorer.Service.HostedServices
                     {
                         foreach (var linkManager in _linkManagers)
                         {
-                            linkManager.SetLinkIntoFile(itemMarkdownFile.Key.Path, oldFileName, newFileName);
+                            linkManager.SetLinkIntoFile(itemMarkdownFile.Path, oldFileName, newFileName);
                         }
                     }
                 }
