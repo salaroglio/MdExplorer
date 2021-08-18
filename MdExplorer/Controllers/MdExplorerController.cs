@@ -318,6 +318,9 @@ namespace MdExplorer.Controllers
             }
             //toggleMdCanvas();
             ";
+            //head.AppendChild(script);
+
+            
             head.AppendChild(script);
 
             var bootStrap = doc1.CreateElement("link");
@@ -328,7 +331,21 @@ namespace MdExplorer.Controllers
             var bootAttHref = doc1.CreateAttribute("href");
             bootAttHref.Value = @"/bootstrap/css/bootstrap.css";
             bootStrap.Attributes.Append(bootAttHref);
-            
+
+            // jquery 3.6.0
+            var jqueryScript = doc1.CreateElement("script");
+            var jqueryScriptsrc = doc1.CreateAttribute("src");
+            jqueryScriptsrc.Value = @"/bootstrap/jquery-3.6.0.js";
+            jqueryScript.Attributes.Append(jqueryScriptsrc);
+
+            // bootstrap js
+            var bootScript = doc1.CreateElement("script");
+            var bootScriptsrc = doc1.CreateAttribute("src");
+            bootScriptsrc.Value = @"/bootstrap/js/bootstrap.bundle.js";
+            bootScript.Attributes.Append(bootScriptsrc);
+
+
+
 
 
             var a = doc1.CreateElement("a");
