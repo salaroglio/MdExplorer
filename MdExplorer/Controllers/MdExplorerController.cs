@@ -135,23 +135,23 @@ namespace MdExplorer.Controllers
 
             // <a onClick=""toggleMdCanvas()"" href=""#""><img src=""/assets/draw.png"" /></a>
 
-            var resultToParse = @"<MainHTML>
+            var resultToToc = $@"<div>{result}</div>";
+
+
+            var resultToParse = $@"
                     <div class=""container"">
                         <div class=""row"">
-                            <div class=""col-1"">
+                            <div class=""col-3"">
                                 <div class=""sticky-top"">
-                               
+                                {CreateToc(resultToToc)} 
                                 </div>
                             </div>
-                            <div class=""col-10"">
-                    " + 
-                    result +
-                    @"      </div>
-                            <div class=""col-1"">
-                            </div>
+                            <div class=""col-9"">
+                    {result}
+                            </div>                            
                         </div>
                     </div>
-                    </MainHTML>
+                    
                     ";
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1);
@@ -177,7 +177,23 @@ namespace MdExplorer.Controllers
             };
         }
 
-        
+        private string CreateToc(string resultToToc)
+        {
+            var toReturn = string.Empty;
+            var xmlDoc = new XmlDocument();
+            var xmlDoc1 = new XmlDocument();
+            xmlDoc.LoadXml(resultToToc);
+            var h1List = xmlDoc.SelectNodes("//*[starts-with(name(), 'h')]");
+            toReturn += "<ul class=\"list-group\">";
+            foreach (XmlNode h1 in h1List)
+            {
+                toReturn += "<li class=\"list-group-item\">";
+                toReturn += $"<a href=\"#{h1.Attributes["id"].Value}\">{h1.InnerText}</a>\r\n";
+                toReturn += "</li>";
+            }
+            toReturn += "</ul>";
+            return toReturn;
+        }
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1)
         {
