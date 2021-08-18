@@ -183,15 +183,50 @@ namespace MdExplorer.Controllers
             var xmlDoc = new XmlDocument();
             var xmlDoc1 = new XmlDocument();
             xmlDoc.LoadXml(resultToToc);
-            var h1List = xmlDoc.SelectNodes("//*[starts-with(name(), 'h')]");
+            var hList = xmlDoc.SelectNodes("//*[starts-with(name(), 'h')]");
+            toReturn += "<div class=\"bd-toc text-muted\">";
+            toReturn += "<nav id=\"TableOfContents\">";
             toReturn += "<ul class=\"list-group\">";
-            foreach (XmlNode h1 in h1List)
+            var lastLevel = 1;
+            var distanceToCloseH = 0;
+            foreach (XmlNode h in hList)
             {
-                toReturn += "<li class=\"list-group-item\">";
-                toReturn += $"<a href=\"#{h1.Attributes["id"].Value}\">{h1.InnerText}</a>\r\n";
-                toReturn += "</li>";
+                var currentLevel = Convert.ToInt32(h.Name.Substring(1));
+                if (currentLevel >lastLevel )
+                {
+                    toReturn += "<ul>";
+                    toReturn += "<li>";
+                    toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
+                    toReturn += "</li>";
+                    distanceToCloseH++;
+                }
+                else if(lastLevel == currentLevel)
+                {
+                    toReturn += "<li>";
+                    toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
+                    toReturn += "</li>";
+                }
+                else if (currentLevel < lastLevel)
+                {
+                    for (int i = 0; i < lastLevel-currentLevel; i++)
+                    {
+                        toReturn += "</ul>";
+                        distanceToCloseH--;
+                    }                    
+                    toReturn += "<li>";
+                    toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
+                    toReturn += "</li>";
+                    
+                }
+                lastLevel = currentLevel;
+            }
+            for (int i = 0; i < distanceToCloseH; i++)
+            {
+                toReturn += "</ul>";
             }
             toReturn += "</ul>";
+            toReturn += "</nav>";
+            toReturn += "</div>";
             return toReturn;
         }
 
