@@ -141,14 +141,15 @@ namespace MdExplorer.Controllers
             var resultToParse = $@"
                     <div class=""container"">
                         <div class=""row"">
+                           
+                            <div class=""col-9"">
+                    {result}
+                            </div>  
                             <div class=""col-3"">
                                 <div class=""sticky-top"">
                                 {CreateToc(resultToToc)} 
                                 </div>
                             </div>
-                            <div class=""col-9"">
-                    {result}
-                            </div>                            
                         </div>
                     </div>
                     
