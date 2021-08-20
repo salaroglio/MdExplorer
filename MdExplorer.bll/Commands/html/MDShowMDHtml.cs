@@ -67,7 +67,7 @@ namespace MdExplorer.Features.Commands.html
                     fileName = _helper.NormalizePath(fileName);
                     var queryEncoded = HttpUtility.UrlEncode(fileName);
 
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer/{fileName}");
+                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}");//fileName
                     _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
                     var response = httpClient.GetAsync(uriUrl);
                     response.Wait();
