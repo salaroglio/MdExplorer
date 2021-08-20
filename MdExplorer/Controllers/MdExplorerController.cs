@@ -53,10 +53,6 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            var relDal = _engineDB.GetDal<MarkdownFile>();
-            var list = relDal.GetList().ToList();
-
-
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
