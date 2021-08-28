@@ -8,7 +8,7 @@ namespace MdExplorer.Models
 {
     public class MonitoredMDModel
     {
-        public string Path { get; set; }
+        public string Path { get; set; }        
         public string Name { get; set; }
         public string RelativePath { get; set; }
         public string ConnectionId { get; set; }

@@ -36,6 +36,7 @@ export class MainContentComponent implements OnInit {
     
     //this.monitorMDService.startConnection();
     this.monitorMDService.addMarkdownFileListener(this.updateModifiedMarkDown, this);
+
   }
 
   ngOnInit(): void {
@@ -57,7 +58,6 @@ export class MainContentComponent implements OnInit {
   }
 
   private updateModifiedMarkDown(data: any, objectThis: any) {
-    console.log(data);
     let dateTime = new Date();
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
     

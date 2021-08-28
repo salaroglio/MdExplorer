@@ -4,6 +4,7 @@ using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
+using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,7 +24,7 @@ namespace MdExplorer.Service.HostedServices
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ILogger<MonitorMDHostedService> _logger;
-        private readonly IServiceProvider _serviceProvider;        
+        private readonly IServiceProvider _serviceProvider;
         private readonly IManageLink[] _linkManagers;
 
         public MonitorMDHostedService(IHubContext<MonitorMDHub> hubContext,
@@ -34,7 +35,7 @@ namespace MdExplorer.Service.HostedServices
             _hubContext = hubContext;
             _fileSystemWatcher = fileSystemWatcher;
             _logger = logger;
-            _serviceProvider = serviceProvider;            
+            _serviceProvider = serviceProvider;
             _linkManagers = linkManagers;
         }
 
@@ -69,52 +70,44 @@ namespace MdExplorer.Service.HostedServices
             using (var scope = _serviceProvider.CreateScope())
             {
                 var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
+                engineDb.BeginTransaction();
+                // Cerco se qualche file è coinvolto
+                var currentGroupId = Guid.NewGuid();
 
-                var oldFullPath = e.OldFullPath;
-                var newFullPath = e.FullPath;
-                // devo andare a cercare tutti i files coinvolti dal cambiamento.
-                var fileAttr = File.GetAttributes(newFullPath);
+                var linkInsideDAL = engineDb.GetDal<LinkInsideMarkdown>();
+                var listOfFiles = linkInsideDAL.GetList().Where(_ => _.FullPath.Contains(e.OldFullPath)).Select(_=>_.MarkdownFile).ToList();
 
-                if (fileAttr.HasFlag(FileAttributes.Directory))
+
+                var refactoringFileSystemEventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
+                var refFileSysEvent = new RefactoringFilesystemEvent
                 {
-                    // gestisci il cambio di directory
-                }
-                else
+                    EventName = "FileRenamed",
+                    RefactoringGroupId = currentGroupId,
+                    NewFullPath = e.FullPath,
+                    OldFullPath = e.OldFullPath,
+                    Processed = false
+                };
+
+                refactoringFileSystemEventDal.Save(refFileSysEvent);
+
+                // le informazioni da mandare indietro sono:
+                // i file coinvolti dal cambiamento originale che l'app deve
+                // manipolare
+                // info descrittive del cambiamento impostato dall'utente
+
+                var monitoredMd = new RefactoredFile
                 {
-                    // gestisci il rename di un file
-                    var linkDal = engineDb.GetDal<MarkdownFile>();
-                    var affectedFiles = linkDal.GetList().Where(_ => _.Links.Any(l => l.FullPath.Contains(oldFullPath)));
-                        //linkDal.GetList().Where(_ => _.FullPath.Contains(oldFullPath)).GroupBy(_ => _.MarkdownFile);
-                    var oldFileName = Path.GetFileName(oldFullPath);
-                    var newFileName = Path.GetFileName(newFullPath);
+                    NewFullPath = e.FullPath,
+                    OldFullPath = e.OldFullPath,
+                    Name = Path.GetFileName(e.FullPath),                    
+                };
 
-                    foreach (var itemMarkdownFile in affectedFiles)
-                    {
-                        foreach (var linkManager in _linkManagers)
-                        {
-                            linkManager.SetLinkIntoFile(itemMarkdownFile.Path, oldFileName, newFileName);
-                        }
-                    }
-                }
-
-
-
-
-                //    // faccio un primo match con il fullPath (giusto per tagliare fuori doppioni (caso assets))
-                //    // devo capire se si tratta di un folder (guardo se ha il punto o meno)
-                //    // oppure se si tratta di un file
-                //    // da capire come gestire il cut and paste. (viene gestito come un renamed, ma diventa un macello il ricalcolo del path)
-                //    // capire che cosa devo scrivere al posto del precedente link (io farei una replace del vecchio con il nuovo)
-                //    // devo gestire casi particolari comme /asset/asset/asset/asset/asset.md devo capire in quale punto esatto cambiare
-                //    // mi aiuta di sicuro il full path. Ma devo trovare una relazione tra fullpath e relative path
-                //    // Modificare tutti i link sul filesystem (devo usare le stesse funzioni di get, per andare ad agganciare i set)
-                //    // il grande casino è come gestire i file relativi e capire se sono veramente coinvolti
-                //    // Modificare tutti i link sul db
-                //}
-
-
-
+                var refactoringEvent = new RefactoringFileEvent();
+                refactoringEvent.EventName = "FileRenamed";
+                engineDb.Commit();
+                _hubContext.Clients.All.SendAsync("refactoringFileEvent", new { refactoringEvent = refactoringEvent });
             }
+
         }
 
         private void _fileSystemWatcher_Created(object sender, FileSystemEventArgs e)

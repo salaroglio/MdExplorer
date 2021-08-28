@@ -11,6 +11,8 @@ import { MdFileService } from './services/md-file.service';
 import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
 import { SettingsComponent } from './components/settings/settings.component';
+import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
+
 
 
 const routes: Routes = [{
@@ -29,7 +31,8 @@ const routes: Routes = [{
     SafePipe,
     MainContentComponent,
     MdExplorerComponent,
-    SettingsComponent    
+    SettingsComponent,
+    RenameFileComponent,
   ],
   imports: [
     CommonModule,

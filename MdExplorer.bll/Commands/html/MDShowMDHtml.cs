@@ -67,7 +67,8 @@ namespace MdExplorer.Features.Commands.html
                     fileName = _helper.NormalizePath(fileName);
                     var queryEncoded = HttpUtility.UrlEncode(fileName);
 
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}");//fileName
+                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}");
+                    var uriUrlRoot = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
                     _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
                     var response = httpClient.GetAsync(uriUrl);
                     response.Wait();
@@ -112,11 +113,10 @@ namespace MdExplorer.Features.Commands.html
                         var attributeId = doc1.CreateAttribute("id");
                         attributeId.Value = "overlay";
                         nodeDiv.Attributes.Append(attributeId);
-                        //nodeDiv.AppendChild(styleNode);
 
                         var nodeA = doc1.CreateElement("a");
                         var attraHref = doc1.CreateAttribute("href");
-                        attraHref.Value = uriUrl.AbsoluteUri;
+                        attraHref.Value = uriUrlRoot.AbsoluteUri;
 
                         nodeA.Attributes.Append(attraHref);
                         nodeDiv.AppendChild(nodeA);

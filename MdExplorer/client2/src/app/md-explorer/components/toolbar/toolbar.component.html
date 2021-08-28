@@ -8,8 +8,13 @@
   <button mat-button (click)="Export()">
     <mat-icon>import_export</mat-icon>
   </button>
+  <div align="right">
+    <button mat-button (click)="openRefactoring()">
+      <mat-icon>directions</mat-icon>
+    </button>
+  </div>
   <span>{{TitleToShow}}</span>
-  <div align="end">
+  <div align="right">
     <button mat-button (click)="openDialog()">
       <mat-icon>settings</mat-icon>
     </button>

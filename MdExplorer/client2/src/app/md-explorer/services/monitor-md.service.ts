@@ -23,6 +23,12 @@ export class MonitorMDService {
       .catch(err => console.log('Error while starting connection: ' + err))
   }
 
+  public addRefactoringFileEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('refactoringFileEvent', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
   public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('markdownfileischanged', (data) => {
       callback(data, objectThis);

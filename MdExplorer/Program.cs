@@ -1,3 +1,4 @@
+using MdExplorer.Features.Utilities;
 using MdExplorer.Service;
 using MdExplorer.Service.HostedServices;
 using Microsoft.AspNetCore.Hosting;
@@ -17,19 +18,28 @@ namespace MdExplorer
     {
         public static void Main(string[] args)
         {
-            InitializeApplicationPreparingDb();
+            InitializeApplicationPreparingDb(args);
             CreateHostBuilder(args).Build().Run();
 
         }
 
-        private static void InitializeApplicationPreparingDb()
+        private static void InitializeApplicationPreparingDb(string[] args)
         {
             //var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             //var currentDb = $@"{appdata}\MdExplorer.db";
             //if (!File.Exists(currentDb))
             //{
-            //    FileUtil.ExtractResFile("MdExplorer.Service.MdExplorer.db", currentDb);                
+            //    FileUtil.ExtractResFile("MdExplorer.Service.MdExplorer.db", currentDb);
             //}
+
+            //var currentDirectory = Path.GetDirectoryName(args[0]);
+            //var hash = Helper.HGetHashString(currentDirectory);
+            //var currentEngineDb = $@"{appdata}\MdEngine_{hash}.db";            
+            //if (!File.Exists(currentEngineDb))
+            //{
+            //    FileUtil.ExtractResFile("MdExplorer.Service.MdEngine.db", currentEngineDb);
+            //}
+
 
         }
 
