@@ -7,6 +7,7 @@ import { MonitorMDService } from '../../services/monitor-md.service';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { SettingsComponent } from '../settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
+import { MdFileService } from '../../services/md-file.service';
 
 @Component({
   selector: 'app-toolbar',
@@ -27,6 +28,7 @@ export class ToolbarComponent implements OnInit {
     private http: HttpClient,
     private _snackBar: MatSnackBar,
     private router: Router,
+    private mdFileService: MdFileService,
   ) {
     this.TitleToShow = "M↓Explorer";
   }
@@ -60,6 +62,7 @@ export class ToolbarComponent implements OnInit {
   }
 
   private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
+    objectThis.mdFileService.loadAll();
     objectThis.openRefactoring();    
   }
 

@@ -74,6 +74,7 @@ export class SidenavComponent implements OnInit {
     this.mdFileService.mdFiles.subscribe(data => {
       this.dataSource.data = data;
     });
+
     this.mdFileService.loadAll();
 
     this.mdFiles.subscribe(data => {
