@@ -58,7 +58,7 @@ namespace MdExplorer
                                    databasePathEngine);
 
             services.AddMDExplorerCommands();
-            services.AddSignalR();
+            services.AddSignalR(_=>_.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>
             {
                 //config.Filters.Add<TransactionActionFilter>();

@@ -162,9 +162,6 @@ namespace MdExplorer.Controllers
                 itemElement.Attributes.Append(htmlClass);
             }
 
-            //var elements = doc1.FirstChild.SelectNodes(@"//pre/code[@class='language-plantuml']");
-
-
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
             return new ContentResult

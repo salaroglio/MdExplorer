@@ -48,9 +48,7 @@ namespace MdExplorer.Service.Controllers
         {
             _helperPdf = helperPdf;
         }
-       
 
-        //}
         [HttpGet]
         public async Task<IActionResult> GetAsync(string connectionId)
         {

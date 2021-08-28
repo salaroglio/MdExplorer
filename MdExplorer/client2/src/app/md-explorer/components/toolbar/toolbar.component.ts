@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { MonitorMDService } from '../../services/monitor-md.service';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { SettingsComponent } from '../settings/settings.component';
+import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 
 @Component({
   selector: 'app-toolbar',
@@ -31,11 +32,19 @@ export class ToolbarComponent implements OnInit {
   }
   private plantumlServer: string;
 
-  openDialog(): void {
-    const dialogRef = this.dialog.open(SettingsComponent, {
-      width: '250px',
+  openRefactoring(): void {
+    const dialogRef = this.dialog.open(RenameFileComponent, {
+      width: '300px',
       data: { name: this.plantumlServer }
     });
+  }
+
+  openDialog(): void {
+    const dialogRef = this.dialog.open(SettingsComponent, {
+      width: '300px',
+      data: { name: this.plantumlServer }
+    });
+    
 
     dialogRef.afterClosed().subscribe(result => {
       console.log('The dialog was closed');
@@ -47,6 +56,11 @@ export class ToolbarComponent implements OnInit {
   ngOnInit(): void {
     this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
+    this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
+  }
+
+  private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
+    objectThis.openRefactoring();    
   }
 
   private sendExportRequest(data, objectThis: ToolbarComponent) {
