@@ -55,7 +55,7 @@ namespace MdExplorer.Service.HostedServices
             _fileSystemWatcher.EnableRaisingEvents = true;
             _fileSystemWatcher.Changed += ChangeWithLove;
             _fileSystemWatcher.Created += _fileSystemWatcher_Created;
-            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
+            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;            
             _fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
             return Task.CompletedTask;
         }

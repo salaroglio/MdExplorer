@@ -1,4 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import { IRefactoringFilesystemEvent } from '../../../models/irefactoring-filesystem-event';
+import { MdRefactoringService } from '../../../services/md-refactoring.service';
 
 @Component({
   selector: 'app-rename-file',
@@ -7,9 +9,16 @@ import { Component, OnInit } from '@angular/core';
 })
 export class RenameFileComponent implements OnInit {
 
-  constructor() { }
+  constructor(private mdRefactoringService:MdRefactoringService) { }
+  public eventList: IRefactoringFilesystemEvent[];
 
   ngOnInit(): void {
+    this.mdRefactoringService.getFileEventList().subscribe(data => {
+      this.eventList = data;
+    },
+      error => {
+        console.log("failed to fetch GetRefactoringFileEvent List");
+      });;
   }
 
 }
