@@ -1,4 +1,7 @@
-﻿using MdExplorer.Abstractions.DB;
+﻿using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Models;
+using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -9,7 +12,7 @@ using System.Threading.Tasks;
 namespace MdExplorer.Service.Controllers
 {
     [ApiController]
-    [Route("/api/refactoringfiles")]
+    [Route("/api/refactoringfiles/{action}")]
     public class RefactoringFilesController : ControllerBase
     {
         private readonly IEngineDB _engineDB;
@@ -19,7 +22,17 @@ namespace MdExplorer.Service.Controllers
             _engineDB = engineDB;
         }
 
-        private void RenameFile()
+        [HttpGet]
+        public IActionResult GetRefactoringFileEventList()
+        {
+            _engineDB.BeginTransaction();
+            var refactoringDal = _engineDB.GetDal<RefactoringFilesystemEvent>();
+            var eventList = refactoringDal.GetList().Where(_=>!_.Processed);
+            _engineDB.Commit();
+            return Ok(eventList);
+        }
+
+            private void RenameFile()
         {
             //using (var scope = _serviceProvider.CreateScope())
             //{

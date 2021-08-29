@@ -1,5 +1,13 @@
 <h1>WOW! Refactoring Event!</h1>
 
+<table>
+  <tr *ngFor="let element of eventList">
+    <td>{{element.eventName}}</td>
+    <td>{{element.oldFullPath}}</td>
+    <td>{{element.newFullPath}}</td>
+    <td>{{element.processed}}</td>
+  </tr>
+</table>
 
 
 <p>rename-file works!</p>
