@@ -21,8 +21,4 @@
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Commands\EmojiForPandoc\" />
-  </ItemGroup>
-
 </Project>
