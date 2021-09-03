@@ -80,7 +80,7 @@ namespace MdExplorer
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
             var embeddedEmojies = assembly.GetManifestResourceNames();           
             var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
-                    .Select(_=>new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty).Replace(".png",string.Empty) }).ToArray();
+                    .Select(_=>new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty) }).ToArray();
             services.AddSingleton(typeof(IServerCache), new ServerCache { Emojies = selectedEmojies.Select(_=>_.Name).ToArray() });
             foreach (var itemEmoj in selectedEmojies)
             {                                

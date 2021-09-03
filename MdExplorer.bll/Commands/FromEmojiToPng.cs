@@ -59,13 +59,11 @@ namespace MdExplorer.Features.Commands
             foreach (Match item in matches)
             {
                 var text = item.Groups[1].Value;
-                if (_serverCache.Emojies.Contains(text))
+                if (_serverCache.Emojies.Select(_=>_.Replace(".png", string.Empty)).Contains(text))
                 {
                     var raplaceWith = $@"![](.md\EmojiForPandoc\{text}.png)";
                     stringToReturn = stringToReturn.Replace(item.Groups[0].Value, raplaceWith);
                 }
-                
-                
             }
             return stringToReturn;
         }

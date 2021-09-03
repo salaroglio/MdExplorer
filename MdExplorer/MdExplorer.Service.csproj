@@ -85,6 +85,8 @@
     <None Remove="EmojiForPandoc\construction.png" />
     <None Remove="EmojiForPandoc\memo.png" />
     <None Remove="EmojiForPandoc\one.png" />
+    <None Remove="EmojiForPandoc\two.png" />
+    <None Remove="EmojiForPandoc\warning.png" />
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
   </ItemGroup>
@@ -95,6 +97,8 @@
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
     <EmbeddedResource Include="EmojiForPandoc\memo.png" />
     <EmbeddedResource Include="EmojiForPandoc\one.png" />
+    <EmbeddedResource Include="EmojiForPandoc\two.png" />
+    <EmbeddedResource Include="EmojiForPandoc\warning.png" />
     <EmbeddedResource Include="MdEngine.db" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
