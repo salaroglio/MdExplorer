@@ -21,6 +21,9 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.DataAccess.Engine;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.FileProviders;
+using System.Linq;
+using MdExplorer.Abstractions.Interfaces;
+using MdExplorer.Abstractions.Models;
 
 namespace MdExplorer
 {
@@ -42,7 +45,7 @@ namespace MdExplorer
         {
             services.Configure<MdExplorerAppSettings>(_Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
             services = ConfigFileSystemWatchers(services);
-            ConfigTemplates(Args[0]);
+            ConfigTemplates(Args[0], services);
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
             var currentDirectory = Path.GetDirectoryName(Args[0]);
@@ -66,11 +69,25 @@ namespace MdExplorer
             
         }
 
-        private void ConfigTemplates(string mdPath)
+        private void ConfigTemplates(string mdPath, IServiceCollection services)
         {
             var directory =$"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md" ;
+            var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
             Directory.CreateDirectory(directory);
-            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}eisvogel.tex");
+            Directory.CreateDirectory(directoryEmoji);
+
+            var assembly = Assembly.GetExecutingAssembly();
+            var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
+            var embeddedEmojies = assembly.GetManifestResourceNames();           
+            var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
+                    .Select(_=>new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty).Replace(".png",string.Empty) }).ToArray();
+            services.AddSingleton(typeof(IServerCache), new ServerCache { Emojies = selectedEmojies.Select(_=>_.Name).ToArray() });
+            foreach (var itemEmoj in selectedEmojies)
+            {                                
+                FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
+            }
+
+            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}eisvogel.tex");            
         }
 
         private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)

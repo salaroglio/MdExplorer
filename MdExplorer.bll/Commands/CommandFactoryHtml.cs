@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -19,8 +20,9 @@ namespace MdExplorer.Features.Commands
                         IServiceProvider serviceProvider,
                         IDALFactory<IUserSettingsDB> dalFactory, 
                         PlantumlServer plantumlServer,
-                        IHelperHtml helper) 
-            : base(server, serviceProvider, dalFactory, plantumlServer, helper)
+                        IHelperHtml helper,
+                        IServerCache serverCache) 
+            : base(server, serviceProvider, dalFactory, plantumlServer, helper, serverCache)
         {
         }
         

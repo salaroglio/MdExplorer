@@ -230,8 +230,17 @@ namespace MdExplorer.Controllers
             
             doc1.AppendChild(html);
             var head = doc1.CreateElement("head");
-           
-            
+            // <link href="../MdCustomCSS.css" rel="stylesheet">
+            var link = doc1.CreateElement("link");
+            var linkHref = doc1.CreateAttribute("href");
+            var linkRel = doc1.CreateAttribute("rel");
+            linkHref.Value = "/MdCustomCSS.css";
+            linkRel.Value = "stylesheet";
+            link.Attributes.Append(linkHref);
+            link.Attributes.Append(linkRel);
+            head.AppendChild(link);
+
+
 
             html.AppendChild(head);
             //AddLink(doc1, head);
