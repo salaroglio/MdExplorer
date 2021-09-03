@@ -8,9 +8,6 @@ import { RefactoringFilesystemEvent } from '../models/refactoring-filesystem-eve
 })
 export class MdRefactoringService {
 
-
-
-
   constructor(private http: HttpClient) {
 
   }

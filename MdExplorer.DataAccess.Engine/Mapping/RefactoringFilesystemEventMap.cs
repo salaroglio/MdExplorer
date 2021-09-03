@@ -16,7 +16,7 @@ namespace MdExplorer.DataAccess.Engine.Mapping
             Id(_ => _.Id).GeneratedBy.GuidComb();
             Map(_ => _.EventName).Not.Nullable();
             Map(_ => _.NewFullPath).Not.Nullable();            
-            Map(_ => _.OldFullPath).Not.Nullable();
+            Map(_ => _.OldFullPath).Nullable();
             Map(_ => _.RefactoringGroupId).Not.Nullable();
             Map(_ => _.Processed).Not.Nullable();
         }

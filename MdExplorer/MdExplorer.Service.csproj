@@ -73,13 +73,18 @@
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\styles.css" />
     <Content Remove="wwwroot\client2\vendor.js" />
+    <Content Remove="wwwroot\emoji\ok.png" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
+    <Content Remove="wwwroot\MdCustomCSS.css" />
     <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="eisvogel.tex" />
+    <None Remove="EmojiForPandoc\construction.png" />
+    <None Remove="EmojiForPandoc\memo.png" />
+    <None Remove="EmojiForPandoc\one.png" />
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
   </ItemGroup>
@@ -87,6 +92,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="eisvogel.tex" />
+    <EmbeddedResource Include="EmojiForPandoc\construction.png" />
+    <EmbeddedResource Include="EmojiForPandoc\memo.png" />
+    <EmbeddedResource Include="EmojiForPandoc\one.png" />
     <EmbeddedResource Include="MdEngine.db" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -135,8 +143,10 @@
     <EmbeddedResource Include="wwwroot\client2\runtime.js" />
     <EmbeddedResource Include="wwwroot\client2\styles.css" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js" />
+    <EmbeddedResource Include="EmojiForPandoc\ok.png" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
+    <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
     <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
 
@@ -192,6 +202,7 @@
 
   <ItemGroup>
     <Folder Include="Properties\PublishProfiles\" />
+    <Folder Include="wwwroot\emoji\" />
   </ItemGroup>
 
 

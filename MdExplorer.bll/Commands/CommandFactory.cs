@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -24,23 +25,25 @@ namespace MdExplorer.Features.Commands
     /// ISession, per cui è possibile accedere al database SQLite ed avere le info che servono
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class CommandFactory<T> : ICommandFactory<T> where T:ICommand
+    public class CommandFactory<T> : ICommandFactory<T> where T : ICommand
     {
-        
-        private static object lockGetCommands = new object();      
+
+        private static object lockGetCommands = new object();
         private readonly IServer _server;
         private readonly IServiceProvider _serviceProvider;
         private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly PlantumlServer _plantumlServer;
         private readonly IHelper _helper;
+        private readonly IServerCache _serverCache;
 
         private string _serverAddress { get; set; }
 
-        public CommandFactory(IServer server, 
+        public CommandFactory(IServer server,
                                 IServiceProvider serviceProvider,
                                 IDALFactory<IUserSettingsDB> dalFactory,
                                 PlantumlServer plantumlServer,
-                                IHelper helper
+                                IHelper helper,
+                                IServerCache serverCache
             )//IServerAddressesFeature serverAddresses
         {
             _server = server;
@@ -48,14 +51,15 @@ namespace MdExplorer.Features.Commands
             _dalFactory = dalFactory;
             _plantumlServer = plantumlServer;
             _helper = helper;
+            _serverCache = serverCache;
             var features = _server.Features;
             var addressesFeature = features.Get<IServerAddressesFeature>();
-            
+
             var enumAddress = addressesFeature.Addresses.GetEnumerator();
             enumAddress.MoveNext();
-            _serverAddress = enumAddress.Current;            
+            _serverAddress = enumAddress.Current;
 
-        }        
+        }
 
         public T[] GetCommands()
         {
@@ -70,10 +74,10 @@ namespace MdExplorer.Features.Commands
 
                 foreach (var item in commandInstances)
                 {
-                    
+
                     Type loggerType = typeof(ILogger<>);
                     Type genericLogger = loggerType.MakeGenericType(item);
-                    var currentLogger =  _serviceProvider.GetService(genericLogger);
+                    var currentLogger = _serviceProvider.GetService(genericLogger);
 
                     var session = _dalFactory.OpenSession();
 
@@ -87,12 +91,12 @@ namespace MdExplorer.Features.Commands
                         if (param.Name == "ServerAddress")
                         {
                             paramsTo.Add(_serverAddress);
-                            
+
                         }
                         if (param.Name == "logger")
                         {
                             paramsTo.Add(currentLogger);
-                            
+
                         }
                         if (param.Name == "session")
                         {
@@ -106,11 +110,16 @@ namespace MdExplorer.Features.Commands
                         {
                             paramsTo.Add(_helper);
                         }
+                        if (param.Name == "serverCache")
+                        {
+                            paramsTo.Add(_serverCache);
+                        }
+                        
                     }
-                    listToReturn.Add((T)Activator.CreateInstance(item,args: paramsTo.ToArray())); //new object[] { _serverAddress, currentLogger }
+                    listToReturn.Add((T)Activator.CreateInstance(item, args: paramsTo.ToArray())); //new object[] { _serverAddress, currentLogger }
                 }
                 return listToReturn.ToArray();
-            }            
-        }       
+            }
+        }
     }
 }

@@ -113,6 +113,7 @@ namespace MdExplorer.Service.HostedServices
         private void _fileSystemWatcher_Created(object sender, FileSystemEventArgs e)
         {
             //throw new NotImplementedException();
+
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -123,8 +124,32 @@ namespace MdExplorer.Service.HostedServices
         DateTime lastRead = DateTime.MinValue;
         private void ChangeWithLove(object sender, FileSystemEventArgs e)
         {
+            var fileAttr = File.GetAttributes(e.FullPath);                    
+
+            if (fileAttr.HasFlag(FileAttributes.Directory))
+            {
+                // Inserisci l'informazione nel file di refactoring
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
+                    engineDb.BeginTransaction();
+                    var eventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
+                    var refactoring = new RefactoringFilesystemEvent
+                    {
+                        EventName = "ChangeDirectory",
+                        NewFullPath = e.FullPath,
+                        Processed = false,
+                        RefactoringGroupId = Guid.NewGuid()                        
+                    };
+                    eventDal.Save(refactoring);
+
+                    engineDb.Commit();
+                }
+
+            }
+
             var trafficLight1 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
-            var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md");
+            var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")|| e.FullPath.Contains($".docx");
             if (trafficLight1 || trafficLight2)
             {
                 return;
