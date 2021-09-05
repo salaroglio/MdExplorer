@@ -25,12 +25,12 @@ namespace MdExplorer.Service.HostedServices
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ILogger<MonitorMDHostedService> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly IManageLink[] _linkManagers;
+        private readonly IWorkLink[] _linkManagers;
 
         public MonitorMDHostedService(IHubContext<MonitorMDHub> hubContext,
                 FileSystemWatcher fileSystemWatcher,
                 ILogger<MonitorMDHostedService> logger, IServiceProvider serviceProvider,
-                IManageLink[] linkManagers)
+                IWorkLink[] linkManagers)
         {
             _hubContext = hubContext;
             _fileSystemWatcher = fileSystemWatcher;

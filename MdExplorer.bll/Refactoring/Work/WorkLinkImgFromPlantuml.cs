@@ -2,6 +2,7 @@
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.ActionLinkModifiers
 {
-    public class GetLinkFromPlantuml : IManageLink
+    public class WorkLinkImgFromPlantuml : IWorkLink
     {
         public LinkDetail[] GetLinks(string markdown)
         {
@@ -43,12 +44,15 @@ namespace MdExplorer.Features.ActionLinkModifiers
 
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
-            throw new NotImplementedException();
+            var markdown = File.ReadAllText(filepath);
+            return GetLinks(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
         {
-            throw new NotImplementedException();
+            var markdown = File.ReadAllText(filepath);
+            markdown = markdown.Replace(oldLink, newLink);
+            File.WriteAllText(filepath, markdown);
         }
     }
 }

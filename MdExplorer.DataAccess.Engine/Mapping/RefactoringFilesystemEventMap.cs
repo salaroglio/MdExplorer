@@ -19,6 +19,7 @@ namespace MdExplorer.DataAccess.Engine.Mapping
             Map(_ => _.OldFullPath).Nullable();
             Map(_ => _.RefactoringGroupId).Not.Nullable();
             Map(_ => _.Processed).Not.Nullable();
+            References(_ => _.RefactoringSourceAction).Column("MarkdownFileId").Not.Nullable(); ;
         }
     }
 }
