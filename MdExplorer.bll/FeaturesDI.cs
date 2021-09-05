@@ -27,11 +27,11 @@ namespace MdExplorer.Features
             services.AddTransient<IHelper, Helper>();
             services.AddTransient<IHelperPdf, HelperPdf>();
             services.AddTransient<IHelperHtml, HelperHtml>();
-            services.AddTransient(typeof(IManageLink[]),_=> {
-                var listOfModfier = new List<IManageLink>();                
-                listOfModfier.Add(new GetImagesFromMarkdown());
-                listOfModfier.Add(new GetLinkImgFromPlantuml());
-                listOfModfier.Add(new GetLinkFromMarkdown());
+            services.AddTransient(typeof(IWorkLink[]),_=> {
+                var listOfModfier = new List<IWorkLink>();                
+                listOfModfier.Add(new WorkLinkImagesFromMarkdown());
+                listOfModfier.Add(new WorkLinkImgFromPlantuml());
+                listOfModfier.Add(new WorkLinkFromMarkdown());
                 return listOfModfier.ToArray();
                 } );
             return services;

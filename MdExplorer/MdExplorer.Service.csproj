@@ -83,6 +83,8 @@
   <ItemGroup>
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\construction.png" />
+    <None Remove="EmojiForPandoc\key.png" />
+    <None Remove="EmojiForPandoc\link.png" />
     <None Remove="EmojiForPandoc\memo.png" />
     <None Remove="EmojiForPandoc\one.png" />
     <None Remove="EmojiForPandoc\two.png" />
@@ -95,6 +97,8 @@
   <ItemGroup>
     <EmbeddedResource Include="eisvogel.tex" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
+    <EmbeddedResource Include="EmojiForPandoc\key.png" />
+    <EmbeddedResource Include="EmojiForPandoc\link.png" />
     <EmbeddedResource Include="EmojiForPandoc\memo.png" />
     <EmbeddedResource Include="EmojiForPandoc\one.png" />
     <EmbeddedResource Include="EmojiForPandoc\two.png" />

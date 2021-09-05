@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.ActionLinkModifiers.Interfaces
 {
-    public interface IManageLink
+    public interface IWorkLink
     {
         LinkDetail[] GetLinks(string markdown);
         LinkDetail[] GetLinksFromFile(string filepath);

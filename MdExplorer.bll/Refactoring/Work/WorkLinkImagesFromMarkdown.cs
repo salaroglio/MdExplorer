@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.LinkModifiers
 {
-    public class GetImagesFromMarkdown: IManageLink
+    public class WorkLinkImagesFromMarkdown: IWorkLink
     {
         public LinkDetail[] GetLinks(string markdown)
         {

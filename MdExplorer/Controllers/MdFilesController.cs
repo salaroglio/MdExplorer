@@ -21,13 +21,13 @@ namespace MdExplorer.Controllers
     public class MdFilesController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IManageLink[] _getModifiers;
+        private readonly IWorkLink[] _getModifiers;
         private readonly IHelper _helper;
 
         public IEngineDB _engineDB { get; }
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
-            IEngineDB engineDB, IManageLink[] getModifiers, IHelper helper )
+            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper )
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
@@ -77,8 +77,7 @@ namespace MdExplorer.Controllers
             {
                 var markdownFile = new MarkdownFile
                 {
-                    FileName = item.Name,
-                    LinkPath = item.Path,
+                    FileName = item.Name,                    
                     Path = item.FullPath,
                     FileType = "File"
                 };
