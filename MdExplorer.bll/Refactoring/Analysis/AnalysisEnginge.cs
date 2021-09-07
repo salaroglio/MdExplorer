@@ -12,15 +12,15 @@ namespace MdExplorer.Features.Refactoring.Analysis
     /// <summary>
     /// Classe per l'analisi degli eventi ed inserimento delle azioni da effettuare
     /// </summary>
-    public class AnalysisEnginge
+    public class AnalysisEngine : IAnalysisEngine
     {
         private readonly IEngineDB _engineDB;
 
-        public AnalysisEnginge(IEngineDB engineDB)
+        public AnalysisEngine(IEngineDB engineDB)
         {
             _engineDB = engineDB;
         }
-        public void SetReafactoringAction()
+        public void AnalizeEvents()
         {
             var eventDal = _engineDB.GetDal<RefactoringFilesystemEvent>();
             var eventList = eventDal.GetList().ToList();

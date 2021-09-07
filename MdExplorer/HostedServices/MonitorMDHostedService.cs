@@ -124,7 +124,7 @@ namespace MdExplorer.Service.HostedServices
         DateTime lastRead = DateTime.MinValue;
         private void ChangeWithLove(object sender, FileSystemEventArgs e)
         {
-            var fileAttr = File.GetAttributes(e.FullPath);                    
+            var fileAttr = File.GetAttributes(e.FullPath);
 
             if (fileAttr.HasFlag(FileAttributes.Directory))
             {

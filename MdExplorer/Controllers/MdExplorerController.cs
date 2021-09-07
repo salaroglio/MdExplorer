@@ -143,6 +143,7 @@ namespace MdExplorer.Controllers
                             </div>  
                             <div class=""col-3"">
                                 <div class=""sticky-top"">
+                                <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
                                 {CreateToc(resultToToc)} 
                                 </div>
                             </div>
@@ -180,7 +181,7 @@ namespace MdExplorer.Controllers
             var hList = xmlDoc.SelectNodes("//*[starts-with(name(), 'h')]");
             toReturn += "<div class=\"bd-toc text-muted\">";
             toReturn += "<nav id=\"TableOfContents\">";
-            toReturn += "<ul class=\"list-group\">";
+            toReturn += "<ul id=\"ulToc\" class=\"list-group\">";
             var lastLevel = 1;
             var distanceToCloseH = 0;
             foreach (XmlNode h in hList)
@@ -230,6 +231,17 @@ namespace MdExplorer.Controllers
             
             doc1.AppendChild(html);
             var head = doc1.CreateElement("head");
+
+            var link2 = doc1.CreateElement("script");
+            //var linkHref2 = doc1.CreateAttribute("href");
+            //var linkType = doc1.CreateAttribute("type");
+            //linkType.Value = "text/javascript";
+
+            //linkHref2.Value = "/javascripts/jqueryForFirstPage.js";
+            //link2.Attributes.Append(linkHref2);
+            //link2.Attributes.Append(linkType);
+
+            //head.AppendChild(link2);
             // <link href="../MdCustomCSS.css" rel="stylesheet">
             var link = doc1.CreateElement("link");
             var linkHref = doc1.CreateAttribute("href");
@@ -240,115 +252,22 @@ namespace MdExplorer.Controllers
             link.Attributes.Append(linkRel);
             head.AppendChild(link);
 
-
+            //<link href="../javascripts/angular-resizable.min.js">
+           
 
             html.AppendChild(head);
             //AddLink(doc1, head);
             var body = doc1.CreateElement("body");
             html.AppendChild(body);
 
-            var script = doc1.CreateElement("script");
-            script.InnerText = @"
             
-            function toggleMdCanvas(){
-                if (window.toggleCanvas == 'undefined')
-                {
-                    window.toggleCanvas = false;
-                }
-                
-                if(window.toggleCanvas){
-                    window.canvas.remove();
-                    window.toggleCanvas = !window.toggleCanvas;
-                   return;
-                }
-                window.toggleCanvas = !window.toggleCanvas;
-                window.canvas = document.createElement('canvas');
-                window.canvas.setAttribute('id','writeCanvas');
-                document.body.appendChild(canvas);
-
-                // some hotfixes... ( ≖_≖)
-                //document.body.style.margin = 0;
-                canvas.style.position = 'absolute';           
-                canvas.style.top = 40;
-                canvas.style.left = 0;
-
-                // get canvas 2D context and set him correct size
-                window.ctx = canvas.getContext('2d');
-                resize();
-
-                // last known position
-                window.shiftY = -40;
-                window.pos = { x: 0, y: 0 };
-                window.scrollPos = { x: 0, y: window.shiftY};
-
-                window.addEventListener('resize', resize);
-                document.addEventListener('mousemove', draw);
-                document.addEventListener('mousedown', setPosition);
-                document.addEventListener('mouseenter', setPosition);
-                document.addEventListener('scroll', scrollPosition);
-            }            
-            function scrollPosition(e){                
-                scrollPos.x = window.scrollX;
-                scrollPos.y = window.scrollY + window.shiftY;                
-            }
-            // new position from mouse event
-            function setPosition(e) {
-              pos.x = scrollPos.x + e.clientX;
-              pos.y = scrollPos.y + e.clientY;
-            }
-
-            // resize canvas
-            function resize() {
-              ctx.canvas.width = window.innerWidth;               
-              ctx.canvas.height = document.documentElement.scrollHeight;
-            }
-
-            function draw(e) {
-              // mouse left button must be pressed
-              if (e.buttons !== 1) return;
-
-              ctx.beginPath(); // begin
-
-              ctx.lineWidth = 5;
-              ctx.lineCap = 'round';
-              ctx.strokeStyle = '#2bc02d';
-
-              ctx.moveTo(pos.x, pos.y); // from
-              setPosition(e);
-              ctx.lineTo(pos.x, pos.y); // to
-
-              ctx.stroke(); // draw it!
-            }
-            //toggleMdCanvas();
+            head.InnerXml = $@"
+            <link rel=""stylesheet"" href=""/bootstrap/css/bootstrap.css"" />
+            <link rel=""stylesheet"" href=""/MdCustomCSS.css"" />
+            <script src=""/bootstrap/jquery-3.6.0.js""></script>
+            <script src=""/bootstrap/js/bootstrap.bundle.js""></script>
+            <script src=""/javascripts/jqueryForFirstPage.js""></script>
             ";
-            //head.AppendChild(script);
-
-            
-            head.AppendChild(script);
-
-            var bootStrap = doc1.CreateElement("link");
-            head.AppendChild(bootStrap);
-            var bootAttRel = doc1.CreateAttribute("rel");
-            bootAttRel.Value = "stylesheet";
-            bootStrap.Attributes.Append(bootAttRel);
-            var bootAttHref = doc1.CreateAttribute("href");
-            bootAttHref.Value = @"/bootstrap/css/bootstrap.css";
-            bootStrap.Attributes.Append(bootAttHref);
-
-            // jquery 3.6.0
-            var jqueryScript = doc1.CreateElement("script");
-            var jqueryScriptsrc = doc1.CreateAttribute("src");
-            jqueryScriptsrc.Value = @"/bootstrap/jquery-3.6.0.js";
-            jqueryScript.Attributes.Append(jqueryScriptsrc);
-
-            // bootstrap js
-            var bootScript = doc1.CreateElement("script");
-            var bootScriptsrc = doc1.CreateAttribute("src");
-            bootScriptsrc.Value = @"/bootstrap/js/bootstrap.bundle.js";
-            bootScript.Attributes.Append(bootScriptsrc);
-
-
-
 
 
             var a = doc1.CreateElement("a");
@@ -364,6 +283,7 @@ namespace MdExplorer.Controllers
             srcImg.Value = "/assets/draw.png";
             imgEl.Attributes.Append(srcImg);
             body.AppendChild(a);
+
             body.InnerXml += resultToParse;
         }
 

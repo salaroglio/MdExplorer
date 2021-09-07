@@ -3,6 +3,7 @@ using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
+using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -34,6 +35,8 @@ namespace MdExplorer.Features
                 listOfModfier.Add(new WorkLinkFromMarkdown());
                 return listOfModfier.ToArray();
                 } );
+            services.AddTransient<IAnalysisEngine, AnalysisEngine>();
+
             return services;
         }
     }

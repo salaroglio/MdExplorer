@@ -1,6 +1,7 @@
 ﻿using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -16,20 +17,23 @@ namespace MdExplorer.Service.Controllers
     public class RefactoringFilesController : ControllerBase
     {
         private readonly IEngineDB _engineDB;
+        private readonly IAnalysisEngine _analysisEngine;
 
-        public RefactoringFilesController(IEngineDB engineDB)
+        public RefactoringFilesController(IEngineDB engineDB,IAnalysisEngine analysisEngine)
         {
             _engineDB = engineDB;
+            _analysisEngine = analysisEngine;
         }
 
         [HttpGet]
         public IActionResult GetRefactoringFileEventList()
         {
             _engineDB.BeginTransaction();
-            var refactoringDal = _engineDB.GetDal<RefactoringFilesystemEvent>();
-            var eventList = refactoringDal.GetList().Where(_=>!_.Processed);
+            _analysisEngine.AnalizeEvents();
+            
+            
             _engineDB.Commit();
-            return Ok(eventList);
+            return Ok();
         }
 
             private void RenameFile()
