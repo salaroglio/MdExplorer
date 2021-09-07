@@ -15,6 +15,7 @@ namespace MdExplorer.Abstractions.Models
         public virtual string FullPath { get; set; }
         public virtual string NewLinkToReplace { get; set; }
         public virtual string OldLinkStored { get; set; }
+        public virtual DateTime CreationDate { get; set; }
         public virtual RefactoringSourceAction RefactoringSourceAction { get; set; }
 
 

@@ -76,6 +76,7 @@
     <Content Remove="wwwroot\emoji\ok.png" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
+    <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
     <Content Remove="wwwroot\MdCustomCSS.css" />
     <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
@@ -154,6 +155,7 @@
     <EmbeddedResource Include="EmojiForPandoc\ok.png" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
+    <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />
     <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
     <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>

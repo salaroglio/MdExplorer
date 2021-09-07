@@ -14,6 +14,9 @@ namespace MdExplorer.Abstractions.Models
         public virtual string OldFullPath { get; set; }
         public virtual string NewFullPath { get; set; }
         public virtual bool Processed { get; set; }
+
+        public virtual DateTime CreationDate { get; set; }
+
         public virtual RefactoringSourceAction RefactoringSourceAction { get; set; }
     }
 }

@@ -17,7 +17,8 @@ namespace MdExplorer.DataAccess.Engine.Mapping
             Map(_ => _.NewLinkToReplace).Length(255).Not.Nullable();
             Map(_ => _.OldLinkStored).Length(255).Not.Nullable();
             Map(_ => _.FullPath).Length(int.MaxValue).Nullable();
-            References(_ => _.RefactoringSourceAction).Cascade.All();
+            Map(_ => _.CreationDate).Not.Nullable();
+            References(_ => _.RefactoringSourceAction).Column("MarkdownFileId").Nullable();
         }
     }
 }
