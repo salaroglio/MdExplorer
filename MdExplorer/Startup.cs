@@ -24,6 +24,7 @@ using Microsoft.Extensions.FileProviders;
 using System.Linq;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Service.Automapper.RefactoringFilesController;
 
 namespace MdExplorer
 {
@@ -59,7 +60,7 @@ namespace MdExplorer
             services.AddDalFeatures(typeof(MarkdownFileMap).Assembly,
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
-
+            services.AddAutoMapper(typeof(RefactoringMapper).Assembly);
             services.AddMDExplorerCommands();
             services.AddSignalR(_=>_.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>

@@ -43,29 +43,52 @@ namespace MdExplorer.Service.HostedServices
         {
             _logger.LogInformation($"monitored path: { _fileSystemWatcher.Path}");
             _fileSystemWatcher.NotifyFilter = NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
+                                 //| NotifyFilters.CreationTime
                                  | NotifyFilters.DirectoryName
                                  | NotifyFilters.FileName
-                                 | NotifyFilters.LastAccess
-                                 | NotifyFilters.LastWrite
-                                 | NotifyFilters.Security
+                                 //| NotifyFilters.LastAccess
+                                 //| NotifyFilters.LastWrite
+                                 //| NotifyFilters.Security
                                  | NotifyFilters.Size;
             //_fileSystemWatcher.Filter = "*.md";
             _fileSystemWatcher.IncludeSubdirectories = true;
             _fileSystemWatcher.EnableRaisingEvents = true;
-            _fileSystemWatcher.Changed += ChangeWithLove;
+            _fileSystemWatcher.Changed += _fileSystemWatcher_Changed;
             _fileSystemWatcher.Created += _fileSystemWatcher_Created;
-            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;            
+            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
             _fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
             return Task.CompletedTask;
         }
 
         private void _fileSystemWatcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            //throw new NotImplementedException();
+            SaveEventOnDb(e);
         }
 
+        private static string SetNameChangedType(string fullPath, string changeType)
+        {
+            var fileAttr = File.GetAttributes(fullPath);
+
+            if (fileAttr.HasFlag(FileAttributes.Directory))
+            {
+                changeType += "_Directory";
+            }
+            else
+            {
+                changeType += "_File";
+            }
+
+            return changeType;
+        }
         private void _fileSystemWatcher_Renamed(object sender, RenamedEventArgs e)
+        {
+            SaveReanamedEvent(e);
+
+            var refactoringEvent = new RefactoringFileEvent();
+            refactoringEvent.EventName = "FileRenamed";
+            _hubContext.Clients.All.SendAsync("refactoringFileEvent", new { refactoringEvent = refactoringEvent });
+        }
+        private void SaveReanamedEvent(RenamedEventArgs e)
         {
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -74,14 +97,10 @@ namespace MdExplorer.Service.HostedServices
                 // Cerco se qualche file è coinvolto
                 var currentGroupId = Guid.NewGuid();
 
-                var linkInsideDAL = engineDb.GetDal<LinkInsideMarkdown>();
-                var listOfFiles = linkInsideDAL.GetList().Where(_ => _.FullPath.Contains(e.OldFullPath)).Select(_=>_.MarkdownFile).ToList();
-
-
                 var refactoringFileSystemEventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
                 var refFileSysEvent = new RefactoringFilesystemEvent
                 {
-                    EventName = "FileRenamed",
+                    EventName = SetNameChangedType(e.FullPath, e.ChangeType.ToString()),
                     RefactoringGroupId = currentGroupId,
                     NewFullPath = e.FullPath,
                     OldFullPath = e.OldFullPath,
@@ -89,31 +108,38 @@ namespace MdExplorer.Service.HostedServices
                 };
 
                 refactoringFileSystemEventDal.Save(refFileSysEvent);
-
-                // le informazioni da mandare indietro sono:
-                // i file coinvolti dal cambiamento originale che l'app deve
-                // manipolare
-                // info descrittive del cambiamento impostato dall'utente
-
-                var monitoredMd = new RefactoredFile
-                {
-                    NewFullPath = e.FullPath,
-                    OldFullPath = e.OldFullPath,
-                    Name = Path.GetFileName(e.FullPath),                    
-                };
-
-                var refactoringEvent = new RefactoringFileEvent();
-                refactoringEvent.EventName = "FileRenamed";
                 engineDb.Commit();
-                _hubContext.Clients.All.SendAsync("refactoringFileEvent", new { refactoringEvent = refactoringEvent });
+            }
+        }
+        private void SaveEventOnDb(FileSystemEventArgs e)
+        {
+            var changeType = e.ChangeType.ToString();
+            if (e.ChangeType != WatcherChangeTypes.Deleted)
+            {
+                changeType = SetNameChangedType(e.FullPath, changeType);
             }
 
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
+                engineDb.BeginTransaction();
+                var refFileEventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
+                var refactoringEvent = new RefactoringFilesystemEvent
+                {
+                    EventName = changeType,
+                    CreationDate = DateTime.Now,
+                    NewFullPath = e.FullPath,
+                    Processed = false,
+                    RefactoringGroupId = Guid.NewGuid()
+                };
+                refFileEventDal.Save(refactoringEvent);
+                engineDb.Commit();
+            }
         }
 
         private void _fileSystemWatcher_Created(object sender, FileSystemEventArgs e)
         {
-            //throw new NotImplementedException();
-
+            SaveEventOnDb(e);            
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -122,34 +148,14 @@ namespace MdExplorer.Service.HostedServices
         }
 
         DateTime lastRead = DateTime.MinValue;
-        private void ChangeWithLove(object sender, FileSystemEventArgs e)
+        private void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
-            var fileAttr = File.GetAttributes(e.FullPath);
-
-            if (fileAttr.HasFlag(FileAttributes.Directory))
-            {
-                // Inserisci l'informazione nel file di refactoring
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
-                    engineDb.BeginTransaction();
-                    var eventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
-                    var refactoring = new RefactoringFilesystemEvent
-                    {
-                        EventName = "ChangeDirectory",
-                        NewFullPath = e.FullPath,
-                        Processed = false,
-                        RefactoringGroupId = Guid.NewGuid()                        
-                    };
-                    eventDal.Save(refactoring);
-
-                    engineDb.Commit();
-                }
-
-            }
+            
+            // Inserisci l'informazione nel file di refactoring
+            SaveEventOnDb(e);
 
             var trafficLight1 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
-            var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")|| e.FullPath.Contains($".docx");
+            var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md") || e.FullPath.Contains($".docx");
             if (trafficLight1 || trafficLight2)
             {
                 return;

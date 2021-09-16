@@ -1,4 +1,77 @@
-﻿
+﻿function dynamicEmojiForProcess(el, index, pathfile) {
+
+    $.get("ajax/test.html", function (data) {
+        $(".result").html(data);
+        alert("Load was performed.");
+    });
+
+    alert(pathfile);
+    if (el.innerText == 'ℹ️') {
+        el.innerText = '🆗';
+        el.title = 'approvato';
+        return;
+    }
+    if (el.innerText == '🆗') {
+        el.innerText = '⚠️';
+        el.title = 'attenzione!';
+        return;
+    }
+    if (el.innerText == '⚠️') {
+        el.innerText = '🚧';
+        el.title = 'work in process';
+        return;
+    }
+    if (el.innerText == '🚧') {
+        el.innerText = '✔️';
+        el.title = 'completato';
+        return;
+    }
+    if (el.innerText == '✔️') {
+        el.innerText = 'ℹ️';
+        el.title = 'in valutazione';
+        return;
+    }
+}
+
+function dynamicEmojiForPriority(el, index, pathfile) {
+
+    alert(pathfile);
+    if (el.innerText == '❓') {
+        el.innerText = '❔';
+        el.title = 'dubbio';
+        return;
+    }
+    
+    if (el.innerText == '❔') {
+        el.innerText = '❕';
+        el.title = 'obbligatorio';
+        return;
+    }
+    if (el.innerText == '❕') {
+        el.innerText = '❗';
+        el.title = 'urgente';
+        return;
+    }
+    if (el.innerText == '❗') {
+        el.innerText = '❌';
+        el.title = 'annullata';
+        return;
+    }
+    if (el.innerText == '❌') {
+        el.innerText = '⛔';
+        el.title = 'fermata';
+        return;
+    }
+
+    if (el.innerText == '⛔') {
+        el.innerText = '❓';
+        el.title = 'da valutare';
+        return;
+    }
+
+}
+
+
 function filterToc() {
     // Declare variables
     var input, filter, ul, li, a, i, txtValue;

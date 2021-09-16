@@ -13,8 +13,8 @@ namespace MdExplorer.Features.Commands
 {
     public class FromEmojiToPng : ICommand, IDisposable
     {
-        private readonly ILogger<FromEmojiToPng> _logger;
-        private readonly IServerCache _serverCache;
+        protected readonly ILogger<FromEmojiToPng> _logger;
+        protected readonly IServerCache _serverCache;
 
         public int Priority { get; set; } = 20;
         public bool Enabled { get; set; } = true;
@@ -51,7 +51,7 @@ namespace MdExplorer.Features.Commands
             return html;
         }
 
-        public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
+        public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);

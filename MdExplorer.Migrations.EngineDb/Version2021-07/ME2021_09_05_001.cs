@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Migrations.EngineDb.Version202107
 {
-    [Migration(20210905001, "")]
+    [Migration(20210905001, "adding CreationDate in refactornig tables")]
     public class ME2021_09_05_001 : Migration
     {
         public override void Up()
