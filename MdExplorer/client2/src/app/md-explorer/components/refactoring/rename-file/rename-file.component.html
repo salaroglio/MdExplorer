@@ -1,13 +1,18 @@
-<h1>WOW! Refactoring Event!</h1>
+<h1>WOW! Refactoring Management and analysis</h1>
+<mat-dialog-content>
 
-<table>
-  <tr *ngFor="let element of eventList">
-    <td>{{element.eventName}}</td>
-    <td>{{element.oldFullPath}}</td>
-    <td>{{element.newFullPath}}</td>
-    <td>{{element.processed}}</td>
-  </tr>
-</table>
+  <table>
+    <tr *ngFor="let element of actionList">
+      <td>{{element.action}}</td>
+      <td>{{element.newName}}</td>
+      <td>{{element.oldName}}</td>      
+    </tr>
+  </table>
+</mat-dialog-content>
 
-
-<p>rename-file works!</p>
+<mat-dialog-actions>
+  <button mat-button color="primary" (click)="doRefactoring()">
+    <mat-icon>save</mat-icon>Yes do Refactoring
+  </button>
+  
+</mat-dialog-actions>

@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Extensions;
+using AutoMapper;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Refactoring.Analysis;
@@ -18,22 +19,28 @@ namespace MdExplorer.Service.Controllers
     {
         private readonly IEngineDB _engineDB;
         private readonly IAnalysisEngine _analysisEngine;
+        private readonly IMapper _mapper;
 
-        public RefactoringFilesController(IEngineDB engineDB,IAnalysisEngine analysisEngine)
+        public RefactoringFilesController(IEngineDB engineDB,IAnalysisEngine analysisEngine, IMapper mapper)
         {
             _engineDB = engineDB;
             _analysisEngine = analysisEngine;
+            _mapper = mapper;
         }
 
         [HttpGet]
-        public IActionResult GetRefactoringFileEventList()
+        public IActionResult GetRefactoringSourceActionList()
         {
             _engineDB.BeginTransaction();
             _analysisEngine.AnalizeEvents();
-            
-            
+            var sourceActionDal= _engineDB.GetDal<RefactoringSourceAction>();
+            var list = sourceActionDal.GetList().ToList();
             _engineDB.Commit();
-            return Ok();
+
+            var listToReturn = list.Select(_ => new { _.Action, _.ActionDetails, _.CreationDate, _.NewName, _.OldName });
+
+            return Ok(listToReturn);
+
         }
 
             private void RenameFile()

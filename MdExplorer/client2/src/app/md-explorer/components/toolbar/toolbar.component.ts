@@ -36,7 +36,7 @@ export class ToolbarComponent implements OnInit {
 
   openRefactoring(): void {
     const dialogRef = this.dialog.open(RenameFileComponent, {
-      width: '300px',
+      width: '600px',
       data: { name: this.plantumlServer }
     });
   }

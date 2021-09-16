@@ -154,7 +154,6 @@ namespace MdExplorer.Controllers
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1);
 
-            //doc1.LoadXml(resultToParse);
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
             {
@@ -162,6 +161,7 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
+           //System.IO.File.WriteAllText(@"test.html", doc1.InnerXml);
 
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
@@ -233,16 +233,6 @@ namespace MdExplorer.Controllers
             var head = doc1.CreateElement("head");
 
             var link2 = doc1.CreateElement("script");
-            //var linkHref2 = doc1.CreateAttribute("href");
-            //var linkType = doc1.CreateAttribute("type");
-            //linkType.Value = "text/javascript";
-
-            //linkHref2.Value = "/javascripts/jqueryForFirstPage.js";
-            //link2.Attributes.Append(linkHref2);
-            //link2.Attributes.Append(linkType);
-
-            //head.AppendChild(link2);
-            // <link href="../MdCustomCSS.css" rel="stylesheet">
             var link = doc1.CreateElement("link");
             var linkHref = doc1.CreateAttribute("href");
             var linkRel = doc1.CreateAttribute("rel");
@@ -252,8 +242,6 @@ namespace MdExplorer.Controllers
             link.Attributes.Append(linkRel);
             head.AppendChild(link);
 
-            //<link href="../javascripts/angular-resizable.min.js">
-           
 
             html.AppendChild(head);
             //AddLink(doc1, head);
