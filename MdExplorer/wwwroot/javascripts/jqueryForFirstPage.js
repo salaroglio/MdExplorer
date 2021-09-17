@@ -1,73 +1,70 @@
 ﻿function dynamicEmojiForProcess(el, index, pathfile) {
 
-    $.get("ajax/test.html", function (data) {
-        $(".result").html(data);
-        alert("Load was performed.");
-    });
-
-    alert(pathfile);
     if (el.innerText == 'ℹ️') {
         el.innerText = '🆗';
         el.title = 'approvato';
-        return;
-    }
+        
+    }else 
     if (el.innerText == '🆗') {
         el.innerText = '⚠️';
         el.title = 'attenzione!';
-        return;
-    }
+    } else
     if (el.innerText == '⚠️') {
         el.innerText = '🚧';
-        el.title = 'work in process';
-        return;
-    }
+        el.title = 'work in progress';
+    } else
     if (el.innerText == '🚧') {
         el.innerText = '✔️';
         el.title = 'completato';
-        return;
-    }
+    } else
     if (el.innerText == '✔️') {
         el.innerText = 'ℹ️';
         el.title = 'in valutazione';
-        return;
-    }
+    } 
+    
+    $.get("/api/WriteMD/SetEmoji?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+        $(".result").html(data);
+        console.log(data);
+    });
+
 }
 
 function dynamicEmojiForPriority(el, index, pathfile) {
 
-    alert(pathfile);
     if (el.innerText == '❓') {
         el.innerText = '❔';
         el.title = 'dubbio';
-        return;
-    }
-    
+    }else
     if (el.innerText == '❔') {
         el.innerText = '❕';
         el.title = 'obbligatorio';
-        return;
-    }
+    }else
     if (el.innerText == '❕') {
         el.innerText = '❗';
         el.title = 'urgente';
-        return;
-    }
+        
+    }else
     if (el.innerText == '❗') {
         el.innerText = '❌';
         el.title = 'annullata';
-        return;
-    }
+        
+    }else
     if (el.innerText == '❌') {
         el.innerText = '⛔';
         el.title = 'fermata';
-        return;
-    }
+        
+    }else
 
     if (el.innerText == '⛔') {
         el.innerText = '❓';
         el.title = 'da valutare';
-        return;
     }
+
+    
+    $.get("/api/WriteMD/SetEmoji?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+        $(".result").html(data);
+        console.log(data);
+    });
 
 }
 
