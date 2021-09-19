@@ -1,6 +1,7 @@
 ﻿using MdExplorer.Features.ActionLinkModifiers;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
+using MdExplorer.Features.Commands.Runners;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
 using MdExplorer.Features.Refactoring.Analysis;
@@ -24,6 +25,7 @@ namespace MdExplorer.Features
             services.AddTransient(_ => _.GetService<ICommandFactoryPdf>().GetCommands());
             services.AddTransient<ICommandRunnerHtml, CommandRunnerHtml>();
             services.AddTransient<ICommandRunnerPdf, CommandRunnerPdf>();
+            services.AddTransient<ICommandRunnerMD, CommandRunnerMD>();
             services.AddSingleton<RendererFactory>();
             services.AddSingleton<PlantumlServer>();
             services.AddTransient<IHelper, Helper>();

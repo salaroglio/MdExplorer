@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.html
 {
+    /// <summary>
+    /// Manage emoji for process and priority, inherits FromEmojiToPng match
+    /// </summary>
     public class FromEmojiToDynamicHtml : FromEmojiToPng, ICommandHtml
     {
         private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
@@ -38,35 +41,30 @@ namespace MdExplorer.Features.Commands.html
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);
             var currentIncrement = 0;
-            for (int i = 0; i < matches.Count-1; i++)
+            for (int i = 0; i < matches.Count; i++)
             {
                 var item = matches[i];
                 var text = item.Groups[0].Value;
+                // Gestione degli emoji per processo e priorità
                 EmojiContextDictionary.TryGetValue(text, out var found);
                 if (found != null)
                 {
                     var raplaceWith = $@"<span style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
-                    var currentIndex = item.Index + currentIncrement;
-                    stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, raplaceWith);
-                    currentIncrement += raplaceWith.Length - item.Groups[0].Value.Length;
-                }
+                    (stringToReturn,currentIncrement) = ManageReplaceOnMD( stringToReturn,  currentIncrement, item, raplaceWith);
+                }               
             }
-
-            //foreach (Match item in matches)
-            //{
-            //    var text = item.Groups[0].Value;
-            //    EmojiContextDictionary.TryGetValue(text, out var found);
-            //    if (found != null)
-            //    {
-            //        var raplaceWith = $@"<span style=""cursor: pointer"" onclick=""{found}(this,{item.Index},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar,'/')}')""> {text}</span> ";
-            //        stringToReturn = stringToReturn.Replace(item.Groups[0].Value, raplaceWith);
-            //    }
-            //}
             
             return stringToReturn;
         }
 
-        
+        private  (string,int) ManageReplaceOnMD(string stringToReturn, int currentIncrement, Match item, string raplaceWith)
+        {
+            var currentIndex = item.Index + currentIncrement;
+            stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, raplaceWith);
+            currentIncrement += raplaceWith.Length - item.Groups[0].Value.Length;
+            return (stringToReturn, currentIncrement);
+        }
+
 
 
     }

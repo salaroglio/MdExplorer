@@ -1,4 +1,43 @@
-﻿function dynamicEmojiForProcess(el, index, pathfile) {
+﻿document.addEventListener("DOMContentLoaded", function (event) {
+    // tentativo di memorizzare la posizione corrente della pagina,perché sia riproposta dopo un refresh
+    var scrollpos = localStorage.getItem('scrollpos');
+    if (scrollpos) window.scrollTo(0, scrollpos);
+
+    // inizializzazione dei datepicker
+   
+});
+
+window.onbeforeunload = function (e) {
+    localStorage.setItem('scrollpos', window.scrollY);
+};
+
+function activateCalendar(el, index, target, dateformat, pathfile) {
+    
+    var data = $('#' + el.id).data('datepicker');
+    if (data) { // esiste già il datepicker, lo uso        
+        $('#' + el.id).datepicker('show');
+    } else { // il datepicker non esiste, lo creo e lo inizializzo
+        var currentDatePicker = $('#' + el.id).datepicker({
+            format: dateformat //'dd-mm-yyyy'
+        });
+
+        currentDatePicker.on('changeDate', function (ev) {
+            var toReplace = $('#' + el.id).data('datepicker').getFormattedDate(dateformat);
+            $('#' + target).text(toReplace);
+            currentDatePicker.datepicker('hide');
+            $.get("/api/WriteMD/SetCalendar?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + toReplace, function (data) {
+                $(".result").html(data);
+                console.log(data);
+            });
+        });
+        currentDatePicker.datepicker('show');
+    }
+
+    
+
+}
+
+function dynamicEmojiForProcess(el, index, pathfile) {
 
     if (el.innerText == 'ℹ️') {
         el.innerText = '🆗';
