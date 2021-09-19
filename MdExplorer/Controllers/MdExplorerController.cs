@@ -244,19 +244,20 @@ namespace MdExplorer.Controllers
 
 
             html.AppendChild(head);
-            //AddLink(doc1, head);
             var body = doc1.CreateElement("body");
             html.AppendChild(body);
 
-            
-            head.InnerXml = $@"
-            <link rel=""stylesheet"" href=""/bootstrap/css/bootstrap.css"" />
-            <link rel=""stylesheet"" href=""/MdCustomCSS.css"" />
-            <script src=""/bootstrap/jquery-3.6.0.js""></script>
-            <script src=""/bootstrap/js/bootstrap.bundle.js""></script>
-            <script src=""/javascripts/jqueryForFirstPage.js""></script>
-            ";
+            //head.InnerXml = $@"
+            //<link rel=""stylesheet"" href=""/bootstrap/css/bootstrap.css"" />
+            //<link rel=""stylesheet"" href=""/MdCustomCSS.css"" />
+            //<script src=""/bootstrap/jquery-3.6.0.js""></script>
+            //<script src=""/bootstrap/js/bootstrap.bundle.js""></script>
+            //<script src=""/javascripts/jqueryForFirstPage.js""></script>
+            //";
 
+            head.InnerXml = $@"
+            <link rel=""stylesheet"" href=""/common.css"" />            
+            <script src=""/common.js""></script>";
 
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");

@@ -31,6 +31,14 @@
   <ItemGroup>
     <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
+    <Content Remove="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.css" />
+    <Content Remove="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.min.css" />
+    <Content Remove="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.standalone.css" />
+    <Content Remove="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.css" />
+    <Content Remove="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.min.css" />
+    <Content Remove="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.standalone.css" />
+    <Content Remove="wwwroot\bootstrap-datepicker\js\bootstrap-datepicker.js" />
+    <Content Remove="wwwroot\bootstrap-datepicker\js\bootstrap-datepicker.min.js" />
     <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.css" />
     <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.css.map" />
     <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.min.css" />
@@ -73,7 +81,8 @@
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\styles.css" />
     <Content Remove="wwwroot\client2\vendor.js" />
-    <Content Remove="wwwroot\emoji\ok.png" />
+    <Content Remove="wwwroot\common.css" />
+    <Content Remove="wwwroot\common.js" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
@@ -110,6 +119,14 @@
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.standalone.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.standalone.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\js\bootstrap-datepicker.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\js\bootstrap-datepicker.min.js" />
     <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.css" />
     <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.css.map" />
     <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.min.css" />
@@ -153,6 +170,8 @@
     <EmbeddedResource Include="wwwroot\client2\styles.css" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js" />
     <EmbeddedResource Include="EmojiForPandoc\ok.png" />
+    <EmbeddedResource Include="wwwroot\common.css" />
+    <EmbeddedResource Include="wwwroot\common.js" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />
@@ -213,7 +232,99 @@
 
   <ItemGroup>
     <Folder Include="Properties\PublishProfiles\" />
-    <Folder Include="wwwroot\emoji\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.css.map" />
+    <None Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker.standalone.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.css.map" />
+    <None Include="wwwroot\bootstrap-datepicker\css\bootstrap-datepicker3.standalone.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker-en-CA.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ar-DZ.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ar-tn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ar.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.az.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.bg.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.bm.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.bn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.br.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.bs.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ca.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.cs.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.cy.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.da.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.de.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.el.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-AU.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-CA.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-GB.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-IE.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-NZ.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-US.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.en-ZA.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.eo.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.es.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.et.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.eu.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.fa.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.fi.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.fo.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.fr-CH.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.fr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.gl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.he.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.hi.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.hr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.hu.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.hy.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.id.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.is.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.it-CH.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.it.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ja.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ka.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.kh.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.kk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.km.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ko.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.kr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.lt.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.lv.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.me.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.mk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.mn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.mr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ms.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.nl-BE.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.nl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.no.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.oc.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.pl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.pt-BR.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.pt.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ro.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.rs-latin.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.rs.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ru.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.si.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sq.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sr-latin.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sv.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.sw.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.ta.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.tg.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.th.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.tk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.tr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.uk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.uz-cyrl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.uz-latn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.vi.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.zh-CN.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap-datepicker\locales\bootstrap-datepicker.zh-TW.js" />
   </ItemGroup>
 
 
