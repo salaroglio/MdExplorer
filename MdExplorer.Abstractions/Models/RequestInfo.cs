@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 namespace MdExplorer.Abstractions.Models
 {
     public class RequestInfo
-    {
+    {        
         public string AbsolutePathFile { get; set; }
         public string CurrentQueryRequest { get; set; }
         public string CurrentRoot { get; set; }
+
     }
 }

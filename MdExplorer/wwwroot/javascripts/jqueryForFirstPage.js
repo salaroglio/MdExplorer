@@ -72,15 +72,17 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 
     if (el.innerText == '❓') {
         el.innerText = '❔';
-        el.title = 'dubbio';
+        el.title = 'dubbio';       
     }else
     if (el.innerText == '❔') {
         el.innerText = '❕';
         el.title = 'obbligatorio';
+        
     }else
     if (el.innerText == '❕') {
         el.innerText = '❗';
         el.title = 'urgente';
+        
         
     }else
     if (el.innerText == '❗') {
@@ -91,12 +93,23 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     if (el.innerText == '❌') {
         el.innerText = '⛔';
         el.title = 'fermata';
+        var element = $('#' + el.id).parent();
         
     }else
 
     if (el.innerText == '⛔') {
+        el.innerText = '❎';
+        el.title = 'conclusa';
+        var element = $('#'+ el.id).parent();
+        element.fadeOut(3000);
+    }else
+
+    if (el.innerText == '❎') {
         el.innerText = '❓';
         el.title = 'da valutare';
+        var element = $('#' + el.id).parent();
+        element.stop();
+        element.fadeIn();
     }
 
     

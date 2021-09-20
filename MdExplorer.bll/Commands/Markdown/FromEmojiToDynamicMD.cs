@@ -14,12 +14,13 @@ namespace MdExplorer.Features.Commands.Markdown
     {
         private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
             // Priority
-            {"❔",":question:" },
+            {"❔",":grey_question:" },
             {"❗",":exclamation:" },
             {"❕",":grey_exclamation:" },
-            {"❓",":grey_question:" },
+            {"❓",":question:" },
             {"⛔",":no_entry:" },
             {"❌",":x:" },
+            {"❎",":negative_squared_cross_mark:" },
             // Process
             {"ℹ️",":information_source:" },
             {"✔️",":heavy_check_mark:" },

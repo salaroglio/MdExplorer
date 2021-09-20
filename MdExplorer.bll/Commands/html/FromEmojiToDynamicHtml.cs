@@ -17,6 +17,8 @@ namespace MdExplorer.Features.Commands.html
     /// </summary>
     public class FromEmojiToDynamicHtml : FromEmojiToPng, ICommandHtml
     {
+        
+
         private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
             // Priority
             {":question:","dynamicEmojiForPriority" },
@@ -25,6 +27,7 @@ namespace MdExplorer.Features.Commands.html
             {":grey_question:","dynamicEmojiForPriority" },
             {":no_entry:","dynamicEmojiForPriority" },
             {":x:","dynamicEmojiForPriority" },
+            {":negative_squared_cross_mark:","dynamicEmojiForPriority" },
             // Process
             {":information_source:","dynamicEmojiForProcess" },
             {":heavy_check_mark:","dynamicEmojiForProcess" },
@@ -49,7 +52,7 @@ namespace MdExplorer.Features.Commands.html
                 EmojiContextDictionary.TryGetValue(text, out var found);
                 if (found != null)
                 {
-                    var raplaceWith = $@"<span style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
+                    var raplaceWith = $@"<span id=""emoji{i}"" style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
                     (stringToReturn,currentIncrement) = ManageReplaceOnMD( stringToReturn,  currentIncrement, item, raplaceWith);
                 }               
             }

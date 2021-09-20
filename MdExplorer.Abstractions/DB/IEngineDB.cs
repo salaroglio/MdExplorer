@@ -9,18 +9,15 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Abstractions.DB
 {
-
-    public interface IUserSettingsDB : ISessionDB
+    public interface IEngineDB : ISessionDB
     {
 
     }
 
-    public class UserSettingsDB : SessionDB, IUserSettingsDB
+    public class EngineDB : SessionDB, IEngineDB
     {
-        public UserSettingsDB(ISession implementation) : base(implementation)
+        public EngineDB(ISession implementation) : base(implementation)
         {
         }
     }
-
-    
 }
