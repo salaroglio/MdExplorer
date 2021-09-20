@@ -52,7 +52,8 @@ namespace MdExplorer
             var currentDirectory = Path.GetDirectoryName(Args[0]);
             var hash = Helper.HGetHashString(currentDirectory);
             var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
-            
+            var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
+
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(),typeof(IUserSettingsDB),
                                     databasePath);
@@ -60,6 +61,11 @@ namespace MdExplorer
             services.AddDalFeatures(typeof(MarkdownFileMap).Assembly,
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
+
+            services.AddDalFeatures(typeof(SemanticCluster).Assembly,
+                                   new DatabaseSQLite(), typeof(IProjectDB),
+                                   databasePathProject);
+
             services.AddAutoMapper(typeof(RefactoringMapper).Assembly);
             services.AddMDExplorerCommands();
             services.AddSignalR(_=>_.KeepAliveInterval = TimeSpan.FromSeconds(20));
