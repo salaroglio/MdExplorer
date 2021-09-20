@@ -32,9 +32,6 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
         });
         currentDatePicker.datepicker('show');
     }
-
-    
-
 }
 
 function dynamicEmojiForProcess(el, index, pathfile) {
@@ -82,25 +79,24 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     if (el.innerText == '❕') {
         el.innerText = '❗';
         el.title = 'urgente';
-        
-        
     }else
     if (el.innerText == '❗') {
         el.innerText = '❌';
         el.title = 'annullata';
-        
     }else
     if (el.innerText == '❌') {
         el.innerText = '⛔';
         el.title = 'fermata';
         var element = $('#' + el.id).parent();
-        
     }else
-
     if (el.innerText == '⛔') {
         el.innerText = '❎';
         el.title = 'conclusa';
-        var element = $('#'+ el.id).parent();
+        var element = $('#' + el.id).parent();
+        var check = element.parent().is('li');
+        if (check){
+            element = element.parent();
+        }
         element.fadeOut(3000);
     }else
 
@@ -108,6 +104,10 @@ function dynamicEmojiForPriority(el, index, pathfile) {
         el.innerText = '❓';
         el.title = 'da valutare';
         var element = $('#' + el.id).parent();
+        var check = element.is('li');
+        if (!check) {
+            element = element.parent();
+        }
         element.stop();
         element.fadeIn();
     }
