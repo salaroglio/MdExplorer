@@ -41,7 +41,7 @@ namespace MdExplorer.Features.Commands.html
                 EmojiContextDictionary.TryGetValue(text, out var found);
                 if (found != null)
                 {
-                    var raplaceWith = $@"<span id=""emoji{i}"" style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
+                    var raplaceWith = $@"<span id=""emojiPriority{i}"" style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
                     (stringToReturn, currentIncrement) = ManageReplaceOnMD(stringToReturn, currentIncrement, item, raplaceWith);
                 }
             }
