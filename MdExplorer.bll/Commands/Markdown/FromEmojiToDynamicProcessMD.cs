@@ -10,17 +10,9 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.Markdown
 {
-    public class FromEmojiToDynamicMD : FromEmojiToPng, ICommandMD
+    public class FromEmojiToDynamicProcessMD : FromEmojiToDynamicProcess, ICommandMD
     {
-        private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
-            // Priority
-            {"❔",":grey_question:" },
-            {"❗",":exclamation:" },
-            {"❕",":grey_exclamation:" },
-            {"❓",":question:" },
-            {"⛔",":no_entry:" },
-            {"❌",":x:" },
-            {"❎",":negative_squared_cross_mark:" },
+        private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {            
             // Process
             {"ℹ️",":information_source:" },
             {"✔️",":heavy_check_mark:" },
@@ -29,7 +21,7 @@ namespace MdExplorer.Features.Commands.Markdown
             {"🚧",":construction:" },
         };
 
-        public FromEmojiToDynamicMD(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
+        public FromEmojiToDynamicProcessMD(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
 
