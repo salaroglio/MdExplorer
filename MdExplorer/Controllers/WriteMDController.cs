@@ -16,24 +16,23 @@ namespace MdExplorer.Service.Controllers
     public class WriteMDController : ControllerBase
     {
         private static object lockAccessToFileMD = new object();
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly ICommandMD[] _commands;
-        private readonly ICommandRunnerHtml _commandRunner;
+        private readonly FileSystemWatcher _fileSystemWatcher;        
+        private readonly ICommandRunnerMD _commandRunner;
 
-        public WriteMDController(FileSystemWatcher fileSystemWatcher, ICommandMD[] commands, ICommandRunnerHtml commandRunner)
+        public WriteMDController(FileSystemWatcher fileSystemWatcher, ICommandRunnerMD commandRunner)
         {
             _fileSystemWatcher = fileSystemWatcher;
-            _commands = commands;
+            
             _commandRunner = commandRunner;
         }
 
         [HttpGet]
-        public IActionResult SetEmoji(int index, string pathFile, string toReplace)
+        public IActionResult SetEmojiPriority(int index, string pathFile, string toReplace)
         {
             
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             _fileSystemWatcher.EnableRaisingEvents = false;
-            var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
+            //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
                 // load Md
@@ -45,8 +44,39 @@ namespace MdExplorer.Service.Controllers
                     CurrentQueryRequest = ""
                 };
                 // transform
+                markdown = _commandRunner.Commands
+                        .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault()
+                        .ReplaceSingleItem(markdown, requestInfo, toReplace, index);
+                System.IO.File.WriteAllText(systePathFile, markdown);
 
-                markdown = emojiCommand.ReplaceSingleItem(markdown, requestInfo, toReplace, index);
+                // write
+            }
+
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok("done");
+        }
+
+        [HttpGet]
+        public IActionResult SetEmojiProcess(int index, string pathFile, string toReplace)
+        {
+
+            var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
+            lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
+            {
+                // load Md
+                var markdown = System.IO.File.ReadAllText(systePathFile);
+                var requestInfo = new RequestInfo
+                {
+                    AbsolutePathFile = pathFile,
+                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentQueryRequest = ""
+                };
+                // transform
+                markdown = _commandRunner.Commands
+                        .Where(_=>_.Name== "FromEmojiToDynamicProcess").FirstOrDefault()
+                        .ReplaceSingleItem(markdown, requestInfo, toReplace, index);
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write
@@ -61,7 +91,7 @@ namespace MdExplorer.Service.Controllers
         {            
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             _fileSystemWatcher.EnableRaisingEvents = false;
-            var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
+            //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
                 // load Md
@@ -74,7 +104,9 @@ namespace MdExplorer.Service.Controllers
                 };
                 // transform
 
-                markdown = emojiCommand.ReplaceSingleItem(markdown, requestInfo, toReplace, index);
+                markdown = _commandRunner.Commands
+                        .Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault()
+                        .ReplaceSingleItem(markdown, requestInfo, toReplace, index);
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write

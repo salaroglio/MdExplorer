@@ -11,5 +11,6 @@ namespace MdExplorer.Features.Interfaces
     public interface ICommandRunnerMD:ICommandRunner
     {
         string ReplaceSingleItem(string markdown, RequestInfo requestinfo, string toReplace, int index);
+        ICommandMD[] Commands { get; }
     }
 }

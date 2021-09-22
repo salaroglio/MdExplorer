@@ -9,8 +9,13 @@ namespace MdExplorer.Features.Commands
 {
     public class CommandRunnerHtml : CommandRunner, ICommandRunnerHtml
     {
+        private readonly ICommandHtml[] _commands;
+
         public CommandRunnerHtml(ICommandHtml[] commands) : base(commands)
         {
+            _commands = commands;
         }
+
+        public ICommandHtml[] Commands { get { return _commands; } }
     }
 }

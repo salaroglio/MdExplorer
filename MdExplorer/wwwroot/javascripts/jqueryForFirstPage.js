@@ -1,4 +1,9 @@
-﻿document.addEventListener("DOMContentLoaded", function (event) {
+﻿$.fn.datepicker.noConflict = function () {
+    $.fn.datepicker = old;
+    return this;
+};
+
+document.addEventListener("DOMContentLoaded", function (event) {
     // tentativo di memorizzare la posizione corrente della pagina,perché sia riproposta dopo un refresh
     var scrollpos = localStorage.getItem('scrollpos');
     if (scrollpos) window.scrollTo(0, scrollpos);
@@ -58,7 +63,7 @@ function dynamicEmojiForProcess(el, index, pathfile) {
         el.title = 'in valutazione';
     } 
     
-    $.get("/api/WriteMD/SetEmoji?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+    $.get("/api/WriteMD/SetEmojiProcess?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
         console.log(data);
     });
@@ -113,7 +118,7 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     }
 
     
-    $.get("/api/WriteMD/SetEmoji?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+    $.get("/api/WriteMD/SetEmojiPriority?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
         console.log(data);
     });

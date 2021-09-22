@@ -25,7 +25,7 @@ namespace MdExplorer.Features.Commands.html
             {":negative_squared_cross_mark:","dynamicEmojiForPriority" },            
         };
 
-        public FromEmojiToDynamicPriorityHtml(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
+        public FromEmojiToDynamicPriorityHtml(ILogger<FromEmojiToDynamicPriorityHtml> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)

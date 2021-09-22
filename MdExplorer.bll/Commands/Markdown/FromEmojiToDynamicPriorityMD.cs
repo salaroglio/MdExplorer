@@ -23,7 +23,7 @@ namespace MdExplorer.Features.Commands.Markdown
             {"❎",":negative_squared_cross_mark:" },           
         };
 
-        public FromEmojiToDynamicPriorityMD(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
+        public FromEmojiToDynamicPriorityMD(ILogger<FromEmojiToDynamicPriorityMD> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
 

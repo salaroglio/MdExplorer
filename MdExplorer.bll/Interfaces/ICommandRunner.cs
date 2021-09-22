@@ -9,6 +9,7 @@ namespace MdExplorer.Features.Commands
 {
     public interface ICommandRunner
     {
+        
         string TransformAfterConversion(string markdownText, RequestInfo requestInfo);
         string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo);
         string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo);

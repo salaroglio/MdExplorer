@@ -6,7 +6,7 @@
     <PublishSingleFile>true</PublishSingleFile>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
     <Nullable>annotations</Nullable>
-    <ApplicationIcon>MdIcon2.ico</ApplicationIcon>
+    <ApplicationIcon>MdIcon3.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
