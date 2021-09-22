@@ -12,13 +12,8 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.html
 {
-    /// <summary>
-    /// Manage emoji for process and priority, inherits FromEmojiToPng match
-    /// </summary>
-    public class FromEmojiToDynamicHtml : FromEmojiToPng, ICommandHtml
+    public class FromEmojiToDynamicPriorityHtml : FromEmojiToDynamicPriority, ICommandHtml
     {
-        
-
         private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
             // Priority
             {":question:","dynamicEmojiForPriority" },
@@ -27,16 +22,10 @@ namespace MdExplorer.Features.Commands.html
             {":grey_question:","dynamicEmojiForPriority" },
             {":no_entry:","dynamicEmojiForPriority" },
             {":x:","dynamicEmojiForPriority" },
-            {":negative_squared_cross_mark:","dynamicEmojiForPriority" },
-            // Process
-            {":information_source:","dynamicEmojiForProcess" },
-            {":heavy_check_mark:","dynamicEmojiForProcess" },
-            {":ok:","dynamicEmojiForProcess" },
-            {":warning:","dynamicEmojiForProcess" },
-            {":construction:","dynamicEmojiForProcess" },
+            {":negative_squared_cross_mark:","dynamicEmojiForPriority" },            
         };
 
-        public FromEmojiToDynamicHtml(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
+        public FromEmojiToDynamicPriorityHtml(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
@@ -53,22 +42,19 @@ namespace MdExplorer.Features.Commands.html
                 if (found != null)
                 {
                     var raplaceWith = $@"<span id=""emoji{i}"" style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
-                    (stringToReturn,currentIncrement) = ManageReplaceOnMD( stringToReturn,  currentIncrement, item, raplaceWith);
-                }               
+                    (stringToReturn, currentIncrement) = ManageReplaceOnMD(stringToReturn, currentIncrement, item, raplaceWith);
+                }
             }
-            
+
             return stringToReturn;
         }
 
-        private  (string,int) ManageReplaceOnMD(string stringToReturn, int currentIncrement, Match item, string raplaceWith)
+        private (string, int) ManageReplaceOnMD(string stringToReturn, int currentIncrement, Match item, string raplaceWith)
         {
             var currentIndex = item.Index + currentIncrement;
             stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, raplaceWith);
             currentIncrement += raplaceWith.Length - item.Groups[0].Value.Length;
             return (stringToReturn, currentIncrement);
         }
-
-
-
     }
 }

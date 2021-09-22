@@ -6,6 +6,7 @@
     <PublishSingleFile>true</PublishSingleFile>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
     <Nullable>annotations</Nullable>
+    <ApplicationIcon>MdIcon2.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -86,6 +87,12 @@
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.css" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.js" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.min.css" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.min.js" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.structure.css" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.theme.css" />
     <Content Remove="wwwroot\MdCustomCSS.css" />
     <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
@@ -175,6 +182,12 @@
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.css" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.css" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.structure.css" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.theme.css" />
     <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
     <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
