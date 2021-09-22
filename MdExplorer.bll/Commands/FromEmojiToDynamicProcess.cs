@@ -12,14 +12,14 @@ namespace MdExplorer.Features.Commands
 {
     public class FromEmojiToDynamicProcess : ICommand, IDisposable
     {
-        protected readonly ILogger<FromEmojiToPng> _logger;
+        protected readonly ILogger<FromEmojiToDynamicProcess> _logger;
         protected readonly IServerCache _serverCache;
 
         public int Priority { get; set; } = 20;
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromEmojiToDynamicProcess";
 
-        public FromEmojiToDynamicProcess(ILogger<FromEmojiToPng> logger, IServerCache serverCache)
+        public FromEmojiToDynamicProcess(ILogger<FromEmojiToDynamicProcess> logger, IServerCache serverCache)
         {
             _logger = logger;
             _serverCache = serverCache;

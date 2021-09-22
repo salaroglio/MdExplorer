@@ -14,10 +14,10 @@ namespace MdExplorer.Features.Commands
     /// <summary>
     /// Class dedicated to prepare markdown/html behind the scenes.
     /// Maybe is obvious or maybe not, this is only a part of all code
-    /// you need to know to implement "Calendar" feature.
+    /// you need to know to implement "Command-Calendar" feature.
     /// In fact this is only a part of all you need to see in order to understand
     /// the complete feature. 
-    /// Here you find only the part of raw html created
+    /// Here you find out only the raw part html creation.
     /// The calendar feature is composed of javascript part and bootstrap-calendar part
     /// So, you have to integrate your knoledge with MdExplorerService javascript
     /// </summary>

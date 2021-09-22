@@ -16,6 +16,7 @@ namespace MdExplorer.Features.Commands.Runners
         {
             _commands = commands;
         }
+        public ICommandMD[] Commands { get { return _commands; } }
 
         public string ReplaceSingleItem(string markdownText, RequestInfo requestInfo, string toReplace, int index)
         {

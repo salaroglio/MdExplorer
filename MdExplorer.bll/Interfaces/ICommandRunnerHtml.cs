@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MdExplorer.Features.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,6 @@ namespace MdExplorer.Features.Commands
 {
     public interface ICommandRunnerHtml:ICommandRunner
     {
-        
+        ICommandHtml[] Commands { get; }
     }
 }

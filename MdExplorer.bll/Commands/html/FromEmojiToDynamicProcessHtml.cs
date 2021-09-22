@@ -26,7 +26,7 @@ namespace MdExplorer.Features.Commands.html
             {":construction:","dynamicEmojiForProcess" },
         };
 
-        public FromEmojiToDynamicProcessHtml(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
+        public FromEmojiToDynamicProcessHtml(ILogger<FromEmojiToDynamicProcessHtml> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)

@@ -21,7 +21,7 @@ namespace MdExplorer.Features.Commands.Markdown
             {"🚧",":construction:" },
         };
 
-        public FromEmojiToDynamicProcessMD(ILogger<FromEmojiToPng> logger, IServerCache serverCache) : base(logger, serverCache)
+        public FromEmojiToDynamicProcessMD(ILogger<FromEmojiToDynamicProcessMD> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
 
