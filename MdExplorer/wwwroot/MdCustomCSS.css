@@ -1,3 +1,13 @@
 ﻿div .warning p em {
     background-color:palegoldenrod
 }
+
+/*li.sortableClass {
+    cursor: pointer;
+}*/
+
+.s1 {
+    height: auto;
+    border: 1px dotted blue;
+    margin: 5px 0 5px 0;
+}

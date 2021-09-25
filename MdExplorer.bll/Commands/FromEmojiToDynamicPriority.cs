@@ -31,7 +31,7 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@":([^:^ ]*):",
+            Regex rx = new Regex(@":(question|exclamation|grey_exclamation|grey_question|no_entry|x|negative_squared_cross_mark):",
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(markdown);
             return matches;
@@ -43,7 +43,7 @@ namespace MdExplorer.Features.Commands
             return markdown;
         }
 
-        public string TransformAfterConversion(string html, RequestInfo requestInfo)
+        public virtual string TransformAfterConversion(string html, RequestInfo requestInfo)
         {
             //Nothing to do
             return html;
