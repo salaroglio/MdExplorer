@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands;
+using MdExplorer.Features.Commands.FunctionParameters;
 using MdExplorer.Features.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -24,6 +25,48 @@ namespace MdExplorer.Service.Controllers
             _fileSystemWatcher = fileSystemWatcher;
             
             _commandRunner = commandRunner;
+        }
+
+        [HttpGet]
+        public IActionResult SetEmojiOrderPriority(int currentNodeIndex,
+                    int? previousNodeIndex, int? nextNodeIndex, 
+                    string pathFile,
+                    int tableGameIndex)
+        {
+            var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
+            
+            EmojiPriorityOrderInfo info=null;
+
+            lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
+            {
+                // load Md
+                var markdown = System.IO.File.ReadAllText(systePathFile);
+                var requestInfo = new RequestInfo
+                {
+                    AbsolutePathFile = pathFile,
+                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentQueryRequest = ""
+                };
+
+                var param = new EmojiPriorityOrderInfo
+                {
+                    CurrentNodeIndex = currentNodeIndex,
+                    FilePath = pathFile,
+                    NextNodeIndex = nextNodeIndex,
+                    PreviousNodeIndex = previousNodeIndex,
+                    TableGameIndex = tableGameIndex
+                };
+                // transform
+                
+                (markdown,info) = _commandRunner.Commands
+                        .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault()
+                        .ReplaceSingleItem(markdown, requestInfo, param);
+                System.IO.File.WriteAllText(systePathFile, markdown);
+
+                // write
+            }
+            
+            return Ok(info);
         }
 
         [HttpGet]

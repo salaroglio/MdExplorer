@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Commands.FunctionParameters;
 using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -45,6 +46,11 @@ namespace MdExplorer.Features.Commands.Markdown
             }
 
             return stringToReturn;
+        }
+
+        public (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
+        {
+            throw new NotImplementedException();
         }
     }
 }
