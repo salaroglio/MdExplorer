@@ -32,7 +32,8 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@":([^:^ ]*):",
+           
+            Regex rx = new Regex(@":(information_source|heavy_check_mark|ok|warning|construction):", //([^:^ ]*)
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(markdown);
             return matches;

@@ -33,6 +33,7 @@ namespace MdExplorer.Service.Controllers
                     string pathFile,
                     int tableGameIndex)
         {
+            _fileSystemWatcher.EnableRaisingEvents = false;
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             
             EmojiPriorityOrderInfo info=null;
@@ -65,7 +66,7 @@ namespace MdExplorer.Service.Controllers
 
                 // write
             }
-            
+            _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok(info);
         }
 

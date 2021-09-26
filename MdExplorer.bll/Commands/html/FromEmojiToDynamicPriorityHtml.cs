@@ -53,7 +53,7 @@ namespace MdExplorer.Features.Commands.html
 
             var gameTableMatches = rxGameTable.Matches(markdown);
             var infos = new List<SortableInfo>();
-            
+
             for (var k = 0; k < gameTableMatches.Count; k++)
             {
                 var sortableItem = gameTableMatches[k];
@@ -83,15 +83,17 @@ namespace MdExplorer.Features.Commands.html
             {
                 var priorityItem = priorityMatches[i];
                 var priorityText = priorityItem.Groups[0].Value;
-                
+
                 var idName = $"emojiPriority{i}";
+                var absoluteIndex = $@"data-md-priority-index=""{i}""";
                 dictionaryInfo.TryGetValue(priorityItem.Index, out var currentSortableInfo);
                 if (currentSortableInfo != null)
                 {
                     idName = $"sortableEmojiPriority{i}";
+
                 }
                 // Guida il priority match che prende comunque tutti i tag priority
-                var raplaceWith = $@"<span id=""{idName}"" {currentSortableInfo?.TableGameIndex} {currentSortableInfo?.SortCardIndex} {currentSortableInfo?.SortPriorityDataFilePath}  style=""cursor: pointer"" onclick=""dynamicEmojiForPriority(this,{i},'{currentPathFile}')""> {priorityText}</span> ";
+                var raplaceWith = $@"<span id=""{idName}"" {absoluteIndex} {currentSortableInfo?.TableGameIndex} {currentSortableInfo?.SortCardIndex} {currentSortableInfo?.SortPriorityDataFilePath}  style=""cursor: pointer"" onclick=""dynamicEmojiForPriority(this,{i},'{currentPathFile}')""> {priorityText}</span> ";
                 (stringToReturn, currentIncrement) = ManageReplaceOnMD(stringToReturn, currentIncrement, priorityItem, raplaceWith);
 
             }
@@ -116,6 +118,7 @@ namespace MdExplorer.Features.Commands.html
             doc.LoadXml(htmlToReturn);
             //var sortable = doc.SelectNodes(@"//span[contains(@id,'sortableEmojiPriority')]/..");
             var sortables = doc.SelectNodes(@"//span[contains(@id,'sortableEmojiPriority')]/..");
+            List<XmlNode> ulList = new List<XmlNode>();
             foreach (XmlNode itemSortable in sortables)
             {
                 var classAttr1 = doc.CreateAttribute("class");
@@ -127,9 +130,43 @@ namespace MdExplorer.Features.Commands.html
                     var classAttr = doc.CreateAttribute("class");
                     classAttr.Value = "sortable";
                     parentP?.Attributes.Append(classAttr);
+                    ulList.Add(parentP);
                 }
             }
+            // check consistency
+            foreach (XmlNode itemUl in ulList)
+            {
+                var ItemUlHasAllNodsWithPriorityEmoji = true;
+                foreach (XmlNode itemLi in itemUl.ChildNodes)
+                {
+                    var found = false;
+                    foreach (XmlNode itemElement in itemLi.ChildNodes)
+                    {
+                        var currentElement = itemElement.Attributes != null ? itemElement.Attributes["id"] : null;
+                        if (currentElement != null && currentElement.Value.Contains("sortableEmojiPriority"))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        var classAttr1 = doc.CreateAttribute("class");
+                        classAttr1.Value = " s2";
+                        var classAttr2 = doc.CreateAttribute("alt");
+                        classAttr2.Value = "item not sortable";
 
+                        itemLi.Attributes.Append(classAttr1);
+                        itemLi.Attributes.Append(classAttr2);
+
+                        ItemUlHasAllNodsWithPriorityEmoji = false;
+                    }
+                }
+                if (!ItemUlHasAllNodsWithPriorityEmoji)
+                {
+                    itemUl.Attributes["class"].Value = itemUl.Attributes["class"].Value.Replace("sortable",string.Empty);
+                }
+            }
 
             //var parantLi = parentP.ParentNode;
 
