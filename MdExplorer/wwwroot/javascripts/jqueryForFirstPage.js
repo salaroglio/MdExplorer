@@ -35,14 +35,22 @@ $(function () {
             "&pathFile=" + currentPathFile +
             "&tableGameIndex=" + currentTableGameIndex,
             function (data) {
-                currentNode.attributes['data-md-index'].value = data.currentNodeIndex;
-                if (data.previousNodeIndex!=null) {
-                    previousNode.attributes['data-md-index'].value = data.previousNodeIndex;
+                currentNode.attributes['data-md-card-index'].value = data.currentNodeIndex;
+                if (data.previousNodeIndex != null) {
+                    previousNode.attributes['data-md-card-index'].value = data.previousNodeIndex;
                 }
-                if (data.nextNodeIndex!=null) {
-                    nextNode.attributes['data-md-index'].value = data.nextNodeIndex;
+                if (data.nextNodeIndex != null) {
+                    nextNode.attributes['data-md-card-index'].value = data.nextNodeIndex;
                 }
-                                
+                // reconstruct process IDs
+                var listProcess = $("span[id*='emojiProcess']");
+                listProcess.each(function (index, element) {
+                    element.attributes['data-md-process-index'].value = index;// listProcess.index(element);
+                });
+                var listPriority = $("span[id*='mojiPriority']");
+                listPriority.each(function (index, element) {
+                    element.attributes['data-md-priority-index'].value = index;// listProcess.index(element);
+                });
                 console.log(data);
             });
         console.log('sortstop parents Event = ', event, '  ui = ', ui);
@@ -119,8 +127,8 @@ function dynamicEmojiForProcess(el, index, pathfile) {
                         el.innerText = 'ℹ️';
                         el.title = 'in valutazione';
                     }
-
-    $.get("/api/WriteMD/SetEmojiProcess?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+    var currentIndex = el.attributes['data-md-process-index'].value;
+    $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
         console.log(data);
     });
@@ -175,8 +183,8 @@ function dynamicEmojiForPriority(el, index, pathfile) {
                                 element.fadeIn();
                             }
 
-
-    $.get("/api/WriteMD/SetEmojiPriority?index=" + index + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+    var currentIndex = el.attributes['data-md-priority-index'].value;
+    $.get("/api/WriteMD/SetEmojiPriority?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
         console.log(data);
     });
