@@ -16,3 +16,7 @@
     border: 1px dotted red;
     margin: 5px 0 5px 0;
 }
+
+.row [class*='col-'] {
+    transition: all 0.5s ease-in-out;
+}
