@@ -138,10 +138,10 @@ namespace MdExplorer.Controllers
                     <div class=""container"">
                         <div class=""row"">
                            
-                            <div class=""col-9"">
+                            <div id=""page"" class=""col-9"">
                     {result}
                             </div>  
-                            <div class=""col-3"">
+                            <div id=""TOC"" class=""col-3"">
                                 <div class=""sticky-top"">
                                 <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
                                 {CreateToc(resultToToc)} 
@@ -228,7 +228,7 @@ namespace MdExplorer.Controllers
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1)
         {
             var html = doc1.CreateElement("html");
-            
+
             doc1.AppendChild(html);
             var head = doc1.CreateElement("head");
 
@@ -250,25 +250,30 @@ namespace MdExplorer.Controllers
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />            
             <script src=""/common.js""></script>";
+            AddButtonOnTopPage(doc1, body, "toggleMdCanvas()", "/assets/draw.png");
+            AddButtonOnTopPage(doc1, body, "toggleTOC()", "/assets/TOC.png");
 
+            body.InnerXml += resultToParse;
+        }
+
+        private static void AddButtonOnTopPage(XmlDocument doc1, XmlElement body,
+            string functionJs, string image)
+        {
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
             var aAtt1 = doc1.CreateAttribute("href");
             aAtt1.Value = "#";
             a.Attributes.Append(aAtt1);
             a.Attributes.Append(aAtt);
-            aAtt.Value = "toggleMdCanvas()";
+            aAtt.Value = functionJs;
             var imgEl = doc1.CreateElement("img");
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
-            srcImg.Value = "/assets/draw.png";
+            srcImg.Value = image;
             imgEl.Attributes.Append(srcImg);
             body.AppendChild(a);
-
-            body.InnerXml += resultToParse;
         }
 
-       
     }
 
 

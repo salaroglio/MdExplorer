@@ -212,6 +212,28 @@ function filterToc() {
     }
 }
 
+function toggleTOC() {
+    if ($('#TOC').is(":hidden")) {
+        
+        var $page = $('#page');
+        $page.attr('class', 'col-9');
+        setTimeout(function () {
+            var $toc = $('#TOC');
+            $toc.attr('class', 'col-3');
+            $toc.show();
+            
+        }, 500);
+        
+    } else {
+        var $toc = $('#TOC');
+        $toc.hide();
+        $toc.removeAttr('class');
+        var $page = $('#page');
+        $page.attr('class', 'col-12');                
+    }
+    
+}
+
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas() {
     if (window.toggleCanvas == 'undefined') {
