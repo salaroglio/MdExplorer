@@ -1,7 +1,9 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Commands.FunctionParameters;
+using MdExplorer.Features.Commands.Markdown;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -17,13 +19,13 @@ namespace MdExplorer.Service.Controllers
     public class WriteMDController : ControllerBase
     {
         private static object lockAccessToFileMD = new object();
-        private readonly FileSystemWatcher _fileSystemWatcher;        
+        private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ICommandRunnerMD _commandRunner;
 
         public WriteMDController(FileSystemWatcher fileSystemWatcher, ICommandRunnerMD commandRunner)
         {
             _fileSystemWatcher = fileSystemWatcher;
-            
+
             _commandRunner = commandRunner;
         }
 
@@ -32,13 +34,13 @@ namespace MdExplorer.Service.Controllers
         {
             var systemPathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             var markdown = System.IO.File.ReadAllText(systemPathFile);
-            var commandSave = (ICommandSaveMD<string,string>) _commandRunner.Commands
+            var commandSave = (ICommandSaveMD<string, string>)_commandRunner.Commands
                         .Where(_ => _.Name == "FromEmojiFloppyDiskToSaveFile").FirstOrDefault();
             var folder = Path.GetDirectoryName(systemPathFile);
             var fileName = string.Empty;
-            (markdown, fileName) = commandSave.GetMDAndFileNameToSave(markdown,"test");
+            (markdown, fileName) = commandSave.GetMDAndFileNameToSave(markdown, "test");
             fileName = folder + Path.DirectorySeparatorChar + fileName;
-            
+
             System.IO.File.WriteAllText(fileName, markdown);
 
             return Ok("Done");
@@ -46,14 +48,12 @@ namespace MdExplorer.Service.Controllers
 
         [HttpGet]
         public IActionResult SetEmojiOrderPriority(int currentNodeIndex,
-                    int? previousNodeIndex, int? nextNodeIndex, 
+                    int? previousNodeIndex, int? nextNodeIndex,
                     string pathFile,
                     int tableGameIndex)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            
-            EmojiPriorityOrderInfo info=null;
 
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -63,7 +63,6 @@ namespace MdExplorer.Service.Controllers
                 {
                     AbsolutePathFile = pathFile,
                     CurrentRoot = _fileSystemWatcher.Path,
-                    CurrentQueryRequest = ""
                 };
 
                 var param = new EmojiPriorityOrderInfo
@@ -75,22 +74,22 @@ namespace MdExplorer.Service.Controllers
                     TableGameIndex = tableGameIndex
                 };
                 // transform
-                
-                (markdown,info) = _commandRunner.Commands
-                        .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault()
+                var replaceSingleItem = (IReplaceSingleItemMD<EmojiPriorityOrderInfo>)_commandRunner.Commands
+                        .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault();
+                markdown = replaceSingleItem
                         .ReplaceSingleItem(markdown, requestInfo, param);
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write
             }
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(info);
+            return Ok("Done");
         }
 
         [HttpGet]
         public IActionResult SetEmojiPriority(int index, string pathFile, string toReplace)
         {
-            
+
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             _fileSystemWatcher.EnableRaisingEvents = false;
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
@@ -102,12 +101,11 @@ namespace MdExplorer.Service.Controllers
                 {
                     AbsolutePathFile = pathFile,
                     CurrentRoot = _fileSystemWatcher.Path,
-                    CurrentQueryRequest = ""
                 };
                 // transform
-                markdown = _commandRunner.Commands
-                        .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault()
-                        .ReplaceSingleItem(markdown, requestInfo, toReplace, index);
+                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
+                        .Where<ICommandMD>(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault<ICommandMD>();
+                markdown = replace.ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index });
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write
@@ -135,9 +133,10 @@ namespace MdExplorer.Service.Controllers
                     CurrentQueryRequest = ""
                 };
                 // transform
-                markdown = _commandRunner.Commands
-                        .Where(_=>_.Name== "FromEmojiToDynamicProcess").FirstOrDefault()
-                        .ReplaceSingleItem(markdown, requestInfo, toReplace, index);
+                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
+                        .Where<ICommandMD>(_ => _.Name == "FromEmojiToDynamicProcess").FirstOrDefault<ICommandMD>();
+                markdown = replace
+                        .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { Index = index, ToReplace = toReplace }); //toReplace, index
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write
@@ -149,7 +148,7 @@ namespace MdExplorer.Service.Controllers
 
         [HttpGet]
         public IActionResult SetCalendar(int index, string pathFile, string toReplace)
-        {            
+        {
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             _fileSystemWatcher.EnableRaisingEvents = false;
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
@@ -164,10 +163,10 @@ namespace MdExplorer.Service.Controllers
                     CurrentQueryRequest = ""
                 };
                 // transform
-
-                markdown = _commandRunner.Commands
-                        .Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault()
-                        .ReplaceSingleItem(markdown, requestInfo, toReplace, index);
+                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
+                        .Where<ICommandMD>(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault<ICommandMD>();
+                markdown = replace
+                        .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index } ); //toReplace, index
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write

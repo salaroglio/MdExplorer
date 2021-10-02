@@ -2,6 +2,7 @@
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands.FunctionParameters;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -11,13 +12,13 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.Markdown
 {
-    public class FromEmojiCalendarToDatepickerMD : FromEmojiCalendarToDatepicker, ICommandMD
+    public class FromEmojiCalendarToDatepickerMD : FromEmojiCalendarToDatepicker, ICommandMD, IReplaceSingleItemMD<EmojiReplaceInfo>
     {
         public FromEmojiCalendarToDatepickerMD(ILogger<FromEmojiCalendarToDatepickerMD> logger, IServerCache serverCache) : base(logger, serverCache)
         {
         }
 
-        public string ReplaceSingleItem(string markdown, RequestInfo requestinfo, string toReplace, int index)
+        public string ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiReplaceInfo emojiInfo) //
         {
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);
@@ -25,10 +26,10 @@ namespace MdExplorer.Features.Commands.Markdown
 
             for (int i = 0; i < matches.Count; i++)
             {
-                if (i == index)
+                if (i == emojiInfo.Index)
                 {
                     var item = matches[i];
-                    var replaceWith = $":calendar: {toReplace}";
+                    var replaceWith = $":calendar: {emojiInfo.ToReplace}";
                     var currentIndex = item.Index + currentIncrement;
                     stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, replaceWith);
                     currentIncrement += replaceWith.Length - item.Groups[0].Value.Length;
@@ -39,9 +40,9 @@ namespace MdExplorer.Features.Commands.Markdown
             return stringToReturn;
         }
 
-        public (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
-        {
-            throw new NotImplementedException();
-        }
+        //public (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 }

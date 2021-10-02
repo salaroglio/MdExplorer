@@ -41,13 +41,13 @@ $(function () {
             "&pathFile=" + currentPathFile +
             "&tableGameIndex=" + currentTableGameIndex,
             function (data) {
-                currentNode.attributes['data-md-card-index'].value = data.currentNodeIndex;
-                if (data.previousNodeIndex != null) {
-                    previousNode.attributes['data-md-card-index'].value = data.previousNodeIndex;
-                }
-                if (data.nextNodeIndex != null) {
-                    nextNode.attributes['data-md-card-index'].value = data.nextNodeIndex;
-                }
+                //currentNode.attributes['data-md-card-index'].value = data.currentNodeIndex;
+                //if (data.previousNodeIndex != null) {
+                //    previousNode.attributes['data-md-card-index'].value = data.previousNodeIndex;
+                //}
+                //if (data.nextNodeIndex != null) {
+                //    nextNode.attributes['data-md-card-index'].value = data.nextNodeIndex;
+                //}
                 // reconstruct process IDs
                 var listProcess = $("span[id*='emojiProcess']");
                 listProcess.each(function (index, element) {
