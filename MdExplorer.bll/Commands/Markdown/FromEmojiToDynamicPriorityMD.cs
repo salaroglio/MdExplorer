@@ -2,6 +2,7 @@
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands.FunctionParameters;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,8 @@ using System.Threading.Tasks;
 namespace MdExplorer.Features.Commands.Markdown
 {
     public class FromEmojiToDynamicPriorityMD : FromEmojiToDynamicPriority, ICommandMD
+        , IReplaceSingleItemMD<EmojiPriorityOrderInfo>
+        , IReplaceSingleItemMD<EmojiReplaceInfo>
     {
         private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
             // Priority
@@ -37,7 +40,7 @@ namespace MdExplorer.Features.Commands.Markdown
         /// <param name="toReplace"></param>
         /// <param name="index"></param>
         /// <returns></returns>
-        public string ReplaceSingleItem(string markdown, RequestInfo requestinfo, string toReplace, int index)
+        public string ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiReplaceInfo emojiProcess) // string toReplace, int index
         {
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);
@@ -45,10 +48,10 @@ namespace MdExplorer.Features.Commands.Markdown
 
             for (int i = 0; i < matches.Count; i++)
             {
-                if (i == index)
+                if (i == emojiProcess.Index)
                 {
                     var item = matches[i];
-                    var replaceWith = $@"{EmojiContextDictionary[toReplace]}";
+                    var replaceWith = $@"{EmojiContextDictionary[emojiProcess.ToReplace]}";
                     var currentIndex = item.Index + currentIncrement;
                     stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, replaceWith);
                     currentIncrement += replaceWith.Length - item.Groups[0].Value.Length;
@@ -66,14 +69,14 @@ namespace MdExplorer.Features.Commands.Markdown
         /// <param name="requestinfo"></param>
         /// <param name="emojiPriorityOrderInfo"></param>
         /// <returns></returns>
-        public (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
+        public string ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
         {
             var modifiedEmojiPriorityOrderInfo = new EmojiPriorityOrderInfo();
 
             var direction = GetDirection(emojiPriorityOrderInfo);
             if (direction == Direction.Stay) // non è cambiato nulla
             {
-                return (markdown, emojiPriorityOrderInfo);
+                return markdown;
             }
             // finalmente pronti a fare la replace
             var stringToReturn = markdown;
@@ -173,7 +176,7 @@ namespace MdExplorer.Features.Commands.Markdown
                 }
             }
 
-            return (stringToReturn, modifiedEmojiPriorityOrderInfo);
+            return stringToReturn;
         }
 
         private Direction GetDirection(EmojiPriorityOrderInfo emojiPriorityOrderInfo)

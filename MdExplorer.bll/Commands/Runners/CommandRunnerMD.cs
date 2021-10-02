@@ -18,13 +18,13 @@ namespace MdExplorer.Features.Commands.Runners
         }
         public ICommandMD[] Commands { get { return _commands; } }
 
-        public string ReplaceSingleItem(string markdownText, RequestInfo requestInfo, string toReplace, int index)
-        {
-            foreach (var item in _commands.OrderBy(_ => _.Priority).Where(_ => _.Enabled))
-            {
-                markdownText = item.ReplaceSingleItem(markdownText, requestInfo,toReplace,index);
-            }
-            return markdownText;
-        }
+        //public string ReplaceSingleItem(string markdownText, RequestInfo requestInfo, string toReplace, int index)
+        //{
+        //    foreach (var item in _commands.OrderBy(_ => _.Priority).Where(_ => _.Enabled))
+        //    {
+        //        markdownText = item.ReplaceSingleItem(markdownText, requestInfo,toReplace,index);
+        //    }
+        //    return markdownText;
+        //}
     }
 }
