@@ -17,14 +17,14 @@ namespace MdExplorer.Features.Commands.html
     /// </summary>
     public class FromEmojiToDynamicProcessHtml : FromEmojiToDynamicProcess, ICommandHtml
     {
-        private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {           
-            // Process
-            {":information_source:","dynamicEmojiForProcess" },
-            {":heavy_check_mark:","dynamicEmojiForProcess" },
-            {":ok:","dynamicEmojiForProcess" },
-            {":warning:","dynamicEmojiForProcess" },
-            {":construction:","dynamicEmojiForProcess" },
-        };
+        //private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {           
+        //    // Process
+        //    {":information_source:","dynamicEmojiForProcess" },
+        //    {":heavy_check_mark:","dynamicEmojiForProcess" },
+        //    {":ok:","dynamicEmojiForProcess" },
+        //    {":warning:","dynamicEmojiForProcess" },
+        //    {":construction:","dynamicEmojiForProcess" },
+        //};
 
         public FromEmojiToDynamicProcessHtml(ILogger<FromEmojiToDynamicProcessHtml> logger, IServerCache serverCache) : base(logger, serverCache)
         {
@@ -39,25 +39,19 @@ namespace MdExplorer.Features.Commands.html
                 var item = matches[i];
                 var text = item.Groups[0].Value;
                 // Gestione degli emoji per processo e priorità
-                EmojiContextDictionary.TryGetValue(text, out var found);
-                if (found != null)
-                {
+                //EmojiContextDictionary.TryGetValue(text, out var found);
+                //if (found != null)
+                //{
                     var currentIndex = $@"data-md-process-index=""{i}""";
-                    var raplaceWith = $@"<span id=""emojiProcess{i}"" {currentIndex} style=""cursor: pointer"" onclick=""{found}(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
+                    var raplaceWith = $@"<span id=""emojiProcess{i}"" {currentIndex} style=""cursor: pointer"" onclick=""dynamicEmojiForProcess(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
                     (stringToReturn,currentIncrement) = ManageReplaceOnMD( stringToReturn,  currentIncrement, item, raplaceWith);
-                }               
+                //}               
             }
             
             return stringToReturn;
         }
 
-        private  (string,int) ManageReplaceOnMD(string stringToReturn, int currentIncrement, Match item, string raplaceWith)
-        {
-            var currentIndex = item.Index + currentIncrement;
-            stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, raplaceWith);
-            currentIncrement += raplaceWith.Length - item.Groups[0].Value.Length;
-            return (stringToReturn, currentIncrement);
-        }
+        
 
 
 

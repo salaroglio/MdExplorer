@@ -28,6 +28,23 @@ namespace MdExplorer.Service.Controllers
         }
 
         [HttpGet]
+        public IActionResult ActivateSaveCopy(string pathFile)
+        {
+            var systemPathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
+            var markdown = System.IO.File.ReadAllText(systemPathFile);
+            var commandSave = (ICommandSaveMD<string,string>) _commandRunner.Commands
+                        .Where(_ => _.Name == "FromEmojiFloppyDiskToSaveFile").FirstOrDefault();
+            var folder = Path.GetDirectoryName(systemPathFile);
+            var fileName = string.Empty;
+            (markdown, fileName) = commandSave.GetMDAndFileNameToSave(markdown,"test");
+            fileName = folder + Path.DirectorySeparatorChar + fileName;
+            
+            System.IO.File.WriteAllText(fileName, markdown);
+
+            return Ok("Done");
+        }
+
+        [HttpGet]
         public IActionResult SetEmojiOrderPriority(int currentNodeIndex,
                     int? previousNodeIndex, int? nextNodeIndex, 
                     string pathFile,

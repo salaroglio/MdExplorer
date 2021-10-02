@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class FromEmojiToDynamicProcess : ICommand, IDisposable
+    public class FromEmojiToDynamicProcess :CommandBase, ICommand, IDisposable
     {
         protected readonly ILogger<FromEmojiToDynamicProcess> _logger;
         protected readonly IServerCache _serverCache;

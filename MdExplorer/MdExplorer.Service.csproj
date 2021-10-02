@@ -32,6 +32,7 @@
   <ItemGroup>
     <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
+    <Content Remove="wwwroot\assets\TOC.png" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.min.css" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css" />
@@ -126,6 +127,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
+    <EmbeddedResource Include="wwwroot\assets\TOC.png" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.min.css" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css" />
