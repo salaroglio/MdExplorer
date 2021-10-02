@@ -12,6 +12,6 @@ namespace MdExplorer.Features.Interfaces
     public interface ICommandMD:ICommand
     {
         string ReplaceSingleItem(string markdown, RequestInfo requestinfo, string toReplace, int index) ;
-        (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo);
+        (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo);        
     }
 }

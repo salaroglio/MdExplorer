@@ -1,4 +1,10 @@
-﻿
+﻿// gestione del floppy_disk e salvataggio
+function activateSaveCopy(el, path) {
+    $.get("/api/WriteMD/ActivateSaveCopy?pathFile=" + path, function () {
+        alert('done');
+        });
+}
+
 // gestione del sortable dentro le icone di priorità
 $(function () {
     $(".sortable").sortable();

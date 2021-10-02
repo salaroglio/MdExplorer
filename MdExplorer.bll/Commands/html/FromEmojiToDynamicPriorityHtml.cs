@@ -101,13 +101,7 @@ namespace MdExplorer.Features.Commands.html
             return stringToReturn;
         }
 
-        private (string, int) ManageReplaceOnMD(string stringToReturn, int currentIncrement, Match item, string raplaceWith)
-        {
-            var currentIndex = item.Index + currentIncrement;
-            stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, raplaceWith);
-            currentIncrement += raplaceWith.Length - item.Groups[0].Value.Length;
-            return (stringToReturn, currentIncrement);
-        }
+        
 
         public override string TransformAfterConversion(string html, RequestInfo requestInfo)
         {

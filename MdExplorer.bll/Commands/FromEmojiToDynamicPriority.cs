@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class FromEmojiToDynamicPriority : ICommand, IDisposable
+    public class FromEmojiToDynamicPriority : CommandBase, ICommand, IDisposable
     {
         protected readonly ILogger<FromEmojiToDynamicPriority> _logger;
         protected readonly IServerCache _serverCache;

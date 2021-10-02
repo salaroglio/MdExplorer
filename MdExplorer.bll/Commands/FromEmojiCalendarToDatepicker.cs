@@ -21,7 +21,7 @@ namespace MdExplorer.Features.Commands
     /// The calendar feature is composed of javascript part and bootstrap-calendar part
     /// So, you have to integrate your knoledge with MdExplorerService javascript
     /// </summary>
-    public class FromEmojiCalendarToDatepicker : ICommand, IDisposable
+    public class FromEmojiCalendarToDatepicker : CommandBase,ICommand, IDisposable
     {
         protected readonly ILogger<FromEmojiCalendarToDatepicker> _logger;
         protected readonly IServerCache _serverCache;
@@ -90,12 +90,6 @@ namespace MdExplorer.Features.Commands
             return stringToReturn;
         }
 
-        private (string, int) ManageReplaceOnMD(string stringToReturn, int currentIncrement, Match item, string raplaceWith)
-        {
-            var currentIndex = item.Index + currentIncrement;
-            stringToReturn = stringToReturn.Remove(currentIndex, item.Groups[0].Value.Length).Insert(currentIndex, raplaceWith);
-            currentIncrement += raplaceWith.Length - item.Groups[0].Value.Length;
-            return (stringToReturn, currentIncrement);
-        }
+       
     }
 }
