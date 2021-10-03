@@ -1,7 +1,5 @@
-﻿using Ad.Tools.Dal.Abstractions.Interfaces;
-using MdExplorer.Abstractions.DB;
+﻿using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
-using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
@@ -11,16 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NHibernate;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace MdExplorer.Service.Controllers
 {
@@ -90,7 +83,6 @@ namespace MdExplorer.Service.Controllers
                     
                 };
 
-
                 readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
                 readText = _commandRunner.PrepareMetadataBasedOnMD(readText, requestInfo);
 
@@ -112,7 +104,6 @@ namespace MdExplorer.Service.Controllers
                     RelativePath = currentFilePdfPath.Replace(_fileSystemWatcher.Path, string.Empty),
                     ConnectionId = connectionId,
                     StartExportTime = DateTime.Now
-
                 };
 
                 processStarted.Exited += ProcessStarted_Exited;

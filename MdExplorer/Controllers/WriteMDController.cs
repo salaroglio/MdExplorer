@@ -104,7 +104,7 @@ namespace MdExplorer.Service.Controllers
                 };
                 // transform
                 var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
-                        .Where<ICommandMD>(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault<ICommandMD>();
+                        .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault();
                 markdown = replace.ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index });
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
@@ -134,7 +134,7 @@ namespace MdExplorer.Service.Controllers
                 };
                 // transform
                 var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
-                        .Where<ICommandMD>(_ => _.Name == "FromEmojiToDynamicProcess").FirstOrDefault<ICommandMD>();
+                        .Where(_ => _.Name == "FromEmojiToDynamicProcess").FirstOrDefault();
                 markdown = replace
                         .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { Index = index, ToReplace = toReplace }); //toReplace, index
                 System.IO.File.WriteAllText(systePathFile, markdown);
@@ -164,7 +164,7 @@ namespace MdExplorer.Service.Controllers
                 };
                 // transform
                 var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
-                        .Where<ICommandMD>(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault<ICommandMD>();
+                        .Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
                 markdown = replace
                         .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index } ); //toReplace, index
                 System.IO.File.WriteAllText(systePathFile, markdown);
