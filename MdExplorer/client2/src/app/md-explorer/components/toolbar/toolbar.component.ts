@@ -72,6 +72,13 @@ export class ToolbarComponent implements OnInit {
       .subscribe(data => { console.log(data) });
   }
 
+  private sendExporEmailRequest(data, objectThis: ToolbarComponent) {
+    debugger;
+    const url = '../api/mdexportemail/' + objectThis.relativePath + '?connectionId=' + data;
+    return objectThis.http.get(url)
+      .subscribe(data => { console.log(data) });
+  }
+
   private showPdfIsready(data: any, objectThis: ToolbarComponent) {
     let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds , "Open folder", { duration: 5000, verticalPosition: 'top' });
     snackRef.onAction().subscribe(() => {
@@ -97,6 +104,11 @@ export class ToolbarComponent implements OnInit {
   Export() {
     this._snackBar.open("Export request queued!",null ,{ duration: 2000, verticalPosition: 'top' });
     this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
+  }
+
+  ExportEmail() {
+    this._snackBar.open("Email queued!", null, { duration: 2000, verticalPosition: 'top' });
+    this.monitorMDService.getConnectionId(this.sendExporEmailRequest, this);
   }
    
 }

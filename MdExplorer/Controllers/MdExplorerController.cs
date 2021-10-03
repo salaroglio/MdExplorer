@@ -1,8 +1,5 @@
-﻿using Ad.Tools.Dal.Abstractions.Interfaces;
-using HtmlAgilityPack;
-using Markdig;
+﻿using Markdig;
 using Markdig.Extensions.JiraLinks;
-using Markdig.Renderers;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
@@ -11,22 +8,17 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NHibernate;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 using System.Xml;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Commands;
 using MdExplorer.Service.Controllers;
-using MdExplorer.Features.Interfaces;
 using MdExplorer.Abstractions.DB;
+
 
 namespace MdExplorer.Controllers
 {
@@ -34,11 +26,11 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        public MdExplorerController(ILogger<MdExplorerController> logger, 
-            FileSystemWatcher fileSystemWatcher, 
-            IOptions<MdExplorerAppSettings> options, 
+        public MdExplorerController(ILogger<MdExplorerController> logger,
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
-            IUserSettingsDB session, 
+            IUserSettingsDB session,
             IEngineDB engineDB,
             ICommandRunnerHtml commandRunner
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
@@ -62,7 +54,7 @@ namespace MdExplorer.Controllers
             {
                 var filePathSystem = string.Concat(rootPathSystem, relativePathFileSystem);
                 var data = System.IO.File.ReadAllBytes(filePathSystem);
-                var currentContetType = $"image/{relativePathExtension.Replace(".",string.Empty)}";
+                var currentContetType = $"image/{relativePathExtension.Replace(".", string.Empty)}";
                 if (relativePathExtension == ".pdf")
                 {
                     currentContetType = $"application/{relativePathExtension}";
@@ -124,20 +116,22 @@ namespace MdExplorer.Controllers
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
-            
 
-            StringWriter tw = new StringWriter();
-            var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
+
+            //StringWriter tw = new StringWriter();
+            //var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
 
             // <a onClick=""toggleMdCanvas()"" href=""#""><img src=""/assets/draw.png"" /></a>
 
             var resultToToc = $@"<div>{result}</div>";
 
-
+            // da migliorare fa conflitto con la gestione della TOC
+            //< div class=""col-1"" id=""stickyButtons"">
+            //                   <div class=""sticky-top"">Test</div>
+            //               </div>
             var resultToParse = $@"
                     <div class=""container"">
                         <div class=""row"">
-                           
                             <div id=""page"" class=""col-9"">
                     {result}
                             </div>  
@@ -161,7 +155,7 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
-           //System.IO.File.WriteAllText(@"test.html", doc1.InnerXml);
+            //System.IO.File.WriteAllText(@"test.html", doc1.InnerXml);
 
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
@@ -187,7 +181,7 @@ namespace MdExplorer.Controllers
             foreach (XmlNode h in hList)
             {
                 var currentLevel = Convert.ToInt32(h.Name.Substring(1));
-                if (currentLevel >lastLevel )
+                if (currentLevel > lastLevel)
                 {
                     toReturn += "<ul>";
                     toReturn += "<li>";
@@ -195,7 +189,7 @@ namespace MdExplorer.Controllers
                     toReturn += "</li>";
                     distanceToCloseH++;
                 }
-                else if(lastLevel == currentLevel)
+                else if (lastLevel == currentLevel)
                 {
                     toReturn += "<li>";
                     toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
@@ -203,15 +197,15 @@ namespace MdExplorer.Controllers
                 }
                 else if (currentLevel < lastLevel)
                 {
-                    for (int i = 0; i < lastLevel-currentLevel; i++)
+                    for (int i = 0; i < lastLevel - currentLevel; i++)
                     {
                         toReturn += "</ul>";
                         distanceToCloseH--;
-                    }                    
+                    }
                     toReturn += "<li>";
                     toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
                     toReturn += "</li>";
-                    
+
                 }
                 lastLevel = currentLevel;
             }

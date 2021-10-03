@@ -56,5 +56,4 @@ namespace MdExplorer.Features.Commands.Markdown
         public int Index { get; set; }
         public string ToReplace { get; set; }
     }
-
 }
