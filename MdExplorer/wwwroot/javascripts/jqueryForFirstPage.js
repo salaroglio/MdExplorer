@@ -93,7 +93,9 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
         $('#' + el.id).datepicker('show');
     } else { // il datepicker non esiste, lo creo e lo inizializzo
         var currentDatePicker = $('#' + el.id).datepicker({
-            format: dateformat //'dd-mm-yyyy'
+            format: dateformat, //'dd-mm-yyyy'
+            todayHighlight: true,
+            todayBtn:"linked"
         });
 
         currentDatePicker.on('changeDate', function (ev) {
