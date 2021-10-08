@@ -11,4 +11,9 @@ namespace MdExplorer.Features.Interfaces.ICommandsSpecificContext
     {
         string ReplaceSingleItem(string markdown, RequestInfo requestinfo, T emojiPriorityOrderInfo);
     }
+
+    public interface IReplaceSingleItemMD<in T, U>
+    {
+        (string,U) ReplaceSingleItem(string markdown, RequestInfo requestinfo, T emojiPriorityOrderInfo);
+    }
 }

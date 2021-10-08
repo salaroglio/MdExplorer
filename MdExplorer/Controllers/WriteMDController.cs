@@ -54,6 +54,7 @@ namespace MdExplorer.Service.Controllers
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
+            EmojiPriorityOrderInfo info = null;
 
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -74,16 +75,16 @@ namespace MdExplorer.Service.Controllers
                     TableGameIndex = tableGameIndex
                 };
                 // transform
-                var replaceSingleItem = (IReplaceSingleItemMD<EmojiPriorityOrderInfo>)_commandRunner.Commands
+                var replaceSingleItem = (IReplaceSingleItemMD<EmojiPriorityOrderInfo, EmojiPriorityOrderInfo>)_commandRunner.Commands
                         .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault();
-                markdown = replaceSingleItem
+                (markdown, info) = replaceSingleItem
                         .ReplaceSingleItem(markdown, requestInfo, param);
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write
             }
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok("Done");
+            return Ok(info);
         }
 
         [HttpGet]
