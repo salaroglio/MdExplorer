@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace MdExplorer.Features.Commands.Markdown
 {
     public class FromEmojiToDynamicPriorityMD : FromEmojiToDynamicPriority, ICommandMD
-        , IReplaceSingleItemMD<EmojiPriorityOrderInfo>
+        , IReplaceSingleItemMD<EmojiPriorityOrderInfo, EmojiPriorityOrderInfo>
         , IReplaceSingleItemMD<EmojiReplaceInfo>
     {
         private Dictionary<string, string> EmojiContextDictionary = new Dictionary<string, string>() {
@@ -69,14 +69,14 @@ namespace MdExplorer.Features.Commands.Markdown
         /// <param name="requestinfo"></param>
         /// <param name="emojiPriorityOrderInfo"></param>
         /// <returns></returns>
-        public string ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
+        public (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
         {
             var modifiedEmojiPriorityOrderInfo = new EmojiPriorityOrderInfo();
 
             var direction = GetDirection(emojiPriorityOrderInfo);
             if (direction == Direction.Stay) // non è cambiato nulla
             {
-                return markdown;
+                return (markdown, emojiPriorityOrderInfo);
             }
             // finalmente pronti a fare la replace
             var stringToReturn = markdown;
@@ -176,7 +176,7 @@ namespace MdExplorer.Features.Commands.Markdown
                 }
             }
 
-            return stringToReturn;
+            return (stringToReturn, modifiedEmojiPriorityOrderInfo);
         }
 
         private Direction GetDirection(EmojiPriorityOrderInfo emojiPriorityOrderInfo)
