@@ -123,11 +123,11 @@ namespace MdExplorer.Controllers
             var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == filePathSystem1).FirstOrDefault();
 
             var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""" ;
-
+            var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
             var resultToParse = $@"
                     <div class=""container"">
                         <div class=""row"">
-                            <div id=""page"" class=""col-9"">
+                            <div id=""page"" {classForMain}>
                     {result}
                             </div>  
                             <div id=""TOC"" {styleForToc} >
