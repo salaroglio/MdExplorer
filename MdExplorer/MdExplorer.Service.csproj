@@ -109,6 +109,7 @@
     <None Remove="EmojiForPandoc\warning.png" />
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
+    <None Remove="reference.docx" />
   </ItemGroup>
 
   <ItemGroup>
@@ -137,6 +138,7 @@
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="reference.docx" />
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\assets\TOC.png" />
