@@ -18,7 +18,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Commands;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Abstractions.DB;
-
+using System.Web;
 
 namespace MdExplorer.Controllers
 {
@@ -117,25 +117,20 @@ namespace MdExplorer.Controllers
 
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
-
-            //StringWriter tw = new StringWriter();
-            //var markDownDocument = Markdown.ToHtml(readText, tw, pipeline);
-
-            // <a onClick=""toggleMdCanvas()"" href=""#""><img src=""/assets/draw.png"" /></a>
-
             var resultToToc = $@"<div>{result}</div>";
 
-            // da migliorare fa conflitto con la gestione della TOC
-            //< div class=""col-1"" id=""stickyButtons"">
-            //                   <div class=""sticky-top"">Test</div>
-            //               </div>
+            var docSettingDal = _session.GetDal<DocumentSetting>();
+            var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == filePathSystem1).FirstOrDefault();
+
+            var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""" ;
+
             var resultToParse = $@"
                     <div class=""container"">
                         <div class=""row"">
                             <div id=""page"" class=""col-9"">
                     {result}
                             </div>  
-                            <div id=""TOC"" class=""col-3"">
+                            <div id=""TOC"" {styleForToc} >
                                 <div class=""sticky-top"">
                                 <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
                                 {CreateToc(resultToToc)} 
@@ -146,7 +141,7 @@ namespace MdExplorer.Controllers
                     
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1);
+            CreateHTMLBody(resultToParse, doc1, filePathSystem1);
 
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
@@ -219,7 +214,7 @@ namespace MdExplorer.Controllers
             return toReturn;
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1)
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)
         {
             var html = doc1.CreateElement("html");
 
@@ -245,7 +240,7 @@ namespace MdExplorer.Controllers
             <link rel=""stylesheet"" href=""/common.css"" />            
             <script src=""/common.js""></script>";
             AddButtonOnTopPage(doc1, body, "toggleMdCanvas()", "/assets/draw.png");
-            AddButtonOnTopPage(doc1, body, "toggleTOC()", "/assets/TOC.png");
+            AddButtonOnTopPage(doc1, body, $"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
 
             body.InnerXml += resultToParse;
         }

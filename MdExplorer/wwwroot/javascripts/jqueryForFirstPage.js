@@ -220,7 +220,9 @@ function filterToc() {
     }
 }
 
-function toggleTOC() {
+function toggleTOC(documentPath) {
+    
+    var showToc = false;
     if ($('#TOC').is(":hidden")) {
         
         var $page = $('#page');
@@ -231,15 +233,21 @@ function toggleTOC() {
             $toc.show();
             
         }, 500);
-        
+        showToc = true;
+
     } else {
         var $toc = $('#TOC');
         $toc.hide();
         $toc.removeAttr('class');
         var $page = $('#page');
-        $page.attr('class', 'col-12');                
+        $page.attr('class', 'col-12');
+        showToc = false;
     }
     
+    
+    $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
+        console.log(data);
+    });
 }
 
 // gestione della matitina per evidenziare la pagina

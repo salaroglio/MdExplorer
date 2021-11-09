@@ -81,6 +81,7 @@ namespace MdExplorer
             var directory =$"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md" ;
             var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
             Directory.CreateDirectory(directory);
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
             Directory.CreateDirectory(directoryEmoji);
 
             var assembly = Assembly.GetExecutingAssembly();
@@ -94,7 +95,8 @@ namespace MdExplorer
                 FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
             }
 
-            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}eisvogel.tex");            
+            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}eisvogel.tex");
+            FileUtil.ExtractResFile("MdExplorer.Service.reference.docx", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}reference.docx");
         }
 
         private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)
@@ -109,9 +111,9 @@ namespace MdExplorer
                 }
             }
             LogStartup(defaultPath);
-            services.AddSingleton<FileSystemWatcher>(new FileSystemWatcher { Path = defaultPath });
+            services.AddSingleton(new FileSystemWatcher { Path = defaultPath });
             var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
-            services.AddSingleton<FileSystemWatcher>(_fileSystemWatcher);
+            services.AddSingleton(_fileSystemWatcher);
             return services;
         }
 

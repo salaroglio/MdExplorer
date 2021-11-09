@@ -17,4 +17,16 @@
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="WordTests\FilesDocx\PrimaPaginaTitolo.docx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="WordTests\FilesDocx\Test1.docx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="WordTests\FilesDocx\testobase.docx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

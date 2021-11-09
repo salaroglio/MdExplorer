@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace MdExplorer.Service.Controllers
 {
@@ -19,12 +20,12 @@ namespace MdExplorer.Service.Controllers
     public class AppSettingsController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IUserSettingsDB _session;
+        private readonly IUserSettingsDB _session;        
 
         public AppSettingsController(FileSystemWatcher fileSystemWatcher, IUserSettingsDB session)
         {
             _fileSystemWatcher = fileSystemWatcher;
-            _session = session;
+            _session = session;            
         }
 
         [HttpGet]
@@ -105,5 +106,22 @@ namespace MdExplorer.Service.Controllers
             return Ok(new { message = "self-destruct activated" });
         }
 
+        [HttpGet]
+        public IActionResult ShowToc(string documentPathEncoded, bool showToc)
+        {
+            var docPathDecoded = HttpUtility.UrlDecode(documentPathEncoded);
+            
+            var docSettDal = _session.GetDal<DocumentSetting>();
+            var docSett = docSettDal.GetList().Where(_ => _.DocumentPath == docPathDecoded)
+                .FirstOrDefault() ?? new DocumentSetting { DocumentPath = docPathDecoded};
+            docSett.ShowTOC = showToc;
+
+            _session.BeginTransaction();
+            docSettDal.Save(docSett);
+            _session.Commit();
+            return Ok(new { message = "done" });
         }
+
+
+    }
 }
