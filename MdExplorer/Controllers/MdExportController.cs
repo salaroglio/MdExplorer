@@ -128,7 +128,7 @@ namespace MdExplorer.Service.Controllers
             currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{format}");
             System.IO.File.WriteAllText(currentFilePath, readText);
             var setPdf = format == "pdf" ? $@"--pdf-engine=pdflatex --template=.\.md\eisvogel.tex" : string.Empty;
-            var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown {setPdf}";
+            var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown+implicit_figures {setPdf}";
             var finalCommand = $"/c {processCommand}";
             var processToStart = new ProcessStartInfo("cmd", finalCommand)
             {

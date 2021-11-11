@@ -66,11 +66,14 @@ namespace MdExplorer.Features.Commands
             string backPath = _helper.GetBackPath(requestInfo);
             foreach (Match itemMatch in matches)
             {
+
                 XmlDocument doc = new XmlDocument();
 
                 var stringMatched0 = itemMatch.Groups[1].Value;
-                var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.svg";
-                doc.Load($".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatched0}.svg");
+                //var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.svg";
+                var currentSvg = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatched0}.svg";
+                var currentPng = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatched0}.png";
+                doc.Load(currentSvg);
                 var nodeToParse = doc.LastChild;
                 XmlNamespaceManager m = new XmlNamespaceManager(doc.NameTable);
                 m.AddNamespace("myns", "http://www.w3.org/2000/svg");
@@ -88,6 +91,14 @@ namespace MdExplorer.Features.Commands
                     }
                 }
                 var toReplace = nodeToParse.OuterXml;
+                var linkToPng = $@"{stringMatched0}.svg";
+                var orribleHTMLBefore = @"<div class=""img-wrapper"">";
+                var orribleHTMLAfter = $@"<div class=""img-overlay"">
+                                              <button alt=""copy into clipboard"" onclick=""copyToClipboard('/api/mdexplorer/{currentPng}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/clipboard.png""/></button>
+                                          </div>
+                                        </div>";
+                toReplace = string.Concat(orribleHTMLBefore, toReplace, orribleHTMLAfter);
+
                 html = html.Replace(itemMatch.Groups[0].Value, toReplace);
             }
             return html;
@@ -95,9 +106,9 @@ namespace MdExplorer.Features.Commands
 
         /// <summary>
         /// La funzione chiama il server plantuml
-        /// che gli restituisce una immagine png, 
+        /// che gli restituisce una immagine SVG, 
         /// fa l'hash, lo salva come png dentro una directory .Md, 
-        /// e mette riferimento in markdown al png
+        /// e mette riferimento in markdown al SVG
         /// </summary>
         /// <param name="markdown"></param>
         /// <returns></returns>
@@ -112,14 +123,23 @@ namespace MdExplorer.Features.Commands
             {
                 var text = item.Groups[1].Value;
                 var textHash = _helper.GetHashString(text, Encoding.UTF8);
-                var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.svg"; //text.GetHashCode()
-                if (!File.Exists(filePath))
+                var filePathSvg = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.svg"; //text.GetHashCode()
+                if (!File.Exists(filePathSvg))
                 {
                     var taskSvg = _plantumlServer.GetSvgFromJar(text);
                     taskSvg.Wait();
                     var res = taskSvg.Result;
-                    File.WriteAllBytes(filePath, res);
-                    _logger.LogInformation($"write file: {filePath}");
+                    File.WriteAllBytes(filePathSvg, res);
+                    _logger.LogInformation($"write file: {filePathSvg}");
+                }
+                var filePathPng = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png";
+                if (!File.Exists(filePathPng))
+                {
+                    var taskSvg = _plantumlServer.GetPngFromJar(text);
+                    taskSvg.Wait();
+                    var res = taskSvg.Result;
+                    File.WriteAllBytes(filePathPng, res);
+                    _logger.LogInformation($"write file: {filePathSvg}");
                 }
 
                 var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.svg";
