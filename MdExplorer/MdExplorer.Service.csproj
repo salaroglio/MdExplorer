@@ -30,6 +30,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\assets\clipboard.png" />
+    <Content Remove="wwwroot\assets\ConnectionLost.png" />
     <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\assets\TOC.png" />
@@ -146,6 +148,8 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="reference.docx" />
+    <EmbeddedResource Include="wwwroot\assets\clipboard.png" />
+    <EmbeddedResource Include="wwwroot\assets\ConnectionLost.png" />
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\assets\TOC.png" />

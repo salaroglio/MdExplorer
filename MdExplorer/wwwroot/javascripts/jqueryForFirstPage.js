@@ -319,3 +319,16 @@ function draw(e) {
 
     ctx.stroke(); // draw it!
 }
+
+//Gestione Clipboard *************
+async function copyToClipboard(objectThis) {    
+    const response = await fetch(objectThis);  //'/assets/ConnectionLost.png'
+    const blob = await response.blob();
+    setToClipboard(blob);
+}
+
+const setToClipboard = async blob => {
+    const data = [new ClipboardItem({ [blob.type]: blob })];
+    await navigator.clipboard.write(data);
+}
+// *******************************
