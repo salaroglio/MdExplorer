@@ -23,6 +23,7 @@
 
 .img-wrapper {
     position: relative;
+    width: auto;
 }
 
 .img-responsive {

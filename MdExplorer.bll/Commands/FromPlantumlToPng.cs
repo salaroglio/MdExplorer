@@ -29,10 +29,10 @@ namespace MdExplorer.Features.Commands
 
 
         private readonly string _serverAddress;
-        private readonly ILogger<FromPlantumlToPng> _logger;
+        protected readonly ILogger<FromPlantumlToPng> _logger;
         private readonly IUserSettingsDB _session;
-        private readonly PlantumlServer _plantumlServer;
-        private readonly IHelper _helper;
+        protected readonly PlantumlServer _plantumlServer;
+        protected readonly IHelper _helper;
 
         public bool Enabled { get; set; } = false;
 

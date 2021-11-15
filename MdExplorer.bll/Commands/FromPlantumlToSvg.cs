@@ -26,7 +26,7 @@ namespace MdExplorer.Features.Commands
 
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 20;
-        public string Name { get; set; } = "FromPlantumlToPng";
+        public string Name { get; set; } = "FromPlantumlToSvg";
         public FromPlantumlToSvg(string ServerAddress,
                 ILogger<FromPlantumlToSvg> logger,
                 IUserSettingsDB session,
@@ -69,10 +69,10 @@ namespace MdExplorer.Features.Commands
 
                 XmlDocument doc = new XmlDocument();
 
-                var stringMatched0 = itemMatch.Groups[1].Value;
+                var stringMatchedHash = itemMatch.Groups[1].Value;
                 //var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.svg";
-                var currentSvg = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatched0}.svg";
-                var currentPng = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatched0}.png";
+                var currentSvg = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.svg";
+                var currentPng = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.png";
                 doc.Load(currentSvg);
                 var nodeToParse = doc.LastChild;
                 XmlNamespaceManager m = new XmlNamespaceManager(doc.NameTable);
@@ -90,11 +90,19 @@ namespace MdExplorer.Features.Commands
                         }
                     }
                 }
+                var listOfComment = nodeToParse.SelectNodes("//comment()");
+                var filteredCommentThatContainAnimation = listOfComment.Cast<XmlComment>().Where(_ => _.Data.Contains("MdExplorerAnimatedSVG"));
+                var stringToPutInside = string.Empty;
+                if (filteredCommentThatContainAnimation.Count()>0)
+                {
+                    stringToPutInside = $@"<button id=""forwardArrow{stringMatchedHash}"" data-step=""1"" onclick=""presentationSVG('{requestInfo.CurrentQueryRequest}','{stringMatchedHash}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/green_right_arrow.png""/></button>";
+                }
                 var toReplace = nodeToParse.OuterXml;
-                var linkToPng = $@"{stringMatched0}.svg";
-                var orribleHTMLBefore = @"<div class=""img-wrapper"">";
+                var linkToPng = $@"{stringMatchedHash}.svg";
+                var orribleHTMLBefore = $@"<div id=""{stringMatchedHash}"" class=""img-wrapper"">";
                 var orribleHTMLAfter = $@"<div class=""img-overlay"">
-                                              <button alt=""copy into clipboard"" onclick=""copyToClipboard('/api/mdexplorer/{currentPng}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/clipboard.png""/></button>
+                                              <button alt=""copy into clipboard"" onclick=""copyToClipboard('/api/mdexplorer/{currentPng}','{requestInfo.CurrentQueryRequest}','{stringMatchedHash}',0)"" class=""btn btn-md btn-primary-outline""><img src=""/assets/clipboard.png""/></button>
+                                              {stringToPutInside}
                                           </div>
                                         </div>";
                 toReplace = string.Concat(orribleHTMLBefore, toReplace, orribleHTMLAfter);
@@ -130,15 +138,6 @@ namespace MdExplorer.Features.Commands
                     taskSvg.Wait();
                     var res = taskSvg.Result;
                     File.WriteAllBytes(filePathSvg, res);
-                    _logger.LogInformation($"write file: {filePathSvg}");
-                }
-                var filePathPng = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png";
-                if (!File.Exists(filePathPng))
-                {
-                    var taskSvg = _plantumlServer.GetPngFromJar(text);
-                    taskSvg.Wait();
-                    var res = taskSvg.Result;
-                    File.WriteAllBytes(filePathPng, res);
                     _logger.LogInformation($"write file: {filePathSvg}");
                 }
 
