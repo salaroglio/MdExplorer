@@ -2,7 +2,7 @@
 function activateSaveCopy(el, path) {
     $.get("/api/WriteMD/ActivateSaveCopy?pathFile=" + path, function () {
         alert('done');
-        });
+    });
 }
 
 // gestione del sortable dentro le icone di priorità
@@ -95,7 +95,7 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
         var currentDatePicker = $('#' + el.id).datepicker({
             format: dateformat, //'dd-mm-yyyy'
             todayHighlight: true,
-            todayBtn:"linked"
+            todayBtn: "linked"
         });
 
         currentDatePicker.on('changeDate', function (ev) {
@@ -221,17 +221,17 @@ function filterToc() {
 }
 
 function toggleTOC(documentPath) {
-    
+
     var showToc = false;
     if ($('#TOC').is(":hidden")) {
-        
+
         var $page = $('#page');
         $page.attr('class', 'col-9');
         setTimeout(function () {
             var $toc = $('#TOC');
             $toc.attr('class', 'col-3');
             $toc.show();
-            
+
         }, 500);
         showToc = true;
 
@@ -243,8 +243,8 @@ function toggleTOC(documentPath) {
         $page.attr('class', 'col-12');
         showToc = false;
     }
-    
-    
+
+
     $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
         console.log(data);
     });
@@ -321,7 +321,12 @@ function draw(e) {
 }
 
 //Gestione Clipboard *************
-async function copyToClipboard(objectThis) {    
+async function copyToClipboard(objectThis, relativePathFile, hashFile, step) {
+    const test = await $.get("/api/plantumlextensions/GetPng?pathFile=" + relativePathFile +
+        "&hashFile=" + hashFile +
+        "&step=" + step, function (data) {
+            console.log(data);
+        });
     const response = await fetch(objectThis);  //'/assets/ConnectionLost.png'
     const blob = await response.blob();
     setToClipboard(blob);
@@ -332,3 +337,32 @@ const setToClipboard = async blob => {
     await navigator.clipboard.write(data);
 }
 // *******************************
+
+//Gestione presentazione Plantuml
+
+async function presentationSVG(relativePathFile, hashFile) {    
+    var $forwardArrow = $('#forwardArrow' + hashFile);
+    var trueStep = parseInt($forwardArrow.attr("data-step"));
+    const result = await $.get("/api/plantumlextensions/PresentationSVG?pathFile=" + relativePathFile +
+        "&hashFile=" + hashFile +
+        "&step=" + trueStep);
+
+    var totalStep = result.totalStep;
+    const response = await fetch(result.generatedFileName);
+    const text = await response.text();
+    var nodeSvg = $.parseHTML(text);
+    var $parent = $('#' + hashFile);
+    var mySvg = $parent.find('svg'); // svg
+    //var mySvg = childrens[0];
+    mySvg.remove();
+    
+    $parent.append(nodeSvg);
+    var $forwardArrow = $('#forwardArrow' + hashFile);
+    trueStep = trueStep + 1;
+    if (trueStep > totalStep) {
+        trueStep = 0;
+    }
+    $forwardArrow.attr('data-step', trueStep);
+}
+
+//presentationSVG
