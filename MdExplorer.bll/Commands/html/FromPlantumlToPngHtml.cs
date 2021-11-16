@@ -54,7 +54,7 @@ namespace MdExplorer.Features.Commands.html
             return $"{hashFile}.png";
         }
 
-        public (string,int) GetPresentationSvg(string markdown, string hashFile, int step, RequestInfo requestInfo)
+        public (string, int) GetPresentationSvg(string markdown, string hashFile, int step, RequestInfo requestInfo)
         {
             var hashPresentationToReturn = string.Empty;
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
@@ -70,20 +70,45 @@ namespace MdExplorer.Features.Commands.html
                     (var matchesMd, var matchesStep) = GetMatchesStep(textOfOneOfPossiblePlantumlImages);
                     var firstPartPlantuml = textOfOneOfPossiblePlantumlImages.Substring(0, matchesMd[0].Groups[0].Index);
                     var presentationPlantuml = matchesMd[0].Groups[0].Value;
-
-                    var counter = 0;
+                    var calculatedPresentation = string.Empty;
+                    var completedPlantuml = string.Empty;
                     totalStep = matchesStep.Count();
-                    foreach (Match itemStep in matchesStep)
+                    var matchesStepList = matchesStep.ToList();
+
+                    foreach (var itemStep in matchesStepList)
                     {
-                        counter++;
-                        if (counter == step + 1)
+                        if (itemStep.Groups[2].Value == string.Empty)
                         {
-                            presentationPlantuml = presentationPlantuml.Substring(0, itemStep.Index);
-                            // è il momento di prendere ed uscire
-                            break; // exit from cicle of steps
+                            var stepIndex = matchesStepList.IndexOf(itemStep);
+                            if (stepIndex < matchesStepList.Count-1) // it's not the last
+                            {
+                                var nextStep = matchesStepList[stepIndex + 1];
+                                calculatedPresentation += presentationPlantuml.Substring(itemStep.Index, nextStep.Index - itemStep.Index);
+                            }
+                            else
+                            {
+                                calculatedPresentation += presentationPlantuml.Substring(itemStep.Index, presentationPlantuml.Length - itemStep.Index);
+                                completedPlantuml = firstPartPlantuml + calculatedPresentation;
+                            }
+                        }
+                        if (Convert.ToInt32(itemStep.Groups[1].Value) == step)
+                        {
+                            if (step == matchesStepList.Count)
+                            {
+                                completedPlantuml = firstPartPlantuml + calculatedPresentation;
+                                break;
+                            }
+                            else
+                            {
+                                completedPlantuml = firstPartPlantuml + calculatedPresentation + "\r\n@enduml";
+                                break;
+                            }
                         }
                     }
-                    var completedPlantuml = firstPartPlantuml + presentationPlantuml + "\r\n@enduml";
+
+
+
+                    
                     var textHashPresentation = _helper.GetHashString(completedPlantuml, Encoding.UTF8);
                     hashPresentationToReturn = textHashPresentation;
                     var filePathPng = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHashPresentation}.svg";
@@ -119,7 +144,7 @@ namespace MdExplorer.Features.Commands.html
                 }
             }
 
-            return ($".md/{hashPresentationToReturn}.svg?time={DateTime.Now.Ticks}",totalStep);
+            return ($".md/{hashPresentationToReturn}.svg?time={DateTime.Now.Ticks}", totalStep);
         }
 
         private (MatchCollection, MatchCollection) GetMatchesStep(string plantuml)
@@ -130,7 +155,7 @@ namespace MdExplorer.Features.Commands.html
             MatchCollection matchesStep = null;
             if (matchesMd.Count() > 0)
             {
-                var search = @"'Step[1-9]+";
+                var search = @"'Step([1-9]+)(Nested|End)?";
                 Regex rx1 = new Regex(search, RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
                 matchesStep = rx1.Matches(matchesMd[0].Groups[0].Value);
             }
