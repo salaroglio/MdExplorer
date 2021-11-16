@@ -359,7 +359,7 @@ async function presentationSVG(relativePathFile, hashFile) {
     $parent.append(nodeSvg);
     var $forwardArrow = $('#forwardArrow' + hashFile);
     trueStep = trueStep + 1;
-    if (trueStep > totalStep) {
+    if (trueStep >= totalStep) {
         trueStep = 0;
     }
     $forwardArrow.attr('data-step', trueStep);
