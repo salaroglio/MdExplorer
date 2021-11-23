@@ -20,8 +20,17 @@ export class MonitorMDService {
     this.hubConnection
       .start()
       .then(() => console.log('Connection started'))
-      .catch(err => console.log('Error while starting connection: ' + err))
+      .catch(err => {        
+        console.log('Error while starting connection: ' + err);
+      }
+      );    
   }
+
+  public addOnCloseEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.onclose((data) => {
+      callback(data, objectThis);
+    });
+  } 
 
   public addRefactoringFileEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('refactoringFileEvent', (data) => {
@@ -38,7 +47,7 @@ export class MonitorMDService {
   public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('markdownfileisprocessed', (data) => {
       callback(data, objectThis);
-    });   
+    });
   }
 
   public addPdfIsReadyListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
@@ -47,19 +56,19 @@ export class MonitorMDService {
     });
   }
 
-  public addConnectionIdListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
-    this.hubConnection.on('getconnectionid', (data) => {      
+  public addConnectionIdListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('getconnectionid', (data) => {
       callback(data, objectThis);
     });
   }
 
   public getConnectionId(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.invoke('GetConnectionId')
-      .then(function (connectionId) {        
-        callback(connectionId, objectThis);        
+      .then(function (connectionId) {
+        callback(connectionId, objectThis);
       });
   }
 
-  
+
 
 }

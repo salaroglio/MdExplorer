@@ -1,0 +1,1433 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="cmp15A6A8931BFF7022499E4DE5A9967EFC" Guid="*">
+                <File Id="fil6C0702E40D88D8674BB5E7A87B32D465" KeyPath="yes" Source="$(var.HarvestPath)\Ad.Tools.Dal.Abstractions.dll" />
+            </Component>
+            <Component Id="cmpF17944185780ADFE036E272DA1E890A5" Guid="*">
+                <File Id="filC5D1DC804CCA610081C995B091F7F7E0" KeyPath="yes" Source="$(var.HarvestPath)\Ad.Tools.Dal.Abstractions.pdb" />
+            </Component>
+            <Component Id="cmpD385A54CB90A76C02B3131EC38AF1A01" Guid="*">
+                <File Id="fil295E12EFD16329732BF9AB7C3D2FF954" KeyPath="yes" Source="$(var.HarvestPath)\Ad.Tools.Dal.dll" />
+            </Component>
+            <Component Id="cmp53279A98F864C074DC9B130B941D4F55" Guid="*">
+                <File Id="filF87CC176A32C3CA167279D817EB0216D" KeyPath="yes" Source="$(var.HarvestPath)\Ad.Tools.Dal.pdb" />
+            </Component>
+            <Component Id="cmp705FA606FC7F6830B84045831B1A22BF" Guid="*">
+                <File Id="fil72701489D3B9DFE2B52F1A679F2F2FCD" KeyPath="yes" Source="$(var.HarvestPath)\Ad.Tools.FluentMigrator.dll" />
+            </Component>
+            <Component Id="cmp9C00A521627877E6D767443FDCE9AA53" Guid="*">
+                <File Id="fil6306907138CC68F4F6C2F455EC62AC51" KeyPath="yes" Source="$(var.HarvestPath)\Ad.Tools.FluentMigrator.pdb" />
+            </Component>
+            <Component Id="cmp42DD8C788F3F05F7E9B33F2DBBD916F7" Guid="*">
+                <File Id="fil0C20CEF7A192F6D8E9EC04677E8875D7" KeyPath="yes" Source="$(var.HarvestPath)\Antlr3.Runtime.dll" />
+            </Component>
+            <Component Id="cmpA0863526952F7834E7C922F065E4C8A8" Guid="*">
+                <File Id="filC04B02D0CCC2D5CCC1013B35DE86DB29" KeyPath="yes" Source="$(var.HarvestPath)\appsettings.Development.json" />
+            </Component>
+            <Component Id="cmpF82FCA80BBAF44D285C97F10993DEEE6" Guid="*">
+                <File Id="fil840B80AC19861C7F9F04FBDCFAE331CE" KeyPath="yes" Source="$(var.HarvestPath)\appsettings.json" />
+            </Component>
+            <Component Id="cmpFD65F52CD5EC0B46A750F8EEFC3D4422" Guid="*">
+                <File Id="fil1F7E777B326B02F60B86F747002F8605" KeyPath="yes" Source="$(var.HarvestPath)\AutoMapper.dll" />
+            </Component>
+            <Component Id="cmpEB2E40E88926DC89EC075540B80AB621" Guid="*">
+                <File Id="filC441414431F328D12BCA0097EE3C2B3A" KeyPath="yes" Source="$(var.HarvestPath)\AutoMapper.Extensions.Microsoft.DependencyInjection.dll" />
+            </Component>
+            <Component Id="cmpCF9B3A227754E55B2A4622BDADF51333" Guid="*">
+                <File Id="fil244CDAED28510644E512EA1DBCB9390F" KeyPath="yes" Source="$(var.HarvestPath)\BouncyCastle.Crypto.dll" />
+            </Component>
+            <Component Id="cmp8E0BA9345D6467C6CE87127468E2DA60" Guid="*">
+                <File Id="fil425B2C707904C74CBB8D3C690296B481" KeyPath="yes" Source="$(var.HarvestPath)\DocumentFormat.OpenXml.dll" />
+            </Component>
+            <Component Id="cmp0BFABD100B4065787B40AA6B05938DF7" Guid="*">
+                <File Id="fil1D38723F4A034EDE78B6A3B94EFB99F2" KeyPath="yes" Source="$(var.HarvestPath)\EntityFramework.dll" />
+            </Component>
+            <Component Id="cmpB8E7B130B6B78399B39307530A3D65B2" Guid="*">
+                <File Id="fil55247FAD2E00E96001D9F9C3E501E9FA" KeyPath="yes" Source="$(var.HarvestPath)\EntityFramework.SqlServer.dll" />
+            </Component>
+            <Component Id="cmpE41B8B1DE5EED787D6579416750C43F3" Guid="*">
+                <File Id="fil05C0AD8AA88189C8B75821DE23D1176F" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Abstractions.dll" />
+            </Component>
+            <Component Id="cmpD7C66964F86767C20C5E46FDB72D06CC" Guid="*">
+                <File Id="fil4D5FF699B8AE9C1199F01D2ED3654971" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.dll" />
+            </Component>
+            <Component Id="cmp86D39C846D35404811CE8131D24A8BBA" Guid="*">
+                <File Id="fil1149CCCA594A34D906A20EF5B121FEB6" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Extensions.Oracle.dll" />
+            </Component>
+            <Component Id="cmp8E714CB9FC493196F5ECD0CF99D45E7D" Guid="*">
+                <File Id="fil89A61F24BA5DFED6D0949876E75C96DB" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Extensions.Postgres.dll" />
+            </Component>
+            <Component Id="cmp31B338A4B9A34E87AA3694F94A4DE6AB" Guid="*">
+                <File Id="fil615E1313F8D52060877B5C7CC576A5E7" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Extensions.SqlAnywhere.dll" />
+            </Component>
+            <Component Id="cmp6E77A23EBA8FC7F17B3EFDF713FC2BC9" Guid="*">
+                <File Id="fil9E3414BB9F25CB0C9DA7978AD19AA2EB" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Extensions.SqlServer.dll" />
+            </Component>
+            <Component Id="cmpCFE03BCBC74D1CD6ACE6A47DE85526CC" Guid="*">
+                <File Id="fil3700C7E9A2AD76A9904F73F5CE6A3F7E" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Core.dll" />
+            </Component>
+            <Component Id="cmp4940AAA3F63390CBEADD4945A4187C63" Guid="*">
+                <File Id="filD78C2C1354E28AC8453F50F681CA7F7F" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Db2.dll" />
+            </Component>
+            <Component Id="cmp8E1FD6C16F6203800E716031035591DB" Guid="*">
+                <File Id="fil2789FDEC430779D396B44477ECF2DD6D" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.dll" />
+            </Component>
+            <Component Id="cmpBC658FED316EB193ACB3D83D2FBF9B5D" Guid="*">
+                <File Id="filE995AC353C9CFEBA4F7820461288B7C9" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Firebird.dll" />
+            </Component>
+            <Component Id="cmpFB0F1A2DF4FE561BF720896A533FF052" Guid="*">
+                <File Id="filC2D5F83507C629E330842A31C19DED5A" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Hana.dll" />
+            </Component>
+            <Component Id="cmp936FA99595682B46FA8F7D1A3A95CBEB" Guid="*">
+                <File Id="fil13A5E0881295941C0AF058A41FA1EE00" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.MySql.dll" />
+            </Component>
+            <Component Id="cmpDD3FD9C2FADE9ACB11899EBD1DD3D821" Guid="*">
+                <File Id="fil035AD2C5C08E51AD05869D3E16244330" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Oracle.dll" />
+            </Component>
+            <Component Id="cmp63BDD5C1CADD8DA6F5B501098CC3E3E9" Guid="*">
+                <File Id="fil3FE8F2D4794FFFED21A5E17EC625DB08" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Postgres.dll" />
+            </Component>
+            <Component Id="cmp0CA3A99A6CE173F80C2A5BBB926E03C2" Guid="*">
+                <File Id="fil37340AF308C2EFF52E19460B54A5EDED" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.Redshift.dll" />
+            </Component>
+            <Component Id="cmp72DC77124E5443EEFA67231FEFC9BA96" Guid="*">
+                <File Id="fil245AD59069B52208D05A25454BEA6EFE" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.SqlAnywhere.dll" />
+            </Component>
+            <Component Id="cmpDC02640B892AD65CDC10598018D2E4B6" Guid="*">
+                <File Id="fil0C477AD1B7B5AC1B0D3C28645416E4C1" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.SQLite.dll" />
+            </Component>
+            <Component Id="cmp265CA1BA7A92D2834C55E52DC0CE1E8E" Guid="*">
+                <File Id="fil07CD72C290024E9FA8DF6FBD1C1A4F3C" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.SqlServer.dll" />
+            </Component>
+            <Component Id="cmp3C26F8E059ED2F7797F2EBA9E1CDD010" Guid="*">
+                <File Id="fil40DDD952358A4715550B77F01017B0F6" KeyPath="yes" Source="$(var.HarvestPath)\FluentMigrator.Runner.SqlServerCe.dll" />
+            </Component>
+            <Component Id="cmp730E2FFFAB351C1FBB3C16D211F149E6" Guid="*">
+                <File Id="fil82F4EB518EA8CC3FD38BEB0C241522A6" KeyPath="yes" Source="$(var.HarvestPath)\FluentNHibernate.dll" />
+            </Component>
+            <Component Id="cmp2B62C064A3ED6A94B47BE64C5EB82D9E" Guid="*">
+                <File Id="fil627F933A2694B1BED9FD06B5FDD52C93" KeyPath="yes" Source="$(var.HarvestPath)\Google.Protobuf.dll" />
+            </Component>
+            <Component Id="cmp3464F8730E573D338954EC7195CFB4A4" Guid="*">
+                <File Id="fil73F07CE42A5EF653313AD307E0E68BDC" KeyPath="yes" Source="$(var.HarvestPath)\HtmlAgilityPack.dll" />
+            </Component>
+            <Component Id="cmpAD8551805C0E384D4FD6CD718C5E8381" Guid="*">
+                <File Id="fil1300C7FBD2C9D42B5651E43A08F7DA1E" KeyPath="yes" Source="$(var.HarvestPath)\Iesi.Collections.dll" />
+            </Component>
+            <Component Id="cmpF7547A1A123654F1626E22C3BFD5A6CD" Guid="*">
+                <File Id="fil85763601D8DB17868740E5EB978FDDE1" KeyPath="yes" Source="$(var.HarvestPath)\Interop.Microsoft.Office.Interop.Outlook.dll" />
+            </Component>
+            <Component Id="cmpD511E2BCF8F59B559734BF4D3909F63F" Guid="*">
+                <File Id="filC22FEBA16F1405CE0A776689BB5EA8B7" KeyPath="yes" Source="$(var.HarvestPath)\K4os.Compression.LZ4.dll" />
+            </Component>
+            <Component Id="cmp903F8943E42EDF33CA4034159C76E511" Guid="*">
+                <File Id="filAF49F286470AB3E9ECAB13223458E98E" KeyPath="yes" Source="$(var.HarvestPath)\K4os.Compression.LZ4.Streams.dll" />
+            </Component>
+            <Component Id="cmp3CE62DB9249D75E91DE189C4BE572799" Guid="*">
+                <File Id="fil040EAE7E139EB340289B8821A029F4BE" KeyPath="yes" Source="$(var.HarvestPath)\K4os.Hash.xxHash.dll" />
+            </Component>
+            <Component Id="cmp6C36974A0EA2E9B5CFE90BF192DD9FEC" Guid="*">
+                <File Id="fil56C639442413B27E97C5DB9778C20599" KeyPath="yes" Source="$(var.HarvestPath)\Markdig.dll" />
+            </Component>
+            <Component Id="cmp5F46BD012A14C4BB765A2E38DB8C6723" Guid="*">
+                <File Id="fil55B76990A378E257F828B9C42DA69A0C" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Abstractions.dll" />
+            </Component>
+            <Component Id="cmp3F1A8ED120366E8991F256C74C5C6361" Guid="*">
+                <File Id="fil720576DC57D586753EB5370E945635AC" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Abstractions.pdb" />
+            </Component>
+            <Component Id="cmpF99A595A7DC11ABFCF11B1C406248EA7" Guid="*">
+                <File Id="fil354E5ADA6410E7A49718D52783288996" KeyPath="yes" Source="$(var.HarvestPath)\MDExplorer.DataAccess.dll" />
+            </Component>
+            <Component Id="cmp68C73C38AC628154D11B2D9A85EE97D6" Guid="*">
+                <File Id="fil4669FCF2AB35930B704BD63211B6D288" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.DataAccess.Engine.dll" />
+            </Component>
+            <Component Id="cmpCF90702DB6BD5D0BCBE864804278C36B" Guid="*">
+                <File Id="fil4C54883BCB2BB3C81B8991A57B37B105" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.DataAccess.Engine.pdb" />
+            </Component>
+            <Component Id="cmp4F241916C32EC6A1E970595E25671525" Guid="*">
+                <File Id="fil2EF834CA477DB853847F0E790C4D00BE" KeyPath="yes" Source="$(var.HarvestPath)\MDExplorer.DataAccess.pdb" />
+            </Component>
+            <Component Id="cmp4A6E58F04BADFD865DE275BB9FEBC6CF" Guid="*">
+                <File Id="fil66E3D218AFEA73A6170951068BDB6275" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.db" />
+            </Component>
+            <Component Id="cmpF380FE2681A9372C49418301CBC7CE64" Guid="*">
+                <File Id="filB56AD198CBC76E562270E887354F9462" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Features.dll" />
+            </Component>
+            <Component Id="cmp38BBDC48CA4A8A258B36C6163AFFF796" Guid="*">
+                <File Id="fil5B37621DB9FD3D65FBB433B596E07F8B" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Features.pdb" />
+            </Component>
+            <Component Id="cmp549F1658169B3F2AEB63C16D3ED55166" Guid="*">
+                <File Id="filD4CEDCF42D2460826C4BA67FDF04AE60" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Migrations.dll" />
+            </Component>
+            <Component Id="cmpE5B11D3394FBFB444E7BAAA9C56D070D" Guid="*">
+                <File Id="fil24F482BB5A8795881727FE649A29668B" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Migrations.EngineDb.dll" />
+            </Component>
+            <Component Id="cmpD238E089839EB6449C051D7E7CEE972F" Guid="*">
+                <File Id="fil4C610E9EE9C7205BBC58D6ADC65A8D4B" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Migrations.EngineDb.pdb" />
+            </Component>
+            <Component Id="cmpCB91023A7FED7925C79109BD3B8D51F5" Guid="*">
+                <File Id="fil0D18AE9F1548ED0718630F811F320779" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Migrations.pdb" />
+            </Component>
+            <Component Id="cmp9F18D530568C5E7F0C0837A8400E0FA1" Guid="*">
+                <File Id="filC90BD3AE18654C08C867C85D57741B99" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Service.deps.json" />
+            </Component>
+            <Component Id="cmp4AF1CD256992764A3B29DAD52E2A03DC" Guid="*">
+                <File Id="filCB9AB062CAD49F96A39ED899AB44D652" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Service.dll" />
+            </Component>
+            <Component Id="cmp548E1D149E3735784000308E747E507F" Guid="*">
+                <File Id="fil2417DE40106DDE0B1C533DC787A60F98" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Service.exe" />
+            </Component>
+            <Component Id="cmpDB097638F132B793BEC66DD9878CF606" Guid="*">
+                <File Id="filC611D37208C8868FAAA76FFA6CEA6D0A" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Service.runtimeconfig.json" />
+            </Component>
+            <Component Id="cmpE5877A64EB1EC28CBEB5738C9AC0FDA5" Guid="*">
+                <File Id="fil51E95113F53942FE2D0E2C542284533D" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Bcl.HashCode.dll" />
+            </Component>
+            <Component Id="cmp9BEF50AE838146F97ECA8747DB2FD72C" Guid="*">
+                <File Id="fil249D87FBBC06F55BE73BBD85B87747D9" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Data.SqlClient.dll" />
+            </Component>
+            <Component Id="cmpA4FEED1FE8C2FAE39891823A841466F0" Guid="*">
+                <File Id="fil1778B05D99DE8FDE0FAED85B03DEC476" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Data.SqlClient.SNI.dll" />
+            </Component>
+            <Component Id="cmpDC19BA21EFF423B27F8787A2AB8F2B3C" Guid="*">
+                <File Id="filF6767F9D22B6D46DD3A2FC798B5F23DE" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.Configuration.Abstractions.dll" />
+            </Component>
+            <Component Id="cmp198468A4AE980CD6955CB6EB86083726" Guid="*">
+                <File Id="fil02E4E4D119BFC4831CEA5A71F1288443" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
+            </Component>
+            <Component Id="cmp493E9BC44885B6BC5C57BDB1302C40D9" Guid="*">
+                <File Id="filA40291A4FBD4719B6995DEB783A39A65" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.DependencyInjection.dll" />
+            </Component>
+            <Component Id="cmp0209E8308C907CAD5474151F7C6836F5" Guid="*">
+                <File Id="fil1036FDFADEB4E1F1FB133485A70A0DD4" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.FileProviders.Abstractions.dll" />
+            </Component>
+            <Component Id="cmpB96239F931804879A085E057C6E72657" Guid="*">
+                <File Id="filFE47041DFF0F714E6C7D801D2D2C140A" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.Hosting.Abstractions.dll" />
+            </Component>
+            <Component Id="cmp8C674FD6A69988A60A77A4CEE0F53781" Guid="*">
+                <File Id="fil72342637E9F74EE945317D4603CEBA2F" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.Logging.Abstractions.dll" />
+            </Component>
+            <Component Id="cmp835034F744990576E31C2DBC7C9293BF" Guid="*">
+                <File Id="fil71DD299EE7649E964200A4127797D1C0" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.Logging.dll" />
+            </Component>
+            <Component Id="cmp3279C150AE8DF554FD7EEE2085672A2B" Guid="*">
+                <File Id="filA8D1F5D61FD7BC25099F707CBF5B1F24" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.Options.dll" />
+            </Component>
+            <Component Id="cmp946145B53A7DCDFA822B0EFD2314FAB6" Guid="*">
+                <File Id="fil773F29942324AAB2A7E1977E1AC63609" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Extensions.Primitives.dll" />
+            </Component>
+            <Component Id="cmpECB4AFEEC4D7711360AF57F2CE96729D" Guid="*">
+                <File Id="filECDBBC068944450217F8667129FB0230" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Identity.Client.dll" />
+            </Component>
+            <Component Id="cmpA4D9C03869723FFBEE9F289352A1B069" Guid="*">
+                <File Id="fil16D2CA7E816F03D234BCCE32B92E4CF4" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.IdentityModel.JsonWebTokens.dll" />
+            </Component>
+            <Component Id="cmpCA0CA4D611B62983A5F22D7DB1142FB5" Guid="*">
+                <File Id="filC5D0C88E7D913D0C810CF53291A3F75E" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.IdentityModel.Logging.dll" />
+            </Component>
+            <Component Id="cmp4198EB9AA246AF7D343AB15DAF582334" Guid="*">
+                <File Id="filAA5B36E3C32A09E48C15BE3B351FF4FE" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.IdentityModel.Protocols.dll" />
+            </Component>
+            <Component Id="cmpE50C5306874111AE648E7A064CFCA86B" Guid="*">
+                <File Id="filB8318DA8D009179B64B9C7E45FA2DAAA" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll" />
+            </Component>
+            <Component Id="cmp1CCC42FAF94D59D43A57B48070D20BFB" Guid="*">
+                <File Id="filFC76E8ACD5E395C004E907381A1F22A7" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.IdentityModel.Tokens.dll" />
+            </Component>
+            <Component Id="cmp16861E24C897764CA922EC062BA74EC9" Guid="*">
+                <File Id="filD8E300ACBEFE74B5C24D4D06DCE96AAC" KeyPath="yes" Source="$(var.HarvestPath)\Microsoft.Win32.SystemEvents.dll" />
+            </Component>
+            <Component Id="cmpA7771CE1E6117765D3B76A77D934BA56" Guid="*">
+                <File Id="fil7F3605161776BC2B335E7793568EB03F" KeyPath="yes" Source="$(var.HarvestPath)\MySql.Data.dll" />
+            </Component>
+            <Component Id="cmpA1ECE8DB012BBA16B976018E9D98B56D" Guid="*">
+                <File Id="filC55FB4457A2C6CA4AE46C6FCC459FDE1" KeyPath="yes" Source="$(var.HarvestPath)\NHibernate.dll" />
+            </Component>
+            <Component Id="cmpD71BBAC84D48FE0434198573578E243E" Guid="*">
+                <File Id="filC23656940DA30B1176DE1B92AFF5AC37" KeyPath="yes" Source="$(var.HarvestPath)\package-lock.json" />
+            </Component>
+            <Component Id="cmp5D9A8CF9496F8F948E0AF4F768D0E5C8" Guid="*">
+                <File Id="fil74C1EA0C6D62BA5979B11434B2ACDC81" KeyPath="yes" Source="$(var.HarvestPath)\PlantUml.Net.dll" />
+            </Component>
+            <Component Id="cmp8D5434D4EDF02E7004A0CEC987C5BC30" Guid="*">
+                <File Id="filBC110B8E2CCB13B8699F17490D463974" KeyPath="yes" Source="$(var.HarvestPath)\Remotion.Linq.dll" />
+            </Component>
+            <Component Id="cmp78E9C9E7F6C313249BFAE4927EC6B5B0" Guid="*">
+                <File Id="fil69863AD11A9035C1B1CBC39A9CDD159D" KeyPath="yes" Source="$(var.HarvestPath)\Remotion.Linq.EagerFetching.dll" />
+            </Component>
+            <Component Id="cmpE78757BD03463E74652C32CEEAB79A64" Guid="*">
+                <File Id="fil3D4C95920C2AC75503C11D9296D4B8BB" KeyPath="yes" Source="$(var.HarvestPath)\sni.dll" />
+            </Component>
+            <Component Id="cmp49125E5013602B31260BC5A53372B428" Guid="*">
+                <File Id="fil9DE71016B7D050906084ADC7BE601092" KeyPath="yes" Source="$(var.HarvestPath)\SQLite.Interop.dll" />
+            </Component>
+            <Component Id="cmp627F95934DFE8795F8708045A2120F23" Guid="*">
+                <File Id="filAEAF8C61AA86723A95F0986173532954" KeyPath="yes" Source="$(var.HarvestPath)\System.CodeDom.dll" />
+            </Component>
+            <Component Id="cmp89F5F904B3CAF843A281A5A84D668E1E" Guid="*">
+                <File Id="fil7882FAF25832DB256D31EEFC7582E0FF" KeyPath="yes" Source="$(var.HarvestPath)\System.Configuration.ConfigurationManager.dll" />
+            </Component>
+            <Component Id="cmp7FFA1CFB45EDA1442E42E34E1F3DB27E" Guid="*">
+                <File Id="filEF4B8F9C45AD18CA9F559E7A542D0C98" KeyPath="yes" Source="$(var.HarvestPath)\System.Data.SqlClient.dll" />
+            </Component>
+            <Component Id="cmp6B7CE49F5F3A518047B74FB6AC2251C5" Guid="*">
+                <File Id="fil86030949C08D40073D1F77D572C14B0D" KeyPath="yes" Source="$(var.HarvestPath)\System.Data.SQLite.dll" />
+            </Component>
+            <Component Id="cmpF0779F15EC19A57BE1B2F861D7DE696E" Guid="*">
+                <File Id="filFCD462E7D1690B3E0A1EC55BB1B7FE6B" KeyPath="yes" Source="$(var.HarvestPath)\System.Data.SQLite.EF6.dll" />
+            </Component>
+            <Component Id="cmpE763840EE41F851D57CAC8F2218E3DA8" Guid="*">
+                <File Id="filA6034E877F3DDC0C35D1EDEECB7E7C3C" KeyPath="yes" Source="$(var.HarvestPath)\System.Data.SqlServerCe.dll" />
+            </Component>
+            <Component Id="cmpE722E076AB8486E4A4F24B01268787A2" Guid="*">
+                <File Id="fil92FE767CE7126933F4E9DEEEBAAE9354" KeyPath="yes" Source="$(var.HarvestPath)\System.Diagnostics.DiagnosticSource.dll" />
+            </Component>
+            <Component Id="cmp08EBD8C605FF27A4F0FCEC5A1317087B" Guid="*">
+                <File Id="fil01C46D7B4C6F372B6DD0D0DC961DAE47" KeyPath="yes" Source="$(var.HarvestPath)\System.Drawing.Common.dll" />
+            </Component>
+            <Component Id="cmp817DADD4F645A06A14E7CEFCE195AEAC" Guid="*">
+                <File Id="fil556EF176150B87793A1F7B3F04103BC6" KeyPath="yes" Source="$(var.HarvestPath)\System.IdentityModel.Tokens.Jwt.dll" />
+            </Component>
+            <Component Id="cmpC2D1864013DD0BCBA830EE1028C6B904" Guid="*">
+                <File Id="fil023CBA6DE00A7F1A1EC7457E89B72F4D" KeyPath="yes" Source="$(var.HarvestPath)\System.IO.Packaging.dll" />
+            </Component>
+            <Component Id="cmp3704D619BA8176CC239C4E2E3DE22240" Guid="*">
+                <File Id="fil33F3D184398B14A49BD98032A8871B75" KeyPath="yes" Source="$(var.HarvestPath)\System.Runtime.Caching.dll" />
+            </Component>
+            <Component Id="cmp9D1519D872AF6E420B3F121C523F1D76" Guid="*">
+                <File Id="fil66E90D2D4495A8A6DC2B7FB12981C567" KeyPath="yes" Source="$(var.HarvestPath)\System.Security.Cryptography.ProtectedData.dll" />
+            </Component>
+            <Component Id="cmp8E4B062E4C5959DEDB35F54E92EF80D9" Guid="*">
+                <File Id="fil3FD1227D7E0B49C81EDD0DE9E661E0D7" KeyPath="yes" Source="$(var.HarvestPath)\Ubiety.Dns.Core.dll" />
+            </Component>
+            <Component Id="cmpB139B49DF4DF8F44C525B449EA8187F7" Guid="*">
+                <File Id="filE7A3E65CC622C2E3B9B57707B12C9645" KeyPath="yes" Source="$(var.HarvestPath)\web.config" />
+            </Component>
+            <Component Id="cmp472D5C307C65C2EF7F1A1AFA6722B994" Guid="*">
+                <File Id="fil0B7DA27652E06FA17F6B392A032CC2A6" KeyPath="yes" Source="$(var.HarvestPath)\Zstandard.Net.dll" />
+            </Component>
+            <Directory Id="dir287BEF6301389D2501D7D15A87596D90" Name="ar">
+                <Component Id="cmp260AD66439F3EF5ACD4EBF9A1DE8B522" Guid="*">
+                    <File Id="fil0DC84CB1A63B9930AF01E865C17FC92C" KeyPath="yes" Source="$(var.HarvestPath)\ar\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir59276917AB53DAC79170759082206D68" Name="ar-DZ">
+                <Component Id="cmpF5D795D03BA05751BA2F9A084DC0CFAA" Guid="*">
+                    <File Id="filF0A81DFDE46214BA4EDDDCC5A31B3A3B" KeyPath="yes" Source="$(var.HarvestPath)\ar-DZ\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE4D9CB0FB47F2459D699BAF9B2718D52" Name="ar-tn">
+                <Component Id="cmp0C0B793096212E18DB51628ECB3FDB00" Guid="*">
+                    <File Id="fil39B487B8076B9A8089F6BAB21D90D87F" KeyPath="yes" Source="$(var.HarvestPath)\ar-tn\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirB0B83EF629C39A3AEA07090B37013B55" Name="az">
+                <Component Id="cmp546EE9A619D1F35D5A09EAC43C77BDC7" Guid="*">
+                    <File Id="fil0647693FEAF082F58422C05CB359F77B" KeyPath="yes" Source="$(var.HarvestPath)\az\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir56DB19803B9C53B60887781C0DAB6731" Name="bg">
+                <Component Id="cmp6069CE3AE31EEB271FA924A9F55503A8" Guid="*">
+                    <File Id="fil546979BCE2CF7F09AF7E9A89C4ABE03F" KeyPath="yes" Source="$(var.HarvestPath)\bg\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir0B3071BC26A868F608354BE9DD2C0FEA" Name="Binaries">
+                <Component Id="cmp5DF2CC35E4590C59CB75A3AFE71997CB" Guid="*">
+                    <File Id="fil0636A486D1FC3003E8DD0238C6986622" KeyPath="yes" Source="$(var.HarvestPath)\Binaries\plantuml.jar" />
+                </Component>
+                <Directory Id="dir8CD2CE716995472A346DA501E1B49A92" Name="GraphWiz">
+                    <Directory Id="dir064E40FE5D6CA09558349B523A2BE845" Name="binaries">
+                        <Component Id="cmp5F1056FB1FF8845F03BA0DD952E8F495" Guid="*">
+                            <File Id="fil7FFD53BB51AF13C0A5D43E725BF04914" KeyPath="yes" Source="$(var.HarvestPath)\Binaries\GraphWiz\binaries\dot.exe" />
+                        </Component>
+                    </Directory>
+                </Directory>
+            </Directory>
+            <Directory Id="dirA3F8E0B7EA2EDE59193914AA29B91ED2" Name="bm">
+                <Component Id="cmp3E89114B9601E23647195C0E2C0F5B05" Guid="*">
+                    <File Id="filFF10A21A64962A8B9CC9379628C5E3F5" KeyPath="yes" Source="$(var.HarvestPath)\bm\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir2475BAE95008632F75EDCAEFBD29A635" Name="bn">
+                <Component Id="cmp2A1C6054E425CE16BEF7ADA970A6D1CE" Guid="*">
+                    <File Id="filBCA72101E111D859751735D6FF6C85C0" KeyPath="yes" Source="$(var.HarvestPath)\bn\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirBF404AC6C00137FE37795DDD81025BC1" Name="br">
+                <Component Id="cmp095A0BED521BE90724B0ECDFFF6E2E08" Guid="*">
+                    <File Id="fil0EA30772C3F0AE8E57EDC7BBFB308D93" KeyPath="yes" Source="$(var.HarvestPath)\br\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir6618B7D1D2243E65469BEF5F084E123A" Name="bs">
+                <Component Id="cmp5E1B6AB1393086197E6DE5056A323402" Guid="*">
+                    <File Id="filB868D2F10025BA8C24F3BD216F278E14" KeyPath="yes" Source="$(var.HarvestPath)\bs\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirF0A7943E7427314B44AA5F085017B714" Name="ca">
+                <Component Id="cmpA2546AD101598A06749C4105D4FF4874" Guid="*">
+                    <File Id="fil168C6AF91F48CB27CE50F1A591F7BCE1" KeyPath="yes" Source="$(var.HarvestPath)\ca\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir99DF51DDB6E3B71BF0E1FF61B8B48844" Name="client2">
+                <Component Id="cmp76FA3D9BAF4EB6F6349CF163E7D572E3" Guid="*">
+                    <File Id="fil4425741FC68973FCD4A1EFDEDE320EAB" KeyPath="yes" Source="$(var.HarvestPath)\client2\angular.json" />
+                </Component>
+                <Component Id="cmp2B811053B5AE4B88DEFFD5B5A76B4D07" Guid="*">
+                    <File Id="fil1B0B9231DBCEC37A673D95E51EF1D20F" KeyPath="yes" Source="$(var.HarvestPath)\client2\package-lock.json" />
+                </Component>
+                <Component Id="cmpCFC07250170E75B593412650F8C5C349" Guid="*">
+                    <File Id="fil7B76A782C01FC70300A1EFE72668B375" KeyPath="yes" Source="$(var.HarvestPath)\client2\package.json" />
+                </Component>
+                <Component Id="cmp6024709601757BCCAD7691A230EFFD3F" Guid="*">
+                    <File Id="filBEF1E9ADFA08864970EADBB936842B6B" KeyPath="yes" Source="$(var.HarvestPath)\client2\tsconfig.app.json" />
+                </Component>
+                <Component Id="cmp44FF64DDE6E9C9E771266002FD0AF841" Guid="*">
+                    <File Id="filF883D208E9ED7891EB73F171C7776FB7" KeyPath="yes" Source="$(var.HarvestPath)\client2\tsconfig.json" />
+                </Component>
+                <Component Id="cmpA964A847AD6177F00FFB96B8E1AFD3DE" Guid="*">
+                    <File Id="fil61D71CA9769F25BF961EEA7B871D88AA" KeyPath="yes" Source="$(var.HarvestPath)\client2\tsconfig.spec.json" />
+                </Component>
+                <Component Id="cmpFFC59F91BA2A40263777A08887C4DE28" Guid="*">
+                    <File Id="fil45B8FE3F6D449AA0D8AE01DD27E81508" KeyPath="yes" Source="$(var.HarvestPath)\client2\tslint.json" />
+                </Component>
+                <Directory Id="dirC2BC72E86E2ABCE8B5052E0587605E19" Name="e2e">
+                    <Component Id="cmp419937E1F1A4AD6EBAD761C73BBB9BBB" Guid="*">
+                        <File Id="fil51DE4E2835E910F4AABEF99EBF2B9082" KeyPath="yes" Source="$(var.HarvestPath)\client2\e2e\tsconfig.json" />
+                    </Component>
+                </Directory>
+            </Directory>
+            <Directory Id="dirB15F4604371D144EAEEAD44FE901D873" Name="cs">
+                <Component Id="cmpBC0707858AF0C6A1D543C6685B8435B8" Guid="*">
+                    <File Id="fil3EE57F7572670622653819622602D4AE" KeyPath="yes" Source="$(var.HarvestPath)\cs\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirA3238824E03B4D38E2AE3A728DFB0931" Name="cy">
+                <Component Id="cmp501A4C49A590EF542135ADAF9DBB5725" Guid="*">
+                    <File Id="fil8A628CFACE69126435EDD3B457F88FCD" KeyPath="yes" Source="$(var.HarvestPath)\cy\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirD14FC8A823A878E4AF0649EA144442B1" Name="da">
+                <Component Id="cmp63C8C8135A7B11C46703CF103B976B92" Guid="*">
+                    <File Id="filA982010CE06DCDE9C53E562357EEAE96" KeyPath="yes" Source="$(var.HarvestPath)\da\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir242DC17B8DFC53C13CAF172FC08B730A" Name="de">
+                <Component Id="cmp9CDE5992FB9CBBA4C0F19E7F54E55522" Guid="*">
+                    <File Id="fil623A37A3BCF220A3F859F9C7D91BDD11" KeyPath="yes" Source="$(var.HarvestPath)\de\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirA4D3CBE83CC778D611403A81761AECB0" Name="de-DE">
+                <Component Id="cmp447391DC4132C82859EABC121B2CCAA1" Guid="*">
+                    <File Id="fil61130CFC9B3EF7507A6E732D2C47D3A6" KeyPath="yes" Source="$(var.HarvestPath)\de-DE\FluentMigrator.Abstractions.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir63D4F0012B1C816B5E32F1DC4F29A909" Name="el">
+                <Component Id="cmpDB5A7A761C5BE0085013F4E91B88B678" Guid="*">
+                    <File Id="fil921CA374D4F4B8097E7C9D4604DAAC36" KeyPath="yes" Source="$(var.HarvestPath)\el\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir8D9A4C2DB03C7C55D796A3EBCC9E6FBC" Name="en-AU">
+                <Component Id="cmp3DD0228150A0FF3DCF43D8E39C92E0CD" Guid="*">
+                    <File Id="fil2FFC9BFD5650384036978650A6A086C4" KeyPath="yes" Source="$(var.HarvestPath)\en-AU\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirAA84454D7AA4FC0757CB8EE9B72096CD" Name="en-CA">
+                <Component Id="cmp259834ADC7A965DAF0B47B87D270728C" Guid="*">
+                    <File Id="fil5B05B5A178BF38282FDEC5EAF88AA967" KeyPath="yes" Source="$(var.HarvestPath)\en-CA\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir80583300DBB612F929EAA607E86402CD" Name="en-GB">
+                <Component Id="cmp22AB026134B0DB9D69A75A82D135EFC1" Guid="*">
+                    <File Id="fil6634BFDDDFB03D8C93A05EF79508587A" KeyPath="yes" Source="$(var.HarvestPath)\en-GB\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir3BAFB1CAF8F295615808724C0D7D0EED" Name="en-IE">
+                <Component Id="cmpE09704DE7B129858FE1FF206544B8CD5" Guid="*">
+                    <File Id="filECFBACCA7BED3A0886E8420F7A5FF344" KeyPath="yes" Source="$(var.HarvestPath)\en-IE\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE3621EAD35A6973481A0C2FAE869C1CE" Name="en-NZ">
+                <Component Id="cmp564C45155DD347E8F8D734CA072CB3D3" Guid="*">
+                    <File Id="filED0585FDD00E079BE23000D31AFF779B" KeyPath="yes" Source="$(var.HarvestPath)\en-NZ\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir7CB7E03714D9D7C1BF30BD3C91566568" Name="en-US">
+                <Component Id="cmp5A97ECC8B67C8F676797CCD378A6B27A" Guid="*">
+                    <File Id="fil096B56B5BC79AC1395D231A09E43DFFE" KeyPath="yes" Source="$(var.HarvestPath)\en-US\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir243CC659F308870A3E99D05DD2BD1F2B" Name="en-ZA">
+                <Component Id="cmpEE143ADE25F7C9A2A202BFD3213CB3C2" Guid="*">
+                    <File Id="filE4961E45C0902C9515E687C61C123DB2" KeyPath="yes" Source="$(var.HarvestPath)\en-ZA\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirB6E393297B4DC6B49068E39F9E12F446" Name="eo">
+                <Component Id="cmp0F4843D5F0B3F417983475324BD2DD2D" Guid="*">
+                    <File Id="fil281BE57B151A2BC07DDA5BD785C4F8B6" KeyPath="yes" Source="$(var.HarvestPath)\eo\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir9AE38F4F5CB5E565E774521E138F44FD" Name="es">
+                <Component Id="cmpF1703B679DCF757E3406C0ECC1921246" Guid="*">
+                    <File Id="fil4786FD55E85307F56766970B0D3496D1" KeyPath="yes" Source="$(var.HarvestPath)\es\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir1002CD3761DDC51394CE60A95C09072A" Name="et">
+                <Component Id="cmpDDC9D796224744010E12E0CCE2F821B1" Guid="*">
+                    <File Id="fil46EF8D0C224C4A1A319523885C809D9A" KeyPath="yes" Source="$(var.HarvestPath)\et\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir44C514D377D42E876512C71182D42360" Name="eu">
+                <Component Id="cmpD83A12FB6255318CC94D9C98C8E47A14" Guid="*">
+                    <File Id="filBA0D2D4F562DA08F21688CF7301A0EF8" KeyPath="yes" Source="$(var.HarvestPath)\eu\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE645CF78C2D071742BC4B8A6FBD56FD6" Name="fa">
+                <Component Id="cmpC86CB6A143A7809F450B83C389C32A35" Guid="*">
+                    <File Id="fil0C0EE694CEABCF0438341B6449DDAF6E" KeyPath="yes" Source="$(var.HarvestPath)\fa\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirBF81FDAD51E8EFF9ABFAC7FD6472421A" Name="fi">
+                <Component Id="cmpE064CC21FD1CB88F9955636CD19EDE6D" Guid="*">
+                    <File Id="fil5BD5CA4BB3411B349472B147FE9A4BCA" KeyPath="yes" Source="$(var.HarvestPath)\fi\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE009CEBE303CFDE556E39A62055FC5D4" Name="fo">
+                <Component Id="cmp5E5901D887ECF6BBA5452B029F462753" Guid="*">
+                    <File Id="filABBD2FC6601E1E4EBCC237ABB7D604A4" KeyPath="yes" Source="$(var.HarvestPath)\fo\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirB55DFDA91FEE7CCCBC65CA7493B75748" Name="fr">
+                <Component Id="cmpA2998E46BAB137BB982D90E44F6239AA" Guid="*">
+                    <File Id="fil622016FFBA7D545DC02DA20724F4E339" KeyPath="yes" Source="$(var.HarvestPath)\fr\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir699302E1F6F3AE5CEE68988C6A15FDFA" Name="fr-CH">
+                <Component Id="cmp3602F73C30D64F3398781529B0791CC3" Guid="*">
+                    <File Id="fil8EEDEEAA9094F27073E308A7E505DD5B" KeyPath="yes" Source="$(var.HarvestPath)\fr-CH\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir45901C70EBBEE6D010040DF904554270" Name="gl">
+                <Component Id="cmp0A517FF0408F21B8741F751B93A59CBE" Guid="*">
+                    <File Id="filA2873EDD3EADEAD4FCC05FDFD232332D" KeyPath="yes" Source="$(var.HarvestPath)\gl\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirAF9B04ABC40C29C61683FA9B52965075" Name="he">
+                <Component Id="cmpD0F5A553F048328AF3E643AC787DAD0E" Guid="*">
+                    <File Id="fil409E4C97872C88ED0A9D58DC3643973A" KeyPath="yes" Source="$(var.HarvestPath)\he\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir913889F05A18D201DA4A667454DE5458" Name="hi">
+                <Component Id="cmp5CD7FB50E61C6E431A427A6A49B9438B" Guid="*">
+                    <File Id="fil47C5ABC8726804A6B83B562775473D00" KeyPath="yes" Source="$(var.HarvestPath)\hi\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirAE28C7719AD45E618800F20CD83A6124" Name="hr">
+                <Component Id="cmp6C0843C9BA9168B66C8D489E91347AE8" Guid="*">
+                    <File Id="filC367FFC9E2B6CF5364A252138CC70639" KeyPath="yes" Source="$(var.HarvestPath)\hr\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir937629FDAC3D30087170D6DA46E383A6" Name="hu">
+                <Component Id="cmp6DB9D907FC6711428A0EB13063C839FE" Guid="*">
+                    <File Id="fil91E8131A01A462F7517E96AEEB00B903" KeyPath="yes" Source="$(var.HarvestPath)\hu\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE0AF634DAEF0DE104AD57EAF8E36AE1E" Name="hy">
+                <Component Id="cmp02B536B869C1C3BA5BBCEC5C384CFBA7" Guid="*">
+                    <File Id="filAE9704DF0DC485EBB8160F0510135554" KeyPath="yes" Source="$(var.HarvestPath)\hy\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirFBFFC85CCB1C4091C73E9779ED1972BA" Name="id">
+                <Component Id="cmpF2D553CC2F8B8C21C554DB18FD1F3B53" Guid="*">
+                    <File Id="filEC2872E9A9B5DD089AB858A0C7BB30BF" KeyPath="yes" Source="$(var.HarvestPath)\id\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir950E99F2EF88E26717BA9A6EA264616B" Name="is">
+                <Component Id="cmpF979E617D805110B75AA6C521517CFF6" Guid="*">
+                    <File Id="fil3B60A1863CDC67FFFEA98B23BE62BC27" KeyPath="yes" Source="$(var.HarvestPath)\is\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir45DE18DD71F3E8DD6BE4A0E2B48778C8" Name="it">
+                <Component Id="cmpE12B473EB79500E5B8DF0F93BE8AD8E0" Guid="*">
+                    <File Id="filA48E4CCF7D4196954A9B01E6791E99D9" KeyPath="yes" Source="$(var.HarvestPath)\it\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir5CD3BFA5349A6D830B940C9F83310F83" Name="it-CH">
+                <Component Id="cmp9B80E8536242425F6626F00DE2D48626" Guid="*">
+                    <File Id="filFE786ACC8417AE4B953B536262319873" KeyPath="yes" Source="$(var.HarvestPath)\it-CH\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir997B58958EFAE06BB705E870622AB899" Name="ja">
+                <Component Id="cmp4E36FE1848D91A7AD937F637169F29C6" Guid="*">
+                    <File Id="fil4D1E93CA1CA82D571EBE85E2FEEFA816" KeyPath="yes" Source="$(var.HarvestPath)\ja\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir7E75A9B35F809E652B09A531836D323E" Name="ka">
+                <Component Id="cmpAEDFAC626A0933F57CC3B7CCD246F533" Guid="*">
+                    <File Id="fil05B6A7EB7B0BBABB627BE3D73691F350" KeyPath="yes" Source="$(var.HarvestPath)\ka\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir3080A3FA6E5A62C28234CC2B5B899EF4" Name="kk">
+                <Component Id="cmp7EF9B325BB1C6E43C1139935FCC51036" Guid="*">
+                    <File Id="fil135D34581C8E222B78505DA71DF6D3D6" KeyPath="yes" Source="$(var.HarvestPath)\kk\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE5259AA1945484DD9C5A4C9F42BD00E1" Name="km">
+                <Component Id="cmp27C151EEE8834E3156C07A089FE47BE1" Guid="*">
+                    <File Id="filB49E1F5112CFA62157CD278D16985C4B" KeyPath="yes" Source="$(var.HarvestPath)\km\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirF152986C1E6339E5EF84FD1370841521" Name="ko">
+                <Component Id="cmp77321F7463D82C408B4F60D8F6728140" Guid="*">
+                    <File Id="fil763442BBE545CD2479304F432701289C" KeyPath="yes" Source="$(var.HarvestPath)\ko\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir845FB0EDD7CF20DA6980538194B66913" Name="kr">
+                <Component Id="cmp491807625BF7010603DFEDB1EEFA072D" Guid="*">
+                    <File Id="fil61BF3C95DF3F0855F53C0768FEDB4A85" KeyPath="yes" Source="$(var.HarvestPath)\kr\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir90693D000090B21422196ECFC7F03B3A" Name="lt">
+                <Component Id="cmp470BA4370944F9451C982BCF6CEE9FB5" Guid="*">
+                    <File Id="filF813EB73A5502BC3869E927D106104AD" KeyPath="yes" Source="$(var.HarvestPath)\lt\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir828B0244BE63EA42813A9D05DF5646B9" Name="lv">
+                <Component Id="cmp482D726CC93B6FF8C7F32AA03CD62E8F" Guid="*">
+                    <File Id="fil722CA05A3ECB92AC86B42B83A28E3099" KeyPath="yes" Source="$(var.HarvestPath)\lv\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir62D27BF726DC4CCFAC85986D4CA3EE42" Name="mk">
+                <Component Id="cmp2C70AEAE5E440BB5BDB1ACE9066CFCEC" Guid="*">
+                    <File Id="filAB79B9016BF472A6CF27C4F966B47FFA" KeyPath="yes" Source="$(var.HarvestPath)\mk\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirD6331072CB47DBF4876F31B636C2D19B" Name="mn">
+                <Component Id="cmpC0A25D7FF6ED9B2CDA9538CE8F367ADE" Guid="*">
+                    <File Id="fil4DE18A4833D4B8790A2F1DE7C879FEFE" KeyPath="yes" Source="$(var.HarvestPath)\mn\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir6551ED82B95EC7B6C7D38979A012BFE1" Name="mr">
+                <Component Id="cmp5DDF21631EC3B2240EE41CCEE4A2C708" Guid="*">
+                    <File Id="filACB766FD538715661CE3A66392601DEF" KeyPath="yes" Source="$(var.HarvestPath)\mr\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir1B088573C1D107E9BD1CFEFE8B80066A" Name="ms">
+                <Component Id="cmp1C72DC88C982C86DC17AADB9DC148EFC" Guid="*">
+                    <File Id="filF27F128E6538339D1DEB57F567D685CB" KeyPath="yes" Source="$(var.HarvestPath)\ms\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir2F3D431E0ED26930C4D37E679C7700A1" Name="nl">
+                <Component Id="cmpD4AA064A82BD0A2EF36E07F6F935CB15" Guid="*">
+                    <File Id="fil4538EFDA54682B09B9B8E8DA01C84145" KeyPath="yes" Source="$(var.HarvestPath)\nl\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir4B74599EEC7C992EE101A3FAC2E3F9DA" Name="nl-BE">
+                <Component Id="cmpEA325510FD20E1AF121FF04B69CC1B9C" Guid="*">
+                    <File Id="fil68098EE74FB4BA66D8296BE48F190505" KeyPath="yes" Source="$(var.HarvestPath)\nl-BE\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirC09E5BD57AAE6D41F43B10AC22BABBA1" Name="no">
+                <Component Id="cmpD21D02CF28FDC4D0FAA1A93F85A9BA7A" Guid="*">
+                    <File Id="filAAAA2CCF44229346F762F05367069DF5" KeyPath="yes" Source="$(var.HarvestPath)\no\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir3635786F2070A42D4A51DFE6F41D5B38" Name="oc">
+                <Component Id="cmpD601E274F6C33EDD528B6D4437098C47" Guid="*">
+                    <File Id="fil325E48445BC20945B437E37F87DD49A1" KeyPath="yes" Source="$(var.HarvestPath)\oc\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirB6C57608593BDEA87B90E388CF59E0E8" Name="pl">
+                <Component Id="cmpDB77AE33350A54C216E8D6196FAE7002" Guid="*">
+                    <File Id="filF45A9534B4C3664AB9AA3F71631FEC1A" KeyPath="yes" Source="$(var.HarvestPath)\pl\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir8606A94F8723F2ACAF42032E593433C7" Name="pt">
+                <Component Id="cmpCF0F41F19B4F3D9392715D60BBAEBC49" Guid="*">
+                    <File Id="fil797F88D7840F18D98029EB8AB21B229B" KeyPath="yes" Source="$(var.HarvestPath)\pt\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir339F53F3A11C56B053FD1FEC9B438810" Name="pt-BR">
+                <Component Id="cmp4558E76DE2D17E6A8C7023E782DB7671" Guid="*">
+                    <File Id="filDD91062035F5384604AA7B2BEBB085B8" KeyPath="yes" Source="$(var.HarvestPath)\pt-BR\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirBD3668345143F8EFDFB86A9B73810966" Name="ro">
+                <Component Id="cmp322000A45163E3C8B5231856A62BC551" Guid="*">
+                    <File Id="filA3F8A98FCE6B57643A3E73BDDCD1A414" KeyPath="yes" Source="$(var.HarvestPath)\ro\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE9205C68F964857267FD3312DBFF9A91" Name="ru">
+                <Component Id="cmpD444B5AFD1D4CACF4585D472AD9768C8" Guid="*">
+                    <File Id="fil998343D52F4A12307D4DC1A87B539D65" KeyPath="yes" Source="$(var.HarvestPath)\ru\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir323CB14941CBCC0C47A5588C9B085254" Name="si">
+                <Component Id="cmp45D5636F9BC73B4F82F6585F36E36764" Guid="*">
+                    <File Id="filEF2A49423DF8C5C9542A9A13D74874A0" KeyPath="yes" Source="$(var.HarvestPath)\si\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir52134E8375A906043BC963526BFBD7F7" Name="sk">
+                <Component Id="cmp1C1570294EE908AE88616E796A8DC40E" Guid="*">
+                    <File Id="fil866E0A0B99979D5DE877A3D6B33895E4" KeyPath="yes" Source="$(var.HarvestPath)\sk\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirCEA940D2386E504E20828FF8234F4959" Name="sl">
+                <Component Id="cmp47358E02E0A0B0A3BEB37EBE7A44B9F7" Guid="*">
+                    <File Id="fil6EA801F6DF3E1713B42F60C1C58D0347" KeyPath="yes" Source="$(var.HarvestPath)\sl\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir559A2B66DEC54E9BCE80CC015831326E" Name="sq">
+                <Component Id="cmp407B59A7279F4238A809D5C6EE18FC02" Guid="*">
+                    <File Id="filDCF91DFC996AAECCA1AD22DD4ED0B171" KeyPath="yes" Source="$(var.HarvestPath)\sq\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir038C32ABC6CA03746E6F35674B507F47" Name="sr">
+                <Component Id="cmpBFB9C905D5D9095E24BE7195BC04D646" Guid="*">
+                    <File Id="filD7C706780331E886DA9195E850219B56" KeyPath="yes" Source="$(var.HarvestPath)\sr\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir8FBB04D7AB5FE55FCF40758128EC763E" Name="sv">
+                <Component Id="cmp1BF549AED404A3DD764B6F6EE47A9CE1" Guid="*">
+                    <File Id="fil4324849C2B9B34F839760D80E18551BD" KeyPath="yes" Source="$(var.HarvestPath)\sv\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir2AC5740075FBCD6EFF7F583A644293B8" Name="sw">
+                <Component Id="cmpDF3216267E72B4036512913293A7E13C" Guid="*">
+                    <File Id="filCE47196666BEA3EA97C52B5A42627006" KeyPath="yes" Source="$(var.HarvestPath)\sw\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirF54350183787B64198996987AFF33E94" Name="ta">
+                <Component Id="cmp1BFF222E4E2C533093752AB74964C8C2" Guid="*">
+                    <File Id="filAB2A3DAF6F85B3AB49B00BDD05F2451F" KeyPath="yes" Source="$(var.HarvestPath)\ta\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir89F31CF25E870CCB9633D08CDBBB0DD6" Name="tg">
+                <Component Id="cmpC73CA8BFEBFB9A2EA0E871B491DFDCAC" Guid="*">
+                    <File Id="fil57CA27C28AD85F1EB1E8C12D3134EEA3" KeyPath="yes" Source="$(var.HarvestPath)\tg\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir65067E1D4FF549EC0E8837212711FCFD" Name="th">
+                <Component Id="cmp13C9088D6BBECF6D3C57786567AFBDDB" Guid="*">
+                    <File Id="fil2D31EEC5BB0E600E940DC20A93D47975" KeyPath="yes" Source="$(var.HarvestPath)\th\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirCB95A5AFC5861D1E3A722344BB5C91C8" Name="tk">
+                <Component Id="cmpCA9618F407096574A8EA81D06CDF41D1" Guid="*">
+                    <File Id="fil033DBC77B69B8F9C9DD79F479C644BFB" KeyPath="yes" Source="$(var.HarvestPath)\tk\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirE562A4656FE03253EA39D17E8127BA05" Name="tr">
+                <Component Id="cmp3A4986FF90AF5A4C417E4671F2735ED0" Guid="*">
+                    <File Id="filC8B4FB43A55FC11B383D11A7469AED4E" KeyPath="yes" Source="$(var.HarvestPath)\tr\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir49E41568669FD5F0DE03453A9AD8341A" Name="uk">
+                <Component Id="cmp3D8EF611F44940B79861A2C14C6BA402" Guid="*">
+                    <File Id="filB618FD8FCB7446339F709DBB1BE65BC8" KeyPath="yes" Source="$(var.HarvestPath)\uk\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirC9C0FCCC53AA47140819CD6095F1ADDE" Name="uz-cyrl">
+                <Component Id="cmp3B879980EC46345B92E7EB093414A31B" Guid="*">
+                    <File Id="filC2307E1F6250FDBCEDBC53D2CA96F53C" KeyPath="yes" Source="$(var.HarvestPath)\uz-cyrl\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirC9F97109EA70C7AC8ABE8A922EA996FF" Name="uz-latn">
+                <Component Id="cmp72BF05B6A40A453FCF7D1D0D0878564C" Guid="*">
+                    <File Id="filF91F22BE4974328220DA6BC167EAAF52" KeyPath="yes" Source="$(var.HarvestPath)\uz-latn\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dirC166903D3DBB1340FEE2407E20E6ADBD" Name="vi">
+                <Component Id="cmpD06528B351ABAF11E596C4B7CED534F6" Guid="*">
+                    <File Id="fil099FC452FC309EBFC805584A6BEF4B83" KeyPath="yes" Source="$(var.HarvestPath)\vi\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir3D83A529A2122889D4016E7D784625D5" Name="wwwroot">
+                <Directory Id="dir89EB03C3EAD84D074D9B56E6D99D0A33" Name="assets">
+                    <Component Id="cmp6DF29040DB9F4BFF196E78A0304846F3" Guid="*">
+                        <File Id="fil755895746568B815F3D8D17713657270" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\AliasEmoji.PNG" />
+                    </Component>
+                    <Component Id="cmpCD6EB8CA6989F6E4E9A6D5C9A3C1594D" Guid="*">
+                        <File Id="filC6CA06C2AAEB4BA235C05B6B1590A841" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\IconReady.png" />
+                    </Component>
+                    <Component Id="cmp4FF66FD91FDE9DA2C23A69415757D947" Guid="*">
+                        <File Id="fil478BEED4662FC8E40006C2035BA894B6" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdExplorerForGitHub.png" />
+                    </Component>
+                    <Component Id="cmp193FBEC2FE31BC1D4FC7110FB57B2A5D" Guid="*">
+                        <File Id="filB62497B7E428011DF240ED1F8106FACB" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon.png" />
+                    </Component>
+                    <Component Id="cmpD6B18F3C50E4CDD00177E561D29DEB02" Guid="*">
+                        <File Id="filE4086127AB3A999DA62AC3EEDAE7BD8A" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon.xcf" />
+                    </Component>
+                    <Component Id="cmpE6469B6A2B277A8C9D5FE4FB7CDD1180" Guid="*">
+                        <File Id="fil12EF938E19158173E05C1645C28D3D5D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon2.ico" />
+                    </Component>
+                    <Component Id="cmp27E2C90FD9A662A49AA2C0A691504641" Guid="*">
+                        <File Id="fil87ACABBA6246F3E11D109E7BC25989FC" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon2.xcf" />
+                    </Component>
+                    <Component Id="cmpBD24542714F00FA48ACB42007C6E824B" Guid="*">
+                        <File Id="fil8029B078A36790D7EF0EF3C8A3081227" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon3.ico" />
+                    </Component>
+                    <Component Id="cmp71DA884AAEF0EC61647627AE6042D7A3" Guid="*">
+                        <File Id="filCCFD25F3CD2B4F46C6BCEA23F0F1E842" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\PrepareToIcon.png" />
+                    </Component>
+                    <Component Id="cmp0B200CFE2319055FA081FD03F9BC1583" Guid="*">
+                        <File Id="fil239F51A0E7863544DB1B566898DDF38C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\spaceship.png" />
+                    </Component>
+                </Directory>
+                <Directory Id="dir9DB0C933DBAB46A88446AF2A362B5184" Name="bootstrap">
+                    <Directory Id="dir56D65DC2C136DF89BC3A8E72F09D1776" Name="css">
+                        <Component Id="cmpE0C2BDEC541FAF8309914CE1CD170B66" Guid="*">
+                            <File Id="filC153DFFA34EEA728DBADC8F0BCD15196" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\css\bootstrap-grid.rtl.min.css.map" />
+                        </Component>
+                        <Component Id="cmp3364EB13B9679EA18EDFF2F5644BF597" Guid="*">
+                            <File Id="fil2FBE75A9F1E3928C671F9400F586BF23" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\css\bootstrap-reboot.rtl.min.css.map" />
+                        </Component>
+                        <Component Id="cmpF1CFB70E3B005F98FF63B67A795EFEDD" Guid="*">
+                            <File Id="filEF397C948214CF07A114D4F653FFE6F0" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\css\bootstrap-utilities.rtl.min.css.map" />
+                        </Component>
+                        <Component Id="cmp5F0315EC9318F895F1C69AADD6AEEDCF" Guid="*">
+                            <File Id="filEE6562A375D963F47DBFFC0AC043AFCA" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\css\bootstrap.rtl.min.css.map" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="dir025888A4E3BB11BDEA12C8DB0EDC87B8" Name="js">
+                        <Component Id="cmp336BF8B3ED276F8A9062A1E8CB2D8E43" Guid="*">
+                            <File Id="fil6FDA4F38575C8E9DD3738C6302F95882" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.bundle.min.js" />
+                        </Component>
+                        <Component Id="cmpEFF9F1E875BF6E848A4A965734BFAC4B" Guid="*">
+                            <File Id="filCF5849069905135B23DF370174B143A4" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.bundle.min.js.map" />
+                        </Component>
+                        <Component Id="cmp73E87678832BDCC67A6071149899D291" Guid="*">
+                            <File Id="fil9EE4DA6724CF1F00978EFC802C4B012B" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.esm.js.map" />
+                        </Component>
+                        <Component Id="cmp670A53C4BB92522E9197C39F2737FDD0" Guid="*">
+                            <File Id="fil898C846823C6D896640967F7CE96E19C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.esm.min.js" />
+                        </Component>
+                        <Component Id="cmp82CAE7B335B9F599FEE57577F9A372EF" Guid="*">
+                            <File Id="fil495D30F0FFAC0C54EA8FC60FE9791316" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.esm.min.js.map" />
+                        </Component>
+                        <Component Id="cmp8324FB939089AA66B3E721D69F4B8F12" Guid="*">
+                            <File Id="fil09CD051E4DE10061AF33F7E77D74118F" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.js.map" />
+                        </Component>
+                        <Component Id="cmp810D1EFFDA7DD88C8E90E1542AA6BAE2" Guid="*">
+                            <File Id="fil9A0D50DA32DC3BE35500E9D6A79439EE" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap\js\bootstrap.min.js.map" />
+                        </Component>
+                    </Directory>
+                </Directory>
+                <Directory Id="dir4038BD407086220BCF5D9E2F25C78141" Name="bootstrap_datepicker">
+                    <Directory Id="dirCF280D50618E2E583CDCC645E5482D29" Name="css">
+                        <Component Id="cmp636FC9E2EF47D47393943C950A17662A" Guid="*">
+                            <File Id="fil76A4C941B42F45A023235D401889867E" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css.map" />
+                        </Component>
+                        <Component Id="cmpFCE45893961C3B556093A13244DCAD25" Guid="*">
+                            <File Id="filB03CE7B67127D7D4396856D8A2EFAD35" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css.map" />
+                        </Component>
+                        <Component Id="cmp605D6B6C48C394E4DB168D3F2B5E64B9" Guid="*">
+                            <File Id="fil9F6B26FE7F62F47193F290755F957123" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.min.css" />
+                        </Component>
+                        <Component Id="cmp407AC30A654585533F0D394AFDD4AB4B" Guid="*">
+                            <File Id="filC722C0E7E6A85546D7E57532A2064078" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.css.map" />
+                        </Component>
+                        <Component Id="cmpA858F3E28742D18DE380C66A7FAD3FA5" Guid="*">
+                            <File Id="fil6B1BC159F5E447AB6F832933F1BA4495" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.standalone.css.map" />
+                        </Component>
+                        <Component Id="cmp7E506DB75C10A260015520DD99B7EB7E" Guid="*">
+                            <File Id="filD420666A0952D2D5157FE7549C9687E7" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.standalone.min.css" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="dir09E40882CC195D2734A933E24F9A938A" Name="locales">
+                        <Component Id="cmp6FCD019A8D53BDACC4495018A02376F3" Guid="*">
+                            <File Id="fil6607B911E57D42B56B5F054EC87A4F99" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker-en-CA.js" />
+                        </Component>
+                        <Component Id="cmp459B7DD14921AC5829974F4C859D2214" Guid="*">
+                            <File Id="filA1CBED529896B754D13D22F52599E603" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ar-DZ.js" />
+                        </Component>
+                        <Component Id="cmpD97C068A5768DEC983EA9FDBEF4DDDEF" Guid="*">
+                            <File Id="fil0B6654C5ADDC3C3893861D63BE95FC34" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ar-tn.js" />
+                        </Component>
+                        <Component Id="cmp4369B8D0AFBD7F73998E58276F4A68B9" Guid="*">
+                            <File Id="fil9FC0BD4CE32B47FF57B54588E0682CED" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ar.js" />
+                        </Component>
+                        <Component Id="cmpC1671F9D210FA71E2A7509FCAE5F1C0A" Guid="*">
+                            <File Id="fil6C6E8C70EBD2AD02C3D25AD08F21180C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.az.js" />
+                        </Component>
+                        <Component Id="cmpC3837B1BBDE21B30686E088D1C2CAE18" Guid="*">
+                            <File Id="filF872FC0B9222309C335A4FFE0161EE94" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bg.js" />
+                        </Component>
+                        <Component Id="cmp5ED1CD8E41E4D80454EAE105897331B8" Guid="*">
+                            <File Id="filB545E3BB45D706D30D10598E07BBA130" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bm.js" />
+                        </Component>
+                        <Component Id="cmpEC678DED6E8FAD7BDEFD8FAEF3DA3AE9" Guid="*">
+                            <File Id="fil54A7B5E92DA0BDE1FC473E5F15E85A0A" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bn.js" />
+                        </Component>
+                        <Component Id="cmp8853C1DD9B85957A8B8527EB369FA936" Guid="*">
+                            <File Id="fil65565692D044916ED113C9232BC7D9B3" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.br.js" />
+                        </Component>
+                        <Component Id="cmp893D9F1E8CF2DA7D15E3B17502AA1115" Guid="*">
+                            <File Id="fil399A4C2FB77F5FAAEA0E3B74E4A2E1DA" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bs.js" />
+                        </Component>
+                        <Component Id="cmpAB39DC019BCEB121545396D46A90DCC3" Guid="*">
+                            <File Id="fil4E83FE6BB3B61CF2CCD9466BB4C4F723" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ca.js" />
+                        </Component>
+                        <Component Id="cmp7332CB96E66C7CD07CDFA8226579D819" Guid="*">
+                            <File Id="fil7B411B1F8D265F3AC28964E467883F28" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.cs.js" />
+                        </Component>
+                        <Component Id="cmp3F2E14BF3858452E94EF0FD35144FC48" Guid="*">
+                            <File Id="filC0E4F4E305BD1102DCD78A6BB3DDF8D5" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.cy.js" />
+                        </Component>
+                        <Component Id="cmpCC32EEBEEC9F81A11DC0295DB730C92F" Guid="*">
+                            <File Id="fil1BB7DD6AFDCD0BD7AE71ACA4A8BBB7CD" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.da.js" />
+                        </Component>
+                        <Component Id="cmp4E2ACCBE2340727B58445C19184AA575" Guid="*">
+                            <File Id="fil96C435DC4E42791CB0B9183715E4DF03" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.de.js" />
+                        </Component>
+                        <Component Id="cmpD1EE69F443E95B1E01255C602E6A94C7" Guid="*">
+                            <File Id="fil38AEB3FD91CAA774B765FCF0E10B8FCA" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.el.js" />
+                        </Component>
+                        <Component Id="cmpD10D121F83E58BE0D45C6566CBCAA954" Guid="*">
+                            <File Id="fil1940BB2964B81E875A56B1B975677509" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-AU.js" />
+                        </Component>
+                        <Component Id="cmpCA43DC4AF1DE16E3FACAD1CBC32EA5D3" Guid="*">
+                            <File Id="filD44AABE30634DFE8711E05253E1D8ED7" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-CA.js" />
+                        </Component>
+                        <Component Id="cmp7C9E5930F33FE0AA03899D2E67226BF2" Guid="*">
+                            <File Id="fil90DAB81D18C72BE7C9894F7CB7CB6DB2" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-GB.js" />
+                        </Component>
+                        <Component Id="cmpB24703F9AE6434E37411211DF2EEAB7F" Guid="*">
+                            <File Id="fil4B88A37B5C6F522DDD43804303C9DBE9" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-IE.js" />
+                        </Component>
+                        <Component Id="cmpB42160F575B00ECA3A7F92ED1F6486DF" Guid="*">
+                            <File Id="filC041EC19E165D7C69A749A6D74AA2051" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-NZ.js" />
+                        </Component>
+                        <Component Id="cmpE89EAE03D12AC6B4B91684D5552C9E51" Guid="*">
+                            <File Id="fil3433843C3C84493B9E972A6080D2D7C1" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-US.js" />
+                        </Component>
+                        <Component Id="cmpEA71E89E11E14692156D89D247F88669" Guid="*">
+                            <File Id="filF6636BA109CCF60E52C2373CF1E3E3C8" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-ZA.js" />
+                        </Component>
+                        <Component Id="cmpDD17DA0095F1012D47682A4DABC1B95A" Guid="*">
+                            <File Id="filA160DCB6860E9134B728CACA408C7B9C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.eo.js" />
+                        </Component>
+                        <Component Id="cmpC9527FE18673E4A0F64AF9123472B233" Guid="*">
+                            <File Id="filB3D97C8034F2D7E4F329F4FEC3DF00BE" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.es.js" />
+                        </Component>
+                        <Component Id="cmp293ED26AF3EFE63FBC01FA580EC5E75A" Guid="*">
+                            <File Id="fil498FF4F040E9CB317E137B141E78BBDC" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.et.js" />
+                        </Component>
+                        <Component Id="cmp9C0953DDC8DFD6B2A13C39BFE1451D4F" Guid="*">
+                            <File Id="fil43365C92344E8346363FB8AD319EF26D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.eu.js" />
+                        </Component>
+                        <Component Id="cmpC2D49FEEF7A8807557F2FD576D9D6422" Guid="*">
+                            <File Id="filE567001FA5C53F3CC8C1F742EFA0F216" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fa.js" />
+                        </Component>
+                        <Component Id="cmp7E72E993C821BCC4C924292682D0A3A8" Guid="*">
+                            <File Id="fil092EBB6E195DA996C5DAAD4AD31ACDBD" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fi.js" />
+                        </Component>
+                        <Component Id="cmpE2EC25F91546A96D06EDEB12727750C8" Guid="*">
+                            <File Id="filC0D2D4C6007D0859C18A53F797508E5B" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fo.js" />
+                        </Component>
+                        <Component Id="cmp820F9288A7DB1DB0216D7F2F2FF5B057" Guid="*">
+                            <File Id="fil2475EA7C2260A05CBC7A548ACAE4188C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fr-CH.js" />
+                        </Component>
+                        <Component Id="cmpE0A3167150A38096A272F6072293D890" Guid="*">
+                            <File Id="filBDC06F4C8D6DEA817EEFBD16AA1F539A" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fr.js" />
+                        </Component>
+                        <Component Id="cmpAA04335BEEE86FE3DB8F66BB36F2D0B7" Guid="*">
+                            <File Id="fil50395C1FB1A5D07516BC1C4C72847F50" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.gl.js" />
+                        </Component>
+                        <Component Id="cmpE382CA018AE151433DDA96E9467AFC3D" Guid="*">
+                            <File Id="fil9F7C0D8D80EDBFFE529BA63497ED720E" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.he.js" />
+                        </Component>
+                        <Component Id="cmpAC3AA640A205B4E7C6AD40019C9B9D44" Guid="*">
+                            <File Id="fil64D0FDDF87E98F97B31C53E6B6E75BBD" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hi.js" />
+                        </Component>
+                        <Component Id="cmpB34F165EE66EF0F5B0C58CEEE93A4D9F" Guid="*">
+                            <File Id="fil66AB07070D9EA589AEDD831318BAE0A7" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hr.js" />
+                        </Component>
+                        <Component Id="cmpC0278646D2437A2CC4D95268501FC2A5" Guid="*">
+                            <File Id="fil21ED515847B329A12BC7A02E58DE3BD4" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hu.js" />
+                        </Component>
+                        <Component Id="cmpE3D9DB9A616884633F61F4851A0E67E8" Guid="*">
+                            <File Id="fil30A25E3F5DC6C3837B0566FB758D3112" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hy.js" />
+                        </Component>
+                        <Component Id="cmp1A7B273B0E0FCDD39A7AFA05D89B0810" Guid="*">
+                            <File Id="filFA46D4BAE69F4F7D805085E2E98E132C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.id.js" />
+                        </Component>
+                        <Component Id="cmp817E0BD9CBB7194873B6510E6ECCAE08" Guid="*">
+                            <File Id="fil8DF6F1071AB8BABEABE7BAA84ADCCA35" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.is.js" />
+                        </Component>
+                        <Component Id="cmp0B06AB52E6557F9C74868C5207C2E1BD" Guid="*">
+                            <File Id="fil4697F5FEE35351EE7F285788D2A68811" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.it-CH.js" />
+                        </Component>
+                        <Component Id="cmp1960FAE7AD3FC8B979E4E00DB37DF3BE" Guid="*">
+                            <File Id="fil70F4C030E818D899D88BF73E916B49FA" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.it.js" />
+                        </Component>
+                        <Component Id="cmp62FD46C36857CFA6CF4AEC589DFFF574" Guid="*">
+                            <File Id="filD6C181BAD5C8AE40C9984ACF71A5476F" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ja.js" />
+                        </Component>
+                        <Component Id="cmp4CE7B44F1C3DDD7DCC5E46D86B530E37" Guid="*">
+                            <File Id="fil782DAE65A3E54CD8E4AC74206FE9E6CE" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ka.js" />
+                        </Component>
+                        <Component Id="cmp49CF96E32D1FE897C784C678D56C53A3" Guid="*">
+                            <File Id="filC9D6B673ABAB952F07363F4476B4131B" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.kh.js" />
+                        </Component>
+                        <Component Id="cmp800D6BB1C02CD9F6662FFF2546380CE8" Guid="*">
+                            <File Id="filE795C9AF1E8377702110978D45C27E1E" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.kk.js" />
+                        </Component>
+                        <Component Id="cmp5BEA888AD7308D31873A68F7EEF09C83" Guid="*">
+                            <File Id="fil5F910B31CD7EDD161E6589A4035B4C07" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.km.js" />
+                        </Component>
+                        <Component Id="cmp0E542456716F77E2174532D8A02A2547" Guid="*">
+                            <File Id="fil527C13A971D3B5AAF862640290783F8C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ko.js" />
+                        </Component>
+                        <Component Id="cmp51B849D1F145C0D7E2F7D176B9C530FF" Guid="*">
+                            <File Id="fil18B7A669F7CA6C59B2D43BDF216BFB46" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.kr.js" />
+                        </Component>
+                        <Component Id="cmpDBF8395364641650CF99336DBA9092A2" Guid="*">
+                            <File Id="fil09B945334447D7A43C28051095589157" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.lt.js" />
+                        </Component>
+                        <Component Id="cmp31229CB12EE927A84B3C15D5C110D5EA" Guid="*">
+                            <File Id="filD0A3852AC39BCD288C6F858AB162E185" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.lv.js" />
+                        </Component>
+                        <Component Id="cmpDFE0D04E2CBCA46E3B052D7EB98B2BC9" Guid="*">
+                            <File Id="fil03870A1A5A409F03224CFE30F363B75F" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.me.js" />
+                        </Component>
+                        <Component Id="cmpCF39715FEAE0B0713A504C806E807797" Guid="*">
+                            <File Id="filF1C14CB81D9366CE375EB95809C423E6" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.mk.js" />
+                        </Component>
+                        <Component Id="cmp361BA614FB4E1C9717080A7762689A51" Guid="*">
+                            <File Id="fil6587D1488ECECA30318EC49EA304C455" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.mn.js" />
+                        </Component>
+                        <Component Id="cmp3DF477988BEFC0615C170F97FE427AB8" Guid="*">
+                            <File Id="filB0E31F52E7764A450D8AB93576234E8A" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.mr.js" />
+                        </Component>
+                        <Component Id="cmp8AA8CCE9CD286503D45EBED576DF66B1" Guid="*">
+                            <File Id="filE363E5E6823189EFA1D48E5AB18B414A" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ms.js" />
+                        </Component>
+                        <Component Id="cmpBD3BA5CC0BF4C245E6E72663AB9BEB11" Guid="*">
+                            <File Id="filFD9A43DB1AEB19B782809FC426CED25D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.nl-BE.js" />
+                        </Component>
+                        <Component Id="cmp8F1120189CC52DA810B154DDF2DB8619" Guid="*">
+                            <File Id="filA144AF4EA736C41EC760BBAE37E1B9F8" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.nl.js" />
+                        </Component>
+                        <Component Id="cmpB40670E070B8A9466534CECA7EC48681" Guid="*">
+                            <File Id="fil07025111C930FECE652B7F6777DDE568" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.no.js" />
+                        </Component>
+                        <Component Id="cmp4948ADE3842478CEF8FFF743EC6EBF91" Guid="*">
+                            <File Id="fil4EB4743B3E0DCE706C61C4E970B55524" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.oc.js" />
+                        </Component>
+                        <Component Id="cmp5A845CEEAFF3D22C954D1928E88075B5" Guid="*">
+                            <File Id="fil005CBE0F9BEC2A9C1618C7A01724649C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.pl.js" />
+                        </Component>
+                        <Component Id="cmpD27AAF9509530C2BCF28A211043BAD74" Guid="*">
+                            <File Id="fil38DC328EA30F5198590E8E7CF5294241" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.pt-BR.js" />
+                        </Component>
+                        <Component Id="cmp7CB7CB6A6FDD83D7A3D6EF33E40B792E" Guid="*">
+                            <File Id="fil4BD24EBD8134F8C6DFC079C25ED40EB9" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.pt.js" />
+                        </Component>
+                        <Component Id="cmp370727883E106292CE34F9094A6F5D21" Guid="*">
+                            <File Id="filB12BACD094BD704B36DDD3C90E7B9542" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ro.js" />
+                        </Component>
+                        <Component Id="cmp7C0FCB1CAD8A3F06447C252A121815E9" Guid="*">
+                            <File Id="fil77266B88657072542D2B440A90D10A39" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.rs-latin.js" />
+                        </Component>
+                        <Component Id="cmpA8AD3FC2EEE9C6CAB7B76E9DF9B24CD0" Guid="*">
+                            <File Id="fil65438F63958E1AA5FA9D25021BF9850E" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.rs.js" />
+                        </Component>
+                        <Component Id="cmp48D4FB499BF04CB5FB563A1DE08494B1" Guid="*">
+                            <File Id="fil82095D8A917324DA03F2EE10EF48E67C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ru.js" />
+                        </Component>
+                        <Component Id="cmp4E3F8C44DBB55AD427CE614C22CF05A5" Guid="*">
+                            <File Id="fil72A75F786B9A0AACA4CD99C7D2014A2D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.si.js" />
+                        </Component>
+                        <Component Id="cmpE09D7115119087C994231530F9931ADE" Guid="*">
+                            <File Id="filE0142A53DDB49823D69A953C76B1A7B5" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sk.js" />
+                        </Component>
+                        <Component Id="cmpB55F504ED26FD2DDDFA24EED37BA5BF4" Guid="*">
+                            <File Id="fil4AC8D051515F0A756A9F9925221BB5B6" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sl.js" />
+                        </Component>
+                        <Component Id="cmp85C38E27E44C153B79BA0681D8E9B189" Guid="*">
+                            <File Id="filE9122B789451AB2851D78F9EB3ACDC9D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sq.js" />
+                        </Component>
+                        <Component Id="cmpC7F2B7585B7C1FCA39341570C6540EB4" Guid="*">
+                            <File Id="filD7BB27E49CDC98015A84262F06B0CEEB" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sr-latin.js" />
+                        </Component>
+                        <Component Id="cmp41CB0E4929C0B9384DB37BF3C2C9AA23" Guid="*">
+                            <File Id="fil997408E27B8D31077E046CF03C9DB544" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sr.js" />
+                        </Component>
+                        <Component Id="cmp5A236F7FB45F8D8CF4206598A6D01322" Guid="*">
+                            <File Id="filF5746F748FA05C668AB69CC26919B17C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sv.js" />
+                        </Component>
+                        <Component Id="cmp1E2D87B33D6B31CA7EA50966BC82B9A6" Guid="*">
+                            <File Id="fil89E204091F52C2470566A7B22E031E58" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sw.js" />
+                        </Component>
+                        <Component Id="cmp759B00B001A22E11548EE02F6CF67805" Guid="*">
+                            <File Id="fil5D53F36F881DB13E56F215C7F4CC435F" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ta.js" />
+                        </Component>
+                        <Component Id="cmp17CE3DE61F233C7D381367B398B07CCC" Guid="*">
+                            <File Id="filFA6C3F202BD6514B9A9B8D11B012F6FE" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.tg.js" />
+                        </Component>
+                        <Component Id="cmp221BC3D10DFF5AAD9ED04E2F14192CF3" Guid="*">
+                            <File Id="filC3920E4F1053BF0DE73E1EE829816FFF" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.th.js" />
+                        </Component>
+                        <Component Id="cmp12EB46FC8490DFF11032184589510CC1" Guid="*">
+                            <File Id="fil8C234E00B6FF65C93B94B733DB80DC7D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.tk.js" />
+                        </Component>
+                        <Component Id="cmp19D828E2FC0D8DEEF1FA7120260870AA" Guid="*">
+                            <File Id="fil1BBBEEF704C45A9A5A368AE5C196125B" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.tr.js" />
+                        </Component>
+                        <Component Id="cmpD3EBF4661BF4FE76554078789C7BDA6C" Guid="*">
+                            <File Id="filD24243058B3B048034DB42E3D9D7DE28" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.uk.js" />
+                        </Component>
+                        <Component Id="cmp32A70AC8A55AD2C88EDCB8D4AE62D05B" Guid="*">
+                            <File Id="fil0F4B7AE2E7AC295DB6A6767309BFF709" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.uz-cyrl.js" />
+                        </Component>
+                        <Component Id="cmp0D3CA8861F712EF67FC24F7A1788D29A" Guid="*">
+                            <File Id="fil7303088993FF6086A7CE35E485F78315" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.uz-latn.js" />
+                        </Component>
+                        <Component Id="cmp4920FC0DA1962CD36AB1EC75EAA995C1" Guid="*">
+                            <File Id="fil72BF47BFB6B258BF429B4EC28FCD8DA5" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.vi.js" />
+                        </Component>
+                        <Component Id="cmpF62FBB4D4AB21A52B0A6DD822BBDE259" Guid="*">
+                            <File Id="filC04688B15F102E140FA5717C035BB5D7" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-CN.js" />
+                        </Component>
+                        <Component Id="cmpE9A25B007AF5239241588D919D56E687" Guid="*">
+                            <File Id="fil8171B0E91DE9032CE4B202A891497510" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
+                        </Component>
+                    </Directory>
+                </Directory>
+                <Directory Id="dirC889797551430ED18E1D001088BECDA8" Name="jquery_ui">
+                    <Component Id="cmpC0B5D66D20EE86E2F02E7C57B52AF598" Guid="*">
+                        <File Id="fil9C34055E59A03F017C9D5388A3EC90BB" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\jquery_ui\jquery-ui.structure.min.css" />
+                    </Component>
+                    <Component Id="cmp2D5F5F8415B1CB63DEDEFD8AAC7C6DA9" Guid="*">
+                        <File Id="filB7448804E3C3F33EA104C3B6F55BDA41" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\jquery_ui\jquery-ui.theme.min.css" />
+                    </Component>
+                </Directory>
+            </Directory>
+            <Directory Id="dir8C5E37FA87D1897FFB78337F53EB198C" Name="zh-CN">
+                <Component Id="cmpE45030977844638E0436B4E41A9755FE" Guid="*">
+                    <File Id="fil1DF877703CF0F71C6E7063297B837B3F" KeyPath="yes" Source="$(var.HarvestPath)\zh-CN\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+            <Directory Id="dir9F1EA0DADAA2710F788D419BCB15BCFA" Name="zh-TW">
+                <Component Id="cmp31593345616826E1A520586948540359" Guid="*">
+                    <File Id="filAF5335DF5D0DC1552AC38DACF1725915" KeyPath="yes" Source="$(var.HarvestPath)\zh-TW\MdExplorer.Service.resources.dll" />
+                </Component>
+            </Directory>
+        </DirectoryRef>
+    </Fragment>
+    <Fragment>
+        <ComponentGroup Id="HeatGenerated">
+            <ComponentRef Id="cmp15A6A8931BFF7022499E4DE5A9967EFC" />
+            <ComponentRef Id="cmpF17944185780ADFE036E272DA1E890A5" />
+            <ComponentRef Id="cmpD385A54CB90A76C02B3131EC38AF1A01" />
+            <ComponentRef Id="cmp53279A98F864C074DC9B130B941D4F55" />
+            <ComponentRef Id="cmp705FA606FC7F6830B84045831B1A22BF" />
+            <ComponentRef Id="cmp9C00A521627877E6D767443FDCE9AA53" />
+            <ComponentRef Id="cmp42DD8C788F3F05F7E9B33F2DBBD916F7" />
+            <ComponentRef Id="cmpA0863526952F7834E7C922F065E4C8A8" />
+            <ComponentRef Id="cmpF82FCA80BBAF44D285C97F10993DEEE6" />
+            <ComponentRef Id="cmpFD65F52CD5EC0B46A750F8EEFC3D4422" />
+            <ComponentRef Id="cmpEB2E40E88926DC89EC075540B80AB621" />
+            <ComponentRef Id="cmpCF9B3A227754E55B2A4622BDADF51333" />
+            <ComponentRef Id="cmp8E0BA9345D6467C6CE87127468E2DA60" />
+            <ComponentRef Id="cmp0BFABD100B4065787B40AA6B05938DF7" />
+            <ComponentRef Id="cmpB8E7B130B6B78399B39307530A3D65B2" />
+            <ComponentRef Id="cmpE41B8B1DE5EED787D6579416750C43F3" />
+            <ComponentRef Id="cmpD7C66964F86767C20C5E46FDB72D06CC" />
+            <ComponentRef Id="cmp86D39C846D35404811CE8131D24A8BBA" />
+            <ComponentRef Id="cmp8E714CB9FC493196F5ECD0CF99D45E7D" />
+            <ComponentRef Id="cmp31B338A4B9A34E87AA3694F94A4DE6AB" />
+            <ComponentRef Id="cmp6E77A23EBA8FC7F17B3EFDF713FC2BC9" />
+            <ComponentRef Id="cmpCFE03BCBC74D1CD6ACE6A47DE85526CC" />
+            <ComponentRef Id="cmp4940AAA3F63390CBEADD4945A4187C63" />
+            <ComponentRef Id="cmp8E1FD6C16F6203800E716031035591DB" />
+            <ComponentRef Id="cmpBC658FED316EB193ACB3D83D2FBF9B5D" />
+            <ComponentRef Id="cmpFB0F1A2DF4FE561BF720896A533FF052" />
+            <ComponentRef Id="cmp936FA99595682B46FA8F7D1A3A95CBEB" />
+            <ComponentRef Id="cmpDD3FD9C2FADE9ACB11899EBD1DD3D821" />
+            <ComponentRef Id="cmp63BDD5C1CADD8DA6F5B501098CC3E3E9" />
+            <ComponentRef Id="cmp0CA3A99A6CE173F80C2A5BBB926E03C2" />
+            <ComponentRef Id="cmp72DC77124E5443EEFA67231FEFC9BA96" />
+            <ComponentRef Id="cmpDC02640B892AD65CDC10598018D2E4B6" />
+            <ComponentRef Id="cmp265CA1BA7A92D2834C55E52DC0CE1E8E" />
+            <ComponentRef Id="cmp3C26F8E059ED2F7797F2EBA9E1CDD010" />
+            <ComponentRef Id="cmp730E2FFFAB351C1FBB3C16D211F149E6" />
+            <ComponentRef Id="cmp2B62C064A3ED6A94B47BE64C5EB82D9E" />
+            <ComponentRef Id="cmp3464F8730E573D338954EC7195CFB4A4" />
+            <ComponentRef Id="cmpAD8551805C0E384D4FD6CD718C5E8381" />
+            <ComponentRef Id="cmpF7547A1A123654F1626E22C3BFD5A6CD" />
+            <ComponentRef Id="cmpD511E2BCF8F59B559734BF4D3909F63F" />
+            <ComponentRef Id="cmp903F8943E42EDF33CA4034159C76E511" />
+            <ComponentRef Id="cmp3CE62DB9249D75E91DE189C4BE572799" />
+            <ComponentRef Id="cmp6C36974A0EA2E9B5CFE90BF192DD9FEC" />
+            <ComponentRef Id="cmp5F46BD012A14C4BB765A2E38DB8C6723" />
+            <ComponentRef Id="cmp3F1A8ED120366E8991F256C74C5C6361" />
+            <ComponentRef Id="cmpF99A595A7DC11ABFCF11B1C406248EA7" />
+            <ComponentRef Id="cmp68C73C38AC628154D11B2D9A85EE97D6" />
+            <ComponentRef Id="cmpCF90702DB6BD5D0BCBE864804278C36B" />
+            <ComponentRef Id="cmp4F241916C32EC6A1E970595E25671525" />
+            <ComponentRef Id="cmp4A6E58F04BADFD865DE275BB9FEBC6CF" />
+            <ComponentRef Id="cmpF380FE2681A9372C49418301CBC7CE64" />
+            <ComponentRef Id="cmp38BBDC48CA4A8A258B36C6163AFFF796" />
+            <ComponentRef Id="cmp549F1658169B3F2AEB63C16D3ED55166" />
+            <ComponentRef Id="cmpE5B11D3394FBFB444E7BAAA9C56D070D" />
+            <ComponentRef Id="cmpD238E089839EB6449C051D7E7CEE972F" />
+            <ComponentRef Id="cmpCB91023A7FED7925C79109BD3B8D51F5" />
+            <ComponentRef Id="cmp9F18D530568C5E7F0C0837A8400E0FA1" />
+            <ComponentRef Id="cmp4AF1CD256992764A3B29DAD52E2A03DC" />
+            <ComponentRef Id="cmp548E1D149E3735784000308E747E507F" />
+            <ComponentRef Id="cmpDB097638F132B793BEC66DD9878CF606" />
+            <ComponentRef Id="cmpE5877A64EB1EC28CBEB5738C9AC0FDA5" />
+            <ComponentRef Id="cmp9BEF50AE838146F97ECA8747DB2FD72C" />
+            <ComponentRef Id="cmpA4FEED1FE8C2FAE39891823A841466F0" />
+            <ComponentRef Id="cmpDC19BA21EFF423B27F8787A2AB8F2B3C" />
+            <ComponentRef Id="cmp198468A4AE980CD6955CB6EB86083726" />
+            <ComponentRef Id="cmp493E9BC44885B6BC5C57BDB1302C40D9" />
+            <ComponentRef Id="cmp0209E8308C907CAD5474151F7C6836F5" />
+            <ComponentRef Id="cmpB96239F931804879A085E057C6E72657" />
+            <ComponentRef Id="cmp8C674FD6A69988A60A77A4CEE0F53781" />
+            <ComponentRef Id="cmp835034F744990576E31C2DBC7C9293BF" />
+            <ComponentRef Id="cmp3279C150AE8DF554FD7EEE2085672A2B" />
+            <ComponentRef Id="cmp946145B53A7DCDFA822B0EFD2314FAB6" />
+            <ComponentRef Id="cmpECB4AFEEC4D7711360AF57F2CE96729D" />
+            <ComponentRef Id="cmpA4D9C03869723FFBEE9F289352A1B069" />
+            <ComponentRef Id="cmpCA0CA4D611B62983A5F22D7DB1142FB5" />
+            <ComponentRef Id="cmp4198EB9AA246AF7D343AB15DAF582334" />
+            <ComponentRef Id="cmpE50C5306874111AE648E7A064CFCA86B" />
+            <ComponentRef Id="cmp1CCC42FAF94D59D43A57B48070D20BFB" />
+            <ComponentRef Id="cmp16861E24C897764CA922EC062BA74EC9" />
+            <ComponentRef Id="cmpA7771CE1E6117765D3B76A77D934BA56" />
+            <ComponentRef Id="cmpA1ECE8DB012BBA16B976018E9D98B56D" />
+            <ComponentRef Id="cmpD71BBAC84D48FE0434198573578E243E" />
+            <ComponentRef Id="cmp5D9A8CF9496F8F948E0AF4F768D0E5C8" />
+            <ComponentRef Id="cmp8D5434D4EDF02E7004A0CEC987C5BC30" />
+            <ComponentRef Id="cmp78E9C9E7F6C313249BFAE4927EC6B5B0" />
+            <ComponentRef Id="cmpE78757BD03463E74652C32CEEAB79A64" />
+            <ComponentRef Id="cmp49125E5013602B31260BC5A53372B428" />
+            <ComponentRef Id="cmp627F95934DFE8795F8708045A2120F23" />
+            <ComponentRef Id="cmp89F5F904B3CAF843A281A5A84D668E1E" />
+            <ComponentRef Id="cmp7FFA1CFB45EDA1442E42E34E1F3DB27E" />
+            <ComponentRef Id="cmp6B7CE49F5F3A518047B74FB6AC2251C5" />
+            <ComponentRef Id="cmpF0779F15EC19A57BE1B2F861D7DE696E" />
+            <ComponentRef Id="cmpE763840EE41F851D57CAC8F2218E3DA8" />
+            <ComponentRef Id="cmpE722E076AB8486E4A4F24B01268787A2" />
+            <ComponentRef Id="cmp08EBD8C605FF27A4F0FCEC5A1317087B" />
+            <ComponentRef Id="cmp817DADD4F645A06A14E7CEFCE195AEAC" />
+            <ComponentRef Id="cmpC2D1864013DD0BCBA830EE1028C6B904" />
+            <ComponentRef Id="cmp3704D619BA8176CC239C4E2E3DE22240" />
+            <ComponentRef Id="cmp9D1519D872AF6E420B3F121C523F1D76" />
+            <ComponentRef Id="cmp8E4B062E4C5959DEDB35F54E92EF80D9" />
+            <ComponentRef Id="cmpB139B49DF4DF8F44C525B449EA8187F7" />
+            <ComponentRef Id="cmp472D5C307C65C2EF7F1A1AFA6722B994" />
+            <ComponentRef Id="cmp260AD66439F3EF5ACD4EBF9A1DE8B522" />
+            <ComponentRef Id="cmpF5D795D03BA05751BA2F9A084DC0CFAA" />
+            <ComponentRef Id="cmp0C0B793096212E18DB51628ECB3FDB00" />
+            <ComponentRef Id="cmp546EE9A619D1F35D5A09EAC43C77BDC7" />
+            <ComponentRef Id="cmp6069CE3AE31EEB271FA924A9F55503A8" />
+            <ComponentRef Id="cmp5DF2CC35E4590C59CB75A3AFE71997CB" />
+            <ComponentRef Id="cmp5F1056FB1FF8845F03BA0DD952E8F495" />
+            <ComponentRef Id="cmp3E89114B9601E23647195C0E2C0F5B05" />
+            <ComponentRef Id="cmp2A1C6054E425CE16BEF7ADA970A6D1CE" />
+            <ComponentRef Id="cmp095A0BED521BE90724B0ECDFFF6E2E08" />
+            <ComponentRef Id="cmp5E1B6AB1393086197E6DE5056A323402" />
+            <ComponentRef Id="cmpA2546AD101598A06749C4105D4FF4874" />
+            <ComponentRef Id="cmp76FA3D9BAF4EB6F6349CF163E7D572E3" />
+            <ComponentRef Id="cmp2B811053B5AE4B88DEFFD5B5A76B4D07" />
+            <ComponentRef Id="cmpCFC07250170E75B593412650F8C5C349" />
+            <ComponentRef Id="cmp6024709601757BCCAD7691A230EFFD3F" />
+            <ComponentRef Id="cmp44FF64DDE6E9C9E771266002FD0AF841" />
+            <ComponentRef Id="cmpA964A847AD6177F00FFB96B8E1AFD3DE" />
+            <ComponentRef Id="cmpFFC59F91BA2A40263777A08887C4DE28" />
+            <ComponentRef Id="cmp419937E1F1A4AD6EBAD761C73BBB9BBB" />
+            <ComponentRef Id="cmpBC0707858AF0C6A1D543C6685B8435B8" />
+            <ComponentRef Id="cmp501A4C49A590EF542135ADAF9DBB5725" />
+            <ComponentRef Id="cmp63C8C8135A7B11C46703CF103B976B92" />
+            <ComponentRef Id="cmp9CDE5992FB9CBBA4C0F19E7F54E55522" />
+            <ComponentRef Id="cmp447391DC4132C82859EABC121B2CCAA1" />
+            <ComponentRef Id="cmpDB5A7A761C5BE0085013F4E91B88B678" />
+            <ComponentRef Id="cmp3DD0228150A0FF3DCF43D8E39C92E0CD" />
+            <ComponentRef Id="cmp259834ADC7A965DAF0B47B87D270728C" />
+            <ComponentRef Id="cmp22AB026134B0DB9D69A75A82D135EFC1" />
+            <ComponentRef Id="cmpE09704DE7B129858FE1FF206544B8CD5" />
+            <ComponentRef Id="cmp564C45155DD347E8F8D734CA072CB3D3" />
+            <ComponentRef Id="cmp5A97ECC8B67C8F676797CCD378A6B27A" />
+            <ComponentRef Id="cmpEE143ADE25F7C9A2A202BFD3213CB3C2" />
+            <ComponentRef Id="cmp0F4843D5F0B3F417983475324BD2DD2D" />
+            <ComponentRef Id="cmpF1703B679DCF757E3406C0ECC1921246" />
+            <ComponentRef Id="cmpDDC9D796224744010E12E0CCE2F821B1" />
+            <ComponentRef Id="cmpD83A12FB6255318CC94D9C98C8E47A14" />
+            <ComponentRef Id="cmpC86CB6A143A7809F450B83C389C32A35" />
+            <ComponentRef Id="cmpE064CC21FD1CB88F9955636CD19EDE6D" />
+            <ComponentRef Id="cmp5E5901D887ECF6BBA5452B029F462753" />
+            <ComponentRef Id="cmpA2998E46BAB137BB982D90E44F6239AA" />
+            <ComponentRef Id="cmp3602F73C30D64F3398781529B0791CC3" />
+            <ComponentRef Id="cmp0A517FF0408F21B8741F751B93A59CBE" />
+            <ComponentRef Id="cmpD0F5A553F048328AF3E643AC787DAD0E" />
+            <ComponentRef Id="cmp5CD7FB50E61C6E431A427A6A49B9438B" />
+            <ComponentRef Id="cmp6C0843C9BA9168B66C8D489E91347AE8" />
+            <ComponentRef Id="cmp6DB9D907FC6711428A0EB13063C839FE" />
+            <ComponentRef Id="cmp02B536B869C1C3BA5BBCEC5C384CFBA7" />
+            <ComponentRef Id="cmpF2D553CC2F8B8C21C554DB18FD1F3B53" />
+            <ComponentRef Id="cmpF979E617D805110B75AA6C521517CFF6" />
+            <ComponentRef Id="cmpE12B473EB79500E5B8DF0F93BE8AD8E0" />
+            <ComponentRef Id="cmp9B80E8536242425F6626F00DE2D48626" />
+            <ComponentRef Id="cmp4E36FE1848D91A7AD937F637169F29C6" />
+            <ComponentRef Id="cmpAEDFAC626A0933F57CC3B7CCD246F533" />
+            <ComponentRef Id="cmp7EF9B325BB1C6E43C1139935FCC51036" />
+            <ComponentRef Id="cmp27C151EEE8834E3156C07A089FE47BE1" />
+            <ComponentRef Id="cmp77321F7463D82C408B4F60D8F6728140" />
+            <ComponentRef Id="cmp491807625BF7010603DFEDB1EEFA072D" />
+            <ComponentRef Id="cmp470BA4370944F9451C982BCF6CEE9FB5" />
+            <ComponentRef Id="cmp482D726CC93B6FF8C7F32AA03CD62E8F" />
+            <ComponentRef Id="cmp2C70AEAE5E440BB5BDB1ACE9066CFCEC" />
+            <ComponentRef Id="cmpC0A25D7FF6ED9B2CDA9538CE8F367ADE" />
+            <ComponentRef Id="cmp5DDF21631EC3B2240EE41CCEE4A2C708" />
+            <ComponentRef Id="cmp1C72DC88C982C86DC17AADB9DC148EFC" />
+            <ComponentRef Id="cmpD4AA064A82BD0A2EF36E07F6F935CB15" />
+            <ComponentRef Id="cmpEA325510FD20E1AF121FF04B69CC1B9C" />
+            <ComponentRef Id="cmpD21D02CF28FDC4D0FAA1A93F85A9BA7A" />
+            <ComponentRef Id="cmpD601E274F6C33EDD528B6D4437098C47" />
+            <ComponentRef Id="cmpDB77AE33350A54C216E8D6196FAE7002" />
+            <ComponentRef Id="cmpCF0F41F19B4F3D9392715D60BBAEBC49" />
+            <ComponentRef Id="cmp4558E76DE2D17E6A8C7023E782DB7671" />
+            <ComponentRef Id="cmp322000A45163E3C8B5231856A62BC551" />
+            <ComponentRef Id="cmpD444B5AFD1D4CACF4585D472AD9768C8" />
+            <ComponentRef Id="cmp45D5636F9BC73B4F82F6585F36E36764" />
+            <ComponentRef Id="cmp1C1570294EE908AE88616E796A8DC40E" />
+            <ComponentRef Id="cmp47358E02E0A0B0A3BEB37EBE7A44B9F7" />
+            <ComponentRef Id="cmp407B59A7279F4238A809D5C6EE18FC02" />
+            <ComponentRef Id="cmpBFB9C905D5D9095E24BE7195BC04D646" />
+            <ComponentRef Id="cmp1BF549AED404A3DD764B6F6EE47A9CE1" />
+            <ComponentRef Id="cmpDF3216267E72B4036512913293A7E13C" />
+            <ComponentRef Id="cmp1BFF222E4E2C533093752AB74964C8C2" />
+            <ComponentRef Id="cmpC73CA8BFEBFB9A2EA0E871B491DFDCAC" />
+            <ComponentRef Id="cmp13C9088D6BBECF6D3C57786567AFBDDB" />
+            <ComponentRef Id="cmpCA9618F407096574A8EA81D06CDF41D1" />
+            <ComponentRef Id="cmp3A4986FF90AF5A4C417E4671F2735ED0" />
+            <ComponentRef Id="cmp3D8EF611F44940B79861A2C14C6BA402" />
+            <ComponentRef Id="cmp3B879980EC46345B92E7EB093414A31B" />
+            <ComponentRef Id="cmp72BF05B6A40A453FCF7D1D0D0878564C" />
+            <ComponentRef Id="cmpD06528B351ABAF11E596C4B7CED534F6" />
+            <ComponentRef Id="cmp6DF29040DB9F4BFF196E78A0304846F3" />
+            <ComponentRef Id="cmpCD6EB8CA6989F6E4E9A6D5C9A3C1594D" />
+            <ComponentRef Id="cmp4FF66FD91FDE9DA2C23A69415757D947" />
+            <ComponentRef Id="cmp193FBEC2FE31BC1D4FC7110FB57B2A5D" />
+            <ComponentRef Id="cmpD6B18F3C50E4CDD00177E561D29DEB02" />
+            <ComponentRef Id="cmpE6469B6A2B277A8C9D5FE4FB7CDD1180" />
+            <ComponentRef Id="cmp27E2C90FD9A662A49AA2C0A691504641" />
+            <ComponentRef Id="cmpBD24542714F00FA48ACB42007C6E824B" />
+            <ComponentRef Id="cmp71DA884AAEF0EC61647627AE6042D7A3" />
+            <ComponentRef Id="cmp0B200CFE2319055FA081FD03F9BC1583" />
+            <ComponentRef Id="cmpE0C2BDEC541FAF8309914CE1CD170B66" />
+            <ComponentRef Id="cmp3364EB13B9679EA18EDFF2F5644BF597" />
+            <ComponentRef Id="cmpF1CFB70E3B005F98FF63B67A795EFEDD" />
+            <ComponentRef Id="cmp5F0315EC9318F895F1C69AADD6AEEDCF" />
+            <ComponentRef Id="cmp336BF8B3ED276F8A9062A1E8CB2D8E43" />
+            <ComponentRef Id="cmpEFF9F1E875BF6E848A4A965734BFAC4B" />
+            <ComponentRef Id="cmp73E87678832BDCC67A6071149899D291" />
+            <ComponentRef Id="cmp670A53C4BB92522E9197C39F2737FDD0" />
+            <ComponentRef Id="cmp82CAE7B335B9F599FEE57577F9A372EF" />
+            <ComponentRef Id="cmp8324FB939089AA66B3E721D69F4B8F12" />
+            <ComponentRef Id="cmp810D1EFFDA7DD88C8E90E1542AA6BAE2" />
+            <ComponentRef Id="cmp636FC9E2EF47D47393943C950A17662A" />
+            <ComponentRef Id="cmpFCE45893961C3B556093A13244DCAD25" />
+            <ComponentRef Id="cmp605D6B6C48C394E4DB168D3F2B5E64B9" />
+            <ComponentRef Id="cmp407AC30A654585533F0D394AFDD4AB4B" />
+            <ComponentRef Id="cmpA858F3E28742D18DE380C66A7FAD3FA5" />
+            <ComponentRef Id="cmp7E506DB75C10A260015520DD99B7EB7E" />
+            <ComponentRef Id="cmp6FCD019A8D53BDACC4495018A02376F3" />
+            <ComponentRef Id="cmp459B7DD14921AC5829974F4C859D2214" />
+            <ComponentRef Id="cmpD97C068A5768DEC983EA9FDBEF4DDDEF" />
+            <ComponentRef Id="cmp4369B8D0AFBD7F73998E58276F4A68B9" />
+            <ComponentRef Id="cmpC1671F9D210FA71E2A7509FCAE5F1C0A" />
+            <ComponentRef Id="cmpC3837B1BBDE21B30686E088D1C2CAE18" />
+            <ComponentRef Id="cmp5ED1CD8E41E4D80454EAE105897331B8" />
+            <ComponentRef Id="cmpEC678DED6E8FAD7BDEFD8FAEF3DA3AE9" />
+            <ComponentRef Id="cmp8853C1DD9B85957A8B8527EB369FA936" />
+            <ComponentRef Id="cmp893D9F1E8CF2DA7D15E3B17502AA1115" />
+            <ComponentRef Id="cmpAB39DC019BCEB121545396D46A90DCC3" />
+            <ComponentRef Id="cmp7332CB96E66C7CD07CDFA8226579D819" />
+            <ComponentRef Id="cmp3F2E14BF3858452E94EF0FD35144FC48" />
+            <ComponentRef Id="cmpCC32EEBEEC9F81A11DC0295DB730C92F" />
+            <ComponentRef Id="cmp4E2ACCBE2340727B58445C19184AA575" />
+            <ComponentRef Id="cmpD1EE69F443E95B1E01255C602E6A94C7" />
+            <ComponentRef Id="cmpD10D121F83E58BE0D45C6566CBCAA954" />
+            <ComponentRef Id="cmpCA43DC4AF1DE16E3FACAD1CBC32EA5D3" />
+            <ComponentRef Id="cmp7C9E5930F33FE0AA03899D2E67226BF2" />
+            <ComponentRef Id="cmpB24703F9AE6434E37411211DF2EEAB7F" />
+            <ComponentRef Id="cmpB42160F575B00ECA3A7F92ED1F6486DF" />
+            <ComponentRef Id="cmpE89EAE03D12AC6B4B91684D5552C9E51" />
+            <ComponentRef Id="cmpEA71E89E11E14692156D89D247F88669" />
+            <ComponentRef Id="cmpDD17DA0095F1012D47682A4DABC1B95A" />
+            <ComponentRef Id="cmpC9527FE18673E4A0F64AF9123472B233" />
+            <ComponentRef Id="cmp293ED26AF3EFE63FBC01FA580EC5E75A" />
+            <ComponentRef Id="cmp9C0953DDC8DFD6B2A13C39BFE1451D4F" />
+            <ComponentRef Id="cmpC2D49FEEF7A8807557F2FD576D9D6422" />
+            <ComponentRef Id="cmp7E72E993C821BCC4C924292682D0A3A8" />
+            <ComponentRef Id="cmpE2EC25F91546A96D06EDEB12727750C8" />
+            <ComponentRef Id="cmp820F9288A7DB1DB0216D7F2F2FF5B057" />
+            <ComponentRef Id="cmpE0A3167150A38096A272F6072293D890" />
+            <ComponentRef Id="cmpAA04335BEEE86FE3DB8F66BB36F2D0B7" />
+            <ComponentRef Id="cmpE382CA018AE151433DDA96E9467AFC3D" />
+            <ComponentRef Id="cmpAC3AA640A205B4E7C6AD40019C9B9D44" />
+            <ComponentRef Id="cmpB34F165EE66EF0F5B0C58CEEE93A4D9F" />
+            <ComponentRef Id="cmpC0278646D2437A2CC4D95268501FC2A5" />
+            <ComponentRef Id="cmpE3D9DB9A616884633F61F4851A0E67E8" />
+            <ComponentRef Id="cmp1A7B273B0E0FCDD39A7AFA05D89B0810" />
+            <ComponentRef Id="cmp817E0BD9CBB7194873B6510E6ECCAE08" />
+            <ComponentRef Id="cmp0B06AB52E6557F9C74868C5207C2E1BD" />
+            <ComponentRef Id="cmp1960FAE7AD3FC8B979E4E00DB37DF3BE" />
+            <ComponentRef Id="cmp62FD46C36857CFA6CF4AEC589DFFF574" />
+            <ComponentRef Id="cmp4CE7B44F1C3DDD7DCC5E46D86B530E37" />
+            <ComponentRef Id="cmp49CF96E32D1FE897C784C678D56C53A3" />
+            <ComponentRef Id="cmp800D6BB1C02CD9F6662FFF2546380CE8" />
+            <ComponentRef Id="cmp5BEA888AD7308D31873A68F7EEF09C83" />
+            <ComponentRef Id="cmp0E542456716F77E2174532D8A02A2547" />
+            <ComponentRef Id="cmp51B849D1F145C0D7E2F7D176B9C530FF" />
+            <ComponentRef Id="cmpDBF8395364641650CF99336DBA9092A2" />
+            <ComponentRef Id="cmp31229CB12EE927A84B3C15D5C110D5EA" />
+            <ComponentRef Id="cmpDFE0D04E2CBCA46E3B052D7EB98B2BC9" />
+            <ComponentRef Id="cmpCF39715FEAE0B0713A504C806E807797" />
+            <ComponentRef Id="cmp361BA614FB4E1C9717080A7762689A51" />
+            <ComponentRef Id="cmp3DF477988BEFC0615C170F97FE427AB8" />
+            <ComponentRef Id="cmp8AA8CCE9CD286503D45EBED576DF66B1" />
+            <ComponentRef Id="cmpBD3BA5CC0BF4C245E6E72663AB9BEB11" />
+            <ComponentRef Id="cmp8F1120189CC52DA810B154DDF2DB8619" />
+            <ComponentRef Id="cmpB40670E070B8A9466534CECA7EC48681" />
+            <ComponentRef Id="cmp4948ADE3842478CEF8FFF743EC6EBF91" />
+            <ComponentRef Id="cmp5A845CEEAFF3D22C954D1928E88075B5" />
+            <ComponentRef Id="cmpD27AAF9509530C2BCF28A211043BAD74" />
+            <ComponentRef Id="cmp7CB7CB6A6FDD83D7A3D6EF33E40B792E" />
+            <ComponentRef Id="cmp370727883E106292CE34F9094A6F5D21" />
+            <ComponentRef Id="cmp7C0FCB1CAD8A3F06447C252A121815E9" />
+            <ComponentRef Id="cmpA8AD3FC2EEE9C6CAB7B76E9DF9B24CD0" />
+            <ComponentRef Id="cmp48D4FB499BF04CB5FB563A1DE08494B1" />
+            <ComponentRef Id="cmp4E3F8C44DBB55AD427CE614C22CF05A5" />
+            <ComponentRef Id="cmpE09D7115119087C994231530F9931ADE" />
+            <ComponentRef Id="cmpB55F504ED26FD2DDDFA24EED37BA5BF4" />
+            <ComponentRef Id="cmp85C38E27E44C153B79BA0681D8E9B189" />
+            <ComponentRef Id="cmpC7F2B7585B7C1FCA39341570C6540EB4" />
+            <ComponentRef Id="cmp41CB0E4929C0B9384DB37BF3C2C9AA23" />
+            <ComponentRef Id="cmp5A236F7FB45F8D8CF4206598A6D01322" />
+            <ComponentRef Id="cmp1E2D87B33D6B31CA7EA50966BC82B9A6" />
+            <ComponentRef Id="cmp759B00B001A22E11548EE02F6CF67805" />
+            <ComponentRef Id="cmp17CE3DE61F233C7D381367B398B07CCC" />
+            <ComponentRef Id="cmp221BC3D10DFF5AAD9ED04E2F14192CF3" />
+            <ComponentRef Id="cmp12EB46FC8490DFF11032184589510CC1" />
+            <ComponentRef Id="cmp19D828E2FC0D8DEEF1FA7120260870AA" />
+            <ComponentRef Id="cmpD3EBF4661BF4FE76554078789C7BDA6C" />
+            <ComponentRef Id="cmp32A70AC8A55AD2C88EDCB8D4AE62D05B" />
+            <ComponentRef Id="cmp0D3CA8861F712EF67FC24F7A1788D29A" />
+            <ComponentRef Id="cmp4920FC0DA1962CD36AB1EC75EAA995C1" />
+            <ComponentRef Id="cmpF62FBB4D4AB21A52B0A6DD822BBDE259" />
+            <ComponentRef Id="cmpE9A25B007AF5239241588D919D56E687" />
+            <ComponentRef Id="cmpC0B5D66D20EE86E2F02E7C57B52AF598" />
+            <ComponentRef Id="cmp2D5F5F8415B1CB63DEDEFD8AAC7C6DA9" />
+            <ComponentRef Id="cmpE45030977844638E0436B4E41A9755FE" />
+            <ComponentRef Id="cmp31593345616826E1A520586948540359" />
+        </ComponentGroup>
+    </Fragment>
+</Wix>

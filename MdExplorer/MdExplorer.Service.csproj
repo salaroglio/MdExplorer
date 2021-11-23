@@ -378,5 +378,14 @@
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Binaries\GraphWiz\binaries\dot.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\plantuml.jar">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 
 </Project>
