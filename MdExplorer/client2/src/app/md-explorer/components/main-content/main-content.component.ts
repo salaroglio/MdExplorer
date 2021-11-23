@@ -23,8 +23,8 @@ export class MainContentComponent implements OnInit {
     alert('this is the callback');
   };
 
-  private _this: any;
-
+  //private _this: any;
+  public _HideImg = true;
   constructor(
     private route: ActivatedRoute,    
     private service: MdFileService,
@@ -36,6 +36,7 @@ export class MainContentComponent implements OnInit {
     
     //this.monitorMDService.startConnection();
     this.monitorMDService.addMarkdownFileListener(this.updateModifiedMarkDown, this);
+    this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
 
   }
 
@@ -51,11 +52,10 @@ export class MainContentComponent implements OnInit {
           
       }
        
-    });
-
-   
-
+    });   
   }
+
+
 
   private updateModifiedMarkDown(data: any, objectThis: any) {
     let dateTime = new Date();
@@ -71,5 +71,8 @@ export class MainContentComponent implements OnInit {
 
   }
 
-
+  
+  private ShowConnectionLost(data: any, objectThis: any) {
+    objectThis._HideImg = false;
+  }
 }

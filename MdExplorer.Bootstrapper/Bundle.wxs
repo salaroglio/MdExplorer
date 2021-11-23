@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Bundle Name="MdExplorer.Bootstrapper" Version="1.0.0.0" Manufacturer="HP Inc." UpgradeCode="d3027afd-ee62-47e4-9555-52a7c0f5daed">
+		<BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense" />
+
+		<Chain>
+      <PackageGroupRef Id="Java8Runtime"/>
+      <PackageGroupRef Id="dotnet31"/>
+      <PackageGroupRef Id="pandoc2_16_1"/>
+      <PackageGroupRef Id="MdExplorer"/>
+			<!-- TODO: Define the list of chained packages. -->
+			<!-- <MsiPackage SourceFile="path\to\your.msi" /> -->
+		</Chain>
+	</Bundle>
+  <Fragment>
+    <PackageGroup Id="Java8Runtime">
+      <ExePackage Id="Java8Runtime"
+          DisplayName="Java Runtime Version 8"
+          Cache="yes"
+          Compressed="yes"
+          PerMachine="yes"
+          Permanent="yes"
+          Vital="yes"
+          SourceFile=".\assets\jre-8u311-windows-i586-iftw.exe"          
+          DetectCondition="Java8FamilyVersion">
+      </ExePackage>
+    </PackageGroup>
+    <PackageGroup Id="dotnet31">
+      <ExePackage Id="dotnet31"
+          DisplayName="Dot Net Core 3.1"
+          Cache="yes"
+          Compressed="yes"
+          PerMachine="yes"
+          Permanent="yes"
+          Vital="yes"
+          SourceFile=".\assets\dotnet-hosting-3.1.21-win.exe"         
+          >
+      </ExePackage>
+    </PackageGroup>
+    <PackageGroup Id="pandoc2_16_1">
+      <ExePackage Id="pandoc2_16_1"
+          DisplayName="Pandoc"
+          Cache="yes"
+          Compressed="yes"
+          PerMachine="yes"
+          Permanent="yes"
+          Vital="yes"
+          SourceFile=".\assets\pandoc-2.16.1-windows-x86_64.msi"         
+          >
+      </ExePackage>
+    </PackageGroup>
+    <PackageGroup Id="MdExplorer">
+      <ExePackage Id="MdExplorer"
+          DisplayName="MdExplorer CI/CD For documentation"
+          Cache="yes"
+          Compressed="yes"
+          PerMachine="yes"
+          Permanent="yes"
+          Vital="yes"
+          SourceFile="..\MdExplorer.Setup\bin\Debug\MdExplorer.Setup.msi"
+           InstallCommand="/s "
+          >
+      </ExePackage>
+    </PackageGroup>
+  </Fragment>
+</Wix>
