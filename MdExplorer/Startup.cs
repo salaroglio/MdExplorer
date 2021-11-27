@@ -25,6 +25,8 @@ using System.Linq;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Service.Automapper.RefactoringFilesController;
+using Ad.Tools.FluentMigrator.Interfaces;
+using System.Collections.Generic;
 
 namespace MdExplorer
 {
@@ -45,26 +47,8 @@ namespace MdExplorer
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<MdExplorerAppSettings>(_Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
-            services = ConfigFileSystemWatchers(services);
-            ConfigTemplates(Args[0], services);
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
-            var currentDirectory = Path.GetDirectoryName(Args[0]);
-            var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
-
-            services.AddDalFeatures(typeof(SettingsMap).Assembly,
-                                    new DatabaseSQLite(),typeof(IUserSettingsDB),
-                                    databasePath);
-
-            services.AddDalFeatures(typeof(MarkdownFileMap).Assembly,
-                                   new DatabaseSQLite(), typeof(IEngineDB),
-                                   databasePathEngine);
-
-            services.AddDalFeatures(typeof(SemanticCluster).Assembly,
-                                   new DatabaseSQLite(), typeof(IProjectDB),
-                                   databasePathProject);
+            string pathFromParameter = Args.Count() > 0 ? Args[0] : null;
+            ProjectsManager.SetProjectInitialization(services, pathFromParameter);
 
             services.AddAutoMapper(typeof(RefactoringMapper).Assembly);
             services.AddMDExplorerCommands();
@@ -76,59 +60,22 @@ namespace MdExplorer
             
         }
 
-        private void ConfigTemplates(string mdPath, IServiceCollection services)
-        {
-            var directory =$"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md" ;
-            var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
-            Directory.CreateDirectory(directory);
-            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
-            Directory.CreateDirectory(directoryEmoji);
+        
 
-            var assembly = Assembly.GetExecutingAssembly();
-            var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
-            var embeddedEmojies = assembly.GetManifestResourceNames();           
-            var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
-                    .Select(_=>new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty) }).ToArray();
-            services.AddSingleton(typeof(IServerCache), new ServerCache { Emojies = selectedEmojies.Select(_=>_.Name).ToArray() });
-            foreach (var itemEmoj in selectedEmojies)
-            {                                
-                FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
-            }
+       
 
-            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}eisvogel.tex");
-            FileUtil.ExtractResFile("MdExplorer.Service.reference.docx", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}reference.docx");
-        }
-
-        private IServiceCollection ConfigFileSystemWatchers(IServiceCollection services)
-        {
-            var defaultPath = @".\Documents";
-            if (Args.Length > 0)
-            {
-                if (File.Exists(Args[0]))
-                {
-                    var directoryName = Path.GetDirectoryName(Args[0]);
-                    defaultPath = directoryName;
-                }
-            }
-            LogStartup(defaultPath);
-            services.AddSingleton(new FileSystemWatcher { Path = defaultPath });
-            var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
-            services.AddSingleton(_fileSystemWatcher);
-            return services;
-        }
-
-        private void LogStartup(string defaultPath)
-        {
-            var createStartupLog = Convert.ToBoolean( _Configuration.GetSection(@"MdExplorer:CreateStartupLog").Value) ;            
-            if (createStartupLog)
-            {
-                var test = File.CreateText("startup.txt");
-                test.WriteLine($@"args: {Args[0]}");
-                test.WriteLine($"defaultPath: {defaultPath}");
-                test.Flush();
-                test.Close();
-            }            
-        }
+        //private void LogStartup(string defaultPath)
+        //{
+        //    var createStartupLog = Convert.ToBoolean( _Configuration.GetSection(@"MdExplorer:CreateStartupLog").Value) ;            
+        //    if (createStartupLog)
+        //    {
+        //        var test = File.CreateText("startup.txt");
+        //        test.WriteLine($@"args: {Args[0]}");
+        //        test.WriteLine($"defaultPath: {defaultPath}");
+        //        test.Flush();
+        //        test.Close();
+        //    }            
+        //}
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
@@ -137,6 +84,12 @@ namespace MdExplorer
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            var scope = app.ApplicationServices.CreateScope();
+            var runnerUpagredDbs = scope.ServiceProvider.GetService<IEngineMigrator>();
+            runnerUpagredDbs.UpgradeDatabase();            
+            scope.Dispose();
+            
 
             app.UseHttpsRedirection();
 
@@ -169,11 +122,12 @@ namespace MdExplorer
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
+            
 #if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
           {
-              DiscoverAddresses(app.ServerFeatures);
+              DiscoverAddresses(app.ServerFeatures );
           });
 #endif
 

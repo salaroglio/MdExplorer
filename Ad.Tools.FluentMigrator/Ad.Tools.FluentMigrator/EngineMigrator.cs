@@ -14,19 +14,22 @@ namespace Ad.Tools.FluentMigrator
     public class EngineMigrator : IEngineMigrator
     {
 
-        private readonly IMigrationRunner _runner;
-        private readonly Assembly[] _assemblies;
+        private readonly IEnumerable<IMigrationRunner> _runner;        
 
-        public EngineMigrator(IMigrationRunner runner)
-        {            
-            _runner = runner;            
+        public EngineMigrator(IEnumerable<IMigrationRunner> runner)
+        {
+            _runner = runner;
         }
         public void UpgradeDatabase()
         {
             // Execute the migrations
-            _runner.MigrateUp();
+            foreach (var item in _runner)
+            {
+                item.MigrateUp();
+            }
+            
         }
-       
-        
+
+
     }
 }

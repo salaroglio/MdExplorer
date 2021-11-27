@@ -13,6 +13,8 @@ import { debug } from 'node:console';
 import { getLocaleDateTimeFormat } from '@angular/common';
 import { MainContentComponent } from '../main-content/main-content.component';
 import { SideNavDataService } from '../../services/side-nav-data.service';
+import { MatDialog } from '@angular/material/dialog';
+import { ProjectsComponent } from '../projects/projects.component';
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -54,13 +56,21 @@ export class SidenavComponent implements OnInit {
   mdFiles: Observable<MdFile[]>;
 
   public isScreenSmall: boolean;
-  constructor(private breakpointObserver: BreakpointObserver
-    , private mdFileService: MdFileService,    
+  constructor(private breakpointObserver: BreakpointObserver,
+    private mdFileService: MdFileService,
+    public dialog: MatDialog,
     private router: Router,
     private sideNavDataService: SideNavDataService
   ) {
     this.dataSource.data = TREE_DATA;
     
+  }
+
+  openProject(): void {
+    const dialogRef = this.dialog.open(ProjectsComponent, {
+      width: '600px',
+      data: { name: 'test' }
+    });
   }
 
 

@@ -11,6 +11,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Ad.Tools.Dal
 {
@@ -31,7 +32,18 @@ namespace Ad.Tools.Dal
             public string ConnectionString { get; set; }
         }
 
-       
+       public static void ReplaceDalFeatures(this IServiceProvider serviceProvider, Assembly assembly,
+            IDatabase databaseType, Type currentInterface,
+            string connectionString)
+        {
+            var config = CreateConfiguration(connectionString, databaseType);
+            Type ISessionFactoryDB = typeof(ISessionFactoryDB<>);
+            Type genericISessionFactoryDB = ISessionFactoryDB.MakeGenericType(currentInterface);
+
+            var currentInstance = (dynamic) serviceProvider.GetService(genericISessionFactoryDB);
+            currentInstance.ReplaceDB(config, assembly);
+
+        }
 
 
         public static IServiceCollection AddDalFeatures(this IServiceCollection services, Assembly assembly,
@@ -60,7 +72,7 @@ namespace Ad.Tools.Dal
 
             Type sqlDalFactoryType = typeof(SQDalFactory<>);
             Type genericSqlDalFactoryType = sqlDalFactoryType.MakeGenericType(currentInterface);
-
+            
             
             services.AddSingleton(genericIDalFactory, genericSqlDalFactoryType);
             

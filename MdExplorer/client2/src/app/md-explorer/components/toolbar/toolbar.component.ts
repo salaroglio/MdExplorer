@@ -30,7 +30,7 @@ export class ToolbarComponent implements OnInit {
     private router: Router,
     private mdFileService: MdFileService,
   ) {
-    this.TitleToShow = "M↓Explorer";
+    this.TitleToShow = "MdExplorer";
   }
   private plantumlServer: string;
 
