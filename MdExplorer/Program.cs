@@ -58,8 +58,8 @@ namespace MdExplorer
                .ConfigureServices(services =>
                {
                    services.AddHostedService<MonitorMDHostedService>();
-                   services.AddHostedService<MigratorHostedService>();
-                   services.AddHostedService<MigratorEngineHostedService>();
+                   //services.AddHostedService<MigratorHostedService>();
+                   //services.AddHostedService<MigratorEngineHostedService>();
                });
             ;
             return toReturn;

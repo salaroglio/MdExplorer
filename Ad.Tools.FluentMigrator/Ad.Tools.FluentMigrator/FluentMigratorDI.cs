@@ -36,7 +36,7 @@ namespace Ad.Tools.FluentMigrator
                            .Configure<SelectingProcessorAccessorOptions>((_) => {                                
                                _.ProcessorId = processorId; })
                            .AddLogging(lb => lb.AddFluentMigratorConsole());
-            services.AddSingleton<IEngineMigrator,EngineMigrator>();
+            services.AddScoped<IEngineMigrator,EngineMigrator>();
 
             return services;
         }

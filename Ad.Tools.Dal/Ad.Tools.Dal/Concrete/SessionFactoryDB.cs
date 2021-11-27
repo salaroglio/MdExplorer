@@ -28,6 +28,13 @@ namespace Ad.Tools.Dal.Decorators
                         .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
         }
 
+        public void ReplaceDB(IPersistenceConfigurer config, Assembly assembly)
+        {
+            _sessionFactory = Fluently.Configure()
+                        .Database(config)
+                        .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
+        }
+
         public IStatistics Statistics => _sessionFactory.Statistics;
 
         public bool IsClosed => _sessionFactory.IsClosed;
