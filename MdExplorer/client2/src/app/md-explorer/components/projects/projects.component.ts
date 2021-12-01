@@ -1,9 +1,10 @@
 import { Component, Inject, OnInit } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Observable } from 'rxjs';
 import { MdProject } from '../../models/md-project';
 import { MdFileService } from '../../services/md-file.service';
 import { ProjectsService } from '../../services/projects.service';
+import { OpenNewFolderComponent } from './open-new-folder/open-new-folder.component';
 
 @Component({
   selector: 'app-projects',
@@ -13,7 +14,8 @@ import { ProjectsService } from '../../services/projects.service';
 export class ProjectsComponent implements OnInit {
 
   constructor(private projectService: ProjectsService,
-    private mdFileService: MdFileService,   
+    private mdFileService: MdFileService,
+    public dialog: MatDialog,
   ) { }
 
   public dataSource: Observable<MdProject[]>
@@ -30,6 +32,19 @@ export class ProjectsComponent implements OnInit {
 
   loadNewProject(data: any, objectThis: ProjectsComponent) {
     objectThis.mdFileService.loadAll();
+    this.dialog.closeAll();
   }
-  
+
+  openNewFolder(): void {
+    const dialogRef = this.dialog.open(OpenNewFolderComponent, {
+      width: '600px',
+      data: { name: 'test' }
+    });
+
+    dialogRef.afterClosed().subscribe(selectedPath => {
+      this.projectService.setNewFolderProject(selectedPath, this.loadNewProject, this);
+      
+    });
+  }
+
 }

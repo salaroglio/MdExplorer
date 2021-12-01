@@ -34,7 +34,7 @@ namespace MdExplorer
     {
         public static string[] Args;
 
-        
+
 
         public IConfiguration _Configuration { get; }
 
@@ -47,22 +47,22 @@ namespace MdExplorer
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<MdExplorerAppSettings>(_Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
-            string pathFromParameter = Args.Count() > 0 ? Args[0] : null;
+            string pathFromParameter = Args.Count() > 0 ? Path.GetDirectoryName(Args[0]) : null;
             ProjectsManager.SetProjectInitialization(services, pathFromParameter);
 
             services.AddAutoMapper(typeof(RefactoringMapper).Assembly);
             services.AddMDExplorerCommands();
-            services.AddSignalR(_=>_.KeepAliveInterval = TimeSpan.FromSeconds(20));
+            services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>
             {
                 //config.Filters.Add<TransactionActionFilter>();
-            });
-            
+            }).AddJsonOptions(options=> options.JsonSerializerOptions.MaxDepth = 64);
+
         }
 
-        
 
-       
+
+
 
         //private void LogStartup(string defaultPath)
         //{
@@ -85,15 +85,12 @@ namespace MdExplorer
                 app.UseDeveloperExceptionPage();
             }
 
-            var scope = app.ApplicationServices.CreateScope();
-            var runnerUpagredDbs = scope.ServiceProvider.GetService<IEngineMigrator>();
-            runnerUpagredDbs.UpgradeDatabase();            
-            scope.Dispose();
             
+
 
             app.UseHttpsRedirection();
 
-            app.UseRouting();            
+            app.UseRouting();
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
 
 #if !DEBUG
@@ -122,7 +119,7 @@ namespace MdExplorer
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
-            
+
 #if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>

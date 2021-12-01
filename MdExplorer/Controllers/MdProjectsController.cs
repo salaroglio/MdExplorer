@@ -17,23 +17,23 @@ namespace MdExplorer.Service.Controllers
     [Route("api/MdProjects/{action}")]
     public class MdProjectsController : ControllerBase
     {
-        private readonly IUserSettingsDB _session;
+        private readonly IUserSettingsDB _userSettingsDB;
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IServiceProvider _services;
 
-        public MdProjectsController(IUserSettingsDB session, 
+        public MdProjectsController(IUserSettingsDB userSettingsDB, 
                 FileSystemWatcher fileSystemWatcher,
                 IServiceProvider services)
         {
-            _session = session;
+            _userSettingsDB = userSettingsDB;
             _fileSystemWatcher = fileSystemWatcher;
             _services = services;
         }
         [HttpGet]
         public IActionResult GetProjects()
         {
-            _session.BeginTransaction();
-            var projectDal = _session.GetDal<Project>();
+            _userSettingsDB.BeginTransaction();
+            var projectDal = _userSettingsDB.GetDal<Project>();
             // check if folder exists in project table
 
             if (_fileSystemWatcher.Path != string.Empty)
@@ -46,9 +46,9 @@ namespace MdExplorer.Service.Controllers
                     projectDal.Save(currentProject);
                 }
             }
-            _session.Commit();
+            _userSettingsDB.Commit();
 
-            var list = projectDal.GetList().ToList();
+            var list = projectDal.GetList().OrderByDescending(_=>_.LastUpdate).ToList();
             return Ok(list);
         }
 
@@ -56,6 +56,21 @@ namespace MdExplorer.Service.Controllers
         public IActionResult SetFolderProject([FromBody]FolderPath folderPath)
         {
             _fileSystemWatcher.Path = folderPath.Path;
+            // renew project data
+            _userSettingsDB.BeginTransaction();
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
+            if (project == null)
+            {
+                project = new Project
+                {
+                    Path = folderPath.Path,
+                    Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
+                };
+            }
+            project.LastUpdate = DateTime.Now;
+            projectDal.Save(project);
+            _userSettingsDB.Commit();
             ProjectsManager.SetNewProject(_services, folderPath.Path);            
             return Ok("{\"message\": \"done\"}");
         }

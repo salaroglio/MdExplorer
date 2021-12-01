@@ -11,5 +11,6 @@ namespace MdExplorer.Abstractions.Models
         public virtual Guid Id { get; set; }
         public virtual string Name { get; set; }
         public virtual string Path { get; set; }
+        public virtual DateTime LastUpdate { get; set; }
     }
 }

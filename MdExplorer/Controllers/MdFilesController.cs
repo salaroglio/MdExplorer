@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 namespace MdExplorer.Controllers
 {
     [ApiController]
-    [Route("api/MdFiles")]
+    [Route("api/MdFiles/{action}")]
     public class MdFilesController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
@@ -27,12 +27,33 @@ namespace MdExplorer.Controllers
         public IEngineDB _engineDB { get; }
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
-            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper )
+            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
             _getModifiers = getModifiers;
             _helper = helper;
+        }
+
+        [HttpGet]
+        public IActionResult GetFoldersDocument()
+        {
+            var currentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); ;
+
+            var list = new List<IFileInfoNode>();
+
+            foreach (var itemFolder in Directory.GetDirectories(currentPath)
+                    .Where(_=>!_.Contains("Immagini") && 
+                    !_.Contains("Musica") &&
+                    !_.Contains("Video"))
+                    )
+            {
+                var node = CreateNodeFolderOnly(itemFolder);
+                list.Add(node);
+
+            }
+
+            return Ok(list);
         }
 
         [HttpGet]
@@ -63,7 +84,7 @@ namespace MdExplorer.Controllers
             _engineDB.Flush();
             _engineDB.Delete("from MarkdownFile");
             _engineDB.Flush();
-            
+
             SaveRealationships(list);
             _engineDB.Commit();
             return Ok(list);
@@ -77,7 +98,7 @@ namespace MdExplorer.Controllers
             {
                 var markdownFile = new MarkdownFile
                 {
-                    FileName = item.Name,                    
+                    FileName = item.Name,
                     Path = item.FullPath,
                     FileType = "File"
                 };
@@ -93,8 +114,8 @@ namespace MdExplorer.Controllers
                 relDal.Save(markdownFile);
 
                 var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
-                SaveLinksFromMarkdown(item, markdownFile, linkInsideMarkdownDal);  
-                
+                SaveLinksFromMarkdown(item, markdownFile, linkInsideMarkdownDal);
+
 
             }
 
@@ -107,12 +128,12 @@ namespace MdExplorer.Controllers
                 var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(item.FullPath) : new List<LinkDetail>().ToArray();
                 foreach (var singleLink in linksToStore)
                 {
-                    var fullPath = Path.GetDirectoryName(item.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/',Path.DirectorySeparatorChar);
+                    var fullPath = Path.GetDirectoryName(item.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
                     var linkToStore = new LinkInsideMarkdown
                     {
                         FullPath = _helper.NormalizePath(fullPath),
                         Path = singleLink.LinkPath,
-                        Source =  getModifier.GetType().Name,
+                        Source = getModifier.GetType().Name,
                         LinkedCommand = singleLink.LinkedCommand,
                         SectionIndex = singleLink.SectionIndex,
                         MarkdownFile = relationship
@@ -120,7 +141,7 @@ namespace MdExplorer.Controllers
                     linkInsideMarkdownDal.Save(linkToStore);
                 }
             }
-            
+
         }
 
         private FileInfoNode CreateNodeMdFile(string itemFile)
@@ -136,6 +157,40 @@ namespace MdExplorer.Controllers
             var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), FullPath = itemFolder, Path = patchedItemFolfer, Type = "folder" };
             var isEmpty = ExploreNodes(node, itemFolder);
             return (node, isEmpty);
+        }
+
+        private FileInfoNode CreateNodeFolderOnly(string itemFolder)
+        {
+            var patchedItemFolfer = itemFolder;
+            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), FullPath = itemFolder, Path = patchedItemFolfer, Type = "folder" };
+            ExploreNodesFolderOnly(node, itemFolder);
+            return node;
+        }
+
+        private void ExploreNodesFolderOnly(FileInfoNode fileInfoNode, string pathFile)
+        {
+            try
+            {
+                var accessControlList = FileSystemAclExtensions.GetAccessControl(new DirectoryInfo(pathFile));
+                if (accessControlList.AreAccessRulesProtected)
+                    return;
+
+                if (!Directory.Exists(pathFile)) // jump directories where access is denied
+                {
+                    return;
+                }
+                foreach (var itemFolder in Directory.GetDirectories(pathFile))
+                {
+                    FileInfoNode node = CreateNodeFolderOnly(itemFolder);
+                    fileInfoNode.Childrens.Add(node);
+                }
+            }
+            catch (Exception ex)
+            {
+
+                
+            }
+            
         }
 
         private bool ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
