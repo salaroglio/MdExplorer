@@ -16,6 +16,8 @@ namespace MDExplorer.DataAccess.Mapping
             Id(_=>_.Id).GeneratedBy.GuidComb();
             Map(_ => _.Name).Length(255).Not.Nullable();
             Map(_ => _.Path).Length(int.MaxValue).Not.Nullable();
+            Map(_ => _.LastUpdate).Not.Nullable();
+
         }
     }
 }

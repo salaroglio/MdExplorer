@@ -13,6 +13,7 @@ import { SafePipe } from './pipes/safePipe';
 import { SettingsComponent } from './components/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
 import { ProjectsComponent } from './components/projects/projects.component';
+import { OpenNewFolderComponent } from './components/projects/open-new-folder/open-new-folder.component';
 
 
 
@@ -35,6 +36,7 @@ const routes: Routes = [{
     SettingsComponent,
     RenameFileComponent,
     ProjectsComponent,
+    OpenNewFolderComponent,
   ],
   imports: [
     CommonModule,

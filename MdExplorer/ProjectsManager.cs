@@ -34,31 +34,7 @@ namespace MdExplorer.Service
             var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
             var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
 
-            IServiceCollection _services = new ServiceCollection();
-            // this is for engine db
-            _services.AddFluentMigratorFeatures(
-                                            (rb) => {
-                                                rb.AddSQLite()
-                                                .WithGlobalConnectionString(databasePathEngine)
-                                                .ScanIn(typeof(ME2021_07_23_001).Assembly)
-                                                .For.Migrations();
-                                            }, "SQLite");
-            // this is for settings db
-            //_services.AddFluentMigratorFeatures(
-            //                                (rb) => {
-            //                                    rb.AddSQLite()
-            //                                    .WithGlobalConnectionString(databasePath)
-            //                                    .ScanIn(typeof(M2021_06_23_001).Assembly)
-            //                                    .For.Migrations();
-            //                                }, "SQLite");
-
-
-            var builder = _services.BuildServiceProvider();
-            var scope = builder.CreateScope();
-            var runnerUpagredDbs = scope.ServiceProvider.GetService<IEngineMigrator>();
-            runnerUpagredDbs.UpgradeDatabase();
-            scope.Dispose();
-
+            UpgradeDatabases(databasePath, databasePathEngine);
 
             serviceProvider.ReplaceDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
@@ -73,17 +49,17 @@ namespace MdExplorer.Service
                                    databasePathProject);
 
 
-            
-            
+
+
             // Migration complete
         }
 
-        public static void SetNewMigration(IServiceProvider serviceProvider, string pathFromParameter)
-        {
-            
-        }
-
-
+        /// <summary>
+        /// This is a function called when a new Folder is selected.
+        /// When a new folder is selected i need reinitialize all dbs and prepare eventually new one or migrate them
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="pathFromParameter"></param>
         public static void SetProjectInitialization(IServiceCollection services, string pathFromParameter)
         {
             var currentPath = ConfigFileSystemWatchers(services, pathFromParameter);
@@ -95,43 +71,72 @@ namespace MdExplorer.Service
             var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
             var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
 
-            services.AddFluentMigratorFeatures(
-                                            (rb) => {
-                                                rb.AddSQLite()
-                                                .WithGlobalConnectionString(databasePath)
-                                                .ScanIn(typeof(M2021_06_23_001).Assembly)
-                                                .For.Migrations();
-                                            }, "SQLite");
-
-            services.AddFluentMigratorFeatures(
-                                          (rb) => {
-                                              rb.AddSQLite()
-                                              .WithGlobalConnectionString(databasePathEngine)
-                                              .ScanIn(typeof(ME2021_07_23_001).Assembly)
-                                              .For.Migrations();
-                                          }, "SQLite");
+            UpgradeDatabases(databasePath, databasePathEngine);
 
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
                                     databasePath);
 
-            
+
 
             services.AddDalFeatures(typeof(MarkdownFileMap).Assembly,
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
 
-            
+
 
             services.AddDalFeatures(typeof(SemanticCluster).Assembly,
                                    new DatabaseSQLite(), typeof(IProjectDB),
                                    databasePathProject);
         }
 
+        /// <summary>
+        /// Migrate database is done using "custom" serviceCollection.
+        /// At this point of my knowledge i'm suspecting there is a bug in FluentMigrator
+        /// witch doesn't support multiple migration of different database at the same time 
+        /// </summary>
+        /// <param name="databasePath"></param>
+        /// <param name="databasePathEngine"></param>
+        private static void UpgradeDatabases(string databasePath, string databasePathEngine)
+        {
+            IServiceCollection localServices = new ServiceCollection();
+            localServices.AddFluentMigratorFeatures(
+                                            (rb) =>
+                                            {
+                                                rb.AddSQLite()
+                                                .WithGlobalConnectionString(databasePath)
+                                                .ScanIn(typeof(M2021_06_23_001).Assembly)
+                                                .For.Migrations();
+                                            }, "SQLite");
+            var builder = localServices.BuildServiceProvider();            
+            Migrate(builder);
+
+            localServices = new ServiceCollection();
+            localServices.AddFluentMigratorFeatures(
+                                          (rb) =>
+                                          {
+                                              rb.AddSQLite()
+                                              .WithGlobalConnectionString(databasePathEngine)
+                                              .ScanIn(typeof(ME2021_07_23_001).Assembly)
+                                              .For.Migrations();
+                                          }, "SQLite");
+            builder = localServices.BuildServiceProvider();
+            Migrate(builder);
+        }
+
+        private static void Migrate(ServiceProvider builder)
+        {
+            var scope = builder.CreateScope();
+            var migrateUserSettings = scope.ServiceProvider.GetService<IEngineMigrator>();
+            migrateUserSettings.UpgradeDatabase();
+            scope.Dispose();
+            builder.Dispose();
+        }
+
         private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
         {
             var defaultPath = pathFromParameter ?? Directory.GetCurrentDirectory(); // @".\Documents";
-           
+
             services.AddSingleton(new FileSystemWatcher { Path = defaultPath });
             var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
             services.AddSingleton(_fileSystemWatcher);

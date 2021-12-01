@@ -20,6 +20,7 @@
     },
     "MdExplorer": {
       "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Carlo\\Documents\\2-personale\\sviluppo\\docs-mdexplorer\\adtools.md",
       "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
