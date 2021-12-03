@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <UserSecretsId>aa0ba68a-9723-47a7-b3e8-fecd91dd5988</UserSecretsId>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageOutputPath>E:\Sviluppo\1.1-Dev\Ad.Tools\DeploymentPackages</PackageOutputPath>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
