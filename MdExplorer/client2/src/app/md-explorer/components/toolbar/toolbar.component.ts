@@ -62,7 +62,7 @@ export class ToolbarComponent implements OnInit {
   }
 
   private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
-    objectThis.mdFileService.loadAll();
+    objectThis.mdFileService.loadAll(null,null);
     objectThis.openRefactoring();    
   }
 

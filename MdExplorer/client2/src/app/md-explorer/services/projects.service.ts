@@ -41,4 +41,11 @@ export class ProjectsService {
     });
   }
 
+  deleteProject(project: any, callback: (data: any, objectThis: any) => any, objectThis: any) {
+    const url = '../api/MdProjects/DeleteProject';
+    this.http.post<any>(url, project).subscribe(data => {
+      callback(data, objectThis);
+    });
+  }
+
 }

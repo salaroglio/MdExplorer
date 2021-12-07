@@ -26,7 +26,7 @@ namespace MdExplorer.Service
     {
         public static void SetNewProject(IServiceProvider serviceProvider, string pathFromParameter)
         {
-            SetTemplates(pathFromParameter);
+            ConfigTemplates(pathFromParameter, null);
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
             var currentDirectory = pathFromParameter;
@@ -61,12 +61,12 @@ namespace MdExplorer.Service
         /// <param name="services"></param>
         /// <param name="pathFromParameter"></param>
         public static void SetProjectInitialization(IServiceCollection services, string pathFromParameter)
-        {
-            var currentPath = ConfigFileSystemWatchers(services, pathFromParameter);
-            ConfigTemplates(currentPath, services);
+        {            
+            
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
             var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
-            var currentDirectory = currentPath;
+            var currentDirectory = ConfigFileSystemWatchers(services, pathFromParameter);
+            ConfigTemplates(currentDirectory, services);
             var hash = Helper.HGetHashString(currentDirectory);
             var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
             var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
@@ -77,13 +77,9 @@ namespace MdExplorer.Service
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
                                     databasePath);
 
-
-
             services.AddDalFeatures(typeof(MarkdownFileMap).Assembly,
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
-
-
 
             services.AddDalFeatures(typeof(SemanticCluster).Assembly,
                                    new DatabaseSQLite(), typeof(IProjectDB),
@@ -143,7 +139,30 @@ namespace MdExplorer.Service
             return defaultPath;
         }
 
-        private static void SetTemplates(string mdPath)
+        //private static void SetTemplates(string mdPath)
+        //{
+        //    var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
+        //    var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
+        //    Directory.CreateDirectory(directory);
+        //    Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
+        //    Directory.CreateDirectory(directoryEmoji);
+
+        //    var assembly = Assembly.GetExecutingAssembly();
+        //    var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
+        //    var embeddedEmojies = assembly.GetManifestResourceNames();
+        //    var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
+        //            .Select(_ => new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty) }).ToArray();
+        //    foreach (var itemEmoj in selectedEmojies)
+        //    {
+        //        FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
+        //    }
+
+        //    FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}eisvogel.tex");
+        //    FileUtil.ExtractResFile("MdExplorer.Service.reference.docx", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}reference.docx");
+
+        //}
+
+        private static void ConfigTemplates(string mdPath, IServiceCollection services = null)
         {
             var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
@@ -156,30 +175,11 @@ namespace MdExplorer.Service
             var embeddedEmojies = assembly.GetManifestResourceNames();
             var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
                     .Select(_ => new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty) }).ToArray();
-            foreach (var itemEmoj in selectedEmojies)
+            if (services != null)
             {
-                FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
-            }
-
-            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}eisvogel.tex");
-            FileUtil.ExtractResFile("MdExplorer.Service.reference.docx", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}reference.docx");
-
-        }
-
-        private static void ConfigTemplates(string mdPath, IServiceCollection services)
-        {
-            var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
-            var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
-            Directory.CreateDirectory(directory);
-            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
-            Directory.CreateDirectory(directoryEmoji);
-
-            var assembly = Assembly.GetExecutingAssembly();
-            var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
-            var embeddedEmojies = assembly.GetManifestResourceNames();
-            var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
-                    .Select(_ => new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty) }).ToArray();
-            services.AddSingleton(typeof(IServerCache), new ServerCache { Emojies = selectedEmojies.Select(_ => _.Name).ToArray() });
+                services.AddSingleton(typeof(IServerCache), new ServerCache { Emojies = selectedEmojies.Select(_ => _.Name).ToArray() });
+            }            
+            
             foreach (var itemEmoj in selectedEmojies)
             {
                 FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
