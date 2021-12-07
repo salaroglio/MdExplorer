@@ -66,11 +66,20 @@ export class SidenavComponent implements OnInit {
     
   }
 
-  openProject(): void {
+  openProject(): void {    
     const dialogRef = this.dialog.open(ProjectsComponent, {
       width: '600px',
       data: { name: 'test' }
     });
+  }
+
+  deferredOpenProject(data, objectThis): void {
+    if (data.length==0) {
+      const dialogRef = objectThis.dialog.open(ProjectsComponent, {
+        width: '600px',
+        data: { name: 'test' }
+      });
+    }
   }
 
 
@@ -81,16 +90,11 @@ export class SidenavComponent implements OnInit {
       });
 
     this.mdFiles = this.mdFileService.mdFiles;
-    this.mdFileService.mdFiles.subscribe(data => {
-      this.dataSource.data = data;
+    this.mdFileService.mdFiles.subscribe(data => {      
+      this.dataSource.data = data;      
     });
 
-    this.mdFileService.loadAll();
-
-    this.mdFiles.subscribe(data => {
-      console.log(data);
-    });
-
+    this.mdFileService.loadAll(this.deferredOpenProject,this); 
     
   }
 

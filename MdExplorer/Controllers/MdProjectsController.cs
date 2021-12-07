@@ -21,7 +21,7 @@ namespace MdExplorer.Service.Controllers
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IServiceProvider _services;
 
-        public MdProjectsController(IUserSettingsDB userSettingsDB, 
+        public MdProjectsController(IUserSettingsDB userSettingsDB,
                 FileSystemWatcher fileSystemWatcher,
                 IServiceProvider services)
         {
@@ -32,24 +32,25 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult GetProjects()
         {
+
+            // check if folder exists in project table
+            
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            
+
+            var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
+            return Ok(list);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteProject([FromBody]Project project)
+        {
             _userSettingsDB.BeginTransaction();
             var projectDal = _userSettingsDB.GetDal<Project>();
-            // check if folder exists in project table
-
-            if (_fileSystemWatcher.Path != string.Empty)
-            {
-                var currentProject = projectDal.GetList().Where(_ => _.Path == _fileSystemWatcher.Path).FirstOrDefault();
-                if (currentProject == null)
-                {
-                    var projectName = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1);
-                    currentProject = new Project { Name = projectName, Path = _fileSystemWatcher.Path };
-                    projectDal.Save(currentProject);
-                }
-            }
+            var projectFromDb = projectDal.GetList().Where(_ => _.Id == project.Id).FirstOrDefault();
+            projectDal.Delete(projectFromDb);
             _userSettingsDB.Commit();
-
-            var list = projectDal.GetList().OrderByDescending(_=>_.LastUpdate).ToList();
-            return Ok(list);
+            return Ok(new { message = "done!" });
         }
 
         [HttpPost]

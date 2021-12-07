@@ -61,22 +61,6 @@ namespace MdExplorer
         }
 
 
-
-
-
-        //private void LogStartup(string defaultPath)
-        //{
-        //    var createStartupLog = Convert.ToBoolean( _Configuration.GetSection(@"MdExplorer:CreateStartupLog").Value) ;            
-        //    if (createStartupLog)
-        //    {
-        //        var test = File.CreateText("startup.txt");
-        //        test.WriteLine($@"args: {Args[0]}");
-        //        test.WriteLine($"defaultPath: {defaultPath}");
-        //        test.Flush();
-        //        test.Close();
-        //    }            
-        //}
-
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
@@ -84,9 +68,6 @@ namespace MdExplorer
             {
                 app.UseDeveloperExceptionPage();
             }
-
-            
-
 
             app.UseHttpsRedirection();
 
@@ -152,6 +133,7 @@ namespace MdExplorer
                 // hack because of this: https://github.com/dotnet/corefx/issues/10361
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
+
                     url = url.Replace("&", "^&");
                     var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
                     var processStarted = Process.Start(processToStart);

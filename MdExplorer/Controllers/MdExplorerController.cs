@@ -44,7 +44,7 @@ namespace MdExplorer.Controllers
         /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> GetAsync()
-        {
+        {            
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);

@@ -2402,7 +2402,7 @@ class ToolbarComponent {
         this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
     }
     openDialogRefactoringFileEvent(data, objectThis) {
-        objectThis.mdFileService.loadAll();
+        objectThis.mdFileService.loadAll(null, null);
         objectThis.openRefactoring();
     }
     sendExportRequest(data, objectThis) {
@@ -3237,6 +3237,14 @@ class SidenavComponent {
             data: { name: 'test' }
         });
     }
+    deferredOpenProject(data, objectThis) {
+        if (data.length == 0) {
+            const dialogRef = objectThis.dialog.open(_projects_projects_component__WEBPACK_IMPORTED_MODULE_2__["ProjectsComponent"], {
+                width: '600px',
+                data: { name: 'test' }
+            });
+        }
+    }
     ngOnInit() {
         this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
             .subscribe((state) => {
@@ -3246,10 +3254,7 @@ class SidenavComponent {
         this.mdFileService.mdFiles.subscribe(data => {
             this.dataSource.data = data;
         });
-        this.mdFileService.loadAll();
-        this.mdFiles.subscribe(data => {
-            console.log(data);
-        });
+        this.mdFileService.loadAll(this.deferredOpenProject, this);
     }
     getNode(node) {
         var dateTime = new Date();
@@ -4859,7 +4864,8 @@ function ProjectsComponent_mat_card_10_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function ProjectsComponent_mat_card_10_Template_button_click_6_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r3); const element_r1 = ctx.$implicit; const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r2.openNewProject(element_r1.path); });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](7, "Open");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "button", 3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "button", 1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function ProjectsComponent_mat_card_10_Template_button_click_8_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r3); const element_r1 = ctx.$implicit; const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r4.deleteProject(element_r1); });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, "Delete");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
@@ -4882,11 +4888,18 @@ class ProjectsComponent {
         this.projectService.fetchProjects();
         this.dataSource = this.projectService.mdProjects;
     }
+    getProjectList(data, objectThis) {
+        objectThis.projectService.fetchProjects();
+    }
+    ;
     openNewProject(path) {
         this.projectService.setNewFolderProject(path, this.loadNewProject, this);
     }
+    deleteProject(project) {
+        this.projectService.deleteProject(project, this.getProjectList, this);
+    }
     loadNewProject(data, objectThis) {
-        objectThis.mdFileService.loadAll();
+        objectThis.mdFileService.loadAll(null, null);
         this.dialog.closeAll();
     }
     openNewFolder() {
@@ -4900,7 +4913,7 @@ class ProjectsComponent {
     }
 }
 ProjectsComponent.ɵfac = function ProjectsComponent_Factory(t) { return new (t || ProjectsComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_2__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_3__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__["MatDialog"])); };
-ProjectsComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: ProjectsComponent, selectors: [["app-projects"]], decls: 15, vars: 3, consts: [[4, "ngFor", "ngForOf"], ["mat-button", "", 3, "click"], ["mat-button", "", 3, "mat-dialog-close", "click"], ["mat-button", ""]], template: function ProjectsComponent_Template(rf, ctx) { if (rf & 1) {
+ProjectsComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: ProjectsComponent, selectors: [["app-projects"]], decls: 15, vars: 3, consts: [[4, "ngFor", "ngForOf"], ["mat-button", "", 3, "click"], ["mat-button", "", 3, "mat-dialog-close", "click"]], template: function ProjectsComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "table");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "tr");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "td");
@@ -5149,6 +5162,12 @@ class ProjectsService {
             callback(data, objectThis);
         });
     }
+    deleteProject(project, callback, objectThis) {
+        const url = '../api/MdProjects/DeleteProject';
+        this.http.post(url, project).subscribe(data => {
+            callback(data, objectThis);
+        });
+    }
 }
 ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"])); };
 ProjectsService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ProjectsService, factory: ProjectsService.ɵfac, providedIn: 'root' });
@@ -5185,12 +5204,15 @@ class MdFileService {
     get mdFoldersDocument() {
         return this._mdFoldersDocument.asObservable();
     }
-    loadAll() {
+    loadAll(callback, objectThis) {
         const url = '../api/mdfiles/GetAllMdFiles';
         return this.http.get(url)
             .subscribe(data => {
             this.dataStore.mdFiles = data;
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+            if (callback != null) {
+                callback(data, objectThis);
+            }
         }, error => {
             console.log("failed to fetch mdfile list");
         });

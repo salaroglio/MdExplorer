@@ -21,17 +21,26 @@ export class ProjectsComponent implements OnInit {
   public dataSource: Observable<MdProject[]>
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]
 
-  ngOnInit(): void {   
+  ngOnInit(): void {
     this.projectService.fetchProjects();
-    this.dataSource = this.projectService.mdProjects;
+    this.dataSource = this.projectService.mdProjects;    
   }
 
-  openNewProject(path: string) {    
-    this.projectService.setNewFolderProject(path, this.loadNewProject,this);
+  getProjectList(data: any, objectThis: ProjectsComponent): void {
+    objectThis.projectService.fetchProjects();
+  };
+
+
+  openNewProject(path: string) {
+    this.projectService.setNewFolderProject(path, this.loadNewProject, this);
+  }
+
+  deleteProject(project: any) {
+    this.projectService.deleteProject(project, this.getProjectList, this);
   }
 
   loadNewProject(data: any, objectThis: ProjectsComponent) {
-    objectThis.mdFileService.loadAll();
+    objectThis.mdFileService.loadAll(null,null);
     this.dialog.closeAll();
   }
 
@@ -43,7 +52,7 @@ export class ProjectsComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(selectedPath => {
       this.projectService.setNewFolderProject(selectedPath, this.loadNewProject, this);
-      
+
     });
   }
 

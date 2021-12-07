@@ -23,16 +23,19 @@ namespace MdExplorer.Controllers
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IWorkLink[] _getModifiers;
         private readonly IHelper _helper;
+        private readonly IUserSettingsDB _userSettingsDB;
 
         public IEngineDB _engineDB { get; }
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
-            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper)
+            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper, 
+            IUserSettingsDB userSettingsDB)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
             _getModifiers = getModifiers;
             _helper = helper;
+            _userSettingsDB = userSettingsDB;
         }
 
         [HttpGet]
@@ -59,9 +62,27 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public IActionResult GetAllMdFiles()
         {
-            var currentPath = _fileSystemWatcher.Path;
-
             var list = new List<IFileInfoNode>();
+            var currentPath = _fileSystemWatcher.Path;
+            if (currentPath == Directory.GetCurrentDirectory())
+            {
+                return Ok(list);
+            }
+
+            _userSettingsDB.BeginTransaction();
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            if (_fileSystemWatcher.Path != string.Empty)
+            {
+                var currentProject = projectDal.GetList().Where(_ => _.Path == _fileSystemWatcher.Path).FirstOrDefault();
+                if (currentProject == null)
+                {
+                    var projectName = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1);
+                    currentProject = new Project { Name = projectName, Path = _fileSystemWatcher.Path };
+                    projectDal.Save(currentProject);
+                }
+            }
+            _userSettingsDB.Commit();
+
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {

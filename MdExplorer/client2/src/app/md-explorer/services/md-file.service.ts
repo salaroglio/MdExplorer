@@ -29,12 +29,15 @@ export class MdFileService {
     return this._mdFoldersDocument.asObservable();
   }
 
-  loadAll() {
+  loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
     const url = '../api/mdfiles/GetAllMdFiles';
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
         this.dataStore.mdFiles = data;
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        if (callback != null) {
+          callback(data, objectThis);
+        }        
       },
         error => {
           console.log("failed to fetch mdfile list");
