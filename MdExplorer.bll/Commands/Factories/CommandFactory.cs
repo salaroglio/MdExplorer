@@ -57,7 +57,7 @@ namespace MdExplorer.Features.Commands
 
             var enumAddress = addressesFeature.Addresses.GetEnumerator();
             enumAddress.MoveNext();
-            _serverAddress = enumAddress.Current;
+            _serverAddress = enumAddress.Current;//.Replace("127.0.0.1","localhost");
 
         }
 
