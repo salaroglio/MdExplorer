@@ -7,6 +7,8 @@
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
     <Nullable>annotations</Nullable>
     <ApplicationIcon>MdIcon3.ico</ApplicationIcon>
+    <OutputType>WinExe</OutputType>
+    <StartupObject />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -110,6 +112,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Avalonia\App.xaml" />
+    <None Remove="Avalonia\MainWindow.xaml" />
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\construction.png" />
     <None Remove="EmojiForPandoc\key.png" />
@@ -121,6 +125,15 @@
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
     <None Remove="reference.docx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Avalonia\App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </AvaloniaResource>
+    <AvaloniaResource Include="Avalonia\MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </AvaloniaResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -233,10 +246,13 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="0.10.10" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="0.10.10" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
+    <PackageReference Include="WebViewControl-Avalonia" Version="2.91.11" />
   </ItemGroup>
 
   <!--<ItemGroup>

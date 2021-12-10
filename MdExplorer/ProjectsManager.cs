@@ -131,7 +131,7 @@ namespace MdExplorer.Service
 
         private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
         {
-            var defaultPath = pathFromParameter ?? Directory.GetCurrentDirectory(); // @".\Documents";
+            var defaultPath = pathFromParameter ?? AppDomain.CurrentDomain.BaseDirectory; // @".\Documents";
 
             services.AddSingleton(new FileSystemWatcher { Path = defaultPath });
             var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };

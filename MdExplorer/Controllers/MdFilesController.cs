@@ -64,7 +64,7 @@ namespace MdExplorer.Controllers
         {
             var list = new List<IFileInfoNode>();
             var currentPath = _fileSystemWatcher.Path;
-            if (currentPath == Directory.GetCurrentDirectory())
+            if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
                 return Ok(list);
             }
