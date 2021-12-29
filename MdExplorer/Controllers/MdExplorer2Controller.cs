@@ -18,6 +18,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Xml;
 
 namespace MdExplorer.Service.Controllers
@@ -134,6 +135,13 @@ namespace MdExplorer.Service.Controllers
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
             {
+                var href = itemElement.Attributes["href"];
+                if (href.Value.Substring(0, 8) == @"https://")
+                {
+                    var htmltarget = doc1.CreateAttribute("target");
+                    htmltarget.InnerText = "_target";
+                    itemElement.Attributes.Append(htmltarget);
+                }
                 var htmlClass = doc1.CreateAttribute("class");
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);

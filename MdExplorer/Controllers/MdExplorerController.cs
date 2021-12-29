@@ -19,6 +19,8 @@ using MdExplorer.Features.Commands;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Abstractions.DB;
 using System.Web;
+using System.Net.Http;
+using System.Text.RegularExpressions;
 
 namespace MdExplorer.Controllers
 {
@@ -46,7 +48,7 @@ namespace MdExplorer.Controllers
         public async Task<IActionResult> GetAsync()
         {            
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
-            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
+            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");           
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
 
 
@@ -146,6 +148,18 @@ namespace MdExplorer.Controllers
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
             {
+                var href = itemElement.Attributes["href"];
+                if (href.Value.Length > 8  ) 
+                {
+                    if (Regex.Match(href.Value, "http[s]?://").Success)
+                    {
+                        var htmltarget = doc1.CreateAttribute("target");
+                        htmltarget.InnerText = "_target";
+                        itemElement.Attributes.Append(htmltarget);
+                    }
+                    
+                }
+                
                 var htmlClass = doc1.CreateAttribute("class");
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
