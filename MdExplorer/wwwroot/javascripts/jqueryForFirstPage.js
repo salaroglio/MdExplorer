@@ -1,4 +1,15 @@
-﻿// gestione del floppy_disk e salvataggio
+﻿// test di caricamento tooltip
+$(function () {
+    //debugger;
+    //tippy('[data-tippy-content]');
+    //var test = tippy('#myButton', {
+    //    content: 'My tooltip!',
+    //});
+    //var test1 = test;
+});
+
+
+// gestione del floppy_disk e salvataggio
 function activateSaveCopy(el, path) {
     $.get("/api/WriteMD/ActivateSaveCopy?pathFile=" + path, function () {
         alert('done');

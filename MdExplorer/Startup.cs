@@ -106,13 +106,13 @@ namespace MdExplorer
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
             });
 
-//#if !DEBUG
+            //#if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>
           {
-              DiscoverAddresses(app.ServerFeatures );
+              DiscoverAddresses(app.ServerFeatures);
           });
-//#endif
+            //#endif
 
 
         }
@@ -129,47 +129,45 @@ namespace MdExplorer
 
         private void OpenUrl(string url)
         {
-            try
+            //try
+            //{
+            //    Process.Start(url);
+            //}
+            //catch
+            //{
+            // hack because of this: https://github.com/dotnet/corefx/issues/10361
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Process.Start(url);
-            }
-            catch
-            {
-                // hack because of this: https://github.com/dotnet/corefx/issues/10361
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (Program._uiTask == null)
                 {
-                    if (Program._uiTask == null)
+                    //https://github.com/AvaloniaUI/Avalonia/issues/5241
+                    Program._uiTask = Task.Run(() =>
                     {
-                        //https://github.com/AvaloniaUI/Avalonia/issues/5241
-                        Program._uiTask = Task.Run(() =>
-                        {
-                            var app = AppBuilder.Configure<DesktopApp>()
-                            .UsePlatformDetect()
-                            .UseReactiveUI();
-                            return app.StartWithClassicDesktopLifetime(new[] { url.Replace("127.0.0.1","localhost") }, ShutdownMode.OnExplicitShutdown);
-                        });
-                        
+                        var app = AppBuilder.Configure<DesktopApp>()
+                        .UsePlatformDetect()
+                        .UseReactiveUI();
+                        return app.StartWithClassicDesktopLifetime(new[] { url.Replace("127.0.0.1", "localhost") }, ShutdownMode.OnExplicitShutdown);
+                    });
+                }
 
-                    }
-                   
-                    // Old method (Open Chrome)
-                    //url = url.Replace("&", "^&");
-                    //var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
-                    //var processStarted = Process.Start(processToStart);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    Process.Start("xdg-open", url);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    Process.Start("open", url);
-                }
-                else
-                {
-                    throw;
-                }
+                // Old method (Open Chrome)
+                //url = url.Replace("&", "^&");
+                //var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
+                //var processStarted = Process.Start(processToStart);
             }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                Process.Start("xdg-open", url);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Process.Start("open", url);
+            }
+            //else
+            //{
+            //    throw;
+            //}
+            //}
         }
 
         private void ProcessStarted_Exited(object sender, EventArgs e)
