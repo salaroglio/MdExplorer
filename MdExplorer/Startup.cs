@@ -138,22 +138,22 @@ namespace MdExplorer
             // hack because of this: https://github.com/dotnet/corefx/issues/10361
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (Program._uiTask == null)
-                {
-                    //https://github.com/AvaloniaUI/Avalonia/issues/5241
-                    Program._uiTask = Task.Run(() =>
-                    {
-                        var app = AppBuilder.Configure<DesktopApp>()
-                        .UsePlatformDetect()
-                        .UseReactiveUI();
-                        return app.StartWithClassicDesktopLifetime(new[] { url.Replace("127.0.0.1", "localhost") }, ShutdownMode.OnExplicitShutdown);
-                    });
-                }
+                //if (Program._uiTask == null)
+                //{
+                //    //https://github.com/AvaloniaUI/Avalonia/issues/5241
+                //    Program._uiTask = Task.Run(() =>
+                //    {
+                //        var app = AppBuilder.Configure<DesktopApp>()
+                //        .UsePlatformDetect()
+                //        .UseReactiveUI();
+                //        return app.StartWithClassicDesktopLifetime(new[] { url.Replace("127.0.0.1", "localhost") }, ShutdownMode.OnExplicitShutdown);
+                //    });
+                //}
 
                 // Old method (Open Chrome)
-                //url = url.Replace("&", "^&");
-                //var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
-                //var processStarted = Process.Start(processToStart);
+                url = url.Replace("&", "^&");
+                var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
+                var processStarted = Process.Start(processToStart);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
