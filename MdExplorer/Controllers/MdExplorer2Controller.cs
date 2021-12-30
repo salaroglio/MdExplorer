@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
@@ -136,7 +137,7 @@ namespace MdExplorer.Service.Controllers
             foreach (XmlNode itemElement in elementsA)
             {
                 var href = itemElement.Attributes["href"];
-                if (href.Value.Substring(0, 8) == @"https://")
+                if(Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
                 {
                     var htmltarget = doc1.CreateAttribute("target");
                     htmltarget.InnerText = "_target";

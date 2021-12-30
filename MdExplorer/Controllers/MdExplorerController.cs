@@ -151,7 +151,7 @@ namespace MdExplorer.Controllers
                 var href = itemElement.Attributes["href"];
                 if (href.Value.Length > 8  ) 
                 {
-                    if (Regex.Match(href.Value, "http[s]?://").Success)
+                    if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
                     {
                         var htmltarget = doc1.CreateAttribute("target");
                         htmltarget.InnerText = "_target";
