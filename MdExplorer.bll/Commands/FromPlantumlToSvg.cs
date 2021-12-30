@@ -94,19 +94,18 @@ namespace MdExplorer.Features.Commands
                 var filteredCommentThatContainAnimation = listOfComment.Cast<XmlComment>().Where(_ => _.Data.Contains("MdExplorerAnimatedSVG"));
                 var stringToPutInside = string.Empty;
                 var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\",@"\\");
-                if (filteredCommentThatContainAnimation.Count()>0)
+                
+                var toReplace = nodeToParse.OuterXml;
+                if (filteredCommentThatContainAnimation.Count() > 0)
                 {
                     stringToPutInside = $@"<button id=""forwardArrow{stringMatchedHash}"" data-step=""1"" onclick=""presentationSVG('{prepareCurrentQueryRequest}','{stringMatchedHash}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/green_right_arrow.png""/></button>";
                 }
-                var toReplace = nodeToParse.OuterXml;
-                var linkToPng = $@"{stringMatchedHash}.svg";
                 var orribleHTMLBefore = $@"<div id=""{stringMatchedHash}"" class=""img-wrapper"">";
-                var orribleHTMLAfter = $@"<div class=""img-overlay"">
-                                              <button alt=""copy into clipboard"" onclick=""copyToClipboard('/api/mdexplorer/{currentPng}','{prepareCurrentQueryRequest}','{stringMatchedHash}',0)"" class=""btn btn-md btn-primary-outline""><img src=""/assets/clipboard.png""/></button>
-                                              {stringToPutInside}
-                                          </div>
-                                        </div>";
-                toReplace = string.Concat(orribleHTMLBefore, toReplace, orribleHTMLAfter);
+                var orribleHTMLAfter = $@"</div>";                
+                var buttonsArray = $@"<div><button alt=""copy into clipboard"" onclick = ""copyToClipboard('/api/mdexplorer/{currentPng}', '{prepareCurrentQueryRequest}', '{stringMatchedHash}', 0)"" ><img src = ""/assets/clipboard.png""/></button>{stringToPutInside}</div>";
+                toReplace = string.Concat(buttonsArray, toReplace);
+                toReplace = string.Concat(orribleHTMLBefore,toReplace, orribleHTMLAfter);
+
 
                 html = html.Replace(itemMatch.Groups[0].Value, toReplace);
             }
