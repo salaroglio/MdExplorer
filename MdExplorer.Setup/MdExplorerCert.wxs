@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:iis="http://schemas.microsoft.com/wix/IIsExtension">
+  <Fragment>
+    <Binary Id="bin_MdECertPFX" SourceFile="assets/MdExplorerCert.pfx" />
+    <!--!!! codice funzionante !!!-->
+    <!--ma non basta-->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="cmpWebsite" Guid="{070B6FCF-8703-4042-9532-34AFB18DAFE1}"
+    KeyPath="yes">        
+        <iis:Certificate Id="MyWebsiteCertificate"
+                         BinaryKey="bin_MdECertPFX"
+                         Request="no"
+                         Overwrite="yes"
+                         Name="MdExplorerCertificate"
+                         StoreLocation="localMachine"
+                         StoreName="root"
+                         PFXPassword="Password_123!"/>
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

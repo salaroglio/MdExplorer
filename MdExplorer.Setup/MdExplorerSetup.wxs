@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"  xmlns:iis="http://schemas.microsoft.com/wix/IIsExtension">
   
   
   <Product Id="*" Name="MdExplorer" Language="1033" Version="1.0.0" Manufacturer="Advice" UpgradeCode="8c305313-4d21-4e33-ad3a-a4c68e702d07">
@@ -12,6 +12,7 @@
     <WixVariable Id="WixUILicenseRtf" Value="assets/LicenseAgreement.rtf" />
     
     <Directory Id="TARGETDIR" Name="SourceDir">
+      
       <Directory Id="DesktopFolder" Name="Desktop">
         <Component Id="ApplicationShortcutDesktop" Guid="*">
           <Shortcut Id="ApplicationDesktopShortcut"
@@ -33,10 +34,14 @@
       <Directory Id="ProgramFilesFolder">
         <Directory Id="INSTALLFOLDER" Name="MdExplorer" />
       </Directory>
-    </Directory>   
-
+      
+    </Directory>
+        
+    
     <Feature Id="MainFeature" Title="MdExplorerFolder" Level="1">
-      <ComponentGroupRef Id="HeatGenerated" />
+      <ComponentGroupRef Id="HeatGenerated" />      
+      <ComponentRef Id="ApplicationShortcutDesktop"/>
+      <ComponentGroupRef Id="ProductComponents"/>
     </Feature>
   
   </Product>
