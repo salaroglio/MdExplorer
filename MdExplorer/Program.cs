@@ -6,6 +6,7 @@ using MdExplorer.Features.Utilities;
 using MdExplorer.Service;
 using MdExplorer.Service.HostedServices;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -26,21 +27,17 @@ namespace MdExplorer
 
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();                                   
+            CreateHostBuilder(args).Build().Run();
         }
 
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             Startup.Args = args;
-            
+
             var toReturn = Host.CreateDefaultBuilder(args)
                .ConfigureWebHostDefaults(webBuilder =>
-               {
-
-                   webBuilder.UseUrls("https://127.0.0.1:0");
-                   //webBuilder.UseUrls("https://localhost:0");
-
+               {                   
                    webBuilder.UseStartup<Startup>();
                })
                .ConfigureServices(services =>
@@ -50,8 +47,8 @@ namespace MdExplorer
             ;
             return toReturn;
         }
-           
-        
+
+
 
     }
 }
