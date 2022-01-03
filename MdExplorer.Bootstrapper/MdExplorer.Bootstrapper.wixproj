@@ -34,6 +34,7 @@
     <Content Include="assets\dotnet-hosting-3.1.21-win.exe" />
     <Content Include="assets\jre-8u311-windows-i586-iftw.exe" />
     <Content Include="assets\pandoc-2.16.1-windows-x86_64.msi" />
+    <Content Include="assets\VSCodeUserSetup-x64-1.63.2.exe" />
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" Condition=" '$(WixTargetsPath)' != '' " />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets" Condition=" '$(WixTargetsPath)' == '' AND Exists('$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets') " />

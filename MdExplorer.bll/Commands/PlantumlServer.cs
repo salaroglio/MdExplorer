@@ -6,7 +6,9 @@ using NHibernate;
 using PlantUml.Net;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -50,9 +52,12 @@ namespace MdExplorer.Features.Commands
         private IPlantUmlRenderer getRenderer(ISessionDB session)
         {
             var settingDal = session.GetDal<Setting>();
-            var plantumlSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
+            var test = AppDomain.CurrentDomain.BaseDirectory; // to delete
+            var currentApplicationPath = AppContext.BaseDirectory;
+                //Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + Path.DirectorySeparatorChar; ;
+            var plantumlSetting = currentApplicationPath + settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
             var javaPath = settingDal.GetList().Where(_ => _.Name == "JavaPath").FirstOrDefault()?.ValueString;
-            var localGraphvizDotPath = settingDal.GetList().Where(_ => _.Name == "LocalGraphvizDotPath").FirstOrDefault()?.ValueString;
+            var localGraphvizDotPath = currentApplicationPath + settingDal.GetList().Where(_ => _.Name == "LocalGraphvizDotPath").FirstOrDefault()?.ValueString;
             var renderer = _rendererFactory.CreateRenderer(new PlantUmlSettings()
             {
                 JavaPath = javaPath,
