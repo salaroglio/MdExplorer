@@ -1,9 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-
+  <Target Name="PostPublish" AfterTargets="AfterPublish">
+    <Exec Command="echo BEGIN After-publish&#xD;PublishDir=$(PublishDir)&#xD;PublishUrl=$(PublishUrl)&#xD;copy $(OutDir)\Binaries\Plantuml.jar $(PublishUrl)\Plantuml.jar&#xD;echo END After-publish" />
+  </Target>
+  
   <PropertyGroup>
+    
+    
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
     <Nullable>annotations</Nullable>
     <ApplicationIcon>MdIcon3.ico</ApplicationIcon>
@@ -114,6 +120,8 @@
   <ItemGroup>
     <None Remove="Avalonia\App.xaml" />
     <None Remove="Avalonia\MainWindow.xaml" />
+    <None Remove="Binaries\GraphWiz\binaries\dot.exe" />
+    <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\construction.png" />
     <None Remove="EmojiForPandoc\key.png" />
@@ -150,6 +158,12 @@
 
 
   <ItemGroup>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\dot.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\plantuml.jar">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="eisvogel.tex" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
     <EmbeddedResource Include="EmojiForPandoc\key.png" />
@@ -396,14 +410,9 @@
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="Binaries\GraphWiz\binaries\dot.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Binaries\plantuml.jar">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy &quot;$(TargetDir)Binaries\plantuml.jar&quot; &quot;$(TargetDir)Plantuml.jar&quot; /Y&#xD;&#xA;copy &quot;$(TargetDir)Binaries\GraphWiz\Binaries\Dot.exe&quot; &quot;$(TargetDir)Dot.exe&quot; /Y" />
+  </Target>
 
 
 </Project>

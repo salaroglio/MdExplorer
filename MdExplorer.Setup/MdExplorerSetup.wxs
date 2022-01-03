@@ -40,8 +40,7 @@
     
     <Feature Id="MainFeature" Title="MdExplorerFolder" Level="1">
       <ComponentGroupRef Id="HeatGenerated" />      
-      <ComponentRef Id="ApplicationShortcutDesktop"/>
-      <ComponentGroupRef Id="ProductComponents"/>
+      <ComponentRef Id="ApplicationShortcutDesktop"/>      
     </Feature>
   
   </Product>

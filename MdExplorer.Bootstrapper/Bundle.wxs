@@ -49,6 +49,18 @@
           >
       </ExePackage>
     </PackageGroup>
+    <PackageGroup Id="VSCode-x64-1_63_2">
+      <ExePackage Id="VSCode-x64-1_63_2"
+          DisplayName="VSCode"
+          Cache="yes"
+          Compressed="yes"
+          PerMachine="yes"
+          Permanent="yes"
+          Vital="yes"
+          SourceFile=".\assets\VSCodeUserSetup-x64-1.63.2.exe"
+          >
+      </ExePackage>
+    </PackageGroup>
     <PackageGroup Id="MdExplorer">
       <ExePackage Id="MdExplorer"
           DisplayName="MdExplorer CI/CD For documentation"
@@ -57,8 +69,7 @@
           PerMachine="yes"
           Permanent="yes"
           Vital="yes"
-          SourceFile="..\MdExplorer.Setup\bin\Debug\MdExplorer.Setup.msi"
-           InstallCommand="/s "
+          SourceFile="..\MdExplorer.Setup\bin\Debug\MdExplorer.Setup.msi"          
           >
       </ExePackage>
     </PackageGroup>
