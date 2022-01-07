@@ -8,8 +8,6 @@
       <PackageGroupRef Id="dotnet31"/>
       <PackageGroupRef Id="pandoc2_16_1"/>
       <PackageGroupRef Id="MdExplorer"/>
-			<!-- TODO: Define the list of chained packages. -->
-			<!-- <MsiPackage SourceFile="path\to\your.msi" /> -->
 		</Chain>
 	</Bundle>
   <Fragment>
@@ -38,19 +36,18 @@
       </ExePackage>
     </PackageGroup>
     <PackageGroup Id="pandoc2_16_1">
-      <ExePackage Id="pandoc2_16_1"
+      <MsiPackage Id="pandoc2_16_1"
           DisplayName="Pandoc"
           Cache="yes"
-          Compressed="yes"
-          PerMachine="yes"
+          Compressed="yes"          
           Permanent="yes"
           Vital="yes"
           SourceFile=".\assets\pandoc-2.16.1-windows-x86_64.msi"         
           >
-      </ExePackage>
+      </MsiPackage>
     </PackageGroup>
-    <PackageGroup Id="VSCode-x64-1_63_2">
-      <ExePackage Id="VSCode-x64-1_63_2"
+    <PackageGroup Id="VSCode_x64_1_63_2">
+      <ExePackage Id="VSCode_x64_1_63_2"
           DisplayName="VSCode"
           Cache="yes"
           Compressed="yes"
@@ -62,16 +59,15 @@
       </ExePackage>
     </PackageGroup>
     <PackageGroup Id="MdExplorer">
-      <ExePackage Id="MdExplorer"
+      <MsiPackage Id="MdExplorer"
           DisplayName="MdExplorer CI/CD For documentation"
           Cache="yes"
-          Compressed="yes"
-          PerMachine="yes"
+          Compressed="yes"          
           Permanent="yes"
           Vital="yes"
           SourceFile="..\MdExplorer.Setup\bin\Debug\MdExplorer.Setup.msi"          
           >
-      </ExePackage>
+      </MsiPackage>
     </PackageGroup>
   </Fragment>
 </Wix>

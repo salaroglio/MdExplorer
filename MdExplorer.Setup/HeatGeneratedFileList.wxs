@@ -44,17 +44,6 @@
             <Component Id="cmpB139B49DF4DF8F44C525B449EA8187F7" Guid="*">
                 <File Id="filE7A3E65CC622C2E3B9B57707B12C9645" KeyPath="yes" Source="$(var.HarvestPath)\web.config" />
             </Component>
-            <Directory Id="dir0E75540510E40F3F60D67860BD0F0C54" Name="CefGlueBrowserProcess">
-                <Component Id="cmp7F3C70385BE330E3A1FF5CAD6E3DE355" Guid="*">
-                    <File Id="fil83E9642FA162CD86B02660D8AC94F7BC" KeyPath="yes" Source="$(var.HarvestPath)\CefGlueBrowserProcess\Xilium.CefGlue.BrowserProcess.pdb" />
-                </Component>
-                <Component Id="cmp45926D6DC39E7FED5468573455986D26" Guid="*">
-                    <File Id="fil223870E193693B6084C9A831E60036BA" KeyPath="yes" Source="$(var.HarvestPath)\CefGlueBrowserProcess\Xilium.CefGlue.Common.Shared.pdb" />
-                </Component>
-                <Component Id="cmp89AB1A32E518FA95CC84153F41B0E09C" Guid="*">
-                    <File Id="fil69BE8442B7A955ACFE11DA5E36CE541C" KeyPath="yes" Source="$(var.HarvestPath)\CefGlueBrowserProcess\Xilium.CefGlue.pdb" />
-                </Component>
-            </Directory>
             <Directory Id="dir99DF51DDB6E3B71BF0E1FF61B8B48844" Name="client2">
                 <Component Id="cmp76FA3D9BAF4EB6F6349CF163E7D572E3" Guid="*">
                     <File Id="fil4425741FC68973FCD4A1EFDEDE320EAB" KeyPath="yes" Source="$(var.HarvestPath)\client2\angular.json" />
@@ -467,9 +456,6 @@
             <ComponentRef Id="cmp548E1D149E3735784000308E747E507F" />
             <ComponentRef Id="cmpD71BBAC84D48FE0434198573578E243E" />
             <ComponentRef Id="cmpB139B49DF4DF8F44C525B449EA8187F7" />
-            <ComponentRef Id="cmp7F3C70385BE330E3A1FF5CAD6E3DE355" />
-            <ComponentRef Id="cmp45926D6DC39E7FED5468573455986D26" />
-            <ComponentRef Id="cmp89AB1A32E518FA95CC84153F41B0E09C" />
             <ComponentRef Id="cmp76FA3D9BAF4EB6F6349CF163E7D572E3" />
             <ComponentRef Id="cmp2B811053B5AE4B88DEFFD5B5A76B4D07" />
             <ComponentRef Id="cmpCFC07250170E75B593412650F8C5C349" />

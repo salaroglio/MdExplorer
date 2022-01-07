@@ -28,10 +28,6 @@ using MdExplorer.Service.Automapper.RefactoringFilesController;
 using Ad.Tools.FluentMigrator.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.ReactiveUI;
-using Avalonia.Controls;
-using SampleWebView.Avalonia;
 
 namespace MdExplorer
 {
@@ -129,28 +125,9 @@ namespace MdExplorer
 
         private void OpenUrl(string url)
         {
-            //try
-            //{
-            //    Process.Start(url);
-            //}
-            //catch
-            //{
             // hack because of this: https://github.com/dotnet/corefx/issues/10361
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                //if (Program._uiTask == null)
-                //{
-                //    //https://github.com/AvaloniaUI/Avalonia/issues/5241
-                //    Program._uiTask = Task.Run(() =>
-                //    {
-                //        var app = AppBuilder.Configure<DesktopApp>()
-                //        .UsePlatformDetect()
-                //        .UseReactiveUI();
-                //        return app.StartWithClassicDesktopLifetime(new[] { url.Replace("127.0.0.1", "localhost") }, ShutdownMode.OnExplicitShutdown);
-                //    });
-                //}
-
-                // Old method (Open Chrome)
                 url = url.Replace("&", "^&");
                 var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
                 var processStarted = Process.Start(processToStart);
@@ -163,11 +140,6 @@ namespace MdExplorer
             {
                 Process.Start("open", url);
             }
-            //else
-            //{
-            //    throw;
-            //}
-            //}
         }
 
         private void ProcessStarted_Exited(object sender, EventArgs e)
