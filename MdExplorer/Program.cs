@@ -1,7 +1,3 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.ReactiveUI;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Service;
 using MdExplorer.Service.HostedServices;
@@ -11,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SampleWebView.Avalonia;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,7 +18,7 @@ namespace MdExplorer
 {
     public class Program
     {
-        private static Task _backgroundHostTask;
+        
         public static Task<int> _uiTask;
 
         public static void Main(string[] args)

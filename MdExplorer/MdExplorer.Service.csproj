@@ -118,8 +118,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Avalonia\App.xaml" />
-    <None Remove="Avalonia\MainWindow.xaml" />
     <None Remove="Binaries\GraphWiz\binaries\dot.exe" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
@@ -133,15 +131,6 @@
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
     <None Remove="reference.docx" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <AvaloniaResource Include="Avalonia\App.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </AvaloniaResource>
-    <AvaloniaResource Include="Avalonia\MainWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </AvaloniaResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -260,13 +249,10 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
-    <PackageReference Include="Avalonia.Desktop" Version="0.10.10" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="0.10.10" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
-    <PackageReference Include="WebViewControl-Avalonia" Version="2.91.11" />
   </ItemGroup>
 
   <!--<ItemGroup>
@@ -409,10 +395,6 @@
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-CN.js" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
   </ItemGroup>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy &quot;$(TargetDir)Binaries\plantuml.jar&quot; &quot;$(TargetDir)Plantuml.jar&quot; /Y&#xD;&#xA;copy &quot;$(TargetDir)Binaries\GraphWiz\Binaries\Dot.exe&quot; &quot;$(TargetDir)Dot.exe&quot; /Y" />
-  </Target>
 
 
 </Project>
