@@ -106,11 +106,13 @@ namespace MdExplorer.Controllers
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
+                
                 .UsePipeTables()
                 .UseBootstrap()
                 .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
                 .UseEmojiAndSmiley()
                 .UseYamlFrontMatter()
+                .UseGenericAttributes()
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
@@ -167,7 +169,7 @@ namespace MdExplorer.Controllers
             //System.IO.File.WriteAllText(@"test.html", doc1.InnerXml);
 
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
-
+            //System.IO.File.WriteAllText(@"c:\\test.html", doc1.InnerXml);
             return new ContentResult
             {
                 ContentType = "text/html",

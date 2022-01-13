@@ -41,9 +41,5 @@ namespace MdExplorer.Features.Commands.Markdown
             throw new NotImplementedException();
         }
 
-        //public (string, EmojiPriorityOrderInfo) ReplaceSingleItem(string markdown, RequestInfo requestinfo, EmojiPriorityOrderInfo emojiPriorityOrderInfo)
-        //{
-        //    throw new NotImplementedException();
-        //}
     }
 }

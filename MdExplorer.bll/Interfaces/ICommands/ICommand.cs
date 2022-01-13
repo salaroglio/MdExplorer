@@ -13,7 +13,7 @@ namespace MdExplorer.Features.Commands
         //string ServerAddress { get; set; }
         public int Priority { get; set; }
         public bool Enabled { get; set; }
-        string  TransformInNewMDFromMD(string markdown,RequestInfo requestInfo);
+        string TransformInNewMDFromMD(string markdown,RequestInfo requestInfo);
         string TransformAfterConversion(string html, RequestInfo requestInfo);
         string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo);
         
