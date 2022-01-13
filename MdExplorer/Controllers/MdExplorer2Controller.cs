@@ -102,11 +102,13 @@ namespace MdExplorer.Service.Controllers
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
+                
                 .UsePipeTables()
                 .UseBootstrap()
                 .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
                 .UseEmojiAndSmiley()
                 .UseYamlFrontMatter()
+                .UseGenericAttributes()
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);

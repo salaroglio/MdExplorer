@@ -28,7 +28,7 @@ namespace MdExplorer.Features.Commands
     {
 
 
-        private readonly string _serverAddress;
+        //private readonly string _serverAddress;
         protected readonly ILogger<FromPlantumlToPng> _logger;
         private readonly IUserSettingsDB _session;
         protected readonly PlantumlServer _plantumlServer;
@@ -44,7 +44,7 @@ namespace MdExplorer.Features.Commands
                 PlantumlServer plantumlServer,
                 IHelper helper)
         {
-            _serverAddress = ServerAddress;
+            //_serverAddress = ServerAddress;
             _logger = logger;
             _session = session;
             _plantumlServer = plantumlServer;

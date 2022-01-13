@@ -6,6 +6,23 @@
     cursor: pointer;
 }*/
 
+
+/*This part is to manage resizable images*/
+
+.resizable {
+    display: inline-block;
+    background: white;
+    resize: both;
+    overflow: hidden !important;
+    line-height: 0;
+}
+
+.resizable img {
+    width: 100%;
+    height: 100%;
+}
+
+
 .s1 {
     height: auto;
     border: 1px dotted blue;

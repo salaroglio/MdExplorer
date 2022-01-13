@@ -64,10 +64,12 @@ namespace MdExplorer.Service.Controllers
 
                 var pipeline = new MarkdownPipelineBuilder()
                .UseAdvancedExtensions()
+               
                .UsePipeTables()
                .UseBootstrap()               
                .UseEmojiAndSmiley()
                .UseYamlFrontMatter()
+               .UseGenericAttributes()
                .Build();
 
                 Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
