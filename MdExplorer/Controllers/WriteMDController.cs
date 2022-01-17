@@ -4,6 +4,7 @@ using MdExplorer.Features.Commands.FunctionParameters;
 using MdExplorer.Features.Commands.Markdown;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
+using MdExplorer.Service.Controllers.WriteMDDto;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -27,6 +28,50 @@ namespace MdExplorer.Service.Controllers
             _fileSystemWatcher = fileSystemWatcher;
 
             _commandRunner = commandRunner;
+        }
+
+        /// <summary>
+        /// Thi function is called when an Image is resized
+        /// It's getting width, height... and ohter csslike info
+        /// in order to store that data into markdown
+        /// </summary>
+        /// <param name="dto"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public IActionResult SaveImgPositionAndSize([FromBody] SaveImgPostionAndSizeDto dto)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            CSSSavedOnPageInfo cssInfo;
+            var systePathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
+            lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
+            {
+                // load Md
+                var markdown = System.IO.File.ReadAllText(systePathFile);
+                var requestInfo = new RequestInfo
+                {
+                    AbsolutePathFile = dto.PathFile,
+                    CurrentRoot = _fileSystemWatcher.Path,
+                };
+                var param = new CSSSavedOnPageInfo
+                {
+                    ClientX = dto.ClientX,
+                    ClientY = dto.ClientY,
+                    CSSHash = dto.CSSHash,
+                    Height = dto.Height,
+                    LinkHash = dto.LinkHash,
+                    Width = dto.Width
+                };
+                // transform
+                var replaceSingleItem = (IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>)_commandRunner.Commands
+                        .Where(_ => _.Name == "CSSSavedOnPage").FirstOrDefault();
+               
+                (markdown,  cssInfo) = replaceSingleItem
+                        .ReplaceSingleItem(markdown, requestInfo, param);
+                System.IO.File.WriteAllText(systePathFile, markdown);
+
+            }
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(new { Message = "Done", CSSHash = cssInfo.CSSHash});
         }
 
         [HttpGet]
@@ -167,7 +212,7 @@ namespace MdExplorer.Service.Controllers
                 var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
                         .Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
                 markdown = replace
-                        .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index } ); //toReplace, index
+                        .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index }); //toReplace, index
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
                 // write

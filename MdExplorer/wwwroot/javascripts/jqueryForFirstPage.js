@@ -1,4 +1,48 @@
-﻿// test di caricamento tooltip
+﻿// Gestione del movimento delle immagini
+// test di caricamento tooltip
+$(function () {
+    $('.resizable').mousedown( function () {
+        
+    });
+});
+
+
+// Gestione del resize delle immagini
+function resizeImage(currentDiv,pathFile,linkHash, cssHash) {    
+    // going inside the div
+    var img = currentDiv.childNodes[0].childNodes[0];
+    // getting CSSHash from attributes
+
+    currentHash = currentDiv.attributes['md-css-hash'].value;
+
+    var currentImageData = {
+        pathFile: pathFile,
+        linkHash: linkHash,
+        cssHash: currentHash,
+        Width: img.width,
+        Height: img.height,
+        ClientX: img.x,
+        ClientY:img.y
+    };
+    $.ajax({
+        url: "/api/WriteMD/SaveImgPositionAndSize",
+        type: "POST",
+        data: JSON.stringify(currentImageData),//'{"linkHash": "1234", "cssHash": "5678", "Width": "100px", "Height": "50px","ClientX":"","ClientY":"" }', //
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {            
+            currentDiv.attributes['md-css-hash'].value = data.cssHash;
+            var $divs = $("div[md-css-hash='" + currentHash + "']");
+            $divs.each(function (index) {
+                var test = $divs[index].attributes['md-css-hash'].value = data.cssHash;
+            });
+                //.attributes['md-css-hash'].value = data.cssHash
+        }
+    });
+}
+
+
+// test di caricamento tooltip
 $(function () {
     //debugger;
     //tippy('[data-tippy-content]');
