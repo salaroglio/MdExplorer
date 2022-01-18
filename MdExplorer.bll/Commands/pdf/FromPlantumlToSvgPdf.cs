@@ -25,20 +25,20 @@ namespace MdExplorer.Features.Commands.pdf
         {
         }
 
-        public override string TransformAfterConversion(string html, RequestInfo requestInfo)
-        {
-            var matches = GetMatchesAfterConversion(html);
-            string backPath = _helper.GetBackPath(requestInfo);
+        //public override string TransformAfterConversion(string html, RequestInfo requestInfo)
+        //{
+        //    var matches = GetMatchesAfterConversion(html);
+        //    string backPath = _helper.GetBackPath(requestInfo);
 
-            foreach (Match item in matches)
-            {
-                var stringMatched0 = item.Groups[1].Value;
-                var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.png";
-                html = html.Replace(item.Groups[0].Value, referenceUrl);
-            }
+        //    foreach (Match item in matches)
+        //    {
+        //        var stringMatched0 = item.Groups[1].Value;
+        //        var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.png";
+        //        html = html.Replace(item.Groups[0].Value, referenceUrl);
+        //    }
 
-            return html;
-        }
+        //    return html;
+        //}
 
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {

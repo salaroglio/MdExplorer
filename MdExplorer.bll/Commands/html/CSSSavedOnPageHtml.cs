@@ -5,6 +5,7 @@ using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -50,7 +51,7 @@ namespace MdExplorer.Features.Commands.html
                         {
                             divWidth = rule.Style.Width;
                             divHeight = rule.Style.Height;
-                            dataMdHash = $" data-md-hash=\"{cssHash}\"";
+                            dataMdHash = $" .overrideImgFluid data-md-hash=\"{cssHash}\"";
                             break; // exit from foreach serching for CSS classes
                         }
 
@@ -60,14 +61,15 @@ namespace MdExplorer.Features.Commands.html
                 }
                 if (dataMdHash == string.Empty) // nothing is done
                 {
-                    dataMdHash = $" data-md-hash=\"empty\"";
+                    dataMdHash = $" .overrideImgFluid data-md-hash=\"empty\"";
                 }
 
                 var metadataToReplaceString = metadataString.Substring(0, metadataString.Length) + dataMdHash;
                 var linkToReplace = itemImg.Groups[0].Value.Replace(metadataString, metadataToReplaceString);
-                linkToReplace = $"<div md-css-hash=\"{cssHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"resizable defaultImg \" onmouseup=\"resizeImage(this,'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}','{linkHash}')\">{System.Environment.NewLine}{System.Environment.NewLine}{linkToReplace}{System.Environment.NewLine}{System.Environment.NewLine}</div>";
-                var newDivForMove = $"<div>";
+                linkToReplace = $"<div md-css-hash=\"{cssHash}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg \" onmouseup=\"resizeImage(this,'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}','{linkHash}')\">{System.Environment.NewLine}{System.Environment.NewLine}{linkToReplace}{System.Environment.NewLine}{System.Environment.NewLine}</div>";
+                var newDivForMove = $"<div><div><button onclick=\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button></div>";
                 var newDivForMoveClose = $"</div>";
+                linkToReplace = string.Concat(newDivForMove, linkToReplace, newDivForMoveClose);
                 markdown = markdown.Replace(itemImg.Groups[0].Value, linkToReplace);
 
             }

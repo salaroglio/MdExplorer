@@ -9,7 +9,15 @@
 
 /*This part is to manage resizable images*/
 
+img.overrideImgFluid {
+    max-width: none !important;
+    width: 100%;
+    height: 100%;
+}
+
+
 .resizable {
+    border:1px solid black;
     display: inline-block;
     background: white;
     resize: both;
