@@ -7,7 +7,31 @@ $(function () {
 });
 
 
-// Gestione del resize delle immagini
+// Manage Images
+// function called by button to activate resize
+var arrayLinksToggle = [];
+function activateResize(linkHash) {
+    // Find nodes    
+    var buttonPressed = arrayLinksToggle.find(data => data == linkHash);    
+    var $links = $('div[md-link-hash=' + linkHash + ']');
+    $links.each(function (index) {
+        if (buttonPressed == undefined) {
+            var oldValue = $links[index].attributes['class'].value;
+            $links[index].attributes['class'].value = oldValue + ' resizable';
+            arrayLinksToggle.push(linkHash);
+        }
+        else {
+            var oldValue = $links[index].attributes['class'].value;
+            $links[index].attributes['class'].value = oldValue.replace(' resizable', '');
+            var currentIndex = arrayLinksToggle.findIndex(data => data == linkHash);
+            arrayLinksToggle.splice(currentIndex,1);
+        }
+        
+    });
+}
+
+// Function called by onMouseUp event to 
+// write down on MD the new image dimension values.
 function resizeImage(currentDiv,pathFile,linkHash, cssHash) {    
     // going inside the div
     var img = currentDiv.childNodes[0].childNodes[0];
@@ -34,7 +58,7 @@ function resizeImage(currentDiv,pathFile,linkHash, cssHash) {
             currentDiv.attributes['md-css-hash'].value = data.cssHash;
             var $divs = $("div[md-css-hash='" + currentHash + "']");
             $divs.each(function (index) {
-                var test = $divs[index].attributes['md-css-hash'].value = data.cssHash;
+                $divs[index].attributes['md-css-hash'].value = data.cssHash;
             });
                 //.attributes['md-css-hash'].value = data.cssHash
         }

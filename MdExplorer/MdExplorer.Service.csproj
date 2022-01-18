@@ -44,6 +44,8 @@
     <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\green_right_arrow.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
+    <Content Remove="wwwroot\assets\move.png" />
+    <Content Remove="wwwroot\assets\resize.png" />
     <Content Remove="wwwroot\assets\TOC.png" />
     <Content Remove="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
@@ -171,6 +173,8 @@
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
+    <EmbeddedResource Include="wwwroot\assets\move.png" />
+    <EmbeddedResource Include="wwwroot\assets\resize.png" />
     <EmbeddedResource Include="wwwroot\assets\TOC.png" />
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
