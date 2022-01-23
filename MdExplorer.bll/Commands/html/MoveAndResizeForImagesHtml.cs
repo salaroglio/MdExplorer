@@ -13,9 +13,9 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.html
 {
-    public class CSSSavedOnPageHtml : CSSSavedOnPage, ICommandHtml
+    public class MoveAndResizeForImagesHtml : MoveAndResizeForImages, ICommandHtml
     {
-        public CSSSavedOnPageHtml(ILogger<CSSSavedOnPageHtml> logger,IHelper helper):base(logger,helper)
+        public MoveAndResizeForImagesHtml(ILogger<MoveAndResizeForImagesHtml> logger,IHelper helper):base(logger,helper)
         {
 
         }
@@ -65,7 +65,7 @@ namespace MdExplorer.Features.Commands.html
 
 
                     }
-                    markdown = markdown.Replace(itemCSS.Groups[0].Value, string.Empty);
+                    //markdown = markdown.Replace(itemCSS.Groups[0].Value, string.Empty);
                 }
                 if (dataMdHash == string.Empty) // nothing is done
                 {
@@ -95,19 +95,6 @@ namespace MdExplorer.Features.Commands.html
 
             }
 
-            //foreach (Match itemCSS in matches)
-            //{
-            //    var cssToSave = itemCSS.Groups[1].Value;
-            //    var textHash = _helper.GetHashString(cssToSave, Encoding.UTF8);
-            //    var newText = $@"<style id=""{textHash}"">{cssToSave}</style>";
-            //    markdown = markdown.Replace(itemCSS.Groups[0].Value, newText);
-            //}
-            //if (matches.Count==0)
-            //{
-            //    var textHash = _helper.GetHashString(CSSToInsert, Encoding.UTF8);
-            //    var newText = $@"<style id=""{textHash}"">{CSSToInsert}</style>";
-            //    markdown = string.Concat(markdown, System.Environment.NewLine, CSSToInsert);
-            //}
             return markdown;
         }
        
