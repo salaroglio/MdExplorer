@@ -1,11 +1,8 @@
-﻿using ExCSS;
-using MdExplorer.Abstractions.DB;
-using MdExplorer.Abstractions.Models;
+﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,44 +10,34 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class CSSSavedOnPage : CommandBase, ICommand, IDisposable
+    /// <summary>
+    /// This command is used in common with CSSSavedOnPage and
+    /// FromPlantumlToSvg. They use the CSSInline metadata, so thats informatons are very important
+    /// for at least two commands.
+    /// i have to delete these information last.
+    /// </summary>
+    public class RemoveCSSInline : CommandBase, ICommand, IDisposable
     {
-        private readonly ILogger<CSSSavedOnPage> _logger;
+        private readonly ILogger<RemoveCSSInline> _logger;
 
         protected readonly IHelper _helper;
 
-        public int Priority { get; set; } = 10;
+        public int Priority { get; set; } = 100;
         public bool Enabled { get; set; } = true;
-        public string Name { get; set; } = "CSSSavedOnPage";
-        public CSSSavedOnPage(
-              ILogger<CSSSavedOnPage> logger,
+        public string Name { get; set; } = "RemoveCSSInline";
+
+        public RemoveCSSInline(
+              ILogger<RemoveCSSInline> logger,
               IHelper helper)
         {
             _logger = logger;
 
             _helper = helper;
         }
+
         public void Dispose()
         {
             throw new NotImplementedException();
-        }
-
-        protected MatchCollection GetLinkWithCurlyBracketsMatches(string markDown)
-        {
-            var reg = @"!\[([^\]]*)\]\((.*)\){(.*)}";
-            Regex rx = new Regex(reg,
-                               RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            var matches = rx.Matches(markDown);
-            return matches;
-        }
-
-        protected MatchCollection GetMetaDataMatches(string markDown)
-        {
-            var reg = @"{?([^\s{}]+)}?";
-            Regex rx = new Regex(reg,
-                               RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            var matches = rx.Matches(markDown);
-            return matches;
         }
 
         public MatchCollection GetMatches(string markdown)
@@ -71,13 +58,13 @@ namespace MdExplorer.Features.Commands
             return html;
         }
 
-        public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
+        public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
-
-           
-
-
-
+            var matches = GetMatches(markdown);
+            foreach (Match itemCSS in matches)
+            {
+                markdown = markdown.Replace(itemCSS.Groups[0].Value, string.Empty);
+            }
             return markdown;
         }
     }

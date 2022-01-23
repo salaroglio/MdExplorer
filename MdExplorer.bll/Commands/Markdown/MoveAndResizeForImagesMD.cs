@@ -12,9 +12,9 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.Markdown
 {
-    public class CSSSavedOnPageMD : CSSSavedOnPage, ICommandMD, IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>
+    public class MoveAndResizeForImagesMD : MoveAndResizeForImages, ICommandMD, IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>
     {
-        public CSSSavedOnPageMD(Microsoft.Extensions.Logging.ILogger<CSSSavedOnPage> logger, Utilities.IHelper helper) :
+        public MoveAndResizeForImagesMD(Microsoft.Extensions.Logging.ILogger<MoveAndResizeForImages> logger, Utilities.IHelper helper) :
             base(logger, helper)
         {
         }
