@@ -37,7 +37,19 @@ namespace MdExplorer
             var dotExePath  = AppContext.BaseDirectory + "dot.exe";
             if (!File.Exists(dotExePath))
             {
+                
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.cdt.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.cgraph.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.config6", dotExePath);
                 FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.dot.exe", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.expat.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.gvc.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.gvplugin_core.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.gvplugin_dot_layout.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.pathplan.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.vcruntime140.dll", dotExePath);
+                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.xdot.dll", dotExePath);
+
             }
             
         }

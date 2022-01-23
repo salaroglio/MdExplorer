@@ -59,6 +59,10 @@ namespace MdExplorer.Features.Commands.Markdown
                                 {
                                     rule.Style.Width = $"{cSSSavedOnPageInfo.Width}px";
                                     rule.Style.Height = $"{cSSSavedOnPageInfo.Height}px";
+                                    rule.Style.Top = $"{cSSSavedOnPageInfo.ClientY}px";
+                                    rule.Style.Left = $"{cSSSavedOnPageInfo.ClientX}px";
+                                    rule.Style.Position = cSSSavedOnPageInfo.Position;
+
                                     var cssToReplace = string.Concat(System.Environment.NewLine, stylesheet.ToCss(new CompressedStyleFormatter()), System.Environment.NewLine);
                                     stringToReturn = markdown.Replace(cssToSave, cssToReplace);
                                     cssSerialized = string.Concat("```CSSInline", cssToReplace, "```");
@@ -74,7 +78,7 @@ namespace MdExplorer.Features.Commands.Markdown
 
                     }
 
-                    if (cssMatches.Count == 0) // nothing is done
+                    if (cssMatches.Count == 0) // first time ever writing cssinpage
                     {
                         var CSSToInsert = string.Concat("```CSSInline", Environment.NewLine);
                         CSSToInsert = GetCSS(cSSSavedOnPageInfo, classes, CSSToInsert);
@@ -82,7 +86,7 @@ namespace MdExplorer.Features.Commands.Markdown
                         cssSerialized = CSSToInsert;
                         stringToReturn = string.Concat(markdown, CSSToInsert);
                     }
-                    if (cssMatches.Count>0 && !foundCSS)
+                    if (cssMatches.Count>0 && !foundCSS) // cssinpage allready exits 
                     {
                         var CSSToInsert = string.Concat( cssMatches[0].Groups[1].Value, Environment.NewLine);
                         CSSToInsert = GetCSS(cSSSavedOnPageInfo, classes, CSSToInsert);

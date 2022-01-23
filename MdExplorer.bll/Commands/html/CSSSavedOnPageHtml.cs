@@ -37,6 +37,11 @@ namespace MdExplorer.Features.Commands.html
                 var cssHash = "empty";
                 var divWidth = "100%";
                 var divHeight = "100%";
+                var divLeft = string.Empty;
+                var divTop = string.Empty;
+                var divPosition = string.Empty;
+                var classForDivContainer = string.Empty;
+                var styleTopDivContainer = string.Empty;
                 foreach (Match itemCSS in matches)
                 {
                     var cssToAnalyze = itemCSS.Groups[1].Value;
@@ -51,6 +56,9 @@ namespace MdExplorer.Features.Commands.html
                         {
                             divWidth = rule.Style.Width;
                             divHeight = rule.Style.Height;
+                            divLeft = rule.Style.Left;
+                            divTop = rule.Style.Top;
+                            divPosition = rule.Style.Position;
                             dataMdHash = $" .overrideImgFluid data-md-hash=\"{cssHash}\"";
                             break; // exit from foreach serching for CSS classes
                         }
@@ -64,13 +72,26 @@ namespace MdExplorer.Features.Commands.html
                     dataMdHash = $" .overrideImgFluid data-md-hash=\"empty\"";
                 }
 
+                if (divPosition == "absolute")
+                {
+                    classForDivContainer = "class=\"movedAndFixed\"";
+                    styleTopDivContainer = $"style=\"top:{divTop}; left:{divLeft};\"";
+                }
+
+                var guidToDisplayToolbar = Guid.NewGuid().ToString("D");
+
                 var metadataToReplaceString = metadataString.Substring(0, metadataString.Length) + dataMdHash;
-                var linkToReplace = itemImg.Groups[0].Value.Replace(metadataString, metadataToReplaceString);
-                linkToReplace = $"<div md-css-hash=\"{cssHash}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg \" onmouseup=\"resizeImage(this,'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}','{linkHash}')\">{System.Environment.NewLine}{System.Environment.NewLine}{linkToReplace}{System.Environment.NewLine}{System.Environment.NewLine}</div>";
-                var newDivForMove = $"<div><div><button onclick=\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button></div>";
+                var newDataToInsert = itemImg.Groups[0].Value.Replace(metadataString, metadataToReplaceString);
+                newDataToInsert = $"<div onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\"  md-path-file=\"{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}\" md-css-hash=\"{cssHash}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg \" onmouseup=\"resizeImage(this)\">" +
+                    $"{System.Environment.NewLine}{System.Environment.NewLine}" +
+                    $"{newDataToInsert}" +
+                    $"{System.Environment.NewLine}{System.Environment.NewLine}" +
+                    $"</div>";
+                var newDivForResize = $"<div {classForDivContainer} {styleTopDivContainer} ><div id=\"{guidToDisplayToolbar}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\"><button onclick=\"activateResize('{linkHash}','{guidToDisplayToolbar}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>";
+                var newDivForMove = $"<button onclick=\"activateMove(this,'{linkHash}','{guidToDisplayToolbar}')\"  class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/move.png\"/></button></div>";
                 var newDivForMoveClose = $"</div>";
-                linkToReplace = string.Concat(newDivForMove, linkToReplace, newDivForMoveClose);
-                markdown = markdown.Replace(itemImg.Groups[0].Value, linkToReplace);
+                newDataToInsert = string.Concat(newDivForResize, newDivForMove, newDataToInsert, newDivForMoveClose);
+                markdown = markdown.Replace(itemImg.Groups[0].Value, newDataToInsert);
 
             }
 

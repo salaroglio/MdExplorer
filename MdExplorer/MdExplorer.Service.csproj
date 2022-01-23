@@ -120,7 +120,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Binaries\GraphWiz\binaries\cdt.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\cgraph.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\config6" />
     <None Remove="Binaries\GraphWiz\binaries\dot.exe" />
+    <None Remove="Binaries\GraphWiz\binaries\expat.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\gvc.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\gvplugin_core.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\LICENSE.txt" />
+    <None Remove="Binaries\GraphWiz\binaries\pathplan.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\vcruntime140.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\construction.png" />
@@ -149,8 +160,41 @@
 
 
   <ItemGroup>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\cdt.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\cgraph.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\config6">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\dot.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\expat.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvc.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_core.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <Content Include="Binaries\GraphWiz\binaries\LICENSE.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\pathplan.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\vcruntime140.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\xdot.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Binaries\plantuml.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
