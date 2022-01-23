@@ -95,9 +95,7 @@ namespace MdExplorer.Features.Tests
             ![alt text](Icons\plus.png ""Title"")
                     ne deve prendere 2
                 ";
-                
-
-            var command = new ManageImages( null, null);
+            var command = new ManageEmojiAsImages( null, null);
             var match = command.GetMatches(textToParse);
             var stringMatched0 = match[0].Groups[2].Value;
 

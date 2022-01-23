@@ -1,43 +1,109 @@
-﻿// Gestione del movimento delle immagini
-// test di caricamento tooltip
-$(function () {
-    $('.resizable').mousedown( function () {
-        
-    });
-});
-
-
+﻿
 // Manage Images
+
+// function to show/hide image's toolbar
+
+function showImageToolbar(referenceId) {    
+    var $element = $('#' + referenceId);
+    var divStyle = getComputedStyle($element[0]);
+    var rect = $element[0].getBoundingClientRect();
+    var test = rect.top;
+    $element.attr("style","display:block; position:absolute;");
+}
+
+function hideImageToolbar(referenceId) {    
+    var $element = $('#' + referenceId);
+    $element.attr("style", "display:none;");
+}
+
+
+//Function Called by button to activate Move!
+var arrayLinksMoveToggle = [];
+var moving = false;
+var image;
+
+function activateMove(currentObject, linkHash,referenceId) {    
+    var toSend = currentObject.parentElement.parentElement;
+    $movable = $(toSend);
+    var buttonPressed = arrayLinksMoveToggle.find(data => data == linkHash);    
+    if (buttonPressed == undefined) {
+        var newClass = $movable.attr('class', 'movable');
+        arrayLinksMoveToggle.push(linkHash);
+    } else {
+        debugger;
+        var currentIndex = arrayLinksMoveToggle.findIndex(data => data == linkHash);
+        arrayLinksMoveToggle.splice(currentIndex, 1);
+        $movable.attr('class', 'movedAndFixed');
+        
+    }
+    
+    initialClick(toSend, referenceId);
+}
+
+function initialClick(currentObject, referenceId) {
+
+    if (moving) {
+        document.removeEventListener("mousemove", move);
+        moving = !moving;
+        return;
+    }
+
+    moving = !moving;
+    image = currentObject;
+
+    document.addEventListener("mousemove", move, false);
+
+}
+
+function move(e) {
+
+    var newX = e.clientX-76;
+    var newY = e.clientY-18;
+
+    image.style.left = newX + "px";
+    image.style.top = newY + "px";
+
+
+}
+
+
 // function called by button to activate resize
-var arrayLinksToggle = [];
-function activateResize(linkHash) {
+var arrayLinksResizeToggle = [];
+function activateResize(linkHash, referenceId) {
     // Find nodes    
-    var buttonPressed = arrayLinksToggle.find(data => data == linkHash);    
-    var $links = $('div[md-link-hash=' + linkHash + ']');
+    var buttonPressed = arrayLinksResizeToggle.find(data => data == linkHash);
+    var $links = $('div[md-link-hash=' + linkHash + ']'); // shold exist only one link. I'm using each() because i'm lazy :-)
     $links.each(function (index) {
         if (buttonPressed == undefined) {
             var oldValue = $links[index].attributes['class'].value;
             $links[index].attributes['class'].value = oldValue + ' resizable';
-            arrayLinksToggle.push(linkHash);
+            arrayLinksResizeToggle.push(linkHash);
         }
         else {
+            debugger;
             var oldValue = $links[index].attributes['class'].value;
             $links[index].attributes['class'].value = oldValue.replace(' resizable', '');
-            var currentIndex = arrayLinksToggle.findIndex(data => data == linkHash);
-            arrayLinksToggle.splice(currentIndex,1);
+            var currentIndex = arrayLinksResizeToggle.findIndex(data => data == linkHash);
+            arrayLinksResizeToggle.splice(currentIndex, 1);
+            
         }
-        
+
     });
 }
 
 // Function called by onMouseUp event to 
 // write down on MD the new image dimension values.
-function resizeImage(currentDiv,pathFile,linkHash, cssHash) {    
+function resizeImage(currentDiv) {
+    debugger;
     // going inside the div
     var img = currentDiv.childNodes[0].childNodes[0];
-    // getting CSSHash from attributes
+    var divStyle = getComputedStyle(img.parentElement.parentElement.parentElement);
+    var position = divStyle.position;// == "" ? "none" : img.style.position;
+    // getting infos from attributes
 
-    currentHash = currentDiv.attributes['md-css-hash'].value;
+    var currentHash = currentDiv.attributes['md-css-hash'].value;
+    var pathFile = currentDiv.attributes['md-path-file'].value;    
+    var linkHash = currentDiv.attributes['md-link-hash'].value;
 
     var currentImageData = {
         pathFile: pathFile,
@@ -46,7 +112,8 @@ function resizeImage(currentDiv,pathFile,linkHash, cssHash) {
         Width: img.width,
         Height: img.height,
         ClientX: img.x,
-        ClientY:img.y
+        ClientY: img.y,
+        Position: position
     };
     $.ajax({
         url: "/api/WriteMD/SaveImgPositionAndSize",
@@ -54,13 +121,13 @@ function resizeImage(currentDiv,pathFile,linkHash, cssHash) {
         data: JSON.stringify(currentImageData),//'{"linkHash": "1234", "cssHash": "5678", "Width": "100px", "Height": "50px","ClientX":"","ClientY":"" }', //
         contentType: "application/json; charset=utf-8",
         dataType: "json",
-        success: function (data) {            
+        success: function (data) {
             currentDiv.attributes['md-css-hash'].value = data.cssHash;
             var $divs = $("div[md-css-hash='" + currentHash + "']");
             $divs.each(function (index) {
                 $divs[index].attributes['md-css-hash'].value = data.cssHash;
             });
-                //.attributes['md-css-hash'].value = data.cssHash
+            //.attributes['md-css-hash'].value = data.cssHash
         }
     });
 }
@@ -419,7 +486,7 @@ const setToClipboard = async blob => {
 
 //Gestione presentazione Plantuml
 
-async function presentationSVG(relativePathFile, hashFile) {    
+async function presentationSVG(relativePathFile, hashFile) {
     var $forwardArrow = $('#forwardArrow' + hashFile);
     var trueStep = parseInt($forwardArrow.attr("data-step"));
     const result = await $.get("/api/plantumlextensions/PresentationSVG?pathFile=" + relativePathFile +
@@ -434,7 +501,7 @@ async function presentationSVG(relativePathFile, hashFile) {
     var mySvg = $parent.find('svg'); // svg
     //var mySvg = childrens[0];
     mySvg.remove();
-    
+
     $parent.append(nodeSvg);
     var $forwardArrow = $('#forwardArrow' + hashFile);
     trueStep = trueStep + 1;

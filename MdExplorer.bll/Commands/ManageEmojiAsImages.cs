@@ -12,21 +12,21 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class ManageImages : ICommand
+    public class ManageEmojiAsImages : ICommand
     {
 
 
-        private readonly ILogger<ManageImages> _logger;
+        private readonly ILogger<ManageEmojiAsImages> _logger;
         private readonly IHelper _helper;
 
-        public ManageImages(ILogger<ManageImages> logger,
+        public ManageEmojiAsImages(ILogger<ManageEmojiAsImages> logger,
                 IHelper helper)
         {
             _logger = logger;
             _helper = helper;
         }
         public int Priority { get; set; } = 30;
-        public string Name { get; set; } = "ManageImages";
+        public string Name { get; set; } = "ManageEmojiAsImages";
         public bool Enabled { get; set; } = true;
         public MatchCollection GetMatches(string markdown)
         {

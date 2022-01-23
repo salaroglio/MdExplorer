@@ -6,6 +6,16 @@
     cursor: pointer;
 }*/
 
+/*Manage movable objets*/
+.movable {
+    position: absolute;
+    border: 1px solid black;
+}
+.movedAndFixed {
+    position: absolute;
+    background: none;
+}
+
 
 /*This part is to manage resizable images*/
 

@@ -55,11 +55,12 @@ namespace MdExplorer.Service.Controllers
                 var param = new CSSSavedOnPageInfo
                 {
                     ClientX = dto.ClientX,
-                    ClientY = dto.ClientY,
+                    ClientY = dto.ClientY, // magic number to fit another magic number in jqueryForFirstPage.js in the function move(e)
                     CSSHash = dto.CSSHash,
                     Height = dto.Height,
                     LinkHash = dto.LinkHash,
-                    Width = dto.Width
+                    Width = dto.Width,
+                    Position = dto.Position
                 };
                 // transform
                 var replaceSingleItem = (IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>)_commandRunner.Commands

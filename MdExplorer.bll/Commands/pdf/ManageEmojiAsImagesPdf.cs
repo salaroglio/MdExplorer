@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.pdf
 {
-    public class ManageImagesPdf : ManageImages, ICommandPdf
+    public class ManageEmojiAsImagesPdf : ManageEmojiAsImages, ICommandPdf
     {
-        public ManageImagesPdf(ILogger<ManageImagesPdf> logger, IHelper helper) : base(logger, helper)
+        public ManageEmojiAsImagesPdf(ILogger<ManageEmojiAsImagesPdf> logger, IHelper helper) : base(logger, helper)
         {
         }
     }

@@ -16,5 +16,6 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         public int Height { get; set; }        
         public int ClientX { get; set; } 
         public int ClientY { get; set; } 
+        public string Position { get; set; }
     }
 }
