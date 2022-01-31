@@ -17,5 +17,6 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         public int ClientX { get; set; } 
         public int ClientY { get; set; } 
         public string Position { get; set; }
+        public string CurrentQueryRequest { get; set; }
     }
 }

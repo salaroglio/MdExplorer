@@ -13,17 +13,17 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class MoveAndResizeForImages : CommandBase, ICommand, IDisposable
+    public class ToolbarImages : CommandBase, ICommand, IDisposable
     {
-        private readonly ILogger<MoveAndResizeForImages> _logger;
+        private readonly ILogger<ToolbarImages> _logger;
 
         protected readonly IHelper _helper;
 
-        public int Priority { get; set; } = 10;
+        public int Priority { get; set; } = 50;
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "CSSSavedOnPage";
-        public MoveAndResizeForImages(
-              ILogger<MoveAndResizeForImages> logger,
+        public ToolbarImages(
+              ILogger<ToolbarImages> logger,
               IHelper helper)
         {
             _logger = logger;
