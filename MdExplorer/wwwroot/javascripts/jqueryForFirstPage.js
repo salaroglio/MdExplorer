@@ -33,6 +33,8 @@ function activateMove(currentObject, linkHash,referenceId) {
         debugger;
         var currentIndex = arrayLinksMoveToggle.findIndex(data => data == linkHash);
         arrayLinksMoveToggle.splice(currentIndex, 1);
+        var possibleMatch = currentObject.parentElement.nextSibling;
+        resizeImage(possibleMatch);
         $movable.attr('class', 'movedAndFixed');
         
     }
@@ -81,6 +83,7 @@ function activateResize(linkHash, referenceId) {
         }
         else {
             debugger;
+
             var oldValue = $links[index].attributes['class'].value;
             $links[index].attributes['class'].value = oldValue.replace(' resizable', '');
             var currentIndex = arrayLinksResizeToggle.findIndex(data => data == linkHash);
@@ -91,12 +94,28 @@ function activateResize(linkHash, referenceId) {
     });
 }
 
+var cumulativeOffset = function (element) {
+    var top = 0, left = 0;
+    do {
+        top += element.offsetTop || 0;
+        left += element.offsetLeft || 0;
+        element = element.offsetParent;
+    } while (element);
+
+    return {
+        top: top,
+        left: left
+    };
+};
+
+
+
 // Function called by onMouseUp event to 
 // write down on MD the new image dimension values.
 function resizeImage(currentDiv) {
     debugger;
     // going inside the div
-    var img = currentDiv.childNodes[0].childNodes[0];
+    var img = currentDiv.childNodes[0].childNodes[0];     
     var divStyle = getComputedStyle(img.parentElement.parentElement.parentElement);
     var position = divStyle.position;// == "" ? "none" : img.style.position;
     // getting infos from attributes
@@ -104,16 +123,18 @@ function resizeImage(currentDiv) {
     var currentHash = currentDiv.attributes['md-css-hash'].value;
     var pathFile = currentDiv.attributes['md-path-file'].value;    
     var linkHash = currentDiv.attributes['md-link-hash'].value;
+    var CurrentQueryRequest = currentDiv.attributes['md-CurrentQueryRequest'].value;
 
     var currentImageData = {
         pathFile: pathFile,
         linkHash: linkHash,
         cssHash: currentHash,
-        Width: img.width,
-        Height: img.height,
-        ClientX: img.x,
-        ClientY: img.y,
-        Position: position
+        Width: currentDiv.clientWidth,
+        Height: currentDiv.scrollHeight,
+        ClientX: cumulativeOffset(currentDiv).left,
+        ClientY: cumulativeOffset(currentDiv).top,
+        Position: position,
+        CurrentQueryRequest: CurrentQueryRequest
     };
     $.ajax({
         url: "/api/WriteMD/SaveImgPositionAndSize",
@@ -486,7 +507,7 @@ const setToClipboard = async blob => {
 
 //Gestione presentazione Plantuml
 
-async function presentationSVG(relativePathFile, hashFile) {
+async function presentationSVG(relativePathFile, hashFile) {    
     var $forwardArrow = $('#forwardArrow' + hashFile);
     var trueStep = parseInt($forwardArrow.attr("data-step"));
     const result = await $.get("/api/plantumlextensions/PresentationSVG?pathFile=" + relativePathFile +

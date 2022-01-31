@@ -45,8 +45,8 @@ namespace MdExplorer.Features.Commands
             _session.Dispose();
         }
         public MatchCollection GetMatches(string markdown)
-        {
-            Regex rx = new Regex(@"```plantuml([^```]*)```",
+        { //```plantuml([^```]*)`{3}(?(?={)|)
+            Regex rx = new Regex(@"```plantuml([^```]*)`{3}(?:(?={){([^{]*)}|)",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;
@@ -60,17 +60,57 @@ namespace MdExplorer.Features.Commands
             return matches;
         }
 
+        public Match GetMdPlantuml(string currentTagImg)
+        {
+            Regex rx = new Regex(@"md-plantuml=\""([^\""]*)",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(currentTagImg).FirstOrDefault();
+            return matches;
+        }
+
+        public GroupCollection GetWidthGroup(string value)
+        {
+            Regex rx = new Regex(@"width:([^;]*);",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(value);
+            return matches[0].Groups;
+        }
+        public GroupCollection GetHeightGroup(string value)
+        {
+            Regex rx = new Regex(@"height:([^;]*);",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(value);
+            return matches[0].Groups;
+        }
+        private bool IsDynamicPlantuml(string plantuml)
+        {
+            Regex rx = new Regex(@"'MdExplorerAnimatedSVG",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(plantuml);
+            return matches.Count>0;
+        }
+
+        protected MatchCollection GetMatchesCSS(string markdown)
+        {
+            Regex rx = new Regex(@"```CSSInline([^```]*)```",
+                               RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(markdown);
+            return matches;
+        }
+
+
+
         public virtual string TransformAfterConversion(string html, RequestInfo requestInfo)
         {
             var matches = GetMatchesAfterConversion(html);
             string backPath = _helper.GetBackPath(requestInfo);
             foreach (Match itemMatch in matches)
             {
-
                 XmlDocument doc = new XmlDocument();
-
                 var stringMatchedHash = itemMatch.Groups[1].Value;
-                //var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.svg";
+                var checkIfThereIsCSS = GetMdPlantuml(itemMatch.Groups[0].Value);
+                var plantumlHasClass = checkIfThereIsCSS?.Value.Contains("linkHasClass:true;")??false;
+                var linkClassHasCSS = checkIfThereIsCSS?.Value.Contains("linkClassHasCSS:true;") ?? false;
                 var currentSvg = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.svg";
                 var currentPng = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.png";
                 doc.Load(currentSvg);
@@ -90,23 +130,18 @@ namespace MdExplorer.Features.Commands
                         }
                     }
                 }
-                var listOfComment = nodeToParse.SelectNodes("//comment()");
-                var filteredCommentThatContainAnimation = listOfComment.Cast<XmlComment>().Where(_ => _.Data.Contains("MdExplorerAnimatedSVG"));
-                var stringToPutInside = string.Empty;
-                var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\",@"\\");
-                
-                var toReplace = nodeToParse.OuterXml;
-                if (filteredCommentThatContainAnimation.Count() > 0)
+                var svgStyleToChange = doc.DocumentElement.Attributes["style"].Value;
+                var width = GetWidthGroup(svgStyleToChange)[1].Value;
+                var height = GetHeightGroup(svgStyleToChange)[1].Value;
+                if (plantumlHasClass && linkClassHasCSS)
                 {
-                    stringToPutInside = $@"<button id=""forwardArrow{stringMatchedHash}"" data-step=""1"" onclick=""presentationSVG('{prepareCurrentQueryRequest}','{stringMatchedHash}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/green_right_arrow.png""/></button>";
+                    svgStyleToChange = svgStyleToChange.Replace(width, "100%");
+                    svgStyleToChange = svgStyleToChange.Replace(height, "100%");
+                    doc.DocumentElement.Attributes["style"].Value = svgStyleToChange;
                 }
-                var orribleHTMLBefore = $@"<div id=""{stringMatchedHash}"" class=""img-wrapper"">";
-                var orribleHTMLAfter = $@"</div>";                
-                var buttonsArray = $@"<div><button alt=""copy into clipboard"" onclick = ""copyToClipboard('/api/mdexplorer/{currentPng}', '{prepareCurrentQueryRequest}', '{stringMatchedHash}', 0)"" ><img src = ""/assets/clipboard.png""/></button>{stringToPutInside}</div>";
-                toReplace = string.Concat(buttonsArray, toReplace);
-                toReplace = string.Concat(orribleHTMLBefore,toReplace, orribleHTMLAfter);
-
-
+               
+                var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\",@"\\");
+                var toReplace = nodeToParse.OuterXml;
                 html = html.Replace(itemMatch.Groups[0].Value, toReplace);
             }
             return html;
@@ -116,7 +151,12 @@ namespace MdExplorer.Features.Commands
         /// La funzione chiama il server plantuml
         /// che gli restituisce una immagine SVG, 
         /// fa l'hash, lo salva come png dentro una directory .Md, 
-        /// e mette riferimento in markdown al SVG
+        /// e mette riferimento in markdown al SVG.
+        /// In più "comprende" se l'svg dovrà essere manipolato successivamente
+        /// Questo dipende dal fatto che l'svg in questione può trovarsi dentro
+        /// lo scatolotto che gestisce i menù di resize.
+        /// Se non deve essere manipolato, linkHasClass è a false
+        /// Altrimenti lo sarà nella funzione 
         /// </summary>
         /// <param name="markdown"></param>
         /// <returns></returns>
@@ -141,14 +181,52 @@ namespace MdExplorer.Features.Commands
                     _logger.LogInformation($"write file: {filePathSvg}");
                 }
 
+                var classes = item.Groups[2].Value;
                 var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.svg";
                 var referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
                 _logger.LogInformation(referenceUrl);
+                // i should check if there's a CSS to do
+                var linkHasClass = item.Groups[2]?.Value != null && item.Groups[2].Value != string.Empty ? "true" : "false";
+                // devo cercare dentro il CSS e se c'è qualcosa finalmente dire che linkHasClass:true
+                var linkClassHasCSS = LinkClassHasCSS(markdown, item.Groups[2]?.Value) ? "true":"false";
+
+
+                var isDynamicPlantuml = IsDynamicPlantuml(text) ? "true":"false";
+                
+                referenceUrl = string.Concat(referenceUrl,"{",classes," ", $"md-plantuml=\"dynamic:{isDynamicPlantuml};copy:true;linkHasClass:{linkHasClass};linkClassHasCSS:{linkClassHasCSS}\"" ,"}");
+
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
             }
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;
         }
+
+        protected MatchCollection GetMetaDataMatches(string markDown)
+        {
+            var reg = @"{?([^\s{}]+)}?";
+            Regex rx = new Regex(reg,
+                               RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var matches = rx.Matches(markDown);
+            return matches;
+        }
+
+
+        private bool LinkClassHasCSS(string markdown, string cssClass)
+        {
+            var toReturn = false;
+            var matchesCSS = GetMatchesCSS(markdown);
+            if (cssClass == null ) // no class
+                return false;
+            var metadata = GetMetaDataMatches(cssClass);
+            if (metadata.Where(_=>_.Groups[0].Value.Contains(".")).Count()>0 )
+            {
+                toReturn = true;
+            }
+
+            return toReturn;
+
+        }
+
 
         public string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo)
         {

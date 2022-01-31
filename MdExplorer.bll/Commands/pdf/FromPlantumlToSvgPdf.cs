@@ -1,4 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using ExCSS;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
@@ -62,7 +63,11 @@ namespace MdExplorer.Features.Commands.pdf
                 }
 
 
-                (var inchHeight, var inchWidth) = NormalizeImagesDimension(filePath);
+                (var cssInchHeight, var cssInchWidth) = GetDimensionsFromCSSInline(markdown, item);
+                (var normalizedInchHeight, var normalizedInchWidth) = NormalizeImagesDimension(filePath);
+
+                var inchWidth = cssInchWidth ?? normalizedInchWidth;
+                var inchHeight = cssInchHeight ?? normalizedInchHeight;
 
                 var inchWidthString = inchWidth.ToString(CultureInfo.InvariantCulture);
                 var inchHeightString = inchHeight.ToString(CultureInfo.InvariantCulture);
@@ -77,7 +82,60 @@ namespace MdExplorer.Features.Commands.pdf
             return markdown;
         }
 
-        private (double,double) NormalizeImagesDimension(string filePath)
+        protected MatchCollection GetMetaDataMatches(string markDown)
+        {
+            var reg = @"{?([^\s{}]+)}?";
+            Regex rx = new Regex(reg,
+                               RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var matches = rx.Matches(markDown);
+            return matches;
+        }
+
+
+        private (double?, double?) GetDimensionsFromCSSInline(string markdown, Match item)
+        {
+            double? inchHeight = null, inchWidth = null;
+
+            var matchesCSS = GetMatchesCSS(markdown);
+            double conversionHeightInchPixel = 10D / 1500D;
+
+            var metadataMatch = GetMetaDataMatches(item.Groups[2].Value);
+            var classes = metadataMatch.Where(_ => _.Groups[1].Value.StartsWith(".")).FirstOrDefault();
+            var selectorFound = false;
+            var thereAreNoSelectors = false;
+            foreach (Match itemCss in matchesCSS)
+            {
+                var cssToAnalyze = itemCss.Groups[1].Value;
+                var parser = new StylesheetParser();
+                var stylesheet = parser.Parse(cssToAnalyze);
+                foreach (var rule in stylesheet.StyleRules)
+                {
+                    var selector = rule.SelectorText; // Yields .someClass
+                                                      //linkHash = _helper.GetHashString(selector, Encoding.UTF8);
+                    if (classes == null)
+                    {
+                        thereAreNoSelectors = true;
+                        break;
+                    }
+                    if (selector == classes.Value)
+                    {
+                        var numHeightpx = Convert.ToDouble(rule.Style.Height.Replace("px", string.Empty));
+                        var numWidthPx = Convert.ToDouble(rule.Style.Width.Replace("px", string.Empty));
+                        inchHeight = conversionHeightInchPixel * numHeightpx;
+                        inchWidth = conversionHeightInchPixel * numWidthPx;
+                        selectorFound = true;
+                        break;
+                    }
+                }
+                if (selectorFound || thereAreNoSelectors)
+                    break;
+            }
+
+
+            return (inchHeight, inchWidth);
+        }
+
+        private (double, double) NormalizeImagesDimension(string filePath)
         {
             double inchHeight, inchWidth;
             var res1 = File.ReadAllBytes(filePath);

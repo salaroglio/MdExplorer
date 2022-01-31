@@ -5,6 +5,7 @@ using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,11 +13,39 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands.Markdown
 {
-    public class MoveAndResizeForImagesMD : MoveAndResizeForImages, ICommandMD, IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>
+    public class ToolbarImagesMD : ToolbarImages, ICommandMD, IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>
     {
-        public MoveAndResizeForImagesMD(Microsoft.Extensions.Logging.ILogger<MoveAndResizeForImages> logger, Utilities.IHelper helper) :
+        public ToolbarImagesMD(Microsoft.Extensions.Logging.ILogger<ToolbarImages> logger, Utilities.IHelper helper) :
             base(logger, helper)
         {
+        }
+
+        public MatchCollection GetMatchesPlantuml(string markdown)
+        {
+            Regex rx = new Regex(@"```plantuml([^```]+)```[{]?([^}]*)[}]?",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(markdown);
+            return matches;
+        }
+
+
+        public virtual string TransformPlantumlInLink(string markdown, RequestInfo requestInfo)
+        {
+            string backPath = _helper.GetBackPath(requestInfo);
+            var matches = GetMatchesPlantuml(markdown);
+            foreach (Match item in matches)
+            {
+                var text = item.Groups[1].Value;
+                var textHash = _helper.GetHashString(text, Encoding.UTF8);
+                var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.svg";
+                var referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
+
+                var classes = item.Groups.Count > 2 ? item.Groups[2].Value : string.Empty;
+                referenceUrl = string.Concat(referenceUrl, "{", classes, "}");
+
+                markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
+            }
+            return markdown;
         }
 
         /// <summary>
@@ -32,7 +61,8 @@ namespace MdExplorer.Features.Commands.Markdown
             var stringToReturn = markdown;
             var cssSerialized = string.Empty;
             var cssMatches = GetMatches(markdown);
-            var imgMatches = GetLinkWithCurlyBracketsMatches(markdown);
+            var plantumlLinkedMarkdwon = TransformPlantumlInLink(markdown, requestinfo);
+            var imgMatches = GetLinkWithCurlyBracketsMatches(plantumlLinkedMarkdwon);
 
             foreach (Match itemImg in imgMatches)
             {
@@ -40,6 +70,10 @@ namespace MdExplorer.Features.Commands.Markdown
                 var curlyBrackets = itemImg.Groups[3].Value;
                 var metadataMatch = GetMetaDataMatches(curlyBrackets);
                 var classes = metadataMatch.Where(_ => _.Groups[1].Value.StartsWith(".")).FirstOrDefault();
+                if (classes == null)
+                {
+                    break;
+                }
                 var linkHash = _helper.GetHashString(classes.Value, Encoding.UTF8);
                 if (linkHash == cSSSavedOnPageInfo.LinkHash) // found!
                 {

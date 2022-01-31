@@ -51,6 +51,7 @@ namespace MdExplorer.Service.Controllers
                 {
                     AbsolutePathFile = dto.PathFile,
                     CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentQueryRequest = dto.CurrentQueryRequest 
                 };
                 var param = new CSSSavedOnPageInfo
                 {
@@ -60,12 +61,12 @@ namespace MdExplorer.Service.Controllers
                     Height = dto.Height,
                     LinkHash = dto.LinkHash,
                     Width = dto.Width,
-                    Position = dto.Position
+                    Position = dto.Position                                       
                 };
                 // transform
                 var replaceSingleItem = (IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>)_commandRunner.Commands
                         .Where(_ => _.Name == "CSSSavedOnPage").FirstOrDefault();
-               
+
                 (markdown,  cssInfo) = replaceSingleItem
                         .ReplaceSingleItem(markdown, requestInfo, param);
                 System.IO.File.WriteAllText(systePathFile, markdown);
