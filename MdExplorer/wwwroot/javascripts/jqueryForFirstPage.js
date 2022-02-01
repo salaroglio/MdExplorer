@@ -1,6 +1,25 @@
 ﻿
 // Manage Images
 
+// function to manage readability 
+var arrayReadabilityToggle = [];
+function toggleSeeMe(stringMatchedHash) {
+    debugger;
+    var $box = $('#' + stringMatchedHash);
+    var buttonPressed = arrayReadabilityToggle.find(data => data.id == $box.id);
+    if (buttonPressed == undefined) {
+        var dataToStore = { id: $box.id, style: $box.attr('style') };
+
+        $box.attr('style', 'width:100%;height:100%;');
+        arrayReadabilityToggle.push(dataToStore);
+    }
+    else {
+        $box.attr('style', buttonPressed.style);
+        var currentIndex = arrayReadabilityToggle.findIndex(data => data.id == $box.id);
+        arrayReadabilityToggle.splice(currentIndex, 1);
+    }
+}
+
 // function to show/hide image's toolbar
 
 function showImageToolbar(referenceId) {    
@@ -71,7 +90,7 @@ function move(e) {
 
 // function called by button to activate resize
 var arrayLinksResizeToggle = [];
-function activateResize(linkHash, referenceId) {
+function activateResize(linkHash) {
     // Find nodes    
     var buttonPressed = arrayLinksResizeToggle.find(data => data == linkHash);
     var $links = $('div[md-link-hash=' + linkHash + ']'); // shold exist only one link. I'm using each() because i'm lazy :-)
