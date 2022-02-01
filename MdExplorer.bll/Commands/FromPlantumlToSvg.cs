@@ -193,7 +193,7 @@ namespace MdExplorer.Features.Commands
 
                 var isDynamicPlantuml = IsDynamicPlantuml(text) ? "true":"false";
                 
-                referenceUrl = string.Concat(referenceUrl,"{",classes," ", $"md-plantuml=\"dynamic:{isDynamicPlantuml};copy:true;linkHasClass:{linkHasClass};linkClassHasCSS:{linkClassHasCSS}\"" ,"}");
+                referenceUrl = string.Concat(referenceUrl,"{",classes," ", $"md-plantuml=\"dynamic:{isDynamicPlantuml};copy:true;linkHasClass:{linkHasClass};linkClassHasCSS:{linkClassHasCSS};\"" ,"}");
 
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
             }

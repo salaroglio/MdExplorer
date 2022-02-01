@@ -113,7 +113,7 @@ namespace MdExplorer.Features.Commands.html
                     $"</div>";
                 var newDivContainer = $"\r\n<div {classForDivContainer} {styleTopDivContainer} >";
                 var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\">"; 
-                var newButtonForResize = linkHash != null ?  $"\r\n<button onclick =\"activateResize('{linkHash}','{guidToDisplayToolbar}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>"
+                var newButtonForResize = linkHash != null ?  $"\r\n<button onclick =\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>"
                     :string.Empty;
                 var newButtonForMove = linkHash !=null? $"\r\n<button onclick=\"activateMove(this,'{linkHash}','{guidToDisplayToolbar}')\"  class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/move.png\"/></button>"
                     :string.Empty;
@@ -121,7 +121,7 @@ namespace MdExplorer.Features.Commands.html
                     $@"<button id=""forwardArrow{stringMatchedHash}"" data-step=""1"" onclick=""presentationSVG('{prepareCurrentQueryRequest}','{stringMatchedHash}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/green_right_arrow.png""/></button>" :string.Empty;
                 var newButtonForPlantumlCopy = isPlantumlCopy ? 
                     $@"<button alt=""copy into clipboard"" onclick = ""copyToClipboard('/api/mdexplorer/{currentPng}', '{prepareCurrentQueryRequest}', '{stringMatchedHash}', 0)"" ><img src = ""/assets/clipboard.png""/></button>" : string.Empty;
-                var newButtonEyes = $@"<button alt=""see original size""><img src = ""/assets/eyes.png""/></button>";
+                var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{stringMatchedHash}')""><img src = ""/assets/eyes.png""/></button>";
                 var endDivForToolbar = "</div>";
                 var endDivContainer = $"</div>";
                 divContainsImage = string.Concat(newDivContainer,
@@ -130,7 +130,7 @@ namespace MdExplorer.Features.Commands.html
                                                          newButtonForMove,
                                                          newButtonForDynamicPlantuml,
                                                          newButtonForPlantumlCopy,
-                                                         //newButtonEyes,
+                                                         newButtonEyes,
                                                     endDivForToolbar, 
                                                     divContainsImage, 
                                                 endDivContainer);
