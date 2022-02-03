@@ -94,7 +94,8 @@ namespace MdExplorer.Service.Controllers
                 Process processStarted;
 
                 //StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
-                StartNewProcess(filePath, readText, "docx", out currentFilePdfPath, out processStarted);
+                var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf);
+                pandoc.StartNewPandoc(filePath, readText, out currentFilePdfPath, out processStarted);
 
                 processStarted.EnableRaisingEvents = true;
                 monitoredMd = new MonitoredMDModel
@@ -121,27 +122,77 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
-        private void StartNewProcess(string filePath, string readText,string format, out string currentFilePdfPath, out Process processStarted)
-        {
-            var currentGuid = _helperPdf.GetHashString(readText);
-            var currentFilePath = $".\\.md\\{currentGuid}.md";
-            currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{format}");
-            System.IO.File.WriteAllText(currentFilePath, readText);
-            var setPdf = format == "pdf" ? $@"--pdf-engine=pdflatex --template=.\.md\eisvogel.tex" : string.Empty;
-            var processCommand = $@"pandoc ""{currentFilePath}"" -o ""{currentFilePdfPath}"" --from markdown+implicit_figures {setPdf}";
-            var finalCommand = $"/c {processCommand}";
-            var processToStart = new ProcessStartInfo("cmd", finalCommand)
-            {
-                CreateNoWindow = false
-            };
-            processStarted = Process.Start(processToStart);
-        }
 
         private void ProcessStarted_Exited(object? sender, EventArgs e)
         {
             monitoredMd.Action = "Open Folder";
             monitoredMd.StopExportTime = DateTime.Now;
             _hubContext.Clients.Client(connectionId: monitoredMd.ConnectionId).SendAsync("pdfisready", monitoredMd).Wait();
+        }
+
+
+        private class StartPandoc
+        {
+            private readonly ICreatePandocCommand<string, CommandParameter> _createPandocCommand;
+            private readonly IHelperPdf _helperPdf;
+
+            public StartPandoc(ICreatePandocCommand<string, CommandParameter> createPandocCommand, IHelperPdf helperPdf)
+            {
+                _createPandocCommand = createPandocCommand;
+                _helperPdf = helperPdf;
+            }
+
+            public void StartNewPandoc(string filePath, string readText, out string currentFilePdfPath, out Process processStarted)
+            {
+                var currentGuid = _helperPdf.GetHashString(readText);
+                var currentFilePath = $".\\.md\\{currentGuid}.md";
+                currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{_createPandocCommand.Extension}");
+                System.IO.File.WriteAllText(currentFilePath, readText);
+
+                var processCommand = _createPandocCommand.CreatePandocCommand(new CommandParameter { CurrentFilePath = currentFilePath, CurrentFilePdfPath = currentFilePdfPath } );
+                var finalCommand = $"/c {processCommand}";
+                var processToStart = new ProcessStartInfo("cmd", finalCommand)
+                {
+                    CreateNoWindow = false
+                };
+                processStarted = Process.Start(processToStart);
+            }
+        }
+
+        private interface ICreatePandocCommand<R,P>
+        {
+            string Extension { get; }
+            R CreatePandocCommand(P commandParameters);
+        }
+
+        private class CommandParameter
+        {
+            public string CurrentFilePath { get; set; }
+            public string CurrentFilePdfPath { get; set; }            
+        }
+
+        private class PdfPandoCommand : ICreatePandocCommand<string,CommandParameter>
+        {
+            public string Extension { get => "pdf"; }
+
+            public string CreatePandocCommand(CommandParameter commandParam)
+            {
+                var setPdf = $@"--pdf-engine=pdflatex --template=.\.md\eisvogel.tex";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {setPdf}";
+                return processCommand;
+            }
+        }
+
+        private class DocxPandocCommand : ICreatePandocCommand<string, CommandParameter>
+        {
+            public string Extension => "docx";
+
+            public string CreatePandocCommand(CommandParameter commandParam)
+            {
+                var currentReferencePath = $".\\.md\\templates\\reference.docx";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures --reference-doc {currentReferencePath}";
+                return processCommand;
+            }
         }
     }
 }
