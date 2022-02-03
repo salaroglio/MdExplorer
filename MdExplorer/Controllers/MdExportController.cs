@@ -190,7 +190,7 @@ namespace MdExplorer.Service.Controllers
             public string CreatePandocCommand(CommandParameter commandParam)
             {
                 var currentReferencePath = $".\\.md\\templates\\reference.docx";
-                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures --reference-doc {currentReferencePath}";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures --toc --reference-doc {currentReferencePath}";
                 return processCommand;
             }
         }
