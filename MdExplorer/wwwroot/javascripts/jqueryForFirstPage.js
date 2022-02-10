@@ -243,6 +243,20 @@ $(function () {
                 listPriority.each(function (index, element) {
                     element.attributes['data-md-priority-index'].value = index;// listProcess.index(element);
                 });
+                // Reconstruct index of table-card into table-game, foreach table-game
+                var iTable = 0;                
+                var listPriorityItableGame = $("span[id*='mojiPriority'][data-md-table-game-index=" + iTable.toString() + "]");
+                while (listPriorityItableGame.length > 0) {
+                    listPriorityItableGame.each(function (index, element) {
+                        element.attributes['data-md-card-index'].value = index;// listProcess.index(element);
+                    });
+                    iTable++;
+                    var listPriorityItableGame = $("span[id*='mojiPriority'][data-md-table-game-index=" + iTable.toString() + "]");
+                }
+                
+                
+                
+               
                 console.log(data);
             });
         console.log('sortstop parents Event = ', event, '  ui = ', ui);
