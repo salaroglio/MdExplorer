@@ -30,6 +30,10 @@ export class ProjectsComponent implements OnInit {
     objectThis.projectService.fetchProjects();
   };
 
+  quickOpenNotes(path: string) {
+    this.projectService.setNewFolderProjectQuickNotes(path, this.loadNewProject, this);
+  }
+
 
   openNewProject(path: string) {
     this.projectService.setNewFolderProject(path, this.loadNewProject, this);

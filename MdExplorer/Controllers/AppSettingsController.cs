@@ -2,6 +2,7 @@
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using NHibernate;
 using System;
@@ -20,12 +21,16 @@ namespace MdExplorer.Service.Controllers
     public class AppSettingsController : ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IUserSettingsDB _session;        
+        private readonly IUserSettingsDB _session;
+        private readonly ProcessUtil _processUtil;
 
-        public AppSettingsController(FileSystemWatcher fileSystemWatcher, IUserSettingsDB session)
+        public AppSettingsController(FileSystemWatcher fileSystemWatcher, 
+                IUserSettingsDB session,
+                ProcessUtil processUtil)
         {
             _fileSystemWatcher = fileSystemWatcher;
-            _session = session;            
+            _session = session;
+            _processUtil = processUtil;
         }
 
         [HttpGet]
@@ -65,16 +70,12 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult OpenFile(string path)
         {
-            
-            var settingDal = _session.GetDal<Setting>();
-            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString 
-                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
-            
-            var currentPath = path.Replace(@"\\",@"\"); // pulitura da mettere a posto
-            var dosCommand = $@"""{editorPath}"" """ + currentPath + "\"";
-            Process.Start(dosCommand);
-            return Ok(new { message="opened" });
+            _processUtil.OpenFileWithVisualStudioCode(path);
+            return Ok(new { message = "opened" });
         }
+
+        
+
         [HttpGet]
         public IActionResult OpenFolder(string path)
         {
@@ -103,7 +104,7 @@ namespace MdExplorer.Service.Controllers
         public IActionResult KillServer()
         {
             //Environment.Exit(0);
-            return Ok(new { message = "self-destruct activated" });
+            return Ok(new { message = "self-destruction activated" });
         }
 
         [HttpGet]
