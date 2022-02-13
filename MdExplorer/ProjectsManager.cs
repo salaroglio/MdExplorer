@@ -48,9 +48,6 @@ namespace MdExplorer.Service
                                    new DatabaseSQLite(), typeof(IProjectDB),
                                    databasePathProject);
 
-
-
-
             // Migration complete
         }
 

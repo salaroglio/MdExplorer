@@ -68,7 +68,8 @@ export class SidenavComponent implements OnInit {
 
   openProject(): void {    
     const dialogRef = this.dialog.open(ProjectsComponent, {
-      width: '600px',
+      width: '800px',
+      height: '600px',
       data: { name: 'test' }
     });
   }
@@ -76,7 +77,8 @@ export class SidenavComponent implements OnInit {
   deferredOpenProject(data, objectThis): void {
     if (data.length==0) {
       const dialogRef = objectThis.dialog.open(ProjectsComponent, {
-        width: '600px',
+        width: '800px',
+        height: '600px',
         data: { name: 'test' }
       });
     }

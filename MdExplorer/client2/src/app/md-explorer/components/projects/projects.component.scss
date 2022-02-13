@@ -1,0 +1,23 @@
+.container-flex{
+    display:flex;
+    flex-direction:column;
+}
+.container-title{
+    display:flex;
+    justify-content:center;
+}
+
+.container-columns{
+    display:flex;
+    flex-direction:row;
+    justify-content:space-between;    
+}
+
+.container-first-column{
+    display:flex;
+    flex-direction:column;
+    overflow-y:scroll;
+    height:450px;
+    row-gap:10px;
+    column-gap:20px;
+}

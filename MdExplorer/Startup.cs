@@ -47,6 +47,7 @@ namespace MdExplorer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddServiceFeatures();
             services.Configure<MdExplorerAppSettings>(_Configuration.GetSection(MdExplorerAppSettings.MdExplorer));
             string pathFromParameter = Args.Count() > 0 ? Path.GetDirectoryName(Args[0]) : null;
             ProjectsManager.SetProjectInitialization(services, pathFromParameter);
@@ -109,8 +110,6 @@ namespace MdExplorer
               DiscoverAddresses(app.ServerFeatures);
           });
             //#endif
-
-
         }
 
         void DiscoverAddresses(IFeatureCollection features)
