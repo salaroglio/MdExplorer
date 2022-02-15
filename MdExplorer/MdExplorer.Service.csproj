@@ -39,13 +39,33 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\assets\AliasEmoji.PNG" />
     <Content Remove="wwwroot\assets\clipboard.png" />
+    <Content Remove="wwwroot\assets\clipboard48.png" />
     <Content Remove="wwwroot\assets\ConnectionLost.png" />
     <Content Remove="wwwroot\assets\draw.png" />
+    <Content Remove="wwwroot\assets\eyes.png" />
+    <Content Remove="wwwroot\assets\eyes48.png" />
     <Content Remove="wwwroot\assets\green_right_arrow.png" />
+    <Content Remove="wwwroot\assets\green_right_arrow48.png" />
+    <Content Remove="wwwroot\assets\IconReady.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
+    <Content Remove="wwwroot\assets\MdExplorerForGitHub.png" />
+    <Content Remove="wwwroot\assets\MdIcon.png" />
+    <Content Remove="wwwroot\assets\MdIcon.xcf" />
+    <Content Remove="wwwroot\assets\MdIcon2.ico" />
+    <Content Remove="wwwroot\assets\MdIcon2.xcf" />
+    <Content Remove="wwwroot\assets\MdIcon3.ico" />
+    <Content Remove="wwwroot\assets\move.png" />
+    <Content Remove="wwwroot\assets\Move48 %282%29.png" />
+    <Content Remove="wwwroot\assets\move48.png" />
+    <Content Remove="wwwroot\assets\notes.png" />
+    <Content Remove="wwwroot\assets\notes48.png" />
+    <Content Remove="wwwroot\assets\PrepareToIcon.png" />
     <Content Remove="wwwroot\assets\resize.png" />
+    <Content Remove="wwwroot\assets\resize48.png" />
     <Content Remove="wwwroot\assets\run.png" />
+    <Content Remove="wwwroot\assets\spaceship.png" />
     <Content Remove="wwwroot\assets\TOC.png" />
     <Content Remove="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
@@ -212,13 +232,33 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="reference.docx" />
+    <EmbeddedResource Include="wwwroot\assets\AliasEmoji.PNG" />
     <EmbeddedResource Include="wwwroot\assets\clipboard.png" />
+    <EmbeddedResource Include="wwwroot\assets\clipboard48.png" />
     <EmbeddedResource Include="wwwroot\assets\ConnectionLost.png" />
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
+    <EmbeddedResource Include="wwwroot\assets\eyes.png" />
+    <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
+    <EmbeddedResource Include="wwwroot\assets\green_right_arrow48.png" />
+    <EmbeddedResource Include="wwwroot\assets\IconReady.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdExplorerForGitHub.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon.xcf" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon2.ico" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon2.xcf" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon3.ico" />
+    <EmbeddedResource Include="wwwroot\assets\move.png" />
+    <EmbeddedResource Include="wwwroot\assets\Move48 (2).png" />
+    <EmbeddedResource Include="wwwroot\assets\move48.png" />
+    <EmbeddedResource Include="wwwroot\assets\notes.png" />
+    <EmbeddedResource Include="wwwroot\assets\notes48.png" />
+    <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\resize48.png" />
     <EmbeddedResource Include="wwwroot\assets\run.png" />
     <EmbeddedResource Include="wwwroot\assets\resize.png" />
+    <EmbeddedResource Include="wwwroot\assets\spaceship.png" />
     <EmbeddedResource Include="wwwroot\assets\TOC.png" />
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
