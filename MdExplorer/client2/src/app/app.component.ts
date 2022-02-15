@@ -16,6 +16,7 @@ export class AppComponent {
   }
   title = 'client2';
   constructor(private titleService: Title, private currentFolder: AppCurrentFolderService) {
+   
     currentFolder.folderName.subscribe((data:any) => {      
       this.titleService.setTitle(data.currentFolder);
     });

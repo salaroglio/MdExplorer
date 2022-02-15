@@ -25,6 +25,8 @@ export class MainContentComponent implements OnInit {
 
   //private _this: any;
   public _HideImg = true;
+  public _HideIFrame = false;
+
   constructor(
     private route: ActivatedRoute,    
     private service: MdFileService,
@@ -51,7 +53,10 @@ export class MainContentComponent implements OnInit {
         this.htmlSource = '../api/mdexplorer' + path  + '?time=' + dateTime;
           
       }
-       
+      this.sideNavDataService.HideIFrameObservable.subscribe(data => {
+        debugger;
+        this._HideIFrame = data;
+      });
     });   
   }
 

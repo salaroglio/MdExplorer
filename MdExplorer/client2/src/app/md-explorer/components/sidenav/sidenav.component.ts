@@ -56,6 +56,13 @@ export class SidenavComponent implements OnInit {
   mdFiles: Observable<MdFile[]>;
 
   public isScreenSmall: boolean;
+
+  private hooked: boolean = false;
+
+  private mousex: number;
+  private mousey: number;
+  public sideNavWidth: string = "240px";
+
   constructor(private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
     public dialog: MatDialog,
@@ -63,7 +70,27 @@ export class SidenavComponent implements OnInit {
     private sideNavDataService: SideNavDataService
   ) {
     this.dataSource.data = TREE_DATA;
-    
+    document.addEventListener("mousemove", (event) => {
+      if (this.hooked) {
+        this.sideNavWidth = event.clientX + "px";        
+      }  
+    });
+    //document.addEventListener("mouseup", (event) => {
+    //  if (this.hooked) {
+    //    this.stopResizeWidth();
+    //  }
+    //});
+  }
+
+  resizeWidth(): void {    
+    this.hooked = true;
+    //this.sideNavDataService.SetHideIFrame(true);
+  }
+
+  stopResizeWidth(): void {
+    debugger;
+    this.hooked = false;
+    //this.sideNavDataService.SetHideIFrame(false);
   }
 
   openProject(): void {    
