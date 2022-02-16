@@ -62,6 +62,7 @@ export class SidenavComponent implements OnInit {
   private mousex: number;
   private mousey: number;
   public sideNavWidth: string = "240px";
+  public classForBorderDiv: string = "border-div";
 
   constructor(private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
@@ -75,21 +76,23 @@ export class SidenavComponent implements OnInit {
         this.sideNavWidth = event.clientX + "px";        
       }  
     });
-    //document.addEventListener("mouseup", (event) => {
-    //  if (this.hooked) {
-    //    this.stopResizeWidth();
-    //  }
-    //});
+    document.addEventListener("mouseup", (event) => {
+      if (this.hooked) {
+        this.stopResizeWidth();
+      }
+    });
   }
 
   resizeWidth(): void {    
     this.hooked = true;
+    this.classForBorderDiv = "border-div-moving";
     //this.sideNavDataService.SetHideIFrame(true);
   }
 
   stopResizeWidth(): void {
     debugger;
     this.hooked = false;
+    this.classForBorderDiv = "border-div";
     //this.sideNavDataService.SetHideIFrame(false);
   }
 
