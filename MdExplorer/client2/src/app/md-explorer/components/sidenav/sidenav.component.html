@@ -40,7 +40,7 @@
   </mat-sidenav>
 
   <div class="flex-container">
-    <div  class="border-div" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
+    <div  [ngClass]="classForBorderDiv" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
     <div style="width:100%; height:100%;">
       <div class="app-sidenav-content" style="height:100%;">
         <app-toolbar (toggleSidenav)="sidenav.toggle()"></app-toolbar>
