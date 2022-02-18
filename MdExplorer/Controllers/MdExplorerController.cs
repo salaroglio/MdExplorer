@@ -129,10 +129,17 @@ namespace MdExplorer.Controllers
             var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""" ;
             var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
             var resultToParse = $@"
-                    <div class=""container"">
-                        <div class=""row"">
+                    <div class=""container-fluid"">
+                        <div class=""row"">                            
                             <div id=""page"" {classForMain}>
+                        <div class=""container"">
+                            <div class=""row"">
+                                <div style=""width:30px;"" class=""col-1""></div>
+                                <div class=""col-11"">
                     {result}
+                                </div>
+                            </div>
+                        </div>
                             </div>  
                             <div id=""TOC"" {styleForToc} >
                                 <div class=""sticky-top"">
