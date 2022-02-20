@@ -45,7 +45,7 @@ export class ProjectsComponent implements OnInit {
 
   loadNewProject(data: any, objectThis: ProjectsComponent) {
     objectThis.mdFileService.loadAll(null,null);
-    this.dialog.closeAll();
+    objectThis.dialog.closeAll();
   }
 
   openNewFolder(): void {
