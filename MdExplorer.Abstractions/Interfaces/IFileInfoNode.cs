@@ -12,6 +12,8 @@ namespace MdExplorer.Abstractions.Interfaces
         public string FullPath { get; set; }
         public string Name { get; set; }
         public string Type { get; set; }
+        public int Level { get; set; }
+        public bool Expandable { get; set; }
         IList<IFileInfoNode> Childrens { get; set; }
     }
 }

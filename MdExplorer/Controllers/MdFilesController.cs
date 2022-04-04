@@ -28,7 +28,7 @@ namespace MdExplorer.Controllers
         public IEngineDB _engineDB { get; }
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
-            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper, 
+            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper,
             IUserSettingsDB userSettingsDB)
         {
             _fileSystemWatcher = fileSystemWatcher;
@@ -36,6 +36,39 @@ namespace MdExplorer.Controllers
             _getModifiers = getModifiers;
             _helper = helper;
             _userSettingsDB = userSettingsDB;
+        }
+
+
+
+        [HttpGet]
+        public IActionResult GetDynFoldersDocument([FromQuery] string path, string level )
+        {
+            var basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
+            var currentPath = path == "root"? basePath : path;
+            var currentLevel = Convert.ToInt32(level);
+            var list = new List<IFileInfoNode>();
+
+            foreach (var itemFolder in Directory.GetDirectories(currentPath)
+                    .Where(_ => !_.Contains("Immagini") &&
+                    !_.Contains("Musica") &&
+                    !_.Contains("Video"))
+                    )
+            {
+                var node = new FileInfoNode
+                {
+                    Name = Path.GetFileName(itemFolder),
+                    FullPath = itemFolder,
+                    Path = itemFolder,
+                    Level = currentLevel,
+                    Type = "folder4",
+                    Expandable = Directory.GetDirectories(itemFolder).Count()>0
+                };
+
+                list.Add(node);
+
+            }
+
+            return Ok(list);
         }
 
         [HttpGet]
@@ -46,7 +79,7 @@ namespace MdExplorer.Controllers
             var list = new List<IFileInfoNode>();
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath)
-                    .Where(_=>!_.Contains("Immagini") && 
+                    .Where(_ => !_.Contains("Immagini") &&
                     !_.Contains("Musica") &&
                     !_.Contains("Video"))
                     )
@@ -209,9 +242,9 @@ namespace MdExplorer.Controllers
             catch (Exception ex)
             {
 
-                
+
             }
-            
+
         }
 
         private bool ExploreNodes(FileInfoNode fileInfoNode, string pathFile)

@@ -1,0 +1,50 @@
+
+
+
+<div class="container-flex">
+  <div class="container-title">
+    <div class="item">
+      <h1><strong>Markdown Explorer</strong></h1>
+    </div>
+  </div>
+  <div class="container-columns">
+  </div>
+  <div class="container-columns">
+    <div class="container-first-column">
+      <router-outlet></router-outlet>
+    </div>
+    <div>
+      <h1>Get started</h1>
+      <mat-card>
+        <mat-card-title>Open recent project</mat-card-title>
+        <mat-card-subtitle>Get recent project</mat-card-subtitle>
+        <mat-card-actions>
+          <button mat-stroked-button color="primary" (click)="openRecent()">Open recent list</button>
+        </mat-card-actions>
+      </mat-card>
+      <mat-card>
+        <mat-card-title>Clone a repository</mat-card-title>
+        <mat-card-subtitle>Get code from an online repository like GitLab</mat-card-subtitle>
+        <mat-card-actions>
+          <button mat-stroked-button color="primary">Clone</button>
+        </mat-card-actions>
+      </mat-card>
+      <mat-card>
+        <mat-card-title>Create new project</mat-card-title>
+        <mat-card-subtitle>Choose filesystem folder to get started</mat-card-subtitle>
+        <mat-card-actions>
+          <button mat-stroked-button color="primary" (click)="openNewFolder()">Create</button>
+        </mat-card-actions>
+      </mat-card>
+      <mat-card>
+        <mat-card-title>Example to delete</mat-card-title>
+        <mat-card-subtitle>Choose filesystem folder to get started</mat-card-subtitle>
+        <mat-card-actions>
+          <button mat-stroked-button color="primary" (click)="openNewFolderExample()">Create</button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  </div>
+
+</div>
+

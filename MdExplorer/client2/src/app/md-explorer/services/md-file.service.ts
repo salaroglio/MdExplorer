@@ -1,5 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { promise } from 'protractor';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { MdFile } from '../models/md-file';
 
@@ -10,15 +11,18 @@ export class MdFileService {
 
   private _mdFiles: BehaviorSubject<MdFile[]>;
   private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
+  public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
 
   private dataStore: {
     mdFiles: MdFile[]
-    mdFoldersDocument:MdFile[]
+    mdFoldersDocument: MdFile[]
+    mdDynFolderDocument:MdFile[]
   }
   constructor(private http: HttpClient) {
-    this.dataStore = { mdFiles: [], mdFoldersDocument: [] };
+    this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument:[] };
     this._mdFiles = new BehaviorSubject<MdFile[]>([]);
     this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
+    this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
 
   }
 
@@ -27,6 +31,10 @@ export class MdFileService {
   }
   get mdFoldersDocument(): Observable<MdFile[]> {
     return this._mdFoldersDocument.asObservable();
+  }
+
+  get mdDynFolderDocument(): Observable<MdFile[]> {
+    return this._mdDynFolderDocument.asObservable();
   }
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
@@ -55,6 +63,33 @@ export class MdFileService {
           console.log("failed to fetch mdfile list");
         });
   }
+
+  loadDynFolders(path:string, level:number) {
+    const url = '../api/mdfiles/GetDynFoldersDocument';    
+    var params = new HttpParams().set('path', path).set('level', String(level));
+    
+    return this.http.get<MdFile[]>(url, {params})
+      .subscribe(data => {
+        if (this.dataStore.mdDynFolderDocument.length > 0) {
+          var test = this.dataStore.mdDynFolderDocument.find(_ => _.path == path);
+          test.children = data;          
+        } else {
+          this.dataStore.mdDynFolderDocument = data;
+        }
+        this._mdDynFolderDocument.next(Object.assign({}, this.dataStore).mdDynFolderDocument);
+      },
+        error => {
+          console.log("failed to fetch mdfile list");
+        });
+  }
+
+  loadDocumentFolder(path: string, level: number): Observable<MdFile[]> {
+    const url = '../api/mdfiles/GetDynFoldersDocument';
+    var params = new HttpParams().set('path', path).set('level', String(level));
+
+    return this.http.get<MdFile[]>(url, { params });
+  }
+
 
   GetHtml(path: string) { //, currentFile: MdFile
     const url = '../api/mdexplorer/' + path;

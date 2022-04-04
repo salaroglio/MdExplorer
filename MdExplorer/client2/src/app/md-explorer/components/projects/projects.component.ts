@@ -1,5 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { MdProject } from '../../models/md-project';
 import { MdFileService } from '../../services/md-file.service';
@@ -16,6 +17,7 @@ export class ProjectsComponent implements OnInit {
   constructor(private projectService: ProjectsService,
     private mdFileService: MdFileService,
     public dialog: MatDialog,
+    private router:Router
   ) { }
 
   public dataSource: Observable<MdProject[]>
@@ -45,7 +47,7 @@ export class ProjectsComponent implements OnInit {
 
   loadNewProject(data: any, objectThis: ProjectsComponent) {
     objectThis.mdFileService.loadAll(null,null);
-    objectThis.dialog.closeAll();
+    objectThis.router.navigate(['/main']);
   }
 
   openNewFolder(): void {

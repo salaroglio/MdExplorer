@@ -1,5 +1,6 @@
 import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AppCurrentFolderService } from './services/app-current-folder.service';
 
 @Component({
@@ -15,7 +16,10 @@ export class AppComponent {
     this.currentFolder.killServer();
   }
   title = 'client2';
-  constructor(private titleService: Title, private currentFolder: AppCurrentFolderService) {
+  constructor(private titleService: Title,
+    private currentFolder: AppCurrentFolderService,
+    private route: ActivatedRoute,
+    private router: Router) {
    
     currentFolder.folderName.subscribe((data:any) => {      
       this.titleService.setTitle(data.currentFolder);
