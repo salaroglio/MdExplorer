@@ -222,9 +222,11 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class AppComponent {
-    constructor(titleService, currentFolder) {
+    constructor(titleService, currentFolder, route, router) {
         this.titleService = titleService;
         this.currentFolder = currentFolder;
+        this.route = route;
+        this.router = router;
         this.title = 'client2';
         currentFolder.folderName.subscribe((data) => {
             this.titleService.setTitle(data.currentFolder);
@@ -237,7 +239,7 @@ class AppComponent {
         this.currentFolder.killServer();
     }
 }
-AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_1__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_app_current_folder_service__WEBPACK_IMPORTED_MODULE_2__["AppCurrentFolderService"])); };
+AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_1__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_app_current_folder_service__WEBPACK_IMPORTED_MODULE_2__["AppCurrentFolderService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["Router"])); };
 AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: AppComponent, selectors: [["app-root"]], hostBindings: function AppComponent_HostBindings(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) { return ctx.unloadHandler($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresolveWindow"]);
     } }, decls: 1, vars: 0, template: function AppComponent_Template(rf, ctx) { if (rf & 1) {
@@ -367,8 +369,9 @@ __webpack_require__.r(__webpack_exports__);
 
 
 const routes = [
-    { path: 'main', loadChildren: () => __webpack_require__.e(/*! import() | md-explorer-md-explorer-module */ "md-explorer-md-explorer-module").then(__webpack_require__.bind(null, /*! ./md-explorer/md-explorer.module */ "A4yT")).then(m => m.MdExplorerModule) },
-    { path: '**', redirectTo: 'main' }
+    { path: 'main', loadChildren: () => Promise.all(/*! import() | md-explorer-md-explorer-module */[__webpack_require__.e("common"), __webpack_require__.e("md-explorer-md-explorer-module")]).then(__webpack_require__.bind(null, /*! ./md-explorer/md-explorer.module */ "A4yT")).then(m => m.MdExplorerModule) },
+    { path: 'projects', loadChildren: () => Promise.all(/*! import() | projects-projects-module */[__webpack_require__.e("common"), __webpack_require__.e("projects-projects-module")]).then(__webpack_require__.bind(null, /*! ./projects/projects.module */ "Wm2z")).then(m => m.ProjectsModule) },
+    { path: '**', redirectTo: 'projects' }
 ];
 class AppModule {
 }

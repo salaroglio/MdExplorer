@@ -68,7 +68,8 @@ export class SidenavComponent implements OnInit {
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private router: Router,
-    private sideNavDataService: SideNavDataService
+    private sideNavDataService: SideNavDataService,
+    private route: ActivatedRoute
   ) {
     this.dataSource.data = TREE_DATA;
     document.addEventListener("mousemove", (event) => {
@@ -89,19 +90,19 @@ export class SidenavComponent implements OnInit {
     //this.sideNavDataService.SetHideIFrame(true);
   }
 
-  stopResizeWidth(): void {
-    debugger;
+  stopResizeWidth(): void {    
     this.hooked = false;
     this.classForBorderDiv = "border-div";
     //this.sideNavDataService.SetHideIFrame(false);
   }
 
   openProject(): void {    
-    const dialogRef = this.dialog.open(ProjectsComponent, {
-      width: '800px',
-      height: '600px',
-      data: { name: 'test' }
-    });
+    //const dialogRef = this.dialog.open(ProjectsComponent, {
+    //  width: '800px',
+    //  height: '600px',
+    //  data: { name: 'test' }
+    //});
+    this.router.navigate(['/projects']);
   }
 
   deferredOpenProject(data, objectThis): void {
@@ -130,11 +131,11 @@ export class SidenavComponent implements OnInit {
     
   }
 
-  public getNode(node: any) {
+  public getNode(node: any) {    
     var dateTime = new Date();
     this.sideNavDataService.currentPath = node.path;
     this.sideNavDataService.currentName = node.name;
-    this.router.navigate(['/main', dateTime.getTime()]);
+    this.router.navigate(['main/navigation', dateTime.getTime()]); //, { relativeTo: this.route }
   }
  
 

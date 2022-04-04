@@ -14,16 +14,19 @@ import { SettingsComponent } from './components/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
 import { ProjectsComponent } from './components/projects/projects.component';
 import { OpenNewFolderComponent } from './components/projects/open-new-folder/open-new-folder.component';
+import { OpenRecentComponent } from './components/projects/open-recent/open-recent.component';
 
 
 
-const routes: Routes = [{
-  path: '', component: MdExplorerComponent,
+const routes: Routes = [
+  { path: '', component: SidenavComponent},
+  {
+  path: 'navigation', component: SidenavComponent,
   children: [
     { path: ':path', component: MainContentComponent },
-    { path: '', component: MainContentComponent }
+    //{ path: '', component: MainContentComponent },    
   ]
-}];
+  }];
 
 
 @NgModule({
@@ -37,6 +40,7 @@ const routes: Routes = [{
     RenameFileComponent,
     ProjectsComponent,
     OpenNewFolderComponent,
+    OpenRecentComponent,
   ],
   imports: [
     CommonModule,

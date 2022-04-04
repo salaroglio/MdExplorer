@@ -53,8 +53,7 @@ export class MainContentComponent implements OnInit {
         this.htmlSource = '../api/mdexplorer' + path  + '?time=' + dateTime;
           
       }
-      this.sideNavDataService.HideIFrameObservable.subscribe(data => {
-        debugger;
+      this.sideNavDataService.HideIFrameObservable.subscribe(data => {       
         this._HideIFrame = data;
       });
     });   

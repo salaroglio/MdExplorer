@@ -13,7 +13,8 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 const routes: Routes = [
   { path: 'main', loadChildren: () => import('./md-explorer/md-explorer.module').then(m => m.MdExplorerModule) },
-  { path: '**', redirectTo: 'main' }
+  { path: 'projects', loadChildren: () => import('./projects/projects.module').then(m => m.ProjectsModule) },
+  { path: '**', redirectTo: 'projects' }
 ];
 
 @NgModule({
