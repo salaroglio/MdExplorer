@@ -44,10 +44,10 @@ export class ProjectsComponent implements OnInit {
     //});
   }
 
-  openNewFolderExample(): void {
-    this.router.navigate(['/projects/tree']);
+  //openNewFolderExample(): void {
+  //  this.router.navigate(['/projects/tree']);
     
-  }
+  //}
 
 
 }
