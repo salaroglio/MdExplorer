@@ -9,6 +9,8 @@ import { IFileInfoNode } from '../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../md-explorer/models/md-file';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { COMPOSITION_BUFFER_MODE } from '@angular/forms';
+import { ProjectsService } from '../../md-explorer/services/projects.service';
+import { Router } from '@angular/router';
 
 // IFileInfoNode è interfaccia
 // MdFile è la classe -> DynamicFlatNode
@@ -164,10 +166,12 @@ export class NewProjectComponent implements OnInit {
   hasChild = (_: number, _nodeData: MdFile) => _nodeData.expandable;
    
 
-  constructor(database: DynamicDatabase, private mdFileService:MdFileService) {
+  constructor(database: DynamicDatabase,
+                private mdFileService: MdFileService,
+                private router: Router,
+                private projectService: ProjectsService) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
-   
   }
 
   ngOnInit(): void {
@@ -180,7 +184,13 @@ export class NewProjectComponent implements OnInit {
   }
 
   public closeDialog() {
-    // switch to new path
+    this.projectService.setNewFolderProject(this.folder.path, this.loadNewProject, this);
+  }
+
+  loadNewProject(data: any, objectThis: NewProjectComponent) {
+    var dateTime = new Date();
+    objectThis.mdFileService.loadAll(null, null);
+    objectThis.router.navigate(['/main']);
   }
 
 }

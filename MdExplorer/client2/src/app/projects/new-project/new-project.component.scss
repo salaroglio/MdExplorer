@@ -1,0 +1,23 @@
+.flex-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-items-overflow {
+  max-height: 600px;
+  overflow-x: scroll;
+  overflow-y: scroll;
+  background: tomato;
+  color: white;
+  text-align: center;
+  font-size: 3em;
+  flex: 1;
+}
+
+.flex-items {
+  max-height: 600px;
+  background: tomato;
+  color: white;
+  text-align: center;
+  font-size: 3em;
+}
