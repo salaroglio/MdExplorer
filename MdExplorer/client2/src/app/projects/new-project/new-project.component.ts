@@ -4,7 +4,6 @@ import { Component, Injectable, OnInit } from '@angular/core';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { OpenNewFolderComponent } from '../../md-explorer/components/projects/open-new-folder/open-new-folder.component';
 import { IFileInfoNode } from '../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../md-explorer/models/md-file';
 import { MdFileService } from '../../md-explorer/services/md-file.service';

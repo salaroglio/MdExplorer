@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
-import { IRefactoringFilesystemEvent } from '../../../models/irefactoring-filesystem-event';
 import { IRefactoringSourceAction } from '../../../models/irefactoring-source-action';
 import { MdRefactoringService } from '../../../services/md-refactoring.service';
 
