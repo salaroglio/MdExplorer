@@ -1,20 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
-
 import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/layout';
 import { MdFileService } from '../../services/md-file.service';
 import { Observable } from 'rxjs';
 import { MdFile } from '../../models/md-file';
 import { IFileInfoNode } from '../../models/IFileInfoNode';
-import { MonitorMDService } from '../../services/monitor-md.service';
 import { Router, ActivatedRoute } from '@angular/router';
-import { debug } from 'node:console';
-import { getLocaleDateTimeFormat } from '@angular/common';
-import { MainContentComponent } from '../main-content/main-content.component';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { MatDialog } from '@angular/material/dialog';
-import { ProjectsComponent } from '../projects/projects.component';
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -87,32 +81,19 @@ export class SidenavComponent implements OnInit {
   resizeWidth(): void {    
     this.hooked = true;
     this.classForBorderDiv = "border-div-moving";
-    //this.sideNavDataService.SetHideIFrame(true);
   }
 
   stopResizeWidth(): void {    
     this.hooked = false;
     this.classForBorderDiv = "border-div";
-    //this.sideNavDataService.SetHideIFrame(false);
   }
 
   openProject(): void {    
-    //const dialogRef = this.dialog.open(ProjectsComponent, {
-    //  width: '800px',
-    //  height: '600px',
-    //  data: { name: 'test' }
-    //});
     this.router.navigate(['/projects']);
   }
 
   deferredOpenProject(data, objectThis): void {
-    if (data.length==0) {
-      const dialogRef = objectThis.dialog.open(ProjectsComponent, {
-        width: '800px',
-        height: '600px',
-        data: { name: 'test' }
-      });
-    }
+    
   }
 
 

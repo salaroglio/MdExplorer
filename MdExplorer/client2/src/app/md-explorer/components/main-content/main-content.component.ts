@@ -46,16 +46,10 @@ export class MainContentComponent implements OnInit {
     this.route.params.subscribe(params => {      
       const path = this.sideNavDataService.currentPath;
       if (path != undefined) {        
-        //this.service.GetHtml(path).subscribe(data => {          
-        //  this.html = data;
-        //});
         let dateTime = new Date().getTime()/1000;
         this.htmlSource = '../api/mdexplorer' + path  + '?time=' + dateTime;
           
       }
-      this.sideNavDataService.HideIFrameObservable.subscribe(data => {       
-        this._HideIFrame = data;
-      });
     });   
   }
 
@@ -65,14 +59,6 @@ export class MainContentComponent implements OnInit {
     let dateTime = new Date();
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
     
-    //if (data.path != undefined) {
-    //  objectThis.service.GetHtml(data.path).subscribe(data => {
-    //    objectThis.html = data;
-
-    //  });
-    //}
-    
-
   }
 
   

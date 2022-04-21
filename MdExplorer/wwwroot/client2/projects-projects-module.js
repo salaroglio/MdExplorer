@@ -402,9 +402,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./clone-project/clone-project.component */ "IVY+");
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../shared/material.module */ "5dmV");
-/* harmony import */ var _tree_dynamic_example_tree_dynamic_example_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./tree-dynamic-example/tree-dynamic-example.component */ "c8hI");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ "fXoL");
-
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ "fXoL");
 
 
 
@@ -421,24 +419,22 @@ const routes = [
             { path: '', redirectTo: 'openrecent', pathMatch: 'full' },
             { path: 'openrecent', component: _open_recent_open_recent_component__WEBPACK_IMPORTED_MODULE_1__["OpenRecentComponent"] },
             { path: 'newproject', component: _new_project_new_project_component__WEBPACK_IMPORTED_MODULE_3__["NewProjectComponent"] },
-            { path: 'tree', component: _tree_dynamic_example_tree_dynamic_example_component__WEBPACK_IMPORTED_MODULE_7__["TreeDynamicExampleComponent"] },
         ]
     }
 ];
 class ProjectsModule {
 }
 ProjectsModule.ɵfac = function ProjectsModule_Factory(t) { return new (t || ProjectsModule)(); };
-ProjectsModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineNgModule"]({ type: ProjectsModule });
-ProjectsModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjector"]({ imports: [[
+ProjectsModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineNgModule"]({ type: ProjectsModule });
+ProjectsModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjector"]({ imports: [[
             _angular_router__WEBPACK_IMPORTED_MODULE_5__["RouterModule"].forChild(routes),
             _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
             _shared_material_module__WEBPACK_IMPORTED_MODULE_6__["MaterialModule"],
         ]] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵsetNgModuleScope"](ProjectsModule, { declarations: [_open_recent_open_recent_component__WEBPACK_IMPORTED_MODULE_1__["OpenRecentComponent"],
+(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵsetNgModuleScope"](ProjectsModule, { declarations: [_open_recent_open_recent_component__WEBPACK_IMPORTED_MODULE_1__["OpenRecentComponent"],
         _projects_component__WEBPACK_IMPORTED_MODULE_2__["ProjectsComponent"],
         _new_project_new_project_component__WEBPACK_IMPORTED_MODULE_3__["NewProjectComponent"],
-        _clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__["CloneProjectComponent"],
-        _tree_dynamic_example_tree_dynamic_example_component__WEBPACK_IMPORTED_MODULE_7__["TreeDynamicExampleComponent"]], imports: [_angular_router__WEBPACK_IMPORTED_MODULE_5__["RouterModule"], _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
+        _clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__["CloneProjectComponent"]], imports: [_angular_router__WEBPACK_IMPORTED_MODULE_5__["RouterModule"], _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
         _shared_material_module__WEBPACK_IMPORTED_MODULE_6__["MaterialModule"]] }); })();
 
 
@@ -466,196 +462,62 @@ class MdFile {
 
 /***/ }),
 
-/***/ "c8hI":
-/*!*********************************************************************************!*\
-  !*** ./src/app/projects/tree-dynamic-example/tree-dynamic-example.component.ts ***!
-  \*********************************************************************************/
-/*! exports provided: DynamicFlatNode, DynamicDatabase, DynamicDataSource, TreeDynamicExampleComponent */
+/***/ "vUCT":
+/*!**********************************************************!*\
+  !*** ./src/app/md-explorer/services/projects.service.ts ***!
+  \**********************************************************/
+/*! exports provided: ProjectsService */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "DynamicFlatNode", function() { return DynamicFlatNode; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "DynamicDatabase", function() { return DynamicDatabase; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "DynamicDataSource", function() { return DynamicDataSource; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "TreeDynamicExampleComponent", function() { return TreeDynamicExampleComponent; });
-/* harmony import */ var _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/cdk/tree */ "FvrZ");
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ "kU1M");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_material_tree__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/tree */ "8yBR");
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common */ "ofXK");
-/* harmony import */ var _angular_material_progress_bar__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/progress-bar */ "bv9b");
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ProjectsService", function() { return ProjectsService; });
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
 
 
 
-
-
-
-
-
-
-function TreeDynamicExampleComponent_mat_tree_node_1_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-tree-node", 3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "button", 4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
-    const node_r2 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", node_r2.item, " ");
-} }
-function TreeDynamicExampleComponent_mat_tree_node_2_mat_progress_bar_5_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "mat-progress-bar", 8);
-} }
-function TreeDynamicExampleComponent_mat_tree_node_2_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-tree-node", 3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "button", 5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "mat-icon", 6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, TreeDynamicExampleComponent_mat_tree_node_2_mat_progress_bar_5_Template, 1, 0, "mat-progress-bar", 7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
-    const node_r3 = ctx.$implicit;
-    const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵattribute"]("aria-label", "Toggle " + node_r3.item);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r1.treeControl.isExpanded(node_r3) ? "expand_more" : "chevron_right", " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", node_r3.item, " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", node_r3.isLoading);
-} }
-/** Flat node with expandable and level information */
-class DynamicFlatNode {
-    constructor(item, level = 1, expandable = false, isLoading = false) {
-        this.item = item;
-        this.level = level;
-        this.expandable = expandable;
-        this.isLoading = isLoading;
+class ProjectsService {
+    constructor(http) {
+        this.http = http;
+        this.dataStore = { mdProjects: [] };
+        this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
     }
-}
-/**
- * Database for dynamic data. When expanding a node in the tree, the data source will need to fetch
- * the descendants data from the database.
- */
-class DynamicDatabase {
-    constructor() {
-        this.dataMap = new Map([
-            ['Fruits', ['Apple', 'Orange', 'Banana']],
-            ['Vegetables', ['Tomato', 'Potato', 'Onion']],
-            ['Apple', ['Fuji', 'Macintosh']],
-            ['Onion', ['Yellow', 'White', 'Purple']]
-        ]);
-        this.rootLevelNodes = ['Fruits', 'Vegetables'];
-        this.rootLevelNodesFile = ['c:\test'];
+    get mdProjects() {
+        return this._mdProjects.asObservable();
     }
-    /** Initial data from database */
-    initialData() {
-        return this.rootLevelNodes.map(name => new DynamicFlatNode(name, 0, true));
-    }
-    getChildren(node) {
-        return this.dataMap.get(node);
-    }
-    isExpandable(node) {
-        return this.dataMap.has(node);
-    }
-}
-DynamicDatabase.ɵfac = function DynamicDatabase_Factory(t) { return new (t || DynamicDatabase)(); };
-DynamicDatabase.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: DynamicDatabase, factory: DynamicDatabase.ɵfac, providedIn: 'root' });
-/**
- * File database, it can build a tree structured Json object from string.
- * Each node in Json object represents a file or a directory. For a file, it has filename and type.
- * For a directory, it has filename and children (a list of files or directories).
- * The input will be a json object string, and the output is a list of `FileNode` with nested
- * structure.
- */
-class DynamicDataSource {
-    constructor(_treeControl, _database) {
-        this._treeControl = _treeControl;
-        this._database = _database;
-        this.dataChange = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
-    }
-    get data() { return this.dataChange.value; }
-    set data(value) {
-        this._treeControl.dataNodes = value;
-        this.dataChange.next(value);
-    }
-    connect(collectionViewer) {
-        this._treeControl.expansionModel.changed.subscribe(change => {
-            if (change.added ||
-                change.removed) {
-                this.handleTreeControl(change);
-            }
+    fetchProjects() {
+        const url = '../api/MdProjects/GetProjects';
+        this.http.get(url)
+            .subscribe(data => {
+            this.dataStore.mdProjects = data;
+            this._mdProjects.next(Object.assign({}, this.dataStore).mdProjects);
+        }, error => {
+            console.log(error);
         });
-        return Object(rxjs__WEBPACK_IMPORTED_MODULE_1__["merge"])(collectionViewer.viewChange, this.dataChange).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["map"])(() => this.data));
     }
-    disconnect(collectionViewer) { }
-    /** Handle expand/collapse behaviors */
-    handleTreeControl(change) {
-        if (change.added) {
-            change.added.forEach(node => this.toggleNode(node, true));
-        }
-        if (change.removed) {
-            change.removed.slice().reverse().forEach(node => this.toggleNode(node, false));
-        }
+    setNewFolderProjectQuickNotes(path, callback, objectThis) {
+        const url = '../api/MdProjects/SetFolderProjectQuickNotes';
+        this.http.post(url, { path: path }).subscribe(data => {
+            callback(data, objectThis);
+        });
     }
-    /**
-     * Toggle the node, remove from display list
-     */
-    toggleNode(node, expand) {
-        const children = this._database.getChildren(node.item);
-        const index = this.data.indexOf(node);
-        if (!children || index < 0) { // If no children, or cannot find the node, no op
-            return;
-        }
-        node.isLoading = true;
-        setTimeout(() => {
-            if (expand) {
-                const nodes = children.map(name => new DynamicFlatNode(name, node.level + 1, this._database.isExpandable(name)));
-                this.data.splice(index + 1, 0, ...nodes);
-            }
-            else {
-                let count = 0;
-                for (let i = index + 1; i < this.data.length
-                    && this.data[i].level > node.level; i++, count++) { }
-                this.data.splice(index + 1, count);
-            }
-            // notify the change
-            this.dataChange.next(this.data);
-            node.isLoading = false;
-        }, 1000);
+    setNewFolderProject(path, callback, objectThis) {
+        const url = '../api/MdProjects/SetFolderProject';
+        this.http.post(url, { path: path }).subscribe(data => {
+            callback(data, objectThis);
+        });
+    }
+    deleteProject(project, callback, objectThis) {
+        const url = '../api/MdProjects/DeleteProject';
+        this.http.post(url, project).subscribe(data => {
+            callback(data, objectThis);
+        });
     }
 }
-class TreeDynamicExampleComponent {
-    constructor(database) {
-        this.getLevel = (node) => node.level;
-        this.isExpandable = (node) => node.expandable;
-        this.hasChild = (_, _nodeData) => _nodeData.expandable;
-        this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_0__["FlatTreeControl"](this.getLevel, this.isExpandable);
-        this.dataSource = new DynamicDataSource(this.treeControl, database);
-        this.dataSource.data = database.initialData();
-    }
-    ngOnInit() {
-    }
-}
-TreeDynamicExampleComponent.ɵfac = function TreeDynamicExampleComponent_Factory(t) { return new (t || TreeDynamicExampleComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](DynamicDatabase)); };
-TreeDynamicExampleComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: TreeDynamicExampleComponent, selectors: [["app-tree-dynamic-example"]], decls: 3, vars: 3, consts: [[3, "dataSource", "treeControl"], ["matTreeNodePadding", "", 4, "matTreeNodeDef"], ["matTreeNodePadding", "", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", ""], ["mat-icon-button", "", "disabled", ""], ["mat-icon-button", "", "matTreeNodeToggle", ""], [1, "mat-icon-rtl-mirror"], ["mode", "indeterminate", "class", "example-tree-progress-bar", 4, "ngIf"], ["mode", "indeterminate", 1, "example-tree-progress-bar"]], template: function TreeDynamicExampleComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-tree", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, TreeDynamicExampleComponent_mat_tree_node_1_Template, 3, 1, "mat-tree-node", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, TreeDynamicExampleComponent_mat_tree_node_2_Template, 6, 4, "mat-tree-node", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("dataSource", ctx.dataSource)("treeControl", ctx.treeControl);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.hasChild);
-    } }, directives: [_angular_material_tree__WEBPACK_IMPORTED_MODULE_4__["MatTree"], _angular_material_tree__WEBPACK_IMPORTED_MODULE_4__["MatTreeNodeDef"], _angular_material_tree__WEBPACK_IMPORTED_MODULE_4__["MatTreeNode"], _angular_material_tree__WEBPACK_IMPORTED_MODULE_4__["MatTreeNodePadding"], _angular_material_button__WEBPACK_IMPORTED_MODULE_5__["MatButton"], _angular_material_tree__WEBPACK_IMPORTED_MODULE_4__["MatTreeNodeToggle"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_6__["MatIcon"], _angular_common__WEBPACK_IMPORTED_MODULE_7__["NgIf"], _angular_material_progress_bar__WEBPACK_IMPORTED_MODULE_8__["MatProgressBar"]], styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJ0cmVlLWR5bmFtaWMtZXhhbXBsZS5jb21wb25lbnQuc2NzcyJ9 */"] });
+ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"])); };
+ProjectsService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ProjectsService, factory: ProjectsService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),
