@@ -3,4 +3,5 @@
 @import url('/jquery_ui/jquery-ui.css');
 @import url('/bootstrap_datepicker/css/bootstrap-datepicker3.css');
 @import url('/MdCustomCSS.css');
-
+@import url('/TocBot/tocbot.css');
+@import url('/TocBot/styles.css');
