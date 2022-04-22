@@ -138,6 +138,9 @@
     <Content Remove="wwwroot\jquery_ui\jquery-ui.structure.css" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.theme.css" />
     <Content Remove="wwwroot\MdCustomCSS.css" />
+    <Content Remove="wwwroot\TocBot\styles.css" />
+    <Content Remove="wwwroot\TocBot\tocbot.css" />
+    <Content Remove="wwwroot\TocBot\tocbot.min.js" />
     <Content Remove="wwwroot\welcome.html" />
   </ItemGroup>
 
@@ -336,6 +339,9 @@
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.structure.css" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.theme.css" />
     <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
+    <EmbeddedResource Include="wwwroot\TocBot\styles.css" />
+    <EmbeddedResource Include="wwwroot\TocBot\tocbot.css" />
+    <EmbeddedResource Include="wwwroot\TocBot\tocbot.min.js" />
     <EmbeddedResource Include="wwwroot\welcome.html" />
   </ItemGroup>
 

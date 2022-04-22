@@ -132,21 +132,24 @@ namespace MdExplorer.Controllers
                     <div class=""container-fluid"">
                         <div class=""row"">                            
                             <div id=""page"" {classForMain}>
-                        <div class=""container"">
+                        <div class=""container "">
                             <div class=""row"">
-                                <div style=""width:30px;"" class=""col-1""></div>
-                                <div class=""col-11"">
+                                <div  class=""col-1""></div>
+                                <div class=""col-11 js-toc-content"">
                     {result}
                                 </div>
                             </div>
                         </div>
                             </div>  
-                            <div id=""TOC"" {styleForToc} >
+                            <nav id=""TOC"" {styleForToc} >
+                                
                                 <div class=""sticky-top"">
-                                <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
-                                {CreateToc(resultToToc)} 
+                                    <div class=""toc  js-toc is-position-fixed""></div>    
+
+                                <!--  <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
+                                {CreateToc(resultToToc)} -->
                                 </div>
-                            </div>
+                            </nav>
                         </div>
                     </div>
                     

@@ -1,4 +1,14 @@
 ﻿
+// gestione tocbot
+$(function () {
+    tocbot.init({
+        tocSelector: '.js-toc',
+        orderedList: true,
+        //headingSelector: 'h1, h2, h3'
+    });
+    //console.log('Tocbot initialized');
+});
+
 // Manage Images
 
 // function to manage readability 
