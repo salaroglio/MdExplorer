@@ -1,4 +1,13 @@
-﻿div .warning p em {
+﻿/* ritocco per toc*/
+ li .toc-list-item {    
+    border-bottom: dashed !important;
+    border-color:green !important;
+    border-width: 1px !important;
+}
+
+
+
+div .warning p em {
     background-color:palegoldenrod
 }
 
