@@ -4,7 +4,12 @@ $(function () {
     tocbot.init({
         tocSelector: '.js-toc',
         orderedList: true,
-        //headingSelector: 'h1, h2, h3'
+        hasInnerContainers: true,        
+        scrollSmooth: true,
+        // Smooth scroll duration.
+        scrollSmoothDuration: 420,
+        // Smooth scroll offset.
+        scrollSmoothOffset: 0,
     });
     //console.log('Tocbot initialized');
 });
