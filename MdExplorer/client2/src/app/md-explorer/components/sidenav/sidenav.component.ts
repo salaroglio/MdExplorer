@@ -50,6 +50,7 @@ export class SidenavComponent implements OnInit {
   mdFiles: Observable<MdFile[]>;
 
   public isScreenSmall: boolean;
+  private activeNode: any;
 
   private hooked: boolean = false;
 
@@ -117,6 +118,7 @@ export class SidenavComponent implements OnInit {
     this.sideNavDataService.currentPath = node.path;
     this.sideNavDataService.currentName = node.name;
     this.router.navigate(['main/navigation', dateTime.getTime()]); //, { relativeTo: this.route }
+    this.activeNode = node;
   }
  
 
