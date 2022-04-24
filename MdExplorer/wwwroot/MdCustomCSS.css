@@ -1,14 +1,19 @@
-﻿/* ritocco per toc*/
+﻿/* little stupid changes for tocbot*/
  li .toc-list-item {    
     border-bottom: dashed !important;
     border-color:green !important;
     border-width: 1px !important;
 }
 
+/* scroll down more then the ends of <div>*/
+.md-tocbot-content {
+    margin-bottom: 95vh !important;
+}
+
 
 
 div .warning p em {
-    background-color:palegoldenrod
+    background-color: palegoldenrod
 }
 
 /*li.sortableClass {
