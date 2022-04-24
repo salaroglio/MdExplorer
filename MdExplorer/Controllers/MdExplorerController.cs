@@ -135,7 +135,7 @@ namespace MdExplorer.Controllers
                         <div class=""container "">
                             <div class=""row"">
                                 <div  class=""col-1""></div>
-                                <div class=""col-11 js-toc-content"">
+                                <div class=""col-11 md-tocbot-content js-toc-content"">
                     {result}
                                 </div>
                             </div>
@@ -144,7 +144,7 @@ namespace MdExplorer.Controllers
                             <nav id=""TOC"" {styleForToc} >
                                 
                                 <div class=""sticky-top"">
-                                    <div class=""toc  js-toc is-position-fixed""></div>    
+                                    <div class=""toc js-toc is-position-fixed""></div>    
 
                                 <!--  <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
                                 {CreateToc(resultToToc)} -->
