@@ -288,11 +288,9 @@ $.fn.datepicker.noConflict = function () {
 
 // funzione che memorizza l'ultima posizione della pagina
 document.addEventListener("DOMContentLoaded", function (event) {
-    // tentativo di memorizzare la posizione corrente della pagina,perché sia riproposta dopo un refresh
+    // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh
     var scrollpos1 = localStorage.getItem('scrollpos1');
     if (scrollpos1) window.scrollTo(0, scrollpos1);
-
-    // inizializzazione dei datepicker
 
 });
 
@@ -466,18 +464,13 @@ function toggleTOC(documentPath) {
     });
 }
 
-
-// gestione della matitina per evidenziare la pagina
-function toggleMdCanvas() {
+// inizializzazione, al caricamnto della pagina,
+// del canvas, tela per la matitina, fuori dal campo visivo dell'utente
+$(function () {
     if (window.toggleCanvas == 'undefined') {
         window.toggleCanvas = false;
     }
 
-    if (window.toggleCanvas) {
-        window.canvas.remove();
-        window.toggleCanvas = !window.toggleCanvas;
-        return;
-    }
     window.toggleCanvas = !window.toggleCanvas;
     window.canvas = document.createElement('canvas');
     window.canvas.setAttribute('id', 'writeCanvas');
@@ -485,18 +478,19 @@ function toggleMdCanvas() {
 
     // some hotfixes... ( ≖_≖)
     //document.body.style.margin = 0;
-    canvas.style.position = 'absolute';
-    canvas.style.top = 0;
-    canvas.style.left = 40;
+    window.canvas.setAttribute('hidden', 'hidden');
+    window.canvas.style.position = 'absolute';
+    window.canvas.style.top = 0;
+    window.canvas.style.left = window.innerWidth-40; // qui è dove si imposta il canvas FUORI dal campo visivo
 
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
     resize();
 
     // last known position
-    
+
     window.shiftY = 0;
-    window.shitX = -40;
+    window.shiftX = -40;
     window.pos = { x: 0, y: 0 };
     window.scrollPos = { x: window.shitX, y: window.shiftY };
 
@@ -504,10 +498,32 @@ function toggleMdCanvas() {
     document.addEventListener('mousemove', draw);
     document.addEventListener('mousedown', setPosition);
     document.addEventListener('mouseenter', setPosition);
-    document.addEventListener('scroll', scrollPosition);    
+    document.addEventListener('scroll', scrollPosition);
+});
+
+// gestione della matitina per evidenziare la pagina
+function toggleMdCanvas() {
+
+    if (window.toggleCanvas) {
+        $(window.canvas).removeAttr('hidden');
+        $(window.canvas).animate({
+            left : 40,
+        }, function () {            
+        });
+        
+    } else {
+        $(window.canvas).animate({
+            left: window.innerWidth,
+        }, function () {
+            window.canvas.setAttribute('hidden', 'hidden');
+        });
+        
+    }
+    window.toggleCanvas = !window.toggleCanvas;
 }
+
 function scrollPosition(e) {
-    scrollPos.x = window.scrollX + window.shitX;
+    scrollPos.x = window.scrollX + window.shiftX;
     scrollPos.y = window.scrollY + window.shiftY;
 }
 // new position from mouse event
@@ -523,20 +539,23 @@ function resize() {
 }
 
 function draw(e) {
-    // mouse left button must be pressed
-    if (e.buttons !== 1) return;
+    if (!window.toggleCanvas) {
+        // mouse left button must be pressed
+        if (e.buttons !== 1) return;
 
-    ctx.beginPath(); // begin
+        ctx.beginPath(); // begin
 
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#2bc02d';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#2bc02d';
 
-    ctx.moveTo(pos.x, pos.y); // from
-    setPosition(e);
-    ctx.lineTo(pos.x, pos.y); // to
+        ctx.moveTo(pos.x, pos.y); // from
+        setPosition(e);
+        ctx.lineTo(pos.x, pos.y); // to
 
-    ctx.stroke(); // draw it!
+        ctx.stroke(); // draw it!
+    }
+    
 }
 
 //Gestione Clipboard *************

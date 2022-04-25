@@ -165,7 +165,7 @@ namespace MdExplorer.Controllers
             foreach (XmlNode itemElement in elementsA)
             {
                 var href = itemElement.Attributes["href"];
-                if (href.Value.Length > 8)
+                if (href!= null && href.Value.Length > 8)
                 {
                     if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
                     {
@@ -229,10 +229,10 @@ namespace MdExplorer.Controllers
 
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
-            var aAtt1 = doc1.CreateAttribute("href");
-            aAtt1.Value = "#";
-            a.Attributes.Append(aAtt1);
+            var att2 = doc1.CreateAttribute("style");
+            att2.Value = "cursor: pointer";
             a.Attributes.Append(aAtt);
+            a.Attributes.Append(att2);
             aAtt.Value = functionJs;
             var imgEl = doc1.CreateElement("img");
             a.AppendChild(imgEl);
