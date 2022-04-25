@@ -73,44 +73,6 @@
                 </Directory>
             </Directory>
             <Directory Id="dir3D83A529A2122889D4016E7D784625D5" Name="wwwroot">
-                <Directory Id="dir89EB03C3EAD84D074D9B56E6D99D0A33" Name="assets">
-                    <Component Id="cmp6DF29040DB9F4BFF196E78A0304846F3" Guid="*">
-                        <File Id="fil755895746568B815F3D8D17713657270" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\AliasEmoji.PNG" />
-                    </Component>
-                    <Component Id="cmpEDE6020AE9F093A2CED5A46A552C21BA" Guid="*">
-                        <File Id="fil8FD7E5613C3C128DC98B6A7C190577BE" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\clipboard48.png" />
-                    </Component>
-                    <Component Id="cmp0D047EA27B88116E73EC4FEABFDD0F62" Guid="*">
-                        <File Id="fil268F0A6ECB82F55CC96D40BD7EC71D93" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\green_right_arrow48.png" />
-                    </Component>
-                    <Component Id="cmpCD6EB8CA6989F6E4E9A6D5C9A3C1594D" Guid="*">
-                        <File Id="filC6CA06C2AAEB4BA235C05B6B1590A841" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\IconReady.png" />
-                    </Component>
-                    <Component Id="cmp4FF66FD91FDE9DA2C23A69415757D947" Guid="*">
-                        <File Id="fil478BEED4662FC8E40006C2035BA894B6" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdExplorerForGitHub.png" />
-                    </Component>
-                    <Component Id="cmp193FBEC2FE31BC1D4FC7110FB57B2A5D" Guid="*">
-                        <File Id="filB62497B7E428011DF240ED1F8106FACB" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon.png" />
-                    </Component>
-                    <Component Id="cmpD6B18F3C50E4CDD00177E561D29DEB02" Guid="*">
-                        <File Id="filE4086127AB3A999DA62AC3EEDAE7BD8A" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon.xcf" />
-                    </Component>
-                    <Component Id="cmpE6469B6A2B277A8C9D5FE4FB7CDD1180" Guid="*">
-                        <File Id="fil12EF938E19158173E05C1645C28D3D5D" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon2.ico" />
-                    </Component>
-                    <Component Id="cmp27E2C90FD9A662A49AA2C0A691504641" Guid="*">
-                        <File Id="fil87ACABBA6246F3E11D109E7BC25989FC" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon2.xcf" />
-                    </Component>
-                    <Component Id="cmpBD24542714F00FA48ACB42007C6E824B" Guid="*">
-                        <File Id="fil8029B078A36790D7EF0EF3C8A3081227" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\MdIcon3.ico" />
-                    </Component>
-                    <Component Id="cmp71DA884AAEF0EC61647627AE6042D7A3" Guid="*">
-                        <File Id="filCCFD25F3CD2B4F46C6BCEA23F0F1E842" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\PrepareToIcon.png" />
-                    </Component>
-                    <Component Id="cmp0B200CFE2319055FA081FD03F9BC1583" Guid="*">
-                        <File Id="fil239F51A0E7863544DB1B566898DDF38C" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\spaceship.png" />
-                    </Component>
-                </Directory>
                 <Directory Id="dir9DB0C933DBAB46A88446AF2A362B5184" Name="bootstrap">
                     <Directory Id="dir56D65DC2C136DF89BC3A8E72F09D1776" Name="css">
                         <Component Id="cmpE0C2BDEC541FAF8309914CE1CD170B66" Guid="*">
@@ -429,6 +391,14 @@
                         </Component>
                     </Directory>
                 </Directory>
+                <Directory Id="dir45706C920D8214B8DCD918477FA9EB7C" Name="client2">
+                    <Component Id="cmp80AC69A7314172BAD76B83252CF49982" Guid="*">
+                        <File Id="fil0E71351C20E93641974F69EC56A555A8" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\client2\common.js.map" />
+                    </Component>
+                    <Component Id="cmpDBEAABAC9975FB8D45412DF5580ED508" Guid="*">
+                        <File Id="filE37FA23AB73F8FC70922C38889723DA9" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\client2\projects-projects-module.js.map" />
+                    </Component>
+                </Directory>
                 <Directory Id="dirC889797551430ED18E1D001088BECDA8" Name="jquery_ui">
                     <Component Id="cmpC0B5D66D20EE86E2F02E7C57B52AF598" Guid="*">
                         <File Id="fil9C34055E59A03F017C9D5388A3EC90BB" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\jquery_ui\jquery-ui.structure.min.css" />
@@ -464,18 +434,6 @@
             <ComponentRef Id="cmpA964A847AD6177F00FFB96B8E1AFD3DE" />
             <ComponentRef Id="cmpFFC59F91BA2A40263777A08887C4DE28" />
             <ComponentRef Id="cmp419937E1F1A4AD6EBAD761C73BBB9BBB" />
-            <ComponentRef Id="cmp6DF29040DB9F4BFF196E78A0304846F3" />
-            <ComponentRef Id="cmpEDE6020AE9F093A2CED5A46A552C21BA" />
-            <ComponentRef Id="cmp0D047EA27B88116E73EC4FEABFDD0F62" />
-            <ComponentRef Id="cmpCD6EB8CA6989F6E4E9A6D5C9A3C1594D" />
-            <ComponentRef Id="cmp4FF66FD91FDE9DA2C23A69415757D947" />
-            <ComponentRef Id="cmp193FBEC2FE31BC1D4FC7110FB57B2A5D" />
-            <ComponentRef Id="cmpD6B18F3C50E4CDD00177E561D29DEB02" />
-            <ComponentRef Id="cmpE6469B6A2B277A8C9D5FE4FB7CDD1180" />
-            <ComponentRef Id="cmp27E2C90FD9A662A49AA2C0A691504641" />
-            <ComponentRef Id="cmpBD24542714F00FA48ACB42007C6E824B" />
-            <ComponentRef Id="cmp71DA884AAEF0EC61647627AE6042D7A3" />
-            <ComponentRef Id="cmp0B200CFE2319055FA081FD03F9BC1583" />
             <ComponentRef Id="cmpE0C2BDEC541FAF8309914CE1CD170B66" />
             <ComponentRef Id="cmp3364EB13B9679EA18EDFF2F5644BF597" />
             <ComponentRef Id="cmpF1CFB70E3B005F98FF63B67A795EFEDD" />
@@ -578,6 +536,8 @@
             <ComponentRef Id="cmp4920FC0DA1962CD36AB1EC75EAA995C1" />
             <ComponentRef Id="cmpF62FBB4D4AB21A52B0A6DD822BBDE259" />
             <ComponentRef Id="cmpE9A25B007AF5239241588D919D56E687" />
+            <ComponentRef Id="cmp80AC69A7314172BAD76B83252CF49982" />
+            <ComponentRef Id="cmpDBEAABAC9975FB8D45412DF5580ED508" />
             <ComponentRef Id="cmpC0B5D66D20EE86E2F02E7C57B52AF598" />
             <ComponentRef Id="cmp2D5F5F8415B1CB63DEDEFD8AAC7C6DA9" />
         </ComponentGroup>
