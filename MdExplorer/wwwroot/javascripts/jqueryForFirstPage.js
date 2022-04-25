@@ -7,7 +7,7 @@ $(function () {
         hasInnerContainers: true,        
         scrollSmooth: true,
         // Smooth scroll duration.
-        scrollSmoothDuration: 420,
+        scrollSmoothDuration: 220,
         // Smooth scroll offset.
         scrollSmoothOffset: 0,
     });
@@ -289,15 +289,16 @@ $.fn.datepicker.noConflict = function () {
 // funzione che memorizza l'ultima posizione della pagina
 document.addEventListener("DOMContentLoaded", function (event) {
     // tentativo di memorizzare la posizione corrente della pagina,perché sia riproposta dopo un refresh
-    var scrollpos = localStorage.getItem('scrollpos');
-    if (scrollpos) window.scrollTo(0, scrollpos);
+    var scrollpos1 = localStorage.getItem('scrollpos1');
+    if (scrollpos1) window.scrollTo(0, scrollpos1);
 
     // inizializzazione dei datepicker
 
 });
 
+// gestione ultima posizione dello scroll
 window.onbeforeunload = function (e) {
-    localStorage.setItem('scrollpos', window.scrollY);
+    localStorage.setItem('scrollpos1', window.scrollY);
 };
 
 // gestione dell'emoji :calendar:
@@ -465,6 +466,7 @@ function toggleTOC(documentPath) {
     });
 }
 
+
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas() {
     if (window.toggleCanvas == 'undefined') {
@@ -484,26 +486,28 @@ function toggleMdCanvas() {
     // some hotfixes... ( ≖_≖)
     //document.body.style.margin = 0;
     canvas.style.position = 'absolute';
-    canvas.style.top = 40;
-    canvas.style.left = 0;
+    canvas.style.top = 0;
+    canvas.style.left = 40;
 
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
     resize();
 
     // last known position
-    window.shiftY = -40;
+    
+    window.shiftY = 0;
+    window.shitX = -40;
     window.pos = { x: 0, y: 0 };
-    window.scrollPos = { x: 0, y: window.shiftY };
+    window.scrollPos = { x: window.shitX, y: window.shiftY };
 
     window.addEventListener('resize', resize);
     document.addEventListener('mousemove', draw);
     document.addEventListener('mousedown', setPosition);
     document.addEventListener('mouseenter', setPosition);
-    document.addEventListener('scroll', scrollPosition);
+    document.addEventListener('scroll', scrollPosition);    
 }
 function scrollPosition(e) {
-    scrollPos.x = window.scrollX;
+    scrollPos.x = window.scrollX + window.shitX;
     scrollPos.y = window.scrollY + window.shiftY;
 }
 // new position from mouse event

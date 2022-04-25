@@ -46,9 +46,9 @@ namespace MdExplorer.Controllers
         /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> GetAsync()
-        {            
+        {
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
-            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");           
+            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
 
 
@@ -106,7 +106,7 @@ namespace MdExplorer.Controllers
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
-                
+
                 .UsePipeTables()
                 .UseBootstrap()
                 .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
@@ -121,20 +121,27 @@ namespace MdExplorer.Controllers
 
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
-            var resultToToc = $@"<div>{result}</div>";
-
             var docSettingDal = _session.GetDal<DocumentSetting>();
             var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == filePathSystem1).FirstOrDefault();
 
-            var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""" ;
+            var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""";
             var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
+
+            var button1 = AddButtonOnTopPage("toggleMdCanvas()", "/assets/draw.png");
+            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
+
             var resultToParse = $@"
                     <div class=""container-fluid"">
                         <div class=""row"">                            
                             <div id=""page"" {classForMain}>
                         <div class=""container "">
                             <div class=""row"">
-                                <div  class=""col-1""></div>
+                                <div  class=""col-1"">
+                                    <div class=""sticky-top"">
+                                    {button1}
+                                    {button2}
+                                    </div>
+                                </div>
                                 <div class=""col-11 md-tocbot-content js-toc-content"">
                     {result}
                                 </div>
@@ -144,10 +151,7 @@ namespace MdExplorer.Controllers
                             <nav id=""TOC"" {styleForToc} >
                                 
                                 <div class=""sticky-top"">
-                                    <div class=""toc js-toc is-position-fixed""></div>    
-
-                                <!--  <input id=""tocInputFilter"" onkeyup=""filterToc()"" placeholder=""Search""/>
-                                {CreateToc(resultToToc)} -->
+                                    <div class=""toc js-toc is-position-fixed""></div>                                    
                                 </div>
                             </nav>
                         </div>
@@ -161,7 +165,7 @@ namespace MdExplorer.Controllers
             foreach (XmlNode itemElement in elementsA)
             {
                 var href = itemElement.Attributes["href"];
-                if (href.Value.Length > 8  ) 
+                if (href.Value.Length > 8)
                 {
                     if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
                     {
@@ -169,9 +173,9 @@ namespace MdExplorer.Controllers
                         htmltarget.InnerText = "_target";
                         itemElement.Attributes.Append(htmltarget);
                     }
-                    
+
                 }
-                
+
                 var htmlClass = doc1.CreateAttribute("class");
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
@@ -185,59 +189,6 @@ namespace MdExplorer.Controllers
                 ContentType = "text/html",
                 Content = doc1.InnerXml
             };
-        }
-
-        private string CreateToc(string resultToToc)
-        {
-            var toReturn = string.Empty;
-            var xmlDoc = new XmlDocument();
-            var xmlDoc1 = new XmlDocument();
-            xmlDoc.LoadXml(resultToToc);
-            var hList = xmlDoc.SelectNodes("//*[starts-with(name(), 'h')]");
-            toReturn += "<div class=\"bd-toc text-muted\">";
-            toReturn += "<nav id=\"TableOfContents\">";
-            toReturn += "<ul id=\"ulToc\" class=\"list-group\">";
-            var lastLevel = 1;
-            var distanceToCloseH = 0;
-            foreach (XmlNode h in hList)
-            {
-                var currentLevel = Convert.ToInt32(h.Name.Substring(1));
-                if (currentLevel > lastLevel)
-                {
-                    toReturn += "<ul>";
-                    toReturn += "<li>";
-                    toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
-                    toReturn += "</li>";
-                    distanceToCloseH++;
-                }
-                else if (lastLevel == currentLevel)
-                {
-                    toReturn += "<li>";
-                    toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
-                    toReturn += "</li>";
-                }
-                else if (currentLevel < lastLevel)
-                {
-                    for (int i = 0; i < lastLevel - currentLevel; i++)
-                    {
-                        toReturn += "</ul>";
-                        distanceToCloseH--;
-                    }
-                    toReturn += "<li>";
-                    toReturn += $"<a href=\"#{h.Attributes["id"].Value}\">{h.InnerText}</a>\r\n";
-                    toReturn += "</li>";
-
-                }
-                lastLevel = currentLevel;
-            }
-            for (int i = 0; i < distanceToCloseH; i++)
-            {
-                toReturn += "</ul>";
-            }
-            toReturn += "</ul>";
-            toReturn += "</nav>";
-            toReturn += "</div>";
-            return toReturn;
         }
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)
@@ -265,15 +216,17 @@ namespace MdExplorer.Controllers
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />            
             <script src=""/common.js""></script>";
-            AddButtonOnTopPage(doc1, body, "toggleMdCanvas()", "/assets/draw.png");
-            AddButtonOnTopPage(doc1, body, $"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
+            //AddButtonOnTopPage(doc1, body, "toggleMdCanvas()", "/assets/draw.png");
+            //AddButtonOnTopPage(doc1, body, $"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
 
             body.InnerXml += resultToParse;
         }
 
-        private static void AddButtonOnTopPage(XmlDocument doc1, XmlElement body,
-            string functionJs, string image)
+        private string AddButtonOnTopPage(string functionJs, string image)
         {
+            var doc1 = new XmlDocument();
+            var body = doc1.CreateElement("div");
+
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
             var aAtt1 = doc1.CreateAttribute("href");
@@ -287,6 +240,7 @@ namespace MdExplorer.Controllers
             srcImg.Value = image;
             imgEl.Attributes.Append(srcImg);
             body.AppendChild(a);
+            return body.OuterXml;
         }
 
     }
