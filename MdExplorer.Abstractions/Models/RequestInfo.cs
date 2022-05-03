@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Abstractions.Models
 {
+    /// <summary>
+    /// Informazioni che vanno a zonzo tra la sezione web
+    /// e la library Features per i Commands
+    /// </summary>
     public class RequestInfo
     {        
         public string AbsolutePathFile { get; set; }
