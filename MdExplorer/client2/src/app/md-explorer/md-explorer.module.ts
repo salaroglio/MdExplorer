@@ -12,6 +12,8 @@ import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
 import { SettingsComponent } from './components/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
+import { RulesComponent } from './components/rules/rules.component';
+ 
 
 
 
@@ -35,6 +37,7 @@ const routes: Routes = [
     MdExplorerComponent,
     SettingsComponent,
     RenameFileComponent,
+    RulesComponent,    
   ],
   imports: [
     CommonModule,

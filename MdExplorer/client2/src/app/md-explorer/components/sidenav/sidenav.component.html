@@ -8,9 +8,9 @@
 
     <mat-toolbar color="primary">
       <button mat-button (click)="openProject()">
-        <mat-icon>edit</mat-icon>
+        <mat-icon>ballot</mat-icon>
       </button>
-      Markdown files
+      {{titleProject}}
     </mat-toolbar>
     <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
       <!-- This is the tree node template for leaf nodes -->

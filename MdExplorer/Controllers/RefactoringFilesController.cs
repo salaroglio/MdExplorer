@@ -3,10 +3,13 @@ using AutoMapper;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Refactoring.Analysis;
+using MdExplorer.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,12 +23,19 @@ namespace MdExplorer.Service.Controllers
         private readonly IEngineDB _engineDB;
         private readonly IAnalysisEngine _analysisEngine;
         private readonly IMapper _mapper;
+        private ProcessUtil _visualStudioCode;
 
-        public RefactoringFilesController(IEngineDB engineDB,IAnalysisEngine analysisEngine, IMapper mapper)
+
+
+        public RefactoringFilesController(IEngineDB engineDB,
+                    IAnalysisEngine analysisEngine,
+                    IMapper mapper,
+                    ProcessUtil visualStudioCode)
         {
             _engineDB = engineDB;
             _analysisEngine = analysisEngine;
             _mapper = mapper;
+            _visualStudioCode = visualStudioCode;
         }
 
         [HttpGet]
@@ -33,7 +43,7 @@ namespace MdExplorer.Service.Controllers
         {
             _engineDB.BeginTransaction();
             _analysisEngine.AnalizeEvents();
-            var sourceActionDal= _engineDB.GetDal<RefactoringSourceAction>();
+            var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
             var list = sourceActionDal.GetList().ToList();
             _engineDB.Commit();
 
@@ -43,39 +53,42 @@ namespace MdExplorer.Service.Controllers
 
         }
 
-            private void RenameFile()
+        public class FileToRename
         {
-            //using (var scope = _serviceProvider.CreateScope())
-            //{
-            //    var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
+            public string Message { get; set; }
+            public string FromFileName { get; set; }
+            public string ToFileName { get; set; }
+            public string FullPath { get; set; }
+            public int Level { get; set; }
+            public string RelativePath { get; set; }
+        }
 
-            //    var oldFullPath = e.OldFullPath;
-            //    var newFullPath = e.FullPath;
-            //    // devo andare a cercare tutti i files coinvolti dal cambiamento.
-            //    var fileAttr = File.GetAttributes(newFullPath);
+        [HttpPost]
+        public IActionResult RenameFileName([FromBody] FileToRename fileData)
+        {
 
-            //    if (fileAttr.HasFlag(FileAttributes.Directory))
-            //    {
-            //        // gestisci il cambio di directory
-            //    }
-            //    else
-            //    {
-            //        // gestisci il rename di un file
-            //        var linkDal = engineDb.GetDal<MarkdownFile>();
-            //        var affectedFiles = linkDal.GetList().Where(_ => _.Links.Any(l => l.FullPath.Contains(oldFullPath)));
-            //        //linkDal.GetList().Where(_ => _.FullPath.Contains(oldFullPath)).GroupBy(_ => _.MarkdownFile);
-            //        var oldFileName = Path.GetFileName(oldFullPath);
-            //        var newFileName = Path.GetFileName(newFullPath);
+            _visualStudioCode.KillVisualStudioCode();
+            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;//.OldFullPath;
+            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;// e.FullPath;
+            // gestisci il rename di un file
+            System.IO.File.Move(oldFullPath, newFullPath);
+            if (_visualStudioCode.CurrentVisualStudio != null)
+            {
+                _visualStudioCode.ReopenVisualStudioCode(newFullPath);
+            }
+            var toReturn = new ChangeFileData
+            {
+                OldName = fileData.FromFileName,
+                OldPath = oldFullPath,
+                OldLevel = fileData.Level,
+                NewName = fileData.ToFileName,
+                NewPath = newFullPath,
+                NewLevel = fileData.Level,
+                RelativePath = fileData.RelativePath
+            };
 
-            //        foreach (var itemMarkdownFile in affectedFiles)
-            //        {
-            //            foreach (var linkManager in _linkManagers)
-            //            {
-            //                linkManager.SetLinkIntoFile(itemMarkdownFile.Path, oldFileName, newFileName);
-            //            }
-            //        }
-            //    }
 
+            return Ok(toReturn);
 
 
 
@@ -91,9 +104,19 @@ namespace MdExplorer.Service.Controllers
             //    //    // Modificare tutti i link sul db
             //    //}
 
-
-
             //}
         }
+
+        public class ChangeFileData
+        {
+            public string OldName { get; set; }
+            public string OldPath { get; set; }
+            public int OldLevel { get; set; }
+            public string NewName { get; set; }
+            public string NewPath { get; set; }
+            public int NewLevel { get; set; }
+            public string RelativePath { get; set; }
+        }
+        
     }
 }

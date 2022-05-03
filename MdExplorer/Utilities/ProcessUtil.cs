@@ -13,24 +13,51 @@ namespace MdExplorer.Service.Utilities
 {
     public class ProcessUtil
     {
-        private readonly IUserSettingsDB _session;
-        private readonly FileSystemWatcher _fileSystemWatcher;
 
-        public ProcessUtil(IUserSettingsDB session, 
+        private readonly FileSystemWatcher _fileSystemWatcher;
+        private Process _currentVisualStudio;
+        private string _lastDocumentOpened;
+        private string _editorPath;
+        public Process CurrentVisualStudio { get { return _currentVisualStudio; } }
+
+        public ProcessUtil(
             FileSystemWatcher fileSystemWatcher)
         {
-            _session = session;
+
             _fileSystemWatcher = fileSystemWatcher;
         }
-        public void OpenFileWithVisualStudioCode(string path)
+        public void OpenFileWithVisualStudioCode(string path, string editorPath)
         {
-            var settingDal = _session.GetDal<Setting>();
-            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
-                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
-
+            _editorPath = editorPath;
+            _lastDocumentOpened = path;
             var currentPath = path.Replace(@"\\", @"\"); // pulitura da mettere a posto            
             var dosCommand = $@"""{editorPath}"" -a ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
-            Process.Start(dosCommand);
+            if (_currentVisualStudio == null)
+            {
+                _currentVisualStudio = Process.Start(dosCommand);
+            }
+            else {
+                Process.Start(dosCommand);
+            }            
+        }
+
+        public void KillVisualStudioCode()
+        {
+            if (_currentVisualStudio != null)
+            {
+                _currentVisualStudio.Kill();
+                _currentVisualStudio.Dispose();
+                _currentVisualStudio = null;
+            }            
+        }
+
+
+        public void ReopenVisualStudioCode(string newDocument)
+        {
+            if (!string.IsNullOrEmpty(newDocument))
+            {
+                OpenFileWithVisualStudioCode(newDocument, _editorPath);
+            }
         }
     }
 }

@@ -21,6 +21,8 @@ using MdExplorer.Abstractions.DB;
 using System.Web;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Refactoring.Analysis.Interfaces;
+using MdExplorer.Features.Refactoring.Analysis;
 
 namespace MdExplorer.Controllers
 {
@@ -28,15 +30,19 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
+
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB session,
             IEngineDB engineDB,
-            ICommandRunnerHtml commandRunner
+            ICommandRunnerHtml commandRunner,
+            IGoodMdRule<FileInfoNode>[] GoodRules
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
+            _goodRules = GoodRules;
         }
 
         /// <summary>
@@ -82,7 +88,7 @@ namespace MdExplorer.Controllers
             var monitoredMd = new MonitoredMDModel
             {
                 Path = filePathSystem1,
-                Name = Path.GetFileName(filePathSystem1),
+                Name = Path.GetFileName(filePathSystem1),                
                 RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty)
             };
 
@@ -100,6 +106,28 @@ namespace MdExplorer.Controllers
             };
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+
+            var goodMdRuleFileNameShouldBeSameAsTitle = 
+                    _goodRules.First(_ => _.GetType() == 
+                        typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
+
+            var fileNode = new FileInfoNode { 
+                FullPath = filePathSystem1,
+                Name = Path.GetFileName(filePathSystem1),                
+                DataText = readText
+            };
+            //bool isBroken;
+            //string theNameShouldBe;
+            (var isBroken, var  theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
+            if (isBroken)
+            {
+                monitoredMd.Message = "It breaks Rule # 1";
+                monitoredMd.Action = "Rename the File!";
+                monitoredMd.FromFileName  = Path.GetFileName(filePathSystem1);
+                monitoredMd.ToFileName = theNameShouldBe;
+                monitoredMd.FullPath = Path.GetDirectoryName(filePathSystem1);
+                await _hubContext.Clients.All.SendAsync("markdownbreakrule1", monitoredMd);
+            }
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -180,7 +208,6 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
-            //System.IO.File.WriteAllText(@"test.html", doc1.InnerXml);
 
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
             //System.IO.File.WriteAllText(@"c:\\test.html", doc1.InnerXml);

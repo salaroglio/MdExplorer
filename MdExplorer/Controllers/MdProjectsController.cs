@@ -103,7 +103,10 @@ namespace MdExplorer.Service.Controllers
             projectDal.Save(project);
             _userSettingsDB.Commit();
             ProjectsManager.SetNewProject(_services, folderPath.Path);
-            _processUtil.OpenFileWithVisualStudioCode(currentIdNotes);
+            var settingDal = _userSettingsDB.GetDal<Setting>();
+            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
+                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+            _processUtil.OpenFileWithVisualStudioCode(currentIdNotes, editorPath);
             return Ok(new { message = "done", currentNote = currentIdNotes });
         }
 

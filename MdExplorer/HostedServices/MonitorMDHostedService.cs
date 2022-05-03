@@ -82,11 +82,11 @@ namespace MdExplorer.Service.HostedServices
         }
         private void _fileSystemWatcher_Renamed(object sender, RenamedEventArgs e)
         {
-            SaveReanamedEvent(e);
+            //SaveReanamedEvent(e);
 
-            var refactoringEvent = new RefactoringFileEvent();
-            refactoringEvent.EventName = "FileRenamed";
-            _hubContext.Clients.All.SendAsync("refactoringFileEvent", new { refactoringEvent = refactoringEvent });
+            //var refactoringEvent = new RefactoringFileEvent();
+            //refactoringEvent.EventName = "FileRenamed";
+            //_hubContext.Clients.All.SendAsync("refactoringFileEvent", new { refactoringEvent = refactoringEvent });
         }
         private void SaveReanamedEvent(RenamedEventArgs e)
         {

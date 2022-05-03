@@ -75,8 +75,6 @@ namespace MdExplorer.Features.Refactoring.Analysis
             }
 
             // Trovare move directory
-
-
         }
     }
 }

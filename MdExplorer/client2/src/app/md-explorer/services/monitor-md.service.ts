@@ -11,6 +11,7 @@ export class MonitorMDService {
   }
 
   private hubConnection: signalR.HubConnection
+  private rule1IsRegistered :any;
 
   public startConnection = () => {
 
@@ -48,6 +49,16 @@ export class MonitorMDService {
     this.hubConnection.on('markdownfileisprocessed', (data) => {
       callback(data, objectThis);
     });
+  }
+
+  public addMdRule1Listener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
+    if (this.rule1IsRegistered == undefined) {
+      this.rule1IsRegistered == objectThis;
+      this.hubConnection.on('markdownbreakrule1', (data) => {        
+        callback(data, objectThis);
+      });
+    }
   }
 
   public addPdfIsReadyListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {

@@ -13,7 +13,7 @@ namespace MdExplorer.Service
     {
         public static IServiceCollection AddServiceFeatures(this IServiceCollection services)
         {
-            services.AddTransient<ProcessUtil>();
+            services.AddSingleton<ProcessUtil>();
             return services;
         }
     }

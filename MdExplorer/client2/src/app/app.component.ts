@@ -7,21 +7,25 @@ import { AppCurrentFolderService } from './services/app-current-folder.service';
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
-})
+}) 
 export class AppComponent {
   @HostListener('window:unload', ['$event'])
   unloadHandler(event) {
     // E' stato dato il comando di chiusura del tab o di chrome
     // spegni il serverino che si è acceso
-    this.currentFolder.killServer();
+    if (performance.navigation.type != performance.navigation.TYPE_RELOAD) {
+      //this.currentFolder.killServer();
+    }
+    
+    //
   }
   title = 'client2';
   constructor(private titleService: Title,
     private currentFolder: AppCurrentFolderService,
     private route: ActivatedRoute,
     private router: Router) {
-   
-    currentFolder.folderName.subscribe((data:any) => {      
+    
+    currentFolder.folderName.subscribe((data: any) => {      
       this.titleService.setTitle(data.currentFolder);
     });
     currentFolder.loadFolderName();

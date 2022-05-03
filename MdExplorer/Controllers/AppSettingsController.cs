@@ -70,7 +70,11 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult OpenFile(string path)
         {
-            _processUtil.OpenFileWithVisualStudioCode(path);
+            var settingDal = _session.GetDal<Setting>();
+            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
+                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+
+            _processUtil.OpenFileWithVisualStudioCode(path, editorPath);
             return Ok(new { message = "opened" });
         }
 
@@ -103,7 +107,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult KillServer()
         {
-            //Environment.Exit(0);
+            Environment.Exit(0);
             return Ok(new { message = "self-destruction activated" });
         }
 
