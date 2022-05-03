@@ -2,6 +2,6 @@
 {
     public interface IAnalysisEngine
     {
-        void AnalizeEvents();
+        void AnalizeEvents();        
     }
 }

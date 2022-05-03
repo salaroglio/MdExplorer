@@ -22,8 +22,8 @@ export class ProjectsComponent implements OnInit {
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]
 
   ngOnInit(): void {
-    this.projectService.fetchProjects();
-    this.dataSource = this.projectService.mdProjects;
+    //this.projectService.fetchProjects();
+    //this.dataSource = this.projectService.mdProjects;
   }
 
 
@@ -33,21 +33,6 @@ export class ProjectsComponent implements OnInit {
 
   openNewFolder(): void {
     this.router.navigate(['/projects/newproject']);
-    //const dialogRef = this.dialog.open(OpenNewFolderComponent, {
-    //  width: '600px',
-    //  data: { name: 'test' }
-    //});
-
-    //dialogRef.afterClosed().subscribe(selectedPath => {
-    //  this.projectService.setNewFolderProject(selectedPath, this.loadNewProject, this);
-
-    //});
   }
-
-  //openNewFolderExample(): void {
-  //  this.router.navigate(['/projects/tree']);
-    
-  //}
-
 
 }

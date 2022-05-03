@@ -1,5 +1,27 @@
 (window["webpackJsonp"] = window["webpackJsonp"] || []).push([["common"],{
 
+/***/ "aS6m":
+/*!***********************************************!*\
+  !*** ./src/app/md-explorer/models/md-file.ts ***!
+  \***********************************************/
+/*! exports provided: MdFile */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdFile", function() { return MdFile; });
+class MdFile {
+    constructor(name, path, level, expandable) {
+        this.name = name;
+        this.path = path;
+        this.level = level;
+        this.expandable = expandable;
+    }
+}
+
+
+/***/ }),
+
 /***/ "xmhS":
 /*!*********************************************************!*\
   !*** ./src/app/md-explorer/services/md-file.service.ts ***!
@@ -20,6 +42,7 @@ __webpack_require__.r(__webpack_exports__);
 class MdFileService {
     constructor(http) {
         this.http = http;
+        this.foundMd = false;
         this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [] };
         this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdFoldersDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
@@ -81,7 +104,31 @@ class MdFileService {
     }
     GetHtml(path) {
         const url = '../api/mdexplorer/' + path;
-        return this.http.get(url, { responseType: 'text' }); //, currentFile
+        return this.http.get(url, { responseType: 'text' }); //, currentFile      
+    }
+    changeDataStoreMdFiles(oldFile, newFile) {
+        debugger;
+        this.exploreMdFiles(this.dataStore.mdFiles, oldFile, newFile);
+        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    }
+    exploreMdFiles(arrayMd, oldFile, newFile) {
+        if (arrayMd.length == 0) {
+            return;
+        }
+        var thatFile = arrayMd.find(_ => _.fullPath == oldFile.path);
+        if (thatFile == undefined) {
+            arrayMd.map(_ => {
+                if (!this.foundMd) {
+                    this.exploreMdFiles(_.childrens, oldFile, newFile);
+                }
+            });
+        }
+        else {
+            debugger;
+            this.foundMd = true;
+            thatFile.name = newFile.name;
+            thatFile.path = newFile.path;
+        }
     }
 }
 MdFileService.ɵfac = function MdFileService_Factory(t) { return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpClient"])); };

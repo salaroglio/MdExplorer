@@ -67,6 +67,7 @@ export class AppCurrentFolderService {
 
   killServer() {
     const url = '../api/AppSettings/KillServer';
+    debugger;
     return this.http.get(url).subscribe(data => {
       debugger;
     });

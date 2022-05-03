@@ -86,15 +86,42 @@ export class MdFileService {
   loadDocumentFolder(path: string, level: number): Observable<MdFile[]> {
     const url = '../api/mdfiles/GetDynFoldersDocument';
     var params = new HttpParams().set('path', path).set('level', String(level));
-
     return this.http.get<MdFile[]>(url, { params });
   }
 
 
   GetHtml(path: string) { //, currentFile: MdFile
     const url = '../api/mdexplorer/' + path;
-    return this.http.get(url, { responseType: 'text' })//, currentFile
-      
+    return this.http.get(url, { responseType: 'text' })//, currentFile      
   }
+
+  changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
+    debugger;
+    this.exploreMdFiles(this.dataStore.mdFiles, oldFile, newFile);
+    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+  }
+
+  foundMd: boolean = false;
+
+  exploreMdFiles(arrayMd: MdFile[], oldFile: MdFile, newFile: MdFile) {
+    if (arrayMd.length == 0) {
+      return;
+    }
+    var thatFile = arrayMd.find(_ => _.fullPath == oldFile.path);
+    if (thatFile == undefined) {
+      arrayMd.map(_ => {
+        if (!this.foundMd) {    
+          this.exploreMdFiles(_.childrens, oldFile, newFile);
+        }        
+      });
+    } else {
+      debugger;
+      this.foundMd = true;
+      thatFile.name = newFile.name;
+      thatFile.path = newFile.path;
+    }
+  }
+
+
 
 }

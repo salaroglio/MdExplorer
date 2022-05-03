@@ -8,6 +8,8 @@ import { SideNavDataService } from '../../services/side-nav-data.service';
 import { SettingsComponent } from '../settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
+import { RulesComponent } from '../rules/rules.component';
+import { MdRefactoringService } from '../../services/md-refactoring.service';
 
 @Component({
   selector: 'app-toolbar',
@@ -29,6 +31,7 @@ export class ToolbarComponent implements OnInit {
     private _snackBar: MatSnackBar,
     private router: Router,
     private mdFileService: MdFileService,
+    
   ) {
     this.TitleToShow = "MdExplorer";
   }
@@ -37,29 +40,42 @@ export class ToolbarComponent implements OnInit {
   openRefactoring(): void {
     const dialogRef = this.dialog.open(RenameFileComponent, {
       width: '600px',
-      data: { name: this.plantumlServer }
+      
     });
   }
 
   openDialog(): void {
     const dialogRef = this.dialog.open(SettingsComponent, {
       width: '300px',
-      data: { name: this.plantumlServer }
+      
     });
     
-
     dialogRef.afterClosed().subscribe(result => {
       console.log('The dialog was closed');
-      this.plantumlServer = result;
+      
     });
   }
-  
+
+  openRules(data:any): void {
+    const dialogRef = this.dialog.open(RulesComponent, {
+      width: '600px',
+      data: data
+    });
+    
+  }
+
 
   ngOnInit(): void {
     this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
     this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
+    this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
   }
+
+  private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
+    objectThis.openRules(data);
+  }
+
 
   private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
     objectThis.mdFileService.loadAll(null,null);
@@ -72,8 +88,7 @@ export class ToolbarComponent implements OnInit {
       .subscribe(data => { console.log(data) });
   }
 
-  private sendExporEmailRequest(data, objectThis: ToolbarComponent) {
-    debugger;
+  private sendExporEmailRequest(data, objectThis: ToolbarComponent) {    
     const url = '../api/mdexportemail/' + objectThis.relativePath + '?connectionId=' + data;
     return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });

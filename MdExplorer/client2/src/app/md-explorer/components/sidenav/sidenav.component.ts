@@ -9,6 +9,7 @@ import { IFileInfoNode } from '../../models/IFileInfoNode';
 import { Router, ActivatedRoute } from '@angular/router';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { MatDialog } from '@angular/material/dialog';
+import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -54,17 +55,17 @@ export class SidenavComponent implements OnInit {
 
   private hooked: boolean = false;
 
-  private mousex: number;
-  private mousey: number;
   public sideNavWidth: string = "240px";
   public classForBorderDiv: string = "border-div";
+  public titleProject: string;
 
   constructor(private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private router: Router,
     private sideNavDataService: SideNavDataService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private currentFolder: AppCurrentFolderService
   ) {
     this.dataSource.data = TREE_DATA;
     document.addEventListener("mousemove", (event) => {
@@ -77,6 +78,10 @@ export class SidenavComponent implements OnInit {
         this.stopResizeWidth();
       }
     });
+    this.currentFolder.folderName.subscribe((data: any) => {      
+      this.titleProject = data.currentFolder;
+    });
+    this.currentFolder.loadFolderName();
   }
 
   resizeWidth(): void {    
@@ -99,6 +104,7 @@ export class SidenavComponent implements OnInit {
 
 
   ngOnInit(): void {
+    
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches

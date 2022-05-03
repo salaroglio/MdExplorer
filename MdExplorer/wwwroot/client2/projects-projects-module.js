@@ -440,28 +440,6 @@ ProjectsModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInj
 
 /***/ }),
 
-/***/ "aS6m":
-/*!***********************************************!*\
-  !*** ./src/app/md-explorer/models/md-file.ts ***!
-  \***********************************************/
-/*! exports provided: MdFile */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdFile", function() { return MdFile; });
-class MdFile {
-    constructor(name, path, level, expandable) {
-        this.name = name;
-        this.path = path;
-        this.level = level;
-        this.expandable = expandable;
-    }
-}
-
-
-/***/ }),
-
 /***/ "vUCT":
 /*!**********************************************************!*\
   !*** ./src/app/md-explorer/services/projects.service.ts ***!
@@ -552,21 +530,14 @@ class ProjectsComponent {
         this.dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }];
     }
     ngOnInit() {
-        this.projectService.fetchProjects();
-        this.dataSource = this.projectService.mdProjects;
+        //this.projectService.fetchProjects();
+        //this.dataSource = this.projectService.mdProjects;
     }
     openRecent() {
         this.router.navigate(['/projects/openrecent']);
     }
     openNewFolder() {
         this.router.navigate(['/projects/newproject']);
-        //const dialogRef = this.dialog.open(OpenNewFolderComponent, {
-        //  width: '600px',
-        //  data: { name: 'test' }
-        //});
-        //dialogRef.afterClosed().subscribe(selectedPath => {
-        //  this.projectService.setNewFolderProject(selectedPath, this.loadNewProject, this);
-        //});
     }
 }
 ProjectsComponent.ɵfac = function ProjectsComponent_Factory(t) { return new (t || ProjectsComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_1__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["Router"])); };
