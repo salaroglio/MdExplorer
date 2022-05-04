@@ -37,7 +37,7 @@ export class MdFileService {
     return this._mdDynFolderDocument.asObservable();
   }
 
-  loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
+  loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {    
     const url = '../api/mdfiles/GetAllMdFiles';
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
@@ -107,7 +107,7 @@ export class MdFileService {
     if (arrayMd.length == 0) {
       return;
     }
-    var thatFile = arrayMd.find(_ => _.fullPath == oldFile.path);
+    var thatFile = arrayMd.find(_ => _.fullPath == oldFile.fullPath);
     if (thatFile == undefined) {
       arrayMd.map(_ => {
         if (!this.foundMd) {    

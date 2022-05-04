@@ -84,7 +84,7 @@ namespace MdExplorer.Service.Controllers
                 NewName = fileData.ToFileName,
                 NewPath = newFullPath,
                 NewLevel = fileData.Level,
-                RelativePath = fileData.RelativePath
+                RelativePath = Path.GetDirectoryName(fileData.RelativePath)
             };
 
 
