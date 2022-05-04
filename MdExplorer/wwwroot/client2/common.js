@@ -115,7 +115,7 @@ class MdFileService {
         if (arrayMd.length == 0) {
             return;
         }
-        var thatFile = arrayMd.find(_ => _.fullPath == oldFile.path);
+        var thatFile = arrayMd.find(_ => _.fullPath == oldFile.fullPath);
         if (thatFile == undefined) {
             arrayMd.map(_ => {
                 if (!this.foundMd) {

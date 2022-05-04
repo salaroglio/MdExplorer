@@ -3294,6 +3294,7 @@ class SidenavComponent {
         this.mdFileService.mdFiles.subscribe(data => {
             this.dataSource.data = data;
         });
+        debugger;
         this.mdFileService.loadAll(this.deferredOpenProject, this);
     }
     getNode(node) {
@@ -3392,13 +3393,15 @@ class RulesComponent {
         this.toFileName = this.data.toFileName;
     }
     changeName() {
-        debugger;
         this.refactoringService.renameFileName(this.data)
             .subscribe(data => {
-            var oldPath = data.relativePath + '/' + data.oldName;
-            var newPath = data.relativePath + '/' + data.newName;
-            var oldFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](data.oldName, data.oldPath, data.oldLevel, false);
-            var newFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](data.newName, data.newPath, data.newLevel, false);
+            var oldPath = data.relativePath + '\\' + data.oldName;
+            var newPath = data.relativePath + '\\' + data.newName;
+            debugger;
+            var oldFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](data.oldName, oldPath, data.oldLevel, false);
+            oldFile.fullPath = data.oldPath;
+            var newFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](data.newName, newPath, data.newLevel, false);
+            newFile.fullPath = data.newPath;
             this.mdFileService.changeDataStoreMdFiles(oldFile, newFile);
             this.dialogRef.close(null);
         });

@@ -366,7 +366,6 @@ class OpenRecentComponent {
     }
     loadNewProject(data, objectThis) {
         var dateTime = new Date();
-        objectThis.mdFileService.loadAll(null, null);
         objectThis.router.navigate(['/main/navigation']);
     }
 }

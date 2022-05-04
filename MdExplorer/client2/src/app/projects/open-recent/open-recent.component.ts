@@ -39,7 +39,6 @@ export class OpenRecentComponent implements OnInit {
 
   loadNewProject(data: any, objectThis: OpenRecentComponent) {    
     var dateTime = new Date();
-    objectThis.mdFileService.loadAll(null, null);
     objectThis.router.navigate(['/main/navigation']);
   }
 }
