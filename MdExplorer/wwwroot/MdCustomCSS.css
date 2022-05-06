@@ -1,7 +1,19 @@
-﻿/* little stupid changes for tocbot*/
- li .toc-list-item {    
+﻿/*change color to folders in treeview*/
+
+.gold-icon {
+    color: gold;
+}
+
+/* Note: If you're using an SVG icon, you should make the class target the `<svg>` element */
+.gold-icon svg {
+    fill: gold;
+}
+
+
+/* little stupid changes for tocbot*/
+li .toc-list-item {
     border-bottom: dashed !important;
-    border-color:green !important;
+    border-color: green !important;
     border-width: 1px !important;
 }
 
@@ -25,6 +37,7 @@ div .warning p em {
     position: absolute;
     border: 1px solid black;
 }
+
 .movedAndFixed {
     position: absolute;
     background: none;
@@ -41,7 +54,7 @@ img.overrideImgFluid {
 
 
 .resizable {
-    border:1px solid black;
+    border: 1px solid black;
     display: inline-block;
     background: white;
     resize: both;
@@ -49,14 +62,14 @@ img.overrideImgFluid {
     line-height: 0;
 }
 
-.resizable img {
-    width: 100%;
-    height: 100%;
-}
+    .resizable img {
+        width: 100%;
+        height: 100%;
+    }
 
 .defaultImg {
-    width:300px;
-    height:200px;
+    width: 300px;
+    height: 200px;
 }
 
 .s1 {
@@ -64,6 +77,7 @@ img.overrideImgFluid {
     border: 1px dotted blue;
     margin: 5px 0 5px 0;
 }
+
 .s2 {
     height: auto;
     border: 1px dotted red;
@@ -93,9 +107,9 @@ img.overrideImgFluid {
     text-align: center;
 }
 
-.img-overlay:before {
-    content: ' ';
-    display: block;
-    /* adjust 'height' to position overlay content vertically */
-    height: 05%;
-}
+    .img-overlay:before {
+        content: ' ';
+        display: block;
+        /* adjust 'height' to position overlay content vertically */
+        height: 05%;
+    }

@@ -18,12 +18,14 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
     <FileAlignment>512</FileAlignment>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -171,18 +173,6 @@
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
     <None Remove="reference.docx" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <COMReference Include="Microsoft.Office.Interop.Outlook">
-      <WrapperTool>tlbimp</WrapperTool>
-      <VersionMinor>6</VersionMinor>
-      <VersionMajor>9</VersionMajor>
-      <Guid>00062fff-0000-0000-c000-000000000046</Guid>
-      <Lcid>0</Lcid>
-      <Isolated>false</Isolated>
-      <EmbedInteropTypes>true</EmbedInteropTypes>
-    </COMReference>
   </ItemGroup>
 
 

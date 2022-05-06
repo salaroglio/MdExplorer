@@ -12,17 +12,21 @@ export class MdFileService {
   private _mdFiles: BehaviorSubject<MdFile[]>;
   private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
   public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
+  public _serverSelectedMdFile: BehaviorSubject<MdFile[]>;
 
   private dataStore: {
     mdFiles: MdFile[]
     mdFoldersDocument: MdFile[]
-    mdDynFolderDocument:MdFile[]
+    mdDynFolderDocument: MdFile[]
+    serverSelectedMdFile: MdFile[]
   }
   constructor(private http: HttpClient) {
-    this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument:[] };
+    var defaultSelectedMdFile = [];
+    this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [], serverSelectedMdFile: defaultSelectedMdFile };
     this._mdFiles = new BehaviorSubject<MdFile[]>([]);
     this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
     this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
+    this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
 
   }
 
@@ -35,6 +39,10 @@ export class MdFileService {
 
   get mdDynFolderDocument(): Observable<MdFile[]> {
     return this._mdDynFolderDocument.asObservable();
+  }
+
+  get serverSelectedMdFile(): Observable<MdFile[]> {
+    return this._serverSelectedMdFile.asObservable();
   }
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {    
@@ -95,30 +103,52 @@ export class MdFileService {
     return this.http.get(url, { responseType: 'text' })//, currentFile      
   }
 
-  changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
-    debugger;
-    this.exploreMdFiles(this.dataStore.mdFiles, oldFile, newFile);
-    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-  }
 
   foundMd: boolean = false;
+  arrayAncestorMd: MdFile[];
 
+  /**
+   * Funzione di sostituzione di un nodo, con un altro
+   * @param oldFile
+   * @param newFile
+   */
+  changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
+    this.foundMd = false;
+    this.arrayAncestorMd = [];
+    this.exploreMdFiles(this.dataStore.mdFiles, oldFile, newFile);
+    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    this._serverSelectedMdFile.next(this.arrayAncestorMd);
+  }
+
+/**
+ * Funzione di esplorazione dell'albero per trovare il nodo
+ * @param arrayMd
+ * @param oldFile
+ * @param newFile
+ */
   exploreMdFiles(arrayMd: MdFile[], oldFile: MdFile, newFile: MdFile) {
     if (arrayMd.length == 0) {
       return;
     }
     var thatFile = arrayMd.find(_ => _.fullPath == oldFile.fullPath);
     if (thatFile == undefined) {
-      arrayMd.map(_ => {
-        if (!this.foundMd) {    
+      for (var i = 0; i < arrayMd.length; i++) {
+        var _ = arrayMd[i];
+        if (!this.foundMd) {
           this.exploreMdFiles(_.childrens, oldFile, newFile);
-        }        
-      });
-    } else {
-      debugger;
+        } 
+        if (this.foundMd) {
+          this.arrayAncestorMd.push(_);
+          break;
+        }
+      }
+
+    } else {      
       this.foundMd = true;
       thatFile.name = newFile.name;
       thatFile.path = newFile.path;
+      this.arrayAncestorMd.push(thatFile);
+      //
     }
   }
 

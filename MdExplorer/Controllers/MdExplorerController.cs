@@ -46,7 +46,7 @@ namespace MdExplorer.Controllers
         }
 
         /// <summary>
-        /// Get all goodies available in html
+        /// Get all goodies available in html     
         /// It's good to get images for example
         /// </summary>
         /// <returns></returns>

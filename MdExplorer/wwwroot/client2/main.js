@@ -378,6 +378,9 @@ const routes = [
     { path: '**', redirectTo: 'projects' }
 ];
 class AppModule {
+    constructor() {
+        console.log('AppModuleConstructor');
+    }
 }
 AppModule.ɵfac = function AppModule_Factory(t) { return new (t || AppModule)(); };
 AppModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_5__["AppComponent"]] });

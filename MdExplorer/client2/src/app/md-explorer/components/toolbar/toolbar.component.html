@@ -1,25 +1,25 @@
 <mat-toolbar color="primary">
-  <button mat-button (click)="toggleSidenav.emit()">
+  <button mat-icon-button (click)="toggleSidenav.emit()">
     <mat-icon>vertical_split</mat-icon>
   </button>
-  <button mat-button (click)="OpenEditor()">
+  <button mat-icon-button (click)="OpenEditor()">
     <mat-icon>edit</mat-icon>
   </button>
-  <button mat-button (click)="Export()">
+  <button mat-icon-button (click)="Export()">
     <mat-icon>directions</mat-icon>
   </button>
-  <button mat-button (click)="openRefactoring()">
+  <button mat-icon-button (click)="openDialog()">
+    <mat-icon>settings</mat-icon>
+  </button>
+  <button mat-icon-button (click)="openRefactoring()">
     <mat-icon>rule</mat-icon>
   </button>
-  <button mat-button (click)="ExportEmail()">
+  <!--<button mat-icon-button (click)="ExportEmail()">
     <mat-icon>email</mat-icon>
-  </button>
+  </button>-->
+
   <span>{{TitleToShow}}</span>
-  <div align="right">
-    <button mat-button (click)="openDialog()">
-      <mat-icon>settings</mat-icon>
-    </button>
-  </div>
+
 
 
 

@@ -42,6 +42,7 @@ export class MonitorMDService {
   public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('markdownfileischanged', (data) => {
       callback(data, objectThis);
+      console.log('markdownfileischanged');
     });
   }
 
@@ -53,8 +54,9 @@ export class MonitorMDService {
 
   public addMdRule1Listener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
+    console.log('addMdRule1Listener');
     if (this.rule1IsRegistered == undefined) {
-      this.rule1IsRegistered == objectThis;
+      this.rule1IsRegistered = objectThis;
       this.hubConnection.on('markdownbreakrule1', (data) => {        
         callback(data, objectThis);
       });

@@ -422,6 +422,9 @@ const routes = [
     }
 ];
 class ProjectsModule {
+    constructor() {
+        console.log('constructor ProjectsModule');
+    }
 }
 ProjectsModule.ɵfac = function ProjectsModule_Factory(t) { return new (t || ProjectsModule)(); };
 ProjectsModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineNgModule"]({ type: ProjectsModule });

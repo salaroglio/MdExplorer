@@ -11,7 +11,7 @@ const routes: Routes = [
   {
     path: '', component: ProjectsComponent,
     children: [
-      {path:'',redirectTo:'openrecent',pathMatch:'full'},
+      { path: '', redirectTo: 'openrecent', pathMatch: 'full' },
       { path: 'openrecent', component: OpenRecentComponent },
       { path: 'newproject', component: NewProjectComponent },
     ]
@@ -29,7 +29,11 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     CommonModule,
     MaterialModule,
-    
+
   ]
 })
-export class ProjectsModule { }
+export class ProjectsModule {
+  constructor() {
+    console.log('constructor ProjectsModule');
+  }
+}

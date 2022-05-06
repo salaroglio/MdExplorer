@@ -20,6 +20,7 @@ interface IFlatNode {
   expandable: boolean;
   name: string;
   level: number;
+  path: string;
 }
 
 @Component({
@@ -82,6 +83,19 @@ export class SidenavComponent implements OnInit {
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
+    this.mdFileService.serverSelectedMdFile.subscribe(_ => {     
+      while (_.length > 1) {
+        var toExpand = _.pop();
+        var test = this.treeControl.dataNodes.find(_=>_.path == toExpand.path) ;
+        
+        this.treeControl.expand(test);
+      }
+      debugger;
+      if (_.length >0) {        
+        var toExpand = _.pop();
+        this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
+      }      
+    });
   }
 
   resizeWidth(): void {    

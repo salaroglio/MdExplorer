@@ -40,7 +40,6 @@ export class ToolbarComponent implements OnInit {
   openRefactoring(): void {
     const dialogRef = this.dialog.open(RenameFileComponent, {
       width: '600px',
-      
     });
   }
 
@@ -60,12 +59,11 @@ export class ToolbarComponent implements OnInit {
     const dialogRef = this.dialog.open(RulesComponent, {
       width: '600px',
       data: data
-    });
-    
+    });    
   }
 
 
-  ngOnInit(): void {
+  ngOnInit(): void {    
     this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
     this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
@@ -75,7 +73,6 @@ export class ToolbarComponent implements OnInit {
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
     objectThis.openRules(data);
   }
-
 
   private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
     objectThis.mdFileService.loadAll(null,null);
@@ -88,11 +85,11 @@ export class ToolbarComponent implements OnInit {
       .subscribe(data => { console.log(data) });
   }
 
-  private sendExporEmailRequest(data, objectThis: ToolbarComponent) {    
-    const url = '../api/mdexportemail/' + objectThis.relativePath + '?connectionId=' + data;
-    return objectThis.http.get(url)
-      .subscribe(data => { console.log(data) });
-  }
+  //private sendExporEmailRequest(data, objectThis: ToolbarComponent) {    
+  //  const url = '../api/mdexportemail/' + objectThis.relativePath + '?connectionId=' + data;
+  //  return objectThis.http.get(url)
+  //    .subscribe(data => { console.log(data) });
+  //}
 
   private showPdfIsready(data: any, objectThis: ToolbarComponent) {
     let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds , "Open folder", { duration: 5000, verticalPosition: 'top' });
@@ -104,7 +101,6 @@ export class ToolbarComponent implements OnInit {
   }
 
   private updateModifiedMarkDown(data: any, objectThis: any) {
-    console.log(data);    
     objectThis.TitleToShow = data.name;
     objectThis.absolutePath = data.path;
     objectThis.relativePath = data.relativePath;
@@ -121,9 +117,9 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
   }
 
-  ExportEmail() {
-    this._snackBar.open("Email queued!", null, { duration: 2000, verticalPosition: 'top' });
-    this.monitorMDService.getConnectionId(this.sendExporEmailRequest, this);
-  }
+  //ExportEmail() {
+  //  this._snackBar.open("Email queued!", null, { duration: 2000, verticalPosition: 'top' });
+  //  this.monitorMDService.getConnectionId(this.sendExporEmailRequest, this);
+  //}
    
 }

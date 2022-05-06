@@ -43,10 +43,12 @@ class MdFileService {
     constructor(http) {
         this.http = http;
         this.foundMd = false;
-        this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [] };
+        var defaultSelectedMdFile = [];
+        this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [], serverSelectedMdFile: defaultSelectedMdFile };
         this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdFoldersDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
+        this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
     }
     get mdFiles() {
         return this._mdFiles.asObservable();
@@ -56,6 +58,9 @@ class MdFileService {
     }
     get mdDynFolderDocument() {
         return this._mdDynFolderDocument.asObservable();
+    }
+    get serverSelectedMdFile() {
+        return this._serverSelectedMdFile.asObservable();
     }
     loadAll(callback, objectThis) {
         const url = '../api/mdfiles/GetAllMdFiles';
@@ -106,28 +111,47 @@ class MdFileService {
         const url = '../api/mdexplorer/' + path;
         return this.http.get(url, { responseType: 'text' }); //, currentFile      
     }
+    /**
+     * Funzione di sostituzione di un nodo, con un altro
+     * @param oldFile
+     * @param newFile
+     */
     changeDataStoreMdFiles(oldFile, newFile) {
-        debugger;
+        this.foundMd = false;
+        this.arrayAncestorMd = [];
         this.exploreMdFiles(this.dataStore.mdFiles, oldFile, newFile);
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        this._serverSelectedMdFile.next(this.arrayAncestorMd);
     }
+    /**
+     * Funzione di esplorazione dell'albero per trovare il nodo
+     * @param arrayMd
+     * @param oldFile
+     * @param newFile
+     */
     exploreMdFiles(arrayMd, oldFile, newFile) {
         if (arrayMd.length == 0) {
             return;
         }
         var thatFile = arrayMd.find(_ => _.fullPath == oldFile.fullPath);
         if (thatFile == undefined) {
-            arrayMd.map(_ => {
+            for (var i = 0; i < arrayMd.length; i++) {
+                var _ = arrayMd[i];
                 if (!this.foundMd) {
                     this.exploreMdFiles(_.childrens, oldFile, newFile);
                 }
-            });
+                if (this.foundMd) {
+                    this.arrayAncestorMd.push(_);
+                    break;
+                }
+            }
         }
         else {
-            debugger;
             this.foundMd = true;
             thatFile.name = newFile.name;
             thatFile.path = newFile.path;
+            this.arrayAncestorMd.push(thatFile);
+            //
         }
     }
 }
