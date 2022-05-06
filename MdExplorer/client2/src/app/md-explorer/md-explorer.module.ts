@@ -50,4 +50,8 @@ const routes: Routes = [
     MdFileService
   ]
 })
-export class MdExplorerModule { }
+export class MdExplorerModule {
+  constructor() {
+    console.log('constructor MdExplorerModule');
+  }
+}

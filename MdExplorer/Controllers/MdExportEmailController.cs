@@ -39,60 +39,60 @@ namespace MdExplorer.Service.Controllers
             _commandRunner = commandRunner;
         }
 
-        [HttpGet]
-        public IActionResult Get(string connectionId)
-        {
-            try
-            {
-                var filePath = _fileSystemWatcher.Path;
-                var relativePathFileSystem = GetRelativePathFileSystem("mdexportemail");
-                var systemPathFile = string.Concat(filePath, relativePathFileSystem); // filesystem path
-                Microsoft.Office.Interop.Outlook.Application oApp = new Microsoft.Office.Interop.Outlook.Application();
-                Microsoft.Office.Interop.Outlook._MailItem oMailItem = 
-                    (Microsoft.Office.Interop.Outlook._MailItem)oApp.CreateItem(Microsoft.Office.Interop.Outlook.OlItemType.olMailItem);
+        //[HttpGet]
+        //public IActionResult Get(string connectionId)
+        //{
+        //    try
+        //    {
+        //        var filePath = _fileSystemWatcher.Path;
+        //        var rel   ativePathFileSystem = GetRelativePathFileSystem("mdexportemail");
+        //        var systemPathFile = string.Concat(filePath, relativePathFileSystem); // filesystem path
+        //        Microsoft.Office.Interop.Outlook.Application oApp = new Microsoft.Office.Interop.Outlook.Application();
+        //        Microsoft.Office.Interop.Outlook._MailItem oMailItem = 
+        //            (Microsoft.Office.Interop.Outlook._MailItem)oApp.CreateItem(Microsoft.Office.Interop.Outlook.OlItemType.olMailItem);
 
-                var markdown = System.IO.File.ReadAllText(systemPathFile);
+        //        var markdown = System.IO.File.ReadAllText(systemPathFile);
 
-                var requestInfo = new RequestInfo()
-                {
-                    CurrentQueryRequest = relativePathFileSystem,
-                    CurrentRoot = _fileSystemWatcher.Path,
-                    AbsolutePathFile = systemPathFile
-                };
-                markdown = _commandRunner.TransformInNewMDFromMD(markdown, requestInfo);
+        //        var requestInfo = new RequestInfo()
+        //        {
+        //            CurrentQueryRequest = relativePathFileSystem,
+        //            CurrentRoot = _fileSystemWatcher.Path,
+        //            AbsolutePathFile = systemPathFile
+        //        };
+        //        markdown = _commandRunner.TransformInNewMDFromMD(markdown, requestInfo);
 
 
-                var pipeline = new MarkdownPipelineBuilder()
-               .UseAdvancedExtensions()
+        //        var pipeline = new MarkdownPipelineBuilder()
+        //       .UseAdvancedExtensions()
                
-               .UsePipeTables()
-               .UseBootstrap()               
-               .UseEmojiAndSmiley()
-               .UseYamlFrontMatter()
-               .UseGenericAttributes()
-               .Build();
+        //       .UsePipeTables()
+        //       .UseBootstrap()               
+        //       .UseEmojiAndSmiley()
+        //       .UseYamlFrontMatter()
+        //       .UseGenericAttributes()
+        //       .Build();
 
-                Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+        //        Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
-                var result = Markdown.ToHtml(markdown, pipeline);
+        //        var result = Markdown.ToHtml(markdown, pipeline);
 
-                result = _commandRunner.TransformAfterConversion(result, requestInfo);
+        //        result = _commandRunner.TransformAfterConversion(result, requestInfo);
                 
 
-                oMailItem.HTMLBody = result;
-                oMailItem.Display();
-            }
-            catch(Exception ex)
-            {
-                return Problem($@"No good:{ex.Message}" );
-            }
-            return Ok("Done");
-        }
+        //        oMailItem.HTMLBody = result;
+        //        oMailItem.Display();
+        //    }
+        //    catch(Exception ex)
+        //    {
+        //        return Problem($@"No good:{ex.Message}" );
+        //    }
+        //    return Ok("Done");
+        //}
 
-        protected string GetRelativePathFileSystem(string controllerName)
-        {
-            //mdexplorer
-            return HttpUtility.UrlDecode(Request.Path.ToString().Replace($"/api/{controllerName}/", string.Empty).Replace('/', Path.DirectorySeparatorChar));
-        }
+        //protected string GetRelativePathFileSystem(string controllerName)
+        //{
+        //    //mdexplorer
+        //    return HttpUtility.UrlDecode(Request.Path.ToString().Replace($"/api/{controllerName}/", string.Empty).Replace('/', Path.DirectorySeparatorChar));
+        //}
     }
 }
