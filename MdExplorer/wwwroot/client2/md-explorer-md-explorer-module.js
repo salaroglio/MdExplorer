@@ -2423,7 +2423,7 @@ class ToolbarComponent {
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
         this.mdFileService.serverSelectedMdFile.subscribe(val => {
             debugger;
-            var current = val.pop();
+            var current = val[0];
             if (current != undefined) {
                 this.TitleToShow = current.name;
                 this.absolutePath = current.fullPath;
