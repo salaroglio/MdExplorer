@@ -13,4 +13,5 @@ export class MdFile implements IFileInfoNode {
   isLoading: boolean;
   childrens: MdFile[];
   fullPath: string;
+  relativePath: string;
 }

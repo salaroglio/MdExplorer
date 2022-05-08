@@ -19,6 +19,7 @@ namespace MdExplorer.Service.Utilities
         private string _lastDocumentOpened;
         private string _editorPath;
         public Process CurrentVisualStudio { get { return _currentVisualStudio; } }
+        public bool IKilled { get; set; }
 
         public ProcessUtil(
             FileSystemWatcher fileSystemWatcher)
@@ -32,7 +33,7 @@ namespace MdExplorer.Service.Utilities
             _lastDocumentOpened = path;
             var currentPath = path.Replace(@"\\", @"\"); // pulitura da mettere a posto            
             var dosCommand = $@"""{editorPath}"" -a ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
-            if (_currentVisualStudio == null)
+            if (_currentVisualStudio == null || _currentVisualStudio.HasExited)
             {
                 _currentVisualStudio = Process.Start(dosCommand);
             }
@@ -43,11 +44,12 @@ namespace MdExplorer.Service.Utilities
 
         public void KillVisualStudioCode()
         {
-            if (_currentVisualStudio != null)
+            if (_currentVisualStudio != null && !_currentVisualStudio.HasExited)
             {
                 _currentVisualStudio.Kill();
-                _currentVisualStudio.Dispose();
-                _currentVisualStudio = null;
+                IKilled = true;
+                //_currentVisualStudio.Dispose();
+                //_currentVisualStudio = null;
             }            
         }
 

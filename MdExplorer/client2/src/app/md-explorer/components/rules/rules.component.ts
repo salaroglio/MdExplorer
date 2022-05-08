@@ -36,12 +36,13 @@ export class RulesComponent implements OnInit {
     this.refactoringService.renameFileName(this.data)
       .subscribe(data => {
         var oldPath = data.relativePath + '\\' + data.oldName;
-        var newPath = data.relativePath + '\\' + data.newName;
-        debugger;
-        var oldFile = new MdFile(data.oldName, oldPath , data.oldLevel, false);
+        var newPath = data.relativePath + '\\' + data.newName;        
+        var oldFile = new MdFile(data.oldName, oldPath, data.oldLevel, false);
+        oldFile.relativePath = oldPath;
         oldFile.fullPath = data.oldPath;
         var newFile = new MdFile(data.newName, newPath, data.newLevel, false);
         newFile.fullPath = data.newPath;
+        newFile.relativePath = newPath;
         this.mdFileService.changeDataStoreMdFiles(oldFile, newFile);
         this.dialogRef.close(null);
       });

@@ -66,13 +66,15 @@ namespace MdExplorer.Service.Controllers
         [HttpPost]
         public IActionResult RenameFileName([FromBody] FileToRename fileData)
         {
-
+            _visualStudioCode.IKilled = false;
             _visualStudioCode.KillVisualStudioCode();
             var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;//.OldFullPath;
             var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;// e.FullPath;
             // gestisci il rename di un file
             System.IO.File.Move(oldFullPath, newFullPath);
-            if (_visualStudioCode.CurrentVisualStudio != null)
+            if (_visualStudioCode.CurrentVisualStudio != null && 
+                _visualStudioCode.CurrentVisualStudio.HasExited &&
+                _visualStudioCode.IKilled)
             {
                 _visualStudioCode.ReopenVisualStudioCode(newFullPath);
             }

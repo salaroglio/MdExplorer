@@ -1781,6 +1781,7 @@ class MonitorMDService {
             });
         };
         this.startConnection();
+        console.log('MonitorMDService constructor');
     }
     addOnCloseEvent(callback, objectThis) {
         this.hubConnection.onclose((data) => {
@@ -2416,9 +2417,19 @@ class ToolbarComponent {
     }
     ngOnInit() {
         this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
+        //this.monitorMDService.addMarkdownFileListener(this.markDownIsChanged, this);
         this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
         this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
+        this.mdFileService.serverSelectedMdFile.subscribe(val => {
+            debugger;
+            var current = val.pop();
+            if (current != undefined) {
+                this.TitleToShow = current.name;
+                this.absolutePath = current.fullPath;
+                this.relativePath = current.relativePath;
+            }
+        });
     }
     showRule1IsBroken(data, objectThis) {
         objectThis.openRules(data);
@@ -2450,6 +2461,11 @@ class ToolbarComponent {
         objectThis.absolutePath = data.path;
         objectThis.relativePath = data.relativePath;
     }
+    //private markDownIsChanged(data: any, objectThis: any) {
+    //  objectThis.TitleToShow = data.name;
+    //  objectThis.absolutePath = data.path;
+    //  objectThis.relativePath = data.relativePath;
+    //}
     OpenEditor() {
         const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
         return this.http.get(url)
@@ -3263,14 +3279,16 @@ class SidenavComponent {
         });
         this.currentFolder.loadFolderName();
         this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-            while (_.length > 1) {
-                var toExpand = _.pop();
+            debugger;
+            const myClonedArray = [];
+            _.forEach(val => myClonedArray.push(Object.assign({}, val)));
+            while (myClonedArray.length > 1) {
+                var toExpand = myClonedArray.pop();
                 var test = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
                 this.treeControl.expand(test);
             }
-            debugger;
-            if (_.length > 0) {
-                var toExpand = _.pop();
+            if (myClonedArray.length > 0) {
+                var toExpand = myClonedArray.pop();
                 this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
             }
         });
@@ -3401,11 +3419,12 @@ class RulesComponent {
             .subscribe(data => {
             var oldPath = data.relativePath + '\\' + data.oldName;
             var newPath = data.relativePath + '\\' + data.newName;
-            debugger;
             var oldFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](data.oldName, oldPath, data.oldLevel, false);
+            oldFile.relativePath = oldPath;
             oldFile.fullPath = data.oldPath;
             var newFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](data.newName, newPath, data.newLevel, false);
             newFile.fullPath = data.newPath;
+            newFile.relativePath = newPath;
             this.mdFileService.changeDataStoreMdFiles(oldFile, newFile);
             this.dialogRef.close(null);
         });
@@ -4570,6 +4589,7 @@ class MainContentComponent {
     updateModifiedMarkDown(data, objectThis) {
         let dateTime = new Date();
         objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
+        objectThis.service.setNewSelectedMdFile(data);
     }
     ShowConnectionLost(data, objectThis) {
         objectThis._HideImg = false;

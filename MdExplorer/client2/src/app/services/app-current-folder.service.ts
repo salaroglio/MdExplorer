@@ -24,6 +24,7 @@ export class AppCurrentFolderService {
       folderName: 'test', settings: [new MdSetting({ id:'test', name: 'PlantumlServer' })]}
     this._folderName = new BehaviorSubject<string>('test');
     this._Settings = new BehaviorSubject<IMdSetting[]>([]);
+    console.log('AppCurrentFolderService constructor');
   }
 
   get folderName(): Observable<string> {

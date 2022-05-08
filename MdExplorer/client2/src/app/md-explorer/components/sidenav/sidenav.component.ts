@@ -83,16 +83,20 @@ export class SidenavComponent implements OnInit {
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {     
-      while (_.length > 1) {
-        var toExpand = _.pop();
+    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
+      debugger;
+
+      const myClonedArray = [];
+      _.forEach(val => myClonedArray.push(Object.assign({}, val)));
+
+      while (myClonedArray.length > 1) {
+        var toExpand = myClonedArray.pop();
         var test = this.treeControl.dataNodes.find(_=>_.path == toExpand.path) ;
         
         this.treeControl.expand(test);
-      }
-      debugger;
-      if (_.length >0) {        
-        var toExpand = _.pop();
+      }      
+      if (myClonedArray.length >0) {
+        var toExpand = myClonedArray.pop();
         this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
       }      
     });
