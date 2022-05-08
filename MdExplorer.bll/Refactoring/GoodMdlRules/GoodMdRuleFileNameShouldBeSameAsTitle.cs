@@ -20,7 +20,7 @@ namespace MdExplorer.Features.Refactoring.Analysis
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(toCheck.DataText);
             var firstTitle = matches[0].Groups[1].Value;
-            Regex reg = new Regex("[*'\",/+_&#^@]");
+            Regex reg = new Regex("[*'\",/+:\\(\\)_&#^@]");
             firstTitle = reg.Replace(firstTitle, string.Empty);
 
             Regex reg1 = new Regex("[ ]");

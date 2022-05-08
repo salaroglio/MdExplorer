@@ -168,7 +168,10 @@ namespace MdExplorer.Service.HostedServices
                 var monitoredMd = new MonitoredMDModel
                 {
                     Path = e.FullPath.Replace(_fileSystemWatcher.Path + Path.DirectorySeparatorChar, string.Empty),
-                    Name = e.Name
+                    Name = e.Name,
+                    FullPath = e.FullPath,
+                    RelativePath = e.FullPath.Replace(_fileSystemWatcher.Path + Path.DirectorySeparatorChar, string.Empty)
+
                 };
                 _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
                 lastRead = lastWriteTime.AddSeconds(1);

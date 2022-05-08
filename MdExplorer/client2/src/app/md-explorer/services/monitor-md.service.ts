@@ -8,6 +8,7 @@ export class MonitorMDService {
 
   constructor() {
     this.startConnection();
+    console.log('MonitorMDService constructor')
   }
 
   private hubConnection: signalR.HubConnection

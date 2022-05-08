@@ -27,6 +27,7 @@ export class MdFileService {
     this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
     this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
+    console.log('MdFileService constructor')
 
   }
 
@@ -105,7 +106,6 @@ export class MdFileService {
 
 
   foundMd: boolean = false;
-  arrayAncestorMd: MdFile[];
 
   /**
    * Funzione di sostituzione di un nodo, con un altro
@@ -113,12 +113,30 @@ export class MdFileService {
    * @param newFile
    */
   changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
-    this.foundMd = false;
-    this.arrayAncestorMd = [];
-    this.exploreMdFiles(this.dataStore.mdFiles, oldFile, newFile);
+    
+    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, oldFile);
+    var leaf = returnFound[0];
+    leaf.name = newFile.name;
+    leaf.fullPath = newFile.fullPath;
+    leaf.path = newFile.path;
+    leaf.relativePath = newFile.relativePath;
     this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    this._serverSelectedMdFile.next(this.arrayAncestorMd);
+    debugger;
+    this._serverSelectedMdFile.next(returnFound);
   }
+
+  setNewSelectedMdFile(selectedFile: MdFile) {
+    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+    this._serverSelectedMdFile.next(returnFound);
+  }
+
+  searchMdFileIntoDataStore(arrayMd: MdFile[], FileToFind: MdFile): MdFile[] {
+    this.foundMd = false;
+    var arrayFound: MdFile[]  = [];
+    this.recursiveSearch(arrayMd, FileToFind, arrayFound);
+    return arrayFound;
+  }
+
 
 /**
  * Funzione di esplorazione dell'albero per trovare il nodo
@@ -126,7 +144,9 @@ export class MdFileService {
  * @param oldFile
  * @param newFile
  */
-  exploreMdFiles(arrayMd: MdFile[], oldFile: MdFile, newFile: MdFile) {
+  recursiveSearch(arrayMd: MdFile[], oldFile: MdFile, arrayFound: MdFile[]
+    //, newFile: MdFile
+  ) {
     if (arrayMd.length == 0) {
       return;
     }
@@ -135,19 +155,22 @@ export class MdFileService {
       for (var i = 0; i < arrayMd.length; i++) {
         var _ = arrayMd[i];
         if (!this.foundMd) {
-          this.exploreMdFiles(_.childrens, oldFile, newFile);
+          this.recursiveSearch(_.childrens, oldFile, arrayFound);//, newFile
         } 
         if (this.foundMd) {
-          this.arrayAncestorMd.push(_);
+          arrayFound.push(_);
           break;
         }
       }
 
     } else {      
       this.foundMd = true;
-      thatFile.name = newFile.name;
-      thatFile.path = newFile.path;
-      this.arrayAncestorMd.push(thatFile);
+      //if (newFile != null && newFile != undefined) {
+      //  thatFile.name = newFile.name;
+      //  thatFile.path = newFile.path;
+      //}
+      arrayFound.push(thatFile);
+      //this.arrayAncestorMd.push(thatFile);
       //
     }
   }

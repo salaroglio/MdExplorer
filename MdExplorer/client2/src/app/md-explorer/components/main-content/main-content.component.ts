@@ -57,7 +57,7 @@ export class MainContentComponent implements OnInit {
   private updateModifiedMarkDown(data: any, objectThis: any) {
     let dateTime = new Date();
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
-    
+    objectThis.service.setNewSelectedMdFile(data);
   }
 
  

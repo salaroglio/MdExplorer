@@ -65,9 +65,21 @@ export class ToolbarComponent implements OnInit {
 
   ngOnInit(): void {    
     this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
+    //this.monitorMDService.addMarkdownFileListener(this.markDownIsChanged, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
     this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
+
+    this.mdFileService.serverSelectedMdFile.subscribe(val => {
+      debugger;
+      var current = val.pop();
+      if (current != undefined) {
+        this.TitleToShow = current.name;
+        this.absolutePath = current.fullPath;
+        this.relativePath = current.relativePath;
+      }
+      
+    });
   }
 
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
@@ -101,10 +113,18 @@ export class ToolbarComponent implements OnInit {
   }
 
   private updateModifiedMarkDown(data: any, objectThis: any) {
+    
     objectThis.TitleToShow = data.name;
     objectThis.absolutePath = data.path;
     objectThis.relativePath = data.relativePath;
   }
+
+  //private markDownIsChanged(data: any, objectThis: any) {
+    
+  //  objectThis.TitleToShow = data.name;
+  //  objectThis.absolutePath = data.path;
+  //  objectThis.relativePath = data.relativePath;
+  //}
 
   OpenEditor() {    
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
