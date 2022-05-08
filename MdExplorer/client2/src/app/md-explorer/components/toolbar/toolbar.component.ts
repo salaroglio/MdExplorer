@@ -72,7 +72,7 @@ export class ToolbarComponent implements OnInit {
 
     this.mdFileService.serverSelectedMdFile.subscribe(val => {
       debugger;
-      var current = val.pop();
+      var current = val[0];
       if (current != undefined) {
         this.TitleToShow = current.name;
         this.absolutePath = current.fullPath;
