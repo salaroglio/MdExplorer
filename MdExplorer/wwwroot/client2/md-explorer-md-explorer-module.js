@@ -2422,7 +2422,6 @@ class ToolbarComponent {
         this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
         this.mdFileService.serverSelectedMdFile.subscribe(val => {
-            debugger;
             var current = val[0];
             if (current != undefined) {
                 this.TitleToShow = current.name;
@@ -3279,7 +3278,6 @@ class SidenavComponent {
         });
         this.currentFolder.loadFolderName();
         this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-            debugger;
             const myClonedArray = [];
             _.forEach(val => myClonedArray.push(Object.assign({}, val)));
             while (myClonedArray.length > 1) {
@@ -4596,7 +4594,7 @@ class MainContentComponent {
     }
 }
 MainContentComponent.ɵfac = function MainContentComponent_Factory(t) { return new (t || MainContentComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_1__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_2__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__["DomSanitizer"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_monitor_md_service__WEBPACK_IMPORTED_MODULE_4__["MonitorMDService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["NgZone"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_side_nav_data_service__WEBPACK_IMPORTED_MODULE_5__["SideNavDataService"])); };
-MainContentComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: MainContentComponent, selectors: [["app-main-content"]], decls: 4, vars: 5, consts: [["src", "/assets/ConnectionLost.png", 2, "left", "0px", "right", "0px", "margin-left", "auto", "margin-right", "auto", 3, "hidden"], ["name", "mdIframe", 2, "width", "100%", "height", "100%", 3, "hidden", "src"]], template: function MainContentComponent_Template(rf, ctx) { if (rf & 1) {
+MainContentComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: MainContentComponent, selectors: [["app-main-content"]], decls: 4, vars: 5, consts: [["src", "/assets/ConnectionLost.png", 2, "left", "0px", "right", "0px", "margin-left", "auto", "margin-right", "auto", 3, "hidden"], ["id", "mdIframe", "name", "mdIframe", 2, "width", "100%", "height", "100%", 3, "hidden", "src"]], template: function MainContentComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "div");
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelement"](1, "img", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();

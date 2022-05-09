@@ -84,7 +84,7 @@ export class SidenavComponent implements OnInit {
     });
     this.currentFolder.loadFolderName();
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-      debugger;
+      
 
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
