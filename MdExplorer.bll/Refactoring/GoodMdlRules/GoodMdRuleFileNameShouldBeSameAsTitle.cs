@@ -20,8 +20,14 @@ namespace MdExplorer.Features.Refactoring.Analysis
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(toCheck.DataText);
             var firstTitle = matches[0].Groups[1].Value;
+            Regex regTest = new Regex("<[^>]*>"); // clean all added html
+            var firstTitleTest = regTest.Replace(firstTitle, string.Empty);
+            Regex regTest2 = new Regex(":[^:^ ]*:");
+
+            firstTitleTest = regTest2.Replace(firstTitleTest, string.Empty);
+
             Regex reg = new Regex("[*'\",/+:\\(\\)_&#^@]");
-            firstTitle = reg.Replace(firstTitle, string.Empty);
+            firstTitle = reg.Replace(firstTitleTest, string.Empty);
 
             Regex reg1 = new Regex("[ ]");
             firstTitle = reg1.Replace(firstTitle, "-");

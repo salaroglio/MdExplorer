@@ -10,6 +10,7 @@ import { RenameFileComponent } from '../refactoring/rename-file/rename-file.comp
 import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../rules/rules.component';
 import { MdRefactoringService } from '../../services/md-refactoring.service';
+import { MdFile } from '../../models/md-file';
 
 @Component({
   selector: 'app-toolbar',
@@ -21,6 +22,7 @@ export class ToolbarComponent implements OnInit {
   absolutePath: string;
   relativePath: string;
   connectionId: string;
+  navigationArray: MdFile[] = [];
 
   @Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -71,16 +73,24 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
 
     this.mdFileService.serverSelectedMdFile.subscribe(val => {
-      
+      debugger;
       var current = val[0];
       if (current != undefined) {
-        this.TitleToShow = current.name;
+        if (this.sideNavDataService.currentPath == current.path) {
+          this.navigationArray = [];
+          this.navigationArray.push(current);
+        } else {
+          this.navigationArray.push(current);
+        }
+        
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
       }
       
     });
   }
+
+
 
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
     objectThis.openRules(data);
@@ -112,11 +122,12 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private updateModifiedMarkDown(data: any, objectThis: any) {
-    
-    objectThis.TitleToShow = data.name;
-    objectThis.absolutePath = data.path;
-    objectThis.relativePath = data.relativePath;
+  private updateModifiedMarkDown(data: any, objectThis: ToolbarComponent) {
+    debugger;
+    objectThis.mdFileService.setNewSelectedMdFile(data);
+    //objectThis.TitleToShow = data.name;
+    //objectThis.absolutePath = data.path;
+    //objectThis.relativePath = data.relativePath;
   }
 
   //private markDownIsChanged(data: any, objectThis: any) {
@@ -135,6 +146,11 @@ export class ToolbarComponent implements OnInit {
   Export() {
     this._snackBar.open("Export request queued!",null ,{ duration: 2000, verticalPosition: 'top' });
     this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
+  }
+
+  backToDocument(doc: MdFile) {
+
+    this.mdFileService.setNewSelectedMdFile(doc);
   }
 
   //ExportEmail() {
