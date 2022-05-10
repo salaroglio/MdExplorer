@@ -14,13 +14,6 @@
   <button mat-icon-button (click)="openRefactoring()">
     <mat-icon>rule</mat-icon>
   </button>
-  <!--<button mat-icon-button (click)="ExportEmail()">
-    <mat-icon>email</mat-icon>
-  </button>-->
-
-  <span>{{TitleToShow}}</span>
-
-
-
+  <span *ngFor="let doc of navigationArray"><span *ngIf="navigationArray.indexOf(doc)>0">>></span><a (click)="backToDocument(doc)" [ngStyle]="navigationArray.indexOf(doc) == navigationArray.length-1 ? '': 'cursor:pointer' ">{{doc.name}}</a></span>
 
 </mat-toolbar>

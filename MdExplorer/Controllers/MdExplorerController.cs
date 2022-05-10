@@ -23,6 +23,8 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Refactoring.Analysis;
+using System.Globalization;
+using System.Net.Http.Headers;
 
 namespace MdExplorer.Controllers
 {
@@ -53,6 +55,8 @@ namespace MdExplorer.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
+            var currentCultureInfo = CultureInfo.CurrentCulture;
+            var test = Encoding.Default;
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
@@ -94,7 +98,7 @@ namespace MdExplorer.Controllers
 
             var readText = string.Empty;
             using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var sr = new StreamReader(fs, Encoding.Default))
+            using (var sr = new StreamReader(fs, Encoding.UTF8))
             {
                 readText = sr.ReadToEnd();
             }
@@ -208,14 +212,16 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
-
+            monitoredMd.FullPath = filePathSystem1;//.Replace(@"\",@"\\");
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
-            //System.IO.File.WriteAllText(@"c:\\test.html", doc1.InnerXml);
-            return new ContentResult
+            var toReturn = new ContentResult
             {
-                ContentType = "text/html",
-                Content = doc1.InnerXml
+                ContentType = "text/html; charset=utf-8",
+                Content = doc1.InnerXml,
+
             };
+            //System.IO.File.WriteAllText(@"c:\\test.html", doc1.InnerXml);
+            return toReturn;
         }
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)
