@@ -15,6 +15,7 @@ namespace MdExplorer.Abstractions.Models
         public string AbsolutePathFile { get; set; }
         public string CurrentQueryRequest { get; set; }
         public string CurrentRoot { get; set; }
+        public int Recursionlevel { get; set; }
 
     }
 }

@@ -35,11 +35,8 @@ export class MainContentComponent implements OnInit {
     private zone: NgZone,
     private sideNavDataService: SideNavDataService
   ) {
-    
-    //this.monitorMDService.startConnection();
     this.monitorMDService.addMarkdownFileListener(this.updateModifiedMarkDown, this);
     this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
-    
   }
 
   ngOnInit(): void {
@@ -50,16 +47,15 @@ export class MainContentComponent implements OnInit {
         this.htmlSource = '../api/mdexplorer' + path  + '?time=' + dateTime;
           
       }
-    });   
-  }
+    });
 
+  }
 
   private updateModifiedMarkDown(data: any, objectThis: any) {
     let dateTime = new Date();
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
     objectThis.service.setNewSelectedMdFile(data);
   }
-
  
   private ShowConnectionLost(data: any, objectThis: any) {
     objectThis._HideImg = false;
