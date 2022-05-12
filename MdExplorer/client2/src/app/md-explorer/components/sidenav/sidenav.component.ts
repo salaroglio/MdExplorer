@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/layout';
@@ -10,6 +10,8 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { MatDialog } from '@angular/material/dialog';
 import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
+import { MatMenuTrigger } from '@angular/material/menu';
+
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -29,6 +31,27 @@ interface IFlatNode {
   styleUrls: ['./sidenav.component.scss']
 })
 export class SidenavComponent implements OnInit {
+
+  menuTopLeftPosition = { x: 0, y: 0 }
+  @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
+
+
+  onRightClick(event: MouseEvent, item) {
+    // preventDefault avoids to show the visualization of the right-click menu of the browser
+    event.preventDefault();
+
+    // we record the mouse position in our object
+    this.menuTopLeftPosition.x = event.clientX;
+    this.menuTopLeftPosition.y = event.clientY;
+
+    // we open the menu
+    // we pass to the menu the information about our object
+    this.matMenuTrigger.menuData = { item: item }
+
+    // we open the menu
+    this.matMenuTrigger.openMenu();
+
+  }
 
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {

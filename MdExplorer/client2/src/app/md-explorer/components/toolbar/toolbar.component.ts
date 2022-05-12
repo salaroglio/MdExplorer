@@ -67,7 +67,6 @@ export class ToolbarComponent implements OnInit {
 
   ngOnInit(): void {    
     this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
-    //this.monitorMDService.addMarkdownFileListener(this.markDownIsChanged, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
     this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
@@ -90,8 +89,6 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-
-
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
     objectThis.openRules(data);
   }
@@ -107,12 +104,6 @@ export class ToolbarComponent implements OnInit {
       .subscribe(data => { console.log(data) });
   }
 
-  //private sendExporEmailRequest(data, objectThis: ToolbarComponent) {    
-  //  const url = '../api/mdexportemail/' + objectThis.relativePath + '?connectionId=' + data;
-  //  return objectThis.http.get(url)
-  //    .subscribe(data => { console.log(data) });
-  //}
-
   private showPdfIsready(data: any, objectThis: ToolbarComponent) {
     let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds , "Open folder", { duration: 5000, verticalPosition: 'top' });
     snackRef.onAction().subscribe(() => {
@@ -123,19 +114,9 @@ export class ToolbarComponent implements OnInit {
   }
 
   private updateModifiedMarkDown(data: any, objectThis: ToolbarComponent) {
-    debugger;
+    debugger
     objectThis.mdFileService.setNewSelectedMdFile(data);
-    //objectThis.TitleToShow = data.name;
-    //objectThis.absolutePath = data.path;
-    //objectThis.relativePath = data.relativePath;
   }
-
-  //private markDownIsChanged(data: any, objectThis: any) {
-    
-  //  objectThis.TitleToShow = data.name;
-  //  objectThis.absolutePath = data.path;
-  //  objectThis.relativePath = data.relativePath;
-  //}
 
   OpenEditor() {    
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
@@ -151,11 +132,10 @@ export class ToolbarComponent implements OnInit {
   backToDocument(doc: MdFile) {
 
     this.mdFileService.setNewSelectedMdFile(doc);
+    var dateTime = new Date();
+    this.sideNavDataService.currentPath = doc.path;
+    this.sideNavDataService.currentName = doc.name;
+    this.router.navigate(['main/navigation', dateTime.getTime()]);
   }
 
-  //ExportEmail() {
-  //  this._snackBar.open("Email queued!", null, { duration: 2000, verticalPosition: 'top' });
-  //  this.monitorMDService.getConnectionId(this.sendExporEmailRequest, this);
-  //}
-   
 }

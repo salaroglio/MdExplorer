@@ -71,7 +71,7 @@ namespace MdExplorer.Service.Controllers
             var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;//.OldFullPath;
             var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;// e.FullPath;
             // gestisci il rename di un file
-            System.IO.File.Move(oldFullPath, newFullPath);
+            System.IO.File.Move(oldFullPath, newFullPath,true);
             if (_visualStudioCode.CurrentVisualStudio != null && 
                 _visualStudioCode.CurrentVisualStudio.HasExited &&
                 _visualStudioCode.IKilled)

@@ -1,4 +1,20 @@
 
+<div style="visibility: hidden; position: fixed;"
+     [style.left.px]="menuTopLeftPosition.x"
+     [style.top.px]="menuTopLeftPosition.y"
+     [matMenuTriggerFor]="rightMenu"></div>
+
+
+<mat-menu #rightMenu="matMenu">
+  <ng-template matMenuContent let-item="item">
+    <button mat-menu-item>Rename {{item.name}}</button>
+    <button mat-menu-item>Move directory</button>
+    <button mat-menu-item>New directory</button>
+    <button mat-menu-item>New Markdown</button>
+
+  </ng-template>
+</mat-menu>
+
 
 <mat-sidenav-container autosize class="app-sidenav-container">
 
@@ -18,8 +34,8 @@
           <mat-icon>rule</mat-icon>
         </button>-->
       </div>
-      
-      
+
+
       {{titleProject}}
     </mat-toolbar>
     <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
@@ -35,11 +51,11 @@
 
         <!--{{node.name}}-->
       </mat-tree-node>
-      <!-- This is the tree node template for expandable nodes -->    
+      <!-- This is the tree node template for expandable nodes -->
       <mat-tree-node *matTreeNodeDef="let node;when: hasChild" matTreeNodePadding>
         <button mat-icon-button matTreeNodeToggle
                 [attr.aria-label]="'Toggle ' + node.name">
-          <mat-icon class="gold-icon mat-icon-rtl-mirror">
+          <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, {content: node})">
             {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
           </mat-icon>
         </button>

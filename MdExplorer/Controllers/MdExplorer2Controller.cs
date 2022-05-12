@@ -45,6 +45,9 @@ namespace MdExplorer.Service.Controllers
         {
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer2");
+            // manage recursion level for composition document
+            var recursionLevel = string.IsNullOrEmpty(Request.Query["recursionLevel"]) ? 0:Convert.ToInt32(Request.Query["recursionLevel"]) ;
+
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
 
 
@@ -92,10 +95,13 @@ namespace MdExplorer.Service.Controllers
             {
                 CurrentQueryRequest = relativePathFileSystem,
                 CurrentRoot = _fileSystemWatcher.Path,
-                AbsolutePathFile = filePathSystem1
+                AbsolutePathFile = filePathSystem1,
+                Recursionlevel = recursionLevel
             };
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+
+            readText = processSharp(readText, recursionLevel);
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -156,5 +162,31 @@ namespace MdExplorer.Service.Controllers
                 Content = doc1.InnerXml
             };
         }
+
+        private string processSharp(string toProcess, int recursionLevel)
+        {
+            var toReturn = toProcess;
+            if (recursionLevel == 1)
+            {
+                toReturn = toProcess.Replace("##### ", "###### ");
+                toReturn = toProcess.Replace("#### ", "##### ");
+                toReturn = toProcess.Replace("### ", "#### ");
+                toReturn = toProcess.Replace("## ", "### ");
+                toReturn = toProcess.Replace("# ", "## ");
+            }
+
+            if (recursionLevel == 2)
+            {
+                //var toReturn = toProcess.Replace("##### ", "###### ");
+                toReturn = toProcess.Replace("#### ", "###### ");
+                toReturn = toProcess.Replace("### ", "##### ");
+                toReturn = toProcess.Replace("## ", "#### ");
+                toReturn = toProcess.Replace("# ", "### ");
+            }
+
+            return toReturn;
+        }
     }
+
+    
 }
