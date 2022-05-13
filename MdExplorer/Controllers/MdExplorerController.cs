@@ -106,7 +106,8 @@ namespace MdExplorer.Controllers
             {
                 CurrentQueryRequest = relativePathFileSystem,
                 CurrentRoot = _fileSystemWatcher.Path,
-                AbsolutePathFile = filePathSystem1
+                AbsolutePathFile = filePathSystem1,
+                RootQueryRequest = relativePathFileSystem,
             };
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
@@ -249,8 +250,6 @@ namespace MdExplorer.Controllers
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />            
             <script src=""/common.js""></script>";
-            //AddButtonOnTopPage(doc1, body, "toggleMdCanvas()", "/assets/draw.png");
-            //AddButtonOnTopPage(doc1, body, $"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
 
             body.InnerXml += resultToParse;
         }
