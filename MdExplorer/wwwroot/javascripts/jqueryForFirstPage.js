@@ -12,12 +12,13 @@
 
 
 // gestione tocbot
-$(function () {
+$(function () {    
     tocbot.init({
         tocSelector: '.js-toc',
         orderedList: true,
         hasInnerContainers: true,        
         scrollSmooth: true,
+        headingSelector: 'h1, h2, h3, h4, h5, h6',
         // Smooth scroll duration.
         scrollSmoothDuration: 220,
         // Smooth scroll offset.

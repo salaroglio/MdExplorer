@@ -67,12 +67,18 @@ namespace MdExplorer.Features.Commands.html
                 using (var httpClient = new HttpClient(httpClientHandler))
                 {
                     fileName = _helper.NormalizePath(fileName);
-                    var queryEncoded = HttpUtility.UrlEncode(fileName);
+                    var queryEncoded = fileName.Replace("\\","/") ;// HttpUtility.UrlEncode(fileName);
 
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}" + "?recursionLevel=" + (requestInfo.Recursionlevel + 1).ToString());
+                    //var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}" + "?recursionLevel=" + (requestInfo.Recursionlevel + 1).ToString());
+                    requestInfo.Recursionlevel++;
+                    requestInfo.RelativePathFile = fileName;
+                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2");
                     var uriUrlRoot = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
                     _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
-                    var response = httpClient.GetAsync(uriUrl);
+                    //var response = httpClient.GetAsync(uriUrl);
+                    var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);
+                    HttpContent c = new StringContent(payload, Encoding.UTF8, "application/json");
+                    var response = httpClient.PostAsync(uriUrl, c);
                     response.Wait();
 
                     if (response.IsCompletedSuccessfully)
