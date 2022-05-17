@@ -13,6 +13,9 @@ export class MdFileService {
   private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
   public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
   public _serverSelectedMdFile: BehaviorSubject<MdFile[]>;
+  private _navigationArray: MdFile[] = [];// deve morire
+  private _selectedMdFileFromToolbar: BehaviorSubject<MdFile[]>;
+  private _selectedMdFileFromSideNav: BehaviorSubject<MdFile>;
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -27,6 +30,9 @@ export class MdFileService {
     this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
     this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
+    this._selectedMdFileFromToolbar = new BehaviorSubject<MdFile[]>([]);
+    this._selectedMdFileFromSideNav = new BehaviorSubject<MdFile>(null);
+
     console.log('MdFileService constructor')
 
   }
@@ -46,10 +52,32 @@ export class MdFileService {
     return this._serverSelectedMdFile.asObservable();
   }
 
+
+  get selectedMdFileFromToolbar(): Observable<MdFile[]> {
+    return this._selectedMdFileFromToolbar.asObservable();
+  }
+
+  get selectedMdFileFromSideNav(): Observable<MdFile> {
+    return this._selectedMdFileFromSideNav.asObservable();
+  }
+
+  
+
+  // breadcrumb
+  get navigationArray(): MdFile[] {
+    return this._navigationArray;
+  }
+
+  set navigationArray(mdFile: MdFile[]) {
+    this._navigationArray = mdFile;
+  }
+
+
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {    
     const url = '../api/mdfiles/GetAllMdFiles';
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
+        debugger;
         this.dataStore.mdFiles = data;
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
         if (callback != null) {
@@ -125,9 +153,23 @@ export class MdFileService {
     this._serverSelectedMdFile.next(returnFound);
   }
 
-  setNewSelectedMdFile(selectedFile: MdFile) {
+  setSelectedMdFileFromSideNav(selectedFile: MdFile) {
+    this._selectedMdFileFromSideNav.next(selectedFile);
+  }
+
+  setSelectedMdFileFromToolbar(selectedFile: MdFile) {
+    let returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+    this._selectedMdFileFromToolbar.next(returnFound);
+  }
+
+  setSelectedMdFileFromServer(selectedFile: MdFile) {
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
     this._serverSelectedMdFile.next(returnFound);
+  }
+
+  getMdFileFromDataStore(selectedFile: MdFile):MdFile {
+    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+    return returnFound[0];
   }
 
   searchMdFileIntoDataStore(arrayMd: MdFile[], FileToFind: MdFile): MdFile[] {
@@ -150,7 +192,7 @@ export class MdFileService {
     if (arrayMd.length == 0) {
       return;
     }
-    var thatFile = arrayMd.find(_ => _.fullPath == oldFile.fullPath);
+    var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == oldFile.fullPath.toLowerCase());
     if (thatFile == undefined) {
       for (var i = 0; i < arrayMd.length; i++) {
         var _ = arrayMd[i];

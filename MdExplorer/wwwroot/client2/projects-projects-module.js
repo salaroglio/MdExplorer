@@ -205,12 +205,11 @@ class NewProjectComponent {
         this.folder.path = node.path;
     }
     closeDialog() {
-        this.projectService.setNewFolderProject(this.folder.path, this.loadNewProject, this);
-    }
-    loadNewProject(data, objectThis) {
-        var dateTime = new Date();
-        objectThis.mdFileService.loadAll(null, null);
-        objectThis.router.navigate(['/main']);
+        this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
+            var dateTime = new Date();
+            this.mdFileService.loadAll(null, null);
+            this.router.navigate(['/main']);
+        });
     }
 }
 NewProjectComponent.ɵfac = function NewProjectComponent_Factory(t) { return new (t || NewProjectComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](DynamicDatabase), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_5__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_6__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_7__["ProjectsService"])); };
@@ -352,10 +351,16 @@ class OpenRecentComponent {
         this.dataSource = this.projectService.mdProjects;
     }
     quickOpenNotes(path) {
-        this.projectService.setNewFolderProjectQuickNotes(path, this.loadNewProject, this);
+        this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {
+            var dateTime = new Date();
+            this.router.navigate(['/main/navigation', dateTime.getTime()]);
+        });
     }
     openNewProject(path) {
-        this.projectService.setNewFolderProject(path, this.loadNewProject, this);
+        this.projectService.setNewFolderProject(path).subscribe(_ => {
+            var dateTime = new Date();
+            this.router.navigate(['/main/navigation', dateTime.getTime()]);
+        });
     }
     getProjectList(data, objectThis) {
         objectThis.projectService.fetchProjects();
@@ -363,10 +368,6 @@ class OpenRecentComponent {
     ;
     deleteProject(project) {
         this.projectService.deleteProject(project, this.getProjectList, this);
-    }
-    loadNewProject(data, objectThis) {
-        var dateTime = new Date();
-        objectThis.router.navigate(['/main/navigation']);
     }
 }
 OpenRecentComponent.ɵfac = function OpenRecentComponent_Factory(t) { return new (t || OpenRecentComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_1__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_2__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["ActivatedRoute"])); };
@@ -477,18 +478,20 @@ class ProjectsService {
             console.log(error);
         });
     }
-    setNewFolderProjectQuickNotes(path, callback, objectThis) {
+    setNewFolderProjectQuickNotes(path) {
         const url = '../api/MdProjects/SetFolderProjectQuickNotes';
-        this.http.post(url, { path: path }).subscribe(data => {
-            callback(data, objectThis);
-        });
+        return this.http.post(url, { path: path });
     }
-    setNewFolderProject(path, callback, objectThis) {
+    setNewFolderProject(path) {
         const url = '../api/MdProjects/SetFolderProject';
-        this.http.post(url, { path: path }).subscribe(data => {
-            callback(data, objectThis);
-        });
+        return this.http.post(url, { path: path });
     }
+    //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {
+    //  const url = '../api/MdProjects/SetFolderProject';
+    //  this.http.post<any>(url, { path: path }).subscribe(data => {
+    //    callback(data, objectThis);
+    //  });
+    //}
     deleteProject(project, callback, objectThis) {
         const url = '../api/MdProjects/DeleteProject';
         this.http.post(url, project).subscribe(data => {

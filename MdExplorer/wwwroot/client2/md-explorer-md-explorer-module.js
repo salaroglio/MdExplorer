@@ -2406,7 +2406,7 @@ function ToolbarComponent_span_16_Template(rf, ctx) { if (rf & 1) {
     const doc_r1 = ctx.$implicit;
     const ctx_r0 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx_r0.navigationArray.indexOf(doc_r1) > 0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx_r0.mdFileService.navigationArray.indexOf(doc_r1) > 0);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngStyle", ctx_r0.navigationArray.indexOf(doc_r1) < ctx_r0.navigationArray.length - 1 ? _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction0"](3, _c0) : _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction0"](4, _c1));
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
@@ -2445,21 +2445,24 @@ class ToolbarComponent {
         });
     }
     ngOnInit() {
-        this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
+        this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
         this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
-        this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
+        this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
+            if (_ != null) {
+                this.mdFileService.navigationArray = [];
+                this.mdFileService.navigationArray.push(_);
+                this.absolutePath = _.fullPath;
+                this.relativePath = _.relativePath;
+            }
+        });
         this.mdFileService.serverSelectedMdFile.subscribe(val => {
-            debugger;
             var current = val[0];
             if (current != undefined) {
-                if (this.sideNavDataService.currentPath == current.path) {
-                    this.navigationArray = [];
-                    this.navigationArray.push(current);
+                if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
+                    return;
                 }
-                else {
-                    this.navigationArray.push(current);
-                }
+                //this.navigationArray = this.mdFileService.navigationArray;
                 this.absolutePath = current.fullPath;
                 this.relativePath = current.relativePath;
             }
@@ -2467,10 +2470,6 @@ class ToolbarComponent {
     }
     showRule1IsBroken(data, objectThis) {
         objectThis.openRules(data);
-    }
-    openDialogRefactoringFileEvent(data, objectThis) {
-        objectThis.mdFileService.loadAll(null, null);
-        objectThis.openRefactoring();
     }
     sendExportRequest(data, objectThis) {
         const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;
@@ -2485,9 +2484,12 @@ class ToolbarComponent {
                 .subscribe(data => { console.log(data); });
         });
     }
-    updateModifiedMarkDown(data, objectThis) {
+    markdownFileIsProcessed(data, objectThis) {
         debugger;
-        objectThis.mdFileService.setNewSelectedMdFile(data);
+        if (data.relativePath != objectThis.mdFileService.navigationArray[0].relativePath) {
+            objectThis.mdFileService.navigationArray.push(data);
+            objectThis.mdFileService.setSelectedMdFileFromServer(data);
+        }
     }
     OpenEditor() {
         const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
@@ -2499,11 +2501,18 @@ class ToolbarComponent {
         this.monitorMDService.getConnectionId(this.sendExportRequest, this);
     }
     backToDocument(doc) {
-        this.mdFileService.setNewSelectedMdFile(doc);
-        var dateTime = new Date();
-        this.sideNavDataService.currentPath = doc.path;
-        this.sideNavDataService.currentName = doc.name;
-        this.router.navigate(['main/navigation', dateTime.getTime()]);
+        var thatFile = this.mdFileService.navigationArray.find(_ => _.fullPath == doc.fullPath);
+        if (thatFile != null && thatFile != undefined) {
+            let i = this.mdFileService.navigationArray.length;
+            let toDelete = this.mdFileService.navigationArray[i - 1];
+            do {
+                this.mdFileService.navigationArray.pop();
+                i = i - 1;
+                toDelete = this.mdFileService.navigationArray[i - 1];
+            } while (toDelete != undefined && toDelete.fullPath == thatFile.fullPath);
+        }
+        this.mdFileService.setSelectedMdFileFromToolbar(doc);
+        //this.mdFileService.setSelectedMdFileFromBreacrumb(doc);
     }
 }
 ToolbarComponent.ɵfac = function ToolbarComponent_Factory(t) { return new (t || ToolbarComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_side_nav_data_service__WEBPACK_IMPORTED_MODULE_4__["SideNavDataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_5__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_monitor_md_service__WEBPACK_IMPORTED_MODULE_6__["MonitorMDService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_7__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_8__["MatSnackBar"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_9__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_10__["MdFileService"])); };
@@ -2543,7 +2552,7 @@ ToolbarComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineC
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
     } if (rf & 2) {
         _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](16);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngForOf", ctx.navigationArray);
+        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngForOf", ctx.mdFileService.navigationArray);
     } }, directives: [_angular_material_toolbar__WEBPACK_IMPORTED_MODULE_11__["MatToolbar"], _angular_material_button__WEBPACK_IMPORTED_MODULE_12__["MatButton"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__["MatIcon"], _angular_common__WEBPACK_IMPORTED_MODULE_14__["NgForOf"], _angular_common__WEBPACK_IMPORTED_MODULE_14__["NgIf"], _angular_common__WEBPACK_IMPORTED_MODULE_14__["NgStyle"]], styles: [".sidenav-toggle[_ngcontent-%COMP%] {\n  display: none;\n  padding: 0;\n  margin: 8px;\n  min-width: after 56px;\n}\n@media (max-width: 720px) {\n  .sidenav-toggle[_ngcontent-%COMP%] {\n    display: flex;\n    align: center;\n    justify-content: center;\n  }\n}\n.sidenav-toggle[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 30px;\n  height: after 56px;\n  width: after 56px;\n  line-height: after 56px;\n  color: white;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFwuLlxcdG9vbGJhci5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHQTtFQUNFLGFBQUE7RUFDQSxVQUFBO0VBQ0EsV0FBQTtFQUNBLHFCQVBVO0FBS1o7QUFJRTtFQU5GO0lBT0ksYUFBQTtJQUNBLGFBQUE7SUFDQSx1QkFBQTtFQURGO0FBQ0Y7QUFHRTtFQUNFLGVBQUE7RUFDQSxrQkFqQlE7RUFrQlIsaUJBbEJRO0VBbUJSLHVCQW5CUTtFQW9CUixZQUFBO0FBREoiLCJmaWxlIjoidG9vbGJhci5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIiRpY29uV2lkdGg6IGFmdGVyIDU2cHg7XHJcblxyXG5cclxuLnNpZGVuYXYtdG9nZ2xlIHtcclxuICBkaXNwbGF5OiBub25lO1xyXG4gIHBhZGRpbmc6IDA7XHJcbiAgbWFyZ2luOiA4cHg7XHJcbiAgbWluLXdpZHRoOiAkaWNvbldpZHRoO1xyXG5cclxuICBAbWVkaWEgKG1heC13aWR0aDo3MjBweCkge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduOiBjZW50ZXI7XHJcbiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICB9XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogMzBweDtcclxuICAgIGhlaWdodDogJGljb25XaWR0aDtcclxuICAgIHdpZHRoOiAkaWNvbldpZHRoO1xyXG4gICAgbGluZS1oZWlnaHQ6ICRpY29uV2lkdGg7XHJcbiAgICBjb2xvcjogd2hpdGU7XHJcbiAgfVxyXG59XHJcbiJdfQ== */"] });
 
 
@@ -3305,7 +3314,9 @@ class SidenavComponent {
                 expandable: !!node.childrens && node.childrens.length > 0,
                 name: node.name,
                 level: level,
-                path: node.path
+                path: node.path,
+                relativePath: node.path,
+                fullPath: node.fullPath,
             };
         };
         this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_0__["FlatTreeControl"](node => node.level, node => node.expandable);
@@ -3381,10 +3392,7 @@ class SidenavComponent {
         this.mdFileService.loadAll(this.deferredOpenProject, this);
     }
     getNode(node) {
-        var dateTime = new Date();
-        this.sideNavDataService.currentPath = node.path;
-        this.sideNavDataService.currentName = node.name;
-        this.router.navigate(['main/navigation', dateTime.getTime()]); //, { relativeTo: this.route }
+        this.mdFileService.setSelectedMdFileFromSideNav(node);
         this.activeNode = node;
     }
 }
@@ -4648,22 +4656,33 @@ class MainContentComponent {
         //private _this: any;
         this._HideImg = true;
         this._HideIFrame = false;
-        this.monitorMDService.addMarkdownFileListener(this.updateModifiedMarkDown, this);
+        console.log("MainContentComponent constructor");
+        this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
         this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
     }
     ngOnInit() {
-        this.route.params.subscribe(params => {
-            const path = this.sideNavDataService.currentPath;
-            if (path != undefined) {
-                let dateTime = new Date().getTime() / 1000;
-                this.htmlSource = '../api/mdexplorer' + path + '?time=' + dateTime;
+        this.service.selectedMdFileFromSideNav.subscribe(_ => {
+            this.callMdExplorerController(_);
+        });
+        this.service.selectedMdFileFromToolbar.subscribe(_ => {
+            let current = _[0];
+            if (current != undefined) {
+                this.callMdExplorerController(current);
             }
         });
     }
-    updateModifiedMarkDown(data, objectThis) {
+    callMdExplorerController(node) {
+        debugger;
+        if (node != null && node.relativePath != undefined) {
+            let dateTime = new Date().getTime() / 1000;
+            this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
+        }
+    }
+    markdownFileIsChanged(data, objectThis) {
+        debugger;
         let dateTime = new Date();
+        objectThis.service.setSelectedMdFileFromServer(data);
         objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
-        objectThis.service.setNewSelectedMdFile(data);
     }
     ShowConnectionLost(data, objectThis) {
         objectThis._HideImg = false;

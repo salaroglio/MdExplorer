@@ -23,6 +23,8 @@ interface IFlatNode {
   name: string;
   level: number;
   path: string;
+  relativePath: string;
+  fullPath: string;
 }
 
 @Component({
@@ -58,7 +60,10 @@ export class SidenavComponent implements OnInit {
       expandable: !!node.childrens && node.childrens.length > 0,
       name: node.name,
       level: level,
-      path:node.path
+      path: node.path,
+      relativePath: node.path,
+      fullPath:node.fullPath,
+
     };
   }
   treeControl = new FlatTreeControl<IFlatNode>(
@@ -159,11 +164,8 @@ export class SidenavComponent implements OnInit {
     
   }
 
-  public getNode(node: any) {    
-    var dateTime = new Date();
-    this.sideNavDataService.currentPath = node.path;
-    this.sideNavDataService.currentName = node.name;
-    this.router.navigate(['main/navigation', dateTime.getTime()]); //, { relativeTo: this.route }
+  public getNode(node: MdFile) {
+    this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;
   }
  

@@ -21,60 +21,16 @@ namespace MdExplorer.Features.Refactoring.Analysis
         {
             _engineDB = engineDB;
         }
-        public void AnalizeEvents()
+        public void AnalizeEvents(RefactoringSourceAction action)
         {
-            var eventDal = _engineDB.GetDal<RefactoringFilesystemEvent>();
-            var eventList = eventDal.GetList().OrderByDescending(_ => _.CreationDate).ToList();
+                        
             var sourceDal = _engineDB.GetDal<RefactoringSourceAction>();
 
-            // Trovare changed file
-            foreach (var item in eventList.Where(_ => !_.Processed && _.EventName == "Renamed_File"))
-            {
-                var soure = new RefactoringSourceAction
-                {
-                    Action = "File renamed",
-                    CreationDate = DateTime.Now,
-                    NewFullPath = item.NewFullPath,
-                    OldFullPath = item.OldFullPath,
-                    OldName = Path.GetFileName(item.OldFullPath),
-                    NewName = Path.GetFileName(item.NewFullPath)
-                };
-                soure.Events.Add(item);
-                sourceDal.Save(soure);
-                item.RefactoringSourceAction = soure;
-                item.Processed = true;
-                eventDal.Save(item);
-            }
 
-            // Trovare changed Directory
-            // Trovare move file
-            foreach (var item in eventList.Where(_ => !_.Processed && _.EventName == "Created_File"))
-            {
-                var singleDeletedFile = eventList
-                    .Where(_ => !_.Processed && _.EventName == "Deleted_File" && _.CreationDate < item.CreationDate);
-                var potentialMovingInfo = singleDeletedFile
-                    .Where(_ => Path.GetFileName(_.NewFullPath) == Path.GetFileName(item.NewFullPath)).FirstOrDefault();
-                if (potentialMovingInfo != null)
-                {
-                    var source = new RefactoringSourceAction
-                    {
-                        Action = "File moved!",
-                        CreationDate = DateTime.Now,
-                        NewFullPath = item.NewFullPath,
-                        OldFullPath = potentialMovingInfo.OldFullPath,
-                        OldName = Path.GetFileName(potentialMovingInfo.OldFullPath),
-                        NewName = Path.GetFileName(item.NewFullPath)
-                    };
-                    source.Events.Add(item);
-                    sourceDal.Save(source);
-                    item.RefactoringSourceAction = source;
-                    potentialMovingInfo.Processed = true;
-                    item.Processed = true;
-                    eventDal.Save(item);
-                }
-            }
+            sourceDal.Save(action);
+             
 
-            // Trovare move directory
+            
         }
     }
 }

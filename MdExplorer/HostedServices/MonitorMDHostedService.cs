@@ -54,15 +54,15 @@ namespace MdExplorer.Service.HostedServices
             _fileSystemWatcher.IncludeSubdirectories = true;
             _fileSystemWatcher.EnableRaisingEvents = true;
             _fileSystemWatcher.Changed += _fileSystemWatcher_Changed;
-            _fileSystemWatcher.Created += _fileSystemWatcher_Created;
-            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
+            //_fileSystemWatcher.Created += _fileSystemWatcher_Created;
+            //_fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
             _fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
             return Task.CompletedTask;
         }
 
         private void _fileSystemWatcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            SaveEventOnDb(e);
+            //SaveEventOnDb(e);
         }
 
         private static string SetNameChangedType(string fullPath, string changeType)
@@ -80,67 +80,11 @@ namespace MdExplorer.Service.HostedServices
 
             return changeType;
         }
-        private void _fileSystemWatcher_Renamed(object sender, RenamedEventArgs e)
-        {
-            //SaveReanamedEvent(e);
+        
+       
+        
 
-            //var refactoringEvent = new RefactoringFileEvent();
-            //refactoringEvent.EventName = "FileRenamed";
-            //_hubContext.Clients.All.SendAsync("refactoringFileEvent", new { refactoringEvent = refactoringEvent });
-        }
-        private void SaveReanamedEvent(RenamedEventArgs e)
-        {
-            using (var scope = _serviceProvider.CreateScope())
-            {
-                var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
-                engineDb.BeginTransaction();
-                // Cerco se qualche file è coinvolto
-                var currentGroupId = Guid.NewGuid();
-
-                var refactoringFileSystemEventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
-                var refFileSysEvent = new RefactoringFilesystemEvent
-                {
-                    EventName = SetNameChangedType(e.FullPath, e.ChangeType.ToString()),
-                    RefactoringGroupId = currentGroupId,
-                    NewFullPath = e.FullPath,
-                    OldFullPath = e.OldFullPath,
-                    Processed = false
-                };
-
-                refactoringFileSystemEventDal.Save(refFileSysEvent);
-                engineDb.Commit();
-            }
-        }
-        private void SaveEventOnDb(FileSystemEventArgs e)
-        {
-            var changeType = e.ChangeType.ToString();
-            if (e.ChangeType != WatcherChangeTypes.Deleted)
-            {
-                changeType = SetNameChangedType(e.FullPath, changeType);
-            }
-
-            using (var scope = _serviceProvider.CreateScope())
-            {
-                var engineDb = scope.ServiceProvider.GetService<IEngineDB>();
-                engineDb.BeginTransaction();
-                var refFileEventDal = engineDb.GetDal<RefactoringFilesystemEvent>();
-                var refactoringEvent = new RefactoringFilesystemEvent
-                {
-                    EventName = changeType,
-                    CreationDate = DateTime.Now,
-                    NewFullPath = e.FullPath,
-                    Processed = false,
-                    RefactoringGroupId = Guid.NewGuid()
-                };
-                refFileEventDal.Save(refactoringEvent);
-                engineDb.Commit();
-            }
-        }
-
-        private void _fileSystemWatcher_Created(object sender, FileSystemEventArgs e)
-        {
-            SaveEventOnDb(e);            
-        }
+        
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -152,8 +96,7 @@ namespace MdExplorer.Service.HostedServices
         {
             
             // Inserisci l'informazione nel file di refactoring
-            SaveEventOnDb(e);
-
+            
             var trafficLight1 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
             var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md") || e.FullPath.Contains($".docx");
             if (trafficLight1 || trafficLight2)
