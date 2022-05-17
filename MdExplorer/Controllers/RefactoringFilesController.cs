@@ -41,8 +41,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult GetRefactoringSourceActionList()
         {
-            _engineDB.BeginTransaction();
-            _analysisEngine.AnalizeEvents();
+            _engineDB.BeginTransaction();            
             var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
             var list = sourceActionDal.GetList().ToList();
             _engineDB.Commit();

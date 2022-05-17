@@ -32,7 +32,7 @@ $(function () {
 // function to manage readability 
 var arrayReadabilityToggle = [];
 function toggleSeeMe(stringMatchedHash) {
-    debugger;
+    
     var $box = $('#' + stringMatchedHash);
     var buttonPressed = arrayReadabilityToggle.find(data => data.id == $box.id);
     if (buttonPressed == undefined) {
@@ -77,7 +77,7 @@ function activateMove(currentObject, linkHash,referenceId) {
         var newClass = $movable.attr('class', 'movable');
         arrayLinksMoveToggle.push(linkHash);
     } else {
-        debugger;
+        
         var currentIndex = arrayLinksMoveToggle.findIndex(data => data == linkHash);
         arrayLinksMoveToggle.splice(currentIndex, 1);
         var possibleMatch = currentObject.parentElement.nextSibling;
@@ -129,7 +129,7 @@ function activateResize(linkHash) {
             arrayLinksResizeToggle.push(linkHash);
         }
         else {
-            debugger;
+            
 
             var oldValue = $links[index].attributes['class'].value;
             $links[index].attributes['class'].value = oldValue.replace(' resizable', '');
@@ -160,7 +160,7 @@ var cumulativeOffset = function (element) {
 // Function called by onMouseUp event to 
 // write down on MD the new image dimension values.
 function resizeImage(currentDiv) {
-    debugger;
+    
     // going inside the div
     var img = currentDiv.childNodes[0].childNodes[0];     
     var divStyle = getComputedStyle(img.parentElement.parentElement.parentElement);
@@ -302,7 +302,6 @@ $.fn.datepicker.noConflict = function () {
 // funzione che memorizza l'ultima posizione della pagina
 document.addEventListener("DOMContentLoaded", function (event) {
     // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh    
-    //var test = document.getElementById("mdIframe");
     var test3 = document.location.href;
     var position = test3.indexOf('?');
     var position2 = test3.substring(0, position);

@@ -2,6 +2,8 @@
 export interface IFileInfoNode {
   name: string;
   path: string;
+  relativePath: string;
+  fullPath: string;
   type: string;
   level: number;
   expandable: boolean;

@@ -18,8 +18,7 @@ namespace MdExplorer.DataAccess.Engine.Mapping
             Map(_ => _.NewName).Length(255).Nullable();
             Map(_ => _.OldFullPath).Length(int.MaxValue).Nullable();
             Map(_ => _.NewFullPath).Length(int.MaxValue).Nullable();
-            Map(_ => _.CreationDate).Not.Nullable();
-            HasMany(x => x.Events).Cascade.All();
+            Map(_ => _.CreationDate).Not.Nullable();            
             HasMany(_ => _.ActionDetails).Cascade.All();
         }
     }

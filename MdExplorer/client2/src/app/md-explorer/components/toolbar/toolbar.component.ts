@@ -32,7 +32,7 @@ export class ToolbarComponent implements OnInit {
     private http: HttpClient,
     private _snackBar: MatSnackBar,
     private router: Router,
-    private mdFileService: MdFileService,
+    public mdFileService: MdFileService,
     
   ) {
     this.TitleToShow = "MdExplorer";
@@ -66,22 +66,28 @@ export class ToolbarComponent implements OnInit {
 
 
   ngOnInit(): void {    
-    this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
-    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
-    this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
+    this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
+    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);    
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
+   
 
-    this.mdFileService.serverSelectedMdFile.subscribe(val => {
-      debugger;
+    this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
+      
+      if (_ != null) {
+        this.mdFileService.navigationArray = [];
+        this.mdFileService.navigationArray.push(_);
+        this.absolutePath = _.fullPath;
+        this.relativePath = _.relativePath;
+      }      
+    });
+
+    this.mdFileService.serverSelectedMdFile.subscribe(val => {      
       var current = val[0];
       if (current != undefined) {
-        if (this.sideNavDataService.currentPath == current.path) {
-          this.navigationArray = [];
-          this.navigationArray.push(current);
-        } else {
-          this.navigationArray.push(current);
+        if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
+          return;
         }
-        
+        //this.navigationArray = this.mdFileService.navigationArray;
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
       }
@@ -93,10 +99,6 @@ export class ToolbarComponent implements OnInit {
     objectThis.openRules(data);
   }
 
-  private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
-    objectThis.mdFileService.loadAll(null,null);
-    objectThis.openRefactoring();    
-  }
 
   private sendExportRequest(data, objectThis: ToolbarComponent) {
     const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;    
@@ -113,9 +115,12 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private updateModifiedMarkDown(data: any, objectThis: ToolbarComponent) {
-    debugger
-    objectThis.mdFileService.setNewSelectedMdFile(data);
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
+    debugger;
+    if (data.relativePath != objectThis.mdFileService.navigationArray[0].relativePath ) {
+      objectThis.mdFileService.navigationArray.push(data);
+      objectThis.mdFileService.setSelectedMdFileFromServer(data);
+    }
   }
 
   OpenEditor() {    
@@ -129,13 +134,20 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
   }
 
-  backToDocument(doc: MdFile) {
+  backToDocument(doc: MdFile) {    
+    var thatFile = this.mdFileService.navigationArray.find(_ => _.fullPath == doc.fullPath);
+    if (thatFile != null && thatFile != undefined) {
+      let i = this.mdFileService.navigationArray.length;
+      let toDelete = this.mdFileService.navigationArray[i - 1];
+      do  {
+        this.mdFileService.navigationArray.pop();
+        i = i - 1;
+        toDelete = this.mdFileService.navigationArray[i - 1];
+      } while (toDelete != undefined && toDelete.fullPath == thatFile.fullPath)
+    }
 
-    this.mdFileService.setNewSelectedMdFile(doc);
-    var dateTime = new Date();
-    this.sideNavDataService.currentPath = doc.path;
-    this.sideNavDataService.currentName = doc.name;
-    this.router.navigate(['main/navigation', dateTime.getTime()]);
+    this.mdFileService.setSelectedMdFileFromToolbar(doc);
+    //this.mdFileService.setSelectedMdFileFromBreacrumb(doc);
   }
 
 }

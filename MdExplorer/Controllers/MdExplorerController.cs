@@ -221,7 +221,6 @@ namespace MdExplorer.Controllers
                 Content = doc1.InnerXml,
 
             };
-            //System.IO.File.WriteAllText(@"c:\\test.html", doc1.InnerXml);
             return toReturn;
         }
 

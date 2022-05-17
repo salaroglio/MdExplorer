@@ -22,11 +22,17 @@ export class OpenRecentComponent implements OnInit {
     this.dataSource = this.projectService.mdProjects;
   }
   quickOpenNotes(path: string) {
-    this.projectService.setNewFolderProjectQuickNotes(path, this.loadNewProject, this);
+    this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {
+      var dateTime = new Date();
+      this.router.navigate(['/main/navigation', dateTime.getTime()])
+    });
   }
 
   openNewProject(path: string) {    
-    this.projectService.setNewFolderProject(path, this.loadNewProject, this);
+    this.projectService.setNewFolderProject(path).subscribe(_ => {
+      var dateTime = new Date();
+      this.router.navigate(['/main/navigation', dateTime.getTime()]);
+    });
   }
 
   getProjectList(data: any, objectThis: OpenRecentComponent): void {
@@ -37,8 +43,4 @@ export class OpenRecentComponent implements OnInit {
     this.projectService.deleteProject(project, this.getProjectList, this);
   }
 
-  loadNewProject(data: any, objectThis: OpenRecentComponent) {    
-    var dateTime = new Date();
-    objectThis.router.navigate(['/main/navigation']);
-  }
 }
