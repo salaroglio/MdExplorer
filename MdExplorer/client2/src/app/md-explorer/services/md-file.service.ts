@@ -92,7 +92,7 @@ export class MdFileService {
   loadFolders() {
     const url = '../api/mdfiles/GetFoldersDocument';
     return this.http.get<MdFile[]>(url)
-      .subscribe(data => {
+      .subscribe(data => {        
         this.dataStore.mdFoldersDocument = data;
         this._mdFoldersDocument.next(Object.assign({}, this.dataStore).mdFoldersDocument);
       },

@@ -186,7 +186,7 @@ namespace MdExplorer.Controllers
                     var linkToStore = new LinkInsideMarkdown
                     {
                         FullPath = _helper.NormalizePath(fullPath),
-                        Path = singleLink.LinkPath,
+                        Path = singleLink.LinkPath,                        
                         Source = getModifier.GetType().Name,
                         LinkedCommand = singleLink.LinkedCommand,
                         SectionIndex = singleLink.SectionIndex,
@@ -212,7 +212,7 @@ namespace MdExplorer.Controllers
         private (FileInfoNode, bool) CreateNodeFolder(string itemFolder)
         {
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
-            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), FullPath = itemFolder, Path = patchedItemFolfer, Type = "folder" };
+            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), FullPath = itemFolder,RelativePath= patchedItemFolfer, Path = patchedItemFolfer, Type = "folder" };
             var isEmpty = ExploreNodes(node, itemFolder);
             return (node, isEmpty);
         }
