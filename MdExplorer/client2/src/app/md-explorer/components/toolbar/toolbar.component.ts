@@ -22,7 +22,6 @@ export class ToolbarComponent implements OnInit {
   absolutePath: string;
   relativePath: string;
   connectionId: string;
-  navigationArray: MdFile[] = [];
 
   @Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -75,7 +74,6 @@ export class ToolbarComponent implements OnInit {
       
       if (_ != null) {
         this.mdFileService.navigationArray = [];
-        this.mdFileService.navigationArray.push(_);
         this.absolutePath = _.fullPath;
         this.relativePath = _.relativePath;
       }      
@@ -87,7 +85,6 @@ export class ToolbarComponent implements OnInit {
         if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
           return;
         }
-        //this.navigationArray = this.mdFileService.navigationArray;
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
       }
@@ -116,11 +113,9 @@ export class ToolbarComponent implements OnInit {
   }
 
   private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
-    debugger;
-    if (data.relativePath != objectThis.mdFileService.navigationArray[0].relativePath ) {
+    
       objectThis.mdFileService.navigationArray.push(data);
       objectThis.mdFileService.setSelectedMdFileFromServer(data);
-    }
   }
 
   OpenEditor() {    
@@ -134,7 +129,7 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
   }
 
-  backToDocument(doc: MdFile) {    
+  backToDocument(doc: MdFile) {
     var thatFile = this.mdFileService.navigationArray.find(_ => _.fullPath == doc.fullPath);
     if (thatFile != null && thatFile != undefined) {
       let i = this.mdFileService.navigationArray.length;
@@ -145,9 +140,7 @@ export class ToolbarComponent implements OnInit {
         toDelete = this.mdFileService.navigationArray[i - 1];
       } while (toDelete != undefined && toDelete.fullPath == thatFile.fullPath)
     }
-
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
-    //this.mdFileService.setSelectedMdFileFromBreacrumb(doc);
   }
 
 }

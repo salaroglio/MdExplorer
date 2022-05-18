@@ -10,6 +10,7 @@ namespace MdExplorer.Abstractions.Interfaces
     {
         public string Path { get; set; }
         public string FullPath { get; set; }
+        public string RelativePath { get; set; }
         public string Name { get; set; }
         public string Type { get; set; }
         public int Level { get; set; }
