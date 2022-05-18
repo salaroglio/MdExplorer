@@ -1,31 +1,51 @@
 import { Injectable } from '@angular/core';
 import * as signalR from "@microsoft/signalr";
 
+interface linkSignalREvent_Component {
+  key: string
+  object: any;
+  callback: (data: any, objectThis: any) => any
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class MonitorMDService {
 
+  linkEventCompArray: linkSignalREvent_Component[];
+
   constructor() {
     this.startConnection();
-    console.log('MonitorMDService constructor')
+    console.log('MonitorMDService constructor');
+    this.linkEventCompArray = [];
+
+
   }
 
   private hubConnection: signalR.HubConnection
   private rule1IsRegistered :any;
 
   public startConnection = () => {
-
+    debugger;
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl('../signalr/monitormd')
       .build();
-    this.hubConnection
-      .start()
-      .then(() => console.log('Connection started'))
-      .catch(err => {        
-        console.log('Error while starting connection: ' + err);
-      }
-      );    
+    
+    if (this.hubConnection.state == "Disconnected" ) {
+      this.hubConnection
+        .start()
+        .then(() => console.log('Connection started'))
+        .catch(err => {
+          console.log('Error while starting connection: ' + err);
+        }
+        );    
+    }
+
+    this.hubConnection.on('markdownfileisprocessed', (data) => {
+      this.myCallBack(data, 'markdownfileisprocessed');
+    });
+
+    
   }
 
   public addOnCloseEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
@@ -47,10 +67,19 @@ export class MonitorMDService {
     });
   }
 
-  public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('markdownfileisprocessed', (data) => {
-      callback(data, objectThis);
-    });
+  private myCallBack(data: any, signalREvent:string) {
+    this.linkEventCompArray.forEach(_ => {
+      if (_.key == signalREvent) {
+        _.callback(data, _.object);
+      }
+    })
+  }
+
+  public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
+    let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
+    if (check == undefined) {
+      this.linkEventCompArray.push({ key:'markdownfileisprocessed',object : objectThis, callback:callback });
+    }    
   }
 
   public addMdRule1Listener(callback: (data: any, objectThis: any) => any, objectThis: any): void {

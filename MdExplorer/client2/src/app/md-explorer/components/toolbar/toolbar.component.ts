@@ -82,9 +82,11 @@ export class ToolbarComponent implements OnInit {
     this.mdFileService.serverSelectedMdFile.subscribe(val => {      
       var current = val[0];
       if (current != undefined) {
-        if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
-          return;
-        }
+        if (this.mdFileService.navigationArray.length>0) {
+          if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
+            return;
+          }
+        }        
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
       }

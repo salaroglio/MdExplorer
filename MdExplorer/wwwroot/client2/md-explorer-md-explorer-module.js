@@ -1770,18 +1770,25 @@ __webpack_require__.r(__webpack_exports__);
 class MonitorMDService {
     constructor() {
         this.startConnection = () => {
+            debugger;
             this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__["HubConnectionBuilder"]()
                 .withUrl('../signalr/monitormd')
                 .build();
-            this.hubConnection
-                .start()
-                .then(() => console.log('Connection started'))
-                .catch(err => {
-                console.log('Error while starting connection: ' + err);
+            if (this.hubConnection.state == "Disconnected") {
+                this.hubConnection
+                    .start()
+                    .then(() => console.log('Connection started'))
+                    .catch(err => {
+                    console.log('Error while starting connection: ' + err);
+                });
+            }
+            this.hubConnection.on('markdownfileisprocessed', (data) => {
+                this.myCallBack(data, 'markdownfileisprocessed');
             });
         };
         this.startConnection();
         console.log('MonitorMDService constructor');
+        this.linkEventCompArray = [];
     }
     addOnCloseEvent(callback, objectThis) {
         this.hubConnection.onclose((data) => {
@@ -1799,10 +1806,18 @@ class MonitorMDService {
             console.log('markdownfileischanged');
         });
     }
-    addMdProcessedListener(callback, objectThis) {
-        this.hubConnection.on('markdownfileisprocessed', (data) => {
-            callback(data, objectThis);
+    myCallBack(data, signalREvent) {
+        this.linkEventCompArray.forEach(_ => {
+            if (_.key == signalREvent) {
+                _.callback(data, _.object);
+            }
         });
+    }
+    addMdProcessedListener(callback, objectThis) {
+        let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
+        if (check == undefined) {
+            this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
+        }
     }
     addMdRule1Listener(callback, objectThis) {
         // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
@@ -2457,8 +2472,10 @@ class ToolbarComponent {
         this.mdFileService.serverSelectedMdFile.subscribe(val => {
             var current = val[0];
             if (current != undefined) {
-                if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
-                    return;
+                if (this.mdFileService.navigationArray.length > 0) {
+                    if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
+                        return;
+                    }
                 }
                 this.absolutePath = current.fullPath;
                 this.relativePath = current.relativePath;
