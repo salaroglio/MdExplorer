@@ -21,8 +21,8 @@ $(function () {
         headingSelector: 'h1, h2, h3, h4, h5, h6',
         // Smooth scroll duration.
         scrollSmoothDuration: 220,
-        // Smooth scroll offset.
-        scrollSmoothOffset: 0,
+        positionFixedClass: 'is-position-fixed',        
+
     });
     //console.log('Tocbot initialized');
 });
