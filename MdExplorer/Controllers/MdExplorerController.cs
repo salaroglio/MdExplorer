@@ -182,7 +182,6 @@ namespace MdExplorer.Controllers
                         </div>
                             </div>  
                             <nav id=""TOC"" {styleForToc} >
-                                
                                 <div class=""sticky-top"">
                                     <div class=""toc js-toc is-position-fixed""></div>                                    
                                 </div>
