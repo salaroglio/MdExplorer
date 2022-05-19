@@ -77,8 +77,39 @@ namespace MdExplorer.Service.Controllers
             {
                 _visualStudioCode.ReopenVisualStudioCode(newFullPath);
             }
+            
+            _engineDB.BeginTransaction();
+            var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
+            var refSourceAct = new RefactoringSourceAction
+            {
+                Action = "Rename File",
+                OldFullPath = oldFullPath,
+                CreationDate = DateTime.Now,
+                NewName = fileData.ToFileName,
+                NewFullPath = newFullPath,
+            };
+            var linkInsideMdDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var list = linkInsideMdDal.GetList().Where(_ => _.FullPath == oldFullPath);
+            foreach (var item in list)
+            {
+                var refactoringInvolvedFile = new RefactoringInvolvedFilesAction
+                {
+                    CreationDate = DateTime.Now,
+                    FileName = item.MarkdownFile.FileName,
+                    FullPath = item.FullPath,
+                    NewLinkToReplace = item.LinkedCommand,
+                    OldLinkStored = item.LinkedCommand,
+                    SuggestedAction = "Replace link",
+                    RefactoringSourceAction = refSourceAct
+                };
+            }
+
+            sourceActionDal.Save(refSourceAct);
+            _engineDB.Commit();
+
             var toReturn = new ChangeFileData
             {
+                RefactoringSourceActionId = refSourceAct.Id,
                 OldName = fileData.FromFileName,
                 OldPath = oldFullPath,
                 OldLevel = fileData.Level,
@@ -110,6 +141,7 @@ namespace MdExplorer.Service.Controllers
 
         public class ChangeFileData
         {
+            public Guid RefactoringSourceActionId { get; set; }
             public string OldName { get; set; }
             public string OldPath { get; set; }
             public int OldLevel { get; set; }
