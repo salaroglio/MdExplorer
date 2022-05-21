@@ -25,6 +25,7 @@ using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Refactoring.Analysis;
 using System.Globalization;
 using System.Net.Http.Headers;
+using MdExplorer.Features.Utilities;
 
 namespace MdExplorer.Controllers
 {
@@ -33,6 +34,7 @@ namespace MdExplorer.Controllers
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
+        private readonly IHelper _helper;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -41,10 +43,12 @@ namespace MdExplorer.Controllers
             IUserSettingsDB session,
             IEngineDB engineDB,
             ICommandRunnerHtml commandRunner,
-            IGoodMdRule<FileInfoNode>[] GoodRules
+            IGoodMdRule<FileInfoNode>[] GoodRules,
+            IHelper helper
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
             _goodRules = GoodRules;
+            _helper = helper;
         }
 
         /// <summary>
@@ -93,8 +97,9 @@ namespace MdExplorer.Controllers
             {
                 Path = filePathSystem1,
                 Name = Path.GetFileName(filePathSystem1),                
-                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty)
-            };
+                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty),
+                FullPath = filePathSystem1
+        };
 
             var readText = string.Empty;
             using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -149,9 +154,49 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
+            var textHash = _helper.GetHashString(readText, Encoding.UTF8);
+            var cacheName = Path.GetFileName(filePathSystem1) + textHash + ".html";
+
+            //try
+            //{
+            //    if (System.IO.File.Exists(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+            //                            Path.DirectorySeparatorChar + cacheName))
+            //    {
+                    
+            //        var currentHtml = System.IO.File.ReadAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+            //                               Path.DirectorySeparatorChar + cacheName);
+            //        if (currentHtml != String.Empty)
+            //        {
+            //            var myurl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
+            //            var regularExpression = @$"{this.Request.Scheme}://localhost([^/]*)";
+            //            Regex rx = new Regex(regularExpression,
+            //                       RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            //            var matches = rx.Matches(currentHtml);
+            //            currentHtml = Regex.Replace(currentHtml, regularExpression, myurl);
+
+            //            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            //            var toQuickReturn = new ContentResult
+            //            {
+            //                ContentType = "text/html; charset=utf-8",
+            //                Content = currentHtml,
+
+            //            };
+            //            return toQuickReturn;
+            //        }
+                    
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    var msg = ex.Message;
+
+            //}
+
+
+
+            //Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
             var docSettingDal = _session.GetDal<DocumentSetting>();
@@ -212,8 +257,21 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
-            monitoredMd.FullPath = filePathSystem1;//.Replace(@"\",@"\\");
+            //.Replace(@"\",@"\\");
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+
+            try
+            {
+                System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+                                        Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
+                
+            }
+            
+
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
