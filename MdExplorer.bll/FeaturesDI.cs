@@ -7,6 +7,7 @@ using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
+using MdExplorer.Features.Refactoring.Work;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -38,6 +39,7 @@ namespace MdExplorer.Features
                 listOfModfier.Add(new WorkLinkImagesFromMarkdown());
                 listOfModfier.Add(new WorkLinkImgFromPlantuml());
                 listOfModfier.Add(new WorkLinkFromMarkdown());
+                listOfModfier.Add(new WorkLinkMdShowMd());
                 return listOfModfier.ToArray();
                 } );
             services.AddTransient<IAnalysisEngine, AnalysisEngine>();

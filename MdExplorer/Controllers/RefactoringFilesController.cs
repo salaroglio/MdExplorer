@@ -2,6 +2,7 @@
 using AutoMapper;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
@@ -23,6 +24,7 @@ namespace MdExplorer.Service.Controllers
         private readonly IEngineDB _engineDB;
         private readonly IAnalysisEngine _analysisEngine;
         private readonly IMapper _mapper;
+        private readonly IWorkLink[] _getModifiers;
         private ProcessUtil _visualStudioCode;
 
 
@@ -30,11 +32,13 @@ namespace MdExplorer.Service.Controllers
         public RefactoringFilesController(IEngineDB engineDB,
                     IAnalysisEngine analysisEngine,
                     IMapper mapper,
+                    IWorkLink[] getModifiers,
                     ProcessUtil visualStudioCode)
         {
             _engineDB = engineDB;
             _analysisEngine = analysisEngine;
             _mapper = mapper;
+            _getModifiers = getModifiers;
             _visualStudioCode = visualStudioCode;
         }
 
@@ -65,19 +69,9 @@ namespace MdExplorer.Service.Controllers
         [HttpPost]
         public IActionResult RenameFileName([FromBody] FileToRename fileData)
         {
-            _visualStudioCode.IKilled = false;
-            _visualStudioCode.KillVisualStudioCode();
-            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;//.OldFullPath;
-            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;// e.FullPath;
-            // gestisci il rename di un file
-            System.IO.File.Move(oldFullPath, newFullPath,true);
-            if (_visualStudioCode.CurrentVisualStudio != null && 
-                _visualStudioCode.CurrentVisualStudio.HasExited &&
-                _visualStudioCode.IKilled)
-            {
-                _visualStudioCode.ReopenVisualStudioCode(newFullPath);
-            }
-            
+            string oldFullPath, newFullPath;
+            RenameFileOnFilesystem(fileData, out oldFullPath, out newFullPath);
+
             _engineDB.BeginTransaction();
             var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
             var refSourceAct = new RefactoringSourceAction
@@ -88,24 +82,41 @@ namespace MdExplorer.Service.Controllers
                 NewName = fileData.ToFileName,
                 NewFullPath = newFullPath,
             };
+            sourceActionDal.Save(refSourceAct);
             var linkInsideMdDal = _engineDB.GetDal<LinkInsideMarkdown>();
-            var list = linkInsideMdDal.GetList().Where(_ => _.FullPath == oldFullPath);
-            foreach (var item in list)
+            var listOfLink = linkInsideMdDal.GetList().Where(_ => _.FullPath.ToLower() == oldFullPath.ToLower());
+            var RefInvolvedFilesActionDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
+            foreach (var item in listOfLink)
             {
                 var refactoringInvolvedFile = new RefactoringInvolvedFilesAction
                 {
                     CreationDate = DateTime.Now,
                     FileName = item.MarkdownFile.FileName,
-                    FullPath = item.FullPath,
-                    NewLinkToReplace = item.LinkedCommand,
+                    FullPath = item.MarkdownFile.Path,
+                    NewLinkToReplace = item.LinkedCommand.ToLower().Replace(fileData.FromFileName.ToLower(), fileData.ToFileName.ToLower()),
                     OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Replace link",
-                    RefactoringSourceAction = refSourceAct
+                    SuggestedAction = "Replaced link",
+                    RefactoringSourceAction = refSourceAct,                    
+                    LinkInsideMarkdown = item
                 };
+                RefInvolvedFilesActionDal.Save(refactoringInvolvedFile);
+            }
+            _engineDB.Flush();
+            
+            var listOfInvolvedFiles = RefInvolvedFilesActionDal.GetList().Where(_ => _.RefactoringSourceAction.Id == refSourceAct.Id).ToList();
+
+            foreach (var item in listOfInvolvedFiles)
+            {
+                foreach (var getModifier in _getModifiers.Where(_ => _.GetType().Name == item.LinkInsideMarkdown.Source))
+                {
+                    getModifier.SetLinkIntoFile(item.FullPath, item.OldLinkStored, item.NewLinkToReplace);
+                    item.LinkInsideMarkdown.LinkedCommand = item.NewLinkToReplace;
+                    linkInsideMdDal.Save(item.LinkInsideMarkdown);
+                }
             }
 
-            sourceActionDal.Save(refSourceAct);
             _engineDB.Commit();
+
 
             var toReturn = new ChangeFileData
             {
@@ -137,6 +148,22 @@ namespace MdExplorer.Service.Controllers
             //    //}
 
             //}
+        }
+
+        private void RenameFileOnFilesystem(FileToRename fileData, out string oldFullPath, out string newFullPath)
+        {
+            _visualStudioCode.IKilled = false;
+            _visualStudioCode.KillVisualStudioCode();
+            oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
+            newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
+            // gestisci il rename di un file
+            System.IO.File.Move(oldFullPath, newFullPath, true);
+            if (_visualStudioCode.CurrentVisualStudio != null &&
+                _visualStudioCode.CurrentVisualStudio.HasExited &&
+                _visualStudioCode.IKilled)
+            {
+                _visualStudioCode.ReopenVisualStudioCode(newFullPath);
+            }
         }
 
         public class ChangeFileData

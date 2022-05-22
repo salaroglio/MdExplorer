@@ -31,14 +31,9 @@ namespace MdExplorer.Migrations.EngineDb.Version202107
                 .WithColumn("RefactoringSourceActionId").AsGuid().NotNullable();
 
             Create.ForeignKey("RefactoringInvolvedFilesAction_RefactoringSourceAction_RefactoringSourceId")
-            .FromTable("RefactoringInvolvedFilesAction").ForeignColumn("RefactoringSourceId").ToTable("RefactoringSourceAction")
+            .FromTable("RefactoringInvolvedFilesAction").ForeignColumn("RefactoringSourceActionId").ToTable("RefactoringSourceAction")
             .PrimaryColumn("Id");
 
-            Alter.Table("RefactoringFilesystemEvent").AddColumn("RefactoringSourceActionId").AsGuid().Nullable();
-
-            Create.ForeignKey("RefactoringFilesystemEvent_RefactoringSourceAction_RefactoringSourceActionId")
-            .FromTable("RefactoringFilesystemEvent").ForeignColumn("RefactoringSourceActionId").ToTable("RefactoringSourceAction")
-            .PrimaryColumn("Id");
         }
 
         public override void Down()

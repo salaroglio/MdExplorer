@@ -44,7 +44,7 @@ export class RulesComponent implements OnInit {
         newFile.fullPath = data.newPath;
         newFile.relativePath = newPath;
         this.mdFileService.changeDataStoreMdFiles(oldFile, newFile);
-        this.dialogRef.close(null);
+        this.dialogRef.close(data);
       });
   }
 
