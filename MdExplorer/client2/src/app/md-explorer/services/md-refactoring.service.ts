@@ -40,6 +40,7 @@ export class MdRefactoringService {
 
 
 export interface IChangeFileData {
+  RefactoringSourceActionId: string;
   oldName: string;
   newName: string;
   oldPath: string;

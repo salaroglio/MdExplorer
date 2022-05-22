@@ -17,8 +17,10 @@ namespace MdExplorer.DataAccess.Engine.Mapping
             Map(_ => _.NewLinkToReplace).Length(255).Not.Nullable();
             Map(_ => _.OldLinkStored).Length(255).Not.Nullable();
             Map(_ => _.FullPath).Length(int.MaxValue).Nullable();
-            Map(_ => _.CreationDate).Not.Nullable();
-            References(_ => _.RefactoringSourceAction).Column("RefactoringSourceActionId").Nullable();
+            Map(_ => _.CreationDate).Not.Nullable();            
+            Map(_ => _.SuggestedAction).Not.Nullable();
+            References(_ => _.RefactoringSourceAction).Column("RefactoringSourceActionId").Not.Nullable();
+            References(_ => _.LinkInsideMarkdown).Column("LinkInsideMarkdownId").Not.Nullable();
         }
     }
 }

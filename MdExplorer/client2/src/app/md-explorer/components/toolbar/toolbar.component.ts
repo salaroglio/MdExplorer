@@ -9,7 +9,7 @@ import { SettingsComponent } from '../settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../rules/rules.component';
-import { MdRefactoringService } from '../../services/md-refactoring.service';
+import { IChangeFileData,MdRefactoringService } from '../../services/md-refactoring.service';
 import { MdFile } from '../../models/md-file';
 
 @Component({
@@ -60,7 +60,15 @@ export class ToolbarComponent implements OnInit {
     const dialogRef = this.dialog.open(RulesComponent, {
       width: '600px',
       data: data
-    });    
+    });
+    dialogRef.afterClosed().subscribe(_ => {
+      if (_.refactoringSourceActionId != undefined) {
+        this.dialog.open(RenameFileComponent, {
+          width: '600px',
+          data: _
+        });
+      }
+    });
   }
 
 

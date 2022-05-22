@@ -2457,6 +2457,14 @@ class ToolbarComponent {
             width: '600px',
             data: data
         });
+        dialogRef.afterClosed().subscribe(_ => {
+            if (_.refactoringSourceActionId != undefined) {
+                this.dialog.open(_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_2__["RenameFileComponent"], {
+                    width: '600px',
+                    data: _
+                });
+            }
+        });
     }
     ngOnInit() {
         this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
@@ -3519,7 +3527,7 @@ class RulesComponent {
             newFile.fullPath = data.newPath;
             newFile.relativePath = newPath;
             this.mdFileService.changeDataStoreMdFiles(oldFile, newFile);
-            this.dialogRef.close(null);
+            this.dialogRef.close(data);
         });
     }
     closeDialog(data) {
