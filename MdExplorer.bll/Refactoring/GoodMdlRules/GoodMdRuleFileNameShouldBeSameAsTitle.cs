@@ -20,6 +20,20 @@ namespace MdExplorer.Features.Refactoring.Analysis
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(toCheck.DataText);
             var firstTitle = matches[0].Groups[1].Value;
+
+            firstTitle = GetTitle(firstTitle);
+
+            var firstFileName = firstTitle + ".md";
+            if (!string.Equals(toCheck.Name, (firstFileName),
+                                StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, firstFileName);
+            }
+            return (false, null);
+        }
+
+        public string GetTitle(string firstTitle)
+        {
             Regex regTest = new Regex("<[^>]*>"); // clean all added html
             var firstTitleTest = regTest.Replace(firstTitle, string.Empty);
             Regex regTest2 = new Regex(":[^:^ ]*:");
@@ -31,14 +45,7 @@ namespace MdExplorer.Features.Refactoring.Analysis
 
             Regex reg1 = new Regex("[ ]");
             firstTitle = reg1.Replace(firstTitle, "-");
-
-            var firstFileName = firstTitle + ".md";
-            if (!string.Equals(toCheck.Name, (firstFileName),
-                                StringComparison.OrdinalIgnoreCase))
-            {
-                return (true, firstFileName);
-            }
-            return (false, null);
+            return firstTitle;
         }
 
         public FileInfoNode MakeChangesToRespectTheRule(FileInfoNode toChange)

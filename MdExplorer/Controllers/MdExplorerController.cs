@@ -96,10 +96,11 @@ namespace MdExplorer.Controllers
             var monitoredMd = new MonitoredMDModel
             {
                 Path = filePathSystem1,
-                Name = Path.GetFileName(filePathSystem1),                
+                Name = Path.GetFileName(filePathSystem1),
                 RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty),
-                FullPath = filePathSystem1
-        };
+                FullPath = filePathSystem1,
+                FullDirectoryPath = Path.GetDirectoryName(filePathSystem1)
+            };
 
             var readText = string.Empty;
             using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -117,23 +118,24 @@ namespace MdExplorer.Controllers
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
-            var goodMdRuleFileNameShouldBeSameAsTitle = 
-                    _goodRules.First(_ => _.GetType() == 
+            var goodMdRuleFileNameShouldBeSameAsTitle =
+                    _goodRules.First(_ => _.GetType() ==
                         typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
 
-            var fileNode = new FileInfoNode { 
+            var fileNode = new FileInfoNode
+            {
                 FullPath = filePathSystem1,
-                Name = Path.GetFileName(filePathSystem1),                
+                Name = Path.GetFileName(filePathSystem1),
                 DataText = readText
             };
             //bool isBroken;
             //string theNameShouldBe;
-            (var isBroken, var  theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
+            (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
             if (isBroken)
             {
                 monitoredMd.Message = "It breaks Rule # 1";
                 monitoredMd.Action = "Rename the File!";
-                monitoredMd.FromFileName  = Path.GetFileName(filePathSystem1);
+                monitoredMd.FromFileName = Path.GetFileName(filePathSystem1);
                 monitoredMd.ToFileName = theNameShouldBe;
                 monitoredMd.FullPath = Path.GetDirectoryName(filePathSystem1);
                 await _hubContext.Clients.All.SendAsync("markdownbreakrule1", monitoredMd);
@@ -164,7 +166,7 @@ namespace MdExplorer.Controllers
             //    if (System.IO.File.Exists(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
             //                            Path.DirectorySeparatorChar + cacheName))
             //    {
-                    
+
             //        var currentHtml = System.IO.File.ReadAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
             //                               Path.DirectorySeparatorChar + cacheName);
             //        if (currentHtml != String.Empty)
@@ -185,7 +187,7 @@ namespace MdExplorer.Controllers
             //            };
             //            return toQuickReturn;
             //        }
-                    
+
             //    }
             //}
             //catch (Exception ex)
@@ -242,7 +244,7 @@ namespace MdExplorer.Controllers
             foreach (XmlNode itemElement in elementsA)
             {
                 var href = itemElement.Attributes["href"];
-                if (href!= null && href.Value.Length > 8)
+                if (href != null && href.Value.Length > 8)
                 {
                     if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
                     {
@@ -268,9 +270,9 @@ namespace MdExplorer.Controllers
             catch (Exception ex)
             {
                 var msg = ex.Message;
-                
+
             }
-            
+
 
             var toReturn = new ContentResult
             {

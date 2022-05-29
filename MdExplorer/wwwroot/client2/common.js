@@ -43,16 +43,20 @@ class MdFileService {
     constructor(http) {
         this.http = http;
         this._navigationArray = []; // deve morire
-        this.foundMd = false;
+        this.fileFoundMd = false;
         var defaultSelectedMdFile = [];
-        this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [], serverSelectedMdFile: defaultSelectedMdFile };
+        this.dataStore = {
+            mdFiles: [],
+            mdFoldersDocument: [],
+            mdDynFolderDocument: [],
+            serverSelectedMdFile: defaultSelectedMdFile
+        };
         this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdFoldersDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
-        console.log('MdFileService constructor');
     }
     get mdFiles() {
         return this._mdFiles.asObservable();
@@ -79,11 +83,22 @@ class MdFileService {
     set navigationArray(mdFile) {
         this._navigationArray = mdFile;
     }
+    addNewFile(data) {
+        // searching directories
+        for (var i = 0; i < data.length; i++) {
+            var currentItem = data[i];
+            let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
+            if (currentFolder != undefined) {
+                currentFolder.childrens.push(data[i + 1]); // insert new file
+                this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+                break;
+            }
+        }
+    }
     loadAll(callback, objectThis) {
         const url = '../api/mdfiles/GetAllMdFiles';
         return this.http.get(url)
             .subscribe(data => {
-            debugger;
             this.dataStore.mdFiles = data;
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
             if (callback != null) {
@@ -129,6 +144,15 @@ class MdFileService {
         const url = '../api/mdexplorer/' + path;
         return this.http.get(url, { responseType: 'text' }); //, currentFile      
     }
+    CreateNewMd(path, title, directoryLevel) {
+        const url = '../api/mdfiles/CreateNewMd';
+        var newData = {
+            directoryPath: path,
+            title: title,
+            directoryLevel: directoryLevel,
+        };
+        return this.http.post(url, newData);
+    }
     /**
      * Funzione di sostituzione di un nodo, con un altro
      * @param oldFile
@@ -142,7 +166,6 @@ class MdFileService {
         leaf.path = newFile.path;
         leaf.relativePath = newFile.relativePath;
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-        debugger;
         this._serverSelectedMdFile.next(returnFound);
     }
     setSelectedMdFileFromSideNav(selectedFile) {
@@ -161,7 +184,7 @@ class MdFileService {
         return returnFound[0];
     }
     searchMdFileIntoDataStore(arrayMd, FileToFind) {
-        this.foundMd = false;
+        this.fileFoundMd = false;
         var arrayFound = [];
         this.recursiveSearch(arrayMd, FileToFind, arrayFound);
         return arrayFound;
@@ -172,34 +195,28 @@ class MdFileService {
      * @param oldFile
      * @param newFile
      */
-    recursiveSearch(arrayMd, oldFile, arrayFound
+    recursiveSearch(arrayMd, fileTofind, arrayFound
     //, newFile: MdFile
     ) {
         if (arrayMd.length == 0) {
             return;
         }
-        var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == oldFile.fullPath.toLowerCase());
+        var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
         if (thatFile == undefined) {
             for (var i = 0; i < arrayMd.length; i++) {
                 var _ = arrayMd[i];
-                if (!this.foundMd) {
-                    this.recursiveSearch(_.childrens, oldFile, arrayFound); //, newFile
+                if (!this.fileFoundMd) {
+                    this.recursiveSearch(_.childrens, fileTofind, arrayFound); //, newFile
                 }
-                if (this.foundMd) {
+                if (this.fileFoundMd) {
                     arrayFound.push(_);
                     break;
                 }
             }
         }
         else {
-            this.foundMd = true;
-            //if (newFile != null && newFile != undefined) {
-            //  thatFile.name = newFile.name;
-            //  thatFile.path = newFile.path;
-            //}
+            this.fileFoundMd = true;
             arrayFound.push(thatFile);
-            //this.arrayAncestorMd.push(thatFile);
-            //
         }
     }
 }

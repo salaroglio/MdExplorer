@@ -3,11 +3,13 @@ import { Injectable } from '@angular/core';
 import { promise } from 'protractor';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { MdFile } from '../models/md-file';
+import { IChangeFileData } from './md-refactoring.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MdFileService {
+  
 
   private _mdFiles: BehaviorSubject<MdFile[]>;
   private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
@@ -24,17 +26,21 @@ export class MdFileService {
     serverSelectedMdFile: MdFile[]
   }
   constructor(private http: HttpClient) {
+
     var defaultSelectedMdFile = [];
-    this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [], serverSelectedMdFile: defaultSelectedMdFile };
+    this.dataStore = {
+      mdFiles: [],
+      mdFoldersDocument: [],
+      mdDynFolderDocument: [],
+      serverSelectedMdFile: defaultSelectedMdFile
+    };
+
     this._mdFiles = new BehaviorSubject<MdFile[]>([]);
     this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
     this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromToolbar = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromSideNav = new BehaviorSubject<MdFile>(null);
-
-    console.log('MdFileService constructor')
-
   }
 
   get mdFiles(): Observable<MdFile[]> {
@@ -51,7 +57,6 @@ export class MdFileService {
   get serverSelectedMdFile(): Observable<MdFile[]> {
     return this._serverSelectedMdFile.asObservable();
   }
-
 
   get selectedMdFileFromToolbar(): Observable<MdFile[]> {
     return this._selectedMdFileFromToolbar.asObservable();
@@ -72,12 +77,27 @@ export class MdFileService {
     this._navigationArray = mdFile;
   }
 
+  addNewFile(data: MdFile[]) {
+    // searching directories
+    for (var i = 0; i < data.length; i++) {
+      var currentItem = data[i];
+      let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
+      if (currentFolder != undefined) {
+        currentFolder.childrens.push(data[i + 1]); // insert new file
+        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        break;
+      }
+    }
+    
+  }
+
+  
+
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {    
     const url = '../api/mdfiles/GetAllMdFiles';
     return this.http.get<MdFile[]>(url)
-      .subscribe(data => {
-        debugger;
+      .subscribe(data => {   
         this.dataStore.mdFiles = data;
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
         if (callback != null) {
@@ -132,8 +152,19 @@ export class MdFileService {
     return this.http.get(url, { responseType: 'text' })//, currentFile      
   }
 
+  CreateNewMd(path: string, title: string, directoryLevel:number) {
+    const url = '../api/mdfiles/CreateNewMd';
+    var newData = {
+      directoryPath: path,
+      title: title,
+      directoryLevel: directoryLevel,
+    }
+    return this.http.post<MdFile[]>(url, newData);
+  }
 
-  foundMd: boolean = false;
+
+  fileFoundMd: boolean = false;
+ 
 
   /**
    * Funzione di sostituzione di un nodo, con un altro
@@ -149,7 +180,6 @@ export class MdFileService {
     leaf.path = newFile.path;
     leaf.relativePath = newFile.relativePath;
     this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    debugger;
     this._serverSelectedMdFile.next(returnFound);
   }
 
@@ -163,9 +193,10 @@ export class MdFileService {
   }
 
   setSelectedMdFileFromServer(selectedFile: MdFile) {
-    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile); 
     this._serverSelectedMdFile.next(returnFound);
   }
+
 
   getMdFileFromDataStore(selectedFile: MdFile):MdFile {
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
@@ -173,7 +204,7 @@ export class MdFileService {
   }
 
   searchMdFileIntoDataStore(arrayMd: MdFile[], FileToFind: MdFile): MdFile[] {
-    this.foundMd = false;
+    this.fileFoundMd = false;    
     var arrayFound: MdFile[]  = [];
     this.recursiveSearch(arrayMd, FileToFind, arrayFound);
     return arrayFound;
@@ -186,37 +217,39 @@ export class MdFileService {
  * @param oldFile
  * @param newFile
  */
-  recursiveSearch(arrayMd: MdFile[], oldFile: MdFile, arrayFound: MdFile[]
+  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]
     //, newFile: MdFile
   ) {
     if (arrayMd.length == 0) {
       return;
     }
-    var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == oldFile.fullPath.toLowerCase());
+    var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
+   
     if (thatFile == undefined) {
       for (var i = 0; i < arrayMd.length; i++) {
         var _ = arrayMd[i];
-        if (!this.foundMd) {
-          this.recursiveSearch(_.childrens, oldFile, arrayFound);//, newFile
+        if (!this.fileFoundMd) {
+          this.recursiveSearch(_.childrens, fileTofind, arrayFound);//, newFile
         } 
-        if (this.foundMd) {
+        if (this.fileFoundMd) {
           arrayFound.push(_);
           break;
         }
+        
       }
 
     } else {      
-      this.foundMd = true;
-      //if (newFile != null && newFile != undefined) {
-      //  thatFile.name = newFile.name;
-      //  thatFile.path = newFile.path;
-      //}
+      this.fileFoundMd = true;
       arrayFound.push(thatFile);
-      //this.arrayAncestorMd.push(thatFile);
-      //
     }
   }
 
+}
 
-
+export interface INewFileCreated {  
+  newName: string;  
+  newPath: string;  
+  newLevel: number;
+  expandable: boolean;
+  relativePath: boolean;
 }

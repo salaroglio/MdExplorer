@@ -1,18 +1,33 @@
 <h1>WOW! Refactoring Management and analysis</h1>
 <mat-dialog-content>
 
-  <table>
-    <tr *ngFor="let element of actionList">
-      <td>{{element.action}}</td>
-      <td>{{element.newName}}</td>
-      <td>{{element.oldName}}</td>      
-    </tr>
+  <table mat-table [dataSource]="this.actionList">
+    <ng-container matColumnDef="suggestedAction">
+      <th mat-header-cell *matHeaderCellDef> Actions </th>
+      <td mat-cell *matCellDef="let element"> {{element.suggestedAction}} </td>
+    </ng-container>
+    <ng-container matColumnDef="fileName">
+      <th mat-header-cell *matHeaderCellDef> File Name </th>
+      <td mat-cell *matCellDef="let element"> {{element.fileName}} </td>
+    </ng-container>
+    <ng-container matColumnDef="oldLinkStored">
+      <th mat-header-cell *matHeaderCellDef> Old Link </th>
+      <td mat-cell *matCellDef="let element"> {{element.oldLinkStored}} </td>
+    </ng-container>
+    <ng-container matColumnDef="newLinkToReplace">
+      <th mat-header-cell *matHeaderCellDef> New Link </th>
+      <td mat-cell *matCellDef="let element"> {{element.newLinkToReplace}} </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: this.displayedColumns;"></tr>
+
   </table>
 </mat-dialog-content>
 
 <mat-dialog-actions>
   <button mat-button color="primary" (click)="doRefactoring()">
-    <mat-icon>save</mat-icon>Yes do Refactoring
+    <mat-icon>ok</mat-icon>Ok
   </button>
   
 </mat-dialog-actions>
