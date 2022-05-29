@@ -44,15 +44,23 @@ namespace MdExplorer.Service.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetRefactoringSourceActionList()
+        public IActionResult GetRefactoringSourceActionList(Guid RefactoringSourceActionId)
         {
             _engineDB.BeginTransaction();            
             var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
-            var list = sourceActionDal.GetList().ToList();
+            var theAction = sourceActionDal.GetList().Where(_=>_.Id == RefactoringSourceActionId).First();
+            var listToReturn = new List<dynamic>();
+            foreach (var involvedAction in theAction.ActionDetails)
+            {
+                listToReturn.Add(new {
+                                    involvedAction.Id,
+                                    involvedAction.SuggestedAction, 
+                                    involvedAction.FileName,
+                                    involvedAction.OldLinkStored, 
+                                    involvedAction.NewLinkToReplace });
+            }
+            
             _engineDB.Commit();
-
-            var listToReturn = list.Select(_ => new { _.Action, _.ActionDetails, _.CreationDate, _.NewName, _.OldName });
-
             return Ok(listToReturn);
 
         }
@@ -70,13 +78,15 @@ namespace MdExplorer.Service.Controllers
         [HttpPost]
         public IActionResult RenameFileName([FromBody] FileToRename fileData)
         {
-            string oldFullPath, newFullPath;
-            RenameFileOnFilesystem(fileData, out oldFullPath, out newFullPath);
+            
+            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
+            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
+            RenameFileOnFilesystem(fileData);
 
             _engineDB.BeginTransaction();
 
-            UpdateMarkDownFile(fileData, oldFullPath, newFullPath); //The file name is changed
-            var refSourceAct = SaveRefactoringSourceAction(fileData, oldFullPath, newFullPath); // Save the concept of change
+            UpdateMarkDownFile(fileData); //The file name is changed
+            var refSourceAct = SaveRefactoringSourceAction(fileData); // Save the concept of change
             IDAL<LinkInsideMarkdown> linkInsideMdDal;
             IDAL<RefactoringInvolvedFilesAction> RefInvolvedFilesActionDal;
             // Get parents involved file, looking for links inside of parents
@@ -119,21 +129,6 @@ namespace MdExplorer.Service.Controllers
 
             return Ok(toReturn);
 
-
-
-            //    //    // faccio un primo match con il fullPath (giusto per tagliare fuori doppioni (caso assets))
-            //    //    // devo capire se si tratta di un folder (guardo se ha il punto o meno)
-            //    //    // oppure se si tratta di un file
-            //    //    // da capire come gestire il cut and paste. (viene gestito come un renamed, ma diventa un macello il ricalcolo del path)
-            //    //    // capire che cosa devo scrivere al posto del precedente link (io farei una replace del vecchio con il nuovo)
-            //    //    // devo gestire casi particolari comme /asset/asset/asset/asset/asset.md devo capire in quale punto esatto cambiare
-            //    //    // mi aiuta di sicuro il full path. Ma devo trovare una relazione tra fullpath e relative path
-            //    //    // Modificare tutti i link sul filesystem (devo usare le stesse funzioni di get, per andare ad agganciare i set)
-            //    //    // il grande casino è come gestire i file relativi e capire se sono veramente coinvolti
-            //    //    // Modificare tutti i link sul db
-            //    //}
-
-            //}
         }
 
         private void SetRefactoringInvolvedFilesAction(FileToRename fileData, string oldFullPath, RefactoringSourceAction refSourceAct, out IDAL<LinkInsideMarkdown> linkInsideMdDal, out IDAL<RefactoringInvolvedFilesAction> RefInvolvedFilesActionDal)
@@ -159,8 +154,11 @@ namespace MdExplorer.Service.Controllers
             _engineDB.Flush();
         }
 
-        private RefactoringSourceAction SaveRefactoringSourceAction(FileToRename fileData, string oldFullPath, string newFullPath)
+        private RefactoringSourceAction SaveRefactoringSourceAction(FileToRename fileData)
         {
+            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
+            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
+
             var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
             var refSourceAct = new RefactoringSourceAction
             {
@@ -175,8 +173,10 @@ namespace MdExplorer.Service.Controllers
             return refSourceAct;
         }
 
-        private void UpdateMarkDownFile(FileToRename fileData, string oldFullPath, string newFullPath)
+        private void UpdateMarkDownFile(FileToRename fileData)
         {
+            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
+            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
             var markdonwFileDal = _engineDB.GetDal<MarkdownFile>();
             var changingFile = markdonwFileDal.GetList().Where(_ => _.Path == oldFullPath).First();
             changingFile.Path = newFullPath;
@@ -185,12 +185,12 @@ namespace MdExplorer.Service.Controllers
             _engineDB.Flush();
         }
 
-        private void RenameFileOnFilesystem(FileToRename fileData, out string oldFullPath, out string newFullPath)
+        private void RenameFileOnFilesystem(FileToRename fileData)
         {
             _visualStudioCode.IKilled = false;
             _visualStudioCode.KillVisualStudioCode();
-            oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
-            newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
+            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
+            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
             // gestisci il rename di un file
             System.IO.File.Move(oldFullPath, newFullPath, true);
             if (_visualStudioCode.CurrentVisualStudio != null &&

@@ -11,6 +11,7 @@ import { SideNavDataService } from '../../services/side-nav-data.service';
 import { MatDialog } from '@angular/material/dialog';
 import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
 import { MatMenuTrigger } from '@angular/material/menu';
+import { NewMarkdownComponent } from '../new-markdown/new-markdown.component';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
@@ -168,6 +169,15 @@ export class SidenavComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;
   }
- 
+
+  // Manu management
+
+  createMdOn(node: MdFile) {
+    this.dialog.open(NewMarkdownComponent, {
+      width: '300px',
+      data:node,
+    });    
+  }
+
 
 }

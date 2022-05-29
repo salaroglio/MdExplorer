@@ -12,6 +12,7 @@ namespace MdExplorer.Models
         public string Name { get; set; }
         public string RelativePath { get; set; }
         public string ConnectionId { get; set; }
+        public string FullDirectoryPath { get; set; }
         public string Action { get; set; }
         public DateTime StartExportTime { get; set; }
         public DateTime StopExportTime { get; set; }

@@ -7,16 +7,16 @@
 
 <mat-menu #rightMenu="matMenu">
   <ng-template matMenuContent let-item="item">
-    <button mat-menu-item>Rename {{item.name}}</button>
+    <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
     <button mat-menu-item>Move directory</button>
-    <button mat-menu-item>New directory</button>
-    <button mat-menu-item>New Markdown</button>
+    <button mat-menu-item>New directory</button>-->
+    <button mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
 
   </ng-template>
 </mat-menu>
 
 
-<mat-sidenav-container autosize class="app-sidenav-container">
+<mat-sidenav-container autosize class="app-sidenav-container" (contextmenu)="onRightClick($event, null)">
 
   <mat-sidenav #sidenav [style.width]="sideNavWidth" class=" mat-elevation-z10"
                [opened]="!isScreenSmall"
@@ -47,15 +47,13 @@
             {{'text_snippet'}}
           </mat-icon>
         </button>
-        <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>
-
-        <!--{{node.name}}-->
+        <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>        
       </mat-tree-node>
       <!-- This is the tree node template for expandable nodes -->
       <mat-tree-node *matTreeNodeDef="let node;when: hasChild" matTreeNodePadding>
         <button mat-icon-button matTreeNodeToggle
                 [attr.aria-label]="'Toggle ' + node.name">
-          <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, {content: node})">
+          <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, node)">
             {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
           </mat-icon>
         </button>

@@ -122,8 +122,7 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
-    
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
       objectThis.mdFileService.navigationArray.push(data);
       objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }

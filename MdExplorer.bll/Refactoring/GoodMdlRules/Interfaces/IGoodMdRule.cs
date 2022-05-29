@@ -8,7 +8,7 @@ namespace MdExplorer.Features.Refactoring.Analysis.Interfaces
 {
     public interface IGoodMdRule<T>
     {
-        (bool,string) ItBreakTheRule(T toCheck);
+        (bool,string) ItBreakTheRule(T toCheck);        
         T MakeChangesToRespectTheRule(T toChange);
         void PersistChanges(T toSave);
     }

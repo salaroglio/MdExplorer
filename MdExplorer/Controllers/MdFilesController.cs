@@ -4,6 +4,8 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Analysis;
+using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -24,18 +26,21 @@ namespace MdExplorer.Controllers
         private readonly IWorkLink[] _getModifiers;
         private readonly IHelper _helper;
         private readonly IUserSettingsDB _userSettingsDB;
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
 
         public IEngineDB _engineDB { get; }
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
             IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper,
-            IUserSettingsDB userSettingsDB)
+            IUserSettingsDB userSettingsDB,
+            IGoodMdRule<FileInfoNode>[] GoodRules )
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
             _getModifiers = getModifiers;
             _helper = helper;
             _userSettingsDB = userSettingsDB;
+            _goodRules = GoodRules;
         }
 
 
@@ -144,6 +149,61 @@ namespace MdExplorer.Controllers
             return Ok(list);
         }
 
+        /// <summary>
+        /// It helps to create new Markdown when on client:right click and then: create new markdow
+        /// </summary>
+        /// <param name="fileData"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public IActionResult CreateNewMd([FromBody] NewFile fileData)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            var goodMdRuleFileNameShouldBeSameAsTitle =
+                    _goodRules.First(_ => _.GetType() ==
+                        typeof(GoodMdRuleFileNameShouldBeSameAsTitle)) as GoodMdRuleFileNameShouldBeSameAsTitle;
+
+            var title = goodMdRuleFileNameShouldBeSameAsTitle.GetTitle(fileData.Title)+ ".md";
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + title;
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty); 
+            System.IO.File.WriteAllText(fullPath,"# " + fileData.Title + "\r\n");
+
+            var list = new List<IFileInfoNode>();
+            var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar,StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
+            
+            var dynamicRelativePath = string.Empty;
+            var currentLevel = 0;
+            foreach (var item in relativeSplitted)
+            {
+                dynamicRelativePath = 
+                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath +  Path.DirectorySeparatorChar.ToString();
+                dynamicRelativePath += item;
+
+                var node = new FileInfoNode
+                {
+                    Name = item,
+                    FullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + dynamicRelativePath,
+                    RelativePath = dynamicRelativePath,
+                    Path = dynamicRelativePath,
+                    Type = "folder",
+                    Level = currentLevel,
+                };
+                currentLevel++;
+                list.Add(node);
+            }
+            var nodeFile = new FileInfoNode
+            {
+                Name = title,
+                FullPath = fullPath,
+                Path = relativePath,
+                RelativePath = relativePath,
+                Type = "mdFile",
+                Level = currentLevel,
+            };
+            list.Add(nodeFile);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(list);
+        }
+
         private void SaveRealationships(IList<IFileInfoNode> list, Guid? parentId = null)
         {
             // clean all data
@@ -212,7 +272,12 @@ namespace MdExplorer.Controllers
         private (FileInfoNode, bool) CreateNodeFolder(string itemFolder)
         {
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
-            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), FullPath = itemFolder,RelativePath= patchedItemFolfer, Path = patchedItemFolfer, Type = "folder" };
+            var node = new FileInfoNode { 
+                    Name = Path.GetFileName(itemFolder), 
+                    FullPath = itemFolder,RelativePath = 
+                    patchedItemFolfer, 
+                    Path = patchedItemFolfer, 
+                    Type = "folder" };
             var isEmpty = ExploreNodes(node, itemFolder);
             return (node, isEmpty);
         }
@@ -274,4 +339,13 @@ namespace MdExplorer.Controllers
             return isEmpty;
         }
     }
+}
+
+
+public class NewFile
+{
+    public string Title { get; set; }
+    public string DirectoryPath { get; set; }    
+    public int DirectoryLevel { get; set; }
+
 }

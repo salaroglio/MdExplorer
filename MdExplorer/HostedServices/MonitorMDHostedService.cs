@@ -2,6 +2,7 @@
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
@@ -26,17 +27,22 @@ namespace MdExplorer.Service.HostedServices
         private readonly ILogger<MonitorMDHostedService> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IWorkLink[] _linkManagers;
+        private readonly IHelper _helper;
 
-        public MonitorMDHostedService(IHubContext<MonitorMDHub> hubContext,
+        public MonitorMDHostedService(
+                IHubContext<MonitorMDHub> hubContext,
                 FileSystemWatcher fileSystemWatcher,
-                ILogger<MonitorMDHostedService> logger, IServiceProvider serviceProvider,
-                IWorkLink[] linkManagers)
+                ILogger<MonitorMDHostedService> logger, 
+                IServiceProvider serviceProvider,
+                IWorkLink[] linkManagers,
+                IHelper helper)
         {
             _hubContext = hubContext;
             _fileSystemWatcher = fileSystemWatcher;
             _logger = logger;
             _serviceProvider = serviceProvider;
             _linkManagers = linkManagers;
+            _helper = helper;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -56,7 +62,7 @@ namespace MdExplorer.Service.HostedServices
             _fileSystemWatcher.Changed += _fileSystemWatcher_Changed;
             //_fileSystemWatcher.Created += _fileSystemWatcher_Created;
             //_fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
-            _fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
+            //_fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
             return Task.CompletedTask;
         }
 
@@ -80,9 +86,6 @@ namespace MdExplorer.Service.HostedServices
 
             return changeType;
         }
-        
-       
-        
 
         
 
@@ -108,6 +111,64 @@ namespace MdExplorer.Service.HostedServices
             {
                 _logger.LogInformation($"Hey! {e.FullPath} has changed!");
 
+                using (var serviceScope = _serviceProvider.CreateScope())
+                {
+                    // document analysis 
+                    // if not exits, then insert:
+                    // MarkdownFile + LinkInsideMarkdown
+                    // Else
+                    // Delete LinkInsideMarkdown and rebuild                    
+                    var engineDB = serviceScope.ServiceProvider.GetService<IEngineDB>();
+                    engineDB.BeginTransaction();
+                    var fileDal = engineDB.GetDal<MarkdownFile>();
+                    var mdf = fileDal.GetList().Where(_ => _.Path == e.FullPath).FirstOrDefault();
+                    if (mdf == null)
+                    {
+                        mdf = new MarkdownFile
+                        {
+                            FileName = Path.GetFileName(e.FullPath),
+                            FileType = "file",
+                            Path = e.FullPath
+                        };
+                        fileDal.Save(mdf);
+                    }
+                    
+                    engineDB.Flush();
+                    var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
+                    var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf);
+                    foreach (var item in listLinks)
+                    {
+                        linkDal.Delete(item);
+                    }
+
+                    engineDB.Flush();
+                    foreach (var getModifier in _linkManagers)
+                    {
+                        var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
+                        foreach (var singleLink in linksToStore)
+                        {
+                            var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                            var linkToStore = new LinkInsideMarkdown
+                            {
+                                FullPath = _helper.NormalizePath(fullPath),
+                                Path = singleLink.LinkPath,
+                                Source = getModifier.GetType().Name,
+                                LinkedCommand = singleLink.LinkedCommand,
+                                SectionIndex = singleLink.SectionIndex,
+                                MarkdownFile = mdf
+                            };
+                            linkDal.Save(linkToStore);
+                        }
+                    }
+
+                    engineDB.Commit();
+
+                }
+                    
+
+                
+
+                
                 var monitoredMd = new MonitoredMDModel
                 {
                     Path = e.FullPath.Replace(_fileSystemWatcher.Path + Path.DirectorySeparatorChar, string.Empty),
