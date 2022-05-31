@@ -136,32 +136,10 @@ namespace MdExplorer.Service
             return defaultPath;
         }
 
-        //private static void SetTemplates(string mdPath)
-        //{
-        //    var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
-        //    var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
-        //    Directory.CreateDirectory(directory);
-        //    Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
-        //    Directory.CreateDirectory(directoryEmoji);
-
-        //    var assembly = Assembly.GetExecutingAssembly();
-        //    var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
-        //    var embeddedEmojies = assembly.GetManifestResourceNames();
-        //    var selectedEmojies = embeddedEmojies.Where(_ => _.Contains(embeddedSubfolder))
-        //            .Select(_ => new { EmbeddedName = _, Name = _.Replace(embeddedSubfolder, string.Empty) }).ToArray();
-        //    foreach (var itemEmoj in selectedEmojies)
-        //    {
-        //        FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
-        //    }
-
-        //    FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}eisvogel.tex");
-        //    FileUtil.ExtractResFile("MdExplorer.Service.reference.docx", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}reference.docx");
-
-        //}
-
         private static void ConfigTemplates(string mdPath, IServiceCollection services = null)
         {
-            var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
+            //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
+            var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
             var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
             Directory.CreateDirectory(directory);
             Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
