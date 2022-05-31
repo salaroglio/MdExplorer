@@ -79,19 +79,29 @@ export class MdFileService {
 
   addNewFile(data: MdFile[]) {
     // searching directories
-    for (var i = 0; i < data.length; i++) {
-      var currentItem = data[i];
+    debugger;
+      var currentItem = data[0];
       let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
-      if (currentFolder != undefined) {
-        currentFolder.childrens.push(data[i + 1]); // insert new file
-        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-        break;
-      }
+    if (currentFolder != undefined) {
+      this.recursiveSearchFolder(data, 0, currentFolder);
+    } else {
+      currentFolder.childrens.push(data[0]); // insert new file
+      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
-    
+        
   }
 
-  
+  recursiveSearchFolder(data: MdFile[], i: number, parentFolder:MdFile) {
+    var currentI = i + 1;
+    var currentItem = data[currentI];
+    let currentFolder = parentFolder.childrens.find(_ => _.fullPath == currentItem.fullPath);
+    if (currentFolder != undefined) {
+      this.recursiveSearchFolder(data, currentI,currentFolder);
+    } else {
+      parentFolder.childrens.push(data[currentI]); // insert new file
+      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    }
+  }
 
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {    
