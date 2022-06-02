@@ -85,7 +85,12 @@ export class MdFileService {
     if (currentFolder != undefined) {
       this.recursiveSearchFolder(data, 0, currentFolder);
     } else {
-      currentFolder.childrens.push(data[0]); // insert new file
+      if (currentFolder == undefined) { // the file is in the root
+        this.dataStore.mdFiles.push(data[0]);
+      } else {
+        currentFolder.childrens.push(data[0]); // insert new file in folder
+      }
+      
       this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
         
