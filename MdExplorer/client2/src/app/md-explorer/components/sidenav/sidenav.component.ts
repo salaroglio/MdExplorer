@@ -113,7 +113,6 @@ export class SidenavComponent implements OnInit {
     });
     this.currentFolder.loadFolderName();
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-      
 
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
@@ -173,6 +172,10 @@ export class SidenavComponent implements OnInit {
   // Manu management
 
   createMdOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
     this.dialog.open(NewMarkdownComponent, {
       width: '300px',
       data:node,

@@ -164,6 +164,11 @@ namespace MdExplorer.Controllers
 
             var title = goodMdRuleFileNameShouldBeSameAsTitle.GetTitle(fileData.Title)+ ".md";
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + title;
+            if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
+            {
+                fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + title;
+            }
+            
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty); 
             System.IO.File.WriteAllText(fullPath,"# " + fileData.Title + "\r\n");
 
