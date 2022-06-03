@@ -34,19 +34,22 @@ export class ProjectsService {
       });
   }
 
-  setNewFolderProjectQuickNotes(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {
+  setNewFolderProjectQuickNotes(path: string):Observable<any> {
     const url = '../api/MdProjects/SetFolderProjectQuickNotes';
-    this.http.post<any>(url, { path: path }).subscribe(data => {
-      callback(data, objectThis);
-    });
+    return this.http.post<any>(url, { path: path });    
   }
 
-  setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {
+  setNewFolderProject(path: string):Observable<any> {
     const url = '../api/MdProjects/SetFolderProject';
-    this.http.post<any>(url, { path: path }).subscribe(data => {
-      callback(data, objectThis);
-    });
+    return this.http.post<any>(url, { path: path });    
   }
+
+  //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {
+  //  const url = '../api/MdProjects/SetFolderProject';
+  //  this.http.post<any>(url, { path: path }).subscribe(data => {
+  //    callback(data, objectThis);
+  //  });
+  //}
 
   deleteProject(project: any, callback: (data: any, objectThis: any) => any, objectThis: any) {
     const url = '../api/MdProjects/DeleteProject';

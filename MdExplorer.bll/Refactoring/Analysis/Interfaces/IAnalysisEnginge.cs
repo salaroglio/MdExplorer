@@ -1,7 +1,9 @@
-﻿namespace MdExplorer.Features.Refactoring.Analysis
+﻿using MdExplorer.Abstractions.Models;
+
+namespace MdExplorer.Features.Refactoring.Analysis
 {
     public interface IAnalysisEngine
     {
-        void AnalizeEvents();
+        void AnalizeEvents(RefactoringSourceAction action);        
     }
 }

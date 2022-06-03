@@ -45,8 +45,13 @@ namespace MdExplorer.Features.Commands
             return html;
         }
 
-        public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
+        public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
+            //if (requestInfo.RootQueryRequest == requestInfo.CurrentQueryRequest)
+            //{
+            //    // Nel caso non ci sia ricorsività (MdShowMd)
+            //    return markdown;
+            //}
             var matches = GetMatches(markdown);
 
             foreach (Match item in matches)
@@ -54,6 +59,7 @@ namespace MdExplorer.Features.Commands
                 // here you should compose the path adding missing part
                 // the missing part is the distance from the root folder and the current file
                 // you can build this using requestInfo.currentqueryrequest
+                
                 var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
                 listOfItem.RemoveAt(listOfItem.Count - 1);
                 var currentWebFolder = string.Empty;

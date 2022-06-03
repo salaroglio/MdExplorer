@@ -26,21 +26,6 @@ namespace MdExplorer.Features.Commands.pdf
         {
         }
 
-        //public override string TransformAfterConversion(string html, RequestInfo requestInfo)
-        //{
-        //    var matches = GetMatchesAfterConversion(html);
-        //    string backPath = _helper.GetBackPath(requestInfo);
-
-        //    foreach (Match item in matches)
-        //    {
-        //        var stringMatched0 = item.Groups[1].Value;
-        //        var referenceUrl = $"<img src=\"{backPath.Replace("\\", "/")}/{stringMatched0}.png";
-        //        html = html.Replace(item.Groups[0].Value, referenceUrl);
-        //    }
-
-        //    return html;
-        //}
-
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
@@ -51,6 +36,10 @@ namespace MdExplorer.Features.Commands.pdf
             foreach (Match item in matches)
             {
                 var text = item.Groups[1].Value;
+                // search for docxCaption:
+                var docxMatch = GetDocxCaption(markdown);
+                var docxCaption = docxMatch.Count() != 0 ? docxMatch[0].Groups[1].Value : string.Empty;
+
                 var textHash = _helper.GetHashString(text, Encoding.UTF8);
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
                 if (!File.Exists(filePath))
@@ -73,13 +62,22 @@ namespace MdExplorer.Features.Commands.pdf
                 var inchHeightString = inchHeight.ToString(CultureInfo.InvariantCulture);
 
                 var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.png";
-                var referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
+                var referenceUrl = $@"![{docxCaption.Trim()}]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
                 _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdown);
             }
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;
+        }
+
+        protected MatchCollection GetDocxCaption(string markdown)
+        {
+            var reg = @"'docxCaption:([^\r]*)";
+            Regex rx = new Regex(reg,
+                               RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var matches = rx.Matches(markdown);
+            return matches;
         }
 
         protected MatchCollection GetMetaDataMatches(string markDown)

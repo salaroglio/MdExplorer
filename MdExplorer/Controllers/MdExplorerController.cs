@@ -21,6 +21,11 @@ using MdExplorer.Abstractions.DB;
 using System.Web;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Refactoring.Analysis.Interfaces;
+using MdExplorer.Features.Refactoring.Analysis;
+using System.Globalization;
+using System.Net.Http.Headers;
+using MdExplorer.Features.Utilities;
 
 namespace MdExplorer.Controllers
 {
@@ -28,25 +33,34 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
+        private readonly IHelper _helper;
+
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB session,
             IEngineDB engineDB,
-            ICommandRunnerHtml commandRunner
+            ICommandRunnerHtml commandRunner,
+            IGoodMdRule<FileInfoNode>[] GoodRules,
+            IHelper helper
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
+            _goodRules = GoodRules;
+            _helper = helper;
         }
 
         /// <summary>
-        /// Get all goodies available in html
+        /// Get all goodies available in html     
         /// It's good to get images for example
         /// </summary>
         /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
+            var currentCultureInfo = CultureInfo.CurrentCulture;
+            var test = Encoding.Default;
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
@@ -83,12 +97,14 @@ namespace MdExplorer.Controllers
             {
                 Path = filePathSystem1,
                 Name = Path.GetFileName(filePathSystem1),
-                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty)
+                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty),
+                FullPath = filePathSystem1,
+                FullDirectoryPath = Path.GetDirectoryName(filePathSystem1)
             };
 
             var readText = string.Empty;
             using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var sr = new StreamReader(fs, Encoding.Default))
+            using (var sr = new StreamReader(fs, Encoding.UTF8))
             {
                 readText = sr.ReadToEnd();
             }
@@ -96,10 +112,34 @@ namespace MdExplorer.Controllers
             {
                 CurrentQueryRequest = relativePathFileSystem,
                 CurrentRoot = _fileSystemWatcher.Path,
-                AbsolutePathFile = filePathSystem1
+                AbsolutePathFile = filePathSystem1,
+                RootQueryRequest = relativePathFileSystem,
             };
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+
+            var goodMdRuleFileNameShouldBeSameAsTitle =
+                    _goodRules.First(_ => _.GetType() ==
+                        typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
+
+            var fileNode = new FileInfoNode
+            {
+                FullPath = filePathSystem1,
+                Name = Path.GetFileName(filePathSystem1),
+                DataText = readText
+            };
+            //bool isBroken;
+            //string theNameShouldBe;
+            (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
+            if (isBroken)
+            {
+                monitoredMd.Message = "It breaks Rule # 1";
+                monitoredMd.Action = "Rename the File!";
+                monitoredMd.FromFileName = Path.GetFileName(filePathSystem1);
+                monitoredMd.ToFileName = theNameShouldBe;
+                monitoredMd.FullPath = Path.GetDirectoryName(filePathSystem1);
+                await _hubContext.Clients.All.SendAsync("markdownbreakrule1", monitoredMd);
+            }
 
             var settingDal = _session.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
@@ -116,9 +156,49 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
+            var textHash = _helper.GetHashString(readText, Encoding.UTF8);
+            var cacheName = Path.GetFileName(filePathSystem1) + textHash + ".html";
+
+            //try
+            //{
+            //    if (System.IO.File.Exists(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+            //                            Path.DirectorySeparatorChar + cacheName))
+            //    {
+
+            //        var currentHtml = System.IO.File.ReadAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+            //                               Path.DirectorySeparatorChar + cacheName);
+            //        if (currentHtml != String.Empty)
+            //        {
+            //            var myurl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
+            //            var regularExpression = @$"{this.Request.Scheme}://localhost([^/]*)";
+            //            Regex rx = new Regex(regularExpression,
+            //                       RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            //            var matches = rx.Matches(currentHtml);
+            //            currentHtml = Regex.Replace(currentHtml, regularExpression, myurl);
+
+            //            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            //            var toQuickReturn = new ContentResult
+            //            {
+            //                ContentType = "text/html; charset=utf-8",
+            //                Content = currentHtml,
+
+            //            };
+            //            return toQuickReturn;
+            //        }
+
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    var msg = ex.Message;
+
+            //}
+
+
+
+            //Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
             var docSettingDal = _session.GetDal<DocumentSetting>();
@@ -149,7 +229,6 @@ namespace MdExplorer.Controllers
                         </div>
                             </div>  
                             <nav id=""TOC"" {styleForToc} >
-                                
                                 <div class=""sticky-top"">
                                     <div class=""toc js-toc is-position-fixed""></div>                                    
                                 </div>
@@ -165,7 +244,7 @@ namespace MdExplorer.Controllers
             foreach (XmlNode itemElement in elementsA)
             {
                 var href = itemElement.Attributes["href"];
-                if (href!= null && href.Value.Length > 8)
+                if (href != null && href.Value.Length > 8)
                 {
                     if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
                     {
@@ -180,15 +259,28 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
-            //System.IO.File.WriteAllText(@"test.html", doc1.InnerXml);
-
+            //.Replace(@"\",@"\\");
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
-            //System.IO.File.WriteAllText(@"c:\\test.html", doc1.InnerXml);
-            return new ContentResult
+
+            try
             {
-                ContentType = "text/html",
-                Content = doc1.InnerXml
+                System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+                                        Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
+
+            }
+
+
+            var toReturn = new ContentResult
+            {
+                ContentType = "text/html; charset=utf-8",
+                Content = doc1.InnerXml,
+
             };
+            return toReturn;
         }
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)
@@ -216,8 +308,6 @@ namespace MdExplorer.Controllers
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />            
             <script src=""/common.js""></script>";
-            //AddButtonOnTopPage(doc1, body, "toggleMdCanvas()", "/assets/draw.png");
-            //AddButtonOnTopPage(doc1, body, $"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
 
             body.InnerXml += resultToParse;
         }

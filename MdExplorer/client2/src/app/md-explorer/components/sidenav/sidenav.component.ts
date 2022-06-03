@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/layout';
@@ -9,6 +9,10 @@ import { IFileInfoNode } from '../../models/IFileInfoNode';
 import { Router, ActivatedRoute } from '@angular/router';
 import { SideNavDataService } from '../../services/side-nav-data.service';
 import { MatDialog } from '@angular/material/dialog';
+import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
+import { MatMenuTrigger } from '@angular/material/menu';
+import { NewMarkdownComponent } from '../new-markdown/new-markdown.component';
+
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
@@ -19,6 +23,9 @@ interface IFlatNode {
   expandable: boolean;
   name: string;
   level: number;
+  path: string;
+  relativePath: string;
+  fullPath: string;
 }
 
 @Component({
@@ -28,12 +35,36 @@ interface IFlatNode {
 })
 export class SidenavComponent implements OnInit {
 
+  menuTopLeftPosition = { x: 0, y: 0 }
+  @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
+
+
+  onRightClick(event: MouseEvent, item) {
+    // preventDefault avoids to show the visualization of the right-click menu of the browser
+    event.preventDefault();
+
+    // we record the mouse position in our object
+    this.menuTopLeftPosition.x = event.clientX;
+    this.menuTopLeftPosition.y = event.clientY;
+
+    // we open the menu
+    // we pass to the menu the information about our object
+    this.matMenuTrigger.menuData = { item: item }
+
+    // we open the menu
+    this.matMenuTrigger.openMenu();
+
+  }
+
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
       expandable: !!node.childrens && node.childrens.length > 0,
       name: node.name,
       level: level,
-      path:node.path
+      path: node.path,
+      relativePath: node.path,
+      fullPath:node.fullPath,
+
     };
   }
   treeControl = new FlatTreeControl<IFlatNode>(
@@ -54,17 +85,17 @@ export class SidenavComponent implements OnInit {
 
   private hooked: boolean = false;
 
-  private mousex: number;
-  private mousey: number;
   public sideNavWidth: string = "240px";
   public classForBorderDiv: string = "border-div";
+  public titleProject: string;
 
   constructor(private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private router: Router,
     private sideNavDataService: SideNavDataService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private currentFolder: AppCurrentFolderService
   ) {
     this.dataSource.data = TREE_DATA;
     document.addEventListener("mousemove", (event) => {
@@ -76,6 +107,26 @@ export class SidenavComponent implements OnInit {
       if (this.hooked) {
         this.stopResizeWidth();
       }
+    });
+    this.currentFolder.folderName.subscribe((data: any) => {      
+      this.titleProject = data.currentFolder;
+    });
+    this.currentFolder.loadFolderName();
+    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
+
+      const myClonedArray = [];
+      _.forEach(val => myClonedArray.push(Object.assign({}, val)));
+
+      while (myClonedArray.length > 1) {
+        var toExpand = myClonedArray.pop();
+        var test = this.treeControl.dataNodes.find(_=>_.path == toExpand.path) ;
+        
+        this.treeControl.expand(test);
+      }      
+      if (myClonedArray.length >0) {
+        var toExpand = myClonedArray.pop();
+        this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
+      }      
     });
   }
 
@@ -99,6 +150,7 @@ export class SidenavComponent implements OnInit {
 
 
   ngOnInit(): void {
+    
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches
@@ -107,19 +159,28 @@ export class SidenavComponent implements OnInit {
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {      
       this.dataSource.data = data;      
-    });
-
+    });    
     this.mdFileService.loadAll(this.deferredOpenProject,this); 
     
   }
 
-  public getNode(node: any) {    
-    var dateTime = new Date();
-    this.sideNavDataService.currentPath = node.path;
-    this.sideNavDataService.currentName = node.name;
-    this.router.navigate(['main/navigation', dateTime.getTime()]); //, { relativeTo: this.route }
+  public getNode(node: MdFile) {
+    this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;
   }
- 
+
+  // Manu management
+
+  createMdOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    this.dialog.open(NewMarkdownComponent, {
+      width: '300px',
+      data:node,
+    });    
+  }
+
 
 }

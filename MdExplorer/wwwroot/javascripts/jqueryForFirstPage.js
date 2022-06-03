@@ -1,15 +1,28 @@
-﻿
+﻿const cyrb53 = function (str, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+};
+
+
 // gestione tocbot
-$(function () {
+$(function () {    
     tocbot.init({
         tocSelector: '.js-toc',
         orderedList: true,
         hasInnerContainers: true,        
         scrollSmooth: true,
+        headingSelector: 'h1, h2, h3, h4, h5, h6',
         // Smooth scroll duration.
         scrollSmoothDuration: 220,
-        // Smooth scroll offset.
-        scrollSmoothOffset: 0,
+        positionFixedClass: 'is-position-fixed',        
+
     });
     //console.log('Tocbot initialized');
 });
@@ -19,7 +32,7 @@ $(function () {
 // function to manage readability 
 var arrayReadabilityToggle = [];
 function toggleSeeMe(stringMatchedHash) {
-    debugger;
+    
     var $box = $('#' + stringMatchedHash);
     var buttonPressed = arrayReadabilityToggle.find(data => data.id == $box.id);
     if (buttonPressed == undefined) {
@@ -64,7 +77,7 @@ function activateMove(currentObject, linkHash,referenceId) {
         var newClass = $movable.attr('class', 'movable');
         arrayLinksMoveToggle.push(linkHash);
     } else {
-        debugger;
+        
         var currentIndex = arrayLinksMoveToggle.findIndex(data => data == linkHash);
         arrayLinksMoveToggle.splice(currentIndex, 1);
         var possibleMatch = currentObject.parentElement.nextSibling;
@@ -116,7 +129,7 @@ function activateResize(linkHash) {
             arrayLinksResizeToggle.push(linkHash);
         }
         else {
-            debugger;
+            
 
             var oldValue = $links[index].attributes['class'].value;
             $links[index].attributes['class'].value = oldValue.replace(' resizable', '');
@@ -147,7 +160,7 @@ var cumulativeOffset = function (element) {
 // Function called by onMouseUp event to 
 // write down on MD the new image dimension values.
 function resizeImage(currentDiv) {
-    debugger;
+    
     // going inside the div
     var img = currentDiv.childNodes[0].childNodes[0];     
     var divStyle = getComputedStyle(img.parentElement.parentElement.parentElement);
@@ -288,15 +301,23 @@ $.fn.datepicker.noConflict = function () {
 
 // funzione che memorizza l'ultima posizione della pagina
 document.addEventListener("DOMContentLoaded", function (event) {
-    // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh
-    var scrollpos1 = localStorage.getItem('scrollpos1');
+    // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh    
+    var test3 = document.location.href;
+    var position = test3.indexOf('?');
+    var position2 = test3.substring(0, position);
+    var test2 = cyrb53(position2);
+    var scrollpos1 = localStorage.getItem(test2);
     if (scrollpos1) window.scrollTo(0, scrollpos1);
 
 });
 
 // gestione ultima posizione dello scroll
 window.onbeforeunload = function (e) {
-    localStorage.setItem('scrollpos1', window.scrollY);
+    var test3 = document.location.href;
+    var position = test3.indexOf('?');
+    var position2 = test3.substring(0, position);
+    var test2 = cyrb53(position2);
+    localStorage.setItem(test2, window.scrollY);
 };
 
 // gestione dell'emoji :calendar:
@@ -414,25 +435,25 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 }
 
 // gestione del box di ricerca della toc
-function filterToc() {
-    // Declare variables
-    var input, filter, ul, li, a, i, txtValue;
-    input = document.getElementById('tocInputFilter');
-    filter = input.value.toUpperCase();
-    ul = document.getElementById("ulToc");
-    li = ul.getElementsByTagName('li');
+//function filterToc() {
+//    // Declare variables
+//    var input, filter, ul, li, a, i, txtValue;
+//    input = document.getElementById('tocInputFilter');
+//    filter = input.value.toUpperCase();
+//    ul = document.getElementById("ulToc");
+//    li = ul.getElementsByTagName('li');
 
-    // Loop through all list items, and hide those who don't match the search query
-    for (i = 0; i < li.length; i++) {
-        a = li[i].getElementsByTagName("a")[0];
-        txtValue = a.textContent || a.innerText;
-        if (txtValue.toUpperCase().indexOf(filter) > -1) {
-            li[i].style.display = "";
-        } else {
-            li[i].style.display = "none";
-        }
-    }
-}
+//    // Loop through all list items, and hide those who don't match the search query
+//    for (i = 0; i < li.length; i++) {
+//        a = li[i].getElementsByTagName("a")[0];
+//        txtValue = a.textContent || a.innerText;
+//        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+//            li[i].style.display = "";
+//        } else {
+//            li[i].style.display = "none";
+//        }
+//    }
+//}
 
 function toggleTOC(documentPath) {
 

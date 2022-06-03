@@ -6,11 +6,18 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Abstractions.Models
 {
+    /// <summary>
+    /// Informazioni che vanno a zonzo tra la sezione web
+    /// e la library Features per i Commands
+    /// </summary>
     public class RequestInfo
     {        
         public string AbsolutePathFile { get; set; }
+        public string RelativePathFile { get; set; }
         public string CurrentQueryRequest { get; set; }
         public string CurrentRoot { get; set; }
+        public int Recursionlevel { get; set; }
+        public string RootQueryRequest { get; set; }
 
     }
 }

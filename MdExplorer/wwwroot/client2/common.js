@@ -1,5 +1,27 @@
 (window["webpackJsonp"] = window["webpackJsonp"] || []).push([["common"],{
 
+/***/ "aS6m":
+/*!***********************************************!*\
+  !*** ./src/app/md-explorer/models/md-file.ts ***!
+  \***********************************************/
+/*! exports provided: MdFile */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdFile", function() { return MdFile; });
+class MdFile {
+    constructor(name, path, level, expandable) {
+        this.name = name;
+        this.path = path;
+        this.level = level;
+        this.expandable = expandable;
+    }
+}
+
+
+/***/ }),
+
 /***/ "xmhS":
 /*!*********************************************************!*\
   !*** ./src/app/md-explorer/services/md-file.service.ts ***!
@@ -20,10 +42,21 @@ __webpack_require__.r(__webpack_exports__);
 class MdFileService {
     constructor(http) {
         this.http = http;
-        this.dataStore = { mdFiles: [], mdFoldersDocument: [], mdDynFolderDocument: [] };
+        this._navigationArray = []; // deve morire
+        this.fileFoundMd = false;
+        var defaultSelectedMdFile = [];
+        this.dataStore = {
+            mdFiles: [],
+            mdFoldersDocument: [],
+            mdDynFolderDocument: [],
+            serverSelectedMdFile: defaultSelectedMdFile
+        };
         this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdFoldersDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
+        this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
+        this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
+        this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
     }
     get mdFiles() {
         return this._mdFiles.asObservable();
@@ -33,6 +66,52 @@ class MdFileService {
     }
     get mdDynFolderDocument() {
         return this._mdDynFolderDocument.asObservable();
+    }
+    get serverSelectedMdFile() {
+        return this._serverSelectedMdFile.asObservable();
+    }
+    get selectedMdFileFromToolbar() {
+        return this._selectedMdFileFromToolbar.asObservable();
+    }
+    get selectedMdFileFromSideNav() {
+        return this._selectedMdFileFromSideNav.asObservable();
+    }
+    // breadcrumb
+    get navigationArray() {
+        return this._navigationArray;
+    }
+    set navigationArray(mdFile) {
+        this._navigationArray = mdFile;
+    }
+    addNewFile(data) {
+        // searching directories
+        debugger;
+        var currentItem = data[0];
+        let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
+        if (currentFolder != undefined) {
+            this.recursiveSearchFolder(data, 0, currentFolder);
+        }
+        else {
+            if (currentFolder == undefined) { // the file is in the root
+                this.dataStore.mdFiles.push(data[0]);
+            }
+            else {
+                currentFolder.childrens.push(data[0]); // insert new file in folder
+            }
+            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        }
+    }
+    recursiveSearchFolder(data, i, parentFolder) {
+        var currentI = i + 1;
+        var currentItem = data[currentI];
+        let currentFolder = parentFolder.childrens.find(_ => _.fullPath == currentItem.fullPath);
+        if (currentFolder != undefined) {
+            this.recursiveSearchFolder(data, currentI, currentFolder);
+        }
+        else {
+            parentFolder.childrens.push(data[currentI]); // insert new file
+            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        }
     }
     loadAll(callback, objectThis) {
         const url = '../api/mdfiles/GetAllMdFiles';
@@ -81,7 +160,82 @@ class MdFileService {
     }
     GetHtml(path) {
         const url = '../api/mdexplorer/' + path;
-        return this.http.get(url, { responseType: 'text' }); //, currentFile
+        return this.http.get(url, { responseType: 'text' }); //, currentFile      
+    }
+    CreateNewMd(path, title, directoryLevel) {
+        const url = '../api/mdfiles/CreateNewMd';
+        var newData = {
+            directoryPath: path,
+            title: title,
+            directoryLevel: directoryLevel,
+        };
+        return this.http.post(url, newData);
+    }
+    /**
+     * Funzione di sostituzione di un nodo, con un altro
+     * @param oldFile
+     * @param newFile
+     */
+    changeDataStoreMdFiles(oldFile, newFile) {
+        var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, oldFile);
+        var leaf = returnFound[0];
+        leaf.name = newFile.name;
+        leaf.fullPath = newFile.fullPath;
+        leaf.path = newFile.path;
+        leaf.relativePath = newFile.relativePath;
+        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        this._serverSelectedMdFile.next(returnFound);
+    }
+    setSelectedMdFileFromSideNav(selectedFile) {
+        this._selectedMdFileFromSideNav.next(selectedFile);
+    }
+    setSelectedMdFileFromToolbar(selectedFile) {
+        let returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+        this._selectedMdFileFromToolbar.next(returnFound);
+    }
+    setSelectedMdFileFromServer(selectedFile) {
+        var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+        this._serverSelectedMdFile.next(returnFound);
+    }
+    getMdFileFromDataStore(selectedFile) {
+        var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
+        return returnFound[0];
+    }
+    searchMdFileIntoDataStore(arrayMd, FileToFind) {
+        this.fileFoundMd = false;
+        var arrayFound = [];
+        this.recursiveSearch(arrayMd, FileToFind, arrayFound);
+        return arrayFound;
+    }
+    /**
+     * Funzione di esplorazione dell'albero per trovare il nodo
+     * @param arrayMd
+     * @param oldFile
+     * @param newFile
+     */
+    recursiveSearch(arrayMd, fileTofind, arrayFound
+    //, newFile: MdFile
+    ) {
+        if (arrayMd.length == 0) {
+            return;
+        }
+        var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
+        if (thatFile == undefined) {
+            for (var i = 0; i < arrayMd.length; i++) {
+                var _ = arrayMd[i];
+                if (!this.fileFoundMd) {
+                    this.recursiveSearch(_.childrens, fileTofind, arrayFound); //, newFile
+                }
+                if (this.fileFoundMd) {
+                    arrayFound.push(_);
+                    break;
+                }
+            }
+        }
+        else {
+            this.fileFoundMd = true;
+            arrayFound.push(thatFile);
+        }
     }
 }
 MdFileService.ɵfac = function MdFileService_Factory(t) { return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpClient"])); };

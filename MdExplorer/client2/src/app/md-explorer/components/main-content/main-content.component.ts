@@ -35,34 +35,45 @@ export class MainContentComponent implements OnInit {
     private zone: NgZone,
     private sideNavDataService: SideNavDataService
   ) {
-    
-    //this.monitorMDService.startConnection();
-    this.monitorMDService.addMarkdownFileListener(this.updateModifiedMarkDown, this);
+    console.log("MainContentComponent constructor");
+    this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
     this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
-
   }
 
   ngOnInit(): void {
-    this.route.params.subscribe(params => {      
-      const path = this.sideNavDataService.currentPath;
-      if (path != undefined) {        
-        let dateTime = new Date().getTime()/1000;
-        this.htmlSource = '../api/mdexplorer' + path  + '?time=' + dateTime;
-          
-      }
-    });   
+    this.service.selectedMdFileFromSideNav.subscribe(_ => {
+      this.callMdExplorerController(_);
+    });
+    this.service.selectedMdFileFromToolbar.subscribe(_ => {
+      let current = _[0];
+      if (current != undefined) {
+        this.callMdExplorerController(current);
+      }      
+    });
+
+
   }
 
+  private callMdExplorerController(node:  MdFile) {
+    debugger;
+    if (node != null && node.relativePath != undefined) {
+      let dateTime = new Date().getTime() / 1000;
+      this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
+    }
+  }
 
-
-  private updateModifiedMarkDown(data: any, objectThis: any) {
+  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {
+    debugger;
     let dateTime = new Date();
+    objectThis.service.navigationArray = [];
+    objectThis.service.setSelectedMdFileFromServer(data);
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
-    
   }
-
-  
+ 
   private ShowConnectionLost(data: any, objectThis: any) {
     objectThis._HideImg = false;
   }
+
+
+
 }

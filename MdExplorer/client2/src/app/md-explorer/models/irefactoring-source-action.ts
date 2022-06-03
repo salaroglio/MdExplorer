@@ -1,7 +1,8 @@
 export interface IRefactoringSourceAction {
-  Id: string;
-  Action: string;
-  OldName: string;
-  NewName: string;
+  Id: string
+  SuggestedAction: string
+  FileName:string
+  OldLinkStored: string
+  NewLinkToReplace: string
 }
 

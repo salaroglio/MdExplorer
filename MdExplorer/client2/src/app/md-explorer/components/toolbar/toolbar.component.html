@@ -1,26 +1,19 @@
 <mat-toolbar color="primary">
-  <button mat-button (click)="toggleSidenav.emit()">
-    <mat-icon>menu</mat-icon>
+  <button mat-icon-button (click)="toggleSidenav.emit()">
+    <mat-icon>vertical_split</mat-icon>
   </button>
-  <button mat-button (click)="OpenEditor()">
+  <button mat-icon-button (click)="OpenEditor()">
     <mat-icon>edit</mat-icon>
   </button>
-  <button mat-button (click)="Export()">
+  <button mat-icon-button (click)="Export()">
     <mat-icon>directions</mat-icon>
   </button>
-  <button mat-button (click)="openRefactoring()">
+  <button mat-icon-button (click)="openDialog()">
+    <mat-icon>settings</mat-icon>
+  </button>
+  <button mat-icon-button (click)="openRefactoring()">
     <mat-icon>rule</mat-icon>
   </button>
-  <button mat-button (click)="ExportEmail()">
-    <mat-icon>email</mat-icon>
-  </button>
-  <span>{{TitleToShow}}</span>
-  <div align="right">
-    <button mat-button (click)="openDialog()">
-      <mat-icon>settings</mat-icon>
-    </button>
-  </div>
-
-
+  <span *ngFor="let doc of this.mdFileService.navigationArray"><span *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span><a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}" (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a></span>
 
 </mat-toolbar>

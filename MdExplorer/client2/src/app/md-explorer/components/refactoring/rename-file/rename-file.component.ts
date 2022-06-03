@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, Inject, OnInit } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { IRefactoringSourceAction } from '../../../models/irefactoring-source-action';
 import { MdRefactoringService } from '../../../services/md-refactoring.service';
 
@@ -11,11 +11,15 @@ import { MdRefactoringService } from '../../../services/md-refactoring.service';
 export class RenameFileComponent implements OnInit {
 
   constructor(private mdRefactoringService: MdRefactoringService,
-    private dialogRef: MatDialogRef<RenameFileComponent>,  ) { }
+    private dialogRef: MatDialogRef<RenameFileComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any,  ) {
+  }
   public actionList: IRefactoringSourceAction[];
+  public displayedColumns = ['suggestedAction', 'fileName', 'oldLinkStored', 'newLinkToReplace'];
 
-  ngOnInit(): void {
-    this.mdRefactoringService.getRefactoringSourceActionList().subscribe(data => {
+  ngOnInit(): void {    
+    this.mdRefactoringService.getRefactoringSourceActionList(this.data.refactoringSourceActionId).subscribe(data => {
+      debugger;
       this.actionList = data;
     },
       error => {

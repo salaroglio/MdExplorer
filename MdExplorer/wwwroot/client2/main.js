@@ -236,7 +236,10 @@ class AppComponent {
     unloadHandler(event) {
         // E' stato dato il comando di chiusura del tab o di chrome
         // spegni il serverino che si è acceso
-        this.currentFolder.killServer();
+        if (performance.navigation.type != performance.navigation.TYPE_RELOAD) {
+            //this.currentFolder.killServer();
+        }
+        //
     }
 }
 AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_1__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_app_current_folder_service__WEBPACK_IMPORTED_MODULE_2__["AppCurrentFolderService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["Router"])); };
@@ -275,6 +278,7 @@ class AppCurrentFolderService {
         };
         this._folderName = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]('test');
         this._Settings = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
+        console.log('AppCurrentFolderService constructor');
     }
     get folderName() {
         return this._folderName.asObservable();
@@ -308,6 +312,7 @@ class AppCurrentFolderService {
     }
     killServer() {
         const url = '../api/AppSettings/KillServer';
+        debugger;
         return this.http.get(url).subscribe(data => {
             debugger;
         });
@@ -374,6 +379,9 @@ const routes = [
     { path: '**', redirectTo: 'projects' }
 ];
 class AppModule {
+    constructor() {
+        console.log('AppModuleConstructor');
+    }
 }
 AppModule.ɵfac = function AppModule_Factory(t) { return new (t || AppModule)(); };
 AppModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_5__["AppComponent"]] });
