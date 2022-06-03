@@ -12,6 +12,9 @@ import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
 import { SettingsComponent } from './components/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
+import { RulesComponent } from './components/rules/rules.component';
+import { NewMarkdownComponent } from './components/new-markdown/new-markdown.component';
+ 
 
 
 
@@ -35,6 +38,8 @@ const routes: Routes = [
     MdExplorerComponent,
     SettingsComponent,
     RenameFileComponent,
+    RulesComponent,
+    NewMarkdownComponent,    
   ],
   imports: [
     CommonModule,
@@ -47,4 +52,8 @@ const routes: Routes = [
     MdFileService
   ]
 })
-export class MdExplorerModule { }
+export class MdExplorerModule {
+  constructor() {
+    console.log('constructor MdExplorerModule');
+  }
+}

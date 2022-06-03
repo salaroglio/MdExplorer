@@ -8,6 +8,9 @@ import { SideNavDataService } from '../../services/side-nav-data.service';
 import { SettingsComponent } from '../settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
+import { RulesComponent } from '../rules/rules.component';
+import { IChangeFileData,MdRefactoringService } from '../../services/md-refactoring.service';
+import { MdFile } from '../../models/md-file';
 
 @Component({
   selector: 'app-toolbar',
@@ -28,7 +31,8 @@ export class ToolbarComponent implements OnInit {
     private http: HttpClient,
     private _snackBar: MatSnackBar,
     private router: Router,
-    private mdFileService: MdFileService,
+    public mdFileService: MdFileService,
+    
   ) {
     this.TitleToShow = "MdExplorer";
   }
@@ -37,44 +41,74 @@ export class ToolbarComponent implements OnInit {
   openRefactoring(): void {
     const dialogRef = this.dialog.open(RenameFileComponent, {
       width: '600px',
-      data: { name: this.plantumlServer }
     });
   }
 
   openDialog(): void {
     const dialogRef = this.dialog.open(SettingsComponent, {
       width: '300px',
-      data: { name: this.plantumlServer }
+      
     });
     
-
     dialogRef.afterClosed().subscribe(result => {
       console.log('The dialog was closed');
-      this.plantumlServer = result;
+      
     });
   }
-  
 
-  ngOnInit(): void {
-    this.monitorMDService.addMdProcessedListener(this.updateModifiedMarkDown, this);
-    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
-    this.monitorMDService.addRefactoringFileEvent(this.openDialogRefactoringFileEvent, this);
+  openRules(data:any): void {
+    const dialogRef = this.dialog.open(RulesComponent, {
+      width: '600px',
+      data: data
+    });
+    dialogRef.afterClosed().subscribe(_ => {
+      if (_.refactoringSourceActionId != undefined) {
+        this.dialog.open(RenameFileComponent, {
+          width: '600px',
+          data: _
+        });
+      }
+    });
   }
 
-  private openDialogRefactoringFileEvent(data, objectThis: ToolbarComponent) {
-    objectThis.mdFileService.loadAll(null,null);
-    objectThis.openRefactoring();    
+
+  ngOnInit(): void {    
+    this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
+    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);    
+    this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
+   
+
+    this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
+      
+      if (_ != null) {
+        this.mdFileService.navigationArray = [];
+        this.absolutePath = _.fullPath;
+        this.relativePath = _.relativePath;
+      }      
+    });
+
+    this.mdFileService.serverSelectedMdFile.subscribe(val => {      
+      var current = val[0];
+      if (current != undefined) {
+        if (this.mdFileService.navigationArray.length>0) {
+          if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
+            return;
+          }
+        }        
+        this.absolutePath = current.fullPath;
+        this.relativePath = current.relativePath;
+      }
+      
+    });
   }
+
+  private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
+    objectThis.openRules(data);
+  }
+
 
   private sendExportRequest(data, objectThis: ToolbarComponent) {
     const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;    
-    return objectThis.http.get(url)
-      .subscribe(data => { console.log(data) });
-  }
-
-  private sendExporEmailRequest(data, objectThis: ToolbarComponent) {
-    debugger;
-    const url = '../api/mdexportemail/' + objectThis.relativePath + '?connectionId=' + data;
     return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });
   }
@@ -88,11 +122,9 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private updateModifiedMarkDown(data: any, objectThis: any) {
-    console.log(data);    
-    objectThis.TitleToShow = data.name;
-    objectThis.absolutePath = data.path;
-    objectThis.relativePath = data.relativePath;
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
+      objectThis.mdFileService.navigationArray.push(data);
+      objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }
 
   OpenEditor() {    
@@ -106,9 +138,18 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
   }
 
-  ExportEmail() {
-    this._snackBar.open("Email queued!", null, { duration: 2000, verticalPosition: 'top' });
-    this.monitorMDService.getConnectionId(this.sendExporEmailRequest, this);
+  backToDocument(doc: MdFile) {
+    var thatFile = this.mdFileService.navigationArray.find(_ => _.fullPath == doc.fullPath);
+    if (thatFile != null && thatFile != undefined) {
+      let i = this.mdFileService.navigationArray.length;
+      let toDelete = this.mdFileService.navigationArray[i - 1];
+      do  {
+        this.mdFileService.navigationArray.pop();
+        i = i - 1;
+        toDelete = this.mdFileService.navigationArray[i - 1];
+      } while (toDelete != undefined && toDelete.fullPath == thatFile.fullPath)
+    }
+    this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
-   
+
 }

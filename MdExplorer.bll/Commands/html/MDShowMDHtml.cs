@@ -19,6 +19,8 @@ namespace MdExplorer.Features.Commands.html
     {
         private readonly IHelper _helper;
 
+        private string[] colorsArray = new []{"red","green","yellow","brown","black"};
+
         public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger, IHelper helper) : base(ServerAddress, logger)
         {
             _helper = helper;
@@ -65,12 +67,18 @@ namespace MdExplorer.Features.Commands.html
                 using (var httpClient = new HttpClient(httpClientHandler))
                 {
                     fileName = _helper.NormalizePath(fileName);
-                    var queryEncoded = HttpUtility.UrlEncode(fileName);
+                    var queryEncoded = fileName.Replace("\\","/") ;// HttpUtility.UrlEncode(fileName);
 
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}");
+                    //var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}" + "?recursionLevel=" + (requestInfo.Recursionlevel + 1).ToString());
+                    requestInfo.Recursionlevel++;
+                    requestInfo.RelativePathFile = fileName;
+                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2");
                     var uriUrlRoot = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
                     _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
-                    var response = httpClient.GetAsync(uriUrl);
+                    //var response = httpClient.GetAsync(uriUrl);
+                    var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);
+                    HttpContent c = new StringContent(payload, Encoding.UTF8, "application/json");
+                    var response = httpClient.PostAsync(uriUrl, c);
                     response.Wait();
 
                     if (response.IsCompletedSuccessfully)
@@ -78,16 +86,20 @@ namespace MdExplorer.Features.Commands.html
                         var result = response.Result;
                         var taskRead = result.Content.ReadAsStringAsync();
                         taskRead.Wait();
-
+                        var rnd = new Random();
+                        var numberedColor = rnd.Next(0, 4);
+                        
+                        var selectedColor = colorsArray[numberedColor];
                         XmlDocument doc1 = new XmlDocument();
                         var tagStyle = @"<style>
-                                #overlay {
+                                #overlay" + numberedColor + @" {
                                   position:relative;
                                   top: 0;
                                   left: 0;
                                   right: 0;
                                   bottom: 0;
-                                  border:solid;
+                                  border-left:dashed;
+                                  border-color:" + selectedColor + @";
                                   /*background-color: lightgreen;  Black background with opacity */
                                   z-index: 2; /* Specify a stack order in case you're using a different order for other elements */
                                   cursor: pointer; /* Add a pointer on hover */
@@ -107,11 +119,14 @@ namespace MdExplorer.Features.Commands.html
                                 }  
                                 </style>" + "\r\n";
 
-                        var nodeDiv = doc1.CreateElement("div");
+                        var nodeDiv = doc1.CreateElement("div");                       
                         nodeDiv.InnerXml = taskRead.Result;
 
+
+
+
                         var attributeId = doc1.CreateAttribute("id");
-                        attributeId.Value = "overlay";
+                        attributeId.Value = "overlay" + numberedColor;
                         nodeDiv.Attributes.Append(attributeId);
 
                         var nodeA = doc1.CreateElement("a");
@@ -141,5 +156,6 @@ namespace MdExplorer.Features.Commands.html
             return markdown;
         }
 
+       
     }
 }

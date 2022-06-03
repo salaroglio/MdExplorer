@@ -18,12 +18,14 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
     <FileAlignment>512</FileAlignment>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -49,6 +51,8 @@
     <Content Remove="wwwroot\assets\green_right_arrow.png" />
     <Content Remove="wwwroot\assets\green_right_arrow48.png" />
     <Content Remove="wwwroot\assets\IconReady.png" />
+    <Content Remove="wwwroot\assets\markdown.png" />
+    <Content Remove="wwwroot\assets\Matrioska.png" />
     <Content Remove="wwwroot\assets\MdExplorer.png" />
     <Content Remove="wwwroot\assets\MdExplorerForGitHub.png" />
     <Content Remove="wwwroot\assets\MdIcon.png" />
@@ -61,12 +65,15 @@
     <Content Remove="wwwroot\assets\move48.png" />
     <Content Remove="wwwroot\assets\notes.png" />
     <Content Remove="wwwroot\assets\notes48.png" />
+    <Content Remove="wwwroot\assets\plantuml.png" />
     <Content Remove="wwwroot\assets\PrepareToIcon.png" />
+    <Content Remove="wwwroot\assets\Refactoring.png" />
     <Content Remove="wwwroot\assets\resize.png" />
     <Content Remove="wwwroot\assets\resize48.png" />
     <Content Remove="wwwroot\assets\run.png" />
     <Content Remove="wwwroot\assets\spaceship.png" />
     <Content Remove="wwwroot\assets\TOC.png" />
+    <Content Remove="wwwroot\assets\word.png" />
     <Content Remove="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
     <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.min.css" />
@@ -111,6 +118,7 @@
     <Content Remove="wwwroot\bootstrap\js\bootstrap.js.map" />
     <Content Remove="wwwroot\bootstrap\js\bootstrap.min.js" />
     <Content Remove="wwwroot\client2\common.js" />
+    <Content Remove="wwwroot\client2\common.js.map" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
     <Content Remove="wwwroot\client2\main.js" />
@@ -120,6 +128,7 @@
     <Content Remove="wwwroot\client2\polyfills.js" />
     <Content Remove="wwwroot\client2\polyfills.js.map" />
     <Content Remove="wwwroot\client2\projects-projects-module.js" />
+    <Content Remove="wwwroot\client2\projects-projects-module.js.map" />
     <Content Remove="wwwroot\client2\runtime.js" />
     <Content Remove="wwwroot\client2\runtime.js.map" />
     <Content Remove="wwwroot\client2\styles.css" />
@@ -169,18 +178,6 @@
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
     <None Remove="reference.docx" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <COMReference Include="Microsoft.Office.Interop.Outlook">
-      <WrapperTool>tlbimp</WrapperTool>
-      <VersionMinor>6</VersionMinor>
-      <VersionMajor>9</VersionMajor>
-      <Guid>00062fff-0000-0000-c000-000000000046</Guid>
-      <Lcid>0</Lcid>
-      <Isolated>false</Isolated>
-      <EmbedInteropTypes>true</EmbedInteropTypes>
-    </COMReference>
   </ItemGroup>
 
 
@@ -247,6 +244,8 @@
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow48.png" />
     <EmbeddedResource Include="wwwroot\assets\IconReady.png" />
+    <EmbeddedResource Include="wwwroot\assets\markdown.png" />
+    <EmbeddedResource Include="wwwroot\assets\Matrioska.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
     <EmbeddedResource Include="wwwroot\assets\MdExplorerForGitHub.png" />
     <EmbeddedResource Include="wwwroot\assets\MdIcon.png" />
@@ -259,12 +258,15 @@
     <EmbeddedResource Include="wwwroot\assets\move48.png" />
     <EmbeddedResource Include="wwwroot\assets\notes.png" />
     <EmbeddedResource Include="wwwroot\assets\notes48.png" />
+    <EmbeddedResource Include="wwwroot\assets\plantuml.png" />
     <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\Refactoring.png" />
     <EmbeddedResource Include="wwwroot\assets\resize48.png" />
     <EmbeddedResource Include="wwwroot\assets\run.png" />
     <EmbeddedResource Include="wwwroot\assets\resize.png" />
     <EmbeddedResource Include="wwwroot\assets\spaceship.png" />
     <EmbeddedResource Include="wwwroot\assets\TOC.png" />
+    <EmbeddedResource Include="wwwroot\assets\word.png" />
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.min.css" />
@@ -311,6 +313,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.min.js" />
     <EmbeddedResource Include="wwwroot\client2\common.js" />
+    <EmbeddedResource Include="wwwroot\client2\common.js.map" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />
     <EmbeddedResource Include="wwwroot\client2\main.js" />
@@ -320,6 +323,7 @@
     <EmbeddedResource Include="wwwroot\client2\polyfills.js" />
     <EmbeddedResource Include="wwwroot\client2\polyfills.js.map" />
     <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js" />
+    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js.map" />
     <EmbeddedResource Include="wwwroot\client2\runtime.js" />
     <EmbeddedResource Include="wwwroot\client2\runtime.js.map" />
     <EmbeddedResource Include="wwwroot\client2\styles.css" />

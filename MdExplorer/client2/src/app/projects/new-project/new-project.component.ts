@@ -183,13 +183,11 @@ export class NewProjectComponent implements OnInit {
   }
 
   public closeDialog() {
-    this.projectService.setNewFolderProject(this.folder.path, this.loadNewProject, this);
-  }
-
-  loadNewProject(data: any, objectThis: NewProjectComponent) {
-    var dateTime = new Date();
-    objectThis.mdFileService.loadAll(null, null);
-    objectThis.router.navigate(['/main']);
+    this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
+      var dateTime = new Date();
+      this.mdFileService.loadAll(null, null);
+      this.router.navigate(['/main']);
+    });
   }
 
 }

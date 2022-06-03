@@ -1,35 +1,59 @@
 
+<div style="visibility: hidden; position: fixed;"
+     [style.left.px]="menuTopLeftPosition.x"
+     [style.top.px]="menuTopLeftPosition.y"
+     [matMenuTriggerFor]="rightMenu"></div>
 
-<mat-sidenav-container autosize class="app-sidenav-container">
+
+<mat-menu #rightMenu="matMenu">
+  <ng-template matMenuContent let-item="item">
+    <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
+    <button mat-menu-item>Move directory</button>
+    <button mat-menu-item>New directory</button>-->
+    <button mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+
+  </ng-template>
+</mat-menu>
+
+
+<mat-sidenav-container autosize class="app-sidenav-container" (contextmenu)="onRightClick($event, null)">
 
   <mat-sidenav #sidenav [style.width]="sideNavWidth" class=" mat-elevation-z10"
                [opened]="!isScreenSmall"
                [mode]="!isScreenSmall ? 'side':'over'">
 
     <mat-toolbar color="primary">
-      <button mat-button (click)="openProject()">
-        <mat-icon>edit</mat-icon>
-      </button>
-      Markdown files
+      <div>
+        <button mat-icon-button (click)="openProject()">
+          <mat-icon>ballot</mat-icon>
+        </button>
+        <!--<button mat-icon-button>
+          <mat-icon>developer_board</mat-icon>
+        </button>
+        <button mat-icon-button>
+          <mat-icon>rule</mat-icon>
+        </button>-->
+      </div>
+
+
+      {{titleProject}}
     </mat-toolbar>
     <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
       <!-- This is the tree node template for leaf nodes -->
       <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
         <!-- use a disabled button to provide padding for tree leaf -->
-        <button mat-icon-button disabled >
+        <button mat-icon-button disabled>
           <mat-icon class="mat-icon-rtl-mirror">
             {{'text_snippet'}}
           </mat-icon>
         </button>
-        <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="{ 'background-highlight': activeNode === node }">{{node.name}}</a>
-
-        <!--{{node.name}}-->
+        <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>        
       </mat-tree-node>
       <!-- This is the tree node template for expandable nodes -->
       <mat-tree-node *matTreeNodeDef="let node;when: hasChild" matTreeNodePadding>
         <button mat-icon-button matTreeNodeToggle
                 [attr.aria-label]="'Toggle ' + node.name">
-          <mat-icon class="mat-icon-rtl-mirror">
+          <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, node)">
             {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
           </mat-icon>
         </button>
@@ -40,7 +64,7 @@
   </mat-sidenav>
 
   <div class="flex-container">
-    <div  [ngClass]="classForBorderDiv" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
+    <div [ngClass]="classForBorderDiv" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
     <div style="width:100%; height:100%;">
       <div class="app-sidenav-content" style="height:100%;">
         <app-toolbar (toggleSidenav)="sidenav.toggle()"></app-toolbar>
@@ -48,5 +72,5 @@
       </div>
     </div>
   </div>
-  
+
 </mat-sidenav-container>
