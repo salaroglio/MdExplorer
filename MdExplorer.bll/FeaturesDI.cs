@@ -8,6 +8,9 @@ using MdExplorer.Features.LinkModifiers;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Refactoring.Work;
+using MdExplorer.Features.Reveal;
+using MdExplorer.Features.Reveal.Interfaces;
+using MdExplorer.Features.Reveal.Models;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -48,6 +51,7 @@ namespace MdExplorer.Features
                 listOfGoodMdRules.Add(new GoodMdRuleFileNameShouldBeSameAsTitle());
                 return listOfGoodMdRules.ToArray();
             });
+            services.AddSingleton<IYamlParser<YamlDocumentDescriptor>, YamlDocumentDescriptorParser>();
             return services;
         }
     }
