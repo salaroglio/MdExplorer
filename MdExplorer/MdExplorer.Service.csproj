@@ -137,6 +137,8 @@
     <Content Remove="wwwroot\client2\vendor.js.map" />
     <Content Remove="wwwroot\common.css" />
     <Content Remove="wwwroot\common.js" />
+    <Content Remove="wwwroot\commonSlide.css" />
+    <Content Remove="wwwroot\commonSlide.js" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
@@ -393,6 +395,8 @@
     <EmbeddedResource Include="wwwroot\client2\vendor.js.map" />
     <EmbeddedResource Include="wwwroot\common.css" />
     <EmbeddedResource Include="wwwroot\common.js" />
+    <EmbeddedResource Include="wwwroot\commonSlide.css" />
+    <EmbeddedResource Include="wwwroot\commonSlide.js" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />

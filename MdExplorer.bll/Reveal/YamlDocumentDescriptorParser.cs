@@ -36,7 +36,17 @@ namespace MdExplorer.Features.Reveal
             var deserializer = new DeserializerBuilder()
                             .WithNamingConvention(UnderscoredNamingConvention.Instance)  // see height_in_inches in sample yml 
                             .Build();
-            var yamlDescriptor = deserializer.Deserialize<YamlDocumentDescriptor>(yml);
+            YamlDocumentDescriptor yamlDescriptor = null;
+            try
+            {
+                yamlDescriptor = deserializer.Deserialize<YamlDocumentDescriptor>(yml);
+            }
+            catch (Exception ex)
+            {
+                var message = ex.Message;
+                
+            }
+            
             return yamlDescriptor;
         }
     }
