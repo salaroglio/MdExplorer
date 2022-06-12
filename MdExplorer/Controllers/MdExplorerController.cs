@@ -170,9 +170,38 @@ namespace MdExplorer.Controllers
             <link rel=""stylesheet"" href=""/commonSlide.css"" />            
             "; //<script src=""/commonSlide.js""></script>
 
-            body.InnerXml += innerXML;
+            // add final div and script
 
-            return doc1;
+            var finalExecutionScript = @"
+                <script src=""/reveal/dist/reveal.js""></script>
+                <script src =""/reveal/plugin/zoom/zoom.js""></script>
+                <script src =""/reveal/plugin/notes/notes.js""></script>
+                <script src =""/reveal/plugin/search/search.js""></script>
+                <script src =""/reveal/plugin/markdown/markdown.js""></script>
+                <script src =""/reveal/plugin/highlight/highlight.js""></script>
+                ";
+
+            var execScript = @"
+            <script>
+			// Also available as an ES module, see:
+			// https://revealjs.com/initialization/
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				center: true,
+				hash: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealMarkdown, RevealHighlight ]
+			});
+
+            </script>
+            ";
+
+            var xmlForBody = string.Concat(innerXML, finalExecutionScript, execScript);
+            body.InnerXml += xmlForBody;
+
+            return doc1;            
         }
 
         private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)
