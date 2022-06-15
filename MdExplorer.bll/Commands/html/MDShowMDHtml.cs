@@ -131,7 +131,7 @@ namespace MdExplorer.Features.Commands.html
 
                         var nodeA = doc1.CreateElement("a");
                         var attraHref = doc1.CreateAttribute("href");
-                        //attraHref.Value = uriUrlRoot.AbsoluteUri.Replace("127.0.0.1","localhost"); // WorkAraound bug in Avalonia CefGlue
+                        attraHref.Value = uriUrlRoot.AbsoluteUri.Replace("127.0.0.1","localhost"); // WorkAraound bug in Avalonia CefGlue
 
                         nodeA.Attributes.Append(attraHref);
                         nodeDiv.AppendChild(nodeA);

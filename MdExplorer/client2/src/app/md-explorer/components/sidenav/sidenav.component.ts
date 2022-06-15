@@ -163,7 +163,7 @@ export class SidenavComponent implements OnInit {
     });    
     this.mdFileService.loadAll(this.deferredOpenProject,this); 
     this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
-      this.whatDisplay = _;
+      this.whatClass = _;
       this.ref.detectChanges();
     });
 
@@ -188,6 +188,5 @@ export class SidenavComponent implements OnInit {
     });    
   }
 
-  public whatDisplay: string = "block";
-
+  public whatClass: string = "showToobar";
 }

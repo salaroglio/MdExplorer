@@ -62,10 +62,13 @@ a:active {
 }
 
 
-.toolbarNotCollapsed {
-  display: block;
+.showToobar {
+  height: 64px;
+  transition: height 300ms ease-out;
 }
 
-.toolbarCollapsed {
-  display: none;
+.hideToolbar {
+  height:0px;
+  transition:  height 300ms ease-out;
+  
 }

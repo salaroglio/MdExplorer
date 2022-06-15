@@ -67,7 +67,7 @@
     <div [ngClass]="classForBorderDiv" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
     <div style="width:100%; height:100%;">
       <div class="app-sidenav-content" style="height:100%;">
-        <app-toolbar [style.display]="whatDisplay" (toggleSidenav)="sidenav.toggle()"></app-toolbar>
+        <app-toolbar [ngClass]="whatClass" (toggleSidenav)="sidenav.toggle()"></app-toolbar>
         <router-outlet></router-outlet>
       </div>
     </div>

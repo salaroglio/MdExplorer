@@ -23,7 +23,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
         _.target.contentWindow.document.addEventListener('wheel',
           this.toolbarHandler);
       } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
-        this.service.setWhatDisplayForToolbar('block');
+        this.service.setWhatDisplayForToolbar('showToobar');
       }
       
     };
@@ -37,11 +37,11 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   lastCall(event) {
     if (event.deltaY < 0) {
       // visualizzare
-      this.service.setWhatDisplayForToolbar('block');
+      this.service.setWhatDisplayForToolbar('showToobar');
 
     } else {
       // nascondere
-      this.service.setWhatDisplayForToolbar('none');
+      this.service.setWhatDisplayForToolbar('hideToolbar');
     }    
   }
 
