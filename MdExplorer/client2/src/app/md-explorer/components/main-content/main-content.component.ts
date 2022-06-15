@@ -17,10 +17,15 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   @ViewChild('myBelovedIframe') el: ElementRef;
 
   ngAfterViewInit() {
-    this.el.nativeElement.onload = _ => {      
-      _.target.contentWindow.document.myReferenceObject = this;
-      _.target.contentWindow.document.addEventListener('wheel',
-        this.toolbarHandler);
+    this.el.nativeElement.onload = _ => {
+      try {
+        _.target.contentWindow.document.myReferenceObject = this;
+        _.target.contentWindow.document.addEventListener('wheel',
+          this.toolbarHandler);
+      } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
+        this.service.setWhatDisplayForToolbar('block');
+      }
+      
     };
 
   }
@@ -82,7 +87,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     if (node != null && node.relativePath != undefined) {
       let dateTime = new Date().getTime() / 1000;
       debugger;
-      this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
+      //this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
       
     }
@@ -93,7 +98,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
     debugger;
-    this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
+    //this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
 
   }
