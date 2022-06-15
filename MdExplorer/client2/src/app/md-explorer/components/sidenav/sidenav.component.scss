@@ -60,3 +60,12 @@ a:active {
   border-left-color: grey;
   cursor: w-resize;
 }
+
+
+.toolbarNotCollapsed {
+  display: block;
+}
+
+.toolbarCollapsed {
+  display: none;
+}

@@ -10,7 +10,7 @@ import { IChangeFileData } from './md-refactoring.service';
 })
 export class MdFileService {
   
-
+  private _whatDisplayForToolbar: BehaviorSubject<string>;
   private _mdFiles: BehaviorSubject<MdFile[]>;
   private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
   public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
@@ -41,6 +41,15 @@ export class MdFileService {
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromToolbar = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromSideNav = new BehaviorSubject<MdFile>(null);
+    this._whatDisplayForToolbar = new BehaviorSubject<string>('block');
+  }
+
+  get whatDisplayForToolbar(): Observable<string> {
+    return this._whatDisplayForToolbar.asObservable();
+  }
+
+  setWhatDisplayForToolbar(value: string) {
+    this._whatDisplayForToolbar.next(value);
   }
 
   get mdFiles(): Observable<MdFile[]> {

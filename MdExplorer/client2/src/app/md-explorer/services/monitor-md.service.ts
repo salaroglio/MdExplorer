@@ -26,7 +26,7 @@ export class MonitorMDService {
   private rule1IsRegistered :any;
 
   public startConnection = () => {
-    debugger;
+    
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl('../signalr/monitormd')
       .build();
