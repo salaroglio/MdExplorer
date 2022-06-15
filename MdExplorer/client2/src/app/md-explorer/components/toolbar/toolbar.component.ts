@@ -152,4 +152,6 @@ export class ToolbarComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
 
+
+
 }

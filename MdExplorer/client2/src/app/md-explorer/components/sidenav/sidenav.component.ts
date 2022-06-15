@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/layout';
@@ -95,7 +95,8 @@ export class SidenavComponent implements OnInit {
     private router: Router,
     private sideNavDataService: SideNavDataService,
     private route: ActivatedRoute,
-    private currentFolder: AppCurrentFolderService
+    private currentFolder: AppCurrentFolderService,
+    private ref: ChangeDetectorRef
   ) {
     this.dataSource.data = TREE_DATA;
     document.addEventListener("mousemove", (event) => {
@@ -161,7 +162,12 @@ export class SidenavComponent implements OnInit {
       this.dataSource.data = data;      
     });    
     this.mdFileService.loadAll(this.deferredOpenProject,this); 
-    
+    this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
+      this.whatDisplay = _;
+      this.ref.detectChanges();
+    });
+
+
   }
 
   public getNode(node: MdFile) {
@@ -182,5 +188,6 @@ export class SidenavComponent implements OnInit {
     });    
   }
 
+  public whatDisplay: string = "block";
 
 }

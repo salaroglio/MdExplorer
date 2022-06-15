@@ -57,6 +57,13 @@ class MdFileService {
         this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
+        this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]('block');
+    }
+    get whatDisplayForToolbar() {
+        return this._whatDisplayForToolbar.asObservable();
+    }
+    setWhatDisplayForToolbar(value) {
+        this._whatDisplayForToolbar.next(value);
     }
     get mdFiles() {
         return this._mdFiles.asObservable();

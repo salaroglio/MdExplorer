@@ -1,4 +1,4 @@
-import { Component, EventEmitter, NgZone, OnInit, Output } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, NgZone, OnInit, Output, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { MdFile } from '../../models/md-file';
 import { HrefInterceptorService, IWorkWithElement } from '../../services/href-interceptor.service';
@@ -13,7 +13,32 @@ import { SideNavDataService } from '../../services/side-nav-data.service';
   templateUrl: './main-content.component.html',
   styleUrls: ['./main-content.component.scss']
 })
-export class MainContentComponent implements OnInit {
+export class MainContentComponent implements OnInit, AfterViewInit {
+  @ViewChild('myBelovedIframe') el: ElementRef;
+
+  ngAfterViewInit() {
+    this.el.nativeElement.onload = _ => {      
+      _.target.contentWindow.document.myReferenceObject = this;
+      _.target.contentWindow.document.addEventListener('wheel',
+        this.toolbarHandler);
+    };
+
+  }
+
+  toolbarHandler(event) {
+    event.currentTarget.myReferenceObject.lastCall(event);
+  }
+
+  lastCall(event) {
+    if (event.deltaY < 0) {
+      // visualizzare
+      this.service.setWhatDisplayForToolbar('block');
+
+    } else {
+      // nascondere
+      this.service.setWhatDisplayForToolbar('none');
+    }    
+  }
 
   mdFile: MdFile;
   html: string;
@@ -51,23 +76,26 @@ export class MainContentComponent implements OnInit {
       }      
     });
 
-
   }
 
-  private callMdExplorerController(node:  MdFile) {
-    debugger;
+  private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
       let dateTime = new Date().getTime() / 1000;
+      debugger;
+      this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
+      
     }
   }
 
-  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {
-    debugger;
+  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {    
     let dateTime = new Date();
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
+    debugger;
+    this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
+
   }
  
   private ShowConnectionLost(data: any, objectThis: any) {
