@@ -32,6 +32,7 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     SidenavComponent,
+    
     ToolbarComponent,
     SafePipe,
     MainContentComponent,
