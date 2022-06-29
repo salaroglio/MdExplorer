@@ -162,13 +162,23 @@ export class SidenavComponent implements OnInit {
       this.dataSource.data = data;      
     });    
     this.mdFileService.loadAll(this.deferredOpenProject,this); 
-    this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
+    this.mdFileService.whatDisplayForToolbar.subscribe(_ => {      
       this.whatClass = _;
+      this.sleep(300).then(m => {        
+         if (_ == 'hideToolbar' && _ != undefined) {          
+          this.whatClass = _ + ' ' + 'hideToolbarNone'
+          this.ref.detectChanges();
+        }        
+      });      
       this.ref.detectChanges();
     });
 
 
   }
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
 
   public getNode(node: MdFile) {
     this.mdFileService.setSelectedMdFileFromSideNav(node);
@@ -189,4 +199,8 @@ export class SidenavComponent implements OnInit {
   }
 
   public whatClass: string = "showToobar";
+  
+
 }
+
+

@@ -61,6 +61,10 @@ a:active {
   cursor: w-resize;
 }
 
+.showStartToolbar{
+    height:0px;
+    display:contents;
+}
 
 // Nascondere e visualizzare la toolbar
 .showToobar {
@@ -68,10 +72,17 @@ a:active {
   transition: height 300ms ease-out;
 }
 
+/*.showToolbarBlock{
+    display:block;
+}*/
+
 .hideToolbar {
   height:0px;
-  transition:  height 300ms ease-out;
-  
+  transition:  height 300ms ease-out;  
+}
+
+.hideToolbarNone{
+    display:none;
 }
 
 
