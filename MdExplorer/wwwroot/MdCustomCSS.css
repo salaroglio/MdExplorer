@@ -113,3 +113,12 @@ img.overrideImgFluid {
         /* adjust 'height' to position overlay content vertically */
         height: 05%;
     }
+/* resize  margin of container bootstrap */
+.container{
+    margin:0px;
+}
+
+/* set canvas on top of html elements*/
+.canvasForWriting{
+    z-index:100;
+}
