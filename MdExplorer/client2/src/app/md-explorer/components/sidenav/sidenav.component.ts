@@ -162,15 +162,22 @@ export class SidenavComponent implements OnInit {
       this.dataSource.data = data;      
     });    
     this.mdFileService.loadAll(this.deferredOpenProject,this); 
-    this.mdFileService.whatDisplayForToolbar.subscribe(_ => {      
-      this.whatClass = _;
-      this.sleep(300).then(m => {        
-         if (_ == 'hideToolbar' && _ != undefined) {          
-          this.whatClass = _ + ' ' + 'hideToolbarNone'
-          this.ref.detectChanges();
-        }        
-      });      
-      this.ref.detectChanges();
+    this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
+      debugger;
+      if ( (_ == 'showToolbar' && this.whatClass != _) ||
+        (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone') 
+        //|| (_ == 'hideToolbar' + ' ' + 'hideToolbarNone' && this.whatClass != _ + ' ' + 'hideToolbarNone')
+      ) { // check if something is truely changed
+        this.whatClass = _;
+        this.sleep(300).then(m => {
+          if (_ == 'hideToolbar' && _ != undefined) {
+            this.whatClass = _ + ' ' + 'hideToolbarNone'
+            this.ref.detectChanges();
+          }
+        });
+        this.ref.detectChanges();
+      }
+      
     });
 
 
@@ -198,7 +205,7 @@ export class SidenavComponent implements OnInit {
     });    
   }
 
-  public whatClass: string = "showToobar";
+  public whatClass: string = "showToolbar";
   
 
 }
