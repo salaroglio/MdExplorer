@@ -23,7 +23,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
         _.target.contentWindow.document.addEventListener('wheel',
           this.toolbarHandler);
       } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
-        this.service.setWhatDisplayForToolbar('showToobar');
+        this.service.setWhatDisplayForToolbar('showToolbar');
       }
       
     };
@@ -37,7 +37,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   lastCall(event) {
     if (event.deltaY < 0) {
       // visualizzare
-      this.service.setWhatDisplayForToolbar('showToobar');
+      this.service.setWhatDisplayForToolbar('showToolbar');
 
     } else {
       // nascondere
@@ -86,7 +86,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
       let dateTime = new Date().getTime() / 1000;
-      debugger;
+      
       //this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
       
@@ -97,7 +97,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     let dateTime = new Date();
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
-    debugger;
+    
     //this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
 

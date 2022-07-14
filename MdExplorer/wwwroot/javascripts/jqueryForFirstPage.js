@@ -497,7 +497,7 @@ $(function () {
     window.toggleCanvas = !window.toggleCanvas;
     window.canvas = document.createElement('canvas');
     window.canvas.setAttribute('id', 'writeCanvas');
-    window.canvas.setAttribute('class', 'canvasForWriting');
+    window.canvas.setAttribute('class', 'canvasForWriting'); // setting z-index to 100
     document.body.appendChild(canvas);
 
     // some hotfixes... ( ≖_≖)
