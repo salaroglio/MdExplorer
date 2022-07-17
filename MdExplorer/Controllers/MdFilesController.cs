@@ -33,7 +33,7 @@ namespace MdExplorer.Controllers
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
             IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper,
             IUserSettingsDB userSettingsDB,
-            IGoodMdRule<FileInfoNode>[] GoodRules )
+            IGoodMdRule<FileInfoNode>[] GoodRules)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
@@ -46,10 +46,10 @@ namespace MdExplorer.Controllers
 
 
         [HttpGet]
-        public IActionResult GetDynFoldersDocument([FromQuery] string path, string level )
+        public IActionResult GetDynFoldersDocument([FromQuery] string path, string level)
         {
-            var basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
-            var currentPath = path == "root"? basePath : path;
+            var basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var currentPath = path == "root" ? basePath : path;
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 
@@ -66,7 +66,7 @@ namespace MdExplorer.Controllers
                     Path = itemFolder,
                     Level = currentLevel,
                     Type = "folder4",
-                    Expandable = Directory.GetDirectories(itemFolder).Count()>0
+                    Expandable = Directory.GetDirectories(itemFolder).Count() > 0
                 };
 
                 list.Add(node);
@@ -162,25 +162,25 @@ namespace MdExplorer.Controllers
                     _goodRules.First(_ => _.GetType() ==
                         typeof(GoodMdRuleFileNameShouldBeSameAsTitle)) as GoodMdRuleFileNameShouldBeSameAsTitle;
 
-            var title = goodMdRuleFileNameShouldBeSameAsTitle.GetTitle(fileData.Title)+ ".md";
+            var title = goodMdRuleFileNameShouldBeSameAsTitle.GetTitle(fileData.Title) + ".md";
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + title;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + title;
             }
-            
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty); 
-            System.IO.File.WriteAllText(fullPath,"# " + fileData.Title + "\r\n");
+
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
+            System.IO.File.WriteAllText(fullPath, "# " + fileData.Title + "\r\n");
 
             var list = new List<IFileInfoNode>();
-            var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar,StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
-            
+            var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
+
             var dynamicRelativePath = string.Empty;
             var currentLevel = 0;
             foreach (var item in relativeSplitted)
             {
-                dynamicRelativePath = 
-                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath +  Path.DirectorySeparatorChar.ToString();
+                dynamicRelativePath =
+                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
                 dynamicRelativePath += item;
 
                 var node = new FileInfoNode
@@ -202,6 +202,57 @@ namespace MdExplorer.Controllers
                 Path = relativePath,
                 RelativePath = relativePath,
                 Type = "mdFile",
+                Level = currentLevel,
+            };
+            list.Add(nodeFile);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(list);
+        }
+
+        [HttpPost]
+        public IActionResult CreateNewDirectory([FromBody] NewDirectory fileData)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
+            {
+                fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            }
+            
+            Directory.CreateDirectory(fullPath);
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
+
+            var list = new List<IFileInfoNode>();
+            var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
+
+            var dynamicRelativePath = string.Empty;
+            var currentLevel = 0;
+            foreach (var item in relativeSplitted)
+            {
+                dynamicRelativePath =
+                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
+                dynamicRelativePath += item;
+
+                var node = new FileInfoNode
+                {
+                    Name = item,
+                    FullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + dynamicRelativePath,
+                    RelativePath = dynamicRelativePath,
+                    Path = dynamicRelativePath,
+                    Type = "folder",
+                    Level = currentLevel,
+                };
+                currentLevel++;
+                list.Add(node);
+            }
+            var nodeFile = new FileInfoNode
+            {
+                Name = fileData.DirectoryName,
+                FullPath = fullPath,
+                Path = relativePath,
+                RelativePath = relativePath,
+                Type = "folder",
                 Level = currentLevel,
             };
             list.Add(nodeFile);
@@ -290,7 +341,8 @@ namespace MdExplorer.Controllers
         private FileInfoNode CreateNodeFolderOnly(string itemFolder)
         {
             var patchedItemFolfer = itemFolder;
-            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), FullPath = itemFolder, Path = patchedItemFolfer, Type = "folder" };
+            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), 
+                FullPath = itemFolder, Path = patchedItemFolfer, Type = "folder" };
             ExploreNodesFolderOnly(node, itemFolder);
             return node;
         }
@@ -352,5 +404,11 @@ public class NewFile
     public string Title { get; set; }
     public string DirectoryPath { get; set; }    
     public int DirectoryLevel { get; set; }
+}
 
+public class NewDirectory
+{
+    public string DirectoryName { get; set; }
+    public string DirectoryPath { get; set; }
+    public int DirectoryLevel { get; set; }
 }

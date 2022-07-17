@@ -24,8 +24,7 @@ export class NewMarkdownComponent implements OnInit {
   }
   save() {  
     this.mdFileService.CreateNewMd(this.data.fullPath, this.markdownTitle, this.data.level)
-      .subscribe(data => {
-        debugger;
+      .subscribe(data => {        
         this.mdFileService.addNewFile(data);
         this.mdFileService.setSelectedMdFileFromSideNav(data[data.length-1]);
       });

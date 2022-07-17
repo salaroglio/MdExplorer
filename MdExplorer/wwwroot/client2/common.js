@@ -57,6 +57,7 @@ class MdFileService {
         this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
+        this._selectedDirectoryFromNewDirectory = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
         this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]('block');
     }
     get whatDisplayForToolbar() {
@@ -83,6 +84,9 @@ class MdFileService {
     get selectedMdFileFromSideNav() {
         return this._selectedMdFileFromSideNav.asObservable();
     }
+    get selectedDirectoryFromNewDirectory() {
+        return this._selectedDirectoryFromNewDirectory.asObservable();
+    }
     // breadcrumb
     get navigationArray() {
         return this._navigationArray;
@@ -91,8 +95,7 @@ class MdFileService {
         this._navigationArray = mdFile;
     }
     addNewFile(data) {
-        // searching directories
-        debugger;
+        // searching directories    
         var currentItem = data[0];
         let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
         if (currentFolder != undefined) {
@@ -104,6 +107,25 @@ class MdFileService {
             }
             else {
                 currentFolder.childrens.push(data[0]); // insert new file in folder
+            }
+            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        }
+    }
+    addNewDirectory(data) {
+        // searching directories
+        debugger;
+        var currentItem = data[0];
+        currentItem.expandable = true;
+        let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
+        if (currentFolder != undefined) {
+            this.recursiveSearchFolder(data, 0, currentFolder);
+        }
+        else {
+            if (currentFolder == undefined) { // the directory is in the root
+                this.dataStore.mdFiles.push(currentItem);
+            }
+            else {
+                currentFolder.childrens.push(currentItem); // insert new directory in folder
             }
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
         }
@@ -169,6 +191,15 @@ class MdFileService {
         const url = '../api/mdexplorer/' + path;
         return this.http.get(url, { responseType: 'text' }); //, currentFile      
     }
+    CreateNewDirectory(path, directoryName, directoryLevel) {
+        const url = '../api/mdfiles/CreateNewDirectory';
+        var newData = {
+            directoryPath: path,
+            directoryName: directoryName,
+            directoryLevel: directoryLevel,
+        };
+        return this.http.post(url, newData);
+    }
     CreateNewMd(path, title, directoryLevel) {
         const url = '../api/mdfiles/CreateNewMd';
         var newData = {
@@ -195,6 +226,9 @@ class MdFileService {
     }
     setSelectedMdFileFromSideNav(selectedFile) {
         this._selectedMdFileFromSideNav.next(selectedFile);
+    }
+    setSelectedDirectoryFromNewDirectory(selectedDirectory) {
+        this._selectedDirectoryFromNewDirectory.next(selectedDirectory);
     }
     setSelectedMdFileFromToolbar(selectedFile) {
         let returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
