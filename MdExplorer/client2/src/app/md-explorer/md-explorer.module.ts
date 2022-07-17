@@ -14,6 +14,7 @@ import { SettingsComponent } from './components/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
 import { RulesComponent } from './components/rules/rules.component';
 import { NewMarkdownComponent } from './components/new-markdown/new-markdown.component';
+import { NewDirectoryComponent } from './components/new-directory/new-directory.component';
  
 
 
@@ -40,7 +41,8 @@ const routes: Routes = [
     SettingsComponent,
     RenameFileComponent,
     RulesComponent,
-    NewMarkdownComponent,    
+    NewMarkdownComponent,
+    NewDirectoryComponent,    
   ],
   imports: [
     CommonModule,

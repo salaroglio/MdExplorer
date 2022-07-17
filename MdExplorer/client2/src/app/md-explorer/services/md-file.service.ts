@@ -18,6 +18,7 @@ export class MdFileService {
   private _navigationArray: MdFile[] = [];// deve morire
   private _selectedMdFileFromToolbar: BehaviorSubject<MdFile[]>;
   private _selectedMdFileFromSideNav: BehaviorSubject<MdFile>;
+  private _selectedDirectoryFromNewDirectory: BehaviorSubject<MdFile>;
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -41,6 +42,7 @@ export class MdFileService {
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromToolbar = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromSideNav = new BehaviorSubject<MdFile>(null);
+    this._selectedDirectoryFromNewDirectory = new BehaviorSubject<MdFile>(null);
     this._whatDisplayForToolbar = new BehaviorSubject<string>('block');
   }
 
@@ -75,6 +77,9 @@ export class MdFileService {
     return this._selectedMdFileFromSideNav.asObservable();
   }
 
+  get selectedDirectoryFromNewDirectory(): Observable<MdFile> {
+    return this._selectedDirectoryFromNewDirectory.asObservable();
+  }
   
 
   // breadcrumb
@@ -87,8 +92,7 @@ export class MdFileService {
   }
 
   addNewFile(data: MdFile[]) {
-    // searching directories
-    debugger;
+    // searching directories    
       var currentItem = data[0];
       let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
     if (currentFolder != undefined) {
@@ -103,6 +107,26 @@ export class MdFileService {
       this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
         
+  }
+
+  addNewDirectory(data: MdFile[]) {
+    // searching directories
+    debugger;
+    var currentItem = data[0];
+    currentItem.expandable = true;
+    let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
+    if (currentFolder != undefined) {
+      this.recursiveSearchFolder(data, 0, currentFolder);
+    } else {
+      if (currentFolder == undefined) { // the directory is in the root
+        this.dataStore.mdFiles.push(currentItem);
+      } else {
+        currentFolder.childrens.push(currentItem); // insert new directory in folder
+      }
+
+      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    }
+
   }
 
   recursiveSearchFolder(data: MdFile[], i: number, parentFolder:MdFile) {
@@ -176,7 +200,17 @@ export class MdFileService {
     return this.http.get(url, { responseType: 'text' })//, currentFile      
   }
 
-  CreateNewMd(path: string, title: string, directoryLevel:number) {
+  CreateNewDirectory(path: string, directoryName: string, directoryLevel:number) {
+    const url = '../api/mdfiles/CreateNewDirectory';
+    var newData = {
+      directoryPath: path,
+      directoryName: directoryName,
+      directoryLevel: directoryLevel,
+    }
+    return this.http.post<MdFile[]>(url, newData);
+  }
+
+  CreateNewMd(path: string, title: string, directoryLevel: number) {
     const url = '../api/mdfiles/CreateNewMd';
     var newData = {
       directoryPath: path,
@@ -209,6 +243,10 @@ export class MdFileService {
 
   setSelectedMdFileFromSideNav(selectedFile: MdFile) {
     this._selectedMdFileFromSideNav.next(selectedFile);
+  }
+
+  setSelectedDirectoryFromNewDirectory(selectedDirectory: MdFile) {
+    this._selectedDirectoryFromNewDirectory.next(selectedDirectory);
   }
 
   setSelectedMdFileFromToolbar(selectedFile: MdFile) {

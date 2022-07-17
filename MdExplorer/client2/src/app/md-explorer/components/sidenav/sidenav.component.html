@@ -8,8 +8,8 @@
 <mat-menu #rightMenu="matMenu">
   <ng-template matMenuContent let-item="item">
     <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
-    <button mat-menu-item>Move directory</button>
-    <button mat-menu-item>New directory</button>-->
+  <button mat-menu-item>Move directory</button>-->
+    <button mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
     <button mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
 
   </ng-template>

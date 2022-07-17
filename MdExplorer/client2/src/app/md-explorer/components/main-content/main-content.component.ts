@@ -80,6 +80,9 @@ export class MainContentComponent implements OnInit, AfterViewInit {
         this.callMdExplorerController(current);
       }      
     });
+    this.service.selectedDirectoryFromNewDirectory.subscribe(_ => {
+
+    });
 
   }
 

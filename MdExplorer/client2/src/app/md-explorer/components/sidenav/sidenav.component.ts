@@ -12,6 +12,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { NewMarkdownComponent } from '../new-markdown/new-markdown.component';
+import { NewDirectoryComponent } from '../new-directory/new-directory.component';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
@@ -19,14 +20,14 @@ const SMALL_WIDTH_BREAKPOINT = 720;
 const TREE_DATA: IFileInfoNode[] =[];
 
 /** Flat node with expandable and level information */
-interface IFlatNode {
-  expandable: boolean;
-  name: string;
-  level: number;
-  path: string;
-  relativePath: string;
-  fullPath: string;
-}
+//interface IFlatNode {
+//  expandable: boolean;
+//  name: string;
+//  level: number;
+//  path: string;
+//  relativePath: string;
+//  fullPath: string;
+//}
 
 @Component({
   selector: 'app-sidenav',
@@ -58,7 +59,7 @@ export class SidenavComponent implements OnInit {
 
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
-      expandable: !!node.childrens && node.childrens.length > 0,
+      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder",
       name: node.name,
       level: level,
       path: node.path,
@@ -67,7 +68,7 @@ export class SidenavComponent implements OnInit {
 
     };
   }
-  treeControl = new FlatTreeControl<IFlatNode>(
+  treeControl = new FlatTreeControl<IFileInfoNode>(
     node => node.level, node => node.expandable);
 
   treeFlattener = new MatTreeFlattener(
@@ -75,7 +76,9 @@ export class SidenavComponent implements OnInit {
 
   dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
 
-  hasChild = (_: number, node: IFlatNode) => node.expandable;
+  hasChild = (_: number, node: IFileInfoNode) => node.expandable;
+
+  isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
 
   ///////////////////////////////
   mdFiles: Observable<MdFile[]>;
@@ -203,6 +206,18 @@ export class SidenavComponent implements OnInit {
       width: '300px',
       data:node,
     });    
+  }
+
+
+  createDirectoryOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    this.dialog.open(NewDirectoryComponent, {
+      width: '300px',
+      data: node,
+    });
   }
 
   public whatClass: string = "showToolbar";
