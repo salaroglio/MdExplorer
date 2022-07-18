@@ -65,7 +65,7 @@ export class SidenavComponent implements OnInit {
       path: node.path,
       relativePath: node.path,
       fullPath:node.fullPath,
-
+      type: node.type,
     };
   }
   treeControl = new FlatTreeControl<IFileInfoNode>(

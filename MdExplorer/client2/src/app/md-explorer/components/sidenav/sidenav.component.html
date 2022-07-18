@@ -49,7 +49,7 @@
             <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>
           </mat-tree-node>
           <!-- This is the tree node template for expandable nodes -->
-          <mat-tree-node *matTreeNodeDef="let node;when: hasChild" matTreeNodePadding>
+          <mat-tree-node *matTreeNodeDef="let node;when: isFolder" matTreeNodePadding>
             <button mat-icon-button matTreeNodeToggle
                     [attr.aria-label]="'Toggle ' + node.name">
               <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, node)">
