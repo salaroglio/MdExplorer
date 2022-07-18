@@ -3535,6 +3535,7 @@ class SidenavComponent {
                 path: node.path,
                 relativePath: node.path,
                 fullPath: node.fullPath,
+                type: node.type,
             };
         };
         this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_0__["FlatTreeControl"](node => node.level, node => node.expandable);
@@ -3722,7 +3723,7 @@ SidenavComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineC
         _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
         _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("dataSource", ctx.dataSource)("treeControl", ctx.treeControl);
         _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.hasChild);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.isFolder);
         _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](5);
         _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngClass", ctx.classForBorderDiv);
         _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
