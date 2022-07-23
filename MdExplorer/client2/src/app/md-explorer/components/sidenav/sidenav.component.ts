@@ -1,18 +1,22 @@
+
 import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
-import { FlatTreeControl } from '@angular/cdk/tree';
-import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
-import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/layout';
-import { MdFileService } from '../../services/md-file.service';
+import { Router }                                          from '@angular/router';
+import { FlatTreeControl }                                    from '@angular/cdk/tree';
+import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { Observable } from 'rxjs';
-import { MdFile } from '../../models/md-file';
-import { IFileInfoNode } from '../../models/IFileInfoNode';
-import { Router, ActivatedRoute } from '@angular/router';
+import { MatDialog }                                from '@angular/material/dialog';
+import { MatMenuTrigger }                           from '@angular/material/menu';
+import { MatTreeFlatDataSource, MatTreeFlattener }  from '@angular/material/tree';
+
+import { NewMarkdownComponent }   from '../new-markdown/new-markdown.component';
+import { NewDirectoryComponent }  from '../new-directory/new-directory.component';
+
+import { MdFileService }      from '../../services/md-file.service';
 import { SideNavDataService } from '../../services/side-nav-data.service';
-import { MatDialog } from '@angular/material/dialog';
+import { MdFile }             from '../../models/md-file';
+import { IFileInfoNode }      from '../../models/IFileInfoNode';
+
 import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
-import { MatMenuTrigger } from '@angular/material/menu';
-import { NewMarkdownComponent } from '../new-markdown/new-markdown.component';
-import { NewDirectoryComponent } from '../new-directory/new-directory.component';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
@@ -96,8 +100,7 @@ export class SidenavComponent implements OnInit {
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private router: Router,
-    private sideNavDataService: SideNavDataService,
-    private route: ActivatedRoute,
+    private sideNavDataService: SideNavDataService,    
     private currentFolder: AppCurrentFolderService,
     private ref: ChangeDetectorRef
   ) {
