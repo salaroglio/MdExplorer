@@ -5,7 +5,6 @@ import { HrefInterceptorService, IWorkWithElement } from '../../services/href-in
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MonitorMDService } from '../../services/monitor-md.service';
-import { SideNavDataService } from '../../services/side-nav-data.service';
 
 
 @Component({
@@ -62,8 +61,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     private service: MdFileService,
     private sanitizer: DomSanitizer,
     private monitorMDService: MonitorMDService,
-    private zone: NgZone,
-    private sideNavDataService: SideNavDataService
+    private zone: NgZone,    
   ) {
     console.log("MainContentComponent constructor");
     this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
