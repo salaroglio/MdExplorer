@@ -4,7 +4,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { MonitorMDService } from '../../services/monitor-md.service';
-import { SideNavDataService } from '../../services/side-nav-data.service';
 import { SettingsComponent } from '../settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
@@ -25,7 +24,6 @@ export class ToolbarComponent implements OnInit {
 
   @Output() toggleSidenav = new EventEmitter<void>();
   constructor(
-    private sideNavDataService: SideNavDataService,
     public dialog: MatDialog,
     private monitorMDService: MonitorMDService,
     private http: HttpClient,
@@ -151,7 +149,4 @@ export class ToolbarComponent implements OnInit {
     }
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
-
-
-
 }

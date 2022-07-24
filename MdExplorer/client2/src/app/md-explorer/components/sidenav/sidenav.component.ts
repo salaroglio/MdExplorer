@@ -1,37 +1,12 @@
 
 import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { Router }                                          from '@angular/router';
-import { FlatTreeControl }                                    from '@angular/cdk/tree';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
-import { Observable } from 'rxjs';
-import { MatDialog }                                from '@angular/material/dialog';
-import { MatMenuTrigger }                           from '@angular/material/menu';
-import { MatTreeFlatDataSource, MatTreeFlattener }  from '@angular/material/tree';
-
-import { NewMarkdownComponent }   from '../new-markdown/new-markdown.component';
-import { NewDirectoryComponent }  from '../new-directory/new-directory.component';
-
 import { MdFileService }      from '../../services/md-file.service';
-import { SideNavDataService } from '../../services/side-nav-data.service';
-import { MdFile }             from '../../models/md-file';
-import { IFileInfoNode }      from '../../models/IFileInfoNode';
-
 import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
-
-const TREE_DATA: IFileInfoNode[] =[];
-
-/** Flat node with expandable and level information */
-//interface IFlatNode {
-//  expandable: boolean;
-//  name: string;
-//  level: number;
-//  path: string;
-//  relativePath: string;
-//  fullPath: string;
-//}
 
 @Component({
   selector: 'app-sidenav',
@@ -39,102 +14,36 @@ const TREE_DATA: IFileInfoNode[] =[];
   styleUrls: ['./sidenav.component.scss']
 })
 export class SidenavComponent implements OnInit {
-
-  menuTopLeftPosition = { x: 0, y: 0 }
-  @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
-
-
-  onRightClick(event: MouseEvent, item) {
-    // preventDefault avoids to show the visualization of the right-click menu of the browser
-    event.preventDefault();
-
-    // we record the mouse position in our object
-    this.menuTopLeftPosition.x = event.clientX;
-    this.menuTopLeftPosition.y = event.clientY;
-
-    // we open the menu
-    // we pass to the menu the information about our object
-    this.matMenuTrigger.menuData = { item: item }
-
-    // we open the menu
-    this.matMenuTrigger.openMenu();
-
-  }
-
-  private _transformer = (node: IFileInfoNode, level: number) => {
-    return {
-      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder",
-      name: node.name,
-      level: level,
-      path: node.path,
-      relativePath: node.path,
-      fullPath:node.fullPath,
-      type: node.type,
-    };
-  }
-  treeControl = new FlatTreeControl<IFileInfoNode>(
-    node => node.level, node => node.expandable);
-
-  treeFlattener = new MatTreeFlattener(
-    this._transformer, node => node.level, node => node.expandable, node => node.childrens);
-
-  dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-
-  hasChild = (_: number, node: IFileInfoNode) => node.expandable;
-
-  isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
-
-  ///////////////////////////////
-  mdFiles: Observable<MdFile[]>;
-
-  public isScreenSmall: boolean;
-  private activeNode: any;
-
-  private hooked: boolean = false;
-
+  
   public sideNavWidth: string = "240px";
+  public isScreenSmall: boolean;
+  private hooked: boolean = false;
   public classForBorderDiv: string = "border-div";
   public titleProject: string;
 
-  constructor(private breakpointObserver: BreakpointObserver,
+  constructor(
+    private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
-    public dialog: MatDialog,
     private router: Router,
-    private sideNavDataService: SideNavDataService,    
     private currentFolder: AppCurrentFolderService,
     private ref: ChangeDetectorRef
   ) {
-    this.dataSource.data = TREE_DATA;
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
-        this.sideNavWidth = event.clientX + "px";        
-      }  
+        this.sideNavWidth = event.clientX + "px";
+      }
     });
     document.addEventListener("mouseup", (event) => {
       if (this.hooked) {
         this.stopResizeWidth();
       }
     });
+    
     this.currentFolder.folderName.subscribe((data: any) => {      
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-
-      const myClonedArray = [];
-      _.forEach(val => myClonedArray.push(Object.assign({}, val)));
-
-      while (myClonedArray.length > 1) {
-        var toExpand = myClonedArray.pop();
-        var test = this.treeControl.dataNodes.find(_=>_.path == toExpand.path) ;
-        
-        this.treeControl.expand(test);
-      }      
-      if (myClonedArray.length >0) {
-        var toExpand = myClonedArray.pop();
-        this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-      }      
-    });
+    
   }
 
   resizeWidth(): void {    
@@ -151,10 +60,6 @@ export class SidenavComponent implements OnInit {
     this.router.navigate(['/projects']);
   }
 
-  deferredOpenProject(data, objectThis): void {
-    
-  }
-
 
   ngOnInit(): void {
     
@@ -163,11 +68,7 @@ export class SidenavComponent implements OnInit {
         this.isScreenSmall = state.matches
       });
 
-    this.mdFiles = this.mdFileService.mdFiles;
-    this.mdFileService.mdFiles.subscribe(data => {      
-      this.dataSource.data = data;      
-    });    
-    this.mdFileService.loadAll(this.deferredOpenProject,this); 
+   
     this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
       debugger;
       if ( (_ == 'showToolbar' && this.whatClass != _) ||
@@ -183,44 +84,10 @@ export class SidenavComponent implements OnInit {
         });
         this.ref.detectChanges();
       }
-      
     });
-
-
   }
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-
-  public getNode(node: MdFile) {
-    this.mdFileService.setSelectedMdFileFromSideNav(node);
-    this.activeNode = node;
-  }
-
-  // Manu management
-
-  createMdOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(NewMarkdownComponent, {
-      width: '300px',
-      data:node,
-    });    
-  }
-
-
-  createDirectoryOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(NewDirectoryComponent, {
-      width: '300px',
-      data: node,
-    });
   }
 
   public whatClass: string = "showToolbar";

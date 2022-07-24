@@ -1,0 +1,40 @@
+
+<div style="visibility: hidden; position: fixed;"
+     [style.left.px]="menuTopLeftPosition.x"
+     [style.top.px]="menuTopLeftPosition.y"
+     [matMenuTriggerFor]="rightMenu"></div>
+
+
+<mat-menu #rightMenu="matMenu">
+  <ng-template matMenuContent let-item="item">
+    <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
+    <button mat-menu-item>Move directory</button>-->
+    <button mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+    <button mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+
+  </ng-template>
+</mat-menu>
+
+<mat-tree [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)">
+  <!-- This is the tree node template for leaf nodes -->
+  <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+    <!-- use a disabled button to provide padding for tree leaf -->
+    <button mat-icon-button disabled>
+      <mat-icon class="mat-icon-rtl-mirror">
+        {{'text_snippet'}}
+      </mat-icon>
+    </button>
+    <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>
+  </mat-tree-node>
+  <!-- This is the tree node template for expandable nodes -->
+  <mat-tree-node *matTreeNodeDef="let node;when: isFolder" matTreeNodePadding>
+    <button mat-icon-button matTreeNodeToggle
+            [attr.aria-label]="'Toggle ' + node.name">
+      <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, node)">
+        {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
+      </mat-icon>
+    </button>
+
+    {{node.name}}
+  </mat-tree-node>
+</mat-tree>

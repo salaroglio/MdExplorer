@@ -15,6 +15,7 @@ import { RenameFileComponent } from './components/refactoring/rename-file/rename
 import { RulesComponent } from './components/rules/rules.component';
 import { NewMarkdownComponent } from './components/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/new-directory/new-directory.component';
+import { MdTreeComponent } from './components/md-tree/md-tree.component';
  
 
 
@@ -42,7 +43,8 @@ const routes: Routes = [
     RenameFileComponent,
     RulesComponent,
     NewMarkdownComponent,
-    NewDirectoryComponent,    
+    NewDirectoryComponent,
+    MdTreeComponent,    
   ],
   imports: [
     CommonModule,
