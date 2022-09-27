@@ -16,6 +16,12 @@ import { RulesComponent } from './components/rules/rules.component';
 import { NewMarkdownComponent } from './components/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
+import { GitChangesComponent } from './components/git-changes/git-changes.component';
+import { SelectExtendedComponent } from './components/git-changes/select-extended/select-extended.component';
+import { OptionExtendedComponent } from './components/git-changes/select-extended/option-extended/option-extended.component';
+import { SelectBranchComponent } from './components/git-changes/select-branch/select-branch.component';
+import { OptionBranchComponent } from './components/git-changes/select-branch/option-branch/option-branch.component';
+
  
 
 
@@ -44,7 +50,14 @@ const routes: Routes = [
     RulesComponent,
     NewMarkdownComponent,
     NewDirectoryComponent,
-    MdTreeComponent,    
+    MdTreeComponent,
+    GitChangesComponent,
+    SelectExtendedComponent,
+    OptionExtendedComponent,
+    SelectBranchComponent,
+    OptionBranchComponent,
+    
+      
   ],
   imports: [
     CommonModule,

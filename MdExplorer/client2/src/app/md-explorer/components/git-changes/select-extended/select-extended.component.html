@@ -1,0 +1,18 @@
+
+<mat-form-field #gitChanges (click)="setSelectPosition()" appearance="fill">
+  <mat-label>Special dropdown list</mat-label>
+  <div style="white-space:nowrap">
+    <input matInput value="selected item" readonly />
+    <mat-icon style="display:inline;">keyboard_arrow_down</mat-icon>
+  </div>
+</mat-form-field>
+
+<div style="visibility: hidden; position: fixed; border:solid; border-width:1px;min-width:200px"
+     [style.visibility]="selectPosition.visibility"
+     [style.left.px]="selectPosition.x"
+     [style.top.px]="selectPosition.y">
+  <input matInput placeholder="Filter branches">  
+  <ng-template app-select-extended>
+    <ng-content #myTemplate></ng-content>
+  </ng-template>
+</div>

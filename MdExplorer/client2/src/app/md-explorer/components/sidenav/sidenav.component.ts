@@ -70,7 +70,7 @@ export class SidenavComponent implements OnInit {
 
    
     this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
-      debugger;
+      
       if ( (_ == 'showToolbar' && this.whatClass != _) ||
         (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone') 
         //|| (_ == 'hideToolbar' + ' ' + 'hideToolbarNone' && this.whatClass != _ + ' ' + 'hideToolbarNone')
