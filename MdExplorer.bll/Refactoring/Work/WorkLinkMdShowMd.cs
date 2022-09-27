@@ -33,7 +33,15 @@ namespace MdExplorer.Features.Refactoring.Work
 
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
-            var markdown = File.ReadAllText(filepath);
+            var markdown = string.Empty;
+            using (var stream = File.Open(filepath,FileMode.Open, FileAccess.Read,FileShare.ReadWrite))
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    markdown = reader.ReadToEnd();
+                }                
+            }
+            //var markdown = File.ReadAllText(filepath);
             return GetLinks(markdown);
         }
 

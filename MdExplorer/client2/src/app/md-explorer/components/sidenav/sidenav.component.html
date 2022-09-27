@@ -21,11 +21,12 @@
       {{titleProject}}
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
-      <mat-tab label="Docs Explorer">        
-        
+      <mat-tab label="Docs Explorer">                
         <app-md-tree></app-md-tree>
       </mat-tab>
-      <mat-tab label="Git Changes">  <h1>ToBeDone</h1> </mat-tab>
+      <mat-tab label="Git Changes">
+        <app-git-changes></app-git-changes>
+      </mat-tab>
     </mat-tab-group>
 
   </mat-sidenav>
