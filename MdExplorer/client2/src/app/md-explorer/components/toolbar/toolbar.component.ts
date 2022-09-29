@@ -4,11 +4,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { MonitorMDService } from '../../services/monitor-md.service';
-import { SettingsComponent } from '../settings/settings.component';
+import { SettingsComponent } from '../dialogs/settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../rules/rules.component';
-import { IChangeFileData,MdRefactoringService } from '../../services/md-refactoring.service';
 import { MdFile } from '../../models/md-file';
 
 @Component({

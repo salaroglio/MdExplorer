@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MdFile } from '../../models/md-file';
-import { MdFileService } from '../../services/md-file.service';
+import { MdFile } from '../../../models/md-file';
+import { MdFileService } from '../../../services/md-file.service';
 
 @Component({
   selector: 'app-new-markdown',

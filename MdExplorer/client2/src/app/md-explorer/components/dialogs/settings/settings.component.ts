@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
-import { IMdSetting } from '../../../Models/IMdSetting'
-import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
+import { IMdSetting } from '../../../../Models/IMdSetting'
+import { AppCurrentFolderService } from '../../../../services/app-current-folder.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
-
+ 
 @Component({
   selector: 'app-settings',
   templateUrl: './settings.component.html',
