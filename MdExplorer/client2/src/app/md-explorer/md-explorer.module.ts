@@ -10,17 +10,18 @@ import { Routes, RouterModule } from '@angular/router';
 import { MdFileService } from './services/md-file.service';
 import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
-import { SettingsComponent } from './components/settings/settings.component';
+import { SettingsComponent } from './components/dialogs/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
 import { RulesComponent } from './components/rules/rules.component';
-import { NewMarkdownComponent } from './components/new-markdown/new-markdown.component';
-import { NewDirectoryComponent } from './components/new-directory/new-directory.component';
+import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
+import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { GitChangesComponent } from './components/git-changes/git-changes.component';
 import { SelectExtendedComponent } from './components/git-changes/select-extended/select-extended.component';
 import { OptionExtendedComponent } from './components/git-changes/select-extended/option-extended/option-extended.component';
 import { SelectBranchComponent } from './components/git-changes/select-branch/select-branch.component';
 import { OptionBranchComponent } from './components/git-changes/select-branch/option-branch/option-branch.component';
+import { ConnectionLostComponent } from './components/dialogs/connection-lost/connection-lost.component';
 
  
 
@@ -40,7 +41,6 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     SidenavComponent,
-    
     ToolbarComponent,
     SafePipe,
     MainContentComponent,
@@ -56,6 +56,7 @@ const routes: Routes = [
     OptionExtendedComponent,
     SelectBranchComponent,
     OptionBranchComponent,
+    ConnectionLostComponent,
     
       
   ],

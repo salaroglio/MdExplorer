@@ -64,6 +64,7 @@ namespace MdExplorer.Features.Commands
                 LocalGraphvizDotPath = localGraphvizDotPath,
                 RenderingMode = RenderingMode.Local,
                 LocalPlantUmlPath = plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
+                
             });
             return renderer;
         }

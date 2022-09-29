@@ -26,15 +26,20 @@ export class MonitorMDService {
   private rule1IsRegistered :any;
 
   public startConnection = () => {
-    
-    this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl('../signalr/monitormd')
-      .build();
+    if (this.hubConnection == null) {
+      this.hubConnection = new signalR.HubConnectionBuilder()
+        .withUrl('../signalr/monitormd')
+        .build();
+    }    
     
     if (this.hubConnection.state == "Disconnected" ) {
       this.hubConnection
         .start()
-        .then(() => console.log('Connection started'))
+        .then(() => {                    
+          console.log('Connection started');
+        }
+          
+        )
         .catch(err => {
           console.log('Error while starting connection: ' + err);
         }

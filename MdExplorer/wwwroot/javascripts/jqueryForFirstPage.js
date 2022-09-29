@@ -492,7 +492,7 @@ $(function () {
         window.toggleCanvas = false;
     }
 
-    console.log('initialize canvas');
+    //console.log('initialize canvas');
 
     window.toggleCanvas = !window.toggleCanvas;
     window.canvas = document.createElement('canvas');

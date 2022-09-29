@@ -5,6 +5,8 @@ import { HrefInterceptorService, IWorkWithElement } from '../../services/href-in
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MonitorMDService } from '../../services/monitor-md.service';
+import { MatDialog } from '@angular/material/dialog';
+import { ConnectionLostComponent } from '../dialogs/connection-lost/connection-lost.component';
 
 
 @Component({
@@ -52,16 +54,14 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     alert('this is the callback');
   };
 
-  //private _this: any;
-  public _HideImg = true;
+
   public _HideIFrame = false;
 
   constructor(
-    private route: ActivatedRoute,    
     private service: MdFileService,
     private sanitizer: DomSanitizer,
     private monitorMDService: MonitorMDService,
-    private zone: NgZone,    
+    public dialog: MatDialog,
   ) {
     console.log("MainContentComponent constructor");
     this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
@@ -105,9 +105,12 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
  
   private ShowConnectionLost(data: any, objectThis: any) {
-    objectThis._HideImg = false;
+    console.log('lo so che ti apri');
+    objectThis.dialog.open(ConnectionLostComponent, {
+      width: '600px',
+      data: null,
+    });
   }
-
 
 
 }

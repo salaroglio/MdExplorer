@@ -7,8 +7,8 @@ import { Observable } from 'rxjs';
 import { IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
-import { NewDirectoryComponent } from '../new-directory/new-directory.component';
-import { NewMarkdownComponent } from '../new-markdown/new-markdown.component';
+import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
+import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
