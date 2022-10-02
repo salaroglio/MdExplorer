@@ -6,7 +6,7 @@ import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MonitorMDService } from '../../services/monitor-md.service';
 import { MatDialog } from '@angular/material/dialog';
-import { ConnectionLostComponent } from '../../../signalR/dialogs/connection-lost/connection-lost.component';///dialogs/connection-lost/connection-lost.component
+//import { ConnectionLostComponent } from '../../../signalR/dialogs/connection-lost/connection-lost.component';///dialogs/connection-lost/connection-lost.component
 
 
 @Component({
@@ -65,7 +65,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   ) {
     console.log("MainContentComponent constructor");
     this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
-    this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
+    //this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
   }
 
   ngOnInit(): void {
@@ -104,13 +104,13 @@ export class MainContentComponent implements OnInit, AfterViewInit {
 
   }
  
-  private ShowConnectionLost(data: any, objectThis: any) {
-    console.log('lo so che ti apri');
-    objectThis.dialog.open(ConnectionLostComponent, {
-      width: '600px',
-      data: null,
-    });
-  }
+  //private ShowConnectionLost(data: any, objectThis: any) {
+  //  console.log('lo so che ti apri');
+  //  objectThis.dialog.open(ConnectionLostComponent, {
+  //    width: '600px',
+  //    data: null,
+  //  });
+  //}
 
 
 }

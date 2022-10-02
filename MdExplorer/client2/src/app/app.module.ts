@@ -34,8 +34,8 @@ const routes: Routes = [
     HttpClientModule,    
     
   ],
-  providers: [ParsingProjectProvider
-                ],
+  providers: [ParsingProjectProvider,
+               ConnectionLostProvider ],
   bootstrap: [AppComponent]
 })
 export class AppModule {
