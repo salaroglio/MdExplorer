@@ -11,7 +11,7 @@ import { AppComponent } from './app.component';
 import { MaterialModule } from "./shared/material.module";
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ParsingProjectProvider } from './signalR/dialogs/parsing-project/parsing-project.provider';
-import { ConnectionLostProvider } from './md-explorer/components/dialogs/connection-lost/connection-lost.provider';
+import { ConnectionLostProvider } from './signalR/dialogs/connection-lost/connection-lost.provider';
 
 const routes: Routes = [
   { path: 'main', loadChildren: () => import('./md-explorer/md-explorer.module').then(m => m.MdExplorerModule) },
