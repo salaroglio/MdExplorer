@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as signalR from "@microsoft/signalr";
+import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/parsing-project.provider';
 
 interface linkSignalREvent_Component {
   key: string
@@ -14,12 +15,11 @@ export class MonitorMDService {
 
   linkEventCompArray: linkSignalREvent_Component[];
 
-  constructor() {
+  constructor(
+              private parsingProjectProvider:ParsingProjectProvider ) {
     this.startConnection();
     console.log('MonitorMDService constructor');
     this.linkEventCompArray = [];
-
-
   }
 
   private hubConnection: signalR.HubConnection
@@ -30,6 +30,16 @@ export class MonitorMDService {
       this.hubConnection = new signalR.HubConnectionBuilder()
         .withUrl('../signalr/monitormd')
         .build();
+      this.hubConnection.on('markdownfileisprocessed', (data) => {
+        this.processCallBack(data, 'markdownfileisprocessed');
+      });
+      this.hubConnection.on('parsingProjectStart', (data) => {
+        this.parsingProjectProvider.show(data);
+      });
+      this.hubConnection.on('parsingProjectStop', (data) => {
+        this.parsingProjectProvider.hide(data);
+      });
+      
     }    
     
     if (this.hubConnection.state == "Disconnected" ) {
@@ -44,14 +54,10 @@ export class MonitorMDService {
           console.log('Error while starting connection: ' + err);
         }
         );    
-    }
-
-    this.hubConnection.on('markdownfileisprocessed', (data) => {
-      this.myCallBack(data, 'markdownfileisprocessed');
-    });
-
-    
+    }    
   }
+
+
 
   public addOnCloseEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.onclose((data) => {
@@ -65,6 +71,7 @@ export class MonitorMDService {
     });
   }
 
+
   public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('markdownfileischanged', (data) => {
       callback(data, objectThis);
@@ -72,7 +79,7 @@ export class MonitorMDService {
     });
   }
 
-  private myCallBack(data: any, signalREvent:string) {
+  private processCallBack(data: any, signalREvent:string) {
     this.linkEventCompArray.forEach(_ => {
       if (_.key == signalREvent) {
         _.callback(data, _.object);
@@ -80,8 +87,11 @@ export class MonitorMDService {
     })
   }
 
+
+
   public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
-    let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
+    let check = this.linkEventCompArray.find(_ =>
+      _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
     if (check == undefined) {
       this.linkEventCompArray.push({ key:'markdownfileisprocessed',object : objectThis, callback:callback });
     }    

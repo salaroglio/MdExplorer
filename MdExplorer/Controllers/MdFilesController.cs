@@ -7,8 +7,10 @@ using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Hubs;
 using MdExplorer.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,6 +28,7 @@ namespace MdExplorer.Controllers
         private readonly IWorkLink[] _getModifiers;
         private readonly IHelper _helper;
         private readonly IUserSettingsDB _userSettingsDB;
+        private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
 
         public IEngineDB _engineDB { get; }
@@ -33,6 +36,7 @@ namespace MdExplorer.Controllers
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
             IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper,
             IUserSettingsDB userSettingsDB,
+            IHubContext<MonitorMDHub> hubContext,
             IGoodMdRule<FileInfoNode>[] GoodRules)
         {
             _fileSystemWatcher = fileSystemWatcher;
@@ -40,6 +44,7 @@ namespace MdExplorer.Controllers
             _getModifiers = getModifiers;
             _helper = helper;
             _userSettingsDB = userSettingsDB;
+            _hubContext = hubContext;
             _goodRules = GoodRules;
         }
 
@@ -98,8 +103,9 @@ namespace MdExplorer.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAllMdFiles()
+        public async Task<IActionResult> GetAllMdFiles()
         {
+            await _hubContext.Clients.All.SendAsync("parsingProjectStart", "process started");
             var list = new List<IFileInfoNode>();
             var currentPath = _fileSystemWatcher.Path;
             if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
@@ -146,6 +152,7 @@ namespace MdExplorer.Controllers
 
             SaveRealationships(list);
             _engineDB.Commit();
+            await _hubContext.Clients.All.SendAsync("parsingProjectStop", "process completed");
             return Ok(list);
         }
 
