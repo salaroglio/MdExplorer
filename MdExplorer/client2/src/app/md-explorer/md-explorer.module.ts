@@ -21,7 +21,7 @@ import { SelectExtendedComponent } from './components/git-changes/select-extende
 import { OptionExtendedComponent } from './components/git-changes/select-extended/option-extended/option-extended.component';
 import { SelectBranchComponent } from './components/git-changes/select-branch/select-branch.component';
 import { OptionBranchComponent } from './components/git-changes/select-branch/option-branch/option-branch.component';
-import { ConnectionLostComponent } from './components/dialogs/connection-lost/connection-lost.component';
+import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
 

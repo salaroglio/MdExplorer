@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 //import { MdFile } from '../../../models/md-file';
-import { MonitorMDService } from '../../../services/monitor-md.service';
+import { MonitorMDService } from '../../../md-explorer/services/monitor-md.service'; //../../../compoments/services/monitor-md.service
 
 @Component({
   selector: 'app-connection-lost',

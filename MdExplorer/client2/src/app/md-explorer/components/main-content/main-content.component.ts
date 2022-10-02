@@ -6,7 +6,7 @@ import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { MonitorMDService } from '../../services/monitor-md.service';
 import { MatDialog } from '@angular/material/dialog';
-import { ConnectionLostComponent } from '../dialogs/connection-lost/connection-lost.component';
+import { ConnectionLostComponent } from '../../../signalR/dialogs/connection-lost/connection-lost.component';///dialogs/connection-lost/connection-lost.component
 
 
 @Component({
