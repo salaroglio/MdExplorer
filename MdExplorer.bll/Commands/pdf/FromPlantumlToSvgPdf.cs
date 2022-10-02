@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Commands.pdf
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 
             var matches = GetMatches(markdown);
-            foreach (Match item in matches)
+            foreach (Match item in matches.Cast<Match>())
             {
                 var text = item.Groups[1].Value;
                 // search for docxCaption:
@@ -101,7 +101,7 @@ namespace MdExplorer.Features.Commands.pdf
             var classes = metadataMatch.Where(_ => _.Groups[1].Value.StartsWith(".")).FirstOrDefault();
             var selectorFound = false;
             var thereAreNoSelectors = false;
-            foreach (Match itemCss in matchesCSS)
+            foreach (Match itemCss in matchesCSS.Cast<Match>())
             {
                 var cssToAnalyze = itemCss.Groups[1].Value;
                 var parser = new StylesheetParser();

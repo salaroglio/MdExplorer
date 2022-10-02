@@ -95,7 +95,7 @@ namespace MdExplorer.Service.HostedServices
         }
 
         DateTime lastRead = DateTime.MinValue;
-        private void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
+        private async void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
             
             // Inserisci l'informazione nel file di refactoring
@@ -177,7 +177,7 @@ namespace MdExplorer.Service.HostedServices
                     RelativePath = e.FullPath.Replace(_fileSystemWatcher.Path + Path.DirectorySeparatorChar, string.Empty)
 
                 };
-                _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
+                await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
                 lastRead = lastWriteTime.AddSeconds(1);
             }
         }

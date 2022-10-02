@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MdFile } from '../../../models/md-file';
+//import { MdFile } from '../../../models/md-file';
 import { MonitorMDService } from '../../../services/monitor-md.service';
 
 @Component({
@@ -13,12 +13,11 @@ export class ConnectionLostComponent implements OnInit {
   public _HideImg = true;
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: MdFile,
+    //@Inject(MAT_DIALOG_DATA) public data: MdFile,
     private monitorMDService: MonitorMDService,    
-    private dialogRef: MatDialogRef<ConnectionLostComponent>,
-     
-  ) {
-    
+    private dialogRef: MatDialogRef<ConnectionLostComponent>){
+
+    dialogRef.disableClose = true;
   }
 
   ngOnInit(): void {

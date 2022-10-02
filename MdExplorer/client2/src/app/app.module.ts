@@ -10,6 +10,8 @@ import { HttpClientModule } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { MaterialModule } from "./shared/material.module";
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { ParsingProjectProvider } from './signalR/dialogs/parsing-project/parsing-project.provider';
+import { ConnectionLostProvider } from './md-explorer/components/dialogs/connection-lost/connection-lost.provider';
 
 const routes: Routes = [
   { path: 'main', loadChildren: () => import('./md-explorer/md-explorer.module').then(m => m.MdExplorerModule) },
@@ -29,11 +31,11 @@ const routes: Routes = [
     MaterialModule,
     FormsModule,
     BrowserAnimationsModule,
-    HttpClientModule
-    
+    HttpClientModule,    
     
   ],
-  providers: [],
+  providers: [ParsingProjectProvider
+                ],
   bootstrap: [AppComponent]
 })
 export class AppModule {

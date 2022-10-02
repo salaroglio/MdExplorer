@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { MonitorMDService } from '../../services/monitor-md.service';
@@ -48,8 +48,7 @@ export class ToolbarComponent implements OnInit {
     });
     
     dialogRef.afterClosed().subscribe(result => {
-      console.log('The dialog was closed');
-      
+      console.log('The dialog was closed');      
     });
   }
 
@@ -119,7 +118,8 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
+    
       objectThis.mdFileService.navigationArray.push(data);
       objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }

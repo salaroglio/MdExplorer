@@ -22,6 +22,8 @@ import { OptionExtendedComponent } from './components/git-changes/select-extende
 import { SelectBranchComponent } from './components/git-changes/select-branch/select-branch.component';
 import { OptionBranchComponent } from './components/git-changes/select-branch/option-branch/option-branch.component';
 import { ConnectionLostComponent } from './components/dialogs/connection-lost/connection-lost.component';
+import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
+import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
 
  
 
@@ -57,6 +59,7 @@ const routes: Routes = [
     SelectBranchComponent,
     OptionBranchComponent,
     ConnectionLostComponent,
+    ParsingProjectComponent,
     
       
   ],
@@ -68,7 +71,8 @@ const routes: Routes = [
     RouterModule.forChild(routes)
   ],
   providers: [
-    MdFileService
+    MdFileService,
+    
   ]
 })
 export class MdExplorerModule {
