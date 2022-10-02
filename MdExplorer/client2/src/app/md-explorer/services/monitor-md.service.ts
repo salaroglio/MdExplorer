@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as signalR from "@microsoft/signalr";
+import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
 import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/parsing-project.provider';
 
 interface linkSignalREvent_Component {
@@ -16,7 +17,8 @@ export class MonitorMDService {
   linkEventCompArray: linkSignalREvent_Component[];
 
   constructor(
-              private parsingProjectProvider:ParsingProjectProvider ) {
+    private parsingProjectProvider: ParsingProjectProvider,
+    private connectionLostProvider: ConnectionLostProvider  ) {
     this.startConnection();
     console.log('MonitorMDService constructor');
     this.linkEventCompArray = [];
@@ -39,6 +41,9 @@ export class MonitorMDService {
       this.hubConnection.on('parsingProjectStop', (data) => {
         this.parsingProjectProvider.hide(data);
       });
+      this.hubConnection.onclose((data) => {
+        this.connectionLostProvider.show(this);
+      });
       
     }    
     
@@ -59,11 +64,6 @@ export class MonitorMDService {
 
 
 
-  public addOnCloseEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.onclose((data) => {
-      callback(data, objectThis);
-    });
-  } 
 
   public addRefactoringFileEvent(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('refactoringFileEvent', (data) => {

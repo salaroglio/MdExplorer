@@ -14,7 +14,7 @@ export class ConnectionLostComponent implements OnInit {
 
   constructor(
     //@Inject(MAT_DIALOG_DATA) public data: MdFile,
-    private monitorMDService: MonitorMDService,    
+    //private monitorMDService: MonitorMDService,    
     private dialogRef: MatDialogRef<ConnectionLostComponent>){
 
     dialogRef.disableClose = true;
@@ -24,7 +24,7 @@ export class ConnectionLostComponent implements OnInit {
   }
 
   refresh() {
-    this.monitorMDService.startConnection();
+    //this.monitorMDService.startConnection();
     this.dialogRef.close();
   }
     
