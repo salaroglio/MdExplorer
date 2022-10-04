@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,7 +44,27 @@ namespace MdExplorer.Service.HostedServices
             _serviceProvider = serviceProvider;
             _linkManagers = linkManagers;
             _helper = helper;
+            // console closing management, send back closing server to the angular client
+            handler = new ConsoleEventDelegate(SendExitToAngular);
+            SetConsoleCtrlHandler(handler, true);
+
         }
+
+        private bool SendExitToAngular(int eventType)
+        {
+            if (eventType == 2)
+            {
+                _hubContext.Clients.All.SendAsync("consoleClosed");
+            }
+            return false;                        
+        }
+
+        static ConsoleEventDelegate handler;   // Keeps it from getting garbage collected
+                                               // Pinvoke
+        private delegate bool ConsoleEventDelegate(int eventType);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetConsoleCtrlHandler(ConsoleEventDelegate callback, bool add);
+
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
@@ -95,6 +116,8 @@ namespace MdExplorer.Service.HostedServices
         }
 
         DateTime lastRead = DateTime.MinValue;
+        
+
         private async void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
             

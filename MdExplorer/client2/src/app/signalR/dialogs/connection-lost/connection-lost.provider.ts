@@ -22,6 +22,12 @@ export class ConnectionLostProvider {
     });
     return this;
   }
+  showConsoleClosed(): void {
+    console.log('showConsoleClosed')
+    this._dialogRef = this.dialog.open(ConnectionLostComponent, {
+      data: 'serverIsDown'
+    });
+  }
 
   hide(data: any): void {
     this._dialogRef.close();

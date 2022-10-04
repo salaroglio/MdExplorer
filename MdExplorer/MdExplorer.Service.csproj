@@ -118,7 +118,7 @@
     <Content Remove="wwwroot\bootstrap\js\bootstrap.js.map" />
     <Content Remove="wwwroot\bootstrap\js\bootstrap.min.js" />
     <Content Remove="wwwroot\client2\common.js" />
-    <Content Remove="wwwroot\client2\common.js.map" />
+    <Content Remove="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
     <Content Remove="wwwroot\client2\main.js" />
@@ -375,7 +375,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.min.js" />
     <EmbeddedResource Include="wwwroot\client2\common.js" />
-    <EmbeddedResource Include="wwwroot\client2\common.js.map" />
+    <EmbeddedResource Include="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />
     <EmbeddedResource Include="wwwroot\client2\main.js" />
