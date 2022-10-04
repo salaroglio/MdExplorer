@@ -52,7 +52,6 @@ namespace MdExplorer.Features.ActionLinkModifiers
                     markdown = reader.ReadToEnd();
                 }
             }
-            //var markdown = File.ReadAllText(filepath);
             return GetLinks(markdown);
         }
 

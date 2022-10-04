@@ -20,7 +20,7 @@ namespace MdExplorer.Features.Reveal
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"-{3}([^-{3}]*)",
+            Regex rx = new Regex(@"[^:]-{3}([^-{3}]*)", // missing 
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;

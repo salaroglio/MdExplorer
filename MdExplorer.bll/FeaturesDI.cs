@@ -41,6 +41,7 @@ namespace MdExplorer.Features
                 var listOfModfier = new List<IWorkLink>();                
                 listOfModfier.Add(new WorkLinkImagesFromMarkdown());
                 listOfModfier.Add(new WorkLinkImgFromPlantuml());
+                listOfModfier.Add(new WorkLinkFromPlantuml());
                 listOfModfier.Add(new WorkLinkFromMarkdown());
                 listOfModfier.Add(new WorkLinkMdShowMd());
                 return listOfModfier.ToArray();
