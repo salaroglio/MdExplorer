@@ -2,6 +2,7 @@
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -22,18 +23,28 @@ namespace MdExplorer.Features.ActionLinkModifiers
             var counter = 0;
             foreach (Match item in matches)
             {
-                Regex rx1 = new Regex(@"<img:([^>]*)>");
+                Regex rx1 = new Regex(@"\[\[[^#]([^\]]*)\]\]");
                 var matches1 = rx1.Matches(item.Groups[1].Value);
                 foreach (Match match in matches1)
                 {
-                    var linkDetail = new LinkDetail
+                    // i have to parse the filename from the link
+                    var toParse = match.Groups[0].Value;
+                    Regex rx2 = new Regex(@"\[\[([^\.]*\.md)");
+                    var matches2 = rx2.Matches(toParse);
+
+                    foreach (Match match2 in matches2)
                     {
-                        LinkedCommand = match.Groups[0].Value,
-                        LinkPath = match.Groups[1].Value,
-                        SectionIndex = counter
-                    };
-                    toReturn.Add(linkDetail);
+                        var linkDetail = new LinkDetail
+                        {
+                            LinkedCommand = match.Groups[0].Value,
+                            LinkPath = match2.Groups[1].Value,
+                            SectionIndex = counter
+                        };
+                        toReturn.Add(linkDetail);
+                    }
+                   
                 }
+                
                 counter++;
             }
             // devo poi andare a cercare i link
@@ -43,12 +54,22 @@ namespace MdExplorer.Features.ActionLinkModifiers
 
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
-            throw new NotImplementedException();
+            var markdown = string.Empty;
+            using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    markdown = reader.ReadToEnd();
+                }
+            }
+            return GetLinks(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
         {
-            throw new NotImplementedException();
+            var markdown = File.ReadAllText(filepath);
+            markdown = markdown.Replace(oldLink, newLink);
+            File.WriteAllText(filepath, markdown);
         }
     }
 }
