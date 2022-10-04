@@ -25,7 +25,9 @@ export class MonitorMDService {
   }
 
   private hubConnection: signalR.HubConnection
-  private rule1IsRegistered :any;
+  private rule1IsRegistered: any;
+  private connectionIsLost: boolean = false;
+  private consoleIsClosed: boolean = false;
 
   public startConnection = () => {
     if (this.hubConnection == null) {
@@ -41,8 +43,16 @@ export class MonitorMDService {
       this.hubConnection.on('parsingProjectStop', (data) => {
         this.parsingProjectProvider.hide(data);
       });
+      this.hubConnection.on('consoleClosed', (data) => {
+        console.log('consoleClosed');
+        this.consoleIsClosed = true;
+        this.connectionLostProvider.showConsoleClosed();
+      });
       this.hubConnection.onclose((data) => {
-        this.connectionLostProvider.show(this);
+        if (!this.consoleIsClosed) {
+          this.connectionLostProvider.show(this);
+          this.connectionIsLost = true;
+        }        
       });
       
     }    
@@ -52,6 +62,7 @@ export class MonitorMDService {
         .start()
         .then(() => {                    
           console.log('Connection started');
+          this.connectionIsLost = false;
         }
           
         )

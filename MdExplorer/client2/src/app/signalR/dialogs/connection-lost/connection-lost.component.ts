@@ -11,12 +11,16 @@ import { MonitorMDService } from '../../../md-explorer/services/monitor-md.servi
 export class ConnectionLostComponent implements OnInit {
   //private _this: any;
   public _HideImg = true;
+  public consoleIsClosed = false;
 
   constructor(
-    //@Inject(MAT_DIALOG_DATA) public data: MdFile,
+    @Inject(MAT_DIALOG_DATA) public data: any,
     //private monitorMDService: MonitorMDService,    
     private dialogRef: MatDialogRef<ConnectionLostComponent>){
-
+    console.log('MAT_DIALOG_DATA = ' + data);
+    if (data ==='serverIsDown') {
+      this.consoleIsClosed = true;
+    }
     dialogRef.disableClose = true;
   }
 
