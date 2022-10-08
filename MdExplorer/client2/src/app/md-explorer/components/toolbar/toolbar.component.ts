@@ -3,11 +3,11 @@ import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { MonitorMDService } from '../../services/monitor-md.service';
+import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
 import { SettingsComponent } from '../dialogs/settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
-import { RulesComponent } from '../rules/rules.component';
+import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
 import { MdFile } from '../../models/md-file';
 
 @Component({
@@ -24,7 +24,7 @@ export class ToolbarComponent implements OnInit {
   @Output() toggleSidenav = new EventEmitter<void>();
   constructor(
     public dialog: MatDialog,
-    private monitorMDService: MonitorMDService,
+    private monitorMDService: ServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
     private router: Router,
@@ -119,7 +119,6 @@ export class ToolbarComponent implements OnInit {
   }
 
   private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
-    
       objectThis.mdFileService.navigationArray.push(data);
       objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }

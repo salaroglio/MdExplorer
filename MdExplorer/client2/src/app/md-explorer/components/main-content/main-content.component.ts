@@ -4,7 +4,7 @@ import { MdFile } from '../../models/md-file';
 import { HrefInterceptorService, IWorkWithElement } from '../../services/href-interceptor.service';
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
-import { MonitorMDService } from '../../services/monitor-md.service';
+import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
 import { MatDialog } from '@angular/material/dialog';
 //import { ConnectionLostComponent } from '../../../signalR/dialogs/connection-lost/connection-lost.component';///dialogs/connection-lost/connection-lost.component
 
@@ -60,7 +60,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   constructor(
     private service: MdFileService,
     private sanitizer: DomSanitizer,
-    private monitorMDService: MonitorMDService,
+    private monitorMDService: ServerMessagesService,
     public dialog: MatDialog,
   ) {
     console.log("MainContentComponent constructor");

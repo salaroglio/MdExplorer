@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Inject } from '@angular/core';
-import { MdRefactoringService } from '../../services/md-refactoring.service';
-import { MdFileService } from '../../services/md-file.service';
-import { MdFile } from '../../models/md-file';
+import { MdRefactoringService } from '../../../md-explorer/services/md-refactoring.service';
+import { MdFileService } from '../../../md-explorer/services/md-file.service';
+import { MdFile } from '../../../md-explorer/models/md-file';
 
 
 @Component({

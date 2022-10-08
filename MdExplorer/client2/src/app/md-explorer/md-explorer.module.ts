@@ -12,7 +12,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
 import { SettingsComponent } from './components/dialogs/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
-import { RulesComponent } from './components/rules/rules.component';
+import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
