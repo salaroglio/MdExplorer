@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { MdProject } from '../md-explorer/models/md-project';
 import { MdFileService } from '../md-explorer/services/md-file.service';
-import { MonitorMDService } from '../md-explorer/services/monitor-md.service';
+import { ServerMessagesService } from '../signalr/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 
 @Component({
@@ -17,7 +17,7 @@ export class ProjectsComponent implements OnInit {
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
     private router: Router,
-    private signalRService:MonitorMDService
+    private signalRService: ServerMessagesService
   ) { }
 
   public dataSource: Observable<MdProject[]>

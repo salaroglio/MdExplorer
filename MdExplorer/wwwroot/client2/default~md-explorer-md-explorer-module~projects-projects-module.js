@@ -1530,129 +1530,6 @@ var AbortError = /** @class */ (function (_super) {
 
 /***/ }),
 
-/***/ "AaxG":
-/*!************************************************************!*\
-  !*** ./src/app/md-explorer/services/monitor-md.service.ts ***!
-  \************************************************************/
-/*! exports provided: MonitorMDService */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MonitorMDService", function() { return MonitorMDService; });
-/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
-
-
-
-
-class MonitorMDService {
-    constructor(parsingProjectProvider, connectionLostProvider) {
-        this.parsingProjectProvider = parsingProjectProvider;
-        this.connectionLostProvider = connectionLostProvider;
-        this.connectionIsLost = false;
-        this.consoleIsClosed = false;
-        this.startConnection = () => {
-            if (this.hubConnection == null) {
-                this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__["HubConnectionBuilder"]()
-                    .withUrl('../signalr/monitormd')
-                    .build();
-                this.hubConnection.on('markdownfileisprocessed', (data) => {
-                    this.processCallBack(data, 'markdownfileisprocessed');
-                });
-                this.hubConnection.on('parsingProjectStart', (data) => {
-                    this.parsingProjectProvider.show(data);
-                });
-                this.hubConnection.on('parsingProjectStop', (data) => {
-                    this.parsingProjectProvider.hide(data);
-                });
-                this.hubConnection.on('consoleClosed', (data) => {
-                    console.log('consoleClosed');
-                    this.consoleIsClosed = true;
-                    this.connectionLostProvider.showConsoleClosed();
-                });
-                this.hubConnection.onclose((data) => {
-                    if (!this.consoleIsClosed) {
-                        this.connectionLostProvider.show(this);
-                        this.connectionIsLost = true;
-                    }
-                });
-            }
-            if (this.hubConnection.state == "Disconnected") {
-                this.hubConnection
-                    .start()
-                    .then(() => {
-                    console.log('Connection started');
-                    this.connectionIsLost = false;
-                })
-                    .catch(err => {
-                    console.log('Error while starting connection: ' + err);
-                });
-            }
-        };
-        this.startConnection();
-        console.log('MonitorMDService constructor');
-        this.linkEventCompArray = [];
-    }
-    addRefactoringFileEvent(callback, objectThis) {
-        this.hubConnection.on('refactoringFileEvent', (data) => {
-            callback(data, objectThis);
-        });
-    }
-    addMarkdownFileListener(callback, objectThis) {
-        this.hubConnection.on('markdownfileischanged', (data) => {
-            callback(data, objectThis);
-            console.log('markdownfileischanged');
-        });
-    }
-    processCallBack(data, signalREvent) {
-        this.linkEventCompArray.forEach(_ => {
-            if (_.key == signalREvent) {
-                _.callback(data, _.object);
-            }
-        });
-    }
-    addMdProcessedListener(callback, objectThis) {
-        let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
-        if (check == undefined) {
-            this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
-        }
-    }
-    addMdRule1Listener(callback, objectThis) {
-        // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
-        console.log('addMdRule1Listener');
-        if (this.rule1IsRegistered == undefined) {
-            this.rule1IsRegistered = objectThis;
-            this.hubConnection.on('markdownbreakrule1', (data) => {
-                callback(data, objectThis);
-            });
-        }
-    }
-    addPdfIsReadyListener(callback, objectThis) {
-        this.hubConnection.on('pdfisready', (data) => {
-            callback(data, objectThis);
-        });
-    }
-    addConnectionIdListener(callback, objectThis) {
-        this.hubConnection.on('getconnectionid', (data) => {
-            callback(data, objectThis);
-        });
-    }
-    getConnectionId(callback, objectThis) {
-        this.hubConnection.invoke('GetConnectionId')
-            .then(function (connectionId) {
-            callback(connectionId, objectThis);
-        });
-    }
-}
-MonitorMDService.ɵfac = function MonitorMDService_Factory(t) { return new (t || MonitorMDService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__["ConnectionLostProvider"])); };
-MonitorMDService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: MonitorMDService, factory: MonitorMDService.ɵfac, providedIn: 'root' });
-
-
-/***/ }),
-
 /***/ "C/dI":
 /*!**************************************************************************!*\
   !*** ./node_modules/@microsoft/signalr/dist/esm/LongPollingTransport.js ***!
@@ -2699,6 +2576,129 @@ function getRuntime() {
     }
 }
 //# sourceMappingURL=Utils.js.map
+
+/***/ }),
+
+/***/ "jQFx":
+/*!*************************************************************!*\
+  !*** ./src/app/signalr/services/server-messages.service.ts ***!
+  \*************************************************************/
+/*! exports provided: ServerMessagesService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ServerMessagesService", function() { return ServerMessagesService; });
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+
+
+
+
+class ServerMessagesService {
+    constructor(parsingProjectProvider, connectionLostProvider) {
+        this.parsingProjectProvider = parsingProjectProvider;
+        this.connectionLostProvider = connectionLostProvider;
+        this.connectionIsLost = false;
+        this.consoleIsClosed = false;
+        this.startConnection = () => {
+            if (this.hubConnection == null) {
+                this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__["HubConnectionBuilder"]()
+                    .withUrl('../signalr/monitormd')
+                    .build();
+                this.hubConnection.on('markdownfileisprocessed', (data) => {
+                    this.processCallBack(data, 'markdownfileisprocessed');
+                });
+                this.hubConnection.on('parsingProjectStart', (data) => {
+                    this.parsingProjectProvider.show(data);
+                });
+                this.hubConnection.on('parsingProjectStop', (data) => {
+                    this.parsingProjectProvider.hide(data);
+                });
+                this.hubConnection.on('consoleClosed', (data) => {
+                    console.log('consoleClosed');
+                    this.consoleIsClosed = true;
+                    this.connectionLostProvider.showConsoleClosed();
+                });
+                this.hubConnection.onclose((data) => {
+                    if (!this.consoleIsClosed) {
+                        this.connectionLostProvider.show(this);
+                        this.connectionIsLost = true;
+                    }
+                });
+            }
+            if (this.hubConnection.state == "Disconnected") {
+                this.hubConnection
+                    .start()
+                    .then(() => {
+                    console.log('Connection started');
+                    this.connectionIsLost = false;
+                })
+                    .catch(err => {
+                    console.log('Error while starting connection: ' + err);
+                });
+            }
+        };
+        this.startConnection();
+        console.log('MonitorMDService constructor');
+        this.linkEventCompArray = [];
+    }
+    addRefactoringFileEvent(callback, objectThis) {
+        this.hubConnection.on('refactoringFileEvent', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addMarkdownFileListener(callback, objectThis) {
+        this.hubConnection.on('markdownfileischanged', (data) => {
+            callback(data, objectThis);
+            console.log('markdownfileischanged');
+        });
+    }
+    processCallBack(data, signalREvent) {
+        this.linkEventCompArray.forEach(_ => {
+            if (_.key == signalREvent) {
+                _.callback(data, _.object);
+            }
+        });
+    }
+    addMdProcessedListener(callback, objectThis) {
+        let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
+        if (check == undefined) {
+            this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
+        }
+    }
+    addMdRule1Listener(callback, objectThis) {
+        // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
+        console.log('addMdRule1Listener');
+        if (this.rule1IsRegistered == undefined) {
+            this.rule1IsRegistered = objectThis;
+            this.hubConnection.on('markdownbreakrule1', (data) => {
+                callback(data, objectThis);
+            });
+        }
+    }
+    addPdfIsReadyListener(callback, objectThis) {
+        this.hubConnection.on('pdfisready', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addConnectionIdListener(callback, objectThis) {
+        this.hubConnection.on('getconnectionid', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    getConnectionId(callback, objectThis) {
+        this.hubConnection.invoke('GetConnectionId')
+            .then(function (connectionId) {
+            callback(connectionId, objectThis);
+        });
+    }
+}
+ServerMessagesService.ɵfac = function ServerMessagesService_Factory(t) { return new (t || ServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__["ConnectionLostProvider"])); };
+ServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ServerMessagesService, factory: ServerMessagesService.ɵfac, providedIn: 'root' });
+
 
 /***/ }),
 

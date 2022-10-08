@@ -12,7 +12,7 @@ interface linkSignalREvent_Component {
 @Injectable({
   providedIn: 'root'
 })
-export class MonitorMDService {
+export class ServerMessagesService {
 
   linkEventCompArray: linkSignalREvent_Component[];
 
