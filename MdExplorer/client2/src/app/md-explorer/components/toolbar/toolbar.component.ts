@@ -43,7 +43,7 @@ export class ToolbarComponent implements OnInit {
 
   openDialog(): void {
     const dialogRef = this.dialog.open(SettingsComponent, {
-      width: '300px',
+      width: '600px',
       
     });
     

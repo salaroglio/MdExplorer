@@ -16,7 +16,7 @@ namespace MdExplorer.Migrations.Version000001
             {
                 Id = Guid.NewGuid().ToByteArray(),
                 Name = @"JavaPath",
-                ValueString = @"C:\Program Files\Java\jre1.8.0_291\bin\javaw.exe"
+                ValueString = @"C:\Program Files\Java\jre1.8.0_311\bin\javaw.exe"
             });
             Insert.IntoTable("Setting").Row(new
             {
