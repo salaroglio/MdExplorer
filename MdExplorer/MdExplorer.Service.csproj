@@ -374,7 +374,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.min.js" />
-    <EmbeddedResource Include="wwwroot\client2\common.js" />
     <EmbeddedResource Include="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js" />
     <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
     <EmbeddedResource Include="wwwroot\client2\index.html" />

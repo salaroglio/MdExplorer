@@ -365,7 +365,6 @@ class AppCurrentFolderService {
         };
         this._folderName = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]('test');
         this._Settings = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
-        console.log('AppCurrentFolderService constructor');
     }
     get folderName() {
         return this._folderName.asObservable();

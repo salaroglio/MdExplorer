@@ -29,14 +29,14 @@ export class SettingsComponent implements OnInit {
       var settings = data.settings as IMdSetting[];
       if (settings != undefined) {
         this._settings = settings;
-        this.plantumlServer = settings.filter(_ => _.name === "PlantumlServer")[0].valueString || null;
+        this.plantumlServer = settings.filter(_ => _.name === "EditorPath")[0].valueString || null;
         this.jiraServer = settings.filter(_ => _.name === "JiraServer")[0].valueString || null;
       }
     });
   }
 
   save() {
-    this._settings.filter(_ => _.name === "PlantumlServer")[0].valueString = this.plantumlServer;
+    this._settings.filter(_ => _.name === "EditorPath")[0].valueString = this.plantumlServer;
     this._settings.filter(_ => _.name === "JiraServer")[0].valueString = this.jiraServer;
     this.appCurrentFolder.saveSettings().subscribe(data => {
       this._snackBar.open("settings saved","" ,{ duration: 1000 });

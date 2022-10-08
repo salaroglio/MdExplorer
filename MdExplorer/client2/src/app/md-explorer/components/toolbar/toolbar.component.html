@@ -11,9 +11,9 @@
   <button mat-icon-button (click)="openDialog()">
     <mat-icon>settings</mat-icon>
   </button>
-  <button mat-icon-button (click)="openRefactoring()">
+  <!--<button mat-icon-button (click)="openRefactoring()">
     <mat-icon>rule</mat-icon>
-  </button>
+  </button>-->
   <span *ngFor="let doc of this.mdFileService.navigationArray"><span *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span><a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}" (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a></span>
 
 </mat-toolbar>
