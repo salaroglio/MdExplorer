@@ -1,13 +1,11 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { CollectionViewer, SelectionChange, DataSource } from '@angular/cdk/collections';
 import { Component, Injectable, OnInit } from '@angular/core';
-import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { IFileInfoNode } from '../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../md-explorer/models/md-file';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
-import { COMPOSITION_BUFFER_MODE } from '@angular/forms';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
 import { Router } from '@angular/router';
 
@@ -139,7 +137,6 @@ export class DynamicDataSource implements DataSource<MdFile> {
 }
 
 
-
 @Component({
   selector: 'app-new-project',
   templateUrl: './new-project.component.html',
@@ -174,7 +171,7 @@ export class NewProjectComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.folder = { name: "test", path: "test path" };
+    this.folder = { name: "<select project>", path: "" };
   }
 
   public getFolder(node: IFileInfoNode) {    
