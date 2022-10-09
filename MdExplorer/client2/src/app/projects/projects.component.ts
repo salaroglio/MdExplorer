@@ -6,6 +6,7 @@ import { MdProject } from '../md-explorer/models/md-project';
 import { MdFileService } from '../md-explorer/services/md-file.service';
 import { ServerMessagesService } from '../signalr/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
+import { NewProjectComponent } from './new-project/new-project.component';
 
 @Component({
   selector: 'app-projects',
@@ -34,7 +35,13 @@ export class ProjectsComponent implements OnInit {
   }
 
   openNewFolder(): void {
-    this.router.navigate(['/projects/newproject']);
+    //this.router.navigate(['/projects/newproject']);
+    const dialogRef = this.dialog.open(NewProjectComponent, {
+      width: '600px',
+      data: null
+    });
+
+
   }
 
 }

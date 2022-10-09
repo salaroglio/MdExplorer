@@ -1,16 +1,8 @@
 <div class="flex-container">
-  <div class="flex-items">
-    <mat-card>
-      <mat-card-title>{{folder.name}}</mat-card-title>
-      <mat-card-subtitle>{{folder.path}}</mat-card-subtitle>
-      <mat-card-actions>
-        <button mat-button (click)="closeDialog()">Open</button>
-      </mat-card-actions>
-    </mat-card>
-  </div>
 
+
+  <h1>Document's Folder</h1>
   <div class="flex-items-overflow">
-
     <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
       <!-- This is the tree node template for leaf nodes -->
       <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
@@ -37,7 +29,15 @@
     </mat-tree>
   </div>
 
-
+  <div class="flex-selected-folder">
+    <div class="flex-items">
+      <mat-card-title>{{folder.name}}</mat-card-title>
+      <mat-card-subtitle>{{folder.path}}</mat-card-subtitle>
+    </div>
+    <div>
+      <button mat-stroked-button color="primary" (click)="closeDialog()">Open</button>
+    </div>
+  </div>
 
 
 </div>

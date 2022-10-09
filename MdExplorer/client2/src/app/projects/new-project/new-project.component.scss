@@ -15,9 +15,13 @@
 }
 
 .flex-items {
-  max-height: 600px;
-  background: tomato;
-  color: white;
+  width:500px;
+  
   text-align: center;
   font-size: 3em;
+}
+
+.flex-selected-folder {
+  display: flex;
+  flex-direction: row;
 }
