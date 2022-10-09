@@ -126,7 +126,8 @@ namespace MdExplorer.Service.HostedServices
             var trafficLight1 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
             var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md") || e.FullPath.Contains($".docx");
             var trafficLight3 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD");
-            if (trafficLight1 || trafficLight2 || trafficLight3)
+            var trafficLight4 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG");
+            if (trafficLight1 || trafficLight2 || trafficLight3 || trafficLight4)
             {
                 return;
             }
