@@ -1,6 +1,9 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.EngineDB;
+using MdExplorer.Abstractions.Entities.ProjectDB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
@@ -11,6 +14,8 @@ using MdExplorer.Hubs;
 using MdExplorer.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using NHibernate.Linq;
+using NHibernate.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,6 +35,7 @@ namespace MdExplorer.Controllers
         private readonly IUserSettingsDB _userSettingsDB;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
+        private readonly IProjectDB _projectDB;
 
         public IEngineDB _engineDB { get; }
 
@@ -37,7 +43,8 @@ namespace MdExplorer.Controllers
             IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper,
             IUserSettingsDB userSettingsDB,
             IHubContext<MonitorMDHub> hubContext,
-            IGoodMdRule<FileInfoNode>[] GoodRules)
+            IGoodMdRule<FileInfoNode>[] GoodRules,
+            IProjectDB projectDB)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
@@ -46,6 +53,74 @@ namespace MdExplorer.Controllers
             _userSettingsDB = userSettingsDB;
             _hubContext = hubContext;
             _goodRules = GoodRules;
+            _projectDB = projectDB;
+        }
+
+
+        [HttpGet]
+        public IActionResult GetLandingPage()
+        {
+            var dal = _projectDB.GetDal<ProjectSetting>();
+            var landingPage = dal.GetList().Where(_ => _.Name == "LandingPageFilePath").First();
+
+            var toReturn = landingPage.LandingPages.Count() != 0 ? new FileInfoNode
+            {
+                Expandable  = landingPage.LandingPages.First().Expandable,
+                FullPath = landingPage.LandingPages.First().FullPath,
+                Level = landingPage.LandingPages.First().Level,
+                Name = landingPage.LandingPages.First().Name,
+                Path = landingPage.LandingPages.First().Path,
+                RelativePath = landingPage.LandingPages.First().RelativePath,
+                Type = landingPage.LandingPages.First().Type,
+                DataText = landingPage.LandingPages.First().DataText,                
+            }: null;
+            return Ok(toReturn);
+        }
+
+        [HttpPost]
+        public IActionResult SetLandingPage([FromBody] FileInfoNode fileData)
+        {
+            _projectDB.BeginTransaction();
+
+            var dal = _projectDB.GetDal<ProjectSetting>();
+            var landingPage = dal.GetList().Where(_ => _.Name == "LandingPageFilePath").First();
+            landingPage.ValueString = fileData.FullPath;
+            dal.Save(landingPage);
+            var dalDetails = _projectDB.GetDal<ProjectFileInfoNode>();
+            var landingPageDetails = dalDetails.GetList().Where(_ => _.ProjectSetting == landingPage)
+                .FirstOrDefault();
+            if (landingPageDetails == null)
+            {
+                landingPageDetails = new ProjectFileInfoNode
+                {
+                    ProjectSetting = landingPage,
+                    Level = fileData.Level,
+                    Expandable = fileData.Expandable,
+                    Name = fileData.Name,
+                    FullPath = fileData.FullPath,
+                    Path = fileData.Path,
+                    RelativePath = fileData.RelativePath,
+                    Type = fileData.Type,
+                    DataText = fileData.DataText,
+                };
+            }else
+            {
+                landingPageDetails.Level = fileData.Level;
+                landingPageDetails.Expandable = fileData.Expandable;
+                landingPageDetails.Name = fileData.Name;
+                landingPageDetails.FullPath = fileData.FullPath;
+                landingPageDetails.Path = fileData.Path;
+                landingPageDetails.RelativePath = fileData.RelativePath;
+                landingPageDetails.Type = fileData.Type;
+                landingPageDetails.DataText = fileData.DataText;
+            }
+               
+               
+            
+            dalDetails.Save(landingPageDetails);
+
+            _projectDB.Commit();
+            return Ok(new {message = "Done" });
         }
 
 
@@ -220,13 +295,13 @@ namespace MdExplorer.Controllers
         public IActionResult CreateNewDirectory([FromBody] NewDirectory fileData)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            
+
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + fileData.DirectoryName;
             }
-            
+
             Directory.CreateDirectory(fullPath);
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
 
@@ -309,7 +384,7 @@ namespace MdExplorer.Controllers
                     var linkToStore = new LinkInsideMarkdown
                     {
                         FullPath = _helper.NormalizePath(fullPath),
-                        Path = singleLink.LinkPath,                        
+                        Path = singleLink.LinkPath,
                         Source = getModifier.GetType().Name,
                         LinkedCommand = singleLink.LinkedCommand,
                         SectionIndex = singleLink.SectionIndex,
@@ -324,23 +399,29 @@ namespace MdExplorer.Controllers
         private FileInfoNode CreateNodeMdFile(string itemFile)
         {
             var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
-            var node = new FileInfoNode { Name = Path.GetFileName(itemFile), 
-                FullPath = itemFile, 
+            var node = new FileInfoNode
+            {
+                Name = Path.GetFileName(itemFile),
+                FullPath = itemFile,
                 Path = patchedItemFile,
                 RelativePath = patchedItemFile,
-                Type = "mdFile" };
+                Type = "mdFile"
+            };
             return node;
         }
 
         private (FileInfoNode, bool) CreateNodeFolder(string itemFolder)
         {
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
-            var node = new FileInfoNode { 
-                    Name = Path.GetFileName(itemFolder), 
-                    FullPath = itemFolder,RelativePath = 
-                    patchedItemFolfer, 
-                    Path = patchedItemFolfer, 
-                    Type = "folder" };
+            var node = new FileInfoNode
+            {
+                Name = Path.GetFileName(itemFolder),
+                FullPath = itemFolder,
+                RelativePath =
+                    patchedItemFolfer,
+                Path = patchedItemFolfer,
+                Type = "folder"
+            };
             var isEmpty = ExploreNodes(node, itemFolder);
             return (node, isEmpty);
         }
@@ -348,8 +429,13 @@ namespace MdExplorer.Controllers
         private FileInfoNode CreateNodeFolderOnly(string itemFolder)
         {
             var patchedItemFolfer = itemFolder;
-            var node = new FileInfoNode { Name = Path.GetFileName(itemFolder), 
-                FullPath = itemFolder, Path = patchedItemFolfer, Type = "folder" };
+            var node = new FileInfoNode
+            {
+                Name = Path.GetFileName(itemFolder),
+                FullPath = itemFolder,
+                Path = patchedItemFolfer,
+                Type = "folder"
+            };
             ExploreNodesFolderOnly(node, itemFolder);
             return node;
         }
@@ -409,7 +495,7 @@ namespace MdExplorer.Controllers
 public class NewFile
 {
     public string Title { get; set; }
-    public string DirectoryPath { get; set; }    
+    public string DirectoryPath { get; set; }
     public int DirectoryLevel { get; set; }
 }
 

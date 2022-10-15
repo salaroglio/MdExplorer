@@ -4278,6 +4278,14 @@ class MdFileService {
         const url = '../api/mdexplorer/' + path;
         return this.http.get(url, { responseType: 'text' }); //, currentFile      
     }
+    getLandingPage() {
+        const url = '../api/mdfiles/GetLandingPage';
+        return this.http.get(url);
+    }
+    SetLandingPage(file) {
+        const url = '../api/mdfiles/SetLandingPage';
+        return this.http.post(url, file);
+    }
     CreateNewDirectory(path, directoryName, directoryLevel) {
         const url = '../api/mdfiles/CreateNewDirectory';
         var newData = {

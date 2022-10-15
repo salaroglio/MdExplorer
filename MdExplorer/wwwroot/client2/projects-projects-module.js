@@ -206,7 +206,6 @@ class NewProjectComponent {
     }
     closeDialog() {
         this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
-            var dateTime = new Date();
             this.mdFileService.loadAll(null, null);
             this.router.navigate(['/main']);
         });

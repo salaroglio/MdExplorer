@@ -6,9 +6,12 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.DataAccess.Engine;
+using MdExplorer.DataAccess.Project.Mapping;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Migrations;
 using MdExplorer.Migrations.EngineDb.Version202107;
+using MdExplorer.Migrations.ProjectDb.Version202109;
+using MdExplorer.Migrations.ProjectDb.Version2022;
 using MDExplorer.DataAccess.Mapping;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -28,23 +31,21 @@ namespace MdExplorer.Service
         {
             ConfigTemplates(pathFromParameter, null);
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
+            var databasePath = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdExplorer.db";
             var currentDirectory = pathFromParameter;
             var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
+            var databasePathEngine = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdEngine_{hash}.db";
+            var databasePathProject = $@"Data Source = {currentDirectory + Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar}MdProject_{hash}.db";
 
-            UpgradeDatabases(databasePath, databasePathEngine);
+            UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
 
             serviceProvider.ReplaceDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
                                     databasePath);
-
             serviceProvider.ReplaceDalFeatures(typeof(MarkdownFileMap).Assembly,
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
-
-            serviceProvider.ReplaceDalFeatures(typeof(SemanticCluster).Assembly,
+            serviceProvider.ReplaceDalFeatures(typeof(SemanticClusterMap).Assembly,
                                    new DatabaseSQLite(), typeof(IProjectDB),
                                    databasePathProject);
 
@@ -61,14 +62,14 @@ namespace MdExplorer.Service
         {            
             
             var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
+            var databasePath = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdExplorer.db";
             var currentDirectory = ConfigFileSystemWatchers(services, pathFromParameter);
             ConfigTemplates(currentDirectory, services);
             var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata}\MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {appdata}\MdProject_{hash}.db";
+            var databasePathEngine = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdEngine_{hash}.db";
+            var databasePathProject = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdProject_{hash}.db";
 
-            UpgradeDatabases(databasePath, databasePathEngine);
+            UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
 
             services.AddDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
@@ -78,7 +79,7 @@ namespace MdExplorer.Service
                                    new DatabaseSQLite(), typeof(IEngineDB),
                                    databasePathEngine);
 
-            services.AddDalFeatures(typeof(SemanticCluster).Assembly,
+            services.AddDalFeatures(typeof(SemanticClusterMap).Assembly,
                                    new DatabaseSQLite(), typeof(IProjectDB),
                                    databasePathProject);
         }
@@ -90,7 +91,7 @@ namespace MdExplorer.Service
         /// </summary>
         /// <param name="databasePath"></param>
         /// <param name="databasePathEngine"></param>
-        private static void UpgradeDatabases(string databasePath, string databasePathEngine)
+        private static void UpgradeDatabases(string databasePath, string databasePathEngine = null, string databaseProject = null)
         {
             IServiceCollection localServices = new ServiceCollection();
             localServices.AddFluentMigratorFeatures(
@@ -103,18 +104,35 @@ namespace MdExplorer.Service
                                             }, "SQLite");
             var builder = localServices.BuildServiceProvider();            
             Migrate(builder);
+            if (databasePathEngine!=null)
+            {
+                localServices = new ServiceCollection();
+                localServices.AddFluentMigratorFeatures(
+                                              (rb) =>
+                                              {
+                                                  rb.AddSQLite()
+                                                  .WithGlobalConnectionString(databasePathEngine)
+                                                  .ScanIn(typeof(ME2021_07_23_001).Assembly)
+                                                  .For.Migrations();
+                                              }, "SQLite");
+                builder = localServices.BuildServiceProvider();
+                Migrate(builder);
+            }
+            if (databaseProject != null)
+            {
+                localServices = new ServiceCollection();
+                localServices.AddFluentMigratorFeatures(
+                                              (rb) =>
+                                              {
+                                                  rb.AddSQLite()
+                                                  .WithGlobalConnectionString(databaseProject)
+                                                  .ScanIn(typeof(MP2022_10_09_001).Assembly)
+                                                  .For.Migrations();
+                                              }, "SQLite");
+                builder = localServices.BuildServiceProvider();
+                Migrate(builder);
+            }
 
-            localServices = new ServiceCollection();
-            localServices.AddFluentMigratorFeatures(
-                                          (rb) =>
-                                          {
-                                              rb.AddSQLite()
-                                              .WithGlobalConnectionString(databasePathEngine)
-                                              .ScanIn(typeof(ME2021_07_23_001).Assembly)
-                                              .For.Migrations();
-                                          }, "SQLite");
-            builder = localServices.BuildServiceProvider();
-            Migrate(builder);
         }
 
         private static void Migrate(ServiceProvider builder)

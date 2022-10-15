@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MdExplorer.Abstractions.Models
+namespace MdExplorer.Abstractions.Entities.ProjectDB
 {
-    public class Project
+    public class SemanticClusterElement
     {
         public virtual Guid Id { get; set; }
         public virtual string Name { get; set; }
-        public virtual string Path { get; set; }
-        public virtual DateTime LastUpdate { get; set; }
+        public virtual string Description { get; set; }
+        public virtual SemanticCluster Cluster { get; set; }
     }
 }

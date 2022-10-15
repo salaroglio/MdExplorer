@@ -29,7 +29,7 @@ export class ToolbarComponent implements OnInit {
     private _snackBar: MatSnackBar,
     private router: Router,
     public mdFileService: MdFileService,
-    
+
   ) {
     this.TitleToShow = "MdExplorer";
   }
@@ -44,15 +44,15 @@ export class ToolbarComponent implements OnInit {
   openDialog(): void {
     const dialogRef = this.dialog.open(SettingsComponent, {
       width: '600px',
-      
+
     });
-    
+
     dialogRef.afterClosed().subscribe(result => {
-      console.log('The dialog was closed');      
+      console.log('The dialog was closed');
     });
   }
 
-  openRules(data:any): void {
+  openRules(data: any): void {
     const dialogRef = this.dialog.open(RulesComponent, {
       width: '600px',
       data: data
@@ -68,33 +68,33 @@ export class ToolbarComponent implements OnInit {
   }
 
 
-  ngOnInit(): void {    
+  ngOnInit(): void {
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
-    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);    
+    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
-   
+
 
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
-      
+
       if (_ != null) {
         this.mdFileService.navigationArray = [];
         this.absolutePath = _.fullPath;
         this.relativePath = _.relativePath;
-      }      
+      }
     });
 
-    this.mdFileService.serverSelectedMdFile.subscribe(val => {      
+    this.mdFileService.serverSelectedMdFile.subscribe(val => {
       var current = val[0];
       if (current != undefined) {
-        if (this.mdFileService.navigationArray.length>0) {
+        if (this.mdFileService.navigationArray.length > 0) {
           if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
             return;
           }
-        }        
+        }
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
       }
-      
+
     });
   }
 
@@ -104,13 +104,13 @@ export class ToolbarComponent implements OnInit {
 
 
   private sendExportRequest(data, objectThis: ToolbarComponent) {
-    const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;    
+    const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;
     return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });
   }
 
   private showPdfIsready(data: any, objectThis: ToolbarComponent) {
-    let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds , "Open folder", { duration: 5000, verticalPosition: 'top' });
+    let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds, "Open folder", { duration: 5000, verticalPosition: 'top' });
     snackRef.onAction().subscribe(() => {
       const url = '../api/AppSettings/OpenChromePdf?path=' + data.path;
       return objectThis.http.get(url)
@@ -118,20 +118,20 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
-      objectThis.mdFileService.navigationArray.push(data);
-      objectThis.mdFileService.setSelectedMdFileFromServer(data);
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
+    objectThis.mdFileService.navigationArray.push(data);
+    objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }
 
-  OpenEditor() {    
+  OpenEditor() {
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
     return this.http.get(url)
-      .subscribe(data => { console.log(data)});
+      .subscribe(data => { console.log(data) });
   }
 
   Export() {
-    this._snackBar.open("Export request queued!",null ,{ duration: 2000, verticalPosition: 'top' });
-    this.monitorMDService.getConnectionId(this.sendExportRequest,this);   
+    this._snackBar.open("Export request queued!", null, { duration: 2000, verticalPosition: 'top' });
+    this.monitorMDService.getConnectionId(this.sendExportRequest, this);
   }
 
   backToDocument(doc: MdFile) {
@@ -139,7 +139,7 @@ export class ToolbarComponent implements OnInit {
     if (thatFile != null && thatFile != undefined) {
       let i = this.mdFileService.navigationArray.length;
       let toDelete = this.mdFileService.navigationArray[i - 1];
-      do  {
+      do {
         this.mdFileService.navigationArray.pop();
         i = i - 1;
         toDelete = this.mdFileService.navigationArray[i - 1];

@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Ad.Tools.Dal;
 using MdExplorer.Service.Utilities;
+using MdExplorer.Abstractions.Entities.UserDB;
 
 namespace MdExplorer.Service.Controllers
 {

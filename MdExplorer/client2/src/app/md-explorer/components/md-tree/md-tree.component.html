@@ -8,10 +8,10 @@
 <mat-menu #rightMenu="matMenu">
   <ng-template matMenuContent let-item="item">
     <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
-    <button mat-menu-item>Move directory</button>-->
-    <button mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
-    <button mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
-
+  <button mat-menu-item>Move directory</button>-->
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+    <button *ngIf="item.type==='mdFile'"  mat-menu-item (click)="setMdAsLandingPage(item)"><b style="color:violet">Set as landing page</b></button>
   </ng-template>
 </mat-menu>
 
@@ -20,7 +20,7 @@
   <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
     <!-- use a disabled button to provide padding for tree leaf -->
     <button mat-icon-button disabled>
-      <mat-icon class="mat-icon-rtl-mirror">
+      <mat-icon class="mat-icon-rtl-mirror" style="cursor:pointer" (contextmenu)="onRightClick($event, node)">
         {{'text_snippet'}}
       </mat-icon>
     </button>
