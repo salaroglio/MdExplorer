@@ -2,6 +2,7 @@ import { FlatTreeControl } from '@angular/cdk/tree';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { Observable } from 'rxjs';
 import { IFileInfoNode } from '../../models/IFileInfoNode';
@@ -18,14 +19,14 @@ const TREE_DATA: IFileInfoNode[] = [];
   styleUrls: ['./md-tree.component.scss']
 })
 export class MdTreeComponent implements OnInit {
-  
+
   private hooked: boolean = false;
   private activeNode: any;
 
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
 
-  
+
 
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
@@ -57,18 +58,15 @@ export class MdTreeComponent implements OnInit {
   constructor(
     private mdFileService: MdFileService,
     public dialog: MatDialog,
+    private snackBar: MatSnackBar,
   ) {
     this.dataSource.data = TREE_DATA;
-    
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-
+    this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
-
       while (myClonedArray.length > 1) {
         var toExpand = myClonedArray.pop();
         var test = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-
         this.treeControl.expand(test);
       }
       if (myClonedArray.length > 0) {
@@ -87,14 +85,22 @@ export class MdTreeComponent implements OnInit {
 
   }
 
-  deferredOpenProject(data, objectThis): void {
-
+  deferredOpenProject(data, objectThis: MdTreeComponent): void {
+    objectThis.mdFileService.getLandingPage().subscribe(node => {
+      if (node != null) {
+        objectThis.mdFileService.setSelectedMdFileFromSideNav(node);
+        objectThis.activeNode = node;
+      }      
+    });
   }
 
   onRightClick(event: MouseEvent, item) {
     // preventDefault avoids to show the visualization of the right-click menu of the browser
     event.preventDefault();
-
+    if (item == null) {
+      item = new MdFile("root", "root", 0, false);
+      item.fullPath = "root";
+    }
     // we record the mouse position in our object
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
@@ -116,15 +122,22 @@ export class MdTreeComponent implements OnInit {
   // Manu management
 
   createMdOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
+
     this.dialog.open(NewMarkdownComponent, {
       width: '300px',
       data: node,
     });
   }
+
+
+
+
+  setMdAsLandingPage(node: MdFile) {    
+    this.mdFileService.SetLandingPage(node).subscribe(_ => {
+      this.snackBar.open(node.name, "is project landing page", { duration: 5000, verticalPosition: 'top' });
+    });
+  }
+
 
   createDirectoryOn(node: MdFile) {
     if (node == null) {

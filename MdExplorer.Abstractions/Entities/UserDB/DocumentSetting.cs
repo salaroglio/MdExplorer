@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MdExplorer.Abstractions.Models
+namespace MdExplorer.Abstractions.Entities.UserDB
 {
     /// <summary>
     /// Per memorizzare i dati del singolo md

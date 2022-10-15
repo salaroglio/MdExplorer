@@ -28,6 +28,7 @@ using System.Net.Http.Headers;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Reveal.Models;
 using MdExplorer.Features.Reveal.Interfaces;
+using MdExplorer.Abstractions.Entities.UserDB;
 
 namespace MdExplorer.Controllers
 {

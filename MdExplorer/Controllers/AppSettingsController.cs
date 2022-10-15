@@ -1,6 +1,7 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Mvc;
@@ -71,8 +72,8 @@ namespace MdExplorer.Service.Controllers
         public IActionResult OpenFile(string path)
         {
             var settingDal = _session.GetDal<Setting>();
-            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
-                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString;
+                //?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
 
             _processUtil.OpenFileWithVisualStudioCode(path, editorPath);
             return Ok(new { message = "opened" });

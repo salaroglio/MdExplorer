@@ -1,5 +1,5 @@
 ﻿using FluentNHibernate.Mapping;
-using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Entities.UserDB;
 using System;
 using System.Collections.Generic;
 using System.Linq;

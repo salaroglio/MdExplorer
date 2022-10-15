@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MdExplorer.Abstractions.Models
+namespace MdExplorer.Abstractions.Entities.EngineDB
 {
     /// <summary>
     /// oggetto che descrive l'azione astratta da eseguire
@@ -18,7 +18,7 @@ namespace MdExplorer.Abstractions.Models
         public virtual string NewName { get; set; }
         public virtual string NewFullPath { get; set; }
         public virtual string OldFullPath { get; set; }
-        public virtual DateTime CreationDate { get; set; }        
+        public virtual DateTime CreationDate { get; set; }
         public virtual IList<RefactoringInvolvedFilesAction> ActionDetails { get; set; } = new List<RefactoringInvolvedFilesAction>();
 
 

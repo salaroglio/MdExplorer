@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Utilities;
@@ -116,84 +117,24 @@ namespace MdExplorer.Service.HostedServices
         }
 
         DateTime lastRead = DateTime.MinValue;
-        
 
         private async void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
-            
-            // Inserisci l'informazione nel file di refactoring
-            
-            var trafficLight1 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
-            var trafficLight2 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md") || e.FullPath.Contains($".docx");
-            var trafficLight3 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD");
-            var trafficLight4 = e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG");
-            if (trafficLight1 || trafficLight2 || trafficLight3 || trafficLight4)
+            // If wrong files then don't alert to client
+            //bool isWrongDirectory = false, isWrongExtensionFile = false, isWrongGitFile =false;
+            (var isWrongDirectory, var isWrongExtensionFile,var  isWrongGitFile) = ThereIsNoNeedToAlertClient(e) ;
+
+            if (isWrongDirectory || isWrongExtensionFile || isWrongGitFile)
             {
                 return;
             }
+
             var lastWriteTime = File.GetLastWriteTime(e.FullPath);
             if (lastWriteTime > lastRead)
             {
                 _logger.LogInformation($"Hey! {e.FullPath} has changed!");
+                ParseNewFileIntoDB(e);
 
-                using (var serviceScope = _serviceProvider.CreateScope())
-                {
-                    // document analysis 
-                    // if not exits, then insert:
-                    // MarkdownFile + LinkInsideMarkdown
-                    // Else
-                    // Delete LinkInsideMarkdown and rebuild                    
-                    var engineDB = serviceScope.ServiceProvider.GetService<IEngineDB>();
-                    engineDB.BeginTransaction();
-                    var fileDal = engineDB.GetDal<MarkdownFile>();
-                    var mdf = fileDal.GetList().Where(_ => _.Path == e.FullPath).FirstOrDefault();
-                    if (mdf == null)
-                    {
-                        mdf = new MarkdownFile
-                        {
-                            FileName = Path.GetFileName(e.FullPath),
-                            FileType = "file",
-                            Path = e.FullPath
-                        };
-                        fileDal.Save(mdf);
-                    }
-                    
-                    engineDB.Flush();
-                    var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
-                    var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf);
-                    foreach (var item in listLinks)
-                    {
-                        linkDal.Delete(item);
-                    }
-
-                    engineDB.Flush();
-                    foreach (var getModifier in _linkManagers)
-                    {
-                        var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
-                        foreach (var singleLink in linksToStore)
-                        {
-                            var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
-                            var linkToStore = new LinkInsideMarkdown
-                            {
-                                FullPath = _helper.NormalizePath(fullPath),
-                                Path = singleLink.LinkPath,
-                                Source = getModifier.GetType().Name,
-                                LinkedCommand = singleLink.LinkedCommand,
-                                SectionIndex = singleLink.SectionIndex,
-                                MarkdownFile = mdf
-                            };
-                            linkDal.Save(linkToStore);
-                        }
-                    }
-
-                    engineDB.Commit();
-
-                }
-                    
-
-                
-
-                
                 var monitoredMd = new MonitoredMDModel
                 {
                     Path = e.FullPath.Replace(_fileSystemWatcher.Path + Path.DirectorySeparatorChar, string.Empty),
@@ -204,6 +145,73 @@ namespace MdExplorer.Service.HostedServices
                 };
                 await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
                 lastRead = lastWriteTime.AddSeconds(1);
+            }
+        }
+
+        private (bool,bool,bool) ThereIsNoNeedToAlertClient(FileSystemEventArgs e)
+        {
+            var isWrongDirectory = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
+            var isWrongExtensionFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")
+                                        || e.FullPath.Contains($".docx")
+                                        || e.FullPath.Contains($".tmp");
+            var isWrongGitFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD")
+                                        || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG");
+            return (isWrongDirectory, isWrongExtensionFile, isWrongGitFile);
+        }
+
+        private void ParseNewFileIntoDB(FileSystemEventArgs e)
+        {
+            using (var serviceScope = _serviceProvider.CreateScope())
+            {
+                // document analysis 
+                // if not exits, then insert:
+                // MarkdownFile + LinkInsideMarkdown
+                // Else
+                // Delete LinkInsideMarkdown and rebuild                    
+                var engineDB = serviceScope.ServiceProvider.GetService<IEngineDB>();
+                engineDB.BeginTransaction();
+                var fileDal = engineDB.GetDal<MarkdownFile>();
+                var mdf = fileDal.GetList().Where(_ => _.Path == e.FullPath).FirstOrDefault();
+                if (mdf == null)
+                {
+                    mdf = new MarkdownFile
+                    {
+                        FileName = Path.GetFileName(e.FullPath),
+                        FileType = "file",
+                        Path = e.FullPath
+                    };
+                    fileDal.Save(mdf);
+                }
+
+                engineDB.Flush();
+                var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
+                var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf);
+                foreach (var item in listLinks)
+                {
+                    linkDal.Delete(item);
+                }
+
+                engineDB.Flush();
+                foreach (var getModifier in _linkManagers)
+                {
+                    var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
+                    foreach (var singleLink in linksToStore)
+                    {
+                        var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                        var linkToStore = new LinkInsideMarkdown
+                        {
+                            FullPath = _helper.NormalizePath(fullPath),
+                            Path = singleLink.LinkPath,
+                            Source = getModifier.GetType().Name,
+                            LinkedCommand = singleLink.LinkedCommand,
+                            SectionIndex = singleLink.SectionIndex,
+                            MarkdownFile = mdf
+                        };
+                        linkDal.Save(linkToStore);
+                    }
+                }
+
+                engineDB.Commit();
             }
         }
     }

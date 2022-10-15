@@ -26,6 +26,9 @@
             <Component Id="cmp4F241916C32EC6A1E970595E25671525" Guid="*">
                 <File Id="fil2EF834CA477DB853847F0E790C4D00BE" KeyPath="yes" Source="$(var.HarvestPath)\MDExplorer.DataAccess.pdb" />
             </Component>
+            <Component Id="cmpE20585B8615CEB6A2FD3F4C0633BEDF0" Guid="*">
+                <File Id="fil229227B1D801C36FDA6FA002A1508012" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.DataAccess.Project.pdb" />
+            </Component>
             <Component Id="cmp38BBDC48CA4A8A258B36C6163AFFF796" Guid="*">
                 <File Id="fil5B37621DB9FD3D65FBB433B596E07F8B" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Features.pdb" />
             </Component>
@@ -34,6 +37,9 @@
             </Component>
             <Component Id="cmpCB91023A7FED7925C79109BD3B8D51F5" Guid="*">
                 <File Id="fil0D18AE9F1548ED0718630F811F320779" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Migrations.pdb" />
+            </Component>
+            <Component Id="cmp3A9259EC74584A61385E95D4E3DD62E3" Guid="*">
+                <File Id="fil928F717D62FBAC35D2C4191F3379DA9C" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Migrations.ProjectDb.pdb" />
             </Component>
             <Component Id="cmp548E1D149E3735784000308E747E507F" Guid="*">
                 <File Id="fil2417DE40106DDE0B1C533DC787A60F98" KeyPath="yes" Source="$(var.HarvestPath)\MdExplorer.Service.exe" />
@@ -400,9 +406,6 @@
                     </Directory>
                 </Directory>
                 <Directory Id="dir45706C920D8214B8DCD918477FA9EB7C" Name="client2">
-                    <Component Id="cmp80AC69A7314172BAD76B83252CF49982" Guid="*">
-                        <File Id="fil0E71351C20E93641974F69EC56A555A8" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\client2\common.js.map" />
-                    </Component>
                     <Component Id="cmp69C2F9B0189F1FFCE216E81FF0EDA755" Guid="*">
                         <File Id="filD731A53FE00B69161AAB782D97058CC0" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js.map" />
                     </Component>
@@ -428,9 +431,11 @@
             <ComponentRef Id="cmp3F1A8ED120366E8991F256C74C5C6361" />
             <ComponentRef Id="cmpCF90702DB6BD5D0BCBE864804278C36B" />
             <ComponentRef Id="cmp4F241916C32EC6A1E970595E25671525" />
+            <ComponentRef Id="cmpE20585B8615CEB6A2FD3F4C0633BEDF0" />
             <ComponentRef Id="cmp38BBDC48CA4A8A258B36C6163AFFF796" />
             <ComponentRef Id="cmpD238E089839EB6449C051D7E7CEE972F" />
             <ComponentRef Id="cmpCB91023A7FED7925C79109BD3B8D51F5" />
+            <ComponentRef Id="cmp3A9259EC74584A61385E95D4E3DD62E3" />
             <ComponentRef Id="cmp548E1D149E3735784000308E747E507F" />
             <ComponentRef Id="cmpD71BBAC84D48FE0434198573578E243E" />
             <ComponentRef Id="cmpB139B49DF4DF8F44C525B449EA8187F7" />
@@ -546,7 +551,6 @@
             <ComponentRef Id="cmp4920FC0DA1962CD36AB1EC75EAA995C1" />
             <ComponentRef Id="cmpF62FBB4D4AB21A52B0A6DD822BBDE259" />
             <ComponentRef Id="cmpE9A25B007AF5239241588D919D56E687" />
-            <ComponentRef Id="cmp80AC69A7314172BAD76B83252CF49982" />
             <ComponentRef Id="cmp69C2F9B0189F1FFCE216E81FF0EDA755" />
             <ComponentRef Id="cmpC0B5D66D20EE86E2F02E7C57B52AF598" />
             <ComponentRef Id="cmp2D5F5F8415B1CB63DEDEFD8AAC7C6DA9" />

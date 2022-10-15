@@ -1,4 +1,4 @@
-﻿using MdExplorer.Abstractions.Models;
+﻿using MdExplorer.Abstractions.Entities.EngineDB;
 
 namespace MdExplorer.Features.Refactoring.Analysis
 {

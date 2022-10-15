@@ -1,41 +1,41 @@
-import { Injectable } from '@angular/core';
+//import { Injectable } from '@angular/core';
 
-export interface IWorkWithElement {
-  (element: any): void;
-}
+//export interface IWorkWithElement {
+//  (element: any): void;
+//}
 
-@Injectable({
-  providedIn: 'root'
-})
-export class HrefInterceptorService {
-  private _workWithElement: IWorkWithElement;
-  private _name: string;
+//@Injectable({
+//  providedIn: 'root'
+//})
+//export class HrefInterceptorService {
+//  private _workWithElement: IWorkWithElement;
+//  private _name: string;
 
-  constructor() {    
-    document.onclick = this.interceptHref;    
-    this._name = 'test';
-  }
+//  constructor() {    
+//    document.onclick = this.interceptHref;    
+//    this._name = 'test';
+//  }
 
-  setCallback(workWithElement: IWorkWithElement) {
+//  setCallback(workWithElement: IWorkWithElement) {
     
-    this._workWithElement = workWithElement;
+//    this._workWithElement = workWithElement;
     
-  }
+//  }
 
-  interceptHref(_event) {
-    const tEvent = _event || window.event;
+//  interceptHref(_event) {
+//    const tEvent = _event || window.event;
 
-    const element = tEvent.target || tEvent.srcElement;
-    if (element.tagName === 'A'
-     // && element.attributes['class'] != undefined
-     // && element.attributes['class'].nodeValue === 'mdExplorerLink'
-    ) {
+//    const element = tEvent.target || tEvent.srcElement;
+//    if (element.tagName === 'A'
+//     // && element.attributes['class'] != undefined
+//     // && element.attributes['class'].nodeValue === 'mdExplorerLink'
+//    ) {
       
-      var variable = this._name;
-      this._workWithElement(element);
-      console.log("intercept!");
+//      var variable = this._name;
+//      this._workWithElement(element);
+//      console.log("intercept!");
 
-      return false; // prevent default action and stop event propagation
-    }
-  }
-}
+//      return false; // prevent default action and stop event propagation
+//    }
+//  }
+//}

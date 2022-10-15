@@ -1,7 +1,6 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, NgZone, OnInit, Output, ViewChild } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
 import { MdFile } from '../../models/md-file';
-import { HrefInterceptorService, IWorkWithElement } from '../../services/href-interceptor.service';
+//import { IWorkWithElement } from '../../services/href-interceptor.service';
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
@@ -50,9 +49,9 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   html: string;
   htmlSource: string = '../welcome.html';
 
-  helloWorld: IWorkWithElement = (msg) => {
-    alert('this is the callback');
-  };
+  //helloWorld: IWorkWithElement = (msg) => {
+  //  alert('this is the callback');
+  //};
 
 
   public _HideIFrame = false;

@@ -2,6 +2,7 @@
 using Markdig;
 using Markdig.Extensions.JiraLinks;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Controllers;
 using MdExplorer.Features.Commands;

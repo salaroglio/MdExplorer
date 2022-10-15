@@ -1,9 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { promise } from 'protractor';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { MdFile } from '../models/md-file';
-import { IChangeFileData } from './md-refactoring.service';
 
 @Injectable({
   providedIn: 'root'
@@ -199,6 +197,17 @@ export class MdFileService {
     const url = '../api/mdexplorer/' + path;
     return this.http.get(url, { responseType: 'text' })//, currentFile      
   }
+
+  getLandingPage() {
+    const url = '../api/mdfiles/GetLandingPage';
+    return this.http.get<MdFile>(url);    
+  }
+
+  SetLandingPage(file: MdFile) {
+    const url = '../api/mdfiles/SetLandingPage';
+    return this.http.post<MdFile>(url, file);
+  }
+
 
   CreateNewDirectory(path: string, directoryName: string, directoryLevel:number) {
     const url = '../api/mdfiles/CreateNewDirectory';
