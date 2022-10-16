@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "MdExplorer.Migrations": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:58434;http://localhost:58436"
+    }
+  }
+}

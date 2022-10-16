@@ -12,12 +12,14 @@ using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
+using MdExplorer.Service.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using NHibernate.Linq;
 using NHibernate.Util;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -75,6 +77,18 @@ namespace MdExplorer.Controllers
                 DataText = landingPage.LandingPages.First().DataText,                
             }: null;
             return Ok(toReturn);
+        }
+
+        public IActionResult OpenFolderOnFileExplorer([FromBody] FileInfoNode fileData)
+        {
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                Arguments = fileData.FullPath,
+                FileName = "explorer.exe"
+             };
+
+            Process.Start(startInfo);
+            return Ok(new { message="done" });
         }
 
         [HttpPost]

@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Ad.Tools.Dal.UnitTest": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:58457;http://localhost:58458"
+    }
+  }
+}

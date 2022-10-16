@@ -134,7 +134,7 @@ export class MdTreeComponent implements OnInit {
 
   setMdAsLandingPage(node: MdFile) {    
     this.mdFileService.SetLandingPage(node).subscribe(_ => {
-      this.snackBar.open(node.name, "is project landing page", { duration: 5000, verticalPosition: 'top' });
+      this.snackBar.open(node.name, "is project landing page", { duration: 5000 });
     });
   }
 
@@ -149,4 +149,12 @@ export class MdTreeComponent implements OnInit {
       data: node,
     });
   }
+
+  openFolderOn(node: MdFile) {
+    this.mdFileService.openFolderOnFileExplorer(node).subscribe(_ => {
+      this.snackBar.open("file explorer open", "", { duration: 500 });
+    });
+
+  }
+
 }
