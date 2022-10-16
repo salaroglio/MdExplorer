@@ -11,6 +11,8 @@ using MdExplorer.Features.Refactoring.Work;
 using MdExplorer.Features.Reveal;
 using MdExplorer.Features.Reveal.Interfaces;
 using MdExplorer.Features.Reveal.Models;
+using MdExplorer.Features.snippets;
+using MdExplorer.Features.snippets.sequence_diagram;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -51,6 +53,13 @@ namespace MdExplorer.Features
                 var listOfGoodMdRules = new List<IGoodMdRule<FileInfoNode>>();
                 listOfGoodMdRules.Add(new GoodMdRuleFileNameShouldBeSameAsTitle());
                 return listOfGoodMdRules.ToArray();
+            });
+            services.AddSingleton(typeof(ISnippet[]), _ =>
+            {
+                var listSnippet = new List<ISnippet>();
+                listSnippet.Add(new SequenceDiagramPlantuml());
+
+                return listSnippet.ToArray();
             });
             services.AddSingleton<IYamlParser<YamlDocumentDescriptor>, YamlDocumentDescriptorParser>();
             return services;
