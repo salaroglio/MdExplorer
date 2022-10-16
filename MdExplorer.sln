@@ -23,12 +23,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ad.Tools.FluentMigrator", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Features.Tests", "MdExplorer.Features.Tests\MdExplorer.Features.Tests.csproj", "{43B3843C-9638-4894-9781-F7CD93059799}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "InstallBinaries", "InstallBinaries", "{7C670A67-EA99-4DA5-92C8-56907BABBF24}"
-	ProjectSection(SolutionItems) = preProject
-		InstallBinaries\Graphviz\bin\dot.exe = InstallBinaries\Graphviz\bin\dot.exe
-		InstallBinaries\plantuml.jar = InstallBinaries\plantuml.jar
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Ad.Tools", "Ad.Tools", "{18E1FA4F-50F8-4E87-B373-E4BAA69D6DA2}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Migrations.EngineDb", "MdExplorer.Migrations.EngineDb\MdExplorer.Migrations.EngineDb.csproj", "{E208BEAF-8607-4023-80E4-998C7CF8B4D2}"

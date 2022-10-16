@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
+using Markdig;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
@@ -9,9 +10,11 @@ using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
+using MdExplorer.Features.snippets;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
+using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -22,6 +25,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -38,6 +42,7 @@ namespace MdExplorer.Controllers
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IProjectDB _projectDB;
+        private readonly ISnippet[] _snippets;
 
         public IEngineDB _engineDB { get; }
 
@@ -46,7 +51,8 @@ namespace MdExplorer.Controllers
             IUserSettingsDB userSettingsDB,
             IHubContext<MonitorMDHub> hubContext,
             IGoodMdRule<FileInfoNode>[] GoodRules,
-            IProjectDB projectDB)
+            IProjectDB projectDB,
+            ISnippet[] snippets)
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
@@ -56,6 +62,7 @@ namespace MdExplorer.Controllers
             _hubContext = hubContext;
             _goodRules = GoodRules;
             _projectDB = projectDB;
+            _snippets = snippets;
         }
 
 
@@ -265,8 +272,24 @@ namespace MdExplorer.Controllers
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + title;
             }
 
+            // Creazione della directory Assets
+
+            // templates management
+            // insert title
+            var titleDocument = "# " + fileData.Title + "\r\n";
+            // insert template
+            var templateContent = string.Empty;
+            var snippet =_snippets.Where(_ => _.Id == fileData.documentTypeId).FirstOrDefault();
+            if (snippet != null)
+            {
+                snippet.SetAssets(fullPath);
+                templateContent = snippet.GetSnippet();
+            }
+            
+            var contentDocument = string.Concat( titleDocument, templateContent) ;
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
-            System.IO.File.WriteAllText(fullPath, "# " + fileData.Title + "\r\n");
+            System.IO.File.WriteAllText(fullPath, contentDocument);
+
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -511,6 +534,7 @@ public class NewFile
     public string Title { get; set; }
     public string DirectoryPath { get; set; }
     public int DirectoryLevel { get; set; }
+    public int documentTypeId { get; set; }
 }
 
 public class NewDirectory

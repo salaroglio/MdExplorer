@@ -18,7 +18,7 @@ namespace MdExplorer
 {
     public class Program
     {
-        
+
         public static Task<int> _uiTask;
 
         public static void Main(string[] args)
@@ -34,10 +34,10 @@ namespace MdExplorer
             {
                 FileUtil.ExtractResFile("MdExplorer.Service.Binaries.plantuml.jar", plantumlPath);
             }
-            var dotExePath  = AppContext.BaseDirectory + "dot.exe";
+            var dotExePath = AppContext.BaseDirectory + "dot.exe";
             if (!File.Exists(dotExePath))
             {
-                
+
                 FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.cdt.dll", dotExePath);
                 FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.cgraph.dll", dotExePath);
                 FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.config6", dotExePath);
@@ -51,7 +51,13 @@ namespace MdExplorer
                 FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.xdot.dll", dotExePath);
 
             }
-            
+
+            //var plantumlSequenceDiagramPath = AppContext.BaseDirectory + "sequence-diagram.plantuml";
+            //if (!File.Exists(plantumlSequenceDiagramPath))
+            //{
+            //    FileUtil.ExtractResFile("MdExplorer.Service.Binaries.plantuml_templates.sequence_diagram.plantuml", plantumlSequenceDiagramPath);
+            //}
+
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)

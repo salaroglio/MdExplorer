@@ -4299,12 +4299,13 @@ class MdFileService {
         };
         return this.http.post(url, newData);
     }
-    CreateNewMd(path, title, directoryLevel) {
+    CreateNewMd(path, title, directoryLevel, documentTypeId) {
         const url = '../api/mdfiles/CreateNewMd';
         var newData = {
             directoryPath: path,
             title: title,
             directoryLevel: directoryLevel,
+            documentTypeId: documentTypeId,
         };
         return this.http.post(url, newData);
     }

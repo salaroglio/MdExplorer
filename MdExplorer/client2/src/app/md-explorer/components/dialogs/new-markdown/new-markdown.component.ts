@@ -2,6 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
+import { PlantumlStyle } from './models/plantuml-style';
 
 @Component({
   selector: 'app-new-markdown',
@@ -14,7 +15,19 @@ export class NewMarkdownComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: MdFile,
     private dialogRef: MatDialogRef<NewMarkdownComponent>,
     private mdFileService: MdFileService
-  ) { }
+  ) {
+    this.selectedPlantumlTemplate = this.plantumlTemplates[0]
+  }
+
+  selectedPlantumlTemplate: PlantumlStyle;
+
+  plantumlTemplates: PlantumlStyle[] =
+    [{ id: 0, description: 'Text document' },
+    { id: 1, description: 'Sequence Diagram' },
+    { id: 2, description: 'State Diagram' },
+    { id: 3, description: 'Workflow' },
+    { id: 4, description: 'Gantt' }];
+
 
   ngOnInit(): void {
   }
@@ -22,11 +35,15 @@ export class NewMarkdownComponent implements OnInit {
   dismiss() {
     this.dialogRef.close();
   }
-  save() {  
-    this.mdFileService.CreateNewMd(this.data.fullPath, this.markdownTitle, this.data.level)
-      .subscribe(data => {        
+  save() {
+    this.mdFileService.CreateNewMd(
+      this.data.fullPath,
+      this.markdownTitle,
+      this.data.level,
+      this.selectedPlantumlTemplate.id)
+      .subscribe(data => {
         this.mdFileService.addNewFile(data);
-        this.mdFileService.setSelectedMdFileFromSideNav(data[data.length-1]);
+        this.mdFileService.setSelectedMdFileFromSideNav(data[data.length - 1]);
       });
     this.dialogRef.close();
   }

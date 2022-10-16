@@ -1,17 +1,26 @@
-<p>new-markdown works!</p>
-
 <mat-dialog-content>
+  <h3><strong>New markdown</strong></h3>
   <div class="simple-container">
     <mat-form-field appearance="outline">
-      <mat-label>Documentì Title</mat-label>
-      <input matInput [(ngModel)]="markdownTitle" (keyup.enter)="save()" placeholder="markdownTitle">
-      <mat-hint>Hint</mat-hint>
-    </mat-form-field>    
+      <mat-label>Document's title</mat-label>
+      <input matInput [(ngModel)]="markdownTitle" (keyup.enter)="save()" placeholder="Title">
+      <mat-hint>Set the title's document</mat-hint>
+    </mat-form-field>
   </div>
+  <label id="plantuml-radio-group-label">Select document template</label>
+  <mat-radio-group aria-labelledby="plantuml-radio-group-label"
+                   class="plantuml-radio-group"
+                   [(ngModel)]="selectedPlantumlTemplate">
+    <mat-radio-button class="plantuml-list-radio-button"
+                      *ngFor="let plantumlTemplate of plantumlTemplates" [value]="plantumlTemplate">
+      {{plantumlTemplate.description}}
+    </mat-radio-button>
+  </mat-radio-group>
+  <div>Template: {{selectedPlantumlTemplate.description}}</div>
 
 </mat-dialog-content>
 <mat-dialog-actions>
-  <button mat-button color="primary" (click)="save()" >
+  <button mat-button color="primary" (click)="save()">
     <mat-icon>save</mat-icon>Save
   </button>
   <button mat-button color="primary" (click)="dismiss()">

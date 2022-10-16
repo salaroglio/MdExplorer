@@ -10,7 +10,7 @@
     <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
   <button mat-menu-item>Move directory</button>-->
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
-    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue"> file Explorer</b></button>
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
     <button *ngIf="item.type==='mdFile'" mat-menu-item (click)="setMdAsLandingPage(item)"><b>Set as project's landing page</b></button>
   </ng-template>
