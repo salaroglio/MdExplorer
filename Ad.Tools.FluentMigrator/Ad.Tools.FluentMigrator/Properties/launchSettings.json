@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Ad.Tools.FluentMigrator": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:58437;http://localhost:58438"
+    }
+  }
+}

@@ -4286,6 +4286,10 @@ class MdFileService {
         const url = '../api/mdfiles/SetLandingPage';
         return this.http.post(url, file);
     }
+    openFolderOnFileExplorer(file) {
+        const url = '../api/mdfiles/OpenFolderOnFileExplorer';
+        return this.http.post(url, file);
+    }
     CreateNewDirectory(path, directoryName, directoryLevel) {
         const url = '../api/mdfiles/CreateNewDirectory';
         var newData = {

@@ -207,7 +207,10 @@ export class MdFileService {
     const url = '../api/mdfiles/SetLandingPage';
     return this.http.post<MdFile>(url, file);
   }
-
+  openFolderOnFileExplorer(file: MdFile) {
+    const url = '../api/mdfiles/OpenFolderOnFileExplorer';
+    return this.http.post<MdFile>(url, file);
+  }
 
   CreateNewDirectory(path: string, directoryName: string, directoryLevel:number) {
     const url = '../api/mdfiles/CreateNewDirectory';

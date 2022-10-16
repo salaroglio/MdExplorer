@@ -26,7 +26,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "InstallBinaries", "InstallBinaries", "{7C670A67-EA99-4DA5-92C8-56907BABBF24}"
 	ProjectSection(SolutionItems) = preProject
 		InstallBinaries\Graphviz\bin\dot.exe = InstallBinaries\Graphviz\bin\dot.exe
-		InstallBinaries\jre-8u291-windows-x64.exe = InstallBinaries\jre-8u291-windows-x64.exe
 		InstallBinaries\plantuml.jar = InstallBinaries\plantuml.jar
 	EndProjectSection
 EndProject
