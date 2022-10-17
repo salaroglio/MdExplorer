@@ -9,13 +9,13 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.snippets.sequence_diagram
 {
-    public class SequenceDiagramPlantuml : ISnippet
-    {
+    public class SequenceDiagramPlantuml : ISnippet<DictionarySnippetParam>
+    {        
         public int Id { get => 1; }
         public string Name { get => "Sequence diagram"; }
-        public string Description { get => "Sequence diagram plantuml"; }
+        public string Group { get => "Plantuml"; }
 
-        public string GetSnippet()
+        public string GetSnippet(DictionarySnippetParam param)
         {
             return Helper.ExtractResFileString("MdExplorer.Features.snippets.sequence_diagram.plantuml.sequence_diagram.plantuml");
         }

@@ -13,6 +13,7 @@ using MdExplorer.Features.Reveal.Interfaces;
 using MdExplorer.Features.Reveal.Models;
 using MdExplorer.Features.snippets;
 using MdExplorer.Features.snippets.sequence_diagram;
+using MdExplorer.Features.snippets.text_document;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -40,27 +41,34 @@ namespace MdExplorer.Features
             services.AddTransient<IHelperPdf, HelperPdf>();
             services.AddTransient<IHelperHtml, HelperHtml>();
             services.AddTransient(typeof(IWorkLink[]),_=> {
-                var listOfModfier = new List<IWorkLink>();                
-                listOfModfier.Add(new WorkLinkImagesFromMarkdown());
-                listOfModfier.Add(new WorkLinkImgFromPlantuml());
-                listOfModfier.Add(new WorkLinkFromPlantuml());
-                listOfModfier.Add(new WorkLinkFromMarkdown());
-                listOfModfier.Add(new WorkLinkMdShowMd());
+                var listOfModfier = new List<IWorkLink>
+                {
+                    new WorkLinkImagesFromMarkdown(),
+                    new WorkLinkImgFromPlantuml(),
+                    new WorkLinkFromPlantuml(),
+                    new WorkLinkFromMarkdown(),
+                    new WorkLinkMdShowMd()
+                };
                 return listOfModfier.ToArray();
                 } );
             services.AddTransient<IAnalysisEngine, AnalysisEngine>();
             services.AddSingleton(typeof(IGoodMdRule<FileInfoNode>[]),_ => {
-                var listOfGoodMdRules = new List<IGoodMdRule<FileInfoNode>>();
-                listOfGoodMdRules.Add(new GoodMdRuleFileNameShouldBeSameAsTitle());
+                var listOfGoodMdRules = new List<IGoodMdRule<FileInfoNode>>
+                {
+                    new GoodMdRuleFileNameShouldBeSameAsTitle()
+                };
                 return listOfGoodMdRules.ToArray();
             });
-            services.AddSingleton(typeof(ISnippet[]), _ =>
-            {
-                var listSnippet = new List<ISnippet>();
-                listSnippet.Add(new SequenceDiagramPlantuml());
+            // gestione degli snippets
+            services.AddSingleton(typeof(ISnippet<DictionarySnippetParam>[]), _ => {
+                var listOfSnippets = new List<ISnippet<DictionarySnippetParam>>
+                {
+                    new TextDocument((IYamlParser<YamlDocumentDescriptor>)_.GetService(typeof(IYamlParser<YamlDocumentDescriptor>))),
+                    new SequenceDiagramPlantuml(),
+                };
+                return listOfSnippets.ToArray();
+            });            
 
-                return listSnippet.ToArray();
-            });
             services.AddSingleton<IYamlParser<YamlDocumentDescriptor>, YamlDocumentDescriptorParser>();
             return services;
         }

@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.snippets
 {
-    public interface ISnippet
+    public interface ISnippet<T> where T : DictionarySnippetParam
     {
         public int Id { get; }
         public string Name { get; }
-        public string Description { get; }
-        public string GetSnippet();
+        public string Group { get; }
+        public string GetSnippet(T parameters =null);
         public void SetAssets(string assetsPath);
     }
 }

@@ -49,6 +49,15 @@ namespace MdExplorer.Features.Reveal
             
             return yamlDescriptor;
         }
+
+        public string SerializeDescriptor(YamlDocumentDescriptor descriptor)
+        {
+            var serializer = new SerializerBuilder()
+                            .WithNamingConvention(UnderscoredNamingConvention.Instance)  // see height_in_inches in sample yml 
+                            .Build();
+            var toReturn = serializer.Serialize(descriptor);
+            return toReturn;
+        }
     }
 
 
