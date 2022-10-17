@@ -13,10 +13,10 @@
                    [(ngModel)]="selectedPlantumlTemplate">
     <mat-radio-button class="plantuml-list-radio-button"
                       *ngFor="let plantumlTemplate of plantumlTemplates" [value]="plantumlTemplate">
-      {{plantumlTemplate.description}}
+      {{plantumlTemplate.name}}
     </mat-radio-button>
   </mat-radio-group>
-  <div>Template: {{selectedPlantumlTemplate.description}}</div>
+  <div>Template: {{selectedPlantumlTemplate.name}}</div>
 
 </mat-dialog-content>
 <mat-dialog-actions>

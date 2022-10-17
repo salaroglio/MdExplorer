@@ -9,5 +9,6 @@ namespace MdExplorer.Features.Reveal.Interfaces
     public interface IYamlParser<T>
     {
         T GetDescriptor(string markdown);
+        string SerializeDescriptor(T descriptor);
     }
 }

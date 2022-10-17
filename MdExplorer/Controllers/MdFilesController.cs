@@ -42,7 +42,7 @@ namespace MdExplorer.Controllers
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IProjectDB _projectDB;
-        private readonly ISnippet[] _snippets;
+        private readonly ISnippet<DictionarySnippetParam>[] _snippets;
 
         public IEngineDB _engineDB { get; }
 
@@ -52,7 +52,8 @@ namespace MdExplorer.Controllers
             IHubContext<MonitorMDHub> hubContext,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IProjectDB projectDB,
-            ISnippet[] snippets)
+            ISnippet<DictionarySnippetParam>[] snippets
+            )
         {
             _fileSystemWatcher = fileSystemWatcher;
             _engineDB = engineDB;
@@ -272,23 +273,27 @@ namespace MdExplorer.Controllers
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + title;
             }
 
-            // Creazione della directory Assets
-
-            // templates management
-            // insert title
-            var titleDocument = "# " + fileData.Title + "\r\n";
-            // insert template
+            // Text Document Management
             var templateContent = string.Empty;
-            var snippet =_snippets.Where(_ => _.Id == fileData.documentTypeId).FirstOrDefault();
+            var snippetTextDocument = _snippets.Where(_ => _.Id == 0).FirstOrDefault();
+            var dictParam = new DictionarySnippetParam();
+            dictParam.Add(ParameterName.StringDocumentTitle, fileData.Title);
+            dictParam.Add(ParameterName.ProjectPath, _fileSystemWatcher.Path);
+            templateContent = snippetTextDocument.GetSnippet(dictParam);
+            
+
+            // Additional Template 
+            var snippet =_snippets.Where(_ => _.Id == fileData.documentTypeId && _.Id != 0).FirstOrDefault();
             if (snippet != null)
             {
                 snippet.SetAssets(fullPath);
-                templateContent = snippet.GetSnippet();
+                var addtionalTemplateContent = snippet.GetSnippet(dictParam);
+                templateContent = string.Concat(templateContent, addtionalTemplateContent);
             }
             
-            var contentDocument = string.Concat( titleDocument, templateContent) ;
+            
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
-            System.IO.File.WriteAllText(fullPath, contentDocument);
+            System.IO.File.WriteAllText(fullPath, templateContent);
 
 
             var list = new List<IFileInfoNode>();

@@ -2,7 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
-import { PlantumlStyle } from './models/plantuml-style';
+import { Snippet } from './models/snippet';
 
 @Component({
   selector: 'app-new-markdown',
@@ -19,14 +19,14 @@ export class NewMarkdownComponent implements OnInit {
     this.selectedPlantumlTemplate = this.plantumlTemplates[0]
   }
 
-  selectedPlantumlTemplate: PlantumlStyle;
+  selectedPlantumlTemplate: Snippet;
 
-  plantumlTemplates: PlantumlStyle[] =
-    [{ id: 0, description: 'Text document' },
-    { id: 1, description: 'Sequence Diagram' },
-    { id: 2, description: 'State Diagram' },
-    { id: 3, description: 'Workflow' },
-    { id: 4, description: 'Gantt' }];
+  plantumlTemplates: Snippet[] =
+    [{ id: 0, name: 'Text document' },
+    { id: 1, name: 'Sequence Diagram' },
+    { id: 2, name: 'State Diagram' },
+    { id: 3, name: 'Workflow' },
+    { id: 4, name: 'Gantt' }];
 
 
   ngOnInit(): void {

@@ -6,15 +6,16 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.snippets.workflow
 {
-    public class WorkFlowPlantuml : ISnippet
+    public class WorkFlowPlantuml : ISnippet<DictionarySnippetParam>
     {
         public int Id => 2;
 
         public string Name => "Workflow";
 
-        public string Description => "Workflow made with plantuml";
+        public string Group => "Workflow made with plantuml";
+       
 
-        public string GetSnippet()
+        public string GetSnippet(DictionarySnippetParam parameters)
         {
             throw new NotImplementedException();
         }
