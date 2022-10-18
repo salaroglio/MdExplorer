@@ -4,8 +4,8 @@ document.write("<script src='/jquery_ui/jquery-ui.js'></script>");
 document.write("<script src='/bootstrap_datepicker/js/bootstrap-datepicker.js'></script>");
 document.write("<script src='/javascripts/jqueryForFirstPage.js'></script>");
 document.write("<script src='/TocBot/tocbot.min.js'></script>");
-document.write("<script src='/jspreadsheet-ce/jsuites.js'></script>");
-document.write("<script src='/jspreadsheet-ce/jexcel.js'></script>");
+document.write("<script src='/jspreadsheet_ce/jsuites.js'></script>");
+document.write("<script src='/jspreadsheet_ce/jexcel.js'></script>");
 
 
 
