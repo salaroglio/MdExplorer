@@ -125,6 +125,7 @@ export class MdTreeComponent implements OnInit {
 
     this.dialog.open(NewMarkdownComponent, {
       width: '300px',
+      //height:'400px',
       data: node,
     });
   }

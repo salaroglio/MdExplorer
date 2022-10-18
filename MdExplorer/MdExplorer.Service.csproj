@@ -148,11 +148,14 @@
     <Content Remove="wwwroot\jquery_ui\jquery-ui.min.js" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.structure.css" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.theme.css" />
-    <Content Remove="wwwroot\jspreadsheet-ce\index.js" />
-    <Content Remove="wwwroot\jspreadsheet-ce\jspreadsheet.css" />
-    <Content Remove="wwwroot\jspreadsheet-ce\jspreadsheet.datatables.css" />
-    <Content Remove="wwwroot\jspreadsheet-ce\jspreadsheet.theme.css" />
-    <Content Remove="wwwroot\jspreadsheet-ce\jsuites.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\index.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jexcel.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jexcel.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.datatables.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.theme.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jsuites.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jsuites.js" />
     <Content Remove="wwwroot\MdCustomCSS.css" />
     <Content Remove="wwwroot\reveal\dist\reset.css" />
     <Content Remove="wwwroot\reveal\dist\reveal.css" />
@@ -410,11 +413,14 @@
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.js" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.structure.css" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.theme.css" />
-    <EmbeddedResource Include="wwwroot\jspreadsheet-ce\index.js" />
-    <EmbeddedResource Include="wwwroot\jspreadsheet-ce\jspreadsheet.css" />
-    <EmbeddedResource Include="wwwroot\jspreadsheet-ce\jspreadsheet.datatables.css" />
-    <EmbeddedResource Include="wwwroot\jspreadsheet-ce\jspreadsheet.theme.css" />
-    <EmbeddedResource Include="wwwroot\jspreadsheet-ce\jsuites.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\index.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jexcel.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jexcel.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.datatables.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.theme.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jsuites.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jsuites.js" />
     <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
     <EmbeddedResource Include="wwwroot\reveal\dist\reset.css" />
     <EmbeddedResource Include="wwwroot\reveal\dist\reveal.css" />
@@ -485,6 +491,7 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
+    <PackageReference Include="LibGit2Sharp" Version="0.26.2" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />

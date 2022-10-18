@@ -17,9 +17,11 @@ export class NewMarkdownComponent implements OnInit {
     private mdFileService: MdFileService
   ) {
     this.selectedPlantumlTemplate = this.plantumlTemplates[0]
+    this.selectedSlideTemplate = this.slideTemplates[0]
   }
 
   selectedPlantumlTemplate: Snippet;
+  selectedSlideTemplate: Snippet;
 
   plantumlTemplates: Snippet[] =
     [{ id: 0, name: 'Text document' },
@@ -27,6 +29,15 @@ export class NewMarkdownComponent implements OnInit {
     { id: 2, name: 'State Diagram' },
     { id: 3, name: 'Workflow' },
     { id: 4, name: 'Gantt' }];
+
+  slideTemplates: Snippet[] =
+    [{
+      id: 0, name: 'Flicker document'
+    }, {
+      id: 1, name: 'Slide video'
+      }, {
+        id:2,name:'Slide power point'
+      }];
 
 
   ngOnInit(): void {
