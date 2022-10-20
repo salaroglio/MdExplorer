@@ -1,4 +1,6 @@
-﻿using LibGit2Sharp;
+﻿
+using LibGit2Sharp;
+using MdExplorer.Features.GIT;
 using MdExplorer.Features.Reveal.Interfaces;
 using MdExplorer.Features.Reveal.Models;
 using System;
@@ -13,10 +15,13 @@ namespace MdExplorer.Features.snippets.text_document
     {
        
         private readonly IYamlParser<YamlDocumentDescriptor> _yamlParser;
+        private readonly IGitService _gitService;
 
-        public TextDocument(IYamlParser<YamlDocumentDescriptor> yamlParser)
+        public TextDocument(IYamlParser<YamlDocumentDescriptor> yamlParser, 
+                            IGitService gitService)
         {
             _yamlParser = yamlParser;
+            _gitService = gitService;
         }
         public int Id => 0;
 
@@ -33,15 +38,9 @@ namespace MdExplorer.Features.snippets.text_document
                 DocumentType = "Document"
             };
             var projectPath = (string) parameters.Where(_ => _.Key == ParameterName.ProjectPath).First().Value;
-            using (var repo = new Repository(projectPath))
-            {
-                // Object lookup
-                var obj = repo.Lookup("sha");
-                Configuration config = repo.Config;
-                doc.Author = config.Where(_=>_.Key == "user.name").First().Value.ToString();
-                doc.Email = config.Where(_ => _.Key == "user.email").First().Value.ToString();
-            }
-            
+            doc.Author = _gitService.GetCurrentUser(projectPath);
+            doc.Email = _gitService.GetCurrentUserEmail(projectPath);
+
             var title =(string) parameters[ParameterName.StringDocumentTitle];
             var toReturn = string.Concat( "---\r\n",  _yamlParser.SerializeDescriptor(doc),"---\r\n","# " ,title, "\r\n");
             return toReturn;

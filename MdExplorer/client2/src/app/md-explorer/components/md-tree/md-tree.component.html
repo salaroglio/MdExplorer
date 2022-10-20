@@ -7,28 +7,29 @@
 
 <mat-menu #rightMenu="matMenu">
   <ng-template matMenuContent let-item="item">
-    <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
-  <button mat-menu-item>Move directory</button>-->
     <div>
-      <button><img src="/assets/rename.png" alt="Rename directory" /></button>
+      <!--<button *ngIf="item.type==='folder' || item.name==='root'"><img src="/assets/rename.png" alt="Rename directory" /></button>-->
+      <button *ngIf="item.type==='folder' || item.name==='root'" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
+      <button *ngIf="item.type==='folder' || item.name==='root'" (click)="createMdOn(item)"><img src="/assets/new-document.png" alt="New document" /></button>
+      <button *ngIf="item.type==='mdFile'" ><mat-icon>delete</mat-icon></button>
     </div>
-    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+    <!--<button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)"><b style="color:violet">New</b> directory on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>-->
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
-    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
+    <!--<button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>-->
     <button *ngIf="item.type==='mdFile'" mat-menu-item (click)="setMdAsLandingPage(item)"><b>Set as project's landing page</b></button>
   </ng-template>
 </mat-menu>
 
 <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)">
   <!-- This is the tree node template for leaf nodes -->
-  <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+  <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding  style="cursor:pointer" (contextmenu)="onRightClick($event, node)">
     <!-- use a disabled button to provide padding for tree leaf -->
     <button mat-icon-button disabled>
-      <mat-icon class="mat-icon-rtl-mirror" style="cursor:pointer" (contextmenu)="onRightClick($event, node)">
+      <mat-icon class="mat-icon-rtl-mirror">
         {{'text_snippet'}}
       </mat-icon>
     </button>
-    <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>
+    <a (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>
   </mat-tree-node>
   <!-- This is the tree node template for expandable nodes -->
   <mat-tree-node *matTreeNodeDef="let node;when: isFolder" matTreeNodePadding>

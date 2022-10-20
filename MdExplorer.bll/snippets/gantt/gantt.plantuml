@@ -1,0 +1,12 @@
+﻿
+```plantuml
+@startgantt
+Project starts the __day_of_week__th of september __current_year__
+[Carlo] as [Carlo] lasts 5 days
+[Carlo] is colored in Lavender/LightBlue
+[Donatella] as [Donatella] lasts 5 days
+[Donatella] is colored in Lavender/LightBlue
+[Mirko] as [Mirko] lasts 5 days
+[Mirko] is colored in Lavender/LightBlue
+@endgantt
+```

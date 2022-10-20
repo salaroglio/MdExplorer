@@ -7,41 +7,40 @@
       <mat-hint>Set the title's document</mat-hint>
     </mat-form-field>
   </div>
+  <label>Select document template</label>
+  <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100%);">
+    <mat-tab label="Documents">
+      <mat-radio-group aria-labelledby="plantuml-radio-group-label"
+                       class="plantuml-radio-group"
+                       [(ngModel)]="selectedTemplate">
+        <mat-radio-button class="plantuml-list-radio-button"
+                          *ngFor="let plantumlTemplate of plantumlTemplates" [value]="plantumlTemplate">
+          {{plantumlTemplate.name}}
+        </mat-radio-button>
+      </mat-radio-group>      
+    </mat-tab>
+
+    <mat-tab label="Presentation">
+
+      <mat-radio-group aria-labelledby="slide-radio-group-label"
+                       class="slide-radio-group"
+                       [(ngModel)]="selectedTemplate">
+        <mat-radio-button class="plantuml-list-radio-button"
+                          *ngFor="let slideTemplate of slideTemplates" [value]="slideTemplate">
+          {{slideTemplate.name}}
+        </mat-radio-button>
+      </mat-radio-group>
+    </mat-tab>
+  </mat-tab-group>
+  <div>Template: {{selectedTemplate.name}}</div>
+
+  <mat-dialog-actions>
+    <button mat-button color="primary" (click)="save()">
+      <mat-icon>save</mat-icon>Save
+    </button>
+    <button mat-button color="primary" (click)="dismiss()">
+      <mat-icon>cancel</mat-icon>Cancel
+    </button>
+  </mat-dialog-actions>
 
 </mat-dialog-content>
-<mat-dialog-actions>
-  <button mat-button color="primary" (click)="save()">
-    <mat-icon>save</mat-icon>Save
-  </button>
-  <button mat-button color="primary" (click)="dismiss()">
-    <mat-icon>cancel</mat-icon>Cancel
-  </button>
-</mat-dialog-actions>
-
-
-<mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100%);">
-  <mat-tab label="Documents">
-    <label id="plantuml-radio-group-label">Select document template</label>
-    <mat-radio-group aria-labelledby="plantuml-radio-group-label"
-                     class="plantuml-radio-group"
-                     [(ngModel)]="selectedPlantumlTemplate">
-      <mat-radio-button class="plantuml-list-radio-button"
-                        *ngFor="let plantumlTemplate of plantumlTemplates" [value]="plantumlTemplate">
-        {{plantumlTemplate.name}}
-      </mat-radio-button>
-    </mat-radio-group>
-    <div>Template: {{selectedPlantumlTemplate.name}}</div>
-  </mat-tab>
-  <mat-tab label="Presentation">
-    <label id="slide-radio-group-label">Select document template</label>
-    <mat-radio-group aria-labelledby="slide-radio-group-label"
-                     class="slide-radio-group"
-                     [(ngModel)]="selectedSlideTemplate">
-      <mat-radio-button class="plantuml-list-radio-button"
-                        *ngFor="let slideTemplate of slideTemplates" [value]="slideTemplate">
-        {{slideTemplate.name}}
-      </mat-radio-button>
-    </mat-radio-group>
-    <div>Template: {{selectedSlideTemplate.name}}</div>
-  </mat-tab>
-</mat-tab-group>

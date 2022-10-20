@@ -16,28 +16,27 @@ export class NewMarkdownComponent implements OnInit {
     private dialogRef: MatDialogRef<NewMarkdownComponent>,
     private mdFileService: MdFileService
   ) {
-    this.selectedPlantumlTemplate = this.plantumlTemplates[0]
-    this.selectedSlideTemplate = this.slideTemplates[0]
+    this.selectedTemplate = this.plantumlTemplates[0]    
   }
 
-  selectedPlantumlTemplate: Snippet;
-  selectedSlideTemplate: Snippet;
+  
+  selectedTemplate: Snippet;
 
   plantumlTemplates: Snippet[] =
     [{ id: 0, name: 'Text document' },
     { id: 1, name: 'Sequence Diagram' },
     { id: 2, name: 'State Diagram' },
     { id: 3, name: 'Workflow' },
-    { id: 4, name: 'Gantt' }];
+    { id: 4, name: 'Gantt current week' }];
 
   slideTemplates: Snippet[] =
     [{
-      id: 0, name: 'Flicker document'
+      id: 5, name: 'Flicker document'
     }, {
-      id: 1, name: 'Slide video'
-      }, {
-        id:2,name:'Slide power point'
-      }];
+      id: 6, name: 'Slide video'
+    }, {
+      id: 7, name: 'Slide power point'
+    }];
 
 
   ngOnInit(): void {
@@ -51,7 +50,7 @@ export class NewMarkdownComponent implements OnInit {
       this.data.fullPath,
       this.markdownTitle,
       this.data.level,
-      this.selectedPlantumlTemplate.id)
+      this.selectedTemplate.id)
       .subscribe(data => {
         this.mdFileService.addNewFile(data);
         this.mdFileService.setSelectedMdFileFromSideNav(data[data.length - 1]);
