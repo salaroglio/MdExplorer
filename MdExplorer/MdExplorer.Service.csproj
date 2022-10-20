@@ -63,11 +63,13 @@
     <Content Remove="wwwroot\assets\move.png" />
     <Content Remove="wwwroot\assets\Move48 %282%29.png" />
     <Content Remove="wwwroot\assets\move48.png" />
+    <Content Remove="wwwroot\assets\new-document.png" />
     <Content Remove="wwwroot\assets\notes.png" />
     <Content Remove="wwwroot\assets\notes48.png" />
     <Content Remove="wwwroot\assets\plantuml.png" />
     <Content Remove="wwwroot\assets\PrepareToIcon.png" />
     <Content Remove="wwwroot\assets\Refactoring.png" />
+    <Content Remove="wwwroot\assets\rename.png" />
     <Content Remove="wwwroot\assets\resize.png" />
     <Content Remove="wwwroot\assets\resize48.png" />
     <Content Remove="wwwroot\assets\run.png" />
@@ -326,11 +328,13 @@
     <EmbeddedResource Include="wwwroot\assets\move.png" />
     <EmbeddedResource Include="wwwroot\assets\Move48 (2).png" />
     <EmbeddedResource Include="wwwroot\assets\move48.png" />
+    <EmbeddedResource Include="wwwroot\assets\new-document.png" />
     <EmbeddedResource Include="wwwroot\assets\notes.png" />
     <EmbeddedResource Include="wwwroot\assets\notes48.png" />
     <EmbeddedResource Include="wwwroot\assets\plantuml.png" />
     <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
     <EmbeddedResource Include="wwwroot\assets\Refactoring.png" />
+    <EmbeddedResource Include="wwwroot\assets\rename.png" />
     <EmbeddedResource Include="wwwroot\assets\resize48.png" />
     <EmbeddedResource Include="wwwroot\assets\run.png" />
     <EmbeddedResource Include="wwwroot\assets\resize.png" />
@@ -491,7 +495,7 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
-    <PackageReference Include="LibGit2Sharp" Version="0.26.2" />
+    <PackageReference Include="LibGit2Sharp" Version="0.27.0-preview-0182" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
