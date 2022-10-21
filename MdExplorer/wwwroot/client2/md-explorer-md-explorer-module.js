@@ -902,17 +902,17 @@ class NewMarkdownComponent {
         this.data = data;
         this.dialogRef = dialogRef;
         this.mdFileService = mdFileService;
-        this.plantumlTemplates = [{ id: 0, name: 'Text document' },
-            { id: 1, name: 'Sequence Diagram' },
-            { id: 2, name: 'State Diagram' },
-            { id: 3, name: 'Workflow' },
-            { id: 4, name: 'Gantt current week' }];
+        this.plantumlTemplates = [{ id: 0, name: 'Text document', documentType: 'document' },
+            { id: 1, name: 'Sequence Diagram', documentType: 'document' },
+            { id: 2, name: 'State Diagram', documentType: 'document' },
+            { id: 3, name: 'Workflow', documentType: 'document' },
+            { id: 4, name: 'Gantt current week', documentType: 'document' }];
         this.slideTemplates = [{
-                id: 5, name: 'Flicker document'
+                id: 5, name: 'Flicker document', documentType: 'slides'
             }, {
-                id: 6, name: 'Slide video'
+                id: 6, name: 'Slide video', documentType: 'slides'
             }, {
-                id: 7, name: 'Slide power point'
+                id: 7, name: 'Slide power point', documentType: 'slides'
             }];
         this.selectedTemplate = this.plantumlTemplates[0];
     }
@@ -922,7 +922,7 @@ class NewMarkdownComponent {
         this.dialogRef.close();
     }
     save() {
-        this.mdFileService.CreateNewMd(this.data.fullPath, this.markdownTitle, this.data.level, this.selectedTemplate.id)
+        this.mdFileService.CreateNewMd(this.data.fullPath, this.markdownTitle, this.data.level, this.selectedTemplate.id, this.selectedTemplate.documentType)
             .subscribe(data => {
             this.mdFileService.addNewFile(data);
             this.mdFileService.setSelectedMdFileFromSideNav(data[data.length - 1]);

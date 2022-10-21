@@ -9,11 +9,11 @@ namespace MdExplorer.Features.GIT
 {
     public class GitService : IGitService
     {
-        private readonly string _projectPath;
+        
        
         public string GetCurrentUser(string projectPath)
         {
-            using (var repo = new Repository(_projectPath))
+            using (var repo = new Repository(projectPath))
             {
                 Configuration config = repo.Config;
                 return config.Where(_ => _.Key == "user.name").First().Value.ToString();
@@ -22,7 +22,7 @@ namespace MdExplorer.Features.GIT
 
         public string GetCurrentUserEmail(string projectPath)
         {
-            using (var repo = new Repository(_projectPath))
+            using (var repo = new Repository(projectPath))
             {
                 Configuration config = repo.Config;
                 return config.Where(_ => _.Key == "user.email").First().Value.ToString();

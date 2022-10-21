@@ -76,6 +76,7 @@ img.overrideImgFluid {
 .s1 {
     height: auto;
     border: 1px dotted blue;
+    cursor: move;
     margin: 5px 0 5px 0;
 }
 

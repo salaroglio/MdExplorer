@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Markdig;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
@@ -273,12 +274,13 @@ namespace MdExplorer.Controllers
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + title;
             }
 
-            // Text Document Management
+            // Text Document Management            
             var templateContent = string.Empty;
             var snippetTextDocument = _snippets.Where(_ => _.Id == 0).FirstOrDefault();
             var dictParam = new DictionarySnippetParam();
             dictParam.Add(ParameterName.StringDocumentTitle, fileData.Title);
             dictParam.Add(ParameterName.ProjectPath, _fileSystemWatcher.Path);
+            dictParam.Add(ParameterName.DocumentType, fileData.DocumentType);
             templateContent = snippetTextDocument.GetSnippet(dictParam);
             
 
@@ -291,11 +293,12 @@ namespace MdExplorer.Controllers
                 templateContent = string.Concat(templateContent, addtionalTemplateContent);
             }
             
-            
+            // write content
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
             System.IO.File.WriteAllText(fullPath, templateContent);
 
 
+            // prepare data to raise back
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
 
@@ -540,6 +543,7 @@ public class NewFile
     public string DirectoryPath { get; set; }
     public int DirectoryLevel { get; set; }
     public int documentTypeId { get; set; }
+    public string DocumentType { get; set; }
 }
 
 public class NewDirectory

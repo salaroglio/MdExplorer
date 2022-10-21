@@ -222,13 +222,14 @@ export class MdFileService {
     return this.http.post<MdFile[]>(url, newData);
   }
 
-  CreateNewMd(path: string, title: string, directoryLevel: number, documentTypeId :number) {
+  CreateNewMd(path: string, title: string, directoryLevel: number, documentTypeId :number, documentType:string) {
     const url = '../api/mdfiles/CreateNewMd';
     var newData = {
       directoryPath: path,
       title: title,
       directoryLevel: directoryLevel,
       documentTypeId: documentTypeId,
+      documentType:documentType
     }
     return this.http.post<MdFile[]>(url, newData);
   }

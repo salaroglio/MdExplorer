@@ -10,7 +10,8 @@ namespace MdExplorer.Features.snippets
     public enum ParameterName
     {
         StringDocumentTitle,
-        ProjectPath
+        ProjectPath,
+        DocumentType
     }
 
     public class DictionarySnippetParam : Dictionary<ParameterName, object> { }
