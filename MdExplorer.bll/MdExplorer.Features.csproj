@@ -16,6 +16,7 @@
     <None Remove="snippets\sequence_diagram\assets\signalR.png" />
     <None Remove="snippets\sequence_diagram\assets\vscode.png" />
     <None Remove="snippets\sequence_diagram\sequence_diagram.plantuml" />
+    <None Remove="snippets\slide\SlidePowerPoint.reveal" />
   </ItemGroup>
 
   <ItemGroup>
@@ -32,6 +33,7 @@
     <EmbeddedResource Include="snippets\sequence_diagram\plantuml\sequence_diagram.plantuml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="snippets\slide\SlidePowerPoint.reveal" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,7 +61,6 @@
 
   <ItemGroup>
     <Folder Include="GitLabApi\" />
-    <Folder Include="snippets\slide\" />
     <Folder Include="snippets\workflow\assets\" />
     <Folder Include="snippets\workflow\plantuml\" />
   </ItemGroup>
