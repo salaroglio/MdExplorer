@@ -2,6 +2,7 @@
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.Logging;
+using NHibernate.Linq.Functions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -37,23 +38,48 @@ namespace MdExplorer.Features.Commands.html
             for (int i = 0; i < matches.Count; i++)
             {
                 var item = matches[i];
-                var text = item.Groups[0].Value;
+                var emoji = item.Groups[0].Value;
                 // Gestione degli emoji per processo e priorità
                 //EmojiContextDictionary.TryGetValue(text, out var found);
                 //if (found != null)
                 //{
-                    var currentIndex = $@"data-md-process-index=""{i}""";
-                    var raplaceWith = $@"<span id=""emojiProcess{i}"" {currentIndex} style=""cursor: pointer"" onclick=""dynamicEmojiForProcess(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {text}</span> ";
-                    (stringToReturn,currentIncrement) = ManageReplaceOnMD( stringToReturn,  currentIncrement, item, raplaceWith);
+                string tippyContent = SetTippyContentBasedOnEmoji(emoji);
+                //data-tippy-process-id=""{i}""
+                var currentIndex = $@"data-md-process-index=""{i}""  data-tippy-content=""{tippyContent}""";
+                var raplaceWith = $@"<span id=""emojiProcess{i}"" {currentIndex} style=""cursor: pointer"" onclick=""dynamicEmojiForProcess(this,{i},'{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}')""> {emoji}</span> ";
+                (stringToReturn, currentIncrement) = ManageReplaceOnMD(stringToReturn, currentIncrement, item, raplaceWith);
                 //}               
             }
-            
+
             return stringToReturn;
         }
 
-        
+        private string SetTippyContentBasedOnEmoji(string text)
+        {
+            var tippyContent = string.Empty;
+            switch (text)
+            {
+                case ":information_source:":
+                    tippyContent = "Info";
+                    break;
+                case ":ok:":
+                    tippyContent = "approvato";
+                    break;
+                case ":construction:":
+                    tippyContent = @"work in progress";
+                    break;
+                case ":warning:":
+                    tippyContent = "attenzione";
+                    break;
+                case ":heavy_check_mark:":
+                    tippyContent = "completato";
+                    break;
+                default:
+                    tippyContent = "not found";
+                    break;
+            }
 
-
-
+            return tippyContent;
+        }
     }
 }

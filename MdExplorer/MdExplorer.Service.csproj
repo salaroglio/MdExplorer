@@ -219,6 +219,9 @@
     <Content Remove="wwwroot\reveal\plugin\zoom\plugin.js" />
     <Content Remove="wwwroot\reveal\plugin\zoom\zoom.esm.js" />
     <Content Remove="wwwroot\reveal\plugin\zoom\zoom.js" />
+    <Content Remove="wwwroot\tippy\popper.js" />
+    <Content Remove="wwwroot\tippy\tippy.css" />
+    <Content Remove="wwwroot\tippy\tippy.js" />
     <Content Remove="wwwroot\TocBot\styles.css" />
     <Content Remove="wwwroot\TocBot\tocbot.css" />
     <Content Remove="wwwroot\TocBot\tocbot.min.js" />
@@ -486,6 +489,9 @@
     <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\plugin.js" />
     <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\zoom.esm.js" />
     <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\zoom.js" />
+    <EmbeddedResource Include="wwwroot\tippy\popper.js" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy.css" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy.js" />
     <EmbeddedResource Include="wwwroot\TocBot\styles.css" />
     <EmbeddedResource Include="wwwroot\TocBot\tocbot.css" />
     <EmbeddedResource Include="wwwroot\TocBot\tocbot.min.js" />

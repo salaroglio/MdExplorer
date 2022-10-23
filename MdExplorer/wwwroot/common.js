@@ -6,6 +6,9 @@ document.write("<script src='/javascripts/jqueryForFirstPage.js'></script>");
 document.write("<script src='/TocBot/tocbot.min.js'></script>");
 document.write("<script src='/jspreadsheet_ce/jsuites.js'></script>");
 document.write("<script src='/jspreadsheet_ce/jexcel.js'></script>");
+document.write("<script src='/tippy/popper.js'></script>");
+document.write("<script src='/tippy/tippy.js'></script>");
+
 
 
 

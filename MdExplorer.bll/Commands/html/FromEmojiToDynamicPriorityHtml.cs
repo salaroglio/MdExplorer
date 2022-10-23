@@ -83,9 +83,10 @@ namespace MdExplorer.Features.Commands.html
             {
                 var priorityItem = priorityMatches[i];
                 var priorityText = priorityItem.Groups[0].Value;
-
+                string tippyContent = translateTyppeContent(priorityText);
+                // data-tippy-priority-id=""{i}""
                 var idName = $"emojiPriority{i}";
-                var absoluteIndex = $@"data-md-priority-index=""{i}""";
+                var absoluteIndex = $@"data-md-priority-index=""{i}"" data-tippy-content=""{tippyContent}""";
                 dictionaryInfo.TryGetValue(priorityItem.Index, out var currentSortableInfo);
                 if (currentSortableInfo != null)
                 {
@@ -101,7 +102,36 @@ namespace MdExplorer.Features.Commands.html
             return stringToReturn;
         }
 
-        
+        private string translateTyppeContent(string text)
+        {
+            var tippyContent = string.Empty;
+            switch (text)
+            {
+                case ":exclamation:":
+                    tippyContent = "urgente";
+                    break;
+                case ":x:":
+                    tippyContent = "annullata";
+                    break;
+                case ":no_entry:":
+                    tippyContent = "fermata";
+                    break;
+                case ":negative_squared_cross_mark:":
+                    tippyContent = "conclusa";
+                    break;
+                case ":question:":
+                    tippyContent = "dubbio urgente";
+                    break;
+                case ":grey_question:":
+                    tippyContent = "da valutare";
+                    break;
+                case ":grey_exclamation:":
+                    tippyContent = "obbligatorio";
+                    break;
+            }
+
+            return tippyContent;
+        }
 
         public override string TransformAfterConversion(string html, RequestInfo requestInfo)
         {
