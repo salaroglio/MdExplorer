@@ -102,6 +102,7 @@ function setTippyTypeProcess(tippyReference, _) {
         _.setProps({ theme: 'processAttenzione' });
     }
 
+    
 }
 
 
@@ -281,7 +282,7 @@ function resizeImage(currentDiv) {
 
 // test di caricamento tooltip
 $(function () {
-    //debugger;
+    
     //tippy('[data-tippy-content]');
     //var test = tippy('#myButton', {
     //    content: 'My tooltip!',
@@ -467,18 +468,21 @@ function dynamicEmojiForProcess(el, index, pathfile) {
 }
 
 function setTooltipPriority(dataToSet, el) {
-    debugger;
+    
     let currentPriority = tippyDictPriority[el.attributes[8].value];
     currentPriority.setContent(dataToSet);
     currentPriority.reference.setAttribute('data-tippy-content',dataToSet)
     setTippyTypePriority(currentPriority.reference, currentPriority);
+    currentPriority.show();
 }
 
 function setTooltipProcess(dataToSet, el) {
     
     let current = tippyDictProcess[el.attributes[4].value]; //data-tippy-process-id
     current.setContent(dataToSet);    
+    current.reference.setAttribute('data-tippy-content', dataToSet)
     setTippyTypeProcess(current.reference, current);
+    current.show();
 }
 
 
