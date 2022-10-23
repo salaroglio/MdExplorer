@@ -124,3 +124,103 @@ img.overrideImgFluid {
 .canvasForWriting {
     z-index: 100;
 }
+
+/*tippy colors*/
+.tippy-tooltip.processok-theme {
+    background-color: blue;
+    color: white;
+    border: solid;
+    border-width: 1px;
+    border-color: white;
+}
+
+
+.tippy-tooltip.processWIP-theme {
+    background-color: yellow;
+    color: black;
+    border: solid;
+    border-width: 1px;
+    border-color: black;
+}
+
+.tippy-tooltip.processCompletato-theme {
+    background-color: green;
+    color: white;
+    border: solid;
+    border-width: 1px;
+    border-color: white;
+}
+.tippy-tooltip.processInfo-theme {
+    background-color: white;
+    color: black;
+    border: solid;
+    border-width: 1px;
+    border-color: black;
+}
+
+.tippy-tooltip.processAttenzione-theme {
+    background-color: gold;
+    color: black;
+    border: solid;
+    border-width: 1px;
+    border-color: black;
+}
+
+/*priority*/
+.tippy-tooltip.priorityUrgente-theme {
+    background-color: white;
+    color: red;
+    border: solid;
+    border-width: 1px;
+    border-color: red;
+}
+.tippy-tooltip.priorityAnnullato-theme {
+    background-color: black;
+    color: red;
+    font-weight: bold;
+    border: solid;
+    border-width: 1px;
+    border-color: red;
+}
+.tippy-tooltip.priorityFermata-theme {
+    background-color: red;
+    color: white;
+    border: solid;
+    border-width: 1px;
+    border-color: black;
+}
+.tippy-tooltip.priorityDaCapireUrgentemente-theme {
+    background-color: white;
+    color: red;
+    border: solid;
+    border-width: 1px;
+    border-color: red;
+}
+
+
+.tippy-tooltip.priorityConclusa-theme {
+    background-color: greenyellow;
+    color: black;
+    border: solid;
+    border-width: 1px;
+    border-color: black;
+}
+
+.tippy-tooltip.priorityDaValutare-theme {
+    background-color: grey;
+    color: white;
+    border: solid;
+    border-width: 1px;
+    border-color: grey;
+}
+
+.tippy-tooltip.priorityObbligatorio-theme {
+    background-color: grey;
+    color: white;
+    border: solid;
+    border-width: 1px;
+    border-color: grey;
+}
+
+
+

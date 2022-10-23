@@ -12,27 +12,105 @@
 
 
 // gestione tocbot
-$(function () {    
+$(function () {
     tocbot.init({
         tocSelector: '.js-toc',
         orderedList: true,
-        hasInnerContainers: true,        
+        hasInnerContainers: true,
         scrollSmooth: true,
         headingSelector: 'h1, h2, h3, h4, h5, h6',
         // Smooth scroll duration.
         scrollSmoothDuration: 220,
-        positionFixedClass: 'is-position-fixed',        
+        positionFixedClass: 'is-position-fixed',
 
     });
     //console.log('Tocbot initialized');
 });
+
+// array di tutti gli tooltip con emoji
+let tippyDictPriority = {};
+let tippyDictProcess = {};
+// gestione tippy (tooltip), modo sbrigativo di associarli
+$(function () {
+
+    tippyDictPriority = tippy('[id*="Priority"][data-tippy-content]', {
+        placement: 'left',
+    });
+    tippyDictProcess = tippy('[id*="Process"][data-tippy-content]', {
+        placement: 'left'
+    });
+
+    tippyDictProcess.forEach(_ => {
+        let tippyReferenceProcess = _.reference;
+        tippyReferenceProcess.setAttribute('data-tippy-process-id', tippyDictProcess.indexOf(_));
+        setTippyTypeProcess(tippyReferenceProcess, _);
+    });
+
+    tippyDictPriority.forEach(_ => {
+        let tippyReferencePriority = _.reference;
+        tippyReferencePriority.setAttribute('data-tippy-priority-id', tippyDictPriority.indexOf(_));
+        setTippyTypePriority(tippyReferencePriority, _);
+    });
+});
+
+
+
+function setTippyTypePriority(tippyReference, _) {
+    if (tippyReference.getAttribute('data-tippy-content') == 'urgente') {
+        _.setProps({ theme: 'priorityUrgente' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'annullata') {
+        _.setProps({ theme: 'priorityAnnullato' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'fermata') {
+        _.setProps({ theme: 'priorityFermata' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'conclusa') {
+        _.setProps({ theme: 'priorityConclusa' });
+    }
+
+    if (tippyReference.getAttribute('data-tippy-content') == 'dubbio urgente') {
+        _.setProps({ theme: 'priorityDaCapireUrgentemente' });
+    }
+
+    if (tippyReference.getAttribute('data-tippy-content') == 'da valutare') {
+        _.setProps({ theme: 'priorityDaValutare' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'obbligatorio') {
+        _.setProps({ theme: 'priorityObbligatorio' });
+    }
+
+    
+
+}
+
+
+function setTippyTypeProcess(tippyReference, _) {
+    if (tippyReference.getAttribute('data-tippy-content') == 'approvato') {
+        _.setProps({ theme: 'processok' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'work in progress') {
+        _.setProps({ theme: 'processWIP' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'completato') {
+        _.setProps({ theme: 'processCompletato' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'Info') {
+        _.setProps({ theme: 'processInfo' });
+    }
+    if (tippyReference.getAttribute('data-tippy-content') == 'attenzione') {
+        _.setProps({ theme: 'processAttenzione' });
+    }
+
+}
+
 
 // Manage Images
 
 // function to manage readability 
 var arrayReadabilityToggle = [];
 function toggleSeeMe(stringMatchedHash) {
-    
+
     var $box = $('#' + stringMatchedHash);
     var buttonPressed = arrayReadabilityToggle.find(data => data.id == $box.id);
     if (buttonPressed == undefined) {
@@ -50,15 +128,15 @@ function toggleSeeMe(stringMatchedHash) {
 
 // function to show/hide image's toolbar
 
-function showImageToolbar(referenceId) {    
+function showImageToolbar(referenceId) {
     var $element = $('#' + referenceId);
     var divStyle = getComputedStyle($element[0]);
     var rect = $element[0].getBoundingClientRect();
     var test = rect.top;
-    $element.attr("style","display:block; position:absolute;");
+    $element.attr("style", "display:block; position:absolute;");
 }
 
-function hideImageToolbar(referenceId) {    
+function hideImageToolbar(referenceId) {
     var $element = $('#' + referenceId);
     $element.attr("style", "display:none;");
 }
@@ -69,23 +147,23 @@ var arrayLinksMoveToggle = [];
 var moving = false;
 var image;
 
-function activateMove(currentObject, linkHash,referenceId) {    
+function activateMove(currentObject, linkHash, referenceId) {
     var toSend = currentObject.parentElement.parentElement;
     $movable = $(toSend);
-    var buttonPressed = arrayLinksMoveToggle.find(data => data == linkHash);    
+    var buttonPressed = arrayLinksMoveToggle.find(data => data == linkHash);
     if (buttonPressed == undefined) {
         var newClass = $movable.attr('class', 'movable');
         arrayLinksMoveToggle.push(linkHash);
     } else {
-        
+
         var currentIndex = arrayLinksMoveToggle.findIndex(data => data == linkHash);
         arrayLinksMoveToggle.splice(currentIndex, 1);
         var possibleMatch = currentObject.parentElement.nextSibling;
         resizeImage(possibleMatch);
         $movable.attr('class', 'movedAndFixed');
-        
+
     }
-    
+
     initialClick(toSend, referenceId);
 }
 
@@ -106,8 +184,8 @@ function initialClick(currentObject, referenceId) {
 
 function move(e) {
 
-    var newX = e.clientX-76;
-    var newY = e.clientY-18;
+    var newX = e.clientX - 76;
+    var newY = e.clientY - 18;
 
     image.style.left = newX + "px";
     image.style.top = newY + "px";
@@ -129,13 +207,13 @@ function activateResize(linkHash) {
             arrayLinksResizeToggle.push(linkHash);
         }
         else {
-            
+
 
             var oldValue = $links[index].attributes['class'].value;
             $links[index].attributes['class'].value = oldValue.replace(' resizable', '');
             var currentIndex = arrayLinksResizeToggle.findIndex(data => data == linkHash);
             arrayLinksResizeToggle.splice(currentIndex, 1);
-            
+
         }
 
     });
@@ -160,15 +238,15 @@ var cumulativeOffset = function (element) {
 // Function called by onMouseUp event to 
 // write down on MD the new image dimension values.
 function resizeImage(currentDiv) {
-    
+
     // going inside the div
-    var img = currentDiv.childNodes[0].childNodes[0];     
+    var img = currentDiv.childNodes[0].childNodes[0];
     var divStyle = getComputedStyle(img.parentElement.parentElement.parentElement);
     var position = divStyle.position;// == "" ? "none" : img.style.position;
     // getting infos from attributes
 
     var currentHash = currentDiv.attributes['md-css-hash'].value;
-    var pathFile = currentDiv.attributes['md-path-file'].value;    
+    var pathFile = currentDiv.attributes['md-path-file'].value;
     var linkHash = currentDiv.attributes['md-link-hash'].value;
     var CurrentQueryRequest = currentDiv.attributes['md-CurrentQueryRequest'].value;
 
@@ -272,7 +350,7 @@ $(function () {
                     element.attributes['data-md-priority-index'].value = index;// listProcess.index(element);
                 });
                 // Reconstruct index of table-card into table-game, foreach table-game
-                var iTable = 0;                
+                var iTable = 0;
                 var listPriorityItableGame = $("span[id*='mojiPriority'][data-md-table-game-index=" + iTable.toString() + "]");
                 while (listPriorityItableGame.length > 0) {
                     listPriorityItableGame.each(function (index, element) {
@@ -281,10 +359,10 @@ $(function () {
                     iTable++;
                     var listPriorityItableGame = $("span[id*='mojiPriority'][data-md-table-game-index=" + iTable.toString() + "]");
                 }
-                
-                
-                
-               
+
+
+
+
                 console.log(data);
             });
         console.log('sortstop parents Event = ', event, '  ui = ', ui);
@@ -346,66 +424,99 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
     }
 }
 
+
+
 // gestione degli emoji di processo
 function dynamicEmojiForProcess(el, index, pathfile) {
 
+    let dataToSet;
+    el.removeAttribute('data-tippy-content');
     if (el.innerText == 'ℹ️') {
         el.innerText = '🆗';
-        el.title = 'approvato';
-
+        el.setAttribute('data-tippy-content', 'approvato');
+        dataToSet = 'approvato';
     } else
         if (el.innerText == '🆗') {
             el.innerText = '⚠️';
-            el.title = 'attenzione!';
+            el.setAttribute('data-tippy-content', 'attenzione');
+            dataToSet = 'attenzione';
+
         } else
             if (el.innerText == '⚠️') {
                 el.innerText = '🚧';
-                el.title = 'work in progress';
+                el.setAttribute('data-tippy-content', 'work in progress');
+                dataToSet = 'work in progress';
             } else
                 if (el.innerText == '🚧') {
                     el.innerText = '✔️';
-                    el.title = 'completato';
+                    el.setAttribute('data-tippy-content', 'completato');
+                    dataToSet = 'completato';
                 } else
                     if (el.innerText == '✔️') {
                         el.innerText = 'ℹ️';
-                        el.title = 'in valutazione';
+                        el.setAttribute('data-tippy-content', 'in valutazione');
+                        dataToSet = 'Info';
                     }
     var currentIndex = el.attributes['data-md-process-index'].value;
     $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
         console.log(data);
     });
+    setTooltipProcess(dataToSet, el);
 
 }
+
+function setTooltipPriority(dataToSet, el) {
+    debugger;
+    let currentPriority = tippyDictPriority[el.attributes[8].value];
+    currentPriority.setContent(dataToSet);
+    currentPriority.reference.setAttribute('data-tippy-content',dataToSet)
+    setTippyTypePriority(currentPriority.reference, currentPriority);
+}
+
+function setTooltipProcess(dataToSet, el) {
+    
+    let current = tippyDictProcess[el.attributes[4].value]; //data-tippy-process-id
+    current.setContent(dataToSet);    
+    setTippyTypeProcess(current.reference, current);
+}
+
+
 
 // gestione degli emoji di priorità
 function dynamicEmojiForPriority(el, index, pathfile) {
 
     if (el.innerText == '❓') {
         el.innerText = '❔';
-        el.title = 'dubbio';
+        //el.title = 'da valutare';
+        dataToSet = 'da valutare';
     } else
         if (el.innerText == '❔') {
             el.innerText = '❕';
-            el.title = 'obbligatorio';
+            //el.title = 'obbligatorio';
+            dataToSet = 'obbligatorio';
 
         } else
             if (el.innerText == '❕') {
                 el.innerText = '❗';
-                el.title = 'urgente';
+                //el.title = 'urgente';
+                dataToSet = 'urgente';
             } else
                 if (el.innerText == '❗') {
                     el.innerText = '❌';
-                    el.title = 'annullata';
+                    //el.title = 'annullata';
+                    dataToSet = 'annullata';
                 } else
                     if (el.innerText == '❌') {
                         el.innerText = '⛔';
-                        el.title = 'fermata';
+                        //el.title = 'fermata';
+                        dataToSet = 'fermata';
                         var element = $('#' + el.id).parent();
                     } else
                         if (el.innerText == '⛔') {
                             el.innerText = '❎';
-                            el.title = 'conclusa';
+                            //el.title = 'conclusa';
+                            dataToSet = 'conclusa';
                             var element = $('#' + el.id).parent();
                             var check = element.parent().is('li');
                             if (check) {
@@ -416,7 +527,8 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 
                             if (el.innerText == '❎') {
                                 el.innerText = '❓';
-                                el.title = 'da valutare';
+                                //el.title = 'da valutare';
+                                dataToSet = 'dubbio urgente';
                                 var element = $('#' + el.id).parent();
                                 var check = element.is('li');
                                 if (!check) {
@@ -431,7 +543,7 @@ function dynamicEmojiForPriority(el, index, pathfile) {
         $(".result").html(data);
         console.log(data);
     });
-
+    setTooltipPriority(dataToSet, el);
 }
 
 // gestione del box di ricerca della toc
@@ -505,7 +617,7 @@ $(function () {
     window.canvas.setAttribute('hidden', 'hidden');
     window.canvas.style.position = 'absolute';
     window.canvas.style.top = 0;
-    window.canvas.style.left = window.innerWidth-40; // qui è dove si imposta il canvas FUORI dal campo visivo
+    window.canvas.style.left = window.innerWidth - 40; // qui è dove si imposta il canvas FUORI dal campo visivo
 
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
@@ -531,17 +643,17 @@ function toggleMdCanvas() {
     if (window.toggleCanvas) {
         $(window.canvas).removeAttr('hidden');
         $(window.canvas).animate({
-            left : 40,
-        }, function () {            
+            left: 40,
+        }, function () {
         });
-        
+
     } else {
         $(window.canvas).animate({
             left: window.innerWidth,
         }, function () {
             window.canvas.setAttribute('hidden', 'hidden');
         });
-        
+
     }
     window.toggleCanvas = !window.toggleCanvas;
 }
@@ -579,7 +691,7 @@ function draw(e) {
 
         ctx.stroke(); // draw it!
     }
-    
+
 }
 
 //Gestione Clipboard *************
@@ -602,7 +714,7 @@ const setToClipboard = async blob => {
 
 //Gestione presentazione Plantuml
 
-async function presentationSVG(relativePathFile, hashFile) {    
+async function presentationSVG(relativePathFile, hashFile) {
     var $forwardArrow = $('#forwardArrow' + hashFile);
     var trueStep = parseInt($forwardArrow.attr("data-step"));
     const result = await $.get("/api/plantumlextensions/PresentationSVG?pathFile=" + relativePathFile +
