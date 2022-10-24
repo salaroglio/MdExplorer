@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import * as signalR from "@microsoft/signalr";
 import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
 import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/parsing-project.provider';
+import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 
 interface linkSignalREvent_Component {
   key: string
@@ -18,6 +19,7 @@ export class ServerMessagesService {
 
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
+    private plantumlWorkingProvider: PlantumlWorkingProvider,
     private connectionLostProvider: ConnectionLostProvider  ) {
     this.startConnection();
     console.log('MonitorMDService constructor');
@@ -43,6 +45,13 @@ export class ServerMessagesService {
       this.hubConnection.on('parsingProjectStop', (data) => {
         this.parsingProjectProvider.hide(data);
       });
+      this.hubConnection.on('plantumlWorkStart', (data) => {
+        this.plantumlWorkingProvider.show(data);
+      });
+      this.hubConnection.on('plantumlWorkStop', (data) => {
+        this.plantumlWorkingProvider.hide(data);
+      });
+
       this.hubConnection.on('consoleClosed', (data) => {
         console.log('consoleClosed');
         this.consoleIsClosed = true;

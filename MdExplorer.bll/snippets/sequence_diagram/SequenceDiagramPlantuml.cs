@@ -17,7 +17,9 @@ namespace MdExplorer.Features.snippets.sequence_diagram
 
         public string GetSnippet(DictionarySnippetParam param)
         {
-            return Helper.ExtractResFileString("MdExplorer.Features.snippets.sequence_diagram.plantuml.sequence_diagram.plantuml");
+            var text = Helper.ExtractResFileString("MdExplorer.Features.snippets.sequence_diagram.plantuml.sequence_diagram.plantuml");
+            text = text.Replace("__title__", (string)param[ParameterName.StringDocumentTitle]);
+            return text;
         }
 
         public void SetAssets(string directoryPath)

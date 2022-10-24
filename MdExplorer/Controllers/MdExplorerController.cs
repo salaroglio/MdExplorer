@@ -246,6 +246,12 @@ namespace MdExplorer.Controllers
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
             };
+            var isPlantuml = false;
+            if (readText.Contains("```plantuml"))
+            {
+                isPlantuml = true;
+                await _hubContext.Clients.All.SendAsync("plantumlWorkStart", monitoredMd);
+            }
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
@@ -388,6 +394,11 @@ namespace MdExplorer.Controllers
                 var htmlClass = doc1.CreateAttribute("class");
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
+            }
+
+            if (isPlantuml)
+            {                 
+                await _hubContext.Clients.All.SendAsync("plantumlWorkStop", monitoredMd);
             }
             return doc1;
         }
