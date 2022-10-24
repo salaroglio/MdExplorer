@@ -2592,14 +2592,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
 /* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+
 
 
 
 
 class ServerMessagesService {
-    constructor(parsingProjectProvider, connectionLostProvider) {
+    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider) {
         this.parsingProjectProvider = parsingProjectProvider;
+        this.plantumlWorkingProvider = plantumlWorkingProvider;
         this.connectionLostProvider = connectionLostProvider;
         this.connectionIsLost = false;
         this.consoleIsClosed = false;
@@ -2616,6 +2619,12 @@ class ServerMessagesService {
                 });
                 this.hubConnection.on('parsingProjectStop', (data) => {
                     this.parsingProjectProvider.hide(data);
+                });
+                this.hubConnection.on('plantumlWorkStart', (data) => {
+                    this.plantumlWorkingProvider.show(data);
+                });
+                this.hubConnection.on('plantumlWorkStop', (data) => {
+                    this.plantumlWorkingProvider.hide(data);
                 });
                 this.hubConnection.on('consoleClosed', (data) => {
                     console.log('consoleClosed');
@@ -2696,7 +2705,7 @@ class ServerMessagesService {
         });
     }
 }
-ServerMessagesService.ɵfac = function ServerMessagesService_Factory(t) { return new (t || ServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__["ConnectionLostProvider"])); };
+ServerMessagesService.ɵfac = function ServerMessagesService_Factory(t) { return new (t || ServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"])); };
 ServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ServerMessagesService, factory: ServerMessagesService.ɵfac, providedIn: 'root' });
 
 

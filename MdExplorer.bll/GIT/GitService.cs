@@ -9,10 +9,13 @@ namespace MdExplorer.Features.GIT
 {
     public class GitService : IGitService
     {
-        
        
         public string GetCurrentUser(string projectPath)
         {
+            if (!Repository.IsValid(projectPath))
+            {
+                return "not available";
+            }
             using (var repo = new Repository(projectPath))
             {
                 Configuration config = repo.Config;
@@ -22,6 +25,10 @@ namespace MdExplorer.Features.GIT
 
         public string GetCurrentUserEmail(string projectPath)
         {
+            if (!Repository.IsValid(projectPath))
+            {
+                return "not available";
+            }
             using (var repo = new Repository(projectPath))
             {
                 Configuration config = repo.Config;

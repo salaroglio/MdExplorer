@@ -5,12 +5,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="GitLabApi\**" />
+    <EmbeddedResource Remove="GitLabApi\**" />
+    <None Remove="GitLabApi\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="snippets\gantt\gantt.plantuml" />
     <None Remove="snippets\sequence_diagram\assets\angular.png" />
     <None Remove="snippets\sequence_diagram\assets\apicore.png" />
     <None Remove="snippets\sequence_diagram\assets\database.png" />
     <None Remove="snippets\sequence_diagram\assets\event.png" />
     <None Remove="snippets\sequence_diagram\assets\filesystem.png" />
+    <None Remove="snippets\sequence_diagram\assets\java.png" />
     <None Remove="snippets\sequence_diagram\assets\MdExplorer.png" />
     <None Remove="snippets\sequence_diagram\assets\rest.png" />
     <None Remove="snippets\sequence_diagram\assets\signalR.png" />
@@ -26,6 +33,7 @@
     <EmbeddedResource Include="snippets\sequence_diagram\assets\database.png" />
     <EmbeddedResource Include="snippets\sequence_diagram\assets\event.png" />
     <EmbeddedResource Include="snippets\sequence_diagram\assets\filesystem.png" />
+    <EmbeddedResource Include="snippets\sequence_diagram\assets\java.png" />
     <EmbeddedResource Include="snippets\sequence_diagram\assets\MdExplorer.png" />
     <EmbeddedResource Include="snippets\sequence_diagram\assets\rest.png" />
     <EmbeddedResource Include="snippets\sequence_diagram\assets\signalR.png" />
@@ -60,7 +68,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="GitLabApi\" />
     <Folder Include="snippets\workflow\assets\" />
     <Folder Include="snippets\workflow\plantuml\" />
   </ItemGroup>

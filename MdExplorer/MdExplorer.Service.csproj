@@ -67,6 +67,7 @@
     <Content Remove="wwwroot\assets\notes.png" />
     <Content Remove="wwwroot\assets\notes48.png" />
     <Content Remove="wwwroot\assets\plantuml.png" />
+    <Content Remove="wwwroot\assets\Plantuml_Logo.svg" />
     <Content Remove="wwwroot\assets\PrepareToIcon.png" />
     <Content Remove="wwwroot\assets\Refactoring.png" />
     <Content Remove="wwwroot\assets\rename.png" />
@@ -335,6 +336,7 @@
     <EmbeddedResource Include="wwwroot\assets\notes.png" />
     <EmbeddedResource Include="wwwroot\assets\notes48.png" />
     <EmbeddedResource Include="wwwroot\assets\plantuml.png" />
+    <EmbeddedResource Include="wwwroot\assets\Plantuml_Logo.svg" />
     <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
     <EmbeddedResource Include="wwwroot\assets\Refactoring.png" />
     <EmbeddedResource Include="wwwroot\assets\rename.png" />
