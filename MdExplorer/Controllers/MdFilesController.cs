@@ -337,6 +337,54 @@ namespace MdExplorer.Controllers
         }
 
         [HttpPost]
+        public IActionResult RenameDirectory([FromBody] RenameDirectory fileData)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            
+
+
+            
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
+
+            var list = new List<IFileInfoNode>();
+            var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
+
+            var dynamicRelativePath = string.Empty;
+            var currentLevel = 0;
+            foreach (var item in relativeSplitted)
+            {
+                dynamicRelativePath =
+                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
+                dynamicRelativePath += item;
+
+                var node = new FileInfoNode
+                {
+                    Name = item,
+                    FullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + dynamicRelativePath,
+                    RelativePath = dynamicRelativePath,
+                    Path = dynamicRelativePath,
+                    Type = "folder",
+                    Level = currentLevel,
+                };
+                currentLevel++;
+                list.Add(node);
+            }
+            var nodeFile = new FileInfoNode
+            {
+                Name = fileData.DirectoryName,
+                FullPath = fullPath,
+                Path = relativePath,
+                RelativePath = relativePath,
+                Type = "folder",
+                Level = currentLevel,
+            };
+            list.Add(nodeFile);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(list);
+        }
+
+        [HttpPost]
         public IActionResult CreateNewDirectory([FromBody] NewDirectory fileData)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -547,6 +595,13 @@ public class NewFile
 }
 
 public class NewDirectory
+{
+    public string DirectoryName { get; set; }
+    public string DirectoryPath { get; set; }
+    public int DirectoryLevel { get; set; }
+}
+
+public class RenameDirectory
 {
     public string DirectoryName { get; set; }
     public string DirectoryPath { get; set; }

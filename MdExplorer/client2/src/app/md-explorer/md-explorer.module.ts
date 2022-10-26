@@ -24,6 +24,7 @@ import { OptionBranchComponent } from './components/git-changes/select-branch/op
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
+import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
 
  
 
@@ -60,6 +61,7 @@ const routes: Routes = [
     OptionBranchComponent,
     ConnectionLostComponent,
     ParsingProjectComponent,
+    ChangeDirectoryComponent,
     
       
   ],

@@ -8,7 +8,7 @@
 <mat-menu #rightMenu="matMenu">
   <ng-template matMenuContent let-item="item">
     <div>
-      <!--<button *ngIf="item.type==='folder' || item.name==='root'"><img src="/assets/rename.png" alt="Rename directory" /></button>-->
+      <button *ngIf="item.type==='folder'" (click)="renameDirectoryOn(item)"><img src="/assets/rename.png" alt="Rename directory" /></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" (click)="createMdOn(item)"><img src="/assets/new-document.png" alt="New document" /></button>
       <button *ngIf="item.type==='mdFile'" ><mat-icon>delete</mat-icon></button>

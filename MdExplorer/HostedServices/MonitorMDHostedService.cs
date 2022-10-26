@@ -155,7 +155,8 @@ namespace MdExplorer.Service.HostedServices
                                         || e.FullPath.Contains($".docx")
                                         || e.FullPath.Contains($".tmp");
             var isWrongGitFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD")
-                                        || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG");
+                                        || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG")
+                                        || e.FullPath.Contains($".0.pdnSave"); // Paint.net problem
             return (isWrongDirectory, isWrongExtensionFile, isWrongGitFile);
         }
 

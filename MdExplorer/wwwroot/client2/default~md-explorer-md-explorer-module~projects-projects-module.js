@@ -4308,6 +4308,15 @@ class MdFileService {
         };
         return this.http.post(url, newData);
     }
+    RenameDirectory(path, directoryName, directoryLevel) {
+        const url = '../api/mdfiles/RenameDirectory';
+        var newData = {
+            directoryPath: path,
+            directoryName: directoryName,
+            directoryLevel: directoryLevel,
+        };
+        return this.http.post(url, newData);
+    }
     CreateNewMd(path, title, directoryLevel, documentTypeId, documentType) {
         const url = '../api/mdfiles/CreateNewMd';
         var newData = {

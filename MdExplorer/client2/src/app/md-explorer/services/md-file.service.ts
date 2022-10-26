@@ -222,6 +222,16 @@ export class MdFileService {
     return this.http.post<MdFile[]>(url, newData);
   }
 
+  RenameDirectory(path: string, directoryName: string, directoryLevel: number) {
+    const url = '../api/mdfiles/RenameDirectory';
+    var newData = {
+      directoryPath: path,
+      directoryName: directoryName,
+      directoryLevel: directoryLevel,
+    }
+    return this.http.post<MdFile[]>(url, newData);
+  }
+
   CreateNewMd(path: string, title: string, directoryLevel: number, documentTypeId :number, documentType:string) {
     const url = '../api/mdfiles/CreateNewMd';
     var newData = {

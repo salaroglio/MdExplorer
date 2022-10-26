@@ -8,6 +8,7 @@ import { Observable } from 'rxjs';
 import { IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
+import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 
@@ -146,6 +147,18 @@ export class MdTreeComponent implements OnInit {
       node.fullPath = "root";
     }
     this.dialog.open(NewDirectoryComponent, {
+      width: '300px',
+      data: node,
+    });
+  }
+
+
+  renameDirectoryOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    this.dialog.open(ChangeDirectoryComponent, {
       width: '300px',
       data: node,
     });
