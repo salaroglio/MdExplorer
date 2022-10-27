@@ -17,6 +17,7 @@ using MdExplorer.Features.snippets.gantt;
 using MdExplorer.Features.snippets.sequence_diagram;
 using MdExplorer.Features.snippets.slide;
 using MdExplorer.Features.snippets.text_document;
+using MdExplorer.Features.snippets.workflow;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
@@ -72,6 +73,7 @@ namespace MdExplorer.Features
                     new SequenceDiagramPlantuml(),
                     new GanttPlantuml(),
                     new SlidePowerPoint(),
+                    new WorkFlowPlantuml(),
                 };
                 return listOfSnippets.ToArray();
             });            

@@ -11,6 +11,7 @@ import { MdFileService } from '../../services/md-file.service';
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
+import { Clipboard } from '@angular/cdk/clipboard';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -60,6 +61,8 @@ export class MdTreeComponent implements OnInit {
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private snackBar: MatSnackBar,
+    private clipboard: Clipboard,
+
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -169,6 +172,11 @@ export class MdTreeComponent implements OnInit {
       this.snackBar.open("file explorer open", "", { duration: 500 });
     });
 
+  }
+
+  getLinkFromNode(node: MdFile) {
+    this.clipboard.copy(node.relativePath);
+    
   }
 
 }
