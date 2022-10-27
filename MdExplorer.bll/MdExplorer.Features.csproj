@@ -6,8 +6,14 @@
 
   <ItemGroup>
     <Compile Remove="GitLabApi\**" />
+    <Compile Remove="snippets\workflow\assets\**" />
+    <Compile Remove="snippets\workflow\plantuml\**" />
     <EmbeddedResource Remove="GitLabApi\**" />
+    <EmbeddedResource Remove="snippets\workflow\assets\**" />
+    <EmbeddedResource Remove="snippets\workflow\plantuml\**" />
     <None Remove="GitLabApi\**" />
+    <None Remove="snippets\workflow\assets\**" />
+    <None Remove="snippets\workflow\plantuml\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +30,7 @@
     <None Remove="snippets\sequence_diagram\assets\vscode.png" />
     <None Remove="snippets\sequence_diagram\sequence_diagram.plantuml" />
     <None Remove="snippets\slide\SlidePowerPoint.reveal" />
+    <None Remove="snippets\workflow\workflow.plantuml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +49,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="snippets\slide\SlidePowerPoint.reveal" />
+    <EmbeddedResource Include="snippets\workflow\workflow.plantuml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -65,11 +73,6 @@
     <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />
     <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="snippets\workflow\assets\" />
-    <Folder Include="snippets\workflow\plantuml\" />
   </ItemGroup>
 
 </Project>
