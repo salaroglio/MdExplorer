@@ -7,7 +7,7 @@ import { MdFile } from '../models/md-file';
   providedIn: 'root'
 })
 export class MdFileService {
-  
+
   private _whatDisplayForToolbar: BehaviorSubject<string>;
   private _mdFiles: BehaviorSubject<MdFile[]>;
   private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
@@ -78,7 +78,7 @@ export class MdFileService {
   get selectedDirectoryFromNewDirectory(): Observable<MdFile> {
     return this._selectedDirectoryFromNewDirectory.asObservable();
   }
-  
+
 
   // breadcrumb
   get navigationArray(): MdFile[] {
@@ -91,8 +91,8 @@ export class MdFileService {
 
   addNewFile(data: MdFile[]) {
     // searching directories    
-      var currentItem = data[0];
-      let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
+    var currentItem = data[0];
+    let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
     if (currentFolder != undefined) {
       this.recursiveSearchFolder(data, 0, currentFolder);
     } else {
@@ -101,11 +101,10 @@ export class MdFileService {
       } else {
         currentFolder.childrens.push(data[0]); // insert new file in folder
       }
-      
       this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
-        
   }
+
 
   addNewDirectory(data: MdFile[]) {
     // searching directories
@@ -121,18 +120,16 @@ export class MdFileService {
       } else {
         currentFolder.childrens.push(currentItem); // insert new directory in folder
       }
-
       this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
-
   }
 
-  recursiveSearchFolder(data: MdFile[], i: number, parentFolder:MdFile) {
+  recursiveSearchFolder(data: MdFile[], i: number, parentFolder: MdFile) {
     var currentI = i + 1;
     var currentItem = data[currentI];
     let currentFolder = parentFolder.childrens.find(_ => _.fullPath == currentItem.fullPath);
     if (currentFolder != undefined) {
-      this.recursiveSearchFolder(data, currentI,currentFolder);
+      this.recursiveSearchFolder(data, currentI, currentFolder);
     } else {
       parentFolder.childrens.push(data[currentI]); // insert new file
       this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
@@ -140,15 +137,15 @@ export class MdFileService {
   }
 
 
-  loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {    
+  loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
     const url = '../api/mdfiles/GetAllMdFiles';
     return this.http.get<MdFile[]>(url)
-      .subscribe(data => {   
+      .subscribe(data => {
         this.dataStore.mdFiles = data;
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
         if (callback != null) {
           callback(data, objectThis);
-        }        
+        }
       },
         error => {
           console.log("failed to fetch mdfile list");
@@ -158,7 +155,7 @@ export class MdFileService {
   loadFolders() {
     const url = '../api/mdfiles/GetFoldersDocument';
     return this.http.get<MdFile[]>(url)
-      .subscribe(data => {        
+      .subscribe(data => {
         this.dataStore.mdFoldersDocument = data;
         this._mdFoldersDocument.next(Object.assign({}, this.dataStore).mdFoldersDocument);
       },
@@ -167,15 +164,15 @@ export class MdFileService {
         });
   }
 
-  loadDynFolders(path:string, level:number) {
-    const url = '../api/mdfiles/GetDynFoldersDocument';    
+  loadDynFolders(path: string, level: number) {
+    const url = '../api/mdfiles/GetDynFoldersDocument';
     var params = new HttpParams().set('path', path).set('level', String(level));
-    
-    return this.http.get<MdFile[]>(url, {params})
+
+    return this.http.get<MdFile[]>(url, { params })
       .subscribe(data => {
         if (this.dataStore.mdDynFolderDocument.length > 0) {
           var test = this.dataStore.mdDynFolderDocument.find(_ => _.path == path);
-          test.children = data;          
+          test.children = data;
         } else {
           this.dataStore.mdDynFolderDocument = data;
         }
@@ -200,7 +197,7 @@ export class MdFileService {
 
   getLandingPage() {
     const url = '../api/mdfiles/GetLandingPage';
-    return this.http.get<MdFile>(url);    
+    return this.http.get<MdFile>(url);
   }
 
   SetLandingPage(file: MdFile) {
@@ -212,7 +209,33 @@ export class MdFileService {
     return this.http.post<MdFile>(url, file);
   }
 
-  CreateNewDirectory(path: string, directoryName: string, directoryLevel:number) {
+  deleteFile(file: MdFile) {
+    const url = '../api/mdfiles/DeleteFile';
+    return this.http.post<MdFile>(url, file).subscribe(_ => {
+      this.recursiveDeleteFileFromDataStore(file);
+      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    });
+  }
+
+  recursiveDeleteFileFromDataStore(data: MdFile) {
+    let dataFound: MdFile[] =[];
+
+    this.recursiveSearch(this.dataStore.mdFiles, data, dataFound);
+    let cursor = this.dataStore.mdFiles;
+    debugger;
+    for (var i = 0; i < dataFound.length; i++) {
+      let currentElement = dataFound[i];      
+      if (i == dataFound.length-1) {
+        this.dataStore.mdFiles.splice(cursor.indexOf(currentElement),1);
+      } else {
+        cursor = currentElement.childrens;
+      }
+    }
+    
+  }
+
+
+  CreateNewDirectory(path: string, directoryName: string, directoryLevel: number) {
     const url = '../api/mdfiles/CreateNewDirectory';
     var newData = {
       directoryPath: path,
@@ -232,21 +255,21 @@ export class MdFileService {
     return this.http.post<MdFile[]>(url, newData);
   }
 
-  CreateNewMd(path: string, title: string, directoryLevel: number, documentTypeId :number, documentType:string) {
+  CreateNewMd(path: string, title: string, directoryLevel: number, documentTypeId: number, documentType: string) {
     const url = '../api/mdfiles/CreateNewMd';
     var newData = {
       directoryPath: path,
       title: title,
       directoryLevel: directoryLevel,
       documentTypeId: documentTypeId,
-      documentType:documentType
+      documentType: documentType
     }
     return this.http.post<MdFile[]>(url, newData);
   }
 
 
   fileFoundMd: boolean = false;
- 
+
 
   /**
    * Funzione di sostituzione di un nodo, con un altro
@@ -254,7 +277,7 @@ export class MdFileService {
    * @param newFile
    */
   changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
-    
+
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, oldFile);
     var leaf = returnFound[0];
     leaf.name = newFile.name;
@@ -279,52 +302,42 @@ export class MdFileService {
   }
 
   setSelectedMdFileFromServer(selectedFile: MdFile) {
-    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile); 
+    var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
     this._serverSelectedMdFile.next(returnFound);
   }
 
 
-  getMdFileFromDataStore(selectedFile: MdFile):MdFile {
+  getMdFileFromDataStore(selectedFile: MdFile): MdFile {
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
     return returnFound[0];
   }
 
   searchMdFileIntoDataStore(arrayMd: MdFile[], FileToFind: MdFile): MdFile[] {
-    this.fileFoundMd = false;    
-    var arrayFound: MdFile[]  = [];
+    this.fileFoundMd = false;
+    var arrayFound: MdFile[] = [];
     this.recursiveSearch(arrayMd, FileToFind, arrayFound);
     return arrayFound;
   }
 
 
-/**
- * Funzione di esplorazione dell'albero per trovare il nodo
- * @param arrayMd
- * @param oldFile
- * @param newFile
- */
-  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]
-    //, newFile: MdFile
-  ) {
+  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]) {
     if (arrayMd.length == 0) {
       return;
     }
     var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
-   
+
     if (thatFile == undefined) {
       for (var i = 0; i < arrayMd.length; i++) {
         var _ = arrayMd[i];
         if (!this.fileFoundMd) {
           this.recursiveSearch(_.childrens, fileTofind, arrayFound);//, newFile
-        } 
+        }
         if (this.fileFoundMd) {
           arrayFound.push(_);
           break;
         }
-        
       }
-
-    } else {      
+    } else {
       this.fileFoundMd = true;
       arrayFound.push(thatFile);
     }
@@ -332,9 +345,9 @@ export class MdFileService {
 
 }
 
-export interface INewFileCreated {  
-  newName: string;  
-  newPath: string;  
+export interface INewFileCreated {
+  newName: string;
+  newPath: string;
   newLevel: number;
   expandable: boolean;
   relativePath: boolean;

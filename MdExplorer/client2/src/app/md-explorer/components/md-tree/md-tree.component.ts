@@ -65,7 +65,7 @@ export class MdTreeComponent implements OnInit {
 
   ) {
     this.dataSource.data = TREE_DATA;
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
+    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
       while (myClonedArray.length > 1) {
@@ -94,7 +94,7 @@ export class MdTreeComponent implements OnInit {
       if (node != null) {
         objectThis.mdFileService.setSelectedMdFileFromSideNav(node);
         objectThis.activeNode = node;
-      }      
+      }
     });
   }
 
@@ -137,7 +137,7 @@ export class MdTreeComponent implements OnInit {
 
 
 
-  setMdAsLandingPage(node: MdFile) {    
+  setMdAsLandingPage(node: MdFile) {
     this.mdFileService.SetLandingPage(node).subscribe(_ => {
       this.snackBar.open(node.name, "is project landing page", { duration: 5000 });
     });
@@ -171,12 +171,15 @@ export class MdTreeComponent implements OnInit {
     this.mdFileService.openFolderOnFileExplorer(node).subscribe(_ => {
       this.snackBar.open("file explorer open", "", { duration: 500 });
     });
-
   }
 
   getLinkFromNode(node: MdFile) {
     this.clipboard.copy(node.relativePath);
-    
+
+  }
+
+  deleteFile(node: MdFile) {
+    this.mdFileService.deleteFile(node);
   }
 
 }

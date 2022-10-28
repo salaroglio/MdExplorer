@@ -4299,6 +4299,28 @@ class MdFileService {
         const url = '../api/mdfiles/OpenFolderOnFileExplorer';
         return this.http.post(url, file);
     }
+    deleteFile(file) {
+        const url = '../api/mdfiles/DeleteFile';
+        return this.http.post(url, file).subscribe(_ => {
+            this.recursiveDeleteFileFromDataStore(file);
+            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        });
+    }
+    recursiveDeleteFileFromDataStore(data) {
+        let dataFound = [];
+        this.recursiveSearch(this.dataStore.mdFiles, data, dataFound);
+        let cursor = this.dataStore.mdFiles;
+        debugger;
+        for (var i = 0; i < dataFound.length; i++) {
+            let currentElement = dataFound[i];
+            if (i == dataFound.length - 1) {
+                this.dataStore.mdFiles.splice(cursor.indexOf(currentElement), 1);
+            }
+            else {
+                cursor = currentElement.childrens;
+            }
+        }
+    }
     CreateNewDirectory(path, directoryName, directoryLevel) {
         const url = '../api/mdfiles/CreateNewDirectory';
         var newData = {
@@ -4367,15 +4389,7 @@ class MdFileService {
         this.recursiveSearch(arrayMd, FileToFind, arrayFound);
         return arrayFound;
     }
-    /**
-     * Funzione di esplorazione dell'albero per trovare il nodo
-     * @param arrayMd
-     * @param oldFile
-     * @param newFile
-     */
-    recursiveSearch(arrayMd, fileTofind, arrayFound
-    //, newFile: MdFile
-    ) {
+    recursiveSearch(arrayMd, fileTofind, arrayFound) {
         if (arrayMd.length == 0) {
             return;
         }

@@ -11,7 +11,7 @@
       <button *ngIf="item.type==='folder'" mat-icon-button color="accent" matTooltip="rename folder" (click)="renameDirectoryOn(item)"><img src="/assets/rename.png" alt="Rename directory" /></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button matTooltip="create new folder" color="primary" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button matTooltip="create new document" mat-icon-button color="primary" (click)="createMdOn(item)"><mat-icon>note_add</mat-icon></button>
-      <button *ngIf="item.type==='mdFile'" mat-icon-button color="warn" matTooltip="delete document"><mat-icon>delete</mat-icon></button>
+      <button *ngIf="item.type==='mdFile'" mat-icon-button color="warn" (click)="deleteFile(item)" matTooltip="delete document"><mat-icon>delete</mat-icon></button>
       <button *ngIf="item.type==='mdFile'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" matTooltip="copy link to clipboard"><mat-icon>link</mat-icon></button>
     </div>
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
