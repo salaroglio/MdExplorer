@@ -76,29 +76,40 @@ namespace MdExplorer.Controllers
 
             var toReturn = landingPage.LandingPages.Count() != 0 ? new FileInfoNode
             {
-                Expandable  = landingPage.LandingPages.First().Expandable,
+                Expandable = landingPage.LandingPages.First().Expandable,
                 FullPath = landingPage.LandingPages.First().FullPath,
                 Level = landingPage.LandingPages.First().Level,
                 Name = landingPage.LandingPages.First().Name,
                 Path = landingPage.LandingPages.First().Path,
                 RelativePath = landingPage.LandingPages.First().RelativePath,
                 Type = landingPage.LandingPages.First().Type,
-                DataText = landingPage.LandingPages.First().DataText,                
-            }: null;
+                DataText = landingPage.LandingPages.First().DataText,
+            } : null;
             return Ok(toReturn);
         }
 
+
+        [HttpPost]
         public IActionResult OpenFolderOnFileExplorer([FromBody] FileInfoNode fileData)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
                 Arguments = fileData.FullPath,
                 FileName = "explorer.exe"
-             };
+            };
 
             Process.Start(startInfo);
-            return Ok(new { message="done" });
+            return Ok(new { message = "done" });
         }
+
+        [HttpPost]
+        public IActionResult DeleteFile([FromBody] FileInfoNode fileData)
+        {
+            System.IO.File.Delete(fileData.FullPath);
+            return Ok(new { message = "done" });
+        }
+
+
 
         [HttpPost]
         public IActionResult SetLandingPage([FromBody] FileInfoNode fileData)
@@ -126,7 +137,8 @@ namespace MdExplorer.Controllers
                     Type = fileData.Type,
                     DataText = fileData.DataText,
                 };
-            }else
+            }
+            else
             {
                 landingPageDetails.Level = fileData.Level;
                 landingPageDetails.Expandable = fileData.Expandable;
@@ -137,13 +149,13 @@ namespace MdExplorer.Controllers
                 landingPageDetails.Type = fileData.Type;
                 landingPageDetails.DataText = fileData.DataText;
             }
-               
-               
-            
+
+
+
             dalDetails.Save(landingPageDetails);
 
             _projectDB.Commit();
-            return Ok(new {message = "Done" });
+            return Ok(new { message = "Done" });
         }
 
 
@@ -282,17 +294,17 @@ namespace MdExplorer.Controllers
             dictParam.Add(ParameterName.ProjectPath, _fileSystemWatcher.Path);
             dictParam.Add(ParameterName.DocumentType, fileData.DocumentType);
             templateContent = snippetTextDocument.GetSnippet(dictParam);
-            
+
 
             // Additional Template 
-            var snippet =_snippets.Where(_ => _.Id == fileData.documentTypeId && _.Id != 0).FirstOrDefault();
+            var snippet = _snippets.Where(_ => _.Id == fileData.documentTypeId && _.Id != 0).FirstOrDefault();
             if (snippet != null)
             {
                 snippet.SetAssets(fullPath);
                 var addtionalTemplateContent = snippet.GetSnippet(dictParam);
                 templateContent = string.Concat(templateContent, addtionalTemplateContent);
             }
-            
+
             // write content
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
             System.IO.File.WriteAllText(fullPath, templateContent);
@@ -341,10 +353,10 @@ namespace MdExplorer.Controllers
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
-            
 
 
-            
+
+
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
 
             var list = new List<IFileInfoNode>();
