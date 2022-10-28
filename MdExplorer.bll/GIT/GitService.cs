@@ -23,6 +23,21 @@ namespace MdExplorer.Features.GIT
             }
         }
 
+        public string GetCurrentBranch(string projectPath)
+        {
+            if (!Repository.IsValid(projectPath))
+            {
+                return "not available";
+            }
+            using (var repo = new Repository(projectPath))
+            {
+                Configuration config = repo.Config;
+                var data = repo.Head.FriendlyName;
+                return data;
+            }
+            return "";
+        }
+
         public string GetCurrentUserEmail(string projectPath)
         {
             if (!Repository.IsValid(projectPath))

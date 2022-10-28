@@ -10,6 +10,7 @@ namespace MdExplorer.Features.GIT
     {
         string GetCurrentUser(string projectPath);
         string GetCurrentUserEmail(string projectPath);
+        string GetCurrentBranch(string projectPath);
 
     }
 }

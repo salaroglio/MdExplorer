@@ -9,6 +9,7 @@ import { RenameFileComponent } from '../refactoring/rename-file/rename-file.comp
 import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
 import { MdFile } from '../../models/md-file';
+import { GITService } from '../../../git/services/gitservice.service';
 
 @Component({
   selector: 'app-toolbar',
@@ -29,11 +30,13 @@ export class ToolbarComponent implements OnInit {
     private _snackBar: MatSnackBar,
     private router: Router,
     public mdFileService: MdFileService,
+    private gitservice: GITService
 
   ) {
     this.TitleToShow = "MdExplorer";
   }
-  private plantumlServer: string;
+  public currentBranch: string;
+  
 
   openRefactoring(): void {
     const dialogRef = this.dialog.open(RenameFileComponent, {
@@ -68,11 +71,14 @@ export class ToolbarComponent implements OnInit {
   }
 
 
+
   ngOnInit(): void {
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
-    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this);
-    this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);
-
+    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
+    this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
+    this.gitservice.getCurrentBranch().subscribe(branch => {
+      this.currentBranch = branch.name;
+    });
 
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
 

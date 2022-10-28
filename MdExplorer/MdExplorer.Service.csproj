@@ -48,6 +48,7 @@
     <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\eyes.png" />
     <Content Remove="wwwroot\assets\eyes48.png" />
+    <Content Remove="wwwroot\assets\gitlogo.png" />
     <Content Remove="wwwroot\assets\green_right_arrow.png" />
     <Content Remove="wwwroot\assets\green_right_arrow48.png" />
     <Content Remove="wwwroot\assets\IconReady.png" />
@@ -317,6 +318,7 @@
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlogo.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow48.png" />
     <EmbeddedResource Include="wwwroot\assets\IconReady.png" />
@@ -556,6 +558,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="client2\src\app\git\models\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
