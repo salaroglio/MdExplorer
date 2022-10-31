@@ -27,7 +27,7 @@ namespace MdExplorer.Features.GIT
         {
             if (!Repository.IsValid(projectPath))
             {
-                return "not available";
+                return null;
             }
             using (var repo = new Repository(projectPath))
             {

@@ -26,3 +26,13 @@ $iconWidth: after 56px;
 .flexExpand {
   flex: 1 1 auto;
 }
+
+
+#projectcss {
+  ::ng-deep.mat-tooltip {
+    /* your own custom styles here */
+    /* e.g. */
+    color: white;
+    background-color: blue;
+  }
+}

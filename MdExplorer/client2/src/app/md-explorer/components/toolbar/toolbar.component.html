@@ -1,12 +1,12 @@
 <mat-toolbar color="primary">
   <mat-toolbar-row>
-    <button mat-icon-button (click)="toggleSidenav.emit()">
+    <button mat-icon-button matTooltip="hide/show menu" (click)="toggleSidenav.emit()">
       <mat-icon>vertical_split</mat-icon>
     </button>
-    <button mat-icon-button (click)="OpenEditor()">
+    <button mat-icon-button matTooltip="edit document" (click)="OpenEditor()">
       <mat-icon>edit_note</mat-icon>
     </button>
-    <button mat-icon-button (click)="Export()">
+    <button mat-icon-button matTooltip="export in word" (click)="Export()">
       <mat-icon>directions</mat-icon>
     </button>
 
@@ -16,12 +16,11 @@
     <span *ngFor="let doc of this.mdFileService.navigationArray"><span *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span><a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}" (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a></span>
     <span class="flexExpand"></span>
     <span *ngIf="currentBranch!=null">
-      <button mat-icon-button><img src="/assets/gitlogo.png" /></button>
+      <img src="/assets/gitlogo.png" />
       <span>[{{currentBranch}}]</span>
-    </span>
+    </span>    
     
-    
-    <button mat-icon-button (click)="openDialog()">
+    <button mat-icon-button matTooltip="global settings" (click)="openDialog()">
       <mat-icon>settings</mat-icon>
     </button>
   </mat-toolbar-row>

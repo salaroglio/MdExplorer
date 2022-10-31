@@ -1,6 +1,6 @@
 
 
-<mat-sidenav-container autosize class="app-sidenav-container" >
+<mat-sidenav-container autosize class="app-sidenav-container">
 
   <mat-sidenav #sidenav [style.width]="sideNavWidth" class=" mat-elevation-z10"
                [opened]="!isScreenSmall"
@@ -8,7 +8,7 @@
 
     <mat-toolbar color="primary">
       <div>
-        <button mat-icon-button (click)="openProject()">
+        <button mat-icon-button id="projectcss" matTooltip="projects list" (click)="openProject()">
           <mat-icon>ballot</mat-icon>
         </button>
         <!--<button mat-icon-button>
@@ -21,10 +21,14 @@
       {{titleProject}}
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
-      <mat-tab label="Docs Explorer">                
+      <mat-tab label="Docs Explorer">
         <app-md-tree></app-md-tree>
       </mat-tab>
-      <mat-tab label="Git Changes">
+      <mat-tab *ngIf="currentBranch != null">
+        <ng-template mat-tab-label>
+          <img src="/assets/gitlogo.png" />
+          <span>Git</span>
+        </ng-template>
         <app-git-changes></app-git-changes>
       </mat-tab>
     </mat-tab-group>

@@ -10,7 +10,7 @@ export class MdFileService {
 
   private _whatDisplayForToolbar: BehaviorSubject<string>;
   private _mdFiles: BehaviorSubject<MdFile[]>;
-  private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
+  //private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
   public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
   public _serverSelectedMdFile: BehaviorSubject<MdFile[]>;
   private _navigationArray: MdFile[] = [];// deve morire
@@ -35,7 +35,7 @@ export class MdFileService {
     };
 
     this._mdFiles = new BehaviorSubject<MdFile[]>([]);
-    this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
+    //this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
     this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromToolbar = new BehaviorSubject<MdFile[]>([]);
@@ -55,9 +55,9 @@ export class MdFileService {
   get mdFiles(): Observable<MdFile[]> {
     return this._mdFiles.asObservable();
   }
-  get mdFoldersDocument(): Observable<MdFile[]> {
-    return this._mdFoldersDocument.asObservable();
-  }
+  //get mdFoldersDocument(): Observable<MdFile[]> {
+  //  return this._mdFoldersDocument.asObservable();
+  //}
 
   get mdDynFolderDocument(): Observable<MdFile[]> {
     return this._mdDynFolderDocument.asObservable();
@@ -152,17 +152,17 @@ export class MdFileService {
         });
   }
 
-  loadFolders() {
-    const url = '../api/mdfiles/GetFoldersDocument';
-    return this.http.get<MdFile[]>(url)
-      .subscribe(data => {
-        this.dataStore.mdFoldersDocument = data;
-        this._mdFoldersDocument.next(Object.assign({}, this.dataStore).mdFoldersDocument);
-      },
-        error => {
-          console.log("failed to fetch mdfile list");
-        });
-  }
+  //loadFolders() {
+  //  const url = '../api/mdfiles/GetFoldersDocument';
+  //  return this.http.get<MdFile[]>(url)
+  //    .subscribe(data => {
+  //      this.dataStore.mdFoldersDocument = data;
+  //      this._mdFoldersDocument.next(Object.assign({}, this.dataStore).mdFoldersDocument);
+  //    },
+  //      error => {
+  //        console.log("failed to fetch mdfile list");
+  //      });
+  //}
 
   loadDynFolders(path: string, level: number) {
     const url = '../api/mdfiles/GetDynFoldersDocument';
@@ -171,8 +171,9 @@ export class MdFileService {
     return this.http.get<MdFile[]>(url, { params })
       .subscribe(data => {
         if (this.dataStore.mdDynFolderDocument.length > 0) {
-          var test = this.dataStore.mdDynFolderDocument.find(_ => _.path == path);
-          test.children = data;
+          debugger;
+          //var test = this.dataStore.mdDynFolderDocument.find(_ => _.path == path);
+          //test.children = data;
         } else {
           this.dataStore.mdDynFolderDocument = data;
         }
@@ -217,20 +218,26 @@ export class MdFileService {
     });
   }
 
-  recursiveDeleteFileFromDataStore(data: MdFile) {
+  recursiveDeleteFileFromDataStore(fileToFind: MdFile) {
     let dataFound: MdFile[] =[];
-
-    this.recursiveSearch(this.dataStore.mdFiles, data, dataFound);
-    let cursor = this.dataStore.mdFiles;
     debugger;
-    for (var i = 0; i < dataFound.length; i++) {
-      let currentElement = dataFound[i];      
-      if (i == dataFound.length-1) {
-        this.dataStore.mdFiles.splice(cursor.indexOf(currentElement),1);
-      } else {
-        cursor = currentElement.childrens;
-      }
+    this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
+    if (dataFound.length == 1) {
+      var dataIndex = this.dataStore.mdFiles.indexOf(dataFound[0]);
+      this.dataStore.mdFiles.splice(dataIndex, 1);
     }
+    if (dataFound.length > 1) {
+      let cursor = this.dataStore.mdFiles;
+      let currentFolder:MdFile[] = []
+      for (var i = dataFound.length -1 ; i >0 ; i--) {
+        currentFolder = cursor[cursor.indexOf(dataFound[i])].childrens;
+      }
+      currentFolder.splice(currentFolder.indexOf(dataFound[dataFound.length - 1]), 1);
+      
+
+    }
+    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+
     
   }
 
@@ -268,7 +275,7 @@ export class MdFileService {
   }
 
 
-  fileFoundMd: boolean = false;
+  //fileFoundMd: boolean = false;
 
 
   /**
@@ -313,34 +320,36 @@ export class MdFileService {
   }
 
   searchMdFileIntoDataStore(arrayMd: MdFile[], FileToFind: MdFile): MdFile[] {
-    this.fileFoundMd = false;
+    //this.fileFoundMd = false;
     var arrayFound: MdFile[] = [];
     this.recursiveSearch(arrayMd, FileToFind, arrayFound);
     return arrayFound;
   }
 
 
-  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]) {
+  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]):boolean {
     if (arrayMd.length == 0) {
       return;
     }
+    let found2 = false;
     var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
 
     if (thatFile == undefined) {
       for (var i = 0; i < arrayMd.length; i++) {
         var _ = arrayMd[i];
-        if (!this.fileFoundMd) {
-          this.recursiveSearch(_.childrens, fileTofind, arrayFound);//, newFile
+        if (!found2) { //this.fileFoundMd
+          found2 = this.recursiveSearch(_.childrens, fileTofind, arrayFound);//, newFile
         }
-        if (this.fileFoundMd) {
+        if (found2) { //this.fileFoundMd
           arrayFound.push(_);
           break;
         }
       }
     } else {
-      this.fileFoundMd = true;
+      found2 = true; //this.fileFoundMd
       arrayFound.push(thatFile);
     }
+    return found2;
   }
 
 }
