@@ -12,6 +12,7 @@ import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-dir
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -179,7 +180,11 @@ export class MdTreeComponent implements OnInit {
   }
 
   deleteFile(node: MdFile) {
-    this.mdFileService.deleteFile(node);
+    this.dialog.open(DeleteMarkdownComponent, {
+      width: '300px',
+      data: node,
+    });
+
   }
 
 }

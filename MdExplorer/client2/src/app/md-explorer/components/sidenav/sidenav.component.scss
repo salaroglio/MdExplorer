@@ -80,3 +80,12 @@ a:active {
   padding: 3px !important;
   margin: 3px !important;
 }
+
+#projectcss {
+  ::ng-deep.mat-tooltip {
+    /* your own custom styles here */
+    /* e.g. */
+    color: white;
+    background-color: blue;
+  }
+}

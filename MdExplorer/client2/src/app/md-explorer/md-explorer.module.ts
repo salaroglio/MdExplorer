@@ -25,6 +25,7 @@ import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/conn
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
+import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
 
  
 
@@ -62,6 +63,7 @@ const routes: Routes = [
     ConnectionLostComponent,
     ParsingProjectComponent,
     ChangeDirectoryComponent,
+    DeleteMarkdownComponent,
     
       
   ],

@@ -4,6 +4,7 @@ import { Router }                                          from '@angular/router
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { MdFileService }      from '../../services/md-file.service';
 import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
+import { GITService } from '../../../git/services/gitservice.service';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
@@ -20,13 +21,15 @@ export class SidenavComponent implements OnInit {
   private hooked: boolean = false;
   public classForBorderDiv: string = "border-div";
   public titleProject: string;
+  public currentBranch: string = null;
 
   constructor(
     private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
     private router: Router,
     private currentFolder: AppCurrentFolderService,
-    private ref: ChangeDetectorRef
+    private ref: ChangeDetectorRef,
+    private gitService: GITService
   ) {
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
@@ -43,7 +46,9 @@ export class SidenavComponent implements OnInit {
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
-    
+    this.gitService.getCurrentBranch().subscribe(_ => {
+      this.currentBranch = _.name;
+    });
   }
 
   resizeWidth(): void {    
