@@ -89,19 +89,19 @@ export class MainContentComponent implements OnInit, AfterViewInit {
         //|| (_ == 'hideToolbar' + ' ' + 'hideToolbarNone' && this.whatClass != _ + ' ' + 'hideToolbarNone')
       ) { // check if something is truely changed
         this.whatClass = _;
-        this.sleep(300).then(m => {
+        //this.sleep(300).then(m => {
           if (_ == 'hideToolbar' && _ != undefined) {
             this.whatClass = _ + ' ' + 'hideToolbarNone'
             this.ref.detectChanges();
           }
-        });
+        //});
         this.ref.detectChanges();
       }
     });
   }
-  sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  //sleep(ms) {
+  //  return new Promise(resolve => setTimeout(resolve, ms));
+  //}
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
       let dateTime = new Date().getTime() / 1000;
