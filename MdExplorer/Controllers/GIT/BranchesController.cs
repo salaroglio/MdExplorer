@@ -1,4 +1,8 @@
-﻿using MdExplorer.Features.GIT;
+﻿using MdExplorer;
+using MdExplorer.Features.GIT;
+using MdExplorer.Service;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Controllers.GIT;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -7,16 +11,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MdExplorer.Service.Controllers
+namespace MdExplorer.Service.Controllers.GIT
 {
     [ApiController]
     [Route("/api/gitservice/branches")]
-    public class GitController : ControllerBase
+    public class BranchesController : ControllerBase
     {
         private readonly IGitService _gitService;
         private readonly FileSystemWatcher _fileSystemWatcher;
 
-        public GitController(IGitService gitService,
+        public BranchesController(IGitService gitService,
             FileSystemWatcher fileSystemWatcher)
         {
             _gitService = gitService;
@@ -25,8 +29,8 @@ namespace MdExplorer.Service.Controllers
         [HttpGet("feat/GetCurrentBranch")]
         public IActionResult GetCurrentBranch()
         {
-            var toReturn =_gitService.GetCurrentBranch(_fileSystemWatcher.Path);
-            return Ok(new { name=toReturn });//classe branch lato angular
+            var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
+            return Ok(new { name = toReturn });//classe branch lato angular
         }
 
     }

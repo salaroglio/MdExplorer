@@ -256,10 +256,10 @@ NewProjectComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefi
 
 /***/ }),
 
-/***/ "IVY+":
-/*!*******************************************************************!*\
-  !*** ./src/app/projects/clone-project/clone-project.component.ts ***!
-  \*******************************************************************/
+/***/ "Bw61":
+/*!***************************************************************************!*\
+  !*** ./src/app/projects/dialogs/clone-project/clone-project.component.ts ***!
+  \***************************************************************************/
 /*! exports provided: CloneProjectComponent */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
@@ -403,7 +403,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _open_recent_open_recent_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./open-recent/open-recent.component */ "PK6v");
 /* harmony import */ var _projects_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./projects.component */ "zUkc");
 /* harmony import */ var _new_project_new_project_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./new-project/new-project.component */ "5Zmz");
-/* harmony import */ var _clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./clone-project/clone-project.component */ "IVY+");
+/* harmony import */ var _dialogs_clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./dialogs/clone-project/clone-project.component */ "Bw61");
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../shared/material.module */ "5dmV");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ "fXoL");
@@ -441,7 +441,7 @@ ProjectsModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInj
 (function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵsetNgModuleScope"](ProjectsModule, { declarations: [_open_recent_open_recent_component__WEBPACK_IMPORTED_MODULE_1__["OpenRecentComponent"],
         _projects_component__WEBPACK_IMPORTED_MODULE_2__["ProjectsComponent"],
         _new_project_new_project_component__WEBPACK_IMPORTED_MODULE_3__["NewProjectComponent"],
-        _clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__["CloneProjectComponent"]], imports: [_angular_router__WEBPACK_IMPORTED_MODULE_5__["RouterModule"], _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
+        _dialogs_clone_project_clone_project_component__WEBPACK_IMPORTED_MODULE_4__["CloneProjectComponent"]], imports: [_angular_router__WEBPACK_IMPORTED_MODULE_5__["RouterModule"], _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
         _shared_material_module__WEBPACK_IMPORTED_MODULE_6__["MaterialModule"]] }); })();
 
 
@@ -546,14 +546,11 @@ class ProjectsComponent {
         this.dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }];
     }
     ngOnInit() {
-        //this.projectService.fetchProjects();
-        //this.dataSource = this.projectService.mdProjects;
     }
     openRecent() {
         this.router.navigate(['/projects/openrecent']);
     }
     openNewFolder() {
-        //this.router.navigate(['/projects/newproject']);
         const dialogRef = this.dialog.open(_new_project_new_project_component__WEBPACK_IMPORTED_MODULE_0__["NewProjectComponent"], {
             width: '600px',
             data: null

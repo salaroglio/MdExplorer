@@ -562,7 +562,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="client2\src\app\git\models\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
