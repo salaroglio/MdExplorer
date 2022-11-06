@@ -1,10 +1,11 @@
 
-import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { Router }                                          from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { MdFileService }      from '../../services/md-file.service';
-import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
+import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 import { GITService } from '../../../git/services/gitservice.service';
+import { MatSidenav } from '@angular/material/sidenav';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
@@ -14,7 +15,7 @@ const SMALL_WIDTH_BREAKPOINT = 720;
   templateUrl: './sidenav.component.html',
   styleUrls: ['./sidenav.component.scss']
 })
-export class SidenavComponent implements OnInit {
+export class SidenavComponent implements OnInit, AfterViewInit {
   
   public sideNavWidth: string = "240px";
   public isScreenSmall: boolean;
@@ -22,14 +23,15 @@ export class SidenavComponent implements OnInit {
   public classForBorderDiv: string = "border-div";
   public titleProject: string;
   public currentBranch: string = null;
+  @ViewChild('sidenav') sidenav: MatSidenav;
 
   constructor(
     private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
     private router: Router,
-    private currentFolder: AppCurrentFolderService,
-    private ref: ChangeDetectorRef,
-    private gitService: GITService
+    private currentFolder: AppCurrentMetadataService,
+    
+    private gitService: GITService,    
   ) {
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
@@ -49,7 +51,21 @@ export class SidenavComponent implements OnInit {
     this.gitService.getCurrentBranch().subscribe(_ => {
       this.currentBranch = _.name;
     });
+
+    this.currentFolder.showSidenav.subscribe(_ => {      
+      if (this.sidenav != undefined ) {
+        if (_) {
+          this.sidenav.open();
+        } else {
+          this.sidenav.close();
+        }
+      }
+    });
+    
   }
+    ngAfterViewInit(): void {
+      
+    }
 
   resizeWidth(): void {    
     this.hooked = true;
@@ -72,30 +88,10 @@ export class SidenavComponent implements OnInit {
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches
       });
-
-   
-    this.mdFileService.whatDisplayForToolbar.subscribe(_ => {
-      
-      if ( (_ == 'showToolbar' && this.whatClass != _) ||
-        (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone') 
-        //|| (_ == 'hideToolbar' + ' ' + 'hideToolbarNone' && this.whatClass != _ + ' ' + 'hideToolbarNone')
-      ) { // check if something is truely changed
-        this.whatClass = _;
-        this.sleep(300).then(m => {
-          if (_ == 'hideToolbar' && _ != undefined) {
-            this.whatClass = _ + ' ' + 'hideToolbarNone'
-            this.ref.detectChanges();
-          }
-        });
-        this.ref.detectChanges();
-      }
-    });
-  }
-  sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  public whatClass: string = "showToolbar";
+
+
   
 
 }

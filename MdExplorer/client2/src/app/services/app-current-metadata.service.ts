@@ -7,10 +7,11 @@ import { MdSetting } from '../Models/MdSettings';
 @Injectable({
   providedIn: 'root'
 })
-export class AppCurrentFolderService {
+export class AppCurrentMetadataService {
 
   private _folderName: BehaviorSubject<string>;
   private _Settings: BehaviorSubject<IMdSetting[]>;
+  public showSidenav: BehaviorSubject<boolean>;
 
 
   private dataStore: {
@@ -23,7 +24,8 @@ export class AppCurrentFolderService {
     this.dataStore = {
       folderName: 'test', settings: [new MdSetting({ id:'test', name: 'PlantumlServer' })]}
     this._folderName = new BehaviorSubject<string>('test');
-    this._Settings = new BehaviorSubject<IMdSetting[]>([]);    
+    this._Settings = new BehaviorSubject<IMdSetting[]>([]);
+    this.showSidenav = new BehaviorSubject<boolean>(true);
   }
 
   get folderName(): Observable<string> {

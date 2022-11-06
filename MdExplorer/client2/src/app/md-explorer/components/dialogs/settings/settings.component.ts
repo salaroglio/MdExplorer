@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import { IMdSetting } from '../../../../Models/IMdSetting'
-import { AppCurrentFolderService } from '../../../../services/app-current-folder.service';
+import { AppCurrentMetadataService } from '../../../../services/app-current-metadata.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
  
@@ -16,7 +16,7 @@ export class SettingsComponent implements OnInit {
   plantumlServer: string;
   jiraServer: string;
 
-  constructor(private appCurrentFolder: AppCurrentFolderService,
+  constructor(private appCurrentFolder: AppCurrentMetadataService,
     private dialogRef: MatDialogRef<SettingsComponent>,
     private _snackBar: MatSnackBar
   ) {

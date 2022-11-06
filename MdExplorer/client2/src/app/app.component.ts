@@ -1,7 +1,7 @@
 import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AppCurrentFolderService } from './services/app-current-folder.service';
+import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 
 @Component({
   selector: 'app-root',
@@ -21,7 +21,7 @@ export class AppComponent {
   }
   title = 'client2';
   constructor(private titleService: Title,
-    private currentFolder: AppCurrentFolderService,
+    private currentFolder: AppCurrentMetadataService,
     private route: ActivatedRoute,
     private router: Router) {
     

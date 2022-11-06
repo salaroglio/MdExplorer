@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, NgZone, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, NgZone, OnInit, Output, ViewChild } from '@angular/core';
 import { MdFile } from '../../models/md-file';
 //import { IWorkWithElement } from '../../services/href-interceptor.service';
 import { MdFileService } from '../../services/md-file.service';
@@ -15,6 +15,7 @@ import { MatDialog } from '@angular/material/dialog';
 })
 export class MainContentComponent implements OnInit, AfterViewInit {
   @ViewChild('myBelovedIframe') el: ElementRef;
+  public whatClass: string = "showToolbar";
 
   ngAfterViewInit() {
     this.el.nativeElement.onload = _ => {
@@ -27,8 +28,9 @@ export class MainContentComponent implements OnInit, AfterViewInit {
       }
       
     };
-
   }
+
+
 
   toolbarHandler(event) {
     event.currentTarget.myReferenceObject.lastCall(event);
@@ -61,10 +63,10 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     private sanitizer: DomSanitizer,
     private monitorMDService: ServerMessagesService,
     public dialog: MatDialog,
+    private ref: ChangeDetectorRef,
   ) {
     console.log("MainContentComponent constructor");
     this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
-    //this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
   }
 
   ngOnInit(): void {
@@ -80,9 +82,26 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     this.service.selectedDirectoryFromNewDirectory.subscribe(_ => {
 
     });
+    this.service.whatDisplayForToolbar.subscribe(_ => {
 
+      if ((_ == 'showToolbar' && this.whatClass != _) ||
+        (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone')
+        //|| (_ == 'hideToolbar' + ' ' + 'hideToolbarNone' && this.whatClass != _ + ' ' + 'hideToolbarNone')
+      ) { // check if something is truely changed
+        this.whatClass = _;
+        this.sleep(300).then(m => {
+          if (_ == 'hideToolbar' && _ != undefined) {
+            this.whatClass = _ + ' ' + 'hideToolbarNone'
+            this.ref.detectChanges();
+          }
+        });
+        this.ref.detectChanges();
+      }
+    });
   }
-
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
       let dateTime = new Date().getTime() / 1000;
