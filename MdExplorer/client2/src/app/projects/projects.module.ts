@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { OpenRecentComponent } from './open-recent/open-recent.component';
 import { ProjectsComponent } from './projects.component';
 import { NewProjectComponent } from './new-project/new-project.component';
-import { CloneProjectComponent } from './clone-project/clone-project.component';
+import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 

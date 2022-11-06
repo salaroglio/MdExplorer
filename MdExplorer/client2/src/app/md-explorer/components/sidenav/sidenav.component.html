@@ -21,13 +21,13 @@
       {{titleProject}}
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
-      <mat-tab label="Docs Explorer">
+      <mat-tab label="Project docs">
         <app-md-tree></app-md-tree>
-      </mat-tab>
+      </mat-tab>      
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>
           <img src="/assets/gitlogo.png" />
-          <span>Git</span>
+          <span>Git CI/CD</span>
         </ng-template>
         <app-git-changes></app-git-changes>
       </mat-tab>
