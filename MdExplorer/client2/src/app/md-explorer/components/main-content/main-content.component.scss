@@ -4,3 +4,13 @@
   height: 100%;
   border: 1px solid black;
 }
+
+
+.hideToolbar {
+  height: 0px;
+  transition: height 300ms ease-out;
+}
+
+.hideToolbarNone {
+  display: none;
+}

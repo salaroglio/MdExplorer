@@ -2,7 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
 import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
 import { SettingsComponent } from '../dialogs/settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
@@ -10,6 +9,7 @@ import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
 import { MdFile } from '../../models/md-file';
 import { GITService } from '../../../git/services/gitservice.service';
+import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 
 @Component({
   selector: 'app-toolbar',
@@ -22,15 +22,15 @@ export class ToolbarComponent implements OnInit {
   relativePath: string;
   connectionId: string;
 
-  @Output() toggleSidenav = new EventEmitter<void>();
+  //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
     public dialog: MatDialog,
     private monitorMDService: ServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
-    private router: Router,
     public mdFileService: MdFileService,
-    private gitservice: GITService
+    private gitservice: GITService,
+    private appSettings : AppCurrentMetadataService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -44,6 +44,10 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
+  toggleSidenav() {
+    let test = !this.appSettings.showSidenav.value;
+    this.appSettings.showSidenav.next(test);
+  }
   openDialog(): void {
     const dialogRef = this.dialog.open(SettingsComponent, {
       width: '600px',

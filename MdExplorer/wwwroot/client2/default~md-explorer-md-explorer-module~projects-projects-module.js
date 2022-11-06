@@ -4207,8 +4207,7 @@ class MdFileService {
         }
     }
     addNewDirectory(data) {
-        // searching directories
-        debugger;
+        // searching directories    
         var currentItem = data[0];
         currentItem.expandable = true;
         let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
@@ -4267,7 +4266,6 @@ class MdFileService {
         return this.http.get(url, { params })
             .subscribe(data => {
             if (this.dataStore.mdDynFolderDocument.length > 0) {
-                debugger;
                 //var test = this.dataStore.mdDynFolderDocument.find(_ => _.path == path);
                 //test.children = data;
             }
@@ -4309,7 +4307,6 @@ class MdFileService {
     }
     recursiveDeleteFileFromDataStore(fileToFind) {
         let dataFound = [];
-        debugger;
         this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
         if (dataFound.length == 1) {
             var dataIndex = this.dataStore.mdFiles.indexOf(dataFound[0]);
