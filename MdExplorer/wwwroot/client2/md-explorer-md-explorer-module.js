@@ -1861,27 +1861,19 @@ class MainContentComponent {
         });
         this.service.whatDisplayForToolbar.subscribe(_ => {
             if ((_ == 'showToolbar' && this.whatClass != _) ||
-                (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone')
-            //|| (_ == 'hideToolbar' + ' ' + 'hideToolbarNone' && this.whatClass != _ + ' ' + 'hideToolbarNone')
-            ) { // check if something is truely changed
+                (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone')) { // check if something is truely changed
                 this.whatClass = _;
-                //this.sleep(300).then(m => {
                 if (_ == 'hideToolbar' && _ != undefined) {
                     this.whatClass = _ + ' ' + 'hideToolbarNone';
                     this.ref.detectChanges();
                 }
-                //});
                 this.ref.detectChanges();
             }
         });
     }
-    //sleep(ms) {
-    //  return new Promise(resolve => setTimeout(resolve, ms));
-    //}
     callMdExplorerController(node) {
         if (node != null && node.relativePath != undefined) {
             let dateTime = new Date().getTime() / 1000;
-            //this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
             this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
         }
     }
@@ -1889,7 +1881,6 @@ class MainContentComponent {
         let dateTime = new Date();
         objectThis.service.navigationArray = [];
         objectThis.service.setSelectedMdFileFromServer(data);
-        //this.el.nativeElement.contentWindow(null, 'http://127.0.0.1');
         objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
     }
 }
