@@ -14,3 +14,13 @@
 .hideToolbarNone {
   display: none;
 }
+
+.hundredPercentContent {
+  height: 100%;
+  width: 100%;
+}
+
+.contentWithToolbar {
+  height: calc(100% - 72px);
+  width: 100%;
+}
