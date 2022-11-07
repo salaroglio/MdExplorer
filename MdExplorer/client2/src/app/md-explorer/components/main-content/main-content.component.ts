@@ -15,7 +15,8 @@ import { MatDialog } from '@angular/material/dialog';
 })
 export class MainContentComponent implements OnInit, AfterViewInit {
   @ViewChild('myBelovedIframe') el: ElementRef;
-  public whatClass: string = "showToolbar";
+  public classForToolbar: string = "showToolbar";
+  public classForContent: string = "contentWithToolbar";
 
   ngAfterViewInit() {
     this.el.nativeElement.onload = _ => {
@@ -40,10 +41,11 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     if (event.deltaY < 0) {
       // visualizzare
       this.service.setWhatDisplayForToolbar('showToolbar');
-
+      
     } else {
       // nascondere
       this.service.setWhatDisplayForToolbar('hideToolbar');
+      
     }    
   }
 
@@ -84,12 +86,14 @@ export class MainContentComponent implements OnInit, AfterViewInit {
     });
     this.service.whatDisplayForToolbar.subscribe(_ => {
 
-      if ((_ == 'showToolbar' && this.whatClass != _) ||
-        (_ == 'hideToolbar' && this.whatClass != _ + ' ' + 'hideToolbarNone')
+      if ((_ == 'showToolbar' && this.classForToolbar != _) ||
+        (_ == 'hideToolbar' && this.classForToolbar != _ + ' ' + 'hideToolbarNone')
       ) { // check if something is truely changed
-        this.whatClass = _;
+        this.classForToolbar = _;
+        this.classForContent = 'contentWithToolbar';
           if (_ == 'hideToolbar' && _ != undefined) {
-            this.whatClass = _ + ' ' + 'hideToolbarNone'
+            this.classForToolbar = _ + ' ' + 'hideToolbarNone'
+            this.classForContent = 'hundredPercentContent';
             this.ref.detectChanges();
           }
         this.ref.detectChanges();
