@@ -236,7 +236,6 @@
     <None Remove="Binaries\GraphWiz\binaries\cdt.dll" />
     <None Remove="Binaries\GraphWiz\binaries\cgraph.dll" />
     <None Remove="Binaries\GraphWiz\binaries\config6" />
-    <None Remove="Binaries\GraphWiz\binaries\dot.exe" />
     <None Remove="Binaries\GraphWiz\binaries\expat.dll" />
     <None Remove="Binaries\GraphWiz\binaries\gvc.dll" />
     <None Remove="Binaries\GraphWiz\binaries\gvplugin_core.dll" />
@@ -285,9 +284,9 @@
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Content Include="Binaries\GraphWiz\binaries\LICENSE.txt">
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\LICENSE.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    </EmbeddedResource>
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\pathplan.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -656,6 +655,12 @@
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.vi.js" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-CN.js" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Binaries\plantuml-old.jar">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 
