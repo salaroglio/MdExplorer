@@ -17,10 +17,13 @@ import { AppCurrentMetadataService } from '../../../services/app-current-metadat
   styleUrls: ['./toolbar.component.scss']
 })
 export class ToolbarComponent implements OnInit {
+
   TitleToShow: string;
   absolutePath: string;
   relativePath: string;
   connectionId: string;
+  somethingIsChangedInTheBranch: boolean;
+  howManyFilesAreToCommit: number;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -80,19 +83,22 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
+    // get current branch name and if the branch has something to commit
     this.gitservice.getCurrentBranch().subscribe(branch => {
       this.currentBranch = branch.name;
+      this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
+      this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
     });
 
+    // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
-
       if (_ != null) {
         this.mdFileService.navigationArray = [];
         this.absolutePath = _.fullPath;
         this.relativePath = _.relativePath;
       }
     });
-
+    // something has changed on filesystem
     this.mdFileService.serverSelectedMdFile.subscribe(val => {
       var current = val[0];
       if (current != undefined) {
@@ -105,7 +111,7 @@ export class ToolbarComponent implements OnInit {
         this.relativePath = current.relativePath;
       }
 
-    });
+   });
   }
 
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {

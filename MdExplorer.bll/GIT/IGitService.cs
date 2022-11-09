@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MdExplorer.Abstractions.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +12,7 @@ namespace MdExplorer.Features.GIT
         string GetCurrentUser(string projectPath);
         string GetCurrentUserEmail(string projectPath);
         string GetCurrentBranch(string projectPath);
-
+        int HowManyFilesAreChanged(string projectPath);
+        GitBranch[] GetBranches(string projectPath);
     }
 }

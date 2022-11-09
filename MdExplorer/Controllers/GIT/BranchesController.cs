@@ -30,7 +30,19 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult GetCurrentBranch()
         {
             var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
-            return Ok(new { name = toReturn });//classe branch lato angular
+            var howManyFilesAreChanged = _gitService.HowManyFilesAreChanged(_fileSystemWatcher.Path);
+
+            return Ok(new { name = toReturn, 
+                somethingIsChangedInTheBranch = howManyFilesAreChanged>0,
+                howManyFilesAreChanged = howManyFilesAreChanged
+            });//classe branch lato angular
+        }
+
+        [HttpGet]
+        public IActionResult GetBranches()
+        {
+            var toReturn = _gitService.GetBranches(_fileSystemWatcher.Path);
+            return Ok(toReturn);
         }
 
     }
