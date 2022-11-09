@@ -13,8 +13,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 export class SettingsComponent implements OnInit {
 
   _settings: IMdSetting[];
-  plantumlServer: string;
+  vscodePath: string;
   jiraServer: string;
+  plantumlLocalPath: string;
+  javaPath: string;
+  localGraphvizDotPath: string;
 
   constructor(private appCurrentFolder: AppCurrentMetadataService,
     private dialogRef: MatDialogRef<SettingsComponent>,
@@ -29,15 +32,22 @@ export class SettingsComponent implements OnInit {
       var settings = data.settings as IMdSetting[];
       if (settings != undefined) {
         this._settings = settings;
-        this.plantumlServer = settings.filter(_ => _.name === "EditorPath")[0].valueString || null;
+        this.vscodePath = settings.filter(_ => _.name === "EditorPath")[0].valueString || null;
         this.jiraServer = settings.filter(_ => _.name === "JiraServer")[0].valueString || null;
+        this.plantumlLocalPath = settings.filter(_ => _.name === "PlantumlLocalPath")[0].valueString || null;
+        this.javaPath = settings.filter(_ => _.name === "JavaPath")[0].valueString || null;
+        this.localGraphvizDotPath = settings.filter(_ => _.name === "LocalGraphvizDotPath")[0].valueString || null;
       }
     });
   }
 
   save() {
-    this._settings.filter(_ => _.name === "EditorPath")[0].valueString = this.plantumlServer;
+    this._settings.filter(_ => _.name === "EditorPath")[0].valueString = this.vscodePath;
     this._settings.filter(_ => _.name === "JiraServer")[0].valueString = this.jiraServer;
+    this._settings.filter(_ => _.name === "PlantumlLocalPath")[0].valueString = this.plantumlLocalPath;
+    this._settings.filter(_ => _.name === "JavaPath")[0].valueString = this.javaPath;
+    this._settings.filter(_ => _.name === "LocalGraphvizDotPath")[0].valueString = this.localGraphvizDotPath;
+
     this.appCurrentFolder.saveSettings().subscribe(data => {
       this._snackBar.open("settings saved","" ,{ duration: 1000 });
     });
