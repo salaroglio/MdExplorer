@@ -21,8 +21,8 @@
       {{titleProject}}
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
-      <mat-tab label="Project docs">
-        <app-md-tree></app-md-tree>
+      <mat-tab style="height:100%" label="Project docs">
+          <app-md-tree></app-md-tree>
       </mat-tab>      
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>

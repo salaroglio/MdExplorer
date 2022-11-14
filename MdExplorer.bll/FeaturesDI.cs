@@ -6,6 +6,7 @@ using MdExplorer.Features.Commands.Runners;
 using MdExplorer.Features.GIT;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
+using MdExplorer.Features.ProjectBody;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Refactoring.Work;
@@ -80,6 +81,7 @@ namespace MdExplorer.Features
 
             services.AddSingleton<IYamlParser<YamlDocumentDescriptor>, YamlDocumentDescriptorParser>();
             services.AddSingleton<IGitService, GitService>();
+            services.AddSingleton<ProjectBodyEngine>();
             return services;
         }
     }
