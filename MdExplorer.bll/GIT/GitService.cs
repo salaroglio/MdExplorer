@@ -61,7 +61,8 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                return repo.Diff.Compare<TreeChanges>().Count ;
+                var test = repo.RetrieveStatus();
+                return repo.Diff.Compare<TreeChanges>().Count + test.Untracked.Count() ;
             }
         }
 

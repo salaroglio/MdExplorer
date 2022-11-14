@@ -9,6 +9,7 @@ using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.ProjectBody;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.snippets;
@@ -44,6 +45,7 @@ namespace MdExplorer.Controllers
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IProjectDB _projectDB;
         private readonly ISnippet<DictionarySnippetParam>[] _snippets;
+        private readonly ProjectBodyEngine _projectBodyEngine;
 
         public IEngineDB _engineDB { get; }
 
@@ -53,7 +55,8 @@ namespace MdExplorer.Controllers
             IHubContext<MonitorMDHub> hubContext,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IProjectDB projectDB,
-            ISnippet<DictionarySnippetParam>[] snippets
+            ISnippet<DictionarySnippetParam>[] snippets,
+            ProjectBodyEngine projectBodyEngine
             )
         {
             _fileSystemWatcher = fileSystemWatcher;
@@ -65,6 +68,7 @@ namespace MdExplorer.Controllers
             _goodRules = GoodRules;
             _projectDB = projectDB;
             _snippets = snippets;
+            _projectBodyEngine = projectBodyEngine;
         }
 
 
@@ -108,8 +112,6 @@ namespace MdExplorer.Controllers
             System.IO.File.Delete(fileData.FullPath);
             return Ok(new { message = "done" });
         }
-
-
 
         [HttpPost]
         public IActionResult SetLandingPage([FromBody] FileInfoNode fileData)
@@ -157,8 +159,6 @@ namespace MdExplorer.Controllers
             _projectDB.Commit();
             return Ok(new { message = "Done" });
         }
-
-
 
         [HttpGet]
         public IActionResult GetDynFoldersDocument([FromQuery] string path, string level)
@@ -249,7 +249,8 @@ namespace MdExplorer.Controllers
 
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
             {
-                var node = CreateNodeMdFile(itemFile);
+                var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+                var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 list.Add(node);
             }
 
@@ -501,19 +502,19 @@ namespace MdExplorer.Controllers
 
         }
 
-        private FileInfoNode CreateNodeMdFile(string itemFile)
-        {
-            var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
-            var node = new FileInfoNode
-            {
-                Name = Path.GetFileName(itemFile),
-                FullPath = itemFile,
-                Path = patchedItemFile,
-                RelativePath = patchedItemFile,
-                Type = "mdFile"
-            };
-            return node;
-        }
+        //private FileInfoNode CreateNodeMdFile(string itemFile)
+        //{
+        //    var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+        //    var node = new FileInfoNode
+        //    {
+        //        Name = Path.GetFileName(itemFile),
+        //        FullPath = itemFile,
+        //        Path = patchedItemFile,
+        //        RelativePath = patchedItemFile,
+        //        Type = "mdFile"
+        //    };
+        //    return node;
+        //}
 
         private (FileInfoNode, bool) CreateNodeFolder(string itemFolder)
         {
@@ -587,7 +588,8 @@ namespace MdExplorer.Controllers
 
             foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
             {
-                var node = CreateNodeMdFile(itemFile);
+                var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+                var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
             }

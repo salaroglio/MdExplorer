@@ -34,6 +34,7 @@ namespace MdExplorer.Service.Controllers
             _services = services;
             _processUtil = processUtil;
         }
+
         [HttpGet]
         public IActionResult GetProjects()
         {

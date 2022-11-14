@@ -86,8 +86,6 @@ namespace MdExplorer.Service
 
         /// <summary>
         /// Migrate database is done using "custom" serviceCollection.
-        /// At this point of my knowledge i'm suspecting there is a bug in FluentMigrator
-        /// witch doesn't support multiple migration of different database at the same time 
         /// </summary>
         /// <param name="databasePath"></param>
         /// <param name="databasePathEngine"></param>
@@ -156,6 +154,8 @@ namespace MdExplorer.Service
 
         private static void ConfigTemplates(string mdPath, IServiceCollection services = null)
         {
+            var publishFolder = $"{mdPath}{Path.DirectorySeparatorChar}mdPublish";
+            Directory.CreateDirectory(publishFolder);
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
             var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
