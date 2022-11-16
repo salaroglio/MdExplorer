@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System;
 using System.Linq;
+using MdExplorer.Features.ProjectBody;
 
 namespace MdExplorer.Service.Controllers.MdPublish
 {
@@ -13,12 +14,15 @@ namespace MdExplorer.Service.Controllers.MdPublish
     public class MdPublishController:ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;
+        private readonly ProjectBodyEngine _projectBodyEngine;
 
         public MdPublishController(
-            FileSystemWatcher fileSystemWatcher
+            FileSystemWatcher fileSystemWatcher,
+            ProjectBodyEngine projectBodyEngine
             )
         {
             _fileSystemWatcher = fileSystemWatcher;
+            _projectBodyEngine = projectBodyEngine;
         }
 
         [HttpGet]
@@ -29,34 +33,7 @@ namespace MdExplorer.Service.Controllers.MdPublish
 
             var currentPath = path == "root" ? publishBaseFolder : path;
             var currentLevel = Convert.ToInt32(level);
-            var list = new List<IFileInfoNode>();                        
-
-            foreach (var itemFolder in Directory.GetDirectories(currentPath))
-            {
-                var node = new FileInfoNode
-                {
-                    Name = Path.GetFileName(itemFolder),
-                    FullPath = itemFolder,
-                    Path = itemFolder,
-                    Level = currentLevel,
-                    Type = "publishFolder",
-                    Expandable = Directory.GetDirectories(itemFolder).Count() > 0
-                };
-                list.Add(node);
-            }
-            foreach (var itemFolder in Directory.GetFiles(currentPath))
-            {
-                var node = new FileInfoNode
-                {
-                    Name = Path.GetFileName(itemFolder),
-                    FullPath = itemFolder,
-                    Path = itemFolder,
-                    Level = currentLevel,
-                    Type = "mdFile",
-                    Expandable = Directory.GetDirectories(itemFolder).Count() > 0
-                };
-                list.Add(node);
-            }
+            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel);
 
             return Ok(list);
         }

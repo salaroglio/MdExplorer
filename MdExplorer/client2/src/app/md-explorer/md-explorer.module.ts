@@ -26,6 +26,7 @@ import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/pars
 import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
 import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
+import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
 
  
 
@@ -64,6 +65,7 @@ const routes: Routes = [
     ParsingProjectComponent,
     ChangeDirectoryComponent,
     DeleteMarkdownComponent,
+    PublishMdTreeComponent,
     
       
   ],
