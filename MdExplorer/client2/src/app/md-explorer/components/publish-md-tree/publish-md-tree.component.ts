@@ -1,62 +1,16 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CollectionViewer, SelectionChange, DataSource } from '@angular/cdk/collections';
-import { Component, Injectable, OnInit } from '@angular/core';
+import { MatMenuTrigger } from '@angular/material/menu';
+import { Router } from '@angular/router';
+import { IFileInfoNode } from '../../models/IFileInfoNode';
+import { MdFile } from '../../models/md-file';
+import { ProjectsService } from '../../services/projects.service';
+import { DynamicDatabase } from '../../../projects/new-project/new-project.component';
+import { MdFileService } from '../../services/md-file.service';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { IFileInfoNode } from '../../md-explorer/models/IFileInfoNode';
-import { MdFile } from '../../md-explorer/models/md-file';
-import { MdFileService } from '../../md-explorer/services/md-file.service';
-import { ProjectsService } from '../../md-explorer/services/projects.service';
-import { Router } from '@angular/router';
-import { MatDialogRef } from '@angular/material/dialog';
 
-// IFileInfoNode è interfaccia
-// MdFile è la classe -> DynamicFlatNode
-
-
-/**
- * Database for dynamic data. When expanding a node in the tree, the data source will need to fetch
- * the descendants data from the database.
- */
-@Injectable({ providedIn: 'root' })
-export class DynamicDatabase {
-
-  constructor(private mdFileService: MdFileService,) {
-    this.mdFileService.loadDynFolders('root', 1);
-
-    var md1 = new MdFile('12Folder', 'c:primoFolder', 0, true);
-    var md2 = new MdFile('2Folder', 'c:primoFoldersottoFolder', 1, true);
-    var md3 = new MdFile('3Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
-    var md4 = new MdFile('4Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
-    var md5 = new MdFile('5Folder', 'c:cuccu', 3, false);
-    this.dataMap.set(md1, [md2]);
-    this.dataMap.set(md2, [md3, md4]);
-    //this.dataMap.set(md3, [md4]);
-    this.dataMap.set(md4, [md5]);
-
-
-    var test = this.dataMap.get(md1);
-    this.rootLevelNodes = [md1];
-  }
-
-  dataMap = new Map<MdFile, MdFile[]>();
-  rootLevelNodes: MdFile[];
-
-  /** Initial data from database */
-  initialData(): MdFile[] {
-    return this.rootLevelNodes;
-  }
-
-  getChildren(node: MdFile): MdFile[] | undefined {
-
-    var test = this.dataMap.get(node);
-    return test;
-  }
-
-  isExpandable(node: MdFile): boolean {
-    return this.dataMap.has(node);
-  }
-}
 
 class DynamicDataSource implements DataSource<MdFile> {
 
@@ -75,8 +29,6 @@ class DynamicDataSource implements DataSource<MdFile> {
     this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
       this.data = _;
     });
-    //this.dataChange = _mdFileService._mdDynFolderDocument;
-    //_mdFileService.loadDynFolders('root', 1);
   }
 
   connect(collectionViewer: CollectionViewer): Observable<MdFile[]> {
@@ -138,54 +90,36 @@ class DynamicDataSource implements DataSource<MdFile> {
 
 
 @Component({
-  selector: 'app-new-project',
-  templateUrl: './new-project.component.html',
-  styleUrls: ['./new-project.component.scss']
+  selector: 'app-publish-md-tree',
+  templateUrl: './publish-md-tree.component.html',
+  styleUrls: ['./publish-md-tree.component.scss']
 })
-export class NewProjectComponent implements OnInit {
+export class PublishMdTreeComponent implements OnInit {
+  
 
-
-  activeNode: any;
   folder: {
     name: string,
     path: string
   }
-
-  getLevel = (node: MdFile) => node.level;
-
-  isExpandable = (node: MdFile) => node.expandable;
-
-  treeControl: FlatTreeControl<MdFile>;
-
-  dataSource: DynamicDataSource;
-
-  hasChild = (_: number, _nodeData: MdFile) => _nodeData.expandable;
-
-
-  constructor(private database: DynamicDatabase,
+  
+  constructor(private router: Router,
+              private database: DynamicDatabase,
               private mdFileService: MdFileService,
-              private router: Router,
-              private projectService: ProjectsService,
-              private dialogRef: MatDialogRef<NewProjectComponent>,) {
+              private projectService: ProjectsService) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
   }
 
   ngOnInit(): void {
-    this.folder = { name: "<select project>", path: "" };
   }
-
   public getFolder(node: IFileInfoNode) {
     this.folder.name = node.name;
     this.folder.path = node.path;
   }
-
-  public closeDialog() {
-    this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
-      var dateTime = new Date();
-      this.router.navigate(['/main/navigation', dateTime.getTime()]); //main
-      this.dialogRef.close();
-    });
-  }
-
+  activeNode: any;
+  treeControl: FlatTreeControl<MdFile>;
+  dataSource: DynamicDataSource;
+  isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
+  getLevel = (node: MdFile) => node.level;
+  isExpandable = (node: MdFile) => node.expandable;
 }

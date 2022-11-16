@@ -180,7 +180,7 @@ namespace MdExplorer.Controllers
                     FullPath = itemFolder,
                     Path = itemFolder,
                     Level = currentLevel,
-                    Type = "folder4",
+                    Type = "folder",                    
                     Expandable = Directory.GetDirectories(itemFolder).Count() > 0
                 };
 

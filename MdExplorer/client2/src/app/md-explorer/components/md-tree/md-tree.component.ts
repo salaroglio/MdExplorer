@@ -30,7 +30,6 @@ export class MdTreeComponent implements OnInit {
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
 
 
-
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
       expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder",
@@ -135,15 +134,11 @@ export class MdTreeComponent implements OnInit {
     });
   }
 
-
-
-
   setMdAsLandingPage(node: MdFile) {
     this.mdFileService.SetLandingPage(node).subscribe(_ => {
       this.snackBar.open(node.name, "is project landing page", { duration: 5000 });
     });
   }
-
 
   createDirectoryOn(node: MdFile) {
     if (node == null) {
@@ -155,7 +150,6 @@ export class MdTreeComponent implements OnInit {
       data: node,
     });
   }
-
 
   renameDirectoryOn(node: MdFile) {
     if (node == null) {
