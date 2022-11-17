@@ -188,6 +188,12 @@ export class MdFileService {
     return this.http.get<MdFile[]>(url, { params });
   }
 
+  loadPublishNodes(path: string, level: number): Observable<MdFile[]> {
+    const url = '../api/mdPublishNodes';
+    var params = new HttpParams().set('path', path).set('level', String(level));
+    return this.http.get<MdFile[]>(url, { params });
+  }
+
 
   GetHtml(path: string) { //, currentFile: MdFile
     const url = '../api/mdexplorer/' + path;
@@ -299,13 +305,13 @@ export class MdFileService {
   setSelectedDirectoryFromNewDirectory(selectedDirectory: MdFile) {
     this._selectedDirectoryFromNewDirectory.next(selectedDirectory);
   }
-
+   
   setSelectedMdFileFromToolbar(selectedFile: MdFile) {
     let returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
     this._selectedMdFileFromToolbar.next(returnFound);
   }
 
-  setSelectedMdFileFromServer(selectedFile: MdFile) {
+  setSelectedMdFileFromServer(selectedFile: MdFile) {    
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
     this._serverSelectedMdFile.next(returnFound);
   }

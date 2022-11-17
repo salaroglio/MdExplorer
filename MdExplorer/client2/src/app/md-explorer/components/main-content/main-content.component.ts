@@ -19,6 +19,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   public classForContent: string = "contentWithToolbar";
 
   ngAfterViewInit() {
+    this.htmlSource = '../welcome.html';
     this.el.nativeElement.onload = _ => {
       try {
         _.target.contentWindow.document.myReferenceObject = this;
@@ -27,7 +28,6 @@ export class MainContentComponent implements OnInit, AfterViewInit {
       } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
         this.service.setWhatDisplayForToolbar('showToolbar');
       }
-      
     };
   }
 
@@ -72,18 +72,16 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
-    this.service.selectedMdFileFromSideNav.subscribe(_ => {
+    this.service.selectedMdFileFromSideNav.subscribe(_ => {      
       this.callMdExplorerController(_);
     });
-    this.service.selectedMdFileFromToolbar.subscribe(_ => {
+    this.service.selectedMdFileFromToolbar.subscribe(_ => {      
       let current = _[0];
       if (current != undefined) {
         this.callMdExplorerController(current);
       }      
     });
-    this.service.selectedDirectoryFromNewDirectory.subscribe(_ => {
-
-    });
+    
     this.service.whatDisplayForToolbar.subscribe(_ => {
 
       if ((_ == 'showToolbar' && this.classForToolbar != _) ||
@@ -102,10 +100,8 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
-      let dateTime = new Date().getTime() / 1000;
-      
+      let dateTime = new Date().getTime() / 1000;      
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
-      
     }
   }
 

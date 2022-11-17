@@ -180,13 +180,17 @@ namespace MdExplorer.Controllers
                     FullPath = itemFolder,
                     Path = itemFolder,
                     Level = currentLevel,
-                    Type = "folder",                    
+                    Type = "folder",
                     Expandable = Directory.GetDirectories(itemFolder).Count() > 0
                 };
 
                 list.Add(node);
 
             }
+
+
+           
+
 
             return Ok(list);
         }
@@ -253,6 +257,7 @@ namespace MdExplorer.Controllers
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 list.Add(node);
             }
+            
 
             // nettificazione dei folder che non contengono md            
             _engineDB.BeginTransaction();
@@ -263,6 +268,17 @@ namespace MdExplorer.Controllers
 
             SaveRealationships(list);
             _engineDB.Commit();
+            var nodeempty = new FileInfoNode
+            {
+                Name = "root",
+                FullPath = currentPath,
+                Path = currentPath,
+                //Level = currentLevel,
+                Type = "emptyroot",
+                Expandable = false
+            };
+
+            list.Add(nodeempty);
             await _hubContext.Clients.All.SendAsync("parsingProjectStop", "process completed");
             return Ok(list);
         }

@@ -10,7 +10,7 @@ using MdExplorer.Features.ProjectBody;
 namespace MdExplorer.Service.Controllers.MdPublish
 {
     [ApiController]
-    [Route("api/MdPublish")]
+    [Route("api/mdPublishNodes")]
     public class MdPublishController:ControllerBase
     {
         private readonly FileSystemWatcher _fileSystemWatcher;

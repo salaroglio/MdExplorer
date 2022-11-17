@@ -55,6 +55,18 @@ namespace MdExplorer.Features.ProjectBody
                 };
                 list.Add(node);
             }
+            var nodeempty = new FileInfoNode
+            {
+                Name = "emptyroot",
+                FullPath = currentPath,
+                Path = currentPath,
+                Level = currentLevel,
+                Type = "emptyroot",
+                Expandable = false
+            };
+
+            list.Add(nodeempty);
+
             return list;
         }
 
