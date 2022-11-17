@@ -16,11 +16,6 @@ import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
-import { GitChangesComponent } from './components/git-changes/git-changes.component';
-import { SelectExtendedComponent } from './components/git-changes/select-extended/select-extended.component';
-import { OptionExtendedComponent } from './components/git-changes/select-extended/option-extended/option-extended.component';
-import { SelectBranchComponent } from './components/git-changes/select-branch/select-branch.component';
-import { OptionBranchComponent } from './components/git-changes/select-branch/option-branch/option-branch.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
@@ -56,11 +51,6 @@ const routes: Routes = [
     NewMarkdownComponent,
     NewDirectoryComponent,
     MdTreeComponent,
-    GitChangesComponent,
-    SelectExtendedComponent,
-    OptionExtendedComponent,
-    SelectBranchComponent,
-    OptionBranchComponent,
     ConnectionLostComponent,
     ParsingProjectComponent,
     ChangeDirectoryComponent,
