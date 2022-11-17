@@ -33,13 +33,13 @@ export class ToolbarComponent implements OnInit {
     private _snackBar: MatSnackBar,
     public mdFileService: MdFileService,
     private gitservice: GITService,
-    private appSettings : AppCurrentMetadataService
+    private appSettings: AppCurrentMetadataService
 
   ) {
     this.TitleToShow = "MdExplorer";
   }
   public currentBranch: string;
-  
+
 
   openRefactoring(): void {
     const dialogRef = this.dialog.open(RenameFileComponent, {
@@ -101,17 +101,20 @@ export class ToolbarComponent implements OnInit {
     // something has changed on filesystem
     this.mdFileService.serverSelectedMdFile.subscribe(val => {
       var current = val[0];
+      
       if (current != undefined) {
-        if (this.mdFileService.navigationArray.length > 0) {
-          if (current.fullPath == this.mdFileService.navigationArray[0].fullPath) {
-            return;
+        let index = this.mdFileService.navigationArray.length;
+        if (index > 0) {
+          //if (current.fullPath == this.mdFileService.navigationArray[index - 1].fullPath) {
+          if (current == this.mdFileService.navigationArray[index - 1]) {
+            //return;
           }
         }
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
       }
 
-   });
+    });
   }
 
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
@@ -134,13 +137,13 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
     objectThis.mdFileService.navigationArray.push(data);
     objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }
 
   OpenEditor() {
-    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
+    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;    
     return this.http.get(url)
       .subscribe(data => { console.log(data) });
   }

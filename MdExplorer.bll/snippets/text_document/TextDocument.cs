@@ -5,6 +5,7 @@ using MdExplorer.Features.Reveal.Interfaces;
 using MdExplorer.Features.Reveal.Models;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,7 +36,8 @@ namespace MdExplorer.Features.snippets.text_document
             {
                 Author = "<not available>",
                 Email = "<not available>",
-                DocumentType = "Document"
+                DocumentType = "Document",
+                Date= DateTime.Now.ToString("d", CultureInfo.GetCultureInfo("it-IT")),
             };
             var docType = (string)parameters[ParameterName.DocumentType];
             

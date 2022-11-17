@@ -11,7 +11,7 @@ namespace MdExplorer.Features.snippets
     {
         StringDocumentTitle,
         ProjectPath,
-        DocumentType
+        DocumentType        
     }
 
     public class DictionarySnippetParam : Dictionary<ParameterName, object> { }

@@ -92,8 +92,8 @@ export class ServerMessagesService {
   }
 
 
-  public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('markdownfileischanged', (data) => {
+  public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
+    this.hubConnection.on('markdownfileischanged', (data) => {      
       callback(data, objectThis);
       console.log('markdownfileischanged');
     });

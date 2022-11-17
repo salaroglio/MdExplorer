@@ -4597,6 +4597,11 @@ class MdFileService {
         var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpParams"]().set('path', path).set('level', String(level));
         return this.http.get(url, { params });
     }
+    loadPublishNodes(path, level) {
+        const url = '../api/mdPublishNodes';
+        var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpParams"]().set('path', path).set('level', String(level));
+        return this.http.get(url, { params });
+    }
     GetHtml(path) {
         const url = '../api/mdexplorer/' + path;
         return this.http.get(url, { responseType: 'text' }); //, currentFile      

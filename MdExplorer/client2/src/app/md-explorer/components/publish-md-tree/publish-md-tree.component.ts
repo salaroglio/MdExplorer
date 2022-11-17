@@ -26,7 +26,7 @@ class DynamicDataSource implements DataSource<MdFile> {
     private _database: DynamicDatabase,
     private _mdFileService: MdFileService) {
     this.data = _database.initialData();
-    this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
+    this._mdFileService.loadPublishNodes('root', 0).subscribe(_ => {
       this.data = _;
     });
   }
@@ -58,7 +58,7 @@ class DynamicDataSource implements DataSource<MdFile> {
    * Toggle the node, remove from display list
    */
   toggleNode(node: MdFile, expand: boolean) {
-    this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(_ => {
+    this._mdFileService.loadPublishNodes(node.path, node.level + 1).subscribe(_ => {
 
       const children = _;
       const index = this.data.indexOf(node);
@@ -120,6 +120,7 @@ export class PublishMdTreeComponent implements OnInit {
   treeControl: FlatTreeControl<MdFile>;
   dataSource: DynamicDataSource;
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
+  isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
   getLevel = (node: MdFile) => node.level;
   isExpandable = (node: MdFile) => node.expandable;
 }

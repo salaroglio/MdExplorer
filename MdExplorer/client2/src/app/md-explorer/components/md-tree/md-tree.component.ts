@@ -52,6 +52,7 @@ export class MdTreeComponent implements OnInit {
   hasChild = (_: number, node: IFileInfoNode) => node.expandable;
 
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
+  isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
 
   ///////////////////////////////
   mdFiles: Observable<MdFile[]>;

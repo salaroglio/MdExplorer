@@ -18,7 +18,7 @@
   </ng-template>
 </mat-menu>
 
-<mat-tree  [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)">
+<mat-tree [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)">
   <!-- This is the tree node template for leaf nodes -->
   <mat-tree-node *matTreeNodeDef="let node"
                  matTreeNodePadding
@@ -40,6 +40,13 @@
       </mat-icon>
     </button>
     {{node.name}}
-  </mat-tree-node> 
+  </mat-tree-node>
+  <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
+    <button mat-icon-button matTreeNodeToggle>
+            
+      
+    </button>
+    
+  </mat-tree-node>
 </mat-tree>
 

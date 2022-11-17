@@ -15,7 +15,7 @@ const SMALL_WIDTH_BREAKPOINT = 720;
   templateUrl: './sidenav.component.html',
   styleUrls: ['./sidenav.component.scss']
 })
-export class SidenavComponent implements OnInit, AfterViewInit {
+export class SidenavComponent implements OnInit {
   
   public sideNavWidth: string = "240px";
   public isScreenSmall: boolean;
@@ -63,9 +63,6 @@ export class SidenavComponent implements OnInit, AfterViewInit {
     });
     
   }
-    ngAfterViewInit(): void {
-      
-    }
 
   resizeWidth(): void {    
     this.hooked = true;
