@@ -42,7 +42,7 @@ namespace MdExplorer.Features.ProjectBody
                 };
                 list.Add(node);
             }
-            foreach (var itemFolder in Directory.GetFiles(currentPath))
+            foreach (var itemFolder in Directory.GetFiles(currentPath).Where(_ => _.Contains(".md")))
             {
                 var relativePath = itemFolder.Replace(publishBaseFolder, string.Empty);
                 var node = new FileInfoNode

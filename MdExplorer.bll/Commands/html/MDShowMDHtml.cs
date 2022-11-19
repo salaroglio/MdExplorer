@@ -37,27 +37,39 @@ namespace MdExplorer.Features.Commands.html
 
             foreach (Match item in matches)
             {
-                // here you should compose the path adding missing part
-                // the missing part is the distance from the root folder and the current file
-                // you can build this using requestInfo.currentqueryrequest
-                var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
-                listOfItem.RemoveAt(listOfItem.Count - 1);
-                var currentWebFolder = string.Empty;
-                foreach (var item1 in listOfItem)
+                var fileName = item.Groups[1].Value;
+                if (item.Groups[1].Value.StartsWith("../") || item.Groups[1].Value.StartsWith("./"))
                 {
-                    if (item1 == listOfItem.First())
-                    {
-                        currentWebFolder = item1;
-                    }
-                    else
-                    {
-                        currentWebFolder += Path.DirectorySeparatorChar + item1;
-                    }
-                }
 
-                currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                var fileName = currentWebFolder + Path.DirectorySeparatorChar + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
-                var allElementToReplace = item.Groups[0].Value;
+                    // here you should compose the path adding missing part
+                    // the missing part is the distance from the root folder and the current file
+                    // you can build this using requestInfo.currentqueryrequest
+                    var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
+                    listOfItem.RemoveAt(listOfItem.Count - 1);
+                    var currentWebFolder = string.Empty;
+                    foreach (var item1 in listOfItem)
+                    {
+                        if (item1 == listOfItem.First())
+                        {
+                            currentWebFolder = item1;
+                        }
+                        else
+                        {
+                            currentWebFolder += Path.DirectorySeparatorChar + item1;
+                        }
+                    }
+
+                    currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
+                    fileName = currentWebFolder + Path.DirectorySeparatorChar + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
+                    
+
+                    fileName = _helper.NormalizePath(fileName);
+                }
+                else if (item.Groups[1].Value.StartsWith("/"))
+                {
+                    fileName = item.Groups[1].Value.Remove(0,1);
+                }
+                var queryEncoded = fileName.Replace("\\", "/");// HttpUtility.UrlEncode(fileName);
                 var httpClientHandler = new HttpClientHandler();
                 httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
                 {
@@ -66,8 +78,7 @@ namespace MdExplorer.Features.Commands.html
 
                 using (var httpClient = new HttpClient(httpClientHandler))
                 {
-                    fileName = _helper.NormalizePath(fileName);
-                    var queryEncoded = fileName.Replace("\\","/") ;// HttpUtility.UrlEncode(fileName);
+                    
 
                     //var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}" + "?recursionLevel=" + (requestInfo.Recursionlevel + 1).ToString());
                     requestInfo.Recursionlevel++;
@@ -146,6 +157,7 @@ namespace MdExplorer.Features.Commands.html
                         nodeA.AppendChild(nodeSpan);
 
                         var stringToReplace = nodeDiv.OuterXml;
+                        var allElementToReplace = item.Groups[0].Value;
                         markdown = tagStyle + markdown.Replace(allElementToReplace, stringToReplace);
                     }
                 }

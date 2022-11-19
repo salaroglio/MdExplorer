@@ -15,7 +15,7 @@ namespace MdExplorer.Features.Refactoring.Work
         public LinkDetail[] GetLinks(string markdown)
         {
         
-            var rx = new Regex(@"M↓ShowMd\(([^\)]*)\)",
+            var rx = new Regex(@"mdShowMd\(([^\)]*)\)",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             var listToReturn = new List<LinkDetail>();
