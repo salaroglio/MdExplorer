@@ -44,7 +44,7 @@ namespace MdExplorer.Features.ProjectBody
             }
             foreach (var itemFolder in Directory.GetFiles(currentPath))
             {
-                var relativePath = currentPath.Replace(publishBaseFolder, string.Empty);
+                var relativePath = itemFolder.Replace(publishBaseFolder, string.Empty);
                 var node = new FileInfoNode
                 {
                     Name = Path.GetFileName(itemFolder),
