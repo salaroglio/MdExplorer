@@ -6,6 +6,8 @@ import { MdFileService }      from '../../services/md-file.service';
 import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
+import { ServerMessagesService } from '../../../signalR/services/server-messages.service';
+import { MdFile } from '../../models/md-file';
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
@@ -27,7 +29,7 @@ export class SidenavComponent implements OnInit {
 
   constructor(
     private breakpointObserver: BreakpointObserver,
-    private mdFileService: MdFileService,
+    private mdFileService: MdFileService,    
     private router: Router,
     private currentFolder: AppCurrentMetadataService,
     
@@ -74,7 +76,10 @@ export class SidenavComponent implements OnInit {
     this.classForBorderDiv = "border-div";
   }
 
-  openProject(): void {    
+  openProject(): void {
+    var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html',0,false);
+    mdFile.relativePath = '/../../welcome.html';
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
     this.router.navigate(['/projects']);
   }
 

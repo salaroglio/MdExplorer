@@ -25,7 +25,7 @@ namespace MdExplorer.Features.ProjectBody
             return node;
         }
 
-        public List<IFileInfoNode> GetPusblishDocuments(string currentPath, int currentLevel)
+        public List<IFileInfoNode> GetPusblishDocuments(string currentPath, int currentLevel, string publishBaseFolder)
         {
             var list = new List<IFileInfoNode>();
 
@@ -44,28 +44,19 @@ namespace MdExplorer.Features.ProjectBody
             }
             foreach (var itemFolder in Directory.GetFiles(currentPath))
             {
+                var relativePath = currentPath.Replace(publishBaseFolder, string.Empty);
                 var node = new FileInfoNode
                 {
                     Name = Path.GetFileName(itemFolder),
                     FullPath = itemFolder,
                     Path = itemFolder,
                     Level = currentLevel,
-                    Type = "mdFile",
-                    Expandable = Directory.GetDirectories(itemFolder).Count() > 0
+                    Type = "mdFile",         
+                    RelativePath = relativePath
                 };
                 list.Add(node);
             }
-            var nodeempty = new FileInfoNode
-            {
-                Name = "emptyroot",
-                FullPath = currentPath,
-                Path = currentPath,
-                Level = currentLevel,
-                Type = "emptyroot",
-                Expandable = false
-            };
-
-            list.Add(nodeempty);
+            
 
             return list;
         }

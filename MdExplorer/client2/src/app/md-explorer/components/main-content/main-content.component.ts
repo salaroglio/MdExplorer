@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, NgZone, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, NgZone, OnInit, Output, ViewChild } from '@angular/core';
 import { MdFile } from '../../models/md-file';
 //import { IWorkWithElement } from '../../services/href-interceptor.service';
 import { MdFileService } from '../../services/md-file.service';
@@ -17,9 +17,9 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   @ViewChild('myBelovedIframe') el: ElementRef;
   public classForToolbar: string = "showToolbar";
   public classForContent: string = "contentWithToolbar";
-
+  
   ngAfterViewInit() {
-    this.htmlSource = '../welcome.html';
+    
     this.el.nativeElement.onload = _ => {
       try {
         _.target.contentWindow.document.myReferenceObject = this;
@@ -72,6 +72,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
+    
     this.service.selectedMdFileFromSideNav.subscribe(_ => {      
       this.callMdExplorerController(_);
     });
@@ -100,7 +101,8 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
-      let dateTime = new Date().getTime() / 1000;      
+      let dateTime = new Date().getTime() / 1000;
+      debugger;
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
     }
   }
