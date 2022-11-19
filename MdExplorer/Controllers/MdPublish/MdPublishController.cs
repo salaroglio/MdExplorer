@@ -30,12 +30,33 @@ namespace MdExplorer.Service.Controllers.MdPublish
         {
             var publishBaseFolder =  $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}mdPublish";
             Directory.CreateDirectory(publishBaseFolder);
-
             var currentPath = path == "root" ? publishBaseFolder : path;
             var currentLevel = Convert.ToInt32(level);
-            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel);
 
-            return Ok(list);
+            var listToReturn = new List<IFileInfoNode>();
+
+            if (currentLevel == 0)
+            {
+                var nodeempty = new FileInfoNode
+                {
+                    Name = Path.GetFileName(currentPath),
+                    FullPath = currentPath,
+                    Path = currentPath,
+                    RelativePath = currentPath,
+                    Level = currentLevel,
+                    Type = "root",
+                    Expandable = false
+                };
+                listToReturn.Add(nodeempty);
+                //listToReturn.AddRange(_projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel));                
+                return Ok(listToReturn);
+            }
+            
+
+       
+            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel, publishBaseFolder);
+            listToReturn.AddRange(list);
+            return Ok(listToReturn);
         }
 
     }

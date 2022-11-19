@@ -10,7 +10,13 @@ import { DynamicDatabase } from '../../../projects/new-project/new-project.compo
 import { MdFileService } from '../../services/md-file.service';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-
+import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
+import { MatDialog } from '@angular/material/dialog';
+import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
+import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
 
 class DynamicDataSource implements DataSource<MdFile> {
 
@@ -27,6 +33,7 @@ class DynamicDataSource implements DataSource<MdFile> {
     private _mdFileService: MdFileService) {
     this.data = _database.initialData();
     this._mdFileService.loadPublishNodes('root', 0).subscribe(_ => {
+      debugger;
       this.data = _;
     });
   }
@@ -96,7 +103,8 @@ class DynamicDataSource implements DataSource<MdFile> {
 })
 export class PublishMdTreeComponent implements OnInit {
   
-
+  menuTopLeftPosition = { x: 0, y: 0 }
+  @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
   folder: {
     name: string,
     path: string
@@ -105,10 +113,15 @@ export class PublishMdTreeComponent implements OnInit {
   constructor(private router: Router,
               private database: DynamicDatabase,
               private mdFileService: MdFileService,
-              private projectService: ProjectsService) {
+              private projectService: ProjectsService,
+              public dialog: MatDialog,
+              private snackBar: MatSnackBar,
+              private clipboard: Clipboard,
+              ) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
   }
+
 
   ngOnInit(): void {
   }
@@ -119,8 +132,85 @@ export class PublishMdTreeComponent implements OnInit {
   activeNode: any;
   treeControl: FlatTreeControl<MdFile>;
   dataSource: DynamicDataSource;
-  isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
-  isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
+  isFolder = (_: number, node: IFileInfoNode) => node.type == "publishFolder";
+  isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "root";
   getLevel = (node: MdFile) => node.level;
   isExpandable = (node: MdFile) => node.expandable;
+
+
+  onRightClick(event: MouseEvent, item) {
+    // preventDefault avoids to show the visualization of the right-click menu of the browser
+    event.preventDefault();
+    if (item == null) {
+      item = new MdFile("root", "root", 0, false);
+      item.fullPath = "root";
+    }
+    // we record the mouse position in our object
+    this.menuTopLeftPosition.x = event.clientX;
+    this.menuTopLeftPosition.y = event.clientY;
+
+    // we open the menu
+    // we pass to the menu the information about our object
+    this.matMenuTrigger.menuData = { item: item }
+
+    // we open the menu
+    this.matMenuTrigger.openMenu();
+
+  }
+
+  createMdOn(node: MdFile) {
+
+    this.dialog.open(NewMarkdownComponent, {
+      width: '300px',
+      //height:'400px',
+      data: node,
+    });
+  }
+
+  createDirectoryOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    this.dialog.open(NewDirectoryComponent, {
+      width: '300px',
+      data: node,
+    });
+  }
+
+  renameDirectoryOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    this.dialog.open(ChangeDirectoryComponent, {
+      width: '300px',
+      data: node,
+    });
+  }
+
+  openFolderOn(node: MdFile) {
+    this.mdFileService.openFolderOnFileExplorer(node).subscribe(_ => {
+      this.snackBar.open("file explorer open", "", { duration: 500 });
+    });
+  }
+
+  getLinkFromNode(node: MdFile) {
+    this.clipboard.copy(node.relativePath);
+
+  }
+
+  deleteFile(node: MdFile) {
+    this.dialog.open(DeleteMarkdownComponent, {
+      width: '300px',
+      data: node,
+    });
+
+  }
+  public getNode(node: MdFile) {
+    debugger;
+    this.mdFileService.setSelectedMdFileFromSideNav(node);
+    this.activeNode = node;
+  }
+
 }
