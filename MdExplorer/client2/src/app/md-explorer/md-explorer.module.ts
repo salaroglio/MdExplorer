@@ -22,6 +22,7 @@ import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsi
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
 import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
 import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
+import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
 
  
 
@@ -33,6 +34,7 @@ const routes: Routes = [
   path: 'navigation', component: SidenavComponent,
   children: [
     { path: ':path', component: MainContentComponent },
+    
     //{ path: '', component: MainContentComponent },    
   ]
   }];
@@ -56,6 +58,7 @@ const routes: Routes = [
     ChangeDirectoryComponent,
     DeleteMarkdownComponent,
     PublishMdTreeComponent,
+    GitlabSettingsComponent,
     
       
   ],

@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"m↓ShowMd\((.*)\)",
+            Regex rx = new Regex(@"mdShowMd\((.*)\)",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var matches = rx.Matches(markdown);
             return matches;

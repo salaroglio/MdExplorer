@@ -207,10 +207,15 @@ export class PublishMdTreeComponent implements OnInit {
     });
 
   }
-  public getNode(node: MdFile) {
+
+  getNode(node: MdFile) {
     debugger;
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;
+  }
+
+  openGitlabSettingsFromNode(node: MdFile) {
+    this.router.navigate(['/main/navigation/gitlabsettings']);
   }
 
 }
