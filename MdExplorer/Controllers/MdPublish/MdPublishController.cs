@@ -54,7 +54,7 @@ namespace MdExplorer.Service.Controllers.MdPublish
             
 
        
-            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel, publishBaseFolder);
+            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel, _fileSystemWatcher.Path);
             listToReturn.AddRange(list);
             return Ok(listToReturn);
         }
