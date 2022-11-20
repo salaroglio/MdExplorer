@@ -156,7 +156,8 @@ namespace MdExplorer.Service.HostedServices
                                         || e.FullPath.Contains($".tmp");
             var isWrongGitFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD")
                                         || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG")
-                                        || e.FullPath.Contains($".0.pdnSave"); // Paint.net problem
+                                        || e.FullPath.Contains($".0.pdnSave")
+                                        || e.FullPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"); // Paint.net problem
             return (isWrongDirectory, isWrongExtensionFile, isWrongGitFile);
         }
 
