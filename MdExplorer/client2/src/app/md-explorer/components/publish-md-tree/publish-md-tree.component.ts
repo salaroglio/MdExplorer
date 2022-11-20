@@ -209,7 +209,7 @@ export class PublishMdTreeComponent implements OnInit {
   }
 
   getNode(node: MdFile) {
-    debugger;
+    this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;
   }
