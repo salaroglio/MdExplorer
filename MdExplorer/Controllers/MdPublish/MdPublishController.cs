@@ -39,7 +39,7 @@ namespace MdExplorer.Service.Controllers.MdPublish
             {
                 var nodeempty = new FileInfoNode
                 {
-                    Name = Path.GetFileName(currentPath),
+                    Name = "Publish",
                     FullPath = currentPath,
                     Path = currentPath,
                     RelativePath = currentPath,
@@ -48,7 +48,6 @@ namespace MdExplorer.Service.Controllers.MdPublish
                     Expandable = false
                 };
                 listToReturn.Add(nodeempty);
-                //listToReturn.AddRange(_projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel));                
                 return Ok(listToReturn);
             }
             

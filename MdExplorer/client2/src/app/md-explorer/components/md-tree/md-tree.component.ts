@@ -13,6 +13,7 @@ import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.co
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
+import { Router } from '@angular/router';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -58,7 +59,7 @@ export class MdTreeComponent implements OnInit {
   mdFiles: Observable<MdFile[]>;
 
 
-  constructor(
+  constructor(private router: Router,
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private snackBar: MatSnackBar,
@@ -120,6 +121,7 @@ export class MdTreeComponent implements OnInit {
   }
 
   public getNode(node: MdFile) {
+    this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;
   }
@@ -170,7 +172,7 @@ export class MdTreeComponent implements OnInit {
   }
 
   getLinkFromNode(node: MdFile) {
-    this.clipboard.copy(node.relativePath);
+    this.clipboard.copy(node.relativePath.replace("\\","/"));
 
   }
 

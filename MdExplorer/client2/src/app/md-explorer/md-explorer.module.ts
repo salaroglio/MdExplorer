@@ -24,18 +24,14 @@ import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/de
 import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
 import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
 
- 
-
-
 
 const routes: Routes = [
-  { path: '', component: SidenavComponent},
+  { path: '', component: SidenavComponent },
   {
   path: 'navigation', component: SidenavComponent,
   children: [
-    { path: ':path', component: MainContentComponent },
-    
-    //{ path: '', component: MainContentComponent },    
+    { path: 'document', component: MainContentComponent },
+    { path: 'gitlabsettings', component: GitlabSettingsComponent },    
   ]
   }];
 
