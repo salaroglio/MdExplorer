@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
-import { Branch } from '../models/branch';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { IBranch } from '../models/branch';
 import { GitlabSetting } from '../models/gitlab-setting';
+import { ITag } from '../models/Tag';
 
 
 
@@ -17,7 +18,17 @@ export class GITService {
 
   getCurrentBranch() {
     const url = '../api/gitservice/branches/feat/getcurrentbranch';
-    return this.http.get<Branch>(url);
+    return this.http.get<IBranch>(url);
+  }
+
+  getBranchList():Observable<IBranch[]> {
+    const url = '../api/gitservice/branches';
+    return this.http.get<IBranch[]>(url);
+  }
+
+  getTagList() {
+    const url = '../api/gitservice/tags';
+    return this.http.get<ITag[]>(url);
   }
 
   storeGitlabSettings(user: string, password: string, gitlabLink: string) {

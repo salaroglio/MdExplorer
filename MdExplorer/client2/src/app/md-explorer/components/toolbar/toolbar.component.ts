@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { AfterViewInit, Component, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
@@ -10,6 +10,10 @@ import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
 import { MdFile } from '../../models/md-file';
 import { GITService } from '../../../git/services/gitservice.service';
 import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
+import { MatMenuTrigger } from '@angular/material/menu';
+import { IBranch } from '../../../git/models/branch';
+import { MatTabGroup } from '@angular/material/tabs';
+import { ITag } from '../../../git/models/Tag';
 
 @Component({
   selector: 'app-toolbar',
@@ -18,12 +22,17 @@ import { AppCurrentMetadataService } from '../../../services/app-current-metadat
 })
 export class ToolbarComponent implements OnInit {
 
+  public currentBranch: string;
+  @ViewChild(MatMenuTrigger) matMenuTrigger: MatMenuTrigger;
+  @ViewChild(MatTabGroup) tabGroup: MatTabGroup;
   TitleToShow: string;
   absolutePath: string;
   relativePath: string;
   connectionId: string;
   somethingIsChangedInTheBranch: boolean;
   howManyFilesAreToCommit: number;
+  branches: IBranch[];
+  taglist: ITag[];
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -37,20 +46,70 @@ export class ToolbarComponent implements OnInit {
 
   ) {
     this.TitleToShow = "MdExplorer";
-  }
-  public currentBranch: string;
+  }    
 
+  ngOnInit(): void {    
+    this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
+    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
+    this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
+    // get current branch name and if the branch has something to commit
+    this.gitservice.getCurrentBranch().subscribe(branch => {
+      this.currentBranch = branch.name;
+      this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
+      this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
+    });    
 
-  openRefactoring(): void {
-    const dialogRef = this.dialog.open(RenameFileComponent, {
-      width: '600px',
+    this.gitservice.getBranchList().subscribe(branches => {
+      this.branches = branches;
+    });
+
+    this.gitservice.getTagList().subscribe(tags => {
+      this.taglist = tags;
+    });
+
+    // something is selected from treeview/sidenav
+    this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
+      if (_ != null) {
+        this.mdFileService.navigationArray = [];
+        this.absolutePath = _.fullPath;
+        this.relativePath = _.relativePath;
+      }
+    });
+    // something has changed on filesystem
+    this.mdFileService.serverSelectedMdFile.subscribe(val => {
+      var current = val[0];
+
+      if (current != undefined) {
+        let index = this.mdFileService.navigationArray.length;
+        if (index > 0) {
+          //if (current.fullPath == this.mdFileService.navigationArray[index - 1].fullPath) {
+          if (current == this.mdFileService.navigationArray[index - 1]) {
+            //return;
+          }
+        }
+        this.absolutePath = current.fullPath;
+        this.relativePath = current.relativePath;
+      }
+
     });
   }
+
+  setDefaultTab(): void {
+    setTimeout(() => { this.tabGroup.selectedIndex = 0; }, 1000);
+    
+    
+  }
+  //openRefactoring(): void {
+  //  const dialogRef = this.dialog.open(RenameFileComponent, {
+  //    width: '600px',
+  //  });
+  //}
 
   toggleSidenav() {
     let test = !this.appSettings.showSidenav.value;
     this.appSettings.showSidenav.next(test);
   }
+
   openDialog(): void {
     const dialogRef = this.dialog.open(SettingsComponent, {
       width: '600px',
@@ -77,50 +136,9 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-
-
-  ngOnInit(): void {
-    this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
-    this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
-    this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
-    // get current branch name and if the branch has something to commit
-    this.gitservice.getCurrentBranch().subscribe(branch => {
-      this.currentBranch = branch.name;
-      this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
-      this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
-    });
-
-    // something is selected from treeview/sidenav
-    this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
-      if (_ != null) {
-        this.mdFileService.navigationArray = [];
-        this.absolutePath = _.fullPath;
-        this.relativePath = _.relativePath;
-      }
-    });
-    // something has changed on filesystem
-    this.mdFileService.serverSelectedMdFile.subscribe(val => {
-      var current = val[0];
-      
-      if (current != undefined) {
-        let index = this.mdFileService.navigationArray.length;
-        if (index > 0) {
-          //if (current.fullPath == this.mdFileService.navigationArray[index - 1].fullPath) {
-          if (current == this.mdFileService.navigationArray[index - 1]) {
-            //return;
-          }
-        }
-        this.absolutePath = current.fullPath;
-        this.relativePath = current.relativePath;
-      }
-
-    });
-  }
-
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
     objectThis.openRules(data);
   }
-
 
   private sendExportRequest(data, objectThis: ToolbarComponent) {
     const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;
@@ -143,7 +161,7 @@ export class ToolbarComponent implements OnInit {
   }
 
   OpenEditor() {
-    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;    
+    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
     return this.http.get(url)
       .subscribe(data => { console.log(data) });
   }
@@ -166,4 +184,10 @@ export class ToolbarComponent implements OnInit {
     }
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
+
+  openTag() {
+    debugger;
+    this.matMenuTrigger.closeMenu();
+  }
+
 }

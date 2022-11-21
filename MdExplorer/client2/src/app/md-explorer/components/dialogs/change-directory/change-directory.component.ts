@@ -23,8 +23,7 @@ export class ChangeDirectoryComponent implements OnInit {
   }
   save() {
     this.mdFileService.RenameDirectory(this.data.fullPath, this.directoryName, this.data.level)
-      .subscribe(data => {
-        debugger;
+      .subscribe(data => {        
         this.mdFileService.addNewDirectory(data);
         this.mdFileService.setSelectedDirectoryFromNewDirectory(data[data.length - 1]);
       });

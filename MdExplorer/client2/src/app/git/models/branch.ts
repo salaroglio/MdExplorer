@@ -1,4 +1,5 @@
-export class Branch {
+export interface IBranch {
+  id: string
   name: string
   somethingIsChangedInTheBranch: boolean
   howManyFilesAreChanged:number

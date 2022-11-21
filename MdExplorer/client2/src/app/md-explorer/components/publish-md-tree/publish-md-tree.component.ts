@@ -32,8 +32,7 @@ class DynamicDataSource implements DataSource<MdFile> {
     private _database: DynamicDatabase,
     private _mdFileService: MdFileService) {
     this.data = _database.initialData();
-    this._mdFileService.loadPublishNodes('root', 0).subscribe(_ => {
-      debugger;
+    this._mdFileService.loadPublishNodes('root', 0).subscribe(_ => {      
       this.data = _;
     });
   }

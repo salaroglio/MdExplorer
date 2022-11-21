@@ -1,4 +1,4 @@
-﻿using MdExplorer.Abstractions.Models;
+﻿using MdExplorer.Abstractions.Models.GIT;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +14,6 @@ namespace MdExplorer.Features.GIT
         string GetCurrentBranch(string projectPath);
         int HowManyFilesAreChanged(string projectPath);
         GitBranch[] GetBranches(string projectPath);
+        GitTag[] GetTagList(string path);
     }
 }

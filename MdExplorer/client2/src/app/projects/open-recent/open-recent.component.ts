@@ -28,8 +28,7 @@ export class OpenRecentComponent implements OnInit {
     });
   }
 
-  openNewProject(path: string) {
-    debugger;
+  openNewProject(path: string) {    
     this.projectService.setNewFolderProject(path).subscribe(_ => {
       var dateTime = new Date();
       this.router.navigate(['/main/navigation/document']);

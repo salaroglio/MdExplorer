@@ -23,8 +23,7 @@ export class NewDirectoryComponent implements OnInit {
   }
   save() {
     this.mdFileService.CreateNewDirectory(this.data.fullPath, this.directoryName, this.data.level)
-      .subscribe(data => {
-        debugger;
+      .subscribe(data => {        
         this.mdFileService.addNewDirectory(data);
         this.mdFileService.setSelectedDirectoryFromNewDirectory(data[data.length - 1]);
       });
