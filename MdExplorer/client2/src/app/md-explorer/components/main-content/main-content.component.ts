@@ -101,8 +101,7 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
-      let dateTime = new Date().getTime() / 1000;
-      debugger;
+      let dateTime = new Date().getTime() / 1000;      
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
     }
   }

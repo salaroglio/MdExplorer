@@ -105,7 +105,6 @@ class OpenRecentComponent {
         });
     }
     openNewProject(path) {
-        debugger;
         this.projectService.setNewFolderProject(path).subscribe(_ => {
             var dateTime = new Date();
             this.router.navigate(['/main/navigation/document']);

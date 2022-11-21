@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using MdExplorer.Abstractions.Models;
 using DocumentFormat.OpenXml.Wordprocessing;
+using MdExplorer.Abstractions.Models.GIT;
 
 namespace MdExplorer.Features.GIT
 {
@@ -78,6 +78,26 @@ namespace MdExplorer.Features.GIT
                 }
                 ).ToArray();
             }
+        }
+
+        public GitTag[] GetTagList(string projectPath)
+        {
+            if (!Repository.IsValid(projectPath))
+            {
+                return null;
+            }
+            using (var repo = new Repository(projectPath))
+            {
+                Configuration config = repo.Config;
+                var tags = repo.Tags;
+                var gitTags = tags.AsQueryable().Select(_ => new GitTag { 
+                    Id = _.GetHashCode(),
+                    Name = _.CanonicalName
+                }).ToArray();
+                return gitTags;
+
+            }
+            
         }
     }
 }
