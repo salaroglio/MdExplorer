@@ -100,13 +100,11 @@ class OpenRecentComponent {
     }
     quickOpenNotes(path) {
         this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {
-            var dateTime = new Date();
-            this.router.navigate(['/main/navigation/document', dateTime.getTime()]);
+            this.router.navigate(['/main/navigation/document']);
         });
     }
     openNewProject(path) {
         this.projectService.setNewFolderProject(path).subscribe(_ => {
-            var dateTime = new Date();
             this.router.navigate(['/main/navigation/document']);
         });
     }

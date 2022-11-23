@@ -26,6 +26,12 @@ export class GITService {
     return this.http.get<IBranch[]>(url);
   }
 
+  checkoutSelectedBranch(selected: IBranch) {
+    const url = '../api/gitservice/branches/feat/checkoutBranch';
+    return this.http.post<IBranch>(url, selected);
+
+  }
+
   getTagList() {
     const url = '../api/gitservice/tags';
     return this.http.get<ITag[]>(url);

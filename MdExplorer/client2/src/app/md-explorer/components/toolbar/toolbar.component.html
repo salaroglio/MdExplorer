@@ -10,25 +10,28 @@
       <mat-icon>directions</mat-icon>
     </button>
     <span *ngFor="let doc of this.mdFileService.navigationArray">
-        <span style="color:aquamarine" *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span>
+      <span style="color:aquamarine" *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span>
       <a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}"
-          (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
+         (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
     </span>
     <span class="flexExpand"></span>
     <span *ngIf="currentBranch!=null">
       <div *ngIf="somethingIsChangedInTheBranch" matBadge="{{howManyFilesAreToCommit}}" matBadgePosition="before"
            matBadgeOverlap="false" matBadgeColor="accent" matBadgeSize="small">
       </div>
-      <button mat-button  (onMenuOpen)="setDefaultTab()" [matMenuTriggerFor]="tagsAndBranches" [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">[{{currentBranch}}]</button>
-      <mat-menu #tagsAndBranches="matMenu" >
-        <mat-tab-group (click)="$event.stopPropagation()" [selectedIndex]="0">
-          <mat-tab label="[{{currentBranch}}] Tags">
-            <button *ngFor="let tag of tagList" mat-menu-item (click)="openTag()">{{tag.name}}</button>            
-          </mat-tab>
-          <mat-tab label="Branches">
-            <button *ngFor="let branch of branches" mat-menu-item>{{branch.name}}</button>
-          </mat-tab>         
-        </mat-tab-group>
+      <button mat-button [matMenuTriggerFor]="tagsAndBranches" [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">[{{currentBranch}}]</button>
+      <mat-menu  #tagsAndBranches="matMenu">
+        <div *ngIf="!somethingIsChangedInTheBranch">
+          <div class="container" *ngFor="let branch of branches" color="warn" mat-menu-item (click)="$event.stopPropagation()">
+            <span>{{branch.name}}</span><span class="flexExpand"></span>
+            <button mat-icon-button (click)="openBranch(branch)">
+              <mat-icon style="text-align:right" color="warn">sync</mat-icon>
+            </button>
+          </div>
+        </div>
+        <div *ngIf="somethingIsChangedInTheBranch">
+          <span>To checkout any branch, please commit</span>
+        </div>
       </mat-menu>
     </span>
 
