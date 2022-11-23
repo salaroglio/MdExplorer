@@ -19,7 +19,7 @@
       <div *ngIf="somethingIsChangedInTheBranch" matBadge="{{howManyFilesAreToCommit}}" matBadgePosition="before"
            matBadgeOverlap="false" matBadgeColor="accent" matBadgeSize="small">
       </div>
-      <button mat-button [matMenuTriggerFor]="tagsAndBranches" [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">[{{currentBranch}}]</button>
+      <button mat-button [matMenuTriggerFor]="tagsAndBranches" [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">[{{currentBranch}}] <img src="/assets/gitlogo.png" /></button>
       <mat-menu  #tagsAndBranches="matMenu">
         <div *ngIf="!somethingIsChangedInTheBranch">
           <div class="container" *ngFor="let branch of branches" color="warn" mat-menu-item (click)="$event.stopPropagation()">
