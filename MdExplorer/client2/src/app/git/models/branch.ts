@@ -2,5 +2,6 @@ export interface IBranch {
   id: string
   name: string
   somethingIsChangedInTheBranch: boolean
-  howManyFilesAreChanged:number
+  howManyFilesAreChanged: number
+  fullPath:string
 }

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Models.GIT;
+using LibGit2Sharp.Handlers;
 
 namespace MdExplorer.Features.GIT
 {
@@ -98,6 +99,32 @@ namespace MdExplorer.Features.GIT
 
             }
             
+        }
+
+        public delegate void GitCallBack(string path, int part, int tot);
+
+
+        public GitBranch CheckoutBranch(GitBranch branch, string projectPath, GitCallBack callback)
+        {
+            if (!Repository.IsValid(projectPath))
+            {
+                return null;
+            }
+            using (var repo = new Repository(projectPath))
+            {
+                var currentBranch = repo.Branches[branch.Name];
+                if (currentBranch == null)
+                {
+                    repo.CreateBranch(branch.Name);
+                }
+                var checkOutOptions = new CheckoutOptions();
+                var progressHandler = new CheckoutProgressHandler(callback);               
+                checkOutOptions.OnCheckoutProgress = progressHandler;
+                
+                var checkedBranch = LibGit2Sharp.Commands.Checkout(repo, currentBranch, checkOutOptions);
+                
+                return branch;
+            }
         }
     }
 }

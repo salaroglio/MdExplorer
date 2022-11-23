@@ -15,22 +15,22 @@ export class OpenRecentComponent implements OnInit {
   public dataSource: Observable<MdProject[]>
 
   constructor(private projectService: ProjectsService,
-    private mdFileService: MdFileService, private router: Router, private route:ActivatedRoute) { }
+    private mdFileService: MdFileService,
+    private router: Router,
+    private route: ActivatedRoute) { }
 
   ngOnInit(): void {
     this.projectService.fetchProjects();
     this.dataSource = this.projectService.mdProjects;
   }
   quickOpenNotes(path: string) {
-    this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {
-      var dateTime = new Date();
-      this.router.navigate(['/main/navigation/document', dateTime.getTime()])
+    this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {      
+      this.router.navigate(['/main/navigation/document'])
     });
   }
 
   openNewProject(path: string) {    
-    this.projectService.setNewFolderProject(path).subscribe(_ => {
-      var dateTime = new Date();
+    this.projectService.setNewFolderProject(path).subscribe(_ => {      
       this.router.navigate(['/main/navigation/document']);
     });
   }

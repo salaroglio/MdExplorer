@@ -14,6 +14,8 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { IBranch } from '../../../git/models/branch';
 import { MatTabGroup } from '@angular/material/tabs';
 import { ITag } from '../../../git/models/Tag';
+import { ProjectsService } from '../../services/projects.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-toolbar',
@@ -42,7 +44,9 @@ export class ToolbarComponent implements OnInit {
     private _snackBar: MatSnackBar,
     public mdFileService: MdFileService,
     private gitservice: GITService,
-    private appSettings: AppCurrentMetadataService
+    private appSettings: AppCurrentMetadataService,
+    private projectService: ProjectsService,
+    private router: Router
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -61,11 +65,7 @@ export class ToolbarComponent implements OnInit {
 
     this.gitservice.getBranchList().subscribe(branches => {
       this.branches = branches;
-    });
-
-    this.gitservice.getTagList().subscribe(tags => {
-      this.taglist = tags;
-    });
+    });    
 
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
@@ -94,16 +94,6 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  setDefaultTab(): void {
-    setTimeout(() => { this.tabGroup.selectedIndex = 0; }, 1000);
-    
-    
-  }
-  //openRefactoring(): void {
-  //  const dialogRef = this.dialog.open(RenameFileComponent, {
-  //    width: '600px',
-  //  });
-  //}
 
   toggleSidenav() {
     let test = !this.appSettings.showSidenav.value;
@@ -185,8 +175,17 @@ export class ToolbarComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
 
-  openTag() {
-    debugger;
+  openBranch(branch: IBranch): void {    
+    this.gitservice.checkoutSelectedBranch(branch).subscribe(_ => {      
+      this.currentBranch = _.name;
+      var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html', 0, false);
+      mdFile.relativePath = '/../../welcome.html';
+      this.mdFileService.setSelectedMdFileFromSideNav(mdFile);      
+      this.projectService.setNewFolderProject(_.fullPath).subscribe(_ => {
+        this.mdFileService.loadAll(null,null);
+        this.router.navigate(['/main/navigation/document']);
+      });
+    });
     this.matMenuTrigger.closeMenu();
   }
 

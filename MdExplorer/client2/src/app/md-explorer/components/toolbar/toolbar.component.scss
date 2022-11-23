@@ -29,6 +29,10 @@ $iconWidth: after 56px;
   }
 }
 
+.container{
+    display:flex;
+    flex-direction:row;
+}
 
 .flexExpand {
   flex: 1 1 auto;

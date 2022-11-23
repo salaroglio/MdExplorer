@@ -1,4 +1,5 @@
 ﻿using MdExplorer;
+using MdExplorer.Abstractions.Models.GIT;
 using MdExplorer.Features.GIT;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
@@ -37,6 +38,30 @@ namespace MdExplorer.Service.Controllers.GIT
                 howManyFilesAreChanged = howManyFilesAreChanged
             });//classe branch lato angular
         }
+        [HttpPost("feat/checkoutBranch")]
+        public IActionResult CheckoutBranch([FromBody]GitBranch branch)
+        {
+            _fileSystemWatcher.EnableRaisingEvents= false;
+            var toReturn = _gitService.CheckoutBranch(branch, _fileSystemWatcher.Path, GitCallBackForCheckout);
+            
+            return Ok(new
+            {
+                name = toReturn.Name,
+                somethingIsChangedInTheBranch = false,
+                howManyFilesAreChanged = 0,
+                FullPath= _fileSystemWatcher.Path,
+            });//classe branch lato angular
+        }
+
+        private void GitCallBackForCheckout(string path, int a, int b)
+        {
+            if (a == b)
+            {
+                _fileSystemWatcher.EnableRaisingEvents = true;
+            }
+            
+        }
+
 
         [HttpGet]
         public IActionResult GetBranches()
