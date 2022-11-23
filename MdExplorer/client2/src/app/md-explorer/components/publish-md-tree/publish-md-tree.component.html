@@ -20,7 +20,7 @@
       </button>
       <button *ngIf="item.type==='mdFile'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" matTooltip="copy link to clipboard"><mat-icon>link</mat-icon></button>
       <button *ngIf="item.type==='mdFile'" mat-icon-button color="primary" (click)="openGitlabSettingsFromNode(item)" matTooltip="Gitlab settings">
-        <img src="/assets/gitlogo.png" />
+        <img src="/assets/gitlab.png" />
       </button>
     </div>
     <button *ngIf="item.type==='publishFolder' || item.type==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
