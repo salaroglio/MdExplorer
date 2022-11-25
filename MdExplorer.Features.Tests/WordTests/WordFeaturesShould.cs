@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 namespace MdExplorer.Features.Tests
 {
     [TestClass]
-    public class TestWordDocument
+    public class WordFeaturesShould
     {
         [TestMethod]
-        public void I_m_able_to_merge_two_documents()
+        public void Merge_two_documents()
         {
             var currentPath = AppContext.BaseDirectory; ;
             var sourceFolderPath = $"{currentPath}WordTests{Path.DirectorySeparatorChar}FilesDocx";

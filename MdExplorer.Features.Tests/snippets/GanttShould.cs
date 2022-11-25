@@ -37,9 +37,7 @@ namespace MdExplorer.Features.Tests.snippets
             dictParam.Add(ParameterName.StringDocumentTitle, "User should create Gantt");
             dictParam.Add(ParameterName.ProjectPath, @"c:\test");
             templateContent = snippetTextDocument.GetSnippet(dictParam);
-            Assert.IsNotNull(templateContent);  
-
-
+            Assert.IsNotNull(templateContent);
 
         }
     }
