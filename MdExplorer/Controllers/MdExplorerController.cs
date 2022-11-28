@@ -26,8 +26,8 @@ using MdExplorer.Features.Refactoring.Analysis;
 using System.Globalization;
 using System.Net.Http.Headers;
 using MdExplorer.Features.Utilities;
-using MdExplorer.Features.Reveal.Models;
-using MdExplorer.Features.Reveal.Interfaces;
+using MdExplorer.Features.Yaml.Models;
+using MdExplorer.Features.Yaml.Interfaces;
 using MdExplorer.Abstractions.Entities.UserDB;
 
 namespace MdExplorer.Controllers
@@ -38,7 +38,7 @@ namespace MdExplorer.Controllers
     {
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IHelper _helper;
-        private readonly IYamlParser<YamlDocumentDescriptor> _yamlDocumentDescriptor;
+        private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -49,7 +49,7 @@ namespace MdExplorer.Controllers
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IHelper helper,
-            IYamlParser<YamlDocumentDescriptor> yamlDocumentDescriptor
+            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
             _goodRules = GoodRules;

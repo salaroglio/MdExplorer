@@ -27,6 +27,16 @@
     <None Update="WordTests\FilesDocx\testobase.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Yaml\Inputs\NormalYaml.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Yaml\Inputs\ParseYaml.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Yaml\ExpectedOutputs\" />
   </ItemGroup>
 
 </Project>

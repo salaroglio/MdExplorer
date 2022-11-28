@@ -14,6 +14,8 @@ using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.snippets;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service;
@@ -46,6 +48,7 @@ namespace MdExplorer.Controllers
         private readonly IProjectDB _projectDB;
         private readonly ISnippet<DictionarySnippetParam>[] _snippets;
         private readonly ProjectBodyEngine _projectBodyEngine;
+        private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
 
         public IEngineDB _engineDB { get; }
 
@@ -56,7 +59,8 @@ namespace MdExplorer.Controllers
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IProjectDB projectDB,
             ISnippet<DictionarySnippetParam>[] snippets,
-            ProjectBodyEngine projectBodyEngine
+            ProjectBodyEngine projectBodyEngine,
+            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager
             )
         {
             _fileSystemWatcher = fileSystemWatcher;
@@ -69,8 +73,16 @@ namespace MdExplorer.Controllers
             _projectDB = projectDB;
             _snippets = snippets;
             _projectBodyEngine = projectBodyEngine;
+            _yamlDocumentManager = yamlDocumentManager;
         }
 
+        [HttpGet]
+        public IActionResult GetDocumentSettings([FromQuery]string fullPath)
+        {
+            var text = System.IO.File.ReadAllText(fullPath);
+            var document = _yamlDocumentManager.GetDescriptor(text);
+            return Ok(document);
+        }
 
         [HttpGet]
         public IActionResult GetLandingPage()

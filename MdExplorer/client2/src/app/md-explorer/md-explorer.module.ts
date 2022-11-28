@@ -23,6 +23,7 @@ import { ChangeDirectoryComponent } from './components/dialogs/change-directory/
 import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
 import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
 import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
+import { DocumentSettingsComponent } from './components/document-settings/document-settings.component';
 
 
 const routes: Routes = [
@@ -31,7 +32,8 @@ const routes: Routes = [
   path: 'navigation', component: SidenavComponent,
   children: [
     { path: 'document', component: MainContentComponent },
-    { path: 'gitlabsettings', component: GitlabSettingsComponent },    
+    { path: 'gitlabsettings', component: GitlabSettingsComponent },
+    { path: 'documentsettings', component: DocumentSettingsComponent },
   ]
   }];
 
@@ -55,7 +57,7 @@ const routes: Routes = [
     DeleteMarkdownComponent,
     PublishMdTreeComponent,
     GitlabSettingsComponent,
-    
+    DocumentSettingsComponent,
       
   ],
   imports: [

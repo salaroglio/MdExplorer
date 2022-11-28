@@ -21,13 +21,16 @@
       {{titleProject}}
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
-      <mat-tab style="height:100%" label="Project docs">
+      <mat-tab style="height:100%" >
+        <ng-template mat-tab-label>
+          <img src="/assets/project.png" style="height:24px" />
+          Project docs
+        </ng-template>
           <app-md-tree></app-md-tree>
       </mat-tab>      
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>
-          <img src="/assets/gitlab.png" />
-          <span>Gitlab CI/CD</span>
+          <img src="/assets/cicd.png" style="height:24px"/>CI/CD   
         </ng-template>
         <app-publish-md-tree></app-publish-md-tree>
       </mat-tab>

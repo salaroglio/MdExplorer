@@ -42,6 +42,8 @@
 
   <ItemGroup>
     <Content Remove="wwwroot\assets\AliasEmoji.PNG" />
+    <Content Remove="wwwroot\assets\cicd.png" />
+    <Content Remove="wwwroot\assets\cicd.svg" />
     <Content Remove="wwwroot\assets\clipboard.png" />
     <Content Remove="wwwroot\assets\clipboard48.png" />
     <Content Remove="wwwroot\assets\ConnectionLost.png" />
@@ -49,6 +51,7 @@
     <Content Remove="wwwroot\assets\eyes.png" />
     <Content Remove="wwwroot\assets\eyes48.png" />
     <Content Remove="wwwroot\assets\gitlab.png" />
+    <Content Remove="wwwroot\assets\gitlabcicd.png" />
     <Content Remove="wwwroot\assets\gitlogo.png" />
     <Content Remove="wwwroot\assets\green_right_arrow.png" />
     <Content Remove="wwwroot\assets\green_right_arrow48.png" />
@@ -314,6 +317,8 @@
     </EmbeddedResource>
     <EmbeddedResource Include="reference.docx" />
     <EmbeddedResource Include="wwwroot\assets\AliasEmoji.PNG" />
+    <EmbeddedResource Include="wwwroot\assets\cicd.png" />
+    <EmbeddedResource Include="wwwroot\assets\cicd.svg" />
     <EmbeddedResource Include="wwwroot\assets\clipboard.png" />
     <EmbeddedResource Include="wwwroot\assets\clipboard48.png" />
     <EmbeddedResource Include="wwwroot\assets\ConnectionLost.png" />
@@ -321,6 +326,7 @@
     <EmbeddedResource Include="wwwroot\assets\eyes.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
     <EmbeddedResource Include="wwwroot\assets\gitlab.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlabcicd.png" />
     <EmbeddedResource Include="wwwroot\assets\gitlogo.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow48.png" />
@@ -563,6 +569,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="client2\src\app\md-explorer\services\Types\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 

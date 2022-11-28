@@ -1,0 +1,57 @@
+<div class="container-columns">
+  <div class="container-title">
+    <h1><strong>Document's Settings</strong></h1>
+  </div>
+  <div class="container-title">
+    <h3>{{selectedMdFile.name}}</h3>
+  </div>
+  
+  <div class="container-row">
+
+    <form>
+      <div>
+        <mat-card>
+          <mat-card-header>
+            <strong>Document's type</strong>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-radio-group name="documentType" [disabled]="true" [(ngModel)]="documentDescriptor.documentType" class="container-columns">
+              <mat-radio-button value="document">document</mat-radio-button>
+              <mat-radio-button value="slide">slide</mat-radio-button>
+            </mat-radio-group>
+          </mat-card-content>
+        </mat-card>
+        <mat-card>
+          <mat-card-header>
+            <strong>Microsoft Word Document's header page</strong>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-radio-group name="wordHeaderPage" class="container-columns" aria-label="Select an option" [(ngModel)]="documentDescriptor.wordSection.documentHeader">
+              <mat-radio-button value="None">None</mat-radio-button>
+              <mat-radio-button value="Project">Append project's document header page<mat-icon color="warn">edit</mat-icon></mat-radio-button>
+              <mat-radio-button value="Custom">Append custom document header page <mat-icon color="warn">edit</mat-icon></mat-radio-button>
+            </mat-radio-group>
+          </mat-card-content>
+        </mat-card>
+        <mat-card>
+          <mat-card-header>
+            <strong>Documents goodies</strong>
+          </mat-card-header>
+          <mat-card-content>
+            <section class="container-columns">
+              <mat-checkbox name="writeToc"
+                            [(ngModel)]="documentDescriptor.wordSection.writeToc"
+                            class="example-margin"
+                            [checked]="documentDescriptor.wordSection.writeToc">Create TOC in Microsoft Word</mat-checkbox>
+            </section>
+          </mat-card-content>
+        </mat-card>
+        <div mat-dialog-actions align="end">
+          <button mat-stroked-button mat-button color="primary"> <mat-icon>save</mat-icon>Save</button>
+        </div>
+        
+      </div>
+    </form>
+    
+  </div>
+</div>
