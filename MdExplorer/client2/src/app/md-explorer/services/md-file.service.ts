@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { MdFile } from '../models/md-file';
+import { IDocumentSettings } from './Types/IDocumentSettings';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +11,6 @@ export class MdFileService {
 
   private _whatDisplayForToolbar: BehaviorSubject<string>;
   private _mdFiles: BehaviorSubject<MdFile[]>;
-  //private _mdFoldersDocument: BehaviorSubject<MdFile[]>;
   public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
   public _serverSelectedMdFile: BehaviorSubject<MdFile[]>;
   private _navigationArray: MdFile[] = [];// deve morire
@@ -35,7 +35,6 @@ export class MdFileService {
     };
 
     this._mdFiles = new BehaviorSubject<MdFile[]>([]);
-    //this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
     this._mdDynFolderDocument = new BehaviorSubject<MdFile[]>([]);
     this._serverSelectedMdFile = new BehaviorSubject<MdFile[]>([]);
     this._selectedMdFileFromToolbar = new BehaviorSubject<MdFile[]>([]);
@@ -55,9 +54,6 @@ export class MdFileService {
   get mdFiles(): Observable<MdFile[]> {
     return this._mdFiles.asObservable();
   }
-  //get mdFoldersDocument(): Observable<MdFile[]> {
-  //  return this._mdFoldersDocument.asObservable();
-  //}
 
   get mdDynFolderDocument(): Observable<MdFile[]> {
     return this._mdDynFolderDocument.asObservable();
@@ -135,6 +131,12 @@ export class MdFileService {
     }
   }
 
+  getDocumentSettings(mdFile: MdFile): Observable<IDocumentSettings> {
+    const url = '../api/mdFiles/getdocumentsettings'; 
+    var params = new HttpParams().set('fullPath', mdFile.fullPath)
+    return this.http.get<IDocumentSettings>(url, { params });
+  }
+
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
     const url = '../api/mdfiles/GetAllMdFiles';
@@ -151,17 +153,6 @@ export class MdFileService {
         });
   }
 
-  //loadFolders() {
-  //  const url = '../api/mdfiles/GetFoldersDocument';
-  //  return this.http.get<MdFile[]>(url)
-  //    .subscribe(data => {
-  //      this.dataStore.mdFoldersDocument = data;
-  //      this._mdFoldersDocument.next(Object.assign({}, this.dataStore).mdFoldersDocument);
-  //    },
-  //      error => {
-  //        console.log("failed to fetch mdfile list");
-  //      });
-  //}
 
   loadDynFolders(path: string, level: number) {
     const url = '../api/mdfiles/GetDynFoldersDocument';

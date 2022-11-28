@@ -26,6 +26,7 @@ export class MdTreeComponent implements OnInit {
 
   private hooked: boolean = false;
   private activeNode: any;
+  mdFiles: Observable<MdFile[]>;
 
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
@@ -53,11 +54,11 @@ export class MdTreeComponent implements OnInit {
   hasChild = (_: number, node: IFileInfoNode) => node.expandable;
 
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
+  isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name=="mdPublish";
   isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
 
   ///////////////////////////////
-  mdFiles: Observable<MdFile[]>;
-
+  
 
   constructor(private router: Router,
     private mdFileService: MdFileService,
@@ -182,6 +183,11 @@ export class MdTreeComponent implements OnInit {
       data: node,
     });
 
+  }
+
+  openDocumentSettings(node: MdFile) {
+    this.mdFileService.setSelectedMdFileFromSideNav(node);
+    this.router.navigate(['/main/navigation/documentsettings']);
   }
 
 }

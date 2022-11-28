@@ -4462,7 +4462,6 @@ class MdFileService {
             serverSelectedMdFile: defaultSelectedMdFile
         };
         this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
-        //this._mdFoldersDocument = new BehaviorSubject<MdFile[]>([]);
         this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
@@ -4479,9 +4478,6 @@ class MdFileService {
     get mdFiles() {
         return this._mdFiles.asObservable();
     }
-    //get mdFoldersDocument(): Observable<MdFile[]> {
-    //  return this._mdFoldersDocument.asObservable();
-    //}
     get mdDynFolderDocument() {
         return this._mdDynFolderDocument.asObservable();
     }
@@ -4551,6 +4547,11 @@ class MdFileService {
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
         }
     }
+    getDocumentSettings(mdFile) {
+        const url = '../api/mdFiles/getdocumentsettings';
+        var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpParams"]().set('fullPath', mdFile.fullPath);
+        return this.http.get(url, { params });
+    }
     loadAll(callback, objectThis) {
         const url = '../api/mdfiles/GetAllMdFiles';
         return this.http.get(url)
@@ -4564,17 +4565,6 @@ class MdFileService {
             console.log("failed to fetch mdfile list");
         });
     }
-    //loadFolders() {
-    //  const url = '../api/mdfiles/GetFoldersDocument';
-    //  return this.http.get<MdFile[]>(url)
-    //    .subscribe(data => {
-    //      this.dataStore.mdFoldersDocument = data;
-    //      this._mdFoldersDocument.next(Object.assign({}, this.dataStore).mdFoldersDocument);
-    //    },
-    //      error => {
-    //        console.log("failed to fetch mdfile list");
-    //      });
-    //}
     loadDynFolders(path, level) {
         const url = '../api/mdfiles/GetDynFoldersDocument';
         var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpParams"]().set('path', path).set('level', String(level));

@@ -1,8 +1,8 @@
 ﻿
 using LibGit2Sharp;
 using MdExplorer.Features.GIT;
-using MdExplorer.Features.Reveal.Interfaces;
-using MdExplorer.Features.Reveal.Models;
+using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Features.Yaml.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -15,10 +15,10 @@ namespace MdExplorer.Features.snippets.text_document
     public class TextDocument : ISnippet<DictionarySnippetParam>
     {
        
-        private readonly IYamlParser<YamlDocumentDescriptor> _yamlParser;
+        private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlParser;
         private readonly IGitService _gitService;
 
-        public TextDocument(IYamlParser<YamlDocumentDescriptor> yamlParser, 
+        public TextDocument(IYamlParser<MdExplorerDocumentDescriptor> yamlParser, 
                             IGitService gitService)
         {
             _yamlParser = yamlParser;
@@ -32,7 +32,7 @@ namespace MdExplorer.Features.snippets.text_document
 
         public string GetSnippet(DictionarySnippetParam parameters)
         {
-            var doc = new YamlDocumentDescriptor
+            var doc = new MdExplorerDocumentDescriptor
             {
                 Author = "<not available>",
                 Email = "<not available>",

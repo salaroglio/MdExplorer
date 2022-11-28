@@ -10,9 +10,9 @@ using MdExplorer.Features.ProjectBody;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.Refactoring.Work;
-using MdExplorer.Features.Reveal;
-using MdExplorer.Features.Reveal.Interfaces;
-using MdExplorer.Features.Reveal.Models;
+using MdExplorer.Features.Yaml;
+using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Features.snippets;
 using MdExplorer.Features.snippets.gantt;
 using MdExplorer.Features.snippets.sequence_diagram;
@@ -20,6 +20,7 @@ using MdExplorer.Features.snippets.slide;
 using MdExplorer.Features.snippets.text_document;
 using MdExplorer.Features.snippets.workflow;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Features.Yaml;
 using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
 using System;
@@ -68,8 +69,8 @@ namespace MdExplorer.Features
             services.AddSingleton(typeof(ISnippet<DictionarySnippetParam>[]), _ => {
                 var listOfSnippets = new List<ISnippet<DictionarySnippetParam>>
                 {
-                    new TextDocument((IYamlParser<YamlDocumentDescriptor>)
-                            _.GetService(typeof(IYamlParser<YamlDocumentDescriptor>)),
+                    new TextDocument((IYamlParser<MdExplorerDocumentDescriptor>)
+                            _.GetService(typeof(IYamlParser<MdExplorerDocumentDescriptor>)),
                             (IGitService)_.GetService(typeof(IGitService))),
                     new SequenceDiagramPlantuml(),
                     new GanttPlantuml(),
@@ -79,7 +80,7 @@ namespace MdExplorer.Features
                 return listOfSnippets.ToArray();
             });            
 
-            services.AddSingleton<IYamlParser<YamlDocumentDescriptor>, YamlDocumentDescriptorParser>();
+            services.AddSingleton<IYamlParser<MdExplorerDocumentDescriptor>, YamlDocumentDescriptorParser>();
             services.AddSingleton<IGitService, GitService>();
             services.AddSingleton<ProjectBodyEngine>();
             return services;

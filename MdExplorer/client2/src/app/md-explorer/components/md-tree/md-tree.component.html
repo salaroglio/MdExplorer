@@ -12,6 +12,8 @@
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button matTooltip="create new document" mat-icon-button color="primary" (click)="createMdOn(item)"><mat-icon>note_add</mat-icon></button>
       <button *ngIf="item.type==='mdFile'" mat-icon-button color="warn" (click)="deleteFile(item)" matTooltip="delete document"><mat-icon>delete</mat-icon></button>
       <button *ngIf="item.type==='mdFile'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" matTooltip="copy link to clipboard"><mat-icon>link</mat-icon></button>
+      
+      <button *ngIf="item.type==='mdFile'" mat-icon-button color="primary" (click)="openDocumentSettings(item)" matTooltip="document settings"><mat-icon>settings</mat-icon></button>
     </div>
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
     <button *ngIf="item.type==='mdFile'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>    
@@ -35,18 +37,17 @@
   <mat-tree-node *matTreeNodeDef="let node;when: isFolder" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
     <button mat-icon-button matTreeNodeToggle
             [attr.aria-label]="'Toggle ' + node.name">
-      <mat-icon class="gold-icon mat-icon-rtl-mirror">
+      <mat-icon *ngIf="node.name!='mdPublish'" class="gold-icon mat-icon-rtl-mirror">
+        {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
+      </mat-icon>
+      <mat-icon *ngIf="node.name=='mdPublish'" color="accent" class="gold-icon mat-icon-rtl-mirror">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
     </button>
     {{node.name}}
   </mat-tree-node>
   <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
-    <button mat-icon-button matTreeNodeToggle>
-            
-      
-    </button>
-    
-  </mat-tree-node>
+    <button mat-icon-button matTreeNodeToggle></button>
+  </mat-tree-node> 
 </mat-tree>
 
