@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
 import { IDocumentSettings } from '../../services/Types/IDocumentSettings';
@@ -24,10 +25,11 @@ export class DocumentSettingsComponent implements OnInit {
   };
 ;
 
-  constructor(private mdFileService: MdFileService) {
-
-
-  }
+  //////////////////////////////////
+  constructor(
+    private mdFileService: MdFileService,
+    private _snackBar: MatSnackBar) { }
+  /////////////////////////////////
 
   ngOnInit(): void {
     this.mdFileService.selectedMdFileFromSideNav.subscribe(
@@ -42,4 +44,11 @@ export class DocumentSettingsComponent implements OnInit {
     );
   }
 
+
+  saveSettings() {
+    this.mdFileService.setDocumentSettings(this.documentDescriptor, this.selectedMdFile)
+      .subscribe(_ => {
+        this._snackBar.open("Saved!");
+      });
+  }
 }

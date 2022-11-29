@@ -2,12 +2,14 @@
 using Ad.Tools.Dal.Extensions;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Markdig;
+using MdExplorer;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Controllers;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.ProjectBody;
 using MdExplorer.Features.Refactoring.Analysis;
@@ -20,8 +22,11 @@ using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Controllers.MdFiles;
+using MdExplorer.Service.Controllers.MdFiles.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Newtonsoft.Json.Linq;
 using NHibernate.Linq;
 using NHibernate.Util;
 using System;
@@ -32,8 +37,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.WebRequestMethods;
 
-namespace MdExplorer.Controllers
+namespace MdExplorer.Service.Controllers.MdFiles
 {
     [ApiController]
     [Route("api/MdFiles/{action}")]
@@ -77,11 +83,22 @@ namespace MdExplorer.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetDocumentSettings([FromQuery]string fullPath)
+        public IActionResult GetDocumentSettings([FromQuery] string fullPath)
         {
             var text = System.IO.File.ReadAllText(fullPath);
             var document = _yamlDocumentManager.GetDescriptor(text);
             return Ok(document);
+        }
+
+        [HttpPost]
+        public IActionResult SetDocumentSettings([FromBody] ChangeDocumentSettings data)
+        {
+            var descriptor = data.DocumentDescriptor;
+            var mdFile = data.MdFile;
+            var text = System.IO.File.ReadAllText(mdFile.FullPath);
+            var textChanged = _yamlDocumentManager.SetDescriptor(descriptor, text);
+            System.IO.File.WriteAllText(mdFile.FullPath, textChanged);
+            return Ok(new { message = "done" });
         }
 
         [HttpGet]
@@ -201,7 +218,7 @@ namespace MdExplorer.Controllers
             }
 
 
-           
+
 
 
             return Ok(list);
@@ -269,7 +286,7 @@ namespace MdExplorer.Controllers
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 list.Add(node);
             }
-            
+
 
             // nettificazione dei folder che non contengono md            
             _engineDB.BeginTransaction();
@@ -335,7 +352,7 @@ namespace MdExplorer.Controllers
             }
 
             // write content
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
             System.IO.File.WriteAllText(fullPath, templateContent);
 
 
@@ -386,7 +403,7 @@ namespace MdExplorer.Controllers
 
 
 
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -437,7 +454,7 @@ namespace MdExplorer.Controllers
             }
 
             Directory.CreateDirectory(fullPath);
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, String.Empty);
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -578,7 +595,7 @@ namespace MdExplorer.Controllers
         {
             try
             {
-                var accessControlList = FileSystemAclExtensions.GetAccessControl(new DirectoryInfo(pathFile));
+                var accessControlList = new DirectoryInfo(pathFile).GetAccessControl();
                 if (accessControlList.AreAccessRulesProtected)
                     return;
 
