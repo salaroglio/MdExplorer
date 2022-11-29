@@ -85,6 +85,17 @@ export class MdFileService {
     this._navigationArray = mdFile;
   }
 
+  setDocumentSettings(documentDescriptor: IDocumentSettings , mdFile:MdFile) {
+    const url = '../api/mdFiles/setdocumentsettings';
+    return this.http.post<any>(url, { documentDescriptor, mdFile });
+  }
+
+  getDocumentSettings(mdFile: MdFile): Observable<IDocumentSettings> {
+    const url = '../api/mdFiles/getdocumentsettings';
+    var params = new HttpParams().set('fullPath', mdFile.fullPath)
+    return this.http.get<IDocumentSettings>(url, { params });
+  }
+
   addNewFile(data: MdFile[]) {
     // searching directories    
     var currentItem = data[0];
@@ -131,11 +142,7 @@ export class MdFileService {
     }
   }
 
-  getDocumentSettings(mdFile: MdFile): Observable<IDocumentSettings> {
-    const url = '../api/mdFiles/getdocumentsettings'; 
-    var params = new HttpParams().set('fullPath', mdFile.fullPath)
-    return this.http.get<IDocumentSettings>(url, { params });
-  }
+
 
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {

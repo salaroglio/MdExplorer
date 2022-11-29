@@ -2,6 +2,8 @@
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
@@ -25,6 +27,8 @@ namespace MdExplorer.Service.Controllers
     public class MdExportController : MdControllerBase<MdExportController>
     {
         private readonly IHelperPdf _helperPdf;
+        private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
+
         /// <summary>
         /// Variabile di scambio dati con l'evento di chiusura del processo Pandoc
         /// </summary>
@@ -36,10 +40,12 @@ namespace MdExplorer.Service.Controllers
                 IUserSettingsDB session,
                 IEngineDB engineDB,
                 ICommandRunnerPdf commandRunner,
-                IHelperPdf helperPdf
+                IHelperPdf helperPdf,
+                IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
             _helperPdf = helperPdf;
+            _yamlDocumentManager = yamlDocumentManager;
         }
 
         [HttpGet]
@@ -80,7 +86,7 @@ namespace MdExplorer.Service.Controllers
                     CurrentQueryRequest = relativePath,
                     CurrentRoot = _fileSystemWatcher.Path,
                     AbsolutePathFile = filePath
-                    
+
                 };
 
                 readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
@@ -94,7 +100,7 @@ namespace MdExplorer.Service.Controllers
                 Process processStarted;
 
                 //StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
-                var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf);
+                var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf, _yamlDocumentManager);
                 pandoc.StartNewPandoc(filePath, readText, out currentFilePdfPath, out processStarted);
 
                 processStarted.EnableRaisingEvents = true;
@@ -135,11 +141,14 @@ namespace MdExplorer.Service.Controllers
         {
             private readonly ICreatePandocCommand<string, CommandParameter> _createPandocCommand;
             private readonly IHelperPdf _helperPdf;
+            private readonly IYamlParser<MdExplorerDocumentDescriptor> _docSettingManager;
 
-            public StartPandoc(ICreatePandocCommand<string, CommandParameter> createPandocCommand, IHelperPdf helperPdf)
+            public StartPandoc(ICreatePandocCommand<string, CommandParameter> createPandocCommand, 
+                IHelperPdf helperPdf, IYamlParser<MdExplorerDocumentDescriptor> docSettingManager)
             {
                 _createPandocCommand = createPandocCommand;
                 _helperPdf = helperPdf;
+                _docSettingManager = docSettingManager;
             }
 
             public void StartNewPandoc(string filePath, string readText, out string currentFilePdfPath, out Process processStarted)
@@ -148,8 +157,16 @@ namespace MdExplorer.Service.Controllers
                 var currentFilePath = $".\\.md\\{currentGuid}.md";
                 currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{_createPandocCommand.Extension}");
                 System.IO.File.WriteAllText(currentFilePath, readText);
+                var docDesc = _docSettingManager.GetDescriptor(readText);
 
-                var processCommand = _createPandocCommand.CreatePandocCommand(new CommandParameter { CurrentFilePath = currentFilePath, CurrentFilePdfPath = currentFilePdfPath } );
+
+                var processCommand = _createPandocCommand.CreatePandocCommand(new CommandParameter
+                {
+                    CurrentFilePath = currentFilePath,
+                    CurrentFilePdfPath = currentFilePdfPath,
+                    createTOC = docDesc.WordSection.WriteToc                     
+                }
+                );
                 var finalCommand = $"/c {processCommand}";
                 var processToStart = new ProcessStartInfo("cmd", finalCommand)
                 {
@@ -159,7 +176,7 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
-        private interface ICreatePandocCommand<R,P>
+        private interface ICreatePandocCommand<R, P>
         {
             string Extension { get; }
             R CreatePandocCommand(P commandParameters);
@@ -168,10 +185,11 @@ namespace MdExplorer.Service.Controllers
         private class CommandParameter
         {
             public string CurrentFilePath { get; set; }
-            public string CurrentFilePdfPath { get; set; }            
+            public string CurrentFilePdfPath { get; set; }
+            public bool createTOC { get; set; } = true;
         }
 
-        private class PdfPandoCommand : ICreatePandocCommand<string,CommandParameter>
+        private class PdfPandoCommand : ICreatePandocCommand<string, CommandParameter>
         {
             public string Extension { get => "pdf"; }
 
@@ -189,8 +207,13 @@ namespace MdExplorer.Service.Controllers
 
             public string CreatePandocCommand(CommandParameter commandParam)
             {
+                var createTocScriptCommand = string.Empty;
+                if (commandParam.createTOC)
+                {
+                    createTocScriptCommand = "--toc";
+                }
                 var currentReferencePath = $".\\.md\\templates\\reference.docx";
-                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures --toc --reference-doc {currentReferencePath}";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {createTocScriptCommand} --reference-doc {currentReferencePath}";
                 return processCommand;
             }
         }

@@ -74,6 +74,8 @@
     <Content Remove="wwwroot\assets\plantuml.png" />
     <Content Remove="wwwroot\assets\Plantuml_Logo.svg" />
     <Content Remove="wwwroot\assets\PrepareToIcon.png" />
+    <Content Remove="wwwroot\assets\project.png" />
+    <Content Remove="wwwroot\assets\projects.png" />
     <Content Remove="wwwroot\assets\Refactoring.png" />
     <Content Remove="wwwroot\assets\rename.png" />
     <Content Remove="wwwroot\assets\resize.png" />
@@ -349,6 +351,8 @@
     <EmbeddedResource Include="wwwroot\assets\plantuml.png" />
     <EmbeddedResource Include="wwwroot\assets\Plantuml_Logo.svg" />
     <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\project.png" />
+    <EmbeddedResource Include="wwwroot\assets\projects.png" />
     <EmbeddedResource Include="wwwroot\assets\Refactoring.png" />
     <EmbeddedResource Include="wwwroot\assets\rename.png" />
     <EmbeddedResource Include="wwwroot\assets\resize48.png" />
@@ -569,7 +573,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="client2\src\app\md-explorer\services\Types\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
