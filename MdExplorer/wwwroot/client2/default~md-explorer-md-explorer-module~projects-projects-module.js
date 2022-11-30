@@ -4500,6 +4500,10 @@ class MdFileService {
     set navigationArray(mdFile) {
         this._navigationArray = mdFile;
     }
+    opencustomwordtemplate(mdFile) {
+        const url = '../api/mdFiles/opencustomwordtemplate';
+        return this.http.post(url, mdFile);
+    }
     setDocumentSettings(documentDescriptor, mdFile) {
         const url = '../api/mdFiles/setdocumentsettings';
         return this.http.post(url, { documentDescriptor, mdFile });

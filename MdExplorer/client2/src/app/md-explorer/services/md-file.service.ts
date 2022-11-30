@@ -85,6 +85,11 @@ export class MdFileService {
     this._navigationArray = mdFile;
   }
 
+  opencustomwordtemplate(mdFile: MdFile) {
+    const url = '../api/mdFiles/opencustomwordtemplate';
+    return this.http.post<any>(url, mdFile);
+  }
+
   setDocumentSettings(documentDescriptor: IDocumentSettings , mdFile:MdFile) {
     const url = '../api/mdFiles/setdocumentsettings';
     return this.http.post<any>(url, { documentDescriptor, mdFile });

@@ -252,6 +252,7 @@
     <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
+    <None Remove="EmojiForPandoc\calendar.png" />
     <None Remove="EmojiForPandoc\construction.png" />
     <None Remove="EmojiForPandoc\key.png" />
     <None Remove="EmojiForPandoc\link.png" />
@@ -306,6 +307,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="eisvogel.tex" />
+    <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
     <EmbeddedResource Include="EmojiForPandoc\key.png" />
     <EmbeddedResource Include="EmojiForPandoc\link.png" />

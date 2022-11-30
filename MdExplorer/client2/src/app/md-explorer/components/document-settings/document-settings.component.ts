@@ -51,4 +51,13 @@ export class DocumentSettingsComponent implements OnInit {
         this._snackBar.open("Saved!");
       });
   }
+
+  openCustomWord() {
+    debugger;
+    this.mdFileService.opencustomwordtemplate(this.selectedMdFile)
+      .subscribe(_=>
+        {
+          this._snackBar.open("Opening Word Custom template!");
+        });
+  }
 }
