@@ -101,7 +101,7 @@ namespace MdExplorer.Service.Controllers
 
                 //StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
                 var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf, _yamlDocumentManager);
-                pandoc.StartNewPandoc(filePath, readText, out currentFilePdfPath, out processStarted);
+                pandoc.StartNewPandoc(filePath,_fileSystemWatcher.Path , readText, out currentFilePdfPath, out processStarted);
 
                 processStarted.EnableRaisingEvents = true;
                 monitoredMd = new MonitoredMDModel
@@ -143,7 +143,7 @@ namespace MdExplorer.Service.Controllers
             private readonly IHelperPdf _helperPdf;
             private readonly IYamlParser<MdExplorerDocumentDescriptor> _docSettingManager;
 
-            public StartPandoc(ICreatePandocCommand<string, CommandParameter> createPandocCommand, 
+            public StartPandoc(ICreatePandocCommand<string, CommandParameter> createPandocCommand,
                 IHelperPdf helperPdf, IYamlParser<MdExplorerDocumentDescriptor> docSettingManager)
             {
                 _createPandocCommand = createPandocCommand;
@@ -151,7 +151,9 @@ namespace MdExplorer.Service.Controllers
                 _docSettingManager = docSettingManager;
             }
 
-            public void StartNewPandoc(string filePath, string readText, out string currentFilePdfPath, out Process processStarted)
+            public void StartNewPandoc(string filePath, string projectPath,
+                    string readText, 
+                    out string currentFilePdfPath, out Process processStarted)
             {
                 var currentGuid = _helperPdf.GetHashString(readText);
                 var currentFilePath = $".\\.md\\{currentGuid}.md";
@@ -164,7 +166,10 @@ namespace MdExplorer.Service.Controllers
                 {
                     CurrentFilePath = currentFilePath,
                     CurrentFilePdfPath = currentFilePdfPath,
-                    createTOC = docDesc.WordSection.WriteToc                     
+                    createTOC = docDesc.WordSection.WriteToc,
+                    DocumentHeader = docDesc.WordSection.DocumentHeader,
+                    ProjectPath = projectPath,
+                    MdFileName = filePath
                 }
                 );
                 var finalCommand = $"/c {processCommand}";
@@ -187,6 +192,9 @@ namespace MdExplorer.Service.Controllers
             public string CurrentFilePath { get; set; }
             public string CurrentFilePdfPath { get; set; }
             public bool createTOC { get; set; } = true;
+            public string DocumentHeader { get; set; } = "None";
+            public string ProjectPath { get; set; }
+            public string MdFileName { get; set; }
         }
 
         private class PdfPandoCommand : ICreatePandocCommand<string, CommandParameter>
@@ -213,6 +221,14 @@ namespace MdExplorer.Service.Controllers
                     createTocScriptCommand = "--toc";
                 }
                 var currentReferencePath = $".\\.md\\templates\\reference.docx";
+                if (commandParam.DocumentHeader== "Custom")
+                {
+                    currentReferencePath = Path.GetDirectoryName(commandParam.MdFileName) +
+                        Path.DirectorySeparatorChar + "assets" +
+                        Path.DirectorySeparatorChar + Path.GetFileName(commandParam.MdFileName) +
+                        ".reference.docx";
+                    currentReferencePath = currentReferencePath.Replace(commandParam.ProjectPath, ".\\");
+                }  
                 var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {createTocScriptCommand} --reference-doc {currentReferencePath}";
                 return processCommand;
             }

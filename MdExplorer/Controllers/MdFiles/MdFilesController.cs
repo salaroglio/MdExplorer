@@ -27,6 +27,7 @@ using MdExplorer.Service.Controllers.MdFiles.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
+using NHibernate.Criterion;
 using NHibernate.Linq;
 using NHibernate.Util;
 using System;
@@ -89,6 +90,45 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var document = _yamlDocumentManager.GetDescriptor(text);
             return Ok(document);
         }
+
+
+        [HttpPost]
+        public IActionResult OpenCustomWordTemplate([FromBody] FileInfoNode fileData)
+        {
+            // copy reference.docx
+            var fromReference = _fileSystemWatcher.Path +
+                Path.DirectorySeparatorChar +
+                ".md" +
+                Path.DirectorySeparatorChar +
+                "templates" +
+                Path.DirectorySeparatorChar +
+                "reference.docx";
+            var toReference = Path.GetDirectoryName(fileData.FullPath) +
+                Path.DirectorySeparatorChar +
+                "assets";
+            Directory.CreateDirectory(toReference);
+            toReference += Path.DirectorySeparatorChar +
+                    fileData.Name +
+                    ".reference.docx";
+
+            if (!System.IO.File.Exists(toReference))
+            {
+                System.IO.File.Copy(fromReference, toReference);
+            }
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{toReference}\"")
+            {
+                CreateNoWindow = false
+            };
+            Process.Start(processToStart);
+
+            //var p = new Process();
+            //p.StartInfo.FileName = toReference;
+            //p.StartInfo.FileName ="WinWord.exe" ;
+            //p.Start();
+            return Ok(new { message = "done" });
+        }
+
+        
 
         [HttpPost]
         public IActionResult SetDocumentSettings([FromBody] ChangeDocumentSettings data)
