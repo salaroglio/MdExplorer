@@ -263,6 +263,8 @@
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
     <None Remove="reference.docx" />
+    <None Remove="templates\minute.docx" />
+    <None Remove="templates\project.docx" />
   </ItemGroup>
 
 
@@ -306,7 +308,7 @@
     <EmbeddedResource Include="Binaries\plantuml.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="eisvogel.tex" />
+    <EmbeddedResource Include="templates\pdf\eisvogel.tex" />
     <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
     <EmbeddedResource Include="EmojiForPandoc\key.png" />
@@ -319,7 +321,9 @@
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="reference.docx" />
+    <EmbeddedResource Include="templates\word\minute.docx" />
+    <EmbeddedResource Include="templates\word\project.docx" />
+    <EmbeddedResource Include="templates\word\reference.docx" />
     <EmbeddedResource Include="wwwroot\assets\AliasEmoji.PNG" />
     <EmbeddedResource Include="wwwroot\assets\cicd.png" />
     <EmbeddedResource Include="wwwroot\assets\cicd.svg" />

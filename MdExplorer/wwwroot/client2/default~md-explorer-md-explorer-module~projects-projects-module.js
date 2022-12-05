@@ -4500,6 +4500,10 @@ class MdFileService {
     set navigationArray(mdFile) {
         this._navigationArray = mdFile;
     }
+    openInheritingTemplateWord(InheringTemplate) {
+        const url = '../api/mdFiles/openinheritingtemplateWord';
+        return this.http.post(url, { templateName: InheringTemplate });
+    }
     opencustomwordtemplate(mdFile) {
         const url = '../api/mdFiles/opencustomwordtemplate';
         return this.http.post(url, mdFile);

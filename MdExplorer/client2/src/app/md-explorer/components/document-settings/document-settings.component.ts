@@ -11,6 +11,7 @@ import { IDocumentSettings } from '../../services/Types/IDocumentSettings';
 })
 export class DocumentSettingsComponent implements OnInit {
 
+  standardTemplates = [{ name: "project",fullPath:"" }, {name:"minute",fullPath:""}]
   selectedMdFile: MdFile;
   documentDescriptor: IDocumentSettings = {
     author: 'Carlo',
@@ -20,7 +21,12 @@ export class DocumentSettingsComponent implements OnInit {
     title: 'title',
     wordSection: {
       documentHeader: 'None',
-      writeToc:true
+      writeToc: true,
+      templateSection: {
+        customTemplate: "",
+        inheritFromTemplate: "minute",
+        templateType: "inherit"
+        }
       }
   };
 ;
@@ -28,7 +34,8 @@ export class DocumentSettingsComponent implements OnInit {
   //////////////////////////////////
   constructor(
     private mdFileService: MdFileService,
-    private _snackBar: MatSnackBar) { }
+    private _snackBar: MatSnackBar) {        
+  }
   /////////////////////////////////
 
   ngOnInit(): void {
@@ -44,6 +51,12 @@ export class DocumentSettingsComponent implements OnInit {
     );
   }
 
+  openSelectedInheritingTemplateWord() {
+    this.mdFileService.openInheritingTemplateWord(this.documentDescriptor.wordSection.templateSection.inheritFromTemplate)
+      .subscribe(_ => {
+        this._snackBar.open("Opening Word Custom template!");
+      });
+  }
 
   saveSettings() {
     this.mdFileService.setDocumentSettings(this.documentDescriptor, this.selectedMdFile)
