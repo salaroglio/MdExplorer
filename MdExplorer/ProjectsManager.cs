@@ -177,9 +177,37 @@ namespace MdExplorer.Service
             {
                 FileUtil.ExtractResFile(itemEmoj.EmbeddedName, $@"{directoryEmoji}{Path.DirectorySeparatorChar}{itemEmoj.Name}");
             }
+            //Directory.CreateDirectory(@".md");
+            Directory.CreateDirectory($@"{directory}{
+                Path.DirectorySeparatorChar}templates");
+            Directory.CreateDirectory($@"{directory}{
+                Path.DirectorySeparatorChar}templates{
+                Path.DirectorySeparatorChar}pdf");
+            Directory.CreateDirectory($@"{directory}{
+                Path.DirectorySeparatorChar}templates{
+                Path.DirectorySeparatorChar}word");
 
-            FileUtil.ExtractResFile("MdExplorer.Service.eisvogel.tex", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}eisvogel.tex");
-            FileUtil.ExtractResFile("MdExplorer.Service.reference.docx", $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}reference.docx");
+            FileUtil.ExtractResFile("MdExplorer.Service.templates.pdf.eisvogel.tex", $@"{
+                directory}{
+                Path.DirectorySeparatorChar}templates{
+                Path.DirectorySeparatorChar}pdf{
+                Path.DirectorySeparatorChar}eisvogel.tex");
+            //FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", $@"{
+            //        directory}{
+            //        Path.DirectorySeparatorChar}templates{
+            //        Path.DirectorySeparatorChar}word{
+            //        Path.DirectorySeparatorChar}reference.docx");
+            var minutePath = $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}minute.docx";
+            if (!File.Exists(minutePath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", minutePath);
+            }
+            var projectPath = $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}project.docx";
+            if (!File.Exists(projectPath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", projectPath);
+            }
+            
         }
     }
 }

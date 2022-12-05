@@ -167,6 +167,9 @@ namespace MdExplorer.Service.Controllers
                     CurrentFilePath = currentFilePath,
                     CurrentFilePdfPath = currentFilePdfPath,
                     createTOC = docDesc.WordSection.WriteToc,
+                    InheritsDocumentTemplate = docDesc.WordSection.TemplateSection.InheritFromTemplate,
+                    DocumentTemplateType = docDesc.WordSection.TemplateSection.TemplateType,
+                    CustomTemplate = docDesc.WordSection.TemplateSection.CustomTemplate,
                     DocumentHeader = docDesc.WordSection.DocumentHeader,
                     ProjectPath = projectPath,
                     MdFileName = filePath
@@ -193,6 +196,10 @@ namespace MdExplorer.Service.Controllers
             public string CurrentFilePdfPath { get; set; }
             public bool createTOC { get; set; } = true;
             public string DocumentHeader { get; set; } = "None";
+            public string InheritsDocumentTemplate { get; set; }
+            public string CustomTemplate { get; set; }
+            public string DocumentTemplateType { get; set; }
+
             public string ProjectPath { get; set; }
             public string MdFileName { get; set; }
         }
@@ -203,7 +210,11 @@ namespace MdExplorer.Service.Controllers
 
             public string CreatePandocCommand(CommandParameter commandParam)
             {
-                var setPdf = $@"--pdf-engine=pdflatex --template=.\.md\eisvogel.tex";
+                var setPdf = $@"--pdf-engine=pdflatex --template=.{
+                    Path.DirectorySeparatorChar}.md{
+                    Path.DirectorySeparatorChar}templates{
+                    Path.DirectorySeparatorChar}pdf{
+                    Path.DirectorySeparatorChar}eisvogel.tex";
                 var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {setPdf}";
                 return processCommand;
             }
@@ -220,8 +231,18 @@ namespace MdExplorer.Service.Controllers
                 {
                     createTocScriptCommand = "--toc";
                 }
-                var currentReferencePath = $".\\.md\\templates\\reference.docx";
-                if (commandParam.DocumentHeader== "Custom")
+                var currentReferencePath = $@".{Path.DirectorySeparatorChar}.md{
+                                                Path.DirectorySeparatorChar}templates{
+                                                Path.DirectorySeparatorChar}word{
+                                                Path.DirectorySeparatorChar}reference.docx";
+                if (commandParam.DocumentTemplateType == "inherits")
+                {
+                    currentReferencePath = $@".{Path.DirectorySeparatorChar}.md{
+                        Path.DirectorySeparatorChar}templates{
+                        Path.DirectorySeparatorChar}word{
+                        Path.DirectorySeparatorChar}{commandParam.InheritsDocumentTemplate}.docx";
+                }
+                if (commandParam.DocumentTemplateType == "custom")
                 {
                     currentReferencePath = Path.GetDirectoryName(commandParam.MdFileName) +
                         Path.DirectorySeparatorChar + "assets" +

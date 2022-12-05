@@ -16,9 +16,16 @@ import { PlantumlWorkingComponent } from './signalR/dialogs/plantuml-working/pla
 import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plantuml-working.provider';
 
 const routes: Routes = [
-  { path: 'main', loadChildren: () => import('./md-explorer/md-explorer.module').then(m => m.MdExplorerModule) },
-  { path: 'projects', loadChildren: () => import('./projects/projects.module').then(m => m.ProjectsModule) },
-  { path: '**', redirectTo: 'projects' }
+  {
+    path: 'main',
+    loadChildren: () => import('./md-explorer/md-explorer.module').then(m => m.MdExplorerModule),
+    data: { animation: 'main' }
+  },
+  {
+    path: 'projects', loadChildren: () => import('./projects/projects.module').then(m => m.ProjectsModule),
+    data: { animation: 'projects' }
+  },
+  { path: '**', redirectTo: 'projects', data: { animation: 'projects' } }
 ];
 
 @NgModule({

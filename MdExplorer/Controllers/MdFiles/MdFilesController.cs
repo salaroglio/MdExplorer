@@ -24,10 +24,12 @@ using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdFiles;
 using MdExplorer.Service.Controllers.MdFiles.Models;
+using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 using NHibernate.Criterion;
+using NHibernate.Exceptions;
 using NHibernate.Linq;
 using NHibernate.Util;
 using System;
@@ -91,6 +93,26 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(document);
         }
 
+        [HttpPost]
+        public IActionResult OpenInheritingTemplateWord([FromBody] RequestOpenInheritingTemplateWord request)
+        {
+            var templatePath = _fileSystemWatcher.Path +
+                Path.DirectorySeparatorChar +
+                ".md" +
+                Path.DirectorySeparatorChar +
+                "templates" +
+                Path.DirectorySeparatorChar +
+                "word" +
+                Path.DirectorySeparatorChar +
+                $"{request.TemplateName}.docx";
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{templatePath}\"")
+            {
+                CreateNoWindow = false
+            };
+            Process.Start(processToStart);
+            return Ok(new { message = "done" });
+        }
+
 
         [HttpPost]
         public IActionResult OpenCustomWordTemplate([FromBody] FileInfoNode fileData)
@@ -101,6 +123,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 ".md" +
                 Path.DirectorySeparatorChar +
                 "templates" +
+                Path.DirectorySeparatorChar +
+                "word" +
                 Path.DirectorySeparatorChar +
                 "reference.docx";
             var toReference = Path.GetDirectoryName(fileData.FullPath) +
