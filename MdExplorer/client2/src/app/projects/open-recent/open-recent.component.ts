@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { bounceInLeftOnEnterAnimation } from 'angular-animations';
 import { Observable } from 'rxjs';
 import { MdProject } from '../../md-explorer/models/md-project';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
@@ -8,7 +9,10 @@ import { ProjectsService } from '../../md-explorer/services/projects.service';
 @Component({
   selector: 'app-open-recent',
   templateUrl: './open-recent.component.html',
-  styleUrls: ['./open-recent.component.scss']
+  styleUrls: ['./open-recent.component.scss'],
+  animations: [
+    bounceInLeftOnEnterAnimation({ translate: '500px' }),
+  ]
 })
 export class OpenRecentComponent implements OnInit {
 

@@ -4,11 +4,13 @@ import { IMdSetting } from '../../../../Models/IMdSetting'
 import { AppCurrentMetadataService } from '../../../../services/app-current-metadata.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
+
  
 @Component({
   selector: 'app-settings',
   templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.scss']
+  styleUrls: ['./settings.component.scss'],
+  animations: [  ]
 })
 export class SettingsComponent implements OnInit {
 

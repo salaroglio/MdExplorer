@@ -9,5 +9,6 @@ export interface IFileInfoNode {
   expandable: boolean;
   isLoading: boolean;
   childrens?: IFileInfoNode[];
+  index: number;
 }
 

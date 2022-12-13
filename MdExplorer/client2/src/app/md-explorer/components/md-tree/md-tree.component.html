@@ -34,7 +34,8 @@
   </mat-tree-node>
 
   <!-- This is the tree node template for expandable nodes -->
-  <mat-tree-node *matTreeNodeDef="let node;when: isFolder" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
+  <mat-tree-node [@fadeInOnEnter]="{ value: '', params: { delay: node.index * 100 } }" *matTreeNodeDef="let node;when: isFolder"
+                 style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
     <button mat-icon-button matTreeNodeToggle
             [attr.aria-label]="'Toggle ' + node.name">
       <mat-icon *ngIf="node.name!='mdPublish'" class="gold-icon mat-icon-rtl-mirror">

@@ -1,4 +1,6 @@
-﻿const cyrb53 = function (str, seed = 0) {
+﻿
+
+const cyrb53 = function (str, seed = 0) {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
     for (let i = 0, ch; i < str.length; i++) {
         ch = str.charCodeAt(i);
@@ -10,6 +12,11 @@
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 };
 
+
+$(function () {
+    
+    //hljs.highlight();    
+});
 
 // gestione tocbot
 $(function () {

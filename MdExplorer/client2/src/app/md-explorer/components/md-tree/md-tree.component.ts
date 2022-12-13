@@ -14,13 +14,17 @@ import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.compo
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
 import { Router } from '@angular/router';
+import { fadeInOnEnterAnimation } from 'angular-animations';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
 @Component({
   selector: 'app-md-tree',
   templateUrl: './md-tree.component.html',
-  styleUrls: ['./md-tree.component.scss']
+  styleUrls: ['./md-tree.component.scss'],
+  animations: [
+    fadeInOnEnterAnimation()
+  ]
 })
 export class MdTreeComponent implements OnInit {
 
@@ -41,6 +45,14 @@ export class MdTreeComponent implements OnInit {
       relativePath: node.path,
       fullPath: node.fullPath,
       type: node.type,
+      get index() {
+        
+        if (level===0) {
+          let toReturn = Math.floor(Math.random() * 5);
+          return toReturn;
+        }
+        return 0;
+      }
     };
   }
   treeControl = new FlatTreeControl<IFileInfoNode>(
@@ -54,11 +66,11 @@ export class MdTreeComponent implements OnInit {
   hasChild = (_: number, node: IFileInfoNode) => node.expandable;
 
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
-  isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name=="mdPublish";
+  isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name == "mdPublish";
   isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
 
   ///////////////////////////////
-  
+
 
   constructor(private router: Router,
     private mdFileService: MdFileService,
@@ -173,7 +185,7 @@ export class MdTreeComponent implements OnInit {
   }
 
   getLinkFromNode(node: MdFile) {
-    this.clipboard.copy(node.relativePath.replace("\\","/"));
+    this.clipboard.copy(node.relativePath.replace("\\", "/"));
 
   }
 
