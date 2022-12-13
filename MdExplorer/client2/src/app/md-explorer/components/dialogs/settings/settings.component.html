@@ -1,47 +1,47 @@
 
-<h2 style="display:inline;" mat-dialog-title>
-  <img style="display:inline; vertical-align:middle" src="/assets/IconReady.png" />
-  <span>MdExplorer Settings</span>
-</h2>
+  <h2 style="display:inline;" mat-dialog-title>
+    <img style="display:inline; vertical-align:middle" src="/assets/IconReady.png" />
+    <span>MdExplorer Settings</span>
+  </h2>
 
-<mat-dialog-content>
-  <mat-card style="margin-top:10px; margin-bottom:10px">
-    <div class="example-container">
-      <mat-form-field appearance="outline">
-        <mat-label>Visual studio code server path</mat-label>
-        <input matInput [(ngModel)]="vscodePath" placeholder="Visual studio code path">
-        <mat-hint>Set visual studio Path</mat-hint>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Plantuml local path</mat-label>
-        <input matInput [(ngModel)]="plantumlLocalPath" placeholder="plantuml local path">
-        <mat-hint>Set path for plantuml server</mat-hint>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Java path</mat-label>
-        <input matInput [(ngModel)]="javaPath" placeholder="Java folder">
-        <mat-hint>Set java path</mat-hint>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>LocalGraphvizDot path</mat-label>
-        <input matInput [(ngModel)]="localGraphvizDotPath" placeholder="LocalGraphvizDot Path">
-        <mat-hint>Set graphiz internal path</mat-hint>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Jira path</mat-label>
-        <input matInput [(ngModel)]="jiraServer" placeholder="Jira path">
-        <mat-hint>Set http to jira</mat-hint>
-      </mat-form-field>
-    </div>
-  </mat-card>
-</mat-dialog-content>
-<mat-dialog-actions>
-  <button mat-button color="primary" (click)="save()">
-    <mat-icon>save</mat-icon>Save
-  </button>
-  <button mat-button color="primary" (click)="dismiss()">
-    <mat-icon>cancel</mat-icon>Cancel
-  </button>
-</mat-dialog-actions>
+  <mat-dialog-content>
+    <mat-card style="margin-top:10px; margin-bottom:10px">
+      <div class="example-container">
+        <mat-form-field appearance="outline">
+          <mat-label>Visual studio code server path</mat-label>
+          <input matInput [(ngModel)]="vscodePath" placeholder="Visual studio code path">
+          <mat-hint>Set visual studio Path</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Plantuml local path</mat-label>
+          <input matInput [(ngModel)]="plantumlLocalPath" placeholder="plantuml local path">
+          <mat-hint>Set path for plantuml server</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Java path</mat-label>
+          <input matInput [(ngModel)]="javaPath" placeholder="Java folder">
+          <mat-hint>Set java path</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>LocalGraphvizDot path</mat-label>
+          <input matInput [(ngModel)]="localGraphvizDotPath" placeholder="LocalGraphvizDot Path">
+          <mat-hint>Set graphiz internal path</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Jira path</mat-label>
+          <input matInput [(ngModel)]="jiraServer" placeholder="Jira path">
+          <mat-hint>Set http to jira</mat-hint>
+        </mat-form-field>
+      </div>
+    </mat-card>
+  </mat-dialog-content>
+  <mat-dialog-actions>
+    <button mat-button color="primary" (click)="save()">
+      <mat-icon>save</mat-icon>Save
+    </button>
+    <button mat-button color="primary" (click)="dismiss()">
+      <mat-icon>cancel</mat-icon>Cancel
+    </button>
+  </mat-dialog-actions>
 
 

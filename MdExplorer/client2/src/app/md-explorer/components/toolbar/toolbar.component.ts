@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, Component, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
 import { SettingsComponent } from '../dialogs/settings/settings.component';
@@ -16,11 +16,15 @@ import { MatTabGroup } from '@angular/material/tabs';
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { Router } from '@angular/router';
+import { NgDialogAnimationService } from "../../../shared/NgDialogAnimationService";
+import { INCOMING_ROTATE_OPTION, OUTGOING_ROTATE_OPTION } from '../../../shared/dialogAnimations';
+
+
 
 @Component({
   selector: 'app-toolbar',
   templateUrl: './toolbar.component.html',
-  styleUrls: ['./toolbar.component.scss']
+  styleUrls: ['./toolbar.component.scss'],  
 })
 export class ToolbarComponent implements OnInit {
 
@@ -39,6 +43,7 @@ export class ToolbarComponent implements OnInit {
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
     public dialog: MatDialog,
+    private dialogAn: NgDialogAnimationService,
     private monitorMDService: ServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
@@ -50,9 +55,9 @@ export class ToolbarComponent implements OnInit {
 
   ) {
     this.TitleToShow = "MdExplorer";
-  }    
+  }
 
-  ngOnInit(): void {    
+  ngOnInit(): void {
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
@@ -61,11 +66,11 @@ export class ToolbarComponent implements OnInit {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
-    });    
+    });
 
     this.gitservice.getBranchList().subscribe(branches => {
       this.branches = branches;
-    });    
+    });
 
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
@@ -101,10 +106,26 @@ export class ToolbarComponent implements OnInit {
   }
 
   openDialog(): void {
-    const dialogRef = this.dialog.open(SettingsComponent, {
+    const dialogRef = this.dialogAn.open(SettingsComponent, {
       width: '600px',
-
-    });
+      animation: {},
+      //  incomingOptions: {
+      //    keyframes: [
+      //      { transform: "rotate(360deg)" },
+      //      { transform: "rotate(0)" }
+      //    ],
+      //    keyframeAnimationOptions: { easing: "ease-in-out", duration: 500 }
+      //  },
+      //  outgoingOptions: {
+      //    keyframes: [
+      //      { transform: "rotate(0)" },
+      //      { transform: "rotate(360deg)" }
+      //    ],
+      //    keyframeAnimationOptions: { easing: "ease-in-out", duration: 500 }
+      //  }
+      //},
+    }
+    );
 
     dialogRef.afterClosed().subscribe(result => {
       console.log('The dialog was closed');
@@ -175,14 +196,14 @@ export class ToolbarComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
 
-  openBranch(branch: IBranch): void {    
-    this.gitservice.checkoutSelectedBranch(branch).subscribe(_ => {      
+  openBranch(branch: IBranch): void {
+    this.gitservice.checkoutSelectedBranch(branch).subscribe(_ => {
       this.currentBranch = _.name;
       var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html', 0, false);
       mdFile.relativePath = '/../../welcome.html';
-      this.mdFileService.setSelectedMdFileFromSideNav(mdFile);      
+      this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
       this.projectService.setNewFolderProject(_.fullPath).subscribe(_ => {
-        this.mdFileService.loadAll(null,null);
+        this.mdFileService.loadAll(null, null);
         this.router.navigate(['/main/navigation/document']);
       });
     });

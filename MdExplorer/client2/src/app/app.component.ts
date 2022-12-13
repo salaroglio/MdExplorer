@@ -1,7 +1,7 @@
 import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { slideInAnimation } from './animations/animations';
+import { slideInAnimation } from './shared/animations';
 import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 
 @Component({
@@ -10,7 +10,7 @@ import { AppCurrentMetadataService } from './services/app-current-metadata.servi
   styleUrls: ['./app.component.scss'],
   animations: [
     slideInAnimation
-  ]
+  ],
 }) 
 export class AppComponent {
   @HostListener('window:unload', ['$event'])

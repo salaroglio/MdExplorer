@@ -149,6 +149,8 @@
     <Content Remove="wwwroot\common.js" />
     <Content Remove="wwwroot\commonSlide.css" />
     <Content Remove="wwwroot\commonSlide.js" />
+    <Content Remove="wwwroot\highlightjs\default.min.css" />
+    <Content Remove="wwwroot\highlightjs\highlight.min.js" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
@@ -434,6 +436,8 @@
     <EmbeddedResource Include="wwwroot\common.js" />
     <EmbeddedResource Include="wwwroot\commonSlide.css" />
     <EmbeddedResource Include="wwwroot\commonSlide.js" />
+    <EmbeddedResource Include="wwwroot\highlightjs\default.min.css" />
+    <EmbeddedResource Include="wwwroot\highlightjs\highlight.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />

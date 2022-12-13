@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
@@ -13,13 +13,17 @@ import { NewProjectComponent } from './new-project/new-project.component';
   templateUrl: './projects.component.html',
   styleUrls: ['./projects.component.scss']
 })
-export class ProjectsComponent implements OnInit {
+export class ProjectsComponent implements OnInit, OnDestroy {
 
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
     private router: Router,
     private signalRService: ServerMessagesService
   ) { }
+
+    ngOnDestroy(): void {
+      console.log('ProjectsComponent destroyed!');
+    }
 
   public dataSource: Observable<MdProject[]>
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]

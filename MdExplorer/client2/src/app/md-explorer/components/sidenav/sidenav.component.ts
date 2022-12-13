@@ -8,7 +8,7 @@ import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { MdFile } from '../../models/md-file';
-import { slideInAnimation } from '../../../animations/animations';
+
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
