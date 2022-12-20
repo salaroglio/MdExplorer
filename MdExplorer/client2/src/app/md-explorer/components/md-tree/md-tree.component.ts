@@ -45,14 +45,7 @@ export class MdTreeComponent implements OnInit {
       relativePath: node.path,
       fullPath: node.fullPath,
       type: node.type,
-      get index() {
-        
-        if (level===0) {
-          let toReturn = Math.floor(Math.random() * 5);
-          return toReturn;
-        }
-        return 0;
-      }
+      index:node.index
     };
   }
   treeControl = new FlatTreeControl<IFileInfoNode>(
@@ -94,10 +87,16 @@ export class MdTreeComponent implements OnInit {
       }
     });
   }
-
+  //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
+      data.map(_ => {
+        _.index = 0;
+        if (_.level === 0) {
+          _.index = Math.floor(Math.random() * 5);
+        }
+      });      
       this.dataSource.data = data;
     });
     this.mdFileService.loadAll(this.deferredOpenProject, this);
@@ -197,7 +196,15 @@ export class MdTreeComponent implements OnInit {
 
   }
 
+  cloneTimerDocument(node: MdFile) {
+    this.mdFileService.cloneTimerDocument(node).subscribe(data => {
+      this.mdFileService.addNewFile(data);
+      this.mdFileService.setSelectedMdFileFromSideNav(data[data.length - 1]);
+    });
+  }
+
   openDocumentSettings(node: MdFile) {
+
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.router.navigate(['/main/navigation/documentsettings']);
   }

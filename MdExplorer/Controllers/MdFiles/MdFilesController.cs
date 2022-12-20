@@ -26,6 +26,7 @@ using MdExplorer.Service.Controllers.MdFiles;
 using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json.Linq;
 using NHibernate.Criterion;
@@ -39,6 +40,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
 
@@ -91,6 +93,24 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var text = System.IO.File.ReadAllText(fullPath);
             var document = _yamlDocumentManager.GetDescriptor(text);
             return Ok(document);
+        }
+
+
+        /// <summary>
+        /// MdLink:
+        /// </summary>
+        /// <param name="mdFile"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public IActionResult OpenFileInApplication([FromBody] OpenFileInApplicationcs data)
+        {
+            var fullpath = data.FullPath.Replace('/', Path.DirectorySeparatorChar);
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{data.FullPath}\"")
+            {
+                CreateNoWindow = false
+            };
+            Process.Start(processToStart);
+            return Ok(new { message = "done" });
         }
 
         [HttpPost]
@@ -376,6 +396,47 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(list);
         }
 
+        [HttpPost]
+        public IActionResult CloneTimerMd([FromBody] FileInfoNode fileData)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+
+            var allText = System.IO.File.ReadAllText(fileData.FullPath);
+            string destFullPath, destRelativePath;
+            (allText, destFullPath,destRelativePath) = PrepareClone(fileData, allText);
+            System.IO.File.WriteAllText(destFullPath, allText);
+            // Devo preparare il nuovo file di risposta
+            List<IFileInfoNode> list = PrepareListToGetBack(Path.GetFileName(destFullPath), destFullPath, destRelativePath);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(list);
+        }
+
+        private (string,string,string) PrepareClone(FileInfoNode fileData, string allText)
+        {
+            var destFullPath = fileData.FullPath;
+            var destRelativePath = fileData.RelativePath;
+            var fileName = Path.GetFileName(fileData.FullPath);
+
+            var stringDatePattern = new Regex(@"([0-9][0-9][0-9][0-9][-][0-9][0-9][-][0-9][0-9]).*");
+            var matchesOnFileName = stringDatePattern.Matches(fileName);
+            var currentDate = DateTime.Now.ToString("yyyy-MM-dd");
+
+            foreach (Match item in matchesOnFileName)
+            {
+                destFullPath = destFullPath.Replace(item.Groups[1].Value, currentDate);
+                destRelativePath = destRelativePath.Replace(item.Groups[1].Value, currentDate);
+                var getTitle = new Regex(@"(#.+?)([0-9][0-9][0-9][0-9][-][0-9][0-9][-][0-9][0-9])(.*)");
+                var match = getTitle.Match(allText);
+                var firstPart = match.Groups[1].Value;
+                var dateToReplace = match.Groups[2].Value;
+                var lastPart = match.Groups[3].Value;
+                var finalRowString = firstPart + currentDate + lastPart;
+                allText = allText.Replace(match.Groups[0].Value, finalRowString);
+            }
+
+            return (allText, destFullPath,destRelativePath);
+        }
+
         /// <summary>
         /// It helps to create new Markdown when on client:right click and then: create new markdow
         /// </summary>
@@ -421,6 +482,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
 
             // prepare data to raise back
+            List<IFileInfoNode> list = PrepareListToGetBack(title, fullPath, relativePath);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(list);
+        }
+
+        private List<IFileInfoNode> PrepareListToGetBack(string title, string fullPath, string relativePath)
+        {
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
 
@@ -454,8 +522,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Level = currentLevel,
             };
             list.Add(nodeFile);
-            _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(list);
+            return list;
         }
 
         [HttpPost]

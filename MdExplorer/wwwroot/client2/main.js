@@ -342,7 +342,6 @@ const fromProjectsToMain = (fromState, toState) => {
     if (fromState === "void" || fromState === "") {
         return true;
     }
-    debugger;
     let fromStart = fromState;
     let toArrive = toState;
     let test1 = fromStart.data;
@@ -356,7 +355,6 @@ const fromMainToProjects = (fromState, toState) => {
     if (fromState === "void" || fromState === "") {
         return true;
     }
-    debugger;
     let fromStart = fromState;
     let toArrive = toState;
     let test1 = fromStart.data;

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.ProjectBody
 {
@@ -14,13 +15,24 @@ namespace MdExplorer.Features.ProjectBody
         public FileInfoNode CreateNodeMdFile(string itemFile, string patchedItemFile)
         {
             //var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+            var fileName = Path.GetFileName(itemFile);
+            var typeNode = "mdFile";
+            var stringDatePattern = new Regex(@"[0-9][0-9][0-9][0-9][-][0-9][0-9][-][0-9][0-9]");
+            
+            if (stringDatePattern.IsMatch(fileName))
+            {
+                typeNode = "mdFileTimer";
+            }
+            
+            
+
             var node = new FileInfoNode
             {
-                Name = Path.GetFileName(itemFile),
+                Name = fileName,
                 FullPath = itemFile,
                 Path = patchedItemFile,
                 RelativePath = patchedItemFile,
-                Type = "mdFile"
+                Type = typeNode
             };
             return node;
         }

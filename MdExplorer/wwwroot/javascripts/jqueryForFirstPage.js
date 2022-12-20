@@ -18,6 +18,23 @@ $(function () {
     //hljs.highlight();    
 });
 
+//Open link directly in the application
+function openApplication(fullpath) {
+    debugger;
+    let toStringify = { fullPath: fullpath };
+    $.ajax({
+        url: "/api/MdFiles/OpenFileInApplication",
+        type: "POST",
+        data: JSON.stringify(toStringify),//'{"linkHash": "1234", "cssHash": "5678", "Width": "100px", "Height": "50px","ClientX":"","ClientY":"" }', //
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            console.log(data);            
+        }
+    });
+
+}
+
 // gestione tocbot
 $(function () {
     tocbot.init({

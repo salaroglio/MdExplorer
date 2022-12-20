@@ -18,6 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Commands\TestStore\ChangeLinkIntoCallAJavscriptFunction.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="WordTests\FilesDocx\PrimaPaginaTitolo.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

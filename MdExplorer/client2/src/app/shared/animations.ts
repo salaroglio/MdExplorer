@@ -7,8 +7,7 @@ const fromProjectsToMain = (fromState: any, toState: any): boolean => {
   
   if (fromState==="void" || fromState==="") {
     return true;
-  }
-  debugger;
+  }  
   let fromStart = <ActivatedRoute> fromState;
   let toArrive = <ActivatedRoute>toState;
   let test1 = <BehaviorSubject<IDataForRouting>> fromStart.data;
@@ -24,8 +23,7 @@ const fromMainToProjects = (fromState: any, toState: any): boolean => {
 
   if (fromState === "void" || fromState === "") {
     return true;
-  }
-  debugger;
+  }  
   let fromStart = <ActivatedRoute>fromState;
   let toArrive = <ActivatedRoute>toState;
   let test1 = <BehaviorSubject<IDataForRouting>>fromStart.data;

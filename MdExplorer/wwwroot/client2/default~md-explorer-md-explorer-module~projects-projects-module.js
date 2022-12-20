@@ -7800,6 +7800,10 @@ class MdFileService {
         };
         return this.http.post(url, newData);
     }
+    cloneTimerDocument(node) {
+        const url = '../api/mdfiles/CloneTimerMd';
+        return this.http.post(url, node);
+    }
     CreateNewMd(path, title, directoryLevel, documentTypeId, documentType) {
         const url = '../api/mdfiles/CreateNewMd';
         var newData = {
