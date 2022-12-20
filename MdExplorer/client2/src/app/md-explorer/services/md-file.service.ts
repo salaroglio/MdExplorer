@@ -273,6 +273,11 @@ export class MdFileService {
     return this.http.post<MdFile[]>(url, newData);
   }
 
+  cloneTimerDocument(node: MdFile) {
+    const url = '../api/mdfiles/CloneTimerMd';
+    return this.http.post<MdFile[]>(url, node);
+  }
+
   CreateNewMd(path: string, title: string, directoryLevel: number, documentTypeId: number, documentType: string) {
     const url = '../api/mdfiles/CreateNewMd';
     var newData = {

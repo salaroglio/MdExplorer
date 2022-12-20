@@ -152,8 +152,10 @@ namespace MdExplorer.Service.HostedServices
         {
             var isWrongDirectory = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
             var isWrongExtensionFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")
-                                        || e.FullPath.Contains($".docx")
-                                        || e.FullPath.Contains($".tmp");
+                                        || e.FullPath.ToLower().Contains($".docx")
+                                        || e.FullPath.ToLower().Contains($".xlsx")
+                                        || e.FullPath.ToLower().Contains($".xlsb")
+                                        || e.FullPath.ToLower().Contains($".tmp");
             var isWrongGitFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD")
                                         || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG")
                                         || e.FullPath.Contains($".0.pdnSave")
