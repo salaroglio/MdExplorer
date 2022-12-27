@@ -15,6 +15,7 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
 import { Router } from '@angular/router';
 import { fadeInOnEnterAnimation } from 'angular-animations';
+import { CopyFromClipboardComponent } from '../dialogs/copy-from-clipboard/copy-from-clipboard.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -204,9 +205,15 @@ export class MdTreeComponent implements OnInit {
   }
 
   openDocumentSettings(node: MdFile) {
-
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.router.navigate(['/main/navigation/documentsettings']);
+  }
+
+  pasteFromClipboard(node: MdFile) {
+    this.dialog.open(CopyFromClipboardComponent, {
+      width: '300px',      
+      data: node,
+    });
   }
 
 }

@@ -7800,6 +7800,10 @@ class MdFileService {
         };
         return this.http.post(url, newData);
     }
+    pasteFromClipboard(node) {
+        const url = '../api/mdfiles/pasteFromClipboard';
+        return this.http.post(url, node);
+    }
     cloneTimerDocument(node) {
         const url = '../api/mdfiles/CloneTimerMd';
         return this.http.post(url, node);

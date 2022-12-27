@@ -36,12 +36,16 @@ using NHibernate.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using static System.Net.WebRequestMethods;
 
 namespace MdExplorer.Service.Controllers.MdFiles
@@ -130,6 +134,46 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 CreateNoWindow = false
             };
             Process.Start(processToStart);
+            return Ok(new { message = "done" });
+        }
+
+        [HttpPost]
+        public IActionResult PasteFromClipboard([FromBody] RequestPasteFromClipboard fileData)
+        {
+            Thread t = new Thread(new ThreadStart(() => {
+                // S.O compatibility broken... sorry
+                //DataObject data = new DataObject();
+                //data.SetData(typeof(string), "SampleText");
+                //Clipboard.SetDataObject(data);
+                //string text = ((DataObject)Clipboard.GetDataObject()).GetText();
+                //IDataObject test = Clipboard.GetDataObject();
+                if (Clipboard.ContainsImage())
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = false;
+                    var ruleReg = new Regex("(^(PRN|AUX|NUL|CON|COM[1-9]|LPT[1-9]|(\\.+)$)(\\..*)?$)|(([\\x00-\\x1f\\\\?*:\";‌​|/<>])+)|([\\. ]+)");
+                    var title = ruleReg.Replace(fileData.FileName, "-").Replace(" ", "-") + ".png";
+
+                    var imageToSave = Clipboard.GetImage();
+
+                    var currentDirectory = string.Concat(Path.GetDirectoryName(fileData.FileInfoNode.FullPath),
+                                                            Path.DirectorySeparatorChar,
+                                                            "assets");
+                    Directory.CreateDirectory(currentDirectory);
+                    var currentImageToSave = currentDirectory + Path.DirectorySeparatorChar + title;
+                    imageToSave.Save(currentImageToSave);
+                    var allText = System.IO.File.ReadAllText(fileData.FileInfoNode.FullPath);
+                    var newLineTextToAdd = @$"![{fileData.FileName}](assets/{title})";
+                    allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    System.IO.File.WriteAllText(fileData.FileInfoNode.FullPath, allText);
+                }
+
+            }));
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+
+            
+
             return Ok(new { message = "done" });
         }
 
