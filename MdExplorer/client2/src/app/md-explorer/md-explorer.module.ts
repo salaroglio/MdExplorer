@@ -24,6 +24,7 @@ import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/de
 import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
 import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
 import { DocumentSettingsComponent } from './components/document-settings/document-settings.component';
+import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
 
 
 const routes: Routes = [
@@ -58,6 +59,7 @@ const routes: Routes = [
     PublishMdTreeComponent,
     GitlabSettingsComponent,
     DocumentSettingsComponent,
+    CopyFromClipboardComponent,
       
   ],
   imports: [

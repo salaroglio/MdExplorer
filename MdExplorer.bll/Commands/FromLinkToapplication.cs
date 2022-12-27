@@ -26,7 +26,7 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"(<a.+?)(href="")(.+?\.XLSX)""",
+            Regex rx = new Regex(@"(<a.+?)(href="")(.+?\.xlsx)""", //lnk?
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(markdown);
             return matches;

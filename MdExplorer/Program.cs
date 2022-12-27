@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MdExplorer
@@ -21,8 +22,9 @@ namespace MdExplorer
 
         public static Task<int> _uiTask;
 
+        
         public static void Main(string[] args)
-        {
+        {            
             ExtractServer();
             CreateHostBuilder(args).Build().Run();
         }
