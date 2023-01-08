@@ -40,7 +40,15 @@
     <EmbeddedResource Remove="Documents\**" />
     <None Remove="Documents\**" />
   </ItemGroup>
+  
+  <!--INTEGRATE ImageNumbering application-->
+  <ItemGroup>
+    <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe" >
+      <DestinationSubDirectory>bin</DestinationSubDirectory>
+    </Content>
+  </ItemGroup>
 
+  
   <ItemGroup>
     <Content Remove="wwwroot\assets\AliasEmoji.PNG" />
     <Content Remove="wwwroot\assets\cicd.png" />

@@ -99,13 +99,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(document);
         }
 
-
-        /// <summary>
-        /// MdLink:
-        /// </summary>
-        /// <param name="mdFile"></param>
-        /// <returns></returns>
         [HttpPost]
+        public IActionResult SetNumberedImage([FromBody] SetNumberedImageRequest data)
+        {
+            return Ok(data);
+        }
+            /// <summary>
+            /// MdLink:
+            /// </summary>
+            /// <param name="mdFile"></param>
+            /// <returns></returns>
+            [HttpPost]
         public IActionResult OpenFileInApplication([FromBody] OpenFileInApplicationcs data)
         {
             var fullpath = data.FullPath.Replace('/', Path.DirectorySeparatorChar);

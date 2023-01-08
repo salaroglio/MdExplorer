@@ -45,6 +45,10 @@ Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "MdExplorer.Bootstrapper", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deploy", "Deploy", "{097A94E4-D4DE-40E8-A7A1-D45494385869}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "InternalTools", "InternalTools", "{10048F8F-B693-42BA-9290-77E1F1EA1C70}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdImageNumbering", "MdImageNumbering\MdImageNumbering.csproj", "{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -367,6 +371,26 @@ Global
 		{D3027AFD-EE62-47E4-9555-52A7C0F5DAED}.ReleaseWPF|Any CPU.ActiveCfg = Release|x86
 		{D3027AFD-EE62-47E4-9555-52A7C0F5DAED}.ReleaseWPF|x86.ActiveCfg = Release|x86
 		{D3027AFD-EE62-47E4-9555-52A7C0F5DAED}.ReleaseWPF|x86.Build.0 = Release|x86
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Debug|x86.Build.0 = Debug|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Release|x86.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.Release|x86.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvalonia|Any CPU.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvalonia|Any CPU.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvalonia|x86.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvalonia|x86.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvaloniaRemoteDebugSupport|Any CPU.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvaloniaRemoteDebugSupport|Any CPU.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvaloniaRemoteDebugSupport|x86.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseAvaloniaRemoteDebugSupport|x86.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseWPF|Any CPU.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseWPF|Any CPU.Build.0 = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseWPF|x86.ActiveCfg = Release|Any CPU
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226}.ReleaseWPF|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -384,6 +408,7 @@ Global
 		{A458B0CC-5FE4-4893-BB1A-CF43BA21E238} = {5AD530AE-2EE1-4678-8D0A-9CECF5191E16}
 		{50CE14D3-CCA9-4797-9444-F518BC0F9A5D} = {097A94E4-D4DE-40E8-A7A1-D45494385869}
 		{D3027AFD-EE62-47E4-9555-52A7C0F5DAED} = {097A94E4-D4DE-40E8-A7A1-D45494385869}
+		{9F6D61EF-BBAC-4AB9-BF3F-1C8706A38226} = {10048F8F-B693-42BA-9290-77E1F1EA1C70}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8262B491-47A0-4B4D-8A57-6C3D6A8FDD3E}
