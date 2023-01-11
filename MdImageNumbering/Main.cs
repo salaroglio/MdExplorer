@@ -25,12 +25,36 @@ namespace MdImageNumbering
         private int _shiftOfBox = 20;
         private CurrentState _currentState = CurrentState.None;
         private readonly string?[] _args;
+        private string _fullPathFile = string.Empty;
 
         public Main(string?[] args)
         {
             InitializeComponent();
             _args = args;
         }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Construct an image object from a file in the local directory.
+            // ... This file must exist in the solution.
+             _fullPathFile = Path.GetFullPath(_args[0].ToString());            
+            
+            if (_args.Count() > 0)
+            {
+                _imageMask = Image.FromFile(_fullPathFile);
+            }
+            else
+            {
+                this.Close();
+            }
+
+            // Set the PictureBox image property to this image.
+            // ... Then, adjust its height and width properties.
+            pictureBox1.Image = _imageMask;
+            pictureBox1.Height = _imageMask.Height;
+            pictureBox1.Width = _imageMask.Width;
+        }
+
 
         private void toolStripButton1_Click(object sender, EventArgs e)
         {
@@ -93,22 +117,7 @@ namespace MdImageNumbering
             _movingButton = sender as Button;
         }
 
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            // Construct an image object from a file in the local directory.
-            // ... This file must exist in the solution.
-            _imageMask = Image.FromFile("test1.png");
-            if (_args.Count() > 0)
-            {
-                _imageMask = Image.FromFile(_args[0]);
-            }
-
-            // Set the PictureBox image property to this image.
-            // ... Then, adjust its height and width properties.
-            pictureBox1.Image = _imageMask;
-            pictureBox1.Height = _imageMask.Height;
-            pictureBox1.Width = _imageMask.Width;
-        }
+        
 
         private void pictureBox1_Click(object sender, EventArgs e)
         {
@@ -202,21 +211,22 @@ namespace MdImageNumbering
             pictureBox1.Controls.Clear();
 
             this.Refresh();
-            var fileName = Path.GetFileName(_args[0]);
+            var fullDirectory = Path.GetDirectoryName(_fullPathFile);
+            var fileName = Path.GetFileNameWithoutExtension(_fullPathFile);
             var numberedImageFullPath = fileName + "_numbered.png";
-            _imageMask.Save(numberedImageFullPath);
+            _imageMask.Save(fullDirectory + Path.DirectorySeparatorChar + numberedImageFullPath);
             //SendToMdExplorer(numberedImageFullPath);
         }
 
         private void SendToMdExplorer(string numberedImageFullPath)
         {
             var client = new HttpClient();
-            client.BaseAddress = new Uri(_args[1]);
+            client.BaseAddress = new Uri(_args[1].ToString());
             var request = new HttpRequestMessage(HttpMethod.Post, "mdfiles/SetNumberedImage");
             var requestBody = JsonSerializer.Serialize(new
             {
-                FullPath = _args[0],
-                MarkdownToReplace = _args[2],
+                FullPath = _fullPathFile,
+                MarkdownToReplace = _args[2].ToString(),
                 NumberedImageFullPath = numberedImageFullPath
             });
             request.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
