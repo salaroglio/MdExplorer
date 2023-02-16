@@ -171,7 +171,7 @@ namespace MdExplorer.Service.Controllers
         public IActionResult PostAsync([FromBody] RequestInfo postData )
         {
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
-            string relativePathFileSystem = postData.RelativePathFile.Replace('/', Path.DirectorySeparatorChar); // GetRelativePathFileSystem("mdexplorer2");
+            string relativePathFileSystem = postData.RelativePathFile.Replace('/', Path.DirectorySeparatorChar).Replace("%20"," "); // GetRelativePathFileSystem("mdexplorer2");
             // manage recursion level for composition document
             var recursionLevel = string.IsNullOrEmpty(Request.Query["recursionLevel"]) ? 0 : Convert.ToInt32(Request.Query["recursionLevel"]);
 

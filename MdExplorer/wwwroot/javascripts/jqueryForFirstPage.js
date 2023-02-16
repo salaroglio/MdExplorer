@@ -18,6 +18,8 @@ $(function () {
     //hljs.highlight();    
 });
 
+
+
 //Open link directly in the application
 function openApplication(fullpath) {
     debugger;
@@ -48,6 +50,7 @@ $(function () {
         positionFixedClass: 'is-position-fixed',
 
     });
+    setTimeout(tocbot.refresh());
     //console.log('Tocbot initialized');
 });
 

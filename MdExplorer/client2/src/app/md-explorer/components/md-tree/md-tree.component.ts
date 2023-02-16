@@ -185,7 +185,8 @@ export class MdTreeComponent implements OnInit {
   }
 
   getLinkFromNode(node: MdFile) {
-    this.clipboard.copy(node.relativePath.replace("\\", "/"));
+    let finalPath = node.relativePath.replace(/\\/g, "/");  
+    this.clipboard.copy(finalPath);
 
   }
 

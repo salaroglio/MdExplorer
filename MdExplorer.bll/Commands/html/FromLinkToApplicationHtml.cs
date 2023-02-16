@@ -7,7 +7,7 @@ using System.Text;
 
 namespace MdExplorer.Features.Commands.html
 {
-    public class FromLinkToApplicationHtml: FromLinkToapplication, ICommandHtml
+    public class FromLinkToApplicationHtml: FromLinkToApplication, ICommandHtml
     {
         public FromLinkToApplicationHtml(ILogger<FromLinkToApplicationHtml> logger, IServerCache serverCache) : base(logger)
         {

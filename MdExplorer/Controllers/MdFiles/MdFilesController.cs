@@ -113,7 +113,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult OpenFileInApplication([FromBody] OpenFileInApplicationcs data)
         {
             var fullpath = data.FullPath.Replace('/', Path.DirectorySeparatorChar);
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{data.FullPath}\"")
+
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{data.FullPath.Replace("%20"," ")}\"")
             {
                 CreateNoWindow = false
             };
