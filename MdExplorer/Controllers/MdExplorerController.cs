@@ -128,16 +128,16 @@ namespace MdExplorer.Controllers
             //.Replace(@"\",@"\\");
             await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
-            //try
-            //{
-            //    System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
-            //                            Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
-            //}
-            //catch (Exception ex)
-            //{
-            //    var msg = ex.Message;
+            try
+            {
+                System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+                                        Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
 
-            //}
+            }
 
 
             var toReturn = new ContentResult

@@ -3343,7 +3343,8 @@ class MdTreeComponent {
         });
     }
     getLinkFromNode(node) {
-        this.clipboard.copy(node.relativePath.replace("\\", "/"));
+        let finalPath = node.relativePath.replace(/\\/g, "/");
+        this.clipboard.copy(finalPath);
     }
     deleteFile(node) {
         this.dialog.open(_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_7__["DeleteMarkdownComponent"], {
