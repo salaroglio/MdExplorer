@@ -2,17 +2,23 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"  xmlns:iis="http://schemas.microsoft.com/wix/IIsExtension">
   
   
-  <Product Id="*" Name="MdExplorer" Language="1033" Version="1.0.0" Manufacturer="Advice" UpgradeCode="8c305313-4d21-4e33-ad3a-a4c68e702d07">
-    <Package Description="Markdown Explorer Installer" Compressed="yes"/>
+  <Product Id="*" Name="MdExplorer" Language="1033" Version="1.0.0" 
+           Manufacturer="Advice" UpgradeCode="8c305313-4d21-4e33-ad3a-a4c68e702d07">
+    <Package Description="Markdown Explorer Installer" InstallScope="perMachine" Compressed="yes"/>
     <MediaTemplate EmbedCab="yes"/>
 
     <UIRef Id="WixUI_Minimal" />
     <WixVariable Id="WixUIBannerBmp" Value="assets/Advice.png" />
     <WixVariable Id="WixUIDialogBmp" Value="assets/MdExplorer1.png" />
     <WixVariable Id="WixUILicenseRtf" Value="assets/LicenseAgreement.rtf" />
-    
+
     <Directory Id="TARGETDIR" Name="SourceDir">
-      
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="MdExplorer" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="MdExplorerShortcuts" Name="MdExplorer" />
+      </Directory>
       <Directory Id="DesktopFolder" Name="Desktop">
         <Component Id="ApplicationShortcutDesktop" Guid="*">
           <Shortcut Id="ApplicationDesktopShortcut"
@@ -20,7 +26,7 @@
               Description="Markdown viewer"
               Target="[INSTALLFOLDER]MdExplorer.Service.exe"
               WorkingDirectory="INSTALLFOLDER"/>
-          <RemoveFolder Id="DesktopFolder" On="uninstall"/>
+          <RemoveFolder Id="RemoveDesktopFolder" Directory="DesktopFolder" On="uninstall"/>
           <RegistryValue
               Root="HKCU"
               Key="Software\Advice\MdExplorer"
@@ -30,17 +36,39 @@
               KeyPath="yes"/>
         </Component>
       </Directory>
-      
-      <Directory Id="ProgramFilesFolder">
-        <Directory Id="INSTALLFOLDER" Name="MdExplorer" />
-      </Directory>
-      
     </Directory>
-        
-    
-    <Feature Id="MainFeature" Title="MdExplorerFolder" Level="1">
-      <ComponentGroupRef Id="HeatGenerated" />      
-      <ComponentRef Id="ApplicationShortcutDesktop"/>      
+
+    <Component Id="MainApplication" Directory="INSTALLFOLDER" Win64="yes">
+      <File Id="disclaimer.txt" Source="assets\disclaimer.txt" KeyPath="yes">
+        <Shortcut Id="MdExplorerShortcut"
+                  Directory="MdExplorerShortcuts"
+                  Name="MdExplorer"
+                  Description="My Description"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Advertise="yes" />
+      </File>
+      <RemoveFolder Id="DeleteTheMdExplorerShortcut"
+                    Directory="MdExplorerShortcuts"
+                    On="uninstall" />
+    </Component>
+
+    <Component Id="UninstallShortcut" Guid="*" Directory="MdExplorerShortcuts">
+      <Shortcut Id="UninstallThisProduct"
+                Name="Uninstall MdExplorer"
+                Description="Uninstalls the MdExplorer Sample Application"
+                Target="[System64Folder]msiexec.exe"
+                Arguments="/x [ProductCode]"/>
+      <RegistryValue Root="HKCU" Key="Software\SoftAgility\MdExplorer" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+    </Component>
+
+
+
+
+    <Feature Id="ProductFeature" Title="MdExplorer" Level="1">
+      <ComponentRef Id="MainApplication" />
+      <ComponentRef Id="UninstallShortcut" />
+      <ComponentGroupRef Id="HeatGenerated" />
+      <ComponentRef Id="ApplicationShortcutDesktop"/>
     </Feature>
   
   </Product>
