@@ -69,16 +69,24 @@ namespace MdExplorer.Features.GIT
 
         public GitBranch[] GetBranches(string projectPath)
         {
-            using (var repo = new Repository(projectPath))
+            try
             {
-                return repo.Branches.Select(_ =>
-                new GitBranch
+                using (var repo = new Repository(projectPath))
                 {
-                    Id = _.GetHashCode(),
-                    Name = _.FriendlyName
+                    return repo.Branches.Select(_ =>
+                    new GitBranch
+                    {
+                        Id = _.GetHashCode(),
+                        Name = _.FriendlyName
+                    }
+                    ).ToArray();
                 }
-                ).ToArray();
             }
+            catch (Exception ex)
+            {
+                return null;           
+            }
+            
         }
 
         public GitTag[] GetTagList(string projectPath)

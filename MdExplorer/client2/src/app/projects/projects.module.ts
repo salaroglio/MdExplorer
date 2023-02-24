@@ -6,6 +6,7 @@ import { NewProjectComponent } from './new-project/new-project.component';
 import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
+import { FormsModule } from '@angular/forms'
 
 const routes: Routes = [
   {
@@ -24,12 +25,13 @@ const routes: Routes = [
     ProjectsComponent,
     NewProjectComponent,
     CloneProjectComponent,
+   
   ],
   imports: [
     RouterModule.forChild(routes),
     CommonModule,
     MaterialModule,
-
+    FormsModule,
   ]
 })
 export class ProjectsModule {

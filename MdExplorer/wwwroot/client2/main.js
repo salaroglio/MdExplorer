@@ -57,7 +57,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_material_paginator__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! @angular/material/paginator */ "M9IT");
 /* harmony import */ var _angular_material_sort__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! @angular/material/sort */ "Dh3D");
 /* harmony import */ var _angular_material_table__WEBPACK_IMPORTED_MODULE_34__ = __webpack_require__(/*! @angular/material/table */ "+0xr");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! ./components/show-file-system/show-file-system.component */ "qUxK");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_36__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
 
 
 
@@ -98,8 +100,8 @@ __webpack_require__.r(__webpack_exports__);
 class MaterialModule {
 }
 MaterialModule.ɵfac = function MaterialModule_Factory(t) { return new (t || MaterialModule)(); };
-MaterialModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_35__["ɵɵdefineNgModule"]({ type: MaterialModule });
-MaterialModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_35__["ɵɵdefineInjector"]({ imports: [_angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_0__["MatAutocompleteModule"],
+MaterialModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_36__["ɵɵdefineNgModule"]({ type: MaterialModule });
+MaterialModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_36__["ɵɵdefineInjector"]({ imports: [_angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_0__["MatAutocompleteModule"],
         _angular_material_checkbox__WEBPACK_IMPORTED_MODULE_1__["MatCheckboxModule"],
         _angular_material_datepicker__WEBPACK_IMPORTED_MODULE_2__["MatDatepickerModule"],
         _angular_material_core__WEBPACK_IMPORTED_MODULE_3__["MatNativeDateModule"],
@@ -135,7 +137,7 @@ MaterialModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_35__["ɵɵdefineIn
         _angular_material_paginator__WEBPACK_IMPORTED_MODULE_32__["MatPaginatorModule"],
         _angular_material_sort__WEBPACK_IMPORTED_MODULE_33__["MatSortModule"],
         _angular_material_table__WEBPACK_IMPORTED_MODULE_34__["MatTableModule"]] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_35__["ɵɵsetNgModuleScope"](MaterialModule, { exports: [_angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_0__["MatAutocompleteModule"],
+(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_36__["ɵɵsetNgModuleScope"](MaterialModule, { declarations: [_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_35__["ShowFileSystemComponent"]], exports: [_angular_material_autocomplete__WEBPACK_IMPORTED_MODULE_0__["MatAutocompleteModule"],
         _angular_material_checkbox__WEBPACK_IMPORTED_MODULE_1__["MatCheckboxModule"],
         _angular_material_datepicker__WEBPACK_IMPORTED_MODULE_2__["MatDatepickerModule"],
         _angular_material_core__WEBPACK_IMPORTED_MODULE_3__["MatNativeDateModule"],
@@ -782,6 +784,33 @@ ParsingProjectComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵ
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "parsing-project works!");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     } }, styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJwYXJzaW5nLXByb2plY3QuY29tcG9uZW50LnNjc3MifQ== */"] });
+
+
+/***/ }),
+
+/***/ "qUxK":
+/*!**********************************************************************************!*\
+  !*** ./src/app/shared/components/show-file-system/show-file-system.component.ts ***!
+  \**********************************************************************************/
+/*! exports provided: ShowFileSystemComponent */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ShowFileSystemComponent", function() { return ShowFileSystemComponent; });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
+class ShowFileSystemComponent {
+    constructor() { }
+    ngOnInit() {
+    }
+}
+ShowFileSystemComponent.ɵfac = function ShowFileSystemComponent_Factory(t) { return new (t || ShowFileSystemComponent)(); };
+ShowFileSystemComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: ShowFileSystemComponent, selectors: [["app-show-file-system"]], decls: 2, vars: 0, template: function ShowFileSystemComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "p");
+        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](1, "show-file-system works!");
+        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+    } }, styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJzaG93LWZpbGUtc3lzdGVtLmNvbXBvbmVudC5zY3NzIn0= */"] });
 
 
 /***/ }),
