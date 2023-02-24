@@ -459,34 +459,34 @@ function dynamicEmojiForProcess(el, index, pathfile) {
 
     let dataToSet;
     el.removeAttribute('data-tippy-content');
-    if (el.innerText == 'ℹ️') {
+    if (el.innerText.trim() == 'ℹ️') {
         el.innerText = '🆗';
         el.setAttribute('data-tippy-content', 'approvato');
         dataToSet = 'approvato';
     } else
-        if (el.innerText == '🆗') {
+        if (el.innerText.trim() == '🆗') {
             el.innerText = '⚠️';
             el.setAttribute('data-tippy-content', 'attenzione');
             dataToSet = 'attenzione';
 
         } else
-            if (el.innerText == '⚠️') {
+            if (el.innerText.trim() == '⚠️') {
                 el.innerText = '🚧';
                 el.setAttribute('data-tippy-content', 'work in progress');
                 dataToSet = 'work in progress';
             } else
-                if (el.innerText == '🚧') {
+                if (el.innerText.trim() == '🚧') {
                     el.innerText = '✔️';
                     el.setAttribute('data-tippy-content', 'completato');
                     dataToSet = 'completato';
                 } else
-                    if (el.innerText == '✔️') {
+                    if (el.innerText.trim() == '✔️') {
                         el.innerText = 'ℹ️';
                         el.setAttribute('data-tippy-content', 'in valutazione');
                         dataToSet = 'Info';
                     }
     var currentIndex = el.attributes['data-md-process-index'].value;
-    $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+    $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText.trim(), function (data) {
         $(".result").html(data);
         console.log(data);
     });

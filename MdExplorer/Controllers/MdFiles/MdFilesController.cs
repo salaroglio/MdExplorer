@@ -325,37 +325,52 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpGet]
         public IActionResult GetDynFoldersDocument([FromQuery] string path, string level)
         {
-            var basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            //var basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var basePath = @"C:\";
             var currentPath = path == "root" ? basePath : path;
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 
-            foreach (var itemFolder in Directory.GetDirectories(currentPath)
-                    .Where(_ => !_.Contains("Immagini") &&
-                    !_.Contains("Musica") &&
-                    !_.Contains("Video"))
-                    )
+            //.Where(_ => !_.Contains("Immagini") &&
+            //        !_.Contains("Musica") &&
+            //        !_.Contains("Video"))
+            //        )
+            foreach (var itemFolder in Directory.GetDirectories(currentPath))                 
             {
-                var node = new FileInfoNode
+                if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
                 {
-                    Name = Path.GetFileName(itemFolder),
-                    FullPath = itemFolder,
-                    Path = itemFolder,
-                    Level = currentLevel,
-                    Type = "folder",
-                    Expandable = Directory.GetDirectories(itemFolder).Count() > 0
-                };
+                    var node = new FileInfoNode
+                    {
+                        Name = Path.GetFileName(itemFolder),
+                        FullPath = itemFolder,
+                        Path = itemFolder,
+                        Level = currentLevel,
+                        Type = "folder",
+                        Expandable = Directory.GetDirectories(itemFolder).Count() > 0
+                    };
 
-                list.Add(node);
+                    list.Add(node);
+                }
+                
 
             }
 
 
-
-
-
             return Ok(list);
         }
+
+        private bool IsSymbolic(string path)
+        {
+            FileInfo pathInfo = new FileInfo(path);
+            return pathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint);
+        }
+
+        private bool IsHidden(string path)
+        {
+            FileInfo pathInfo = new FileInfo(path);
+            return pathInfo.Attributes.HasFlag(FileAttributes.Hidden);
+        }
+
 
         [HttpGet]
         public IActionResult GetFoldersDocument()
