@@ -1,0 +1,227 @@
+import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
+import { FlatTreeControl } from '@angular/cdk/tree';
+import { Component, Injectable, OnInit, ViewChild } from '@angular/core';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatMenuTrigger } from '@angular/material/menu';
+import { Router } from '@angular/router';
+import { BehaviorSubject, merge, Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { NewDirectoryComponent } from '../../../md-explorer/components/dialogs/new-directory/new-directory.component';
+import { IFileInfoNode } from '../../../md-explorer/models/IFileInfoNode';
+import { MdFile } from '../../../md-explorer/models/md-file';
+import { MdFileService } from '../../../md-explorer/services/md-file.service';
+import { ProjectsService } from '../../../md-explorer/services/projects.service';
+import { NewProjectComponent } from '../../../projects/new-project/new-project.component';
+
+
+
+// IFileInfoNode è interfaccia
+// MdFile è la classe -> DynamicFlatNode
+
+
+/**
+ * Database for dynamic data. When expanding a node in the tree, the data source will need to fetch
+ * the descendants data from the database.
+ */
+@Injectable({ providedIn: 'root' })
+export class DynamicDatabase {
+
+  constructor(private mdFileService: MdFileService,) {
+    this.mdFileService.loadDynFolders('root', 1);
+
+    var md1 = new MdFile('12Folder', 'c:primoFolder', 0, true);
+    var md2 = new MdFile('2Folder', 'c:primoFoldersottoFolder', 1, true);
+    var md3 = new MdFile('3Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
+    var md4 = new MdFile('4Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
+    var md5 = new MdFile('5Folder', 'c:cuccu', 3, false);
+    this.dataMap.set(md1, [md2]);
+    this.dataMap.set(md2, [md3, md4]);
+    //this.dataMap.set(md3, [md4]);
+    this.dataMap.set(md4, [md5]);
+
+
+    var test = this.dataMap.get(md1);
+    this.rootLevelNodes = [md1];
+  }
+
+  dataMap = new Map<MdFile, MdFile[]>();
+  rootLevelNodes: MdFile[];
+
+  /** Initial data from database */
+  initialData(): MdFile[] {
+    return this.rootLevelNodes;
+  }
+
+  getChildren(node: MdFile): MdFile[] | undefined {
+
+    var test = this.dataMap.get(node);
+    return test;
+  }
+
+  isExpandable(node: MdFile): boolean {
+    return this.dataMap.has(node);
+  }
+}
+
+class DynamicDataSource implements DataSource<MdFile> {
+
+  dataChange = new BehaviorSubject<MdFile[]>([]);
+
+  get data(): MdFile[] { return this.dataChange.value; }
+  set data(value: MdFile[]) {
+    this._treeControl.dataNodes = value;
+    this.dataChange.next(value);
+  }
+
+  constructor(private _treeControl: FlatTreeControl<MdFile>,
+    private _database: DynamicDatabase,
+    private _mdFileService: MdFileService) {
+    this.data = _database.initialData();
+    this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
+      this.data = _;
+    });
+    //this.dataChange = _mdFileService._mdDynFolderDocument;
+    //_mdFileService.loadDynFolders('root', 1);
+  }
+
+  connect(collectionViewer: CollectionViewer): Observable<MdFile[]> {
+    this._treeControl.expansionModel.changed.subscribe(change => {
+      if ((change as SelectionChange<MdFile>).added ||
+        (change as SelectionChange<MdFile>).removed) {
+        this.handleTreeControl(change as SelectionChange<MdFile>);
+      }
+    });
+
+    return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => this.data));
+  }
+
+  disconnect(collectionViewer: CollectionViewer): void { }
+
+  /** Handle expand/collapse behaviors */
+  handleTreeControl(change: SelectionChange<MdFile>) {
+    if (change.added) {
+      change.added.forEach(node => this.toggleNode(node, true));
+    }
+    if (change.removed) {
+      change.removed.slice().reverse().forEach(node => this.toggleNode(node, false));
+    }
+  }
+
+  /**
+   * Toggle the node, remove from display list
+   */
+  toggleNode(node: MdFile, expand: boolean) {
+    this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(_ => {
+
+      const children = _;
+      const index = this.data.indexOf(node);
+
+      if (!children || index < 0) { // If no children, or cannot find the node, no op
+        return;
+      }
+
+      node.isLoading = true;
+
+      setTimeout(() => {
+        if (expand) {
+          const nodes = children; // punto per fare chiamata remota
+          this.data.splice(index + 1, 0, ...nodes);
+        } else {
+          let count = 0;
+          for (let i = index + 1; i < this.data.length
+            && this.data[i].level > node.level; i++, count++) { }
+          this.data.splice(index + 1, count);
+        }
+
+        // notify the change
+        this.dataChange.next(this.data);
+        node.isLoading = false;
+      });
+    });
+  }
+}
+
+
+@Component({
+  selector: 'app-show-file-system',
+  templateUrl: './show-file-system.component.html',
+  styleUrls: ['./show-file-system.component.scss']
+})
+export class ShowFileSystemComponent implements OnInit {
+
+  menuTopLeftPosition = { x: 0, y: 0 }
+  @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
+
+  createDirectoryOn(node: MdFile) {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    this.dialog.open(NewDirectoryComponent, {
+      width: '300px',
+      data: node,
+    });
+  }
+
+
+  activeNode: any;
+  folder: {
+    name: string,
+    path: string
+  }
+
+  getLevel = (node: MdFile) => node.level;
+
+  isExpandable = (node: MdFile) => node.expandable;
+
+  treeControl: FlatTreeControl<MdFile>;
+
+  dataSource: DynamicDataSource;
+
+  hasChild = (_: number, _nodeData: MdFile) => _nodeData.expandable;
+
+
+  constructor(private database: DynamicDatabase,
+    public dialog: MatDialog,
+    private mdFileService: MdFileService,
+    private router: Router,
+    private projectService: ProjectsService,
+    private dialogRef: MatDialogRef<ShowFileSystemComponent>,) {
+    this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
+    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
+  }
+
+  onRightClick(event: MouseEvent, item) {
+    // preventDefault avoids to show the visualization of the right-click menu of the browser
+    event.preventDefault();
+    if (item == null) {
+      item = new MdFile("root", "root", 0, false);
+      item.fullPath = "root";
+    }
+    // we record the mouse position in our object
+    this.menuTopLeftPosition.x = event.clientX;
+    this.menuTopLeftPosition.y = event.clientY;
+
+    // we open the menu
+    // we pass to the menu the information about our object
+    this.matMenuTrigger.menuData = { item: item }
+
+    // we open the menu
+    this.matMenuTrigger.openMenu();
+
+  }
+
+  ngOnInit(): void {
+    this.folder = { name: "<select project>", path: "" };
+  }
+
+  public getFolder(node: IFileInfoNode) {
+    this.folder.name = node.name;
+    this.folder.path = node.path;
+  }
+
+  public closeDialog() {
+    this.dialogRef.close({ event: 'open', data: this.folder.path });         
+  }
+
+}

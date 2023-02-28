@@ -25,6 +25,7 @@ using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdFiles;
 using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
+using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.SignalR;
@@ -104,17 +105,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             return Ok(data);
         }
-            /// <summary>
-            /// MdLink:
-            /// </summary>
-            /// <param name="mdFile"></param>
-            /// <returns></returns>
-            [HttpPost]
+        /// <summary>
+        /// MdLink:
+        /// </summary>
+        /// <param name="mdFile"></param>
+        /// <returns></returns>
+        [HttpPost]
         public IActionResult OpenFileInApplication([FromBody] OpenFileInApplicationcs data)
         {
             var fullpath = data.FullPath.Replace('/', Path.DirectorySeparatorChar);
 
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{data.FullPath.Replace("%20"," ")}\"")
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{data.FullPath.Replace("%20", " ")}\"")
             {
                 CreateNoWindow = false
             };
@@ -142,11 +143,27 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(new { message = "done" });
         }
 
+        [HttpGet]
+        public IActionResult getTextFromClipboard()
+        {
+            var textToGet = string.Empty;
+
+            var myTask = ExtensionTask.CreateSTATask(async () =>
+            {
+                textToGet = Clipboard.GetText();
+            });
+            myTask.Wait();
+
+            textToGet = textToGet.Contains("http") && textToGet.Contains("git") ? textToGet:string.Empty ;
+
+            return Ok( new { url = textToGet });
+        }
+
         [HttpPost]
         public IActionResult PasteFromClipboard([FromBody] RequestPasteFromClipboard fileData)
         {
-            Thread t = new Thread(new ThreadStart(() => {
-                // S.O compatibility broken... sorry
+            Thread t = new Thread(new ThreadStart(() =>
+            {
                 //DataObject data = new DataObject();
                 //data.SetData(typeof(string), "SampleText");
                 //Clipboard.SetDataObject(data);
@@ -177,7 +194,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
 
-            
+
 
             return Ok(new { message = "done" });
         }
@@ -221,7 +238,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(new { message = "done" });
         }
 
-        
+
 
         [HttpPost]
         public IActionResult SetDocumentSettings([FromBody] ChangeDocumentSettings data)
@@ -335,23 +352,32 @@ namespace MdExplorer.Service.Controllers.MdFiles
             //        !_.Contains("Musica") &&
             //        !_.Contains("Video"))
             //        )
-            foreach (var itemFolder in Directory.GetDirectories(currentPath))                 
+            foreach (var itemFolder in Directory.GetDirectories(currentPath))
             {
                 if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
                 {
-                    var node = new FileInfoNode
+                    try
                     {
-                        Name = Path.GetFileName(itemFolder),
-                        FullPath = itemFolder,
-                        Path = itemFolder,
-                        Level = currentLevel,
-                        Type = "folder",
-                        Expandable = Directory.GetDirectories(itemFolder).Count() > 0
-                    };
+                        var node = new FileInfoNode
+                        {
+                            Name = Path.GetFileName(itemFolder),
+                            FullPath = itemFolder,
+                            Path = itemFolder,
+                            Level = currentLevel,
+                            Type = "folder",
+                            Expandable = Directory.GetDirectories(itemFolder).Count() > 0
+                        };
 
-                    list.Add(node);
+                        list.Add(node);
+                    }
+                    catch (Exception)
+                    {
+
+                        // Do nothing
+                    }
+
                 }
-                
+
 
             }
 
@@ -361,15 +387,34 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private bool IsSymbolic(string path)
         {
-            FileInfo pathInfo = new FileInfo(path);
-            return pathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint);
+            try
+            {
+                FileInfo pathInfo = new FileInfo(path);
+                return pathInfo.Attributes.HasFlag(FileAttributes.ReparsePoint);
+            }
+            catch (Exception)
+            {
+
+                return true;
+            }
+
         }
 
         private bool IsHidden(string path)
         {
-            FileInfo pathInfo = new FileInfo(path);
-            return pathInfo.Attributes.HasFlag(FileAttributes.Hidden);
+            try
+            {
+                FileInfo pathInfo = new FileInfo(path);
+                return pathInfo.Attributes.HasFlag(FileAttributes.Hidden);
+            }
+            catch (Exception ex)
+            {
+                return true;
+
+            }
         }
+
+
 
 
         [HttpGet]
@@ -467,7 +512,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             var allText = System.IO.File.ReadAllText(fileData.FullPath);
             string destFullPath, destRelativePath;
-            (allText, destFullPath,destRelativePath) = PrepareClone(fileData, allText);
+            (allText, destFullPath, destRelativePath) = PrepareClone(fileData, allText);
             System.IO.File.WriteAllText(destFullPath, allText);
             // Devo preparare il nuovo file di risposta
             List<IFileInfoNode> list = PrepareListToGetBack(Path.GetFileName(destFullPath), destFullPath, destRelativePath);
@@ -475,7 +520,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(list);
         }
 
-        private (string,string,string) PrepareClone(FileInfoNode fileData, string allText)
+        private (string, string, string) PrepareClone(FileInfoNode fileData, string allText)
         {
             var destFullPath = fileData.FullPath;
             var destRelativePath = fileData.RelativePath;
@@ -498,7 +543,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 allText = allText.Replace(match.Groups[0].Value, finalRowString);
             }
 
-            return (allText, destFullPath,destRelativePath);
+            return (allText, destFullPath, destRelativePath);
         }
 
         /// <summary>

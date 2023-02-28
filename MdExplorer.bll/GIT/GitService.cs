@@ -134,5 +134,19 @@ namespace MdExplorer.Features.GIT
                 return branch;
             }
         }
+
+        public void CloneRepository(CloneInfo request)
+        {
+            CloneOptions co = new CloneOptions();
+            FetchOptions fo = new FetchOptions();
+
+            string gitUser = request.UserName, gitToken = request.Password;
+            co.CredentialsProvider = (_url, _user, _cred) => new UsernamePasswordCredentials { Username = gitUser, Password = gitToken };
+            co.BranchName = "main";
+            co.Checkout = true;            
+
+            Repository.Clone(request.UrlPath,request.DirectoryPath,co);
+
+        }
     }
 }

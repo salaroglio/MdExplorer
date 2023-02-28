@@ -7,6 +7,8 @@ import { MdFileService } from '../md-explorer/services/md-file.service';
 import { ServerMessagesService } from '../signalr/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { NewProjectComponent } from './new-project/new-project.component';
+import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
+import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
 
 @Component({
   selector: 'app-projects',
@@ -36,10 +38,26 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/projects/openrecent']);
   }
 
-  openNewFolder(): void {
-    const dialogRef = this.dialog.open(NewProjectComponent, {
+  prepareToClone(): void {
+    const dialogRef = this.dialog.open(CloneProjectComponent, {
       width: '600px',
+      height: '600px',
       data: null
     });
+  }
+
+  openNewFolder(): void {
+    const dialogRef = this.dialog.open(ShowFileSystemComponent, {
+      width: '600px',
+      height: '600px',
+      data: null
+    });
+
+    dialogRef.afterClosed().subscribe(folderPath => {      
+      this.projectService.setNewFolderProject(folderPath.data).subscribe(_ => {        
+        this.router.navigate(['/main/navigation/document']); //main        
+      });
+    });
+
   }
 }

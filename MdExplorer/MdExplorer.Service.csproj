@@ -43,7 +43,7 @@
   
   <!--INTEGRATE ImageNumbering application-->
   <ItemGroup>
-    <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe" >
+    <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe">
       <DestinationSubDirectory>bin</DestinationSubDirectory>
     </Content>
   </ItemGroup>
@@ -541,6 +541,7 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="LibGit2Sharp" Version="0.27.0-preview-0182" />
     <PackageReference Include="Markdig" Version="0.25.0" />
+    <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
   </ItemGroup>
@@ -592,6 +593,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="client2\src\app\md-explorer\services\models\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
