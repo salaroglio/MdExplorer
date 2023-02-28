@@ -2,10 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { IBranch } from '../models/branch';
+import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
 import { ITag } from '../models/Tag';
-
-
 
 
 @Injectable({
@@ -16,7 +15,12 @@ export class GITService {
 
   constructor(private http: HttpClient) { }
 
-  getCurrentBranch() {
+  clone(request: CloneInfo):Observable<any> {
+    const url = '../api/gitfeatures/cloneRepository';
+    return this.http.post<any>(url, request);
+  }
+
+  getCurrentBranch():Observable<IBranch> {
     const url = '../api/gitservice/branches/feat/getcurrentbranch';
     return this.http.get<IBranch>(url);
   }

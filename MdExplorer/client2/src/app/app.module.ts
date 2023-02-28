@@ -14,6 +14,8 @@ import { ParsingProjectProvider } from './signalR/dialogs/parsing-project/parsin
 import { ConnectionLostProvider } from './signalR/dialogs/connection-lost/connection-lost.provider';
 import { PlantumlWorkingComponent } from './signalR/dialogs/plantuml-working/plantuml-working.component';
 import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plantuml-working.provider';
+import { ShowFileSystemComponent } from './commons/components/show-file-system/show-file-system.component';
+import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/waiting-dialog.component';
 
 const routes: Routes = [
   {
@@ -32,7 +34,8 @@ const routes: Routes = [
   declarations: [
     AppComponent,
     PlantumlWorkingComponent,
-    
+    ShowFileSystemComponent,
+    WaitingDialogComponent
   ],
   imports: [
     BrowserModule,

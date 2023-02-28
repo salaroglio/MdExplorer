@@ -27,7 +27,6 @@ export class CopyFromClipboardComponent implements OnInit {
     this.dialogRef.close();
   }
   save() {
-    debugger;
     let dataToSend = { fileName: this.imageName, fileInfoNode:this.data }
     this.mdFileService.pasteFromClipboard(dataToSend).subscribe(data => {
       this.snackBar.open("Copied", null, { duration: 5000 })

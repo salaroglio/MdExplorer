@@ -36,12 +36,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatSortModule } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { ShowFileSystemComponent } from './components/show-file-system/show-file-system.component';
 
 
 @NgModule({
-  declarations: [
-    ShowFileSystemComponent
+  declarations: [    
   ],
   exports: [
     MatAutocompleteModule,

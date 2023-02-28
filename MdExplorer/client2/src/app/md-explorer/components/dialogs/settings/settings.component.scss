@@ -1,8 +1,8 @@
-.example-container{
-    display:flex;
-    flex-direction:column;
+.vertical-form-container {
+  display: flex;
+  flex-direction: column;
 }
 
-.example-container > *{
-    width:100%
+.vertical-form-container > * {
+  width: 100%
 }

@@ -18,7 +18,6 @@ import { NewDirectoryComponent } from './components/dialogs/new-directory/new-di
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
-import { ParsingProjectProvider } from '../signalR/dialogs/parsing-project/parsing-project.provider';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
 import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
 import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';

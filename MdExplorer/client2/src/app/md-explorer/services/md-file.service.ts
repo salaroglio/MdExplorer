@@ -277,6 +277,14 @@ export class MdFileService {
     return this.http.post<any>(url, node);
   }
 
+  getTextFromClipboard() {
+    const url = '../api/mdfiles/getTextFromClipboard';
+    return this.http.get<any>(url)    
+  }
+
+  
+
+
   cloneTimerDocument(node: MdFile) {
     const url = '../api/mdfiles/CloneTimerMd';
     return this.http.post<MdFile[]>(url, node);
