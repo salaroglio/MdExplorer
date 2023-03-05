@@ -1,4 +1,4 @@
 export class WaitingDialogInfo {
   message: string
-  gigPath:string
+  gifPath:string
 }
