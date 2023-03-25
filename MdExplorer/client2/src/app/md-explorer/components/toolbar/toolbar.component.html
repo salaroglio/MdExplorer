@@ -14,29 +14,28 @@
       <a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}"
          (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
     </span>
-    <span class="flexExpand"></span>
+    <span class="flexExpand"></span>    
     <span *ngIf="currentBranch!=null">
       <div *ngIf="somethingIsChangedInTheBranch" matBadge="{{howManyFilesAreToCommit}}" matBadgePosition="before"
            matBadgeOverlap="false" matBadgeColor="accent" matBadgeSize="small">
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">[{{currentBranch}}] <img src="/assets/gitlogo.png" /></button>
-      <mat-menu  #tagsAndBranches="matMenu">
-        <div *ngIf="!somethingIsChangedInTheBranch">
-          <div class="container" *ngFor="let branch of branches" color="warn" mat-menu-item (click)="$event.stopPropagation()">
-            <span>{{branch.name}}</span><span class="flexExpand"></span>
-            <button mat-icon-button (click)="openBranch(branch)">
-              <mat-icon style="text-align:right" color="warn">sync</mat-icon>
+      <mat-menu #tagsAndBranches="matMenu">
+        <div >
+          <div  (click)="pull()" class="container" color="warn" mat-menu-item (click)="$event.stopPropagation()">
+            <span>Discard changes and Pull</span><span class="flexExpand"></span>
+            <button mat-icon-button>
+              <mat-icon style="text-align:right" color="warn">arrow_downward</mat-icon>
             </button>
           </div>
-        </div>
-        <div *ngIf="somethingIsChangedInTheBranch">
-          <span>To checkout any branch, please commit</span>
-        </div>
+          <div (click)="commitAndPush()"  style="background-color:grey" class="container" color="warn" mat-menu-item (click)="$event.stopPropagation()">
+            <span>Commit and Push</span><span class="flexExpand"></span>
+            <button disabled mat-icon-button>
+              <mat-icon disabled style="text-align:right" color="warn">arrow_upward</mat-icon>
+            </button>
+          </div>
+        </div>        
       </mat-menu>
-    </span>
-
-    <button mat-icon-button matTooltip="global settings" (click)="openDialog()">
-      <mat-icon>settings</mat-icon>
-    </button>
+    </span>    
   </mat-toolbar-row>
 </mat-toolbar>

@@ -33,7 +33,6 @@ export class GITService {
   checkoutSelectedBranch(selected: IBranch) {
     const url = '../api/gitservice/branches/feat/checkoutBranch';
     return this.http.post<IBranch>(url, selected);
-
   }
 
   getTagList() {
@@ -47,8 +46,19 @@ export class GITService {
     return this.http.post<GitlabSetting>(url, setting);
   }
 
-  getGitlabSettings() {
+  getGitlabSettings(): Observable<GitlabSetting[]> {
     const url = '../api/gitservice/gitlabsettings'
     return this.http.get<GitlabSetting[]>(url);
   }
+
+  pull():Observable<any>  {
+    const url = '../api/gitfeatures/pull'
+    return this.http.get<any>(url);
+  }
+
+  commitAndPush():any {
+    const url = '../api/gitfeatures/commitandpush'
+    return this.http.get<any>(url);
+  }
+
 }

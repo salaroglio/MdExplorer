@@ -6,12 +6,11 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { Router } from '@angular/router';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { NewDirectoryComponent } from '../../../md-explorer/components/dialogs/new-directory/new-directory.component';
+import { NewDirectoryComponent } from '../new-directory/new-directory.component';
 import { IFileInfoNode } from '../../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../../md-explorer/models/md-file';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
-import { NewProjectComponent } from '../../../projects/new-project/new-project.component';
 
 
 
@@ -139,6 +138,19 @@ class DynamicDataSource implements DataSource<MdFile> {
       });
     });
   }
+
+  refreshNode(node: MdFile) {
+    this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(children => {
+      const index = this.data.indexOf(node);
+      let count = 0;
+      for (let i = index + 1; i < this.data.length
+        && this.data[i].level > node.level; i++, count++) { }
+      this.data.splice(index + 1, count);
+      const nodes = children;
+      this.data.splice(index + 1, 0, ...nodes);
+      this.dataChange.next(this.data);
+    });
+  }
 }
 
 
@@ -152,16 +164,7 @@ export class ShowFileSystemComponent implements OnInit {
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
 
-  createDirectoryOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(NewDirectoryComponent, {
-      width: '300px',
-      data: node,
-    });
-  }
+  
 
 
   activeNode: any;
@@ -184,11 +187,26 @@ export class ShowFileSystemComponent implements OnInit {
   constructor(private database: DynamicDatabase,
     public dialog: MatDialog,
     private mdFileService: MdFileService,
-    private router: Router,
-    private projectService: ProjectsService,
     private dialogRef: MatDialogRef<ShowFileSystemComponent>,) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
+  }
+
+  createDirectoryOn(node: MdFile) {
+    debugger;
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = "root";
+    }
+    let dialogRef = this.dialog.open(NewDirectoryComponent, {
+      width: '300px',
+      data: node,
+    });
+
+    dialogRef.afterClosed().subscribe(_ => {
+      this.dataSource.refreshNode(node);
+    });
+
   }
 
   onRightClick(event: MouseEvent, item) {

@@ -3,4 +3,5 @@ export class CloneInfo {
   directoryPath: string
   username: string
   password: string
+  email: string
 }
