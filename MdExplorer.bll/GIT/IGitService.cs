@@ -18,5 +18,7 @@ namespace MdExplorer.Features.GIT
         GitTag[] GetTagList(string path);
         GitBranch CheckoutBranch(GitBranch branch, string path, GitCallBack callback);
         void CloneRepository(CloneInfo request);
+        void Pull(PullInfo pullInfo);
+        string CommitAndPush(CommitAndPushInfo commitAndPushInfo);
     }
 }

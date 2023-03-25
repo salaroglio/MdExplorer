@@ -12,5 +12,7 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string UserName { get; set; }
         public virtual string Password { get; set; }
         public virtual string GitlabLink { get; set; }
+        public virtual string LocalPath { get; set; }
+        public virtual string Email {  get; set; }
     }
 }

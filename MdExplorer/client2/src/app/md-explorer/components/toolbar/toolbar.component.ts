@@ -18,6 +18,8 @@ import { ProjectsService } from '../../services/projects.service';
 import { Router } from '@angular/router';
 import { NgDialogAnimationService } from "../../../shared/NgDialogAnimationService";
 import { INCOMING_ROTATE_OPTION, OUTGOING_ROTATE_OPTION } from '../../../shared/dialogAnimations';
+import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
+import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 
 
 
@@ -43,7 +45,7 @@ export class ToolbarComponent implements OnInit {
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
     public dialog: MatDialog,
-    private dialogAn: NgDialogAnimationService,
+    
     private monitorMDService: ServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
@@ -51,7 +53,8 @@ export class ToolbarComponent implements OnInit {
     private gitservice: GITService,
     private appSettings: AppCurrentMetadataService,
     private projectService: ProjectsService,
-    private router: Router
+    private router: Router,
+    private waitingDialogService:WaitingDialogService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -103,33 +106,6 @@ export class ToolbarComponent implements OnInit {
   toggleSidenav() {
     let test = !this.appSettings.showSidenav.value;
     this.appSettings.showSidenav.next(test);
-  }
-
-  openDialog(): void {
-    const dialogRef = this.dialogAn.open(SettingsComponent, {
-      width: '600px',
-      animation: {},
-      //  incomingOptions: {
-      //    keyframes: [
-      //      { transform: "rotate(360deg)" },
-      //      { transform: "rotate(0)" }
-      //    ],
-      //    keyframeAnimationOptions: { easing: "ease-in-out", duration: 500 }
-      //  },
-      //  outgoingOptions: {
-      //    keyframes: [
-      //      { transform: "rotate(0)" },
-      //      { transform: "rotate(360deg)" }
-      //    ],
-      //    keyframeAnimationOptions: { easing: "ease-in-out", duration: 500 }
-      //  }
-      //},
-    }
-    );
-
-    dialogRef.afterClosed().subscribe(result => {
-      console.log('The dialog was closed');
-    });
   }
 
   openRules(data: any): void {
@@ -194,6 +170,32 @@ export class ToolbarComponent implements OnInit {
       } while (toDelete != undefined && toDelete.fullPath == thatFile.fullPath)
     }
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
+  }
+
+  pull(): void {
+    let info = new WaitingDialogInfo();
+    info.message = "Please wait... Pulling branch"
+    this.waitingDialogService.showMessageBox(info);
+    this.gitservice.pull().subscribe(_ => {
+
+      this.waitingDialogService.closeMessageBox();
+      this.mdFileService.loadAll(null, null);
+      this.mdFileService.getLandingPage().subscribe(node => {
+        if (node != null) {
+          this.mdFileService.setSelectedMdFileFromSideNav(node);
+
+        }
+      });
+    });
+  }
+
+  commitAndPush(): void {
+    let info = new WaitingDialogInfo();
+    info.message = "Please wait... commit and pushing branch";
+    this.waitingDialogService.showMessageBox(info);
+    this.gitservice.commitAndPush().subscribe(_ => {
+      this.waitingDialogService.closeMessageBox();
+    });
   }
 
   openBranch(branch: IBranch): void {

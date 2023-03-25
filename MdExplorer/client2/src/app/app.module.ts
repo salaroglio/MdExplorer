@@ -16,6 +16,9 @@ import { PlantumlWorkingComponent } from './signalR/dialogs/plantuml-working/pla
 import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { ShowFileSystemComponent } from './commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/waiting-dialog.component';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { NewDirectoryComponent } from './commons/components/new-directory/new-directory.component';
+
 
 const routes: Routes = [
   {
@@ -35,7 +38,8 @@ const routes: Routes = [
     AppComponent,
     PlantumlWorkingComponent,
     ShowFileSystemComponent,
-    WaitingDialogComponent
+    WaitingDialogComponent,
+    NewDirectoryComponent
   ],
   imports: [
     BrowserModule,

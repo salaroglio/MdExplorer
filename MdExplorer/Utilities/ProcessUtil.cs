@@ -33,7 +33,7 @@ namespace MdExplorer.Service.Utilities
             _lastDocumentOpened = path;
             var currentPath = path.Replace(@"\\", @"\"); // pulitura da mettere a posto            
             var dosCommand = $@"""{editorPath}"" -a ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
-            var dosCommandFirstRun = $@"""{editorPath}"" -n  -a  ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
+            var dosCommandFirstRun = $@"""{editorPath}""  -a  ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
             if (_currentVisualStudio == null || _currentVisualStudio.HasExited)
             {
                 _currentVisualStudio = Process.Start(dosCommandFirstRun);

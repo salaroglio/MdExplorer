@@ -683,6 +683,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         [HttpPost]
+        public IActionResult CreateNewDirectoryEx([FromBody] NewDirectory fileData)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            Directory.CreateDirectory(fullPath);
+            
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(fileData);
+        }
+
+
+            [HttpPost]
         public IActionResult CreateNewDirectory([FromBody] NewDirectory fileData)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;

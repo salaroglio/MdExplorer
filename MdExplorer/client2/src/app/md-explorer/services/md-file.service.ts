@@ -252,6 +252,16 @@ export class MdFileService {
     
   }
 
+  CreateNewDirectoryEx(path: string, directoryName: string, directoryLevel: number) {
+    const url = '../api/mdfiles/CreateNewDirectoryEx';
+    var newData = {
+      directoryPath: path,
+      directoryName: directoryName,
+      directoryLevel: directoryLevel,
+    }
+    return this.http.post<MdFile>(url, newData);
+  }
+
 
   CreateNewDirectory(path: string, directoryName: string, directoryLevel: number) {
     const url = '../api/mdfiles/CreateNewDirectory';

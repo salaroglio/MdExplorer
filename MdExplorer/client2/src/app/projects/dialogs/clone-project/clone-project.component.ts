@@ -17,7 +17,13 @@ import { ProjectsService } from '../../../md-explorer/services/projects.service'
 export class CloneProjectComponent implements OnInit {
 
   public urlpath: string;
-  public dataForCloning: CloneInfo = { urlPath: "", directoryPath: "", username: "", password: "" };
+  public dataForCloning: CloneInfo = {
+    urlPath: null,
+    directoryPath: null,
+    username: null,
+    password: null,
+    email: null
+  };
 
 
   constructor(private dialog: MatDialog,

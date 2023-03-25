@@ -17,6 +17,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.UserName).Length(256).Not.Nullable();
             Map(_ => _.Password).Length(256).Not.Nullable();
             Map(_ => _.GitlabLink).Length(int.MaxValue).Not.Nullable();
+            Map(_ => _.LocalPath).Length(int.MaxValue).Not.Nullable();
         }
     }
 }

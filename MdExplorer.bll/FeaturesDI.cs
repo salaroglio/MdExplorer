@@ -66,7 +66,7 @@ namespace MdExplorer.Features
                 return listOfGoodMdRules.ToArray();
             });
             // gestione degli snippets
-            services.AddSingleton(typeof(ISnippet<DictionarySnippetParam>[]), _ => {
+            services.AddTransient(typeof(ISnippet<DictionarySnippetParam>[]), _ => {
                 var listOfSnippets = new List<ISnippet<DictionarySnippetParam>>
                 {
                     new TextDocument((IYamlParser<MdExplorerDocumentDescriptor>)
@@ -81,7 +81,7 @@ namespace MdExplorer.Features
             });            
 
             services.AddSingleton<IYamlParser<MdExplorerDocumentDescriptor>, YamlDocumentDescriptorParser>();
-            services.AddSingleton<IGitService, GitService>();
+            services.AddTransient<IGitService, GitService>();
             services.AddSingleton<ProjectBodyEngine>();
             return services;
         }

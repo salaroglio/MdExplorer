@@ -27,5 +27,23 @@ namespace MdExplorer.Service.Controllers.GIT
             _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok(new { message = "done" });
         }
+        [HttpGet("pull")]
+        public IActionResult Pull()
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            var pullInfo = new PullInfo { ProjectPath = _fileSystemWatcher.Path };
+            _gitService.Pull(pullInfo);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(new { message = "done" });
+        }
+        [HttpGet("commitandpush")]
+        public IActionResult CommitAndPush()
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            var commitAndPushInfo = new CommitAndPushInfo { ProjectPath = _fileSystemWatcher.Path };
+            _gitService.CommitAndPush(commitAndPushInfo);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(new { message = "done" });
+        }
     }
 }

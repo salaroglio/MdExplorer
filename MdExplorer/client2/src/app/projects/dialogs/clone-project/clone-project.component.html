@@ -1,12 +1,10 @@
 
+<h2 style="display:inline;" mat-dialog-title>
+  <img style="display:inline; vertical-align:middle" src="/assets/gitlogo.png" />
+  <span>Clone Project</span>
+</h2>
 
 <mat-dialog-content>
-
-  <h2 style="display:inline;" mat-dialog-title>
-    <img style="display:inline; vertical-align:middle" src="/assets/gitlogo.png" />
-    <span>Clone Project</span>
-  </h2>
-
   <mat-card style="margin-top:10px; margin-bottom:10px">
     <div class="vertical-form-container">
       <mat-form-field appearance="outline">
@@ -32,10 +30,17 @@
         <input matInput [(ngModel)]="dataForCloning.password" placeholder="password">
         <mat-hint>Password</mat-hint>
       </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput [(ngModel)]="dataForCloning.email" placeholder="email">
+        <mat-hint>salaroglio@hotmail.com</mat-hint>
+      </mat-form-field>
     </div>
-    
+
   </mat-card>
-  <div >
-    <button mat-stroked-button (click)="cloneDirectory()" color="primary">Clone!</button>
-  </div>
+
 </mat-dialog-content>
+
+<mat-dialog-actions>
+  <button mat-stroked-button (click)="cloneDirectory()" color="primary">Clone!</button>
+</mat-dialog-actions>
