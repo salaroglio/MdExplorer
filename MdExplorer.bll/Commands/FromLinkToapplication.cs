@@ -26,6 +26,8 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromLinkToApplication";
 
+        private string[] ExtensionArrayToOpenInApplication = { "xlsx", "pdf" };
+
         public MatchCollection GetMatches(string markdown)
         {
             Regex rx = new Regex(@"<a.+?<\/a>", //lnk?
@@ -44,26 +46,28 @@ namespace MdExplorer.Features.Commands
         {
             var matches = GetMatches(html);
 
-            
-            foreach (Match item in matches.Where(_ => _.Groups[0].Value.Contains(".xlsx")))
+            foreach (var extension in ExtensionArrayToOpenInApplication)
             {
-                Regex rx = new Regex(@"(<a.+?)(href="")(.+?\.xlsx)""", //lnk?
-                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-                var matches1 = rx.Matches(item.Groups[0].Value);
-                if (matches1.Count == 0)
+                foreach (Match item in matches.Where(_ => _.Groups[0].Value.Contains($".{extension}")))
                 {
-                    return html;
+                    Regex rx = new Regex(@$"(<a.+?)(href="")(.+?\.{extension})""", //lnk?
+                                    RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+                    var matches1 = rx.Matches(item.Groups[0].Value);
+                    if (matches1.Count == 0)
+                    {
+                        return html;
+                    }
+                    var item1 = matches1[0];
+
+                    var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
+
+                    var relativePath = documentRelativePath + Path.DirectorySeparatorChar + item1.Groups[3].Value.ToString();
+                    var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{requestInfo.CurrentRoot + Path.DirectorySeparatorChar + relativePath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
+                    html = html.Replace(item1.Groups[0].Value, openApplication);
                 }
-                var item1 = matches1[0];
-
-                var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
-
-                var relativePath = documentRelativePath+ Path.DirectorySeparatorChar + item1.Groups[3].Value.ToString();
-                var openApplication = $@"{item1.Groups[1].Value }href=""#"" onclick=""openApplication('{
-                    requestInfo.CurrentRoot + Path.DirectorySeparatorChar + relativePath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
-                html = html.Replace(item1.Groups[0].Value, openApplication);
             }
+            
 
             return html;
 
