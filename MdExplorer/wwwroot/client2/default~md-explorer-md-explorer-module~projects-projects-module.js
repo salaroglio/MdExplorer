@@ -5572,15 +5572,22 @@ class GitlabSetting {
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GITService", function() { return GITService; });
-/* harmony import */ var _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../models/gitlab-setting */ "MVql");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../models/gitlab-setting */ "MVql");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+
 
 
 
 class GITService {
     constructor(http) {
         this.http = http;
+        this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
+            id: "", name: "",
+            somethingIsChangedInTheBranch: true, howManyFilesAreChanged: 0,
+            fullPath: ""
+        });
     }
     clone(request) {
         const url = '../api/gitfeatures/cloneRepository';
@@ -5588,7 +5595,11 @@ class GITService {
     }
     getCurrentBranch() {
         const url = '../api/gitservice/branches/feat/getcurrentbranch';
-        return this.http.get(url);
+        let data$ = this.http.get(url);
+        data$.subscribe(_ => {
+            this.currentBranch$.next(_);
+        });
+        return data$;
     }
     getBranchList() {
         const url = '../api/gitservice/branches';
@@ -5604,7 +5615,7 @@ class GITService {
     }
     storeGitlabSettings(user, password, gitlabLink) {
         const url = '../api/gitservice/gitlabsettings';
-        let setting = new _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_0__["GitlabSetting"]();
+        let setting = new _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_1__["GitlabSetting"]();
         return this.http.post(url, setting);
     }
     getGitlabSettings() {
@@ -5620,8 +5631,8 @@ class GITService {
         return this.http.get(url);
     }
 }
-GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__["HttpClient"])); };
-GITService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: GITService, factory: GITService.ɵfac, providedIn: 'root' });
+GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };
+GITService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: GITService, factory: GITService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),
@@ -6246,16 +6257,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
 /* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
 /* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../git/services/gitservice.service */ "N73s");
+
 
 
 
 
 
 class ServerMessagesService {
-    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider) {
+    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider, gitService) {
         this.parsingProjectProvider = parsingProjectProvider;
         this.plantumlWorkingProvider = plantumlWorkingProvider;
         this.connectionLostProvider = connectionLostProvider;
+        this.gitService = gitService;
         this.connectionIsLost = false;
         this.consoleIsClosed = false;
         this.startConnection = () => {
@@ -6313,6 +6327,7 @@ class ServerMessagesService {
     }
     addMarkdownFileListener(callback, objectThis) {
         this.hubConnection.on('markdownfileischanged', (data) => {
+            this.gitService.getCurrentBranch();
             callback(data, objectThis);
             console.log('markdownfileischanged');
         });
@@ -6357,7 +6372,7 @@ class ServerMessagesService {
         });
     }
 }
-ServerMessagesService.ɵfac = function ServerMessagesService_Factory(t) { return new (t || ServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"])); };
+ServerMessagesService.ɵfac = function ServerMessagesService_Factory(t) { return new (t || ServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__["GITService"])); };
 ServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ServerMessagesService, factory: ServerMessagesService.ɵfac, providedIn: 'root' });
 
 

@@ -1120,7 +1120,8 @@ class ToolbarComponent {
         this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this); //TODO: da spostare in SignalR
         // get current branch name and if the branch has something to commit
-        this.gitservice.getCurrentBranch().subscribe(branch => {
+        this.gitservice.getCurrentBranch();
+        this.gitservice.currentBranch$.subscribe(branch => {
             this.currentBranch = branch.name;
             this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
             this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;

@@ -20,6 +20,7 @@ import { NgDialogAnimationService } from "../../../shared/NgDialogAnimationServi
 import { INCOMING_ROTATE_OPTION, OUTGOING_ROTATE_OPTION } from '../../../shared/dialogAnimations';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
+import { tap } from 'rxjs/operators';
 
 
 
@@ -65,7 +66,8 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
     // get current branch name and if the branch has something to commit
-    this.gitservice.getCurrentBranch().subscribe(branch => {
+    this.gitservice.getCurrentBranch();    
+    this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
@@ -74,6 +76,8 @@ export class ToolbarComponent implements OnInit {
     this.gitservice.getBranchList().subscribe(branches => {
       this.branches = branches;
     });
+
+    
 
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
