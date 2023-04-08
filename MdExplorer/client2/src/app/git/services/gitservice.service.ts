@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { IBranch } from '../models/branch';
 import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
@@ -12,6 +13,12 @@ import { ITag } from '../models/Tag';
 })
 export class GITService {
   private _Settings: BehaviorSubject<GitlabSetting[]>;
+  public currentBranch$: BehaviorSubject<IBranch> = new BehaviorSubject<IBranch>(
+    {
+      id: "", name: "",
+      somethingIsChangedInTheBranch: true, howManyFilesAreChanged: 0,
+      fullPath : ""
+    });
 
   constructor(private http: HttpClient) { }
 
@@ -22,7 +29,12 @@ export class GITService {
 
   getCurrentBranch():Observable<IBranch> {
     const url = '../api/gitservice/branches/feat/getcurrentbranch';
-    return this.http.get<IBranch>(url);
+    let data$ = this.http.get<IBranch>(url);
+    data$.subscribe(_ => {      
+      this.currentBranch$.next(_);
+    });
+    return data$;
+
   }
 
   getBranchList():Observable<IBranch[]> {

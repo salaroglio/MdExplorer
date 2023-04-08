@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as signalR from "@microsoft/signalr";
+import { GITService } from '../../git/services/gitservice.service';
 import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
 import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/parsing-project.provider';
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
@@ -20,7 +21,8 @@ export class ServerMessagesService {
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
     private plantumlWorkingProvider: PlantumlWorkingProvider,
-    private connectionLostProvider: ConnectionLostProvider  ) {
+    private connectionLostProvider: ConnectionLostProvider,
+    private gitService: GITService) {
     this.startConnection();
     console.log('MonitorMDService constructor');
     this.linkEventCompArray = [];
@@ -61,25 +63,25 @@ export class ServerMessagesService {
         if (!this.consoleIsClosed) {
           this.connectionLostProvider.show(this);
           this.connectionIsLost = true;
-        }        
+        }
       });
-      
-    }    
-    
-    if (this.hubConnection.state == "Disconnected" ) {
+
+    }
+
+    if (this.hubConnection.state == "Disconnected") {
       this.hubConnection
         .start()
-        .then(() => {                    
+        .then(() => {
           console.log('Connection started');
           this.connectionIsLost = false;
         }
-          
+
         )
         .catch(err => {
           console.log('Error while starting connection: ' + err);
         }
-        );    
-    }    
+        );
+    }
   }
 
 
@@ -92,14 +94,15 @@ export class ServerMessagesService {
   }
 
 
-  public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
-    this.hubConnection.on('markdownfileischanged', (data) => {      
+  public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('markdownfileischanged', (data) => {
+      this.gitService.getCurrentBranch();
       callback(data, objectThis);
       console.log('markdownfileischanged');
     });
   }
 
-  private processCallBack(data: any, signalREvent:string) {
+  private processCallBack(data: any, signalREvent: string) {
     this.linkEventCompArray.forEach(_ => {
       if (_.key == signalREvent) {
         _.callback(data, _.object);
@@ -109,12 +112,12 @@ export class ServerMessagesService {
 
 
 
-  public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {    
+  public addMdProcessedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     let check = this.linkEventCompArray.find(_ =>
       _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
     if (check == undefined) {
-      this.linkEventCompArray.push({ key:'markdownfileisprocessed',object : objectThis, callback:callback });
-    }    
+      this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
+    }
   }
 
   public addMdRule1Listener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
@@ -122,7 +125,7 @@ export class ServerMessagesService {
     console.log('addMdRule1Listener');
     if (this.rule1IsRegistered == undefined) {
       this.rule1IsRegistered = objectThis;
-      this.hubConnection.on('markdownbreakrule1', (data) => {        
+      this.hubConnection.on('markdownbreakrule1', (data) => {
         callback(data, objectThis);
       });
     }
