@@ -16,6 +16,7 @@ using System.Dynamic;
 using MdExplorer.Abstractions.DB;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
+using Ubiety.Dns.Core;
 
 namespace MdExplorer.Features.GIT
 {
@@ -154,20 +155,31 @@ namespace MdExplorer.Features.GIT
 
         public void CloneRepository(CloneInfo request)
         {
-            _userSettingDb.BeginTransaction();
-            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
-            var currentSetting = dalGitlabSetting.GetList()
-                .Where(_ => _.LocalPath == request.DirectoryPath).FirstOrDefault();
-            if (currentSetting == null) { 
-                currentSetting = new GitlabSetting {
-                    UserName = request.UserName,
-                    Password = request.Password,
-                    Email = request.UserEmail,                    
-                    LocalPath = request.DirectoryPath,
-                    GitlabLink = request.UrlPath                    
-                };
+            if (request.UserName == null)
+            {
+                return;
             }
-            _userSettingDb.Commit();
+            if (request.StoreCredentials)
+            {
+                _userSettingDb.BeginTransaction();
+                var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+                var currentSetting = dalGitlabSetting.GetList()
+                    .Where(_ => _.LocalPath == request.DirectoryPath).FirstOrDefault();
+                if (currentSetting == null)
+                {
+                    currentSetting = new GitlabSetting
+                    {
+                        UserName = request.UserName,
+                        Password = request.Password,
+                        //Email = request.UserEmail,                    
+                        LocalPath = request.DirectoryPath,
+                        GitlabLink = request.UrlPath
+                    };
+                }
+                dalGitlabSetting.Save(currentSetting);
+                _userSettingDb.Commit();
+            }
+            
             CloneOptions co = new CloneOptions();
             FetchOptions fo = new FetchOptions();
 
@@ -196,7 +208,7 @@ namespace MdExplorer.Features.GIT
 
             using (var repo = new Repository(pullinfo.ProjectPath))
             {
-
+                var currentEmail = GetCurrentUserEmail(pullinfo.ProjectPath);
                 var currentStatus = repo.RetrieveStatus();
                 foreach (var item in repo.Diff.Compare<TreeChanges>())
                 {
@@ -211,10 +223,10 @@ namespace MdExplorer.Features.GIT
                 PullOptions pullOptions = new PullOptions();
                 pullOptions.FetchOptions = new FetchOptions();
                 pullOptions.FetchOptions.CredentialsProvider = (_url, _user, _cred) =>
-                new UsernamePasswordCredentials { Username = "carlos", Password = "Porcagal72\"" };
+                new UsernamePasswordCredentials { Username = currentGitlab.UserName , Password = currentGitlab.Password };
 
                 var pullResult = LibGit2Sharp.Commands.Pull(repo,
-                    new Signature("Carlos", "carlo.salaroglio@advice.it",
+                    new Signature(currentGitlab.UserName, currentEmail,
                     new DateTimeOffset(DateTime.Now)), pullOptions);
 
                 if (pullResult.Status != MergeStatus.Conflicts)
@@ -229,8 +241,18 @@ namespace MdExplorer.Features.GIT
 
         public string CommitAndPush(CommitAndPushInfo commitAndPushInfo)
         {
+            _userSettingDb.BeginTransaction();
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentSetting = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == commitAndPushInfo.ProjectPath).FirstOrDefault();
+            if (currentSetting == null)
+            {
+                return "set credentials";                
+            }            
+
             using (var repo = new Repository(commitAndPushInfo.ProjectPath))
             {
+                var currentEmail = GetCurrentUserEmail(commitAndPushInfo.ProjectPath);
                 Configuration config = repo.Config;
                 var data = repo.Head.CanonicalName;
 
@@ -249,9 +271,10 @@ namespace MdExplorer.Features.GIT
 
                 try
                 {
+                    
                     repo.Commit("updating files..",
-                    new Signature("carlos", "carlo.salaroglio@advice.it", DateTimeOffset.Now),
-                    new Signature("carlos", "carlo.salaroglio@advice.it", DateTimeOffset.Now));
+                    new Signature("carlos", currentEmail, DateTimeOffset.Now),
+                    new Signature("carlos", currentEmail, DateTimeOffset.Now));
                 }
                 catch (Exception ex)
                 {
@@ -263,7 +286,7 @@ namespace MdExplorer.Features.GIT
                 try
                 {
                     options.CredentialsProvider = (_url, _user, _cred) =>
-                    new UsernamePasswordCredentials { Username = "carlos", Password = "Porcagal72\"" };
+                    new UsernamePasswordCredentials { Username = currentSetting.UserName , Password = currentSetting.Password }; // "carlos" "password"
                     var pushRefSpec = data;//ex: @"refs/heads/master";
                     repo.Network.Push(remote, pushRefSpec, options);
                 }

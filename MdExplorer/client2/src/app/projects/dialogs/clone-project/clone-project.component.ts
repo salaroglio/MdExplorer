@@ -15,14 +15,17 @@ import { ProjectsService } from '../../../md-explorer/services/projects.service'
   styleUrls: ['./clone-project.component.scss']
 })
 export class CloneProjectComponent implements OnInit {
-
+  public hide = true;
   public urlpath: string;
+  
+
   public dataForCloning: CloneInfo = {
     urlPath: null,
     directoryPath: null,
     username: null,
     password: null,
-    email: null
+    email: null,
+    storeCredentials: true
   };
 
 

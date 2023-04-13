@@ -1232,6 +1232,7 @@ class ToolbarComponent {
         info.message = "Please wait... commit and pushing branch";
         this.waitingDialogService.showMessageBox(info);
         this.gitservice.commitAndPush().subscribe(_ => {
+            this.gitservice.getCurrentBranch();
             this.waitingDialogService.closeMessageBox();
         });
     }

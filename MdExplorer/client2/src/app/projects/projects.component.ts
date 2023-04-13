@@ -44,7 +44,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   prepareToClone(): void {
     const dialogRef = this.dialog.open(CloneProjectComponent, {
       width: '600px',
-      height: '600px',
+      maxHeight: '600px',
       data: null
     });
   }
@@ -52,7 +52,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   openNewFolder(): void {
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
       width: '600px',
-      height: '600px',
+      maxHeight: '600px',
       data: null
     });
 
