@@ -4,4 +4,5 @@ export class CloneInfo {
   username: string
   password: string
   email: string
+  storeCredentials:boolean
 }
