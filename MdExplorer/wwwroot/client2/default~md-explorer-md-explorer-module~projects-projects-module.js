@@ -5622,9 +5622,10 @@ class GITService {
         const url = '../api/gitservice/gitlabsettings';
         return this.http.get(url);
     }
-    pull() {
+    pull(request) {
         const url = '../api/gitfeatures/pull';
-        return this.http.get(url);
+        return this.http.post(url, request);
+        //return this.http.get<any>(url);
     }
     commitAndPush() {
         const url = '../api/gitfeatures/commitandpush';

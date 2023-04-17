@@ -24,6 +24,7 @@ import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-
 import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
 import { DocumentSettingsComponent } from './components/document-settings/document-settings.component';
 import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
+import { GitModule } from '../git/git.module';
 
 
 const routes: Routes = [
@@ -66,6 +67,7 @@ const routes: Routes = [
     MaterialModule,
     HttpClientModule,
     FormsModule,
+    GitModule,
     RouterModule.forChild(routes)
   ],
   providers: [

@@ -196,18 +196,48 @@ namespace MdExplorer.Features.GIT
 
 
 
-        public void Pull(PullInfo pullinfo)
+        public (bool,bool,bool) Pull(PullInfo pullinfo)
         {
-            _userSettingDb.BeginTransaction();
+            var isAuthenticationMissing = false;
+            var isConnectionMissing = false;
+            var isAuthMissingIntoDB = false;
+            var thereAreConflicts = false;
+
+           
+
+
+
+            // Check if we have authentication stored
+            //_userSettingDb.BeginTransaction();
             var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
             var currentGitlab = dalGitlabSetting.GetList()
                 .Where(_=>_.LocalPath == pullinfo.ProjectPath).FirstOrDefault();
             if (currentGitlab == null) {
-                throw new Exception("Missing data");
+                isAuthMissingIntoDB = true;
+                if (pullinfo.UserName == null) {
+                    return (isConnectionMissing, true, thereAreConflicts);
+                }
+                else {
+
+                    currentGitlab = new GitlabSetting
+                    {
+                        UserName = pullinfo.UserName,
+                        Password = pullinfo.Password,
+                        LocalPath = pullinfo.ProjectPath,
+                    };
+                }                
             }
 
             using (var repo = new Repository(pullinfo.ProjectPath))
-            {
+            {                
+                currentGitlab.GitlabLink = repo.Network.Remotes.First().Url;
+                if (isAuthMissingIntoDB)
+                {
+                    _userSettingDb.BeginTransaction();
+                    var gitlabSettingDal = _userSettingDb.GetDal<GitlabSetting>();
+                    gitlabSettingDal.Save(currentGitlab);
+                    _userSettingDb.Commit();
+                }
                 var currentEmail = GetCurrentUserEmail(pullinfo.ProjectPath);
                 var currentStatus = repo.RetrieveStatus();
                 foreach (var item in repo.Diff.Compare<TreeChanges>())
@@ -224,35 +254,64 @@ namespace MdExplorer.Features.GIT
                 pullOptions.FetchOptions = new FetchOptions();
                 pullOptions.FetchOptions.CredentialsProvider = (_url, _user, _cred) =>
                 new UsernamePasswordCredentials { Username = currentGitlab.UserName , Password = currentGitlab.Password };
-
-                var pullResult = LibGit2Sharp.Commands.Pull(repo,
-                    new Signature(currentGitlab.UserName, currentEmail,
-                    new DateTimeOffset(DateTime.Now)), pullOptions);
-
-                if (pullResult.Status != MergeStatus.Conflicts)
+                try
                 {
+                    var pullResult = LibGit2Sharp.Commands.Pull(repo,
+                   new Signature(currentGitlab.UserName, currentEmail,
+                   new DateTimeOffset(DateTime.Now)), pullOptions);
 
+                    if (pullResult.Status != MergeStatus.Conflicts)
+                    {
+                        thereAreConflicts = true;
+                    }
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
                 }
-
+                catch (Exception)
+                {
+                    // Missing conneciton
+                    isConnectionMissing = true;
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
+                }
+               
             }
 
 
         }
 
-        public string CommitAndPush(CommitAndPushInfo commitAndPushInfo)
+        public (bool, bool, bool) CommitAndPush(PullInfo pullInfo)
         {
-            _userSettingDb.BeginTransaction();
-            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
-            var currentSetting = dalGitlabSetting.GetList()
-                .Where(_ => _.LocalPath == commitAndPushInfo.ProjectPath).FirstOrDefault();
-            if (currentSetting == null)
-            {
-                return "set credentials";                
-            }            
+            
+            var isConnectionMissing = false;
+            var isAuthenticationMissing = false;
+            var thereAreConflicts = false;
 
-            using (var repo = new Repository(commitAndPushInfo.ProjectPath))
+            var isAuthMissingIntoDB = false;            
+           
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == pullInfo.ProjectPath).FirstOrDefault();
+            if (currentGitlab == null)
             {
-                var currentEmail = GetCurrentUserEmail(commitAndPushInfo.ProjectPath);
+                isAuthMissingIntoDB = true;
+                if (pullInfo.UserName == null)
+                {
+                    return (isConnectionMissing, true, thereAreConflicts);
+                }
+                else
+                {
+
+                    currentGitlab = new GitlabSetting
+                    {
+                        UserName = pullInfo.UserName,
+                        Password = pullInfo.Password,
+                        LocalPath = pullInfo.ProjectPath,
+                    };
+                }
+            }
+
+            using (var repo = new Repository(pullInfo.ProjectPath))
+            {
+                var currentEmail = GetCurrentUserEmail(pullInfo.ProjectPath);
                 Configuration config = repo.Config;
                 var data = repo.Head.CanonicalName;
 
@@ -271,14 +330,15 @@ namespace MdExplorer.Features.GIT
 
                 try
                 {
-                    
+                    // commit
                     repo.Commit("updating files..",
                     new Signature("carlos", currentEmail, DateTimeOffset.Now),
                     new Signature("carlos", currentEmail, DateTimeOffset.Now));
                 }
                 catch (Exception ex)
                 {
-                    var message = ex.Message;                    
+                    thereAreConflicts = true;
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
                 }
 
                 var remote = repo.Network.Remotes["origin"];
@@ -286,19 +346,19 @@ namespace MdExplorer.Features.GIT
                 try
                 {
                     options.CredentialsProvider = (_url, _user, _cred) =>
-                    new UsernamePasswordCredentials { Username = currentSetting.UserName , Password = currentSetting.Password }; // "carlos" "password"
+                    new UsernamePasswordCredentials { Username = currentGitlab.UserName , Password = currentGitlab.Password }; // "carlos" "password"
                     var pushRefSpec = data;//ex: @"refs/heads/master";
                     repo.Network.Push(remote, pushRefSpec, options);
                 }
                 catch (Exception ex)
                 {
-
-                    return "Push failed";
+                    isConnectionMissing = true;
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
                 }
 
             }
 
-            return "done";
+            return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
         }
     }
 }

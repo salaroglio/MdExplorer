@@ -21,6 +21,9 @@ import { INCOMING_ROTATE_OPTION, OUTGOING_ROTATE_OPTION } from '../../../shared/
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { tap } from 'rxjs/operators';
+import { GitAuthComponent } from '../../../git/components/git-auth/git-auth.component';
+import { PullInfo } from '../../../git/models/pullInfo';
+import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 
 
 
@@ -72,6 +75,16 @@ export class ToolbarComponent implements OnInit {
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
     });
+
+    // manage resize fullscreen
+    document.onfullscreenchange = (event) => {
+      
+      if (document.fullscreenElement) {
+        this.screenType = "close_fullscreen";        
+      } else {
+        this.screenType = "fullscreen";
+      }
+    };
 
     this.gitservice.getBranchList().subscribe(branches => {
       this.branches = branches;
@@ -176,20 +189,59 @@ export class ToolbarComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
 
+  
+  public screenType = "fullscreen";
+
+  FullScreenToggle(): void {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+    
+  }
+
   pull(): void {
     let info = new WaitingDialogInfo();
     info.message = "Please wait... Pulling branch"
     this.waitingDialogService.showMessageBox(info);
-    this.gitservice.pull().subscribe(_ => {
+    let pullInfo = new PullInfo();    
+    this.gitservice.pull(pullInfo).subscribe(_ => {
+      // manage failed connection
+      if (_.isConnectionMissing) {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',
+          data: {
+            message: 'Missing connection',
+            description:'Please verify your vpn or network settings'
+          }
+        });
+      }
+      if (_.isAuthenticationMissing) {
+        const dialogRef = this.dialog.open(GitAuthComponent, {
+          width: '300px',
+        });
+      }
+      if (_.thereAreConflicts) {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',
+          data: {
+            message: 'Conflicts appear',
+            description: 'please resolve using Visual Studio Code'
+          }
+        });
+      }
 
-      this.waitingDialogService.closeMessageBox();
-      this.mdFileService.loadAll(null, null);
-      this.mdFileService.getLandingPage().subscribe(node => {
-        if (node != null) {
-          this.mdFileService.setSelectedMdFileFromSideNav(node);
-
-        }
-      });
+      if (!_.isAuthenticationMissing && !_.isConnectionMissing && !_.thereAreConflicts) {
+        this.mdFileService.loadAll(null, null);
+        this.mdFileService.getLandingPage().subscribe(node => {
+          if (node != null) {
+            this.gitservice.getCurrentBranch();
+            this.mdFileService.setSelectedMdFileFromSideNav(node);
+          }
+        });
+      }
+      this.waitingDialogService.closeMessageBox();      
     });
   }
 
