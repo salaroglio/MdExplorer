@@ -5,6 +5,8 @@ import { tap } from 'rxjs/operators';
 import { IBranch } from '../models/branch';
 import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
+import { PullInfo } from '../models/pullInfo';
+import { ResponsePull } from '../models/responsePull';
 import { ITag } from '../models/Tag';
 
 
@@ -59,17 +61,18 @@ export class GITService {
   }
 
   getGitlabSettings(): Observable<GitlabSetting[]> {
-    const url = '../api/gitservice/gitlabsettings'
+    const url = '../api/gitservice/gitlabsettings';
     return this.http.get<GitlabSetting[]>(url);
   }
 
-  pull():Observable<any>  {
-    const url = '../api/gitfeatures/pull'
-    return this.http.get<any>(url);
+  pull(request:PullInfo): Observable<ResponsePull>  {
+    const url = '../api/gitfeatures/pull';
+    return this.http.post<ResponsePull>(url, request);
+    //return this.http.get<any>(url);
   }
 
   commitAndPush():any {
-    const url = '../api/gitfeatures/commitandpush'
+    const url = '../api/gitfeatures/commitandpush';
     return this.http.get<any>(url);
   }
 

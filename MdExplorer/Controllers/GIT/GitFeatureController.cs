@@ -27,23 +27,35 @@ namespace MdExplorer.Service.Controllers.GIT
             _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok(new { message = "done" });
         }
-        [HttpGet("pull")]
-        public IActionResult Pull()
+        [HttpPost("pull")]
+        public IActionResult Pull(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            var pullInfo = new PullInfo { ProjectPath = _fileSystemWatcher.Path };
-            _gitService.Pull(pullInfo);
+            pullInfo.ProjectPath = _fileSystemWatcher.Path ;
+            (bool isConnectionMissing,
+                bool isAuthenticationMissing,
+                bool thereAreConflicts) = _gitService.Pull(pullInfo);
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(new { message = "done" });
+            return Ok(new { isConnectionMissing = isConnectionMissing, 
+                            isAuthenticationMissing= isAuthenticationMissing,
+                            thereAreConflicts = thereAreConflicts
+            });
         }
         [HttpGet("commitandpush")]
         public IActionResult CommitAndPush()
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            var commitAndPushInfo = new CommitAndPushInfo { ProjectPath = _fileSystemWatcher.Path };
-            _gitService.CommitAndPush(commitAndPushInfo);
+            var commitAndPushInfo = new PullInfo { ProjectPath = _fileSystemWatcher.Path };
+            (bool isConnectionMissing,
+               bool isAuthenticationMissing,
+               bool thereAreConflicts) = _gitService.CommitAndPush(commitAndPushInfo);
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(new { message = "done" });
+            return Ok(new
+            {
+                isConnectionMissing = isConnectionMissing,
+                isAuthenticationMissing = isAuthenticationMissing,
+                thereAreConflicts = thereAreConflicts
+            });
         }
     }
 }
