@@ -260,7 +260,7 @@ namespace MdExplorer.Features.GIT
                    new Signature(currentGitlab.UserName, currentEmail,
                    new DateTimeOffset(DateTime.Now)), pullOptions);
 
-                    if (pullResult.Status != MergeStatus.Conflicts)
+                    if (pullResult.Status == MergeStatus.Conflicts)
                     {
                         thereAreConflicts = true;
                     }
