@@ -73,3 +73,32 @@
     background-color: blue;
   }
 }
+
+// bookmark management
+div.mdbookmark {
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: right;
+  min-width: 10px;
+  max-width: 50px;
+  background: yellow;
+  transition: all 0.5s ease;
+}
+
+div.mdbookmark:hover {
+  min-width: 250px;
+}
+
+div.inner {
+  height: 50px;
+  width: 50px;
+  background: red;
+  opacity: 0; //only for better effect
+  visibility: hidden;
+  transition: all 0.5s ease;
+}
+
+div.outer:hover .inner {
+  visibility: initial;
+  opacity: 1;
+}

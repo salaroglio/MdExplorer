@@ -23,9 +23,9 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult CloneRepository(CloneInfo request)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            _gitService.CloneRepository(request);
+            var areCredentialsCorrect = _gitService.CloneRepository(request);
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(new { message = "done" });
+            return Ok(new { areCredentialsCorrect = areCredentialsCorrect, message = "done" });
         }
         [HttpPost("pull")]
         public IActionResult Pull(PullInfo pullInfo)
