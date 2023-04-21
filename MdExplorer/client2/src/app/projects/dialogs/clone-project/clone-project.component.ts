@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
+import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { CloneInfo } from '../../../git/models/cloneRequest';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
@@ -32,7 +33,7 @@ export class CloneProjectComponent implements OnInit {
   constructor(private dialog: MatDialog,
     private mdFileService: MdFileService,
     private gitService: GITService,
-    private dialogRef: MatDialogRef<CloneProjectComponent>,
+    private dialogRef: MatDialogRef<CloneProjectComponent>,    
     private waitingDialog: WaitingDialogService,
     private projectService: ProjectsService,
     private router:Router
@@ -49,11 +50,19 @@ export class CloneProjectComponent implements OnInit {
     info.message = "Oh MY GOD... Cloning Repository!"
     this.waitingDialog.showMessageBox(info);
     this.gitService.clone(this.dataForCloning).subscribe(_ => {
+      if (_.areCredentialsCorrect) {
+        this.projectService.setNewFolderProject(this.dataForCloning.directoryPath).subscribe(_ => {
+          this.router.navigate(['/main/navigation/document']); //main
+          this.dialogRef.close();
+        });
+      } else {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',          
+          data: {message:"Credentials are not correct"}
+        });
+      }
       this.waitingDialog.closeMessageBox();
-      this.projectService.setNewFolderProject(this.dataForCloning.directoryPath).subscribe(_ => {
-        this.router.navigate(['/main/navigation/document']); //main
-        this.dialogRef.close();
-      });
+      
 
       this.dialogRef.close(this.dataForCloning);
     });

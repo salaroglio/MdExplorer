@@ -8,6 +8,7 @@ import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { MdFile } from '../../models/md-file';
+import { BookmarksService } from '../../services/bookmarks.service';
 
 
 
@@ -20,13 +21,16 @@ const SMALL_WIDTH_BREAKPOINT = 720;
  
 })
 export class SidenavComponent implements OnInit {
-  
+ 
+
+  public showText:boolean = false;
   public sideNavWidth: string = "240px";
   public isScreenSmall: boolean;
   private hooked: boolean = false;
   public classForBorderDiv: string = "border-div";
   public titleProject: string;
   public currentBranch: string = null;
+  public bookmarks: MdFile[]
   @ViewChild('sidenav') sidenav: MatSidenav;
 
   constructor(
@@ -34,7 +38,7 @@ export class SidenavComponent implements OnInit {
     private mdFileService: MdFileService,    
     private router: Router,
     private currentFolder: AppCurrentMetadataService,
-    
+    private bookmarksService:BookmarksService,
     private gitService: GITService,    
   ) {
     document.addEventListener("mousemove", (event) => {
@@ -92,8 +96,13 @@ export class SidenavComponent implements OnInit {
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches
       });
+    this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
   }
 
+  openDocument(mdFile: MdFile) {
+    this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
+  }
 
 
   

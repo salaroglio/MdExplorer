@@ -24,6 +24,7 @@ import { tap } from 'rxjs/operators';
 import { GitAuthComponent } from '../../../git/components/git-auth/git-auth.component';
 import { PullInfo } from '../../../git/models/pullInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
+import { BookmarksService } from '../../services/bookmarks.service';
 
 
 
@@ -45,6 +46,7 @@ export class ToolbarComponent implements OnInit {
   howManyFilesAreToCommit: number;
   branches: IBranch[];
   taglist: ITag[];
+  private currentMdFile: MdFile
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -58,7 +60,8 @@ export class ToolbarComponent implements OnInit {
     private appSettings: AppCurrentMetadataService,
     private projectService: ProjectsService,
     private router: Router,
-    private waitingDialogService:WaitingDialogService
+    private waitingDialogService: WaitingDialogService,
+    private bookmarksService: BookmarksService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -95,6 +98,7 @@ export class ToolbarComponent implements OnInit {
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
       if (_ != null) {
+        this.currentMdFile = _;
         this.mdFileService.navigationArray = [];
         this.absolutePath = _.fullPath;
         this.relativePath = _.relativePath;
@@ -102,8 +106,7 @@ export class ToolbarComponent implements OnInit {
     });
     // something has changed on filesystem
     this.mdFileService.serverSelectedMdFile.subscribe(val => {
-      var current = val[0];
-
+      var current = val[0];      
       if (current != undefined) {
         let index = this.mdFileService.navigationArray.length;
         if (index > 0) {
@@ -114,6 +117,7 @@ export class ToolbarComponent implements OnInit {
         }
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
+        this.currentMdFile = current;
       }
 
     });
@@ -160,6 +164,7 @@ export class ToolbarComponent implements OnInit {
   }
 
   private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
+    objectThis.currentMdFile = data;
     objectThis.mdFileService.navigationArray.push(data);
     objectThis.mdFileService.setSelectedMdFileFromServer(data);
   }
@@ -240,8 +245,9 @@ export class ToolbarComponent implements OnInit {
             this.mdFileService.setSelectedMdFileFromSideNav(node);
           }
         });
-      }
-      this.waitingDialogService.closeMessageBox();      
+      }      
+      this.waitingDialogService.closeMessageBox();
+      this.matMenuTrigger.closeMenu();
     });
   }
 
@@ -252,6 +258,7 @@ export class ToolbarComponent implements OnInit {
     this.gitservice.commitAndPush().subscribe(_ => {
       this.gitservice.getCurrentBranch(); 
       this.waitingDialogService.closeMessageBox();
+      this.matMenuTrigger.closeMenu();
     });
   }
 
@@ -269,4 +276,7 @@ export class ToolbarComponent implements OnInit {
     this.matMenuTrigger.closeMenu();
   }
 
+  bookmarkToggle(): void {    
+    this.bookmarksService.toggleBookmark(this.currentMdFile);
+  }
 }

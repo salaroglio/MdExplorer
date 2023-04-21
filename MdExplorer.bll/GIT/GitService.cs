@@ -153,44 +153,55 @@ namespace MdExplorer.Features.GIT
             }
         }
 
-        public void CloneRepository(CloneInfo request)
+        public bool CloneRepository(CloneInfo request)
         {
+            var areCredetialsCorrect = true;
             if (request.UserName == null)
             {
-                return;
+                areCredetialsCorrect = false;
+                return areCredetialsCorrect;
             }
-            if (request.StoreCredentials)
+
+            try
             {
-                _userSettingDb.BeginTransaction();
-                var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
-                var currentSetting = dalGitlabSetting.GetList()
-                    .Where(_ => _.LocalPath == request.DirectoryPath).FirstOrDefault();
-                if (currentSetting == null)
+                CloneOptions co = new CloneOptions();
+                FetchOptions fo = new FetchOptions();
+
+                string gitUser = request.UserName, gitToken = request.Password;
+                co.CredentialsProvider = (_url, _user, _cred) =>
+                new UsernamePasswordCredentials { Username = gitUser, Password = gitToken };
+                co.BranchName = "main";
+                co.Checkout = true;
+
+                Repository.Clone(request.UrlPath, request.DirectoryPath, co);
+
+                if (request.StoreCredentials)
                 {
-                    currentSetting = new GitlabSetting
+                    _userSettingDb.BeginTransaction();
+                    var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+                    var currentSetting = dalGitlabSetting.GetList()
+                        .Where(_ => _.LocalPath == request.DirectoryPath).FirstOrDefault();
+                    if (currentSetting == null)
                     {
-                        UserName = request.UserName,
-                        Password = request.Password,
-                        //Email = request.UserEmail,                    
-                        LocalPath = request.DirectoryPath,
-                        GitlabLink = request.UrlPath
-                    };
+                        currentSetting = new GitlabSetting
+                        {
+                            UserName = request.UserName,
+                            Password = request.Password,
+                            LocalPath = request.DirectoryPath,
+                            GitlabLink = request.UrlPath
+                        };
+                    }
+                    dalGitlabSetting.Save(currentSetting);
+                    _userSettingDb.Commit();
                 }
-                dalGitlabSetting.Save(currentSetting);
-                _userSettingDb.Commit();
             }
-            
-            CloneOptions co = new CloneOptions();
-            FetchOptions fo = new FetchOptions();
+            catch (Exception)
+            {
 
-            string gitUser = request.UserName, gitToken = request.Password;
-            co.CredentialsProvider = (_url, _user, _cred) =>
-            new UsernamePasswordCredentials { Username = gitUser, Password = gitToken };
-            co.BranchName = "main";
-            co.Checkout = true;
+                areCredetialsCorrect = false;
+            }
 
-            Repository.Clone(request.UrlPath, request.DirectoryPath, co);
-
+            return areCredetialsCorrect;
         }
 
 

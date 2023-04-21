@@ -21,16 +21,16 @@
       {{titleProject}}
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
-      <mat-tab style="height:100%" >
+      <mat-tab style="height:100%">
         <ng-template mat-tab-label>
           <img src="/assets/project.png" style="height:24px" />
           Project docs
         </ng-template>
-          <app-md-tree></app-md-tree>
-      </mat-tab>      
+        <app-md-tree></app-md-tree>
+      </mat-tab>
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>
-          <img src="/assets/cicd.png" style="height:24px"/>CI/CD   
+          <img src="/assets/cicd.png" style="height:24px" />CI/CD
         </ng-template>
         <app-publish-md-tree></app-publish-md-tree>
       </mat-tab>
@@ -39,10 +39,28 @@
   </mat-sidenav>
 
   <div class="flex-container">
-    <div [ngClass]="classForBorderDiv" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
+    <div [ngClass]="classForBorderDiv"
+         (pointerdown)="resizeWidth()"
+         (mouseup)="stopResizeWidth()">
+
+    </div>
+    <div style="position:fixed;
+            display:flex;
+            flex-direction:column;
+             align-items:flex-start; background-color:transparent; top:66px">
+      <div  (mouseover)="bookmark.show=true" (mouseout)="bookmark.show=false" class="mdbookmark"
+           *ngFor="let bookmark of bookmarks;let indexOfElement=index;" style="padding:2px;">
+        <div (click)="openDocument(bookmark)" >
+          <span *ngIf="bookmark.show">{{bookmark.name}}</span>
+          <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
+          <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
+        </div>
+      </div>
+
+    </div>
     <div style="width:100%; height:100%;">
       <div class="app-sidenav-content" style="height:100%;">
-        
+
         <router-outlet></router-outlet>
       </div>
     </div>

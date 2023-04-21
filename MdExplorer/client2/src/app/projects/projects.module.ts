@@ -7,6 +7,7 @@ import { CloneProjectComponent } from './dialogs/clone-project/clone-project.com
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms'
+import { GitModule } from '../git/git.module';
 
 const routes: Routes = [
   {
@@ -32,6 +33,7 @@ const routes: Routes = [
     CommonModule,
     MaterialModule,
     FormsModule,
+    GitModule,
   ]
 })
 export class ProjectsModule {

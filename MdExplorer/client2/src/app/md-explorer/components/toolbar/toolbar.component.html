@@ -12,7 +12,7 @@
     <button mat-icon-button matTooltip="full screen" (click)="FullScreenToggle()">
       <mat-icon>{{screenType}}</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="Bookmarks" (click)="FullScreenToggle()">
+    <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()">
       <mat-icon>bookmark</mat-icon>
     </button>
     <span *ngFor="let doc of this.mdFileService.navigationArray">
@@ -25,19 +25,27 @@
       <div *ngIf="somethingIsChangedInTheBranch" matBadge="{{howManyFilesAreToCommit}}" matBadgePosition="before"
            matBadgeOverlap="false" matBadgeColor="accent" matBadgeSize="small">
       </div>
-      <button mat-button [matMenuTriggerFor]="tagsAndBranches" [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">[{{currentBranch}}] <img src="/assets/gitlogo.png" /></button>
+      <button mat-button [matMenuTriggerFor]="tagsAndBranches"
+              [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
+        [{{currentBranch}}] <img src="/assets/gitlogo.png" />
+      </button>
       <mat-menu #tagsAndBranches="matMenu">
         <div>
-          <div (click)="pull()" class="container" color="warn" mat-menu-item (click)="$event.stopPropagation()">
+          <div (click)="pull()" class="container" color="warn"
+               mat-menu-item (click)="$event.stopPropagation()">
             <span>Discard changes and Pull</span><span class="flexExpand"></span>
             <button mat-icon-button>
-              <mat-icon style="text-align:right" color="warn">arrow_downward</mat-icon>
+              <mat-icon style="text-align:right"
+                        color="warn">arrow_downward</mat-icon>
             </button>
           </div>
-          <div (click)="commitAndPush()" style="background-color:grey" class="container" color="warn" mat-menu-item (click)="$event.stopPropagation()">
+          <div (click)="commitAndPush()"
+               class="container" color="warn"
+               mat-menu-item (click)="$event.stopPropagation()">
             <span>Commit and Push</span><span class="flexExpand"></span>
-            <button disabled mat-icon-button>
-              <mat-icon disabled style="text-align:right" color="warn">arrow_upward</mat-icon>
+            <button mat-icon-button>
+              <mat-icon style="text-align:right"
+                        color="warn">arrow_upward</mat-icon>
             </button>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { GitlabSetting } from '../models/gitlab-setting';
 import { PullInfo } from '../models/pullInfo';
 import { ResponsePull } from '../models/responsePull';
 import { ITag } from '../models/Tag';
+import { ResposneClone } from './responses/ResponseClone';
 
 
 @Injectable({
@@ -24,9 +25,9 @@ export class GITService {
 
   constructor(private http: HttpClient) { }
 
-  clone(request: CloneInfo):Observable<any> {
+  clone(request: CloneInfo): Observable<ResposneClone> {
     const url = '../api/gitfeatures/cloneRepository';
-    return this.http.post<any>(url, request);
+    return this.http.post<ResposneClone>(url, request);
   }
 
   getCurrentBranch():Observable<IBranch> {
