@@ -76,17 +76,14 @@
 
 // bookmark management
 div.mdbookmark {
-  cursor: pointer;
+  cursor: pointer;  
   white-space: nowrap;
-  text-align: right;
-  min-width: 10px;
-  max-width: 50px;
+  text-align: right;   
   background: yellow;
   transition: all 0.5s ease;
 }
 
-div.mdbookmark:hover {
-  min-width: 250px;
+div.mdbookmark:hover {  
 }
 
 div.inner {

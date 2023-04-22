@@ -104,6 +104,10 @@ export class SidenavComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
   }
 
+  toggleBookmark(mdFile: MdFile) {
+    this.bookmarksService.toggleBookmark(mdFile);
+  }
+
 
   
 

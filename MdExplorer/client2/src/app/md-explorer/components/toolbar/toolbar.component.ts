@@ -31,7 +31,7 @@ import { BookmarksService } from '../../services/bookmarks.service';
 @Component({
   selector: 'app-toolbar',
   templateUrl: './toolbar.component.html',
-  styleUrls: ['./toolbar.component.scss'],  
+  styleUrls: ['./toolbar.component.scss'],
 })
 export class ToolbarComponent implements OnInit {
 
@@ -51,7 +51,7 @@ export class ToolbarComponent implements OnInit {
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
     public dialog: MatDialog,
-    
+
     private monitorMDService: ServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
@@ -72,7 +72,7 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
     // get current branch name and if the branch has something to commit
-    this.gitservice.getCurrentBranch();    
+    this.gitservice.getCurrentBranch();
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
@@ -81,9 +81,9 @@ export class ToolbarComponent implements OnInit {
 
     // manage resize fullscreen
     document.onfullscreenchange = (event) => {
-      
+
       if (document.fullscreenElement) {
-        this.screenType = "close_fullscreen";        
+        this.screenType = "close_fullscreen";
       } else {
         this.screenType = "fullscreen";
       }
@@ -93,7 +93,7 @@ export class ToolbarComponent implements OnInit {
       this.branches = branches;
     });
 
-    
+
 
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
@@ -106,7 +106,7 @@ export class ToolbarComponent implements OnInit {
     });
     // something has changed on filesystem
     this.mdFileService.serverSelectedMdFile.subscribe(val => {
-      var current = val[0];      
+      var current = val[0];
       if (current != undefined) {
         let index = this.mdFileService.navigationArray.length;
         if (index > 0) {
@@ -194,7 +194,7 @@ export class ToolbarComponent implements OnInit {
     this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
 
-  
+
   public screenType = "fullscreen";
 
   FullScreenToggle(): void {
@@ -203,14 +203,14 @@ export class ToolbarComponent implements OnInit {
     } else {
       document.exitFullscreen();
     }
-    
+
   }
 
   pull(): void {
     let info = new WaitingDialogInfo();
     info.message = "Please wait... Pulling branch"
     this.waitingDialogService.showMessageBox(info);
-    let pullInfo = new PullInfo();    
+    let pullInfo = new PullInfo();
     this.gitservice.pull(pullInfo).subscribe(_ => {
       // manage failed connection
       if (_.isConnectionMissing) {
@@ -218,7 +218,7 @@ export class ToolbarComponent implements OnInit {
           width: '300px',
           data: {
             message: 'Missing connection',
-            description:'Please verify your vpn or network settings'
+            description: 'Please verify your vpn or network settings'
           }
         });
       }
@@ -245,7 +245,7 @@ export class ToolbarComponent implements OnInit {
             this.mdFileService.setSelectedMdFileFromSideNav(node);
           }
         });
-      }      
+      }
       this.waitingDialogService.closeMessageBox();
       this.matMenuTrigger.closeMenu();
     });
@@ -255,8 +255,32 @@ export class ToolbarComponent implements OnInit {
     let info = new WaitingDialogInfo();
     info.message = "Please wait... commit and pushing branch";
     this.waitingDialogService.showMessageBox(info);
-    this.gitservice.commitAndPush().subscribe(_ => {
-      this.gitservice.getCurrentBranch(); 
+    let pullInfo = new PullInfo();
+    this.gitservice.commitAndPush(pullInfo).subscribe(_ => {
+      if (_.isConnectionMissing) {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',
+          data: {
+            message: 'Missing connection',
+            description: 'Please verify your vpn or network settings'
+          }
+        });
+      }
+      if (_.isAuthenticationMissing) {
+        const dialogRef = this.dialog.open(GitAuthComponent, {
+          width: '300px',
+        });
+      }
+      if (_.thereAreConflicts) {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',
+          data: {
+            message: 'Conflicts appear',
+            description: 'please resolve using Visual Studio Code'
+          }
+        });
+      }
+      this.gitservice.getCurrentBranch();
       this.waitingDialogService.closeMessageBox();
       this.matMenuTrigger.closeMenu();
     });
@@ -276,7 +300,7 @@ export class ToolbarComponent implements OnInit {
     this.matMenuTrigger.closeMenu();
   }
 
-  bookmarkToggle(): void {    
+  bookmarkToggle(): void {
     this.bookmarksService.toggleBookmark(this.currentMdFile);
   }
 }

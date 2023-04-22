@@ -5627,9 +5627,9 @@ class GITService {
         return this.http.post(url, request);
         //return this.http.get<any>(url);
     }
-    commitAndPush() {
+    commitAndPush(request) {
         const url = '../api/gitfeatures/commitandpush';
-        return this.http.get(url);
+        return this.http.post(url, request);
     }
 }
 GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };

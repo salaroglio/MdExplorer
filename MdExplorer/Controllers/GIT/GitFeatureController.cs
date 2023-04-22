@@ -41,14 +41,14 @@ namespace MdExplorer.Service.Controllers.GIT
                             thereAreConflicts = thereAreConflicts
             });
         }
-        [HttpGet("commitandpush")]
-        public IActionResult CommitAndPush()
+        [HttpPost("commitandpush")]
+        public IActionResult CommitAndPush(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            var commitAndPushInfo = new PullInfo { ProjectPath = _fileSystemWatcher.Path };
+             pullInfo.ProjectPath = _fileSystemWatcher.Path;
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
-               bool thereAreConflicts) = _gitService.CommitAndPush(commitAndPushInfo);
+               bool thereAreConflicts) = _gitService.CommitAndPush(pullInfo);
             _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok(new
             {

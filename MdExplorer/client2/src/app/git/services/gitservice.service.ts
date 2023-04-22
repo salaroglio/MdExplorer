@@ -72,9 +72,9 @@ export class GITService {
     //return this.http.get<any>(url);
   }
 
-  commitAndPush():any {
+  commitAndPush(request: PullInfo): Observable<ResponsePull> {
     const url = '../api/gitfeatures/commitandpush';
-    return this.http.get<any>(url);
+    return this.http.post<ResponsePull>(url, request);
   }
 
 }
