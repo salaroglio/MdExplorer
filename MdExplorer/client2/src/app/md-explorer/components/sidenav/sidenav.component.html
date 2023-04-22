@@ -48,11 +48,17 @@
             display:flex;
             flex-direction:column;
              align-items:flex-start; background-color:transparent; top:66px">
-      <div  (mouseover)="bookmark.show=true" (mouseout)="bookmark.show=false" class="mdbookmark"
-           *ngFor="let bookmark of bookmarks;let indexOfElement=index;" style="padding:2px;">
-        <div (click)="openDocument(bookmark)" >
-          <span *ngIf="bookmark.show">{{bookmark.name}}</span>
-          <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
+      <div (mouseenter)="bookmark.show=true"
+           (mouseleave)="bookmark.show=false"
+           class="mdbookmark"
+           *ngFor="let bookmark of bookmarks;let indexOfElement=index;"
+           style="padding:2px;">
+        <div style="border-color:black"  >
+          <mat-icon (click)="toggleBookmark(bookmark)"
+                    *ngIf="bookmark.show"
+                    style="vertical-align:bottom;">cancel</mat-icon>
+          <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
+          <span  *ngIf="!bookmark.show">{{indexOfElement}}</span>
           <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
         </div>
       </div>

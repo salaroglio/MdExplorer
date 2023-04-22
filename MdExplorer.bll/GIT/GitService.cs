@@ -289,6 +289,14 @@ namespace MdExplorer.Features.GIT
 
         }
 
+        public class CommitAndPushResponse
+        {
+            public bool isConnectionMissing;
+            public bool isAuthenticationMissing;
+            public bool thereAreConflicts;
+            public string ConflictsMessages;
+        }
+
         public (bool, bool, bool) CommitAndPush(PullInfo pullInfo)
         {
             
@@ -342,9 +350,21 @@ namespace MdExplorer.Features.GIT
                 try
                 {
                     // commit
-                    repo.Commit("updating files..",
-                    new Signature("carlos", currentEmail, DateTimeOffset.Now),
-                    new Signature("carlos", currentEmail, DateTimeOffset.Now));
+                    try
+                    {
+                        repo.Commit("updating files..",
+                        new Signature("carlos", currentEmail, DateTimeOffset.Now),
+                        new Signature("carlos", currentEmail, DateTimeOffset.Now));
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.GetType() != typeof(LibGit2Sharp.EmptyCommitException))
+                        {
+                            return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
+                        }
+                        
+                    }
+                    
                 }
                 catch (Exception ex)
                 {
