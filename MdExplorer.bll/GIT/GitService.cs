@@ -242,13 +242,7 @@ namespace MdExplorer.Features.GIT
             using (var repo = new Repository(pullinfo.ProjectPath))
             {                
                 currentGitlab.GitlabLink = repo.Network.Remotes.First().Url;
-                if (isAuthMissingIntoDB)
-                {
-                    _userSettingDb.BeginTransaction();
-                    var gitlabSettingDal = _userSettingDb.GetDal<GitlabSetting>();
-                    gitlabSettingDal.Save(currentGitlab);
-                    _userSettingDb.Commit();
-                }
+                
                 var currentEmail = GetCurrentUserEmail(pullinfo.ProjectPath);
                 var currentStatus = repo.RetrieveStatus();
                 foreach (var item in repo.Diff.Compare<TreeChanges>())
@@ -274,6 +268,13 @@ namespace MdExplorer.Features.GIT
                     if (pullResult.Status == MergeStatus.Conflicts)
                     {
                         thereAreConflicts = true;
+                    }
+                    if (isAuthMissingIntoDB)
+                    {
+                        _userSettingDb.BeginTransaction();
+                        var gitlabSettingDal = _userSettingDb.GetDal<GitlabSetting>();
+                        gitlabSettingDal.Save(currentGitlab);
+                        _userSettingDb.Commit();
                     }
                     return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
                 }

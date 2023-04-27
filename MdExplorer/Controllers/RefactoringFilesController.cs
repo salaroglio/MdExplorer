@@ -188,15 +188,14 @@ namespace MdExplorer.Service.Controllers
 
         private void RenameFileOnFilesystem(FileToRename fileData)
         {
-            _visualStudioCode.IKilled = false;
-            _visualStudioCode.KillVisualStudioCode();
+            
             var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
             var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
             // gestisci il rename di un file
             System.IO.File.Move(oldFullPath, newFullPath, true);
-            if (_visualStudioCode.CurrentVisualStudio != null &&
-                _visualStudioCode.CurrentVisualStudio.HasExited &&
-                _visualStudioCode.IKilled)
+            if (_visualStudioCode.CurrentVisualStudio != null )
+            //    _visualStudioCode.CurrentVisualStudio.HasExited &&6
+            //    _visualStudioCode.IKilled)
             {
                 _visualStudioCode.ReopenVisualStudioCode(newFullPath);
             }
