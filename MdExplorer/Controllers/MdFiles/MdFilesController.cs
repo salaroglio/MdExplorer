@@ -640,9 +640,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _fileSystemWatcher.EnableRaisingEvents = false;
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
 
-
-
-
             var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
 
             var list = new List<IFileInfoNode>();

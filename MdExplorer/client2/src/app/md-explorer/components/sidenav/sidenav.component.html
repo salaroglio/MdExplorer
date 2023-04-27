@@ -53,12 +53,13 @@
            class="mdbookmark"
            *ngFor="let bookmark of bookmarks;let indexOfElement=index;"
            style="padding:2px;">
-        <div style="border-color:black"  >
+        <div style="border-color:black">
+
+          <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
+          <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
           <mat-icon (click)="toggleBookmark(bookmark)"
                     *ngIf="bookmark.show"
                     style="vertical-align:bottom;">cancel</mat-icon>
-          <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
-          <span  *ngIf="!bookmark.show">{{indexOfElement}}</span>
           <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
         </div>
       </div>
