@@ -336,17 +336,22 @@ namespace MdExplorer.Features.GIT
                 var data = repo.Head.CanonicalName;
 
                 var currentStatus = repo.RetrieveStatus();
-                foreach (var item in repo.Diff.Compare<TreeChanges>())
-                {
-                    repo.Index.Add(item.Path);
-                    repo.Index.Write();
+                LibGit2Sharp.Commands.Stage(repo, "*");
+                //foreach (var item in repo.Diff.Compare<TreeChanges>())
+                //{
+                //    if (item.Exists)
+                //    {
+                //        repo.Index.Add(item.Path);
+                //    }                   
+                //    repo.Index.Write();
 
-                }
-                foreach (var item in currentStatus.Untracked)
-                {
-                    repo.Index.Add(item.FilePath);
-                    repo.Index.Write();
-                }
+                //}
+                
+                //foreach (var item in currentStatus.Untracked)
+                //{
+                //    repo.Index.Add(item.FilePath);
+                //    repo.Index.Write();
+                //}
 
                 try
                 {

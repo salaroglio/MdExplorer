@@ -25,6 +25,8 @@ import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-set
 import { DocumentSettingsComponent } from './components/document-settings/document-settings.component';
 import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { GitModule } from '../git/git.module';
+import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
+
 
 
 const routes: Routes = [
@@ -59,8 +61,8 @@ const routes: Routes = [
     PublishMdTreeComponent,
     GitlabSettingsComponent,
     DocumentSettingsComponent,
-    CopyFromClipboardComponent,
-      
+    CopyFromClipboardComponent,    
+    MoveMdFileComponent
   ],
   imports: [
     CommonModule,

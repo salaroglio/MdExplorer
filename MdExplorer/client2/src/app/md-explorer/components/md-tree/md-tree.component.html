@@ -13,7 +13,8 @@
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="deleteFile(item)" matTooltip="delete document"><mat-icon>delete</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="pasteFromClipboard(item)" matTooltip="Paste from Clipboard"><mat-icon>archive</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" matTooltip="copy link to clipboard"><mat-icon>link</mat-icon></button>
-      <button *ngIf="item.type==='mdFile'" mat-icon-button color="primary" (click)="openDocumentSettings(item)" matTooltip="document settings"><mat-icon>settings</mat-icon></button>
+      <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="openDocumentSettings(item)" matTooltip="document settings"><mat-icon>settings</mat-icon></button>
+      <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="moveDocument(item)" matTooltip="move"><mat-icon>open_with</mat-icon></button>
     </div>
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>
