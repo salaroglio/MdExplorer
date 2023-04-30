@@ -50,6 +50,9 @@ namespace MdExplorer.Service.Controllers
             _engineDB.BeginTransaction();            
             var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
             var theAction = sourceActionDal.GetList().Where(_=>_.Id == RefactoringSourceActionId).First();
+
+
+
             var listToReturn = new List<dynamic>();
             foreach (var involvedAction in theAction.ActionDetails)
             {
@@ -194,8 +197,6 @@ namespace MdExplorer.Service.Controllers
             // gestisci il rename di un file
             System.IO.File.Move(oldFullPath, newFullPath, true);
             if (_visualStudioCode.CurrentVisualStudio != null )
-            //    _visualStudioCode.CurrentVisualStudio.HasExited &&6
-            //    _visualStudioCode.IKilled)
             {
                 _visualStudioCode.ReopenVisualStudioCode(newFullPath);
             }

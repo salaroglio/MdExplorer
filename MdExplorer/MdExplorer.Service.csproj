@@ -423,22 +423,42 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.min.js" />
-    <EmbeddedResource Include="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js" />
-    <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
-    <EmbeddedResource Include="wwwroot\client2\index.html" />
-    <EmbeddedResource Include="wwwroot\client2\main.js" />
+    <EmbeddedResource Include="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\favicon.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\index.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\main.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\main.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js" />
+    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\polyfills.js" />
+    <EmbeddedResource Include="wwwroot\client2\polyfills.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\polyfills.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js" />
+    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\runtime.js" />
+    <EmbeddedResource Include="wwwroot\client2\runtime.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\runtime.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\styles.css" />
+    <EmbeddedResource Include="wwwroot\client2\styles.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\styles.css.map" />
-    <EmbeddedResource Include="wwwroot\client2\vendor.js" />
+    <EmbeddedResource Include="wwwroot\client2\vendor.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="EmojiForPandoc\ok.png" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js.map" />
     <EmbeddedResource Include="wwwroot\common.css" />

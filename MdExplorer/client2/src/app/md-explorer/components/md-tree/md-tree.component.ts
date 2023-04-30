@@ -16,6 +16,7 @@ import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markd
 import { Router } from '@angular/router';
 import { fadeInOnEnterAnimation } from 'angular-animations';
 import { CopyFromClipboardComponent } from '../dialogs/copy-from-clipboard/copy-from-clipboard.component';
+import { MoveMdFileComponent } from '../dialogs/move-md-file/move-md-file.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -153,6 +154,13 @@ export class MdTreeComponent implements OnInit {
   setMdAsLandingPage(node: MdFile) {
     this.mdFileService.SetLandingPage(node).subscribe(_ => {
       this.snackBar.open(node.name, "is project landing page", { duration: 5000 });
+    });
+  }
+
+  moveDocument(node: MdFile):void {
+    this.dialog.open(MoveMdFileComponent, {
+      width: '300px',
+      data: node,
     });
   }
 
