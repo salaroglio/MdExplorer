@@ -12,6 +12,7 @@ using MdExplorer.Abstractions.Models;
 using MdExplorer.Controllers;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.ProjectBody;
+using MdExplorer.Features.Refactoring;
 using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Features.Refactoring.Analysis.Interfaces;
 using MdExplorer.Features.snippets;
@@ -65,6 +66,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly ISnippet<DictionarySnippetParam>[] _snippets;
         private readonly ProjectBodyEngine _projectBodyEngine;
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
+        private readonly RefactoringManager _refactoringManager;
 
         public IEngineDB _engineDB { get; }
 
@@ -76,7 +78,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             IProjectDB projectDB,
             ISnippet<DictionarySnippetParam>[] snippets,
             ProjectBodyEngine projectBodyEngine,
-            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager
+            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
+            RefactoringManager refactoringManager
             )
         {
             _fileSystemWatcher = fileSystemWatcher;
@@ -90,6 +93,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _snippets = snippets;
             _projectBodyEngine = projectBodyEngine;
             _yamlDocumentManager = yamlDocumentManager;
+            _refactoringManager = refactoringManager;
         }
 
         [HttpGet]
@@ -121,6 +125,33 @@ namespace MdExplorer.Service.Controllers.MdFiles
             };
             Process.Start(processToStart);
             return Ok(new { message = "done" });
+        }
+
+        [HttpPost]
+        public IActionResult MoveMdFile([FromBody] RequestMoveMdFile requestMoveMdFile)
+        {
+            var fullPath = _fileSystemWatcher.Path;
+            var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath;
+            var fileName = requestMoveMdFile.MdFile.Name;
+            var relativeDestinationPath = requestMoveMdFile.DestinationPath.Replace(_fileSystemWatcher.Path, "");
+            var toRelativePathFileName =  Path.Combine(relativeDestinationPath, fileName);
+            var newFullPath = Path.Combine(requestMoveMdFile.DestinationPath, fileName);
+
+            _engineDB.BeginTransaction();
+            _refactoringManager.RenameTheMdFileIntoEngineDB(fullPath,
+                fromRelativePathFileName, toRelativePathFileName);
+            var refSourceAct = _refactoringManager
+                .SaveRefactoringAction(fullPath,
+                fromRelativePathFileName, toRelativePathFileName,"Move File"); // Save the concept of change
+
+            _refactoringManager.SetRefactoringInvolvedFilesActionsForMoveFile(
+                fromRelativePathFileName, toRelativePathFileName, 
+                requestMoveMdFile.MdFile.FullPath, refSourceAct);
+            // After save, get back the list of links inside involved files
+            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(newFullPath, refSourceAct);
+
+            _engineDB.Commit();
+            return Ok("");
         }
 
         [HttpPost]
@@ -193,8 +224,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }));
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
-
-
 
             return Ok(new { message = "done" });
         }
@@ -342,9 +371,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpGet]
         public IActionResult GetDynFoldersDocument([FromQuery] string path, string level)
         {
-            //var basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            var basePath = @"C:\";
-            var currentPath = path == "root" ? basePath : path;
+            var currentPath = path == "root" ? @"C:\" : path;
+            currentPath = path == "project" ? _fileSystemWatcher.Path : currentPath;
+            currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
+
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 

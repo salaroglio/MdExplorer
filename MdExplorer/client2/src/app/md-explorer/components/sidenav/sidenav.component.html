@@ -53,7 +53,7 @@
            class="mdbookmark"
            *ngFor="let bookmark of bookmarks;let indexOfElement=index;"
            style="padding:2px;">
-        <div style="border-color:black">
+        <div style="border-color:black" [attr.alt]="bookmark.fullPath">
 
           <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
           <span *ngIf="!bookmark.show">{{indexOfElement}}</span>

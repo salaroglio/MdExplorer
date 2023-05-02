@@ -85,6 +85,11 @@ export class MdFileService {
     this._navigationArray = mdFile;
   }
 
+  moveMdFile(mdFile: MdFile, pathDestination: string) {
+    const url = '../api/mdFiles/moveMdFile';
+    return this.http.post<any>(url, { mdFile: mdFile, pathDestionation:pathDestination });
+  }
+
   openInheritingTemplateWord(InheringTemplate: string) {
     const url = '../api/mdFiles/openinheritingtemplateWord';
     return this.http.post<any>(url, { templateName: InheringTemplate });
