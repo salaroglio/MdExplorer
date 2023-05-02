@@ -1,7 +1,7 @@
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
 import { FlatTreeControl } from '@angular/cdk/tree';
-import { Component, Injectable, OnInit, ViewChild } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Component, Inject, Injectable, OnInit, ViewChild } from '@angular/core';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { Router } from '@angular/router';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
@@ -74,9 +74,10 @@ class DynamicDataSource implements DataSource<MdFile> {
 
   constructor(private _treeControl: FlatTreeControl<MdFile>,
     private _database: DynamicDatabase,
-    private _mdFileService: MdFileService) {
+    private _mdFileService: MdFileService,
+    private baseStart:string) {
     this.data = _database.initialData();
-    this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
+    this._mdFileService.loadDocumentFolder(baseStart, 0).subscribe(_ => {// 'root'
       this.data = _;
     });
     //this.dataChange = _mdFileService._mdDynFolderDocument;
@@ -145,9 +146,9 @@ class DynamicDataSource implements DataSource<MdFile> {
       let count = 0;
       for (let i = index + 1; i < this.data.length
         && this.data[i].level > node.level; i++, count++) { }
-      this.data.splice(index + 1, count);
+      this.data.splice(index + 1, count); // toglie i nodi figlio
       const nodes = children;
-      this.data.splice(index + 1, 0, ...nodes);
+      this.data.splice(index + 1, 0, ...nodes); // mette i nuovi nodi
       this.dataChange.next(this.data);
     });
   }
@@ -163,37 +164,29 @@ export class ShowFileSystemComponent implements OnInit {
 
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
-
-  
-
-
   activeNode: any;
   folder: {
     name: string,
     path: string
   }
-
   getLevel = (node: MdFile) => node.level;
-
   isExpandable = (node: MdFile) => node.expandable;
-
   treeControl: FlatTreeControl<MdFile>;
-
   dataSource: DynamicDataSource;
-
   hasChild = (_: number, _nodeData: MdFile) => _nodeData.expandable;
 
-
-  constructor(private database: DynamicDatabase,
+  constructor(
+    @Inject(MAT_DIALOG_DATA) public baseStart: string,
+    private database: DynamicDatabase,
     public dialog: MatDialog,
     private mdFileService: MdFileService,
     private dialogRef: MatDialogRef<ShowFileSystemComponent>,) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
-    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
+    let start = this.baseStart == null ? 'root' :this.baseStart;
+    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService, start);
   }
 
-  createDirectoryOn(node: MdFile) {
-    debugger;
+  createDirectoryOn(node: MdFile) {    
     if (node == null) {
       node = new MdFile("root", "root", 0, false);
       node.fullPath = "root";

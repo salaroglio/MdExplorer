@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PlantUml.Net;
 using System;
 using System.Collections.Generic;
+using MdExplorer.Features.Refactoring;
 
 namespace MdExplorer.Features
 {
@@ -83,6 +84,7 @@ namespace MdExplorer.Features
             services.AddSingleton<IYamlParser<MdExplorerDocumentDescriptor>, YamlDocumentDescriptorParser>();
             services.AddTransient<IGitService, GitService>();
             services.AddSingleton<ProjectBodyEngine>();
+            services.AddScoped<RefactoringManager>();
             return services;
         }
     }

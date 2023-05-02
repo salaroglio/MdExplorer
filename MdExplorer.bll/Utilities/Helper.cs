@@ -55,14 +55,20 @@ namespace MdExplorer.Features.Utilities
 
         private static Dictionary<int, string> NomalizeArray(string requestInfo)
         {
+            Dictionary<int, string> arrayToInvestigate = ImplodePath(requestInfo);
+            return arrayToInvestigate;
+        }
+
+        private static Dictionary<int, string> ImplodePath(string requestInfo)
+        {
             var counter = 0;
-            var arrayToInvestigate = requestInfo.Split(Path.DirectorySeparatorChar).ToDictionary(_ =>  counter++);
-            var itemToCompress = arrayToInvestigate.Where(_ => _.Value.Contains("..")).ToList();
+            var arrayToInvestigate = requestInfo.Split(Path.DirectorySeparatorChar).ToDictionary(_ => counter++);
+            var itemToCompress = arrayToInvestigate.Where(_ => _.Value == "..").ToList();
             var newCompressedPath = new Dictionary<int, string>();
 
 
             var counter1 = 0;
-            while (itemToCompress.Count()>0)
+            while (itemToCompress.Count() > 0)
             {
                 foreach (var item in itemToCompress.OrderBy(_ => _.Key))
                 {
@@ -73,13 +79,27 @@ namespace MdExplorer.Features.Utilities
                     break;
                 }
                 //ricostruisco l'indice
-                counter1 ++;                 
-                
+                counter1++;
             }
-            
+
+            var itemToCompress2 = arrayToInvestigate.Where(_ => _.Value == ".").ToList();
+            var counter2 = 0;
+            while (itemToCompress2.Count() > 0)
+            {
+                foreach (var item in itemToCompress2.OrderBy(_ => _.Key))
+                {
+                    arrayToInvestigate.Remove(item.Key);
+                    itemToCompress2.Remove(item);
+                    break;
+                }
+                //ricostruisco l'indice
+                counter2++;
+            }
+
 
             return arrayToInvestigate;
         }
+
         public string GetHashString(string value, Encoding encoding = null)
         {
             if (encoding == null)
