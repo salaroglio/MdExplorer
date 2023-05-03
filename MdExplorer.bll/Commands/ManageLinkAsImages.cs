@@ -47,11 +47,6 @@ namespace MdExplorer.Features.Commands
 
         public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
-            //if (requestInfo.RootQueryRequest == requestInfo.CurrentQueryRequest)
-            //{
-            //    // Nel caso non ci sia ricorsività (MdShowMd)
-            //    return markdown;
-            //}
             var matches = GetMatches(markdown);
 
             foreach (Match item in matches)

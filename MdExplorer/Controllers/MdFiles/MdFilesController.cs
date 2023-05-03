@@ -791,26 +791,33 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     markdownFile.FileType = "Folder";
                     SaveRealationships(item.Childrens, markdownFile.Id);
                 }
-
-
                 relDal.Save(markdownFile);
 
                 var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
                 SaveLinksFromMarkdown(item, markdownFile, linkInsideMarkdownDal);
-
-
             }
-
         }
 
-        private void SaveLinksFromMarkdown(IFileInfoNode item, MarkdownFile relationship, IDAL<LinkInsideMarkdown> linkInsideMarkdownDal)
+        private void SaveLinksFromMarkdown(IFileInfoNode item, 
+            MarkdownFile relationship, 
+            IDAL<LinkInsideMarkdown> linkInsideMarkdownDal)
         {
             foreach (var getModifier in _getModifiers)
             {
                 var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(item.FullPath) : new List<LinkDetail>().ToArray();
                 foreach (var singleLink in linksToStore)
                 {
-                    var fullPath = Path.GetDirectoryName(item.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                    // manage relative path
+                    var fullPath = Path.GetDirectoryName(item.FullPath)
+                        + Path.DirectorySeparatorChar
+                        + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                    // manage absolute path in link
+                    if (singleLink.LinkPath.StartsWith("/"))
+                    {
+                        fullPath = _fileSystemWatcher.Path                            
+                            + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                    }
+                    
                     var linkToStore = new LinkInsideMarkdown
                     {
                         FullPath = _helper.NormalizePath(fullPath),
