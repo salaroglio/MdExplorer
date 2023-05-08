@@ -47,7 +47,8 @@ namespace MdExplorer.Features.LinkModifiers
         public void SetLinkIntoFile(string filepath,string oldLink, string newLink)
         {
             var markdown = File.ReadAllText(filepath);            
-            markdown = Regex.Replace(markdown, oldLink, newLink, RegexOptions.IgnoreCase);
+            markdown = markdown.Replace(oldLink, newLink,StringComparison.CurrentCultureIgnoreCase);
+            //Regex.Replace(markdown, oldLink, newLink, RegexOptions.IgnoreCase);
             File.WriteAllText(filepath,markdown);
         }
     }

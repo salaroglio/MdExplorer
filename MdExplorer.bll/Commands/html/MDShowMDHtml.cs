@@ -28,7 +28,7 @@ namespace MdExplorer.Features.Commands.html
 
         override public string TransformAfterConversion(string markdown, RequestInfo requestInfo)
         {
-            // Devo cercare dentro markdown il comando m↓ShowMd(pathfile)
+            // Devo cercare dentro markdown il comando mdShowMd(pathfile)
             // potrei usare le regular expression
             // Devo agganciare la parola "m↓ShowMd(xxx)"
             // ed in più devo prendere xxx
@@ -78,9 +78,6 @@ namespace MdExplorer.Features.Commands.html
 
                 using (var httpClient = new HttpClient(httpClientHandler))
                 {
-                    
-
-                    //var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2/{queryEncoded}" + "?recursionLevel=" + (requestInfo.Recursionlevel + 1).ToString());
                     requestInfo.Recursionlevel++;
                     requestInfo.RelativePathFile = fileName;
                     var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2");

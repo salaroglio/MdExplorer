@@ -25,7 +25,6 @@ namespace MdExplorer.Service.Controllers
     public class RefactoringFilesController : ControllerBase
     {
         private readonly IEngineDB _engineDB;
-        private readonly IAnalysisEngine _analysisEngine;
         private readonly IMapper _mapper;
         private readonly RefactoringManager _refactoringManager;
         private ProcessUtil _visualStudioCode;
@@ -33,14 +32,11 @@ namespace MdExplorer.Service.Controllers
 
 
         public RefactoringFilesController(IEngineDB engineDB,
-                    IAnalysisEngine analysisEngine,
                     IMapper mapper,
-                    
                     RefactoringManager refactoringManager,
                     ProcessUtil visualStudioCode)
         {
             _engineDB = engineDB;
-            _analysisEngine = analysisEngine;
             _mapper = mapper;
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
@@ -91,12 +87,12 @@ namespace MdExplorer.Service.Controllers
             _refactoringManager.RenameTheMdFileIntoEngineDB(fileData.FullPath,
                 fileData.FromFileName, fileData.ToFileName);
             var refSourceAct = _refactoringManager
-                .SaveRefactoringAction(fileData.FullPath,
-                fileData.FromFileName, fileData.ToFileName, "Rename File"); // Save the concept of change
+                .SaveRefactoringActionForRenameFile(fileData.FullPath,
+                fileData.FromFileName, fileData.ToFileName); // Save the concept of change
             _refactoringManager.SetRefactoringInvolvedFilesActionsForRenameFile(
                 fileData.FromFileName, fileData.ToFileName, oldFullPath, refSourceAct);
             // After save, get back the list of links inside involved files
-            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(newFullPath, refSourceAct);
+            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct);//newFullPath
 
             _engineDB.Commit();
 

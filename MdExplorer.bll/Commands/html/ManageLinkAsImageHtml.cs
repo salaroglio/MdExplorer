@@ -47,16 +47,24 @@ namespace MdExplorer.Features.Commands.html
                 rootWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItemRoot.ToArray());
                 var fileName = item.Groups[2].Value;
 
-                if (currentWebFolder != rootWebFolder && listOfItemCurrent.Count > listOfItemRoot.Count) // Si trova in un sottofolder
+                if (fileName.StartsWith("/"))// se si tratta di un path assoluto allora 
                 {
-                    var step = listOfItemCurrent.Count - listOfItemRoot.Count;
-                    var calculatedFolderFromRoot = string.Empty;
-                    for (int i = listOfItemCurrent.Count; i > listOfItemCurrent.Count-step; i--)
-                    {
-                        calculatedFolderFromRoot = listOfItemCurrent[i-1];
-                    }
-                    fileName = calculatedFolderFromRoot + "/" + fileName.Replace("\\","/");
+                    // DoNothing
                 }
+                else
+                {
+                    if (currentWebFolder != rootWebFolder && listOfItemCurrent.Count > listOfItemRoot.Count) // Si trova in un sottofolder
+                    {
+                        var step = listOfItemCurrent.Count - listOfItemRoot.Count;
+                        var calculatedFolderFromRoot = string.Empty;
+                        for (int i = listOfItemCurrent.Count; i > listOfItemCurrent.Count - step; i--)
+                        {
+                            calculatedFolderFromRoot = listOfItemCurrent[i - 1];
+                        }
+                        fileName = calculatedFolderFromRoot + "/" + fileName.Replace("\\", "/");
+                    }
+                }
+                
                  
                 var allElementToReplace = item.Groups[0].Value.Replace(item.Groups[2].Value, fileName);
                 markdown = markdown.Replace(item.Groups[0].Value, allElementToReplace);

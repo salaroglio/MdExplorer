@@ -87,7 +87,7 @@ export class MdFileService {
 
   moveMdFile(mdFile: MdFile, pathDestination: string) {
     const url = '../api/mdFiles/moveMdFile';
-    return this.http.post<any>(url, { mdFile: mdFile, pathDestionation:pathDestination });
+    return this.http.post<any>(url, { mdFile: mdFile, destinationPath:pathDestination });
   }
 
   openInheritingTemplateWord(InheringTemplate: string) {

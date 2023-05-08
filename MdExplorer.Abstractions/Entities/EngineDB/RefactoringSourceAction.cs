@@ -18,6 +18,7 @@ namespace MdExplorer.Abstractions.Entities.EngineDB
         public virtual string NewName { get; set; }
         public virtual string NewFullPath { get; set; }
         public virtual string OldFullPath { get; set; }
+        public virtual string Status { get; set; }
         public virtual DateTime CreationDate { get; set; }
         public virtual IList<RefactoringInvolvedFilesAction> ActionDetails { get; set; } = new List<RefactoringInvolvedFilesAction>();
 
