@@ -1039,7 +1039,7 @@ class MdFileService {
     }
     moveMdFile(mdFile, pathDestination) {
         const url = '../api/mdFiles/moveMdFile';
-        return this.http.post(url, { mdFile: mdFile, pathDestionation: pathDestination });
+        return this.http.post(url, { mdFile: mdFile, destinationPath: pathDestination });
     }
     openInheritingTemplateWord(InheringTemplate) {
         const url = '../api/mdFiles/openinheritingtemplateWord';

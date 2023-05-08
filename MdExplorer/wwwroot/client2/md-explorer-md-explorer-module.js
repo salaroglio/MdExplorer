@@ -1454,6 +1454,7 @@ class MoveMdFileComponent {
     move() {
         this.mdFileService.moveMdFile(this.dataMdFile, this.directoryDestination)
             .subscribe(_ => {
+            this.mdFileService.loadAll(null, null);
             this.dialogRef.close();
         });
     }
@@ -1476,7 +1477,7 @@ MoveMdFileComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefi
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function MoveMdFileComponent_Template_input_ngModelChange_7_listener($event) { return ctx.directoryDestination = $event; });
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Set project directory");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Set destination directory");
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](10, "button", 3);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MoveMdFileComponent_Template_button_click_10_listener() { return ctx.openFileSystem(); });

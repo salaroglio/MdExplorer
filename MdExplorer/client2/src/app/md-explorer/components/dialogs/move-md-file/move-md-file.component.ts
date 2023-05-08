@@ -35,6 +35,7 @@ export class MoveMdFileComponent implements OnInit {
   move(): void {
     this.mdFileService.moveMdFile(this.dataMdFile, this.directoryDestination)
       .subscribe(_ => {
+        this.mdFileService.loadAll(null, null);
         this.dialogRef.close();
       });    
   }

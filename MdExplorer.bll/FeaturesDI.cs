@@ -58,7 +58,6 @@ namespace MdExplorer.Features
                 };
                 return listOfModfier.ToArray();
                 } );
-            services.AddTransient<IAnalysisEngine, AnalysisEngine>();
             services.AddSingleton(typeof(IGoodMdRule<FileInfoNode>[]),_ => {
                 var listOfGoodMdRules = new List<IGoodMdRule<FileInfoNode>>
                 {

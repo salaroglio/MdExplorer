@@ -48,6 +48,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
 
 namespace MdExplorer.Service.Controllers.MdFiles
@@ -67,6 +68,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly ProjectBodyEngine _projectBodyEngine;
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
         private readonly RefactoringManager _refactoringManager;
+        private readonly ProcessUtil _visualStudioCode;
 
         public IEngineDB _engineDB { get; }
 
@@ -79,7 +81,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             ISnippet<DictionarySnippetParam>[] snippets,
             ProjectBodyEngine projectBodyEngine,
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
-            RefactoringManager refactoringManager
+            RefactoringManager refactoringManager,
+            ProcessUtil visualStudioCode
             )
         {
             _fileSystemWatcher = fileSystemWatcher;
@@ -94,6 +97,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _projectBodyEngine = projectBodyEngine;
             _yamlDocumentManager = yamlDocumentManager;
             _refactoringManager = refactoringManager;
+            _visualStudioCode = visualStudioCode;
         }
 
         [HttpGet]
@@ -130,28 +134,50 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult MoveMdFile([FromBody] RequestMoveMdFile requestMoveMdFile)
         {
-            var fullPath = _fileSystemWatcher.Path;
-            var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath;
+            var projectBasePath = _fileSystemWatcher.Path;
+            var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath.Substring(1);
+            var fromFullPathFileName =Path.Combine( projectBasePath ,  fromRelativePathFileName) ;
+
             var fileName = requestMoveMdFile.MdFile.Name;
-            var relativeDestinationPath = requestMoveMdFile.DestinationPath.Replace(_fileSystemWatcher.Path, "");
+            var relativeDestinationPath = requestMoveMdFile.DestinationPath
+                                    .Replace(_fileSystemWatcher.Path, "").Substring(1);
             var toRelativePathFileName =  Path.Combine(relativeDestinationPath, fileName);
-            var newFullPath = Path.Combine(requestMoveMdFile.DestinationPath, fileName);
+            var toFullPathFileName = Path.Combine( _fileSystemWatcher.Path ,  toRelativePathFileName);
+            var newFullPath = Path.Combine( requestMoveMdFile.DestinationPath , fileName);
+            MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
             _engineDB.BeginTransaction();
-            _refactoringManager.RenameTheMdFileIntoEngineDB(fullPath,
+            _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
                 fromRelativePathFileName, toRelativePathFileName);
+
             var refSourceAct = _refactoringManager
-                .SaveRefactoringAction(fullPath,
-                fromRelativePathFileName, toRelativePathFileName,"Move File"); // Save the concept of change
+                .SaveRefactoringActionForMoveFile(fileName,
+                Path.GetDirectoryName(fromFullPathFileName),
+                requestMoveMdFile.DestinationPath); // Save the concept of change
+
+            
 
             _refactoringManager.SetRefactoringInvolvedFilesActionsForMoveFile(
-                fromRelativePathFileName, toRelativePathFileName, 
-                requestMoveMdFile.MdFile.FullPath, refSourceAct);
+                fromRelativePathFileName, 
+                toRelativePathFileName,
+                projectBasePath, //requestMoveMdFile.MdFile.FullPath, 
+                refSourceAct);
             // After save, get back the list of links inside involved files
-            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(newFullPath, refSourceAct);
+            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct); //newFullPath,
 
             _engineDB.Commit();
             return Ok("");
+        }
+
+        private void MoveFileOnFilesystem(string oldFullPath, string newFullPath)
+        {
+            
+            // gestisci il rename di un file
+            System.IO.File.Move(oldFullPath, newFullPath, true);
+            if (_visualStudioCode.CurrentVisualStudio != null)
+            {
+                _visualStudioCode.ReopenVisualStudioCode(newFullPath);
+            }
         }
 
         [HttpPost]
