@@ -19,6 +19,6 @@ namespace MdExplorer.Features.GIT
         GitBranch CheckoutBranch(GitBranch branch, string path, GitCallBack callback);
         bool CloneRepository(CloneInfo request);
         (bool,bool,bool) Pull(PullInfo pullInfo);
-        (bool, bool, bool) CommitAndPush(PullInfo commitAndPushInfo);
+        (bool, bool, bool, string) CommitAndPush(PullInfo commitAndPushInfo);
     }
 }

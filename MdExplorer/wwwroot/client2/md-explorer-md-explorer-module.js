@@ -1318,7 +1318,7 @@ class ToolbarComponent {
                     width: '300px',
                     data: {
                         message: 'Conflicts appear',
-                        description: 'please resolve using Visual Studio Code'
+                        description: _.errorMessage,
                     }
                 });
             }

@@ -1,5 +1,6 @@
 export class ResponsePull {
   isConnectionMissing: boolean
   isAuthenticationMissing: boolean
-  thereAreConflicts:boolean
+  thereAreConflicts: boolean
+  errorMessage:string
 }
