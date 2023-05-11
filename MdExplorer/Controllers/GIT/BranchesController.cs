@@ -32,9 +32,11 @@ namespace MdExplorer.Service.Controllers.GIT
         {
             var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
             var howManyFilesAreChanged = _gitService.HowManyFilesAreChanged(_fileSystemWatcher.Path);
-
+            var howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
             return Ok(new { name = toReturn, 
                 somethingIsChangedInTheBranch = howManyFilesAreChanged>0,
+                somethingIsToPull = howManyFilesAreToPull>0,
+                howManyFilesAreToPull = howManyFilesAreToPull,
                 howManyFilesAreChanged = howManyFilesAreChanged
             });//classe branch lato angular
         }
