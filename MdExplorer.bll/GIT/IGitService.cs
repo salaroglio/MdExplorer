@@ -14,11 +14,12 @@ namespace MdExplorer.Features.GIT
         string GetCurrentUserEmail(string projectPath);
         string GetCurrentBranch(string projectPath);
         int HowManyFilesAreChanged(string projectPath);
+        int HowManyFilesAreToPull(string projectPath);
         GitBranch[] GetBranches(string projectPath);
         GitTag[] GetTagList(string path);
         GitBranch CheckoutBranch(GitBranch branch, string path, GitCallBack callback);
         bool CloneRepository(CloneInfo request);
-        (bool,bool,bool) Pull(PullInfo pullInfo);
+        (bool,bool,bool, string) Pull(PullInfo pullInfo);
         (bool, bool, bool, string) CommitAndPush(PullInfo commitAndPushInfo);
     }
 }

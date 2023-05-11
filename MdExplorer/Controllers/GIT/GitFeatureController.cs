@@ -1,4 +1,5 @@
-﻿using FluentNHibernate.Utils;
+﻿using FluentMigrator.Infrastructure;
+using FluentNHibernate.Utils;
 using MdExplorer.Abstractions.Models.GIT;
 using MdExplorer.Features.GIT;
 using Microsoft.AspNetCore.Mvc;
@@ -34,11 +35,13 @@ namespace MdExplorer.Service.Controllers.GIT
             pullInfo.ProjectPath = _fileSystemWatcher.Path ;
             (bool isConnectionMissing,
                 bool isAuthenticationMissing,
-                bool thereAreConflicts) = _gitService.Pull(pullInfo);
+                bool thereAreConflicts,
+                string errorMessage) = _gitService.Pull(pullInfo);
             _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok(new { isConnectionMissing = isConnectionMissing, 
                             isAuthenticationMissing= isAuthenticationMissing,
-                            thereAreConflicts = thereAreConflicts
+                            thereAreConflicts = thereAreConflicts,
+                            errorMessage = errorMessage
             });
         }
         [HttpPost("commitandpush")]

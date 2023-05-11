@@ -22,9 +22,20 @@
     </span>
     <span class="flexExpand"></span>
     <span *ngIf="currentBranch!=null">
-      <div *ngIf="somethingIsChangedInTheBranch" matBadge="{{howManyFilesAreToCommit}}" matBadgePosition="before"
-           matBadgeOverlap="false" matBadgeColor="accent" matBadgeSize="small">
+
+      <div id="toCommit" *ngIf="somethingIsChangedInTheBranch"
+           matBadge="{{howManyFilesAreToCommit}}"
+           matBadgePosition="before"
+           matBadgeColor="accent"
+           matBadgeSize="small">
       </div>
+      <div id="toPull" *ngIf="somethingIsToPull"
+           matBadgePosition="before"
+           matBadge="{{howManyFilesAreToPull}}"
+           matBadgePosition="before"
+           matBadgeSize="small">
+      </div>
+
       <button mat-button [matMenuTriggerFor]="tagsAndBranches"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />

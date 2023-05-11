@@ -19,7 +19,10 @@ export class GITService {
   public currentBranch$: BehaviorSubject<IBranch> = new BehaviorSubject<IBranch>(
     {
       id: "", name: "",
-      somethingIsChangedInTheBranch: true, howManyFilesAreChanged: 0,
+      somethingIsChangedInTheBranch: true,
+      howManyFilesAreChanged: 0,
+      somethingIsToPull: true,
+      howManyFilesAreToPull:0,
       fullPath : ""
     });
 

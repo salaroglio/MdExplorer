@@ -43,7 +43,9 @@ export class ToolbarComponent implements OnInit {
   relativePath: string;
   connectionId: string;
   somethingIsChangedInTheBranch: boolean;
+  somethingIsToPull: boolean;
   howManyFilesAreToCommit: number;
+  howManyFilesAreToPull: number;
   branches: IBranch[];
   taglist: ITag[];
   private currentMdFile: MdFile
@@ -77,6 +79,8 @@ export class ToolbarComponent implements OnInit {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
+      this.somethingIsToPull = branch.somethingIsToPull;
+      this.howManyFilesAreToPull = branch.howManyFilesAreToPull;
     });
 
     // manage resize fullscreen
@@ -232,7 +236,7 @@ export class ToolbarComponent implements OnInit {
           width: '300px',
           data: {
             message: 'Conflicts appear',
-            description: 'please resolve using Visual Studio Code'
+            description: _.errorMessage
           }
         });
       }

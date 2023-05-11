@@ -83,6 +83,57 @@ namespace MdExplorer.Features.GIT
                 return repo.Diff.Compare<TreeChanges>().Count + test.Untracked.Count();
             }
         }
+        public int HowManyFilesAreToPull(string projectPath)
+        {
+            if (!Repository.IsValid(projectPath))
+            {
+                return 0;
+            }
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == projectPath).FirstOrDefault();
+            if (currentGitlab == null)
+            {
+                return 0;
+            }
+
+            using (var repo = new Repository(projectPath))
+            {
+                #region Fetch
+                var options = new FetchOptions();
+                options.Prune = true;
+                options.TagFetchMode = TagFetchMode.Auto;
+                options.CredentialsProvider = new CredentialsHandler(
+                     (url, usernameFromUrl, types) =>
+                                new UsernamePasswordCredentials()
+                                {
+                                    Username = currentGitlab.UserName,
+                                    Password = currentGitlab.Password
+                                });
+                var remote = repo.Network.Remotes["origin"];
+                var msg = "Fetching remote";
+                var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
+                LibGit2Sharp.Commands.Fetch(repo, remote.Name, refSpecs, options, msg);
+                #endregion
+
+                #region Count files to pull
+                var trackingBranch = repo.Head.TrackedBranch;
+                var log = repo.Commits.QueryBy(new CommitFilter { 
+                    IncludeReachableFrom = trackingBranch.Tip.Id,
+                    ExcludeReachableFrom = repo.Head.Tip.Id
+                });
+                var count2 = repo.Commits.Count();
+                var count = log.Count();
+                foreach (var item in log)
+                {
+                    Console.WriteLine(item.Message);
+                }
+                #endregion
+
+
+                return count;
+            }
+        }
 
         public GitBranch[] GetBranches(string projectPath)
         {
@@ -147,7 +198,8 @@ namespace MdExplorer.Features.GIT
                 var progressHandler = new CheckoutProgressHandler(callback);
                 checkOutOptions.OnCheckoutProgress = progressHandler;
 
-                var checkedBranch = LibGit2Sharp.Commands.Checkout(repo, currentBranch, checkOutOptions);
+                var checkedBranch = LibGit2Sharp.Commands
+                    .Checkout(repo, currentBranch, checkOutOptions);
 
                 return branch;
             }
@@ -207,7 +259,7 @@ namespace MdExplorer.Features.GIT
 
 
 
-        public (bool, bool, bool) Pull(PullInfo pullinfo)
+        public (bool, bool, bool, string) Pull(PullInfo pullinfo)
         {
             var isAuthenticationMissing = false;
             var isConnectionMissing = false;
@@ -228,7 +280,7 @@ namespace MdExplorer.Features.GIT
                 isAuthMissingIntoDB = true;
                 if (pullinfo.UserName == null)
                 {
-                    return (isConnectionMissing, true, thereAreConflicts);
+                    return (isConnectionMissing, true, thereAreConflicts, "Missing credentials");
                 }
                 else
                 {
@@ -248,15 +300,24 @@ namespace MdExplorer.Features.GIT
 
                 var currentEmail = GetCurrentUserEmail(pullinfo.ProjectPath);
                 var currentStatus = repo.RetrieveStatus();
-                foreach (var item in repo.Diff.Compare<TreeChanges>())
+                try
                 {
-                    var options = new CheckoutOptions { CheckoutModifiers = CheckoutModifiers.Force };
-                    repo.CheckoutPaths(repo.Head.FriendlyName, new[] { item.Path }, options);
+                    foreach (var item in repo.Diff.Compare<TreeChanges>())
+                    {
+                        var options = new CheckoutOptions { CheckoutModifiers = CheckoutModifiers.Force };
+                        repo.CheckoutPaths(repo.Head.FriendlyName, new[] { item.Path }, options);
+                    }
+                    foreach (var item in currentStatus.Untracked)
+                    {
+                        File.Delete(item.FilePath);
+                    }
                 }
-                foreach (var item in currentStatus.Untracked)
+                catch (Exception ex)
                 {
-                    File.Delete(item.FilePath);
+                    thereAreConflicts = true;
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, ex.Message);
                 }
+
 
                 PullOptions pullOptions = new PullOptions();
                 pullOptions.FetchOptions = new FetchOptions();
@@ -265,8 +326,8 @@ namespace MdExplorer.Features.GIT
                 try
                 {
                     var pullResult = LibGit2Sharp.Commands.Pull(repo,
-                   new Signature(currentGitlab.UserName, currentEmail,
-                   new DateTimeOffset(DateTime.Now)), pullOptions);
+                    new Signature(currentGitlab.UserName, currentEmail,
+                    new DateTimeOffset(DateTime.Now)), pullOptions);
 
                     if (pullResult.Status == MergeStatus.Conflicts)
                     {
@@ -279,13 +340,13 @@ namespace MdExplorer.Features.GIT
                         gitlabSettingDal.Save(currentGitlab);
                         _userSettingDb.Commit();
                     }
-                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, null);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // Missing conneciton
                     isConnectionMissing = true;
-                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts);
+                    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, ex.Message);
                 }
 
             }

@@ -5585,7 +5585,10 @@ class GITService {
         this.http = http;
         this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
             id: "", name: "",
-            somethingIsChangedInTheBranch: true, howManyFilesAreChanged: 0,
+            somethingIsChangedInTheBranch: true,
+            howManyFilesAreChanged: 0,
+            somethingIsToPull: true,
+            howManyFilesAreToPull: 0,
             fullPath: ""
         });
     }
