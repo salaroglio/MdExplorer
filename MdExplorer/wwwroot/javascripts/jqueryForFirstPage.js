@@ -456,6 +456,8 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
 
 // gestione degli emoji di processo
 function dynamicEmojiForProcess(el, index, pathfile) {
+    
+
 
     let dataToSet;
     el.removeAttribute('data-tippy-content');
@@ -494,7 +496,7 @@ function dynamicEmojiForProcess(el, index, pathfile) {
 
 }
 
-function setTooltipPriority(dataToSet, el) {
+function setTooltipPriority(dataToSet, el) {    
     
     let currentPriority = tippyDictPriority[el.attributes[8].value];
     currentPriority.setContent(dataToSet);
@@ -513,10 +515,12 @@ function setTooltipProcess(dataToSet, el) {
 }
 
 
-
 // gestione degli emoji di priorità
 function dynamicEmojiForPriority(el, index, pathfile) {
-
+    
+    if (el.attributes['data-md-table-game-index'] == undefined) {
+        return;
+    }
     if (el.innerText == '❓') {
         el.innerText = '❔';
         //el.title = 'da valutare';
@@ -621,7 +625,6 @@ function toggleTOC(documentPath) {
         $page.attr('class', 'col-12');
         showToc = false;
     }
-
 
     $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
         console.log(data);
