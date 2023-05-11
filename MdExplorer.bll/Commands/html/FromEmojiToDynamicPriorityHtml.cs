@@ -44,7 +44,6 @@ namespace MdExplorer.Features.Commands.html
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
 
-
             var stringToReturn = markdown;
             var currentPathFile = requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/');
             var priorityMatches = GetMatches(markdown);
@@ -57,7 +56,6 @@ namespace MdExplorer.Features.Commands.html
             for (var k = 0; k < gameTableMatches.Count; k++)
             {
                 var sortableItem = gameTableMatches[k];
-
                 // adesso preparo le carte
                 Regex rxCard = new Regex("\r\n- :(question|exclamation|grey_exclamation|grey_question|no_entry|x|negative_squared_cross_mark):(.+?(?=\r\n-)|.+?(?=\r\n\r\n))", //|.
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
@@ -81,10 +79,10 @@ namespace MdExplorer.Features.Commands.html
             var currentIncrement = 0;
             for (int i = 0; i < priorityMatches.Count; i++)
             {
+                
                 var priorityItem = priorityMatches[i];
                 var priorityText = priorityItem.Groups[0].Value;
                 string tippyContent = translateTyppeContent(priorityText);
-                // data-tippy-priority-id=""{i}""
                 var idName = $"emojiPriority{i}";
                 var absoluteIndex = $@"data-md-priority-index=""{i}"" data-tippy-content=""{tippyContent}""";
                 dictionaryInfo.TryGetValue(priorityItem.Index, out var currentSortableInfo);
@@ -140,7 +138,6 @@ namespace MdExplorer.Features.Commands.html
                                 </root>";
             var doc = new XmlDocument();
             doc.LoadXml(htmlToReturn);
-            //var sortable = doc.SelectNodes(@"//span[contains(@id,'sortableEmojiPriority')]/..");
             var sortables = doc.SelectNodes(@"//span[contains(@id,'sortableEmojiPriority')]/..");
             List<XmlNode> ulList = new List<XmlNode>();
             foreach (XmlNode itemSortable in sortables)

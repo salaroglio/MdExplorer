@@ -16,6 +16,8 @@
     <ApplicationIcon>MdIcon3.ico</ApplicationIcon>
     <OutputType>Exe</OutputType>
     <StartupObject />
+    <FileVersion></FileVersion>
+    <AssemblyVersion>2023.05.11.001</AssemblyVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
