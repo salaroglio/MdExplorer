@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
 import { IBranch } from '../models/branch';
+import { DataToPull } from '../models/DataToPull'
 import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
 import { PullInfo } from '../models/pullInfo';
@@ -20,11 +20,15 @@ export class GITService {
     {
       id: "", name: "",
       somethingIsChangedInTheBranch: true,
-      howManyFilesAreChanged: 0,
-      somethingIsToPull: true,
-      howManyFilesAreToPull:0,
+      howManyFilesAreChanged: 0,            
       fullPath : ""
     });
+
+  public commmitsToPull$: BehaviorSubject<DataToPull> = new BehaviorSubject<DataToPull>({
+    howManyFilesAreToPull: 0,
+    somethingIsToPull: false,
+    connectionIsActive:false,
+  });
 
   constructor(private http: HttpClient) { }
 
@@ -38,6 +42,12 @@ export class GITService {
     let data$ = this.http.get<IBranch>(url);
     data$.subscribe(_ => {      
       this.currentBranch$.next(_);
+    });
+    debugger;
+    const url2 = '../api/gitservice/branches/feat/getdatatopull';
+    let data2$ = this.http.get<DataToPull>(url2);
+    data2$.subscribe(_ => {
+      this.commmitsToPull$.next(_);
     });
     return data$;
 

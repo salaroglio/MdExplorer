@@ -5587,9 +5587,12 @@ class GITService {
             id: "", name: "",
             somethingIsChangedInTheBranch: true,
             howManyFilesAreChanged: 0,
-            somethingIsToPull: true,
-            howManyFilesAreToPull: 0,
             fullPath: ""
+        });
+        this.commmitsToPull$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
+            howManyFilesAreToPull: 0,
+            somethingIsToPull: false,
+            connectionIsActive: false,
         });
     }
     clone(request) {
@@ -5601,6 +5604,12 @@ class GITService {
         let data$ = this.http.get(url);
         data$.subscribe(_ => {
             this.currentBranch$.next(_);
+        });
+        debugger;
+        const url2 = '../api/gitservice/branches/feat/getdatatopull';
+        let data2$ = this.http.get(url2);
+        data2$.subscribe(_ => {
+            this.commmitsToPull$.next(_);
         });
         return data$;
     }

@@ -79,7 +79,7 @@ namespace MdExplorer.Features.Commands.html
             var currentIncrement = 0;
             for (int i = 0; i < priorityMatches.Count; i++)
             {
-                
+                var stringPointer = ""; //"style=\"cursor: pointer\"";
                 var priorityItem = priorityMatches[i];
                 var priorityText = priorityItem.Groups[0].Value;
                 string tippyContent = translateTyppeContent(priorityText);
@@ -89,10 +89,10 @@ namespace MdExplorer.Features.Commands.html
                 if (currentSortableInfo != null)
                 {
                     idName = $"sortableEmojiPriority{i}";
-
+                    stringPointer = "style=\"cursor: pointer\"";
                 }
                 // Guida il priority match che prende comunque tutti i tag priority
-                var raplaceWith = $@"<span id=""{idName}"" {absoluteIndex} {currentSortableInfo?.TableGameIndex} {currentSortableInfo?.SortCardIndex} {currentSortableInfo?.SortPriorityDataFilePath}  style=""cursor: pointer"" onclick=""dynamicEmojiForPriority(this,{i},'{currentPathFile}')""> {priorityText}</span> ";
+                var raplaceWith = $@"<span id=""{idName}"" {absoluteIndex} {currentSortableInfo?.TableGameIndex} {currentSortableInfo?.SortCardIndex} {currentSortableInfo?.SortPriorityDataFilePath} {stringPointer}  onclick=""dynamicEmojiForPriority(this,{i},'{currentPathFile}')""> {priorityText}</span> ";
                 (stringToReturn, currentIncrement) = ManageReplaceOnMD(stringToReturn, currentIncrement, priorityItem, raplaceWith);
 
             }
