@@ -4,7 +4,7 @@
       <mat-icon>vertical_split</mat-icon>
     </button>
     <button mat-icon-button matTooltip="edit document" (click)="OpenEditor()">
-      <mat-icon>edit_note</mat-icon>
+      <mat-icon>edit</mat-icon>
     </button>
     <button mat-icon-button matTooltip="export in word" (click)="Export()">
       <mat-icon>directions</mat-icon>
@@ -21,8 +21,10 @@
          (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
     </span>
     <span class="flexExpand"></span>
+    <button *ngIf="!connectionIsActive" mat-icon-button   matTooltip="missing connection to remote" (click)="bookmarkToggle()">
+      <mat-icon style="color:yellow">warning</mat-icon> 
+    </button>    
     <span *ngIf="currentBranch!=null">
-
       <div id="toCommit" *ngIf="somethingIsChangedInTheBranch"
            matBadge="{{howManyFilesAreToCommit}}"
            matBadgePosition="before"

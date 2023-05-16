@@ -1,9 +1,8 @@
 import { HttpClient } from '@angular/common/http';
-import { AfterViewInit, Component, EventEmitter, OnInit, Output, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
-import { SettingsComponent } from '../dialogs/settings/settings.component';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
@@ -16,11 +15,8 @@ import { MatTabGroup } from '@angular/material/tabs';
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { Router } from '@angular/router';
-import { NgDialogAnimationService } from "../../../shared/NgDialogAnimationService";
-import { INCOMING_ROTATE_OPTION, OUTGOING_ROTATE_OPTION } from '../../../shared/dialogAnimations';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
-import { tap } from 'rxjs/operators';
 import { GitAuthComponent } from '../../../git/components/git-auth/git-auth.component';
 import { PullInfo } from '../../../git/models/pullInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
@@ -49,6 +45,7 @@ export class ToolbarComponent implements OnInit {
   branches: IBranch[];
   taglist: ITag[];
   private currentMdFile: MdFile
+  public connectionIsActive: boolean = false;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -74,14 +71,18 @@ export class ToolbarComponent implements OnInit {
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
     // get current branch name and if the branch has something to commit
-    this.gitservice.getCurrentBranch();
+    
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
-      this.somethingIsToPull = branch.somethingIsToPull;
-      this.howManyFilesAreToPull = branch.howManyFilesAreToPull;
     });
+    this.gitservice.commmitsToPull$.subscribe(_ => {      
+      this.somethingIsToPull = _.somethingIsToPull;
+      this.howManyFilesAreToPull = _.howManyFilesAreToPull;
+      this.connectionIsActive = _.connectionIsActive;
+    });
+    this.gitservice.getCurrentBranch();
 
     // manage resize fullscreen
     document.onfullscreenchange = (event) => {

@@ -32,26 +32,48 @@ namespace MdExplorer.Service.Controllers.GIT
         {
             var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
             var howManyFilesAreChanged = _gitService.HowManyFilesAreChanged(_fileSystemWatcher.Path);
-            var howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
-            return Ok(new { name = toReturn, 
-                somethingIsChangedInTheBranch = howManyFilesAreChanged>0,
-                somethingIsToPull = howManyFilesAreToPull>0,
-                howManyFilesAreToPull = howManyFilesAreToPull,
+
+            return Ok(new
+            {
+                name = toReturn,
+                somethingIsChangedInTheBranch = howManyFilesAreChanged > 0,
                 howManyFilesAreChanged = howManyFilesAreChanged
             });//classe branch lato angular
         }
-        [HttpPost("feat/checkoutBranch")]
-        public IActionResult CheckoutBranch([FromBody]GitBranch branch)
+        [HttpGet("feat/getdatatopull")]
+        public IActionResult GetDataToPull()
         {
-            _fileSystemWatcher.EnableRaisingEvents= false;
+            var howManyFilesAreToPull = 0;
+            var connectionIsActive = true;
+            try
+            {
+                howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
+
+            }
+            catch (Exception ex)
+            {
+                connectionIsActive = false;                
+            }            
+            return Ok(new
+            {
+                somethingIsToPull = howManyFilesAreToPull > 0,
+                howManyFilesAreToPull = howManyFilesAreToPull,
+                connectionIsActive = connectionIsActive
+            });
+        }
+
+        [HttpPost("feat/checkoutBranch")]
+        public IActionResult CheckoutBranch([FromBody] GitBranch branch)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
             var toReturn = _gitService.CheckoutBranch(branch, _fileSystemWatcher.Path, GitCallBackForCheckout);
-            
+
             return Ok(new
             {
                 name = toReturn.Name,
                 somethingIsChangedInTheBranch = false,
                 howManyFilesAreChanged = 0,
-                FullPath= _fileSystemWatcher.Path,
+                FullPath = _fileSystemWatcher.Path,
             });//classe branch lato angular
         }
 
@@ -61,7 +83,7 @@ namespace MdExplorer.Service.Controllers.GIT
             {
                 _fileSystemWatcher.EnableRaisingEvents = true;
             }
-            
+
         }
 
 
