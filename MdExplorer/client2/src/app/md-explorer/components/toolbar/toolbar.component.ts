@@ -45,12 +45,12 @@ export class ToolbarComponent implements OnInit {
   branches: IBranch[];
   taglist: ITag[];
   private currentMdFile: MdFile
-  public connectionIsActive: boolean = false;
+  public connectionIsActive: boolean = true;
+  public isCheckingConnection: boolean = false;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
-    public dialog: MatDialog,
-
+    public dialog: MatDialog,    
     private monitorMDService: ServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
@@ -64,25 +64,28 @@ export class ToolbarComponent implements OnInit {
 
   ) {
     this.TitleToShow = "MdExplorer";
+    this.connectionIsActive = true;
   }
 
   ngOnInit(): void {
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
-    // get current branch name and if the branch has something to commit
-    
+    // get current branch name and if the branch has something to commit    
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
+      this.connectionIsActive = true;
     });
+
     this.gitservice.commmitsToPull$.subscribe(_ => {      
       this.somethingIsToPull = _.somethingIsToPull;
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
       this.connectionIsActive = _.connectionIsActive;
+      this.isCheckingConnection = false;
     });
-    this.gitservice.getCurrentBranch();
+    this.checkConnection();
 
     // manage resize fullscreen
     document.onfullscreenchange = (event) => {
@@ -128,6 +131,7 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
+ 
 
   toggleSidenav() {
     let test = !this.appSettings.showSidenav.value;
@@ -147,6 +151,11 @@ export class ToolbarComponent implements OnInit {
         });
       }
     });
+  }
+
+  checkConnection(): void {
+    this.isCheckingConnection = true;
+    this.gitservice.getCurrentBranch();
   }
 
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
@@ -246,7 +255,7 @@ export class ToolbarComponent implements OnInit {
         this.mdFileService.loadAll(null, null);
         this.mdFileService.getLandingPage().subscribe(node => {
           if (node != null) {
-            this.gitservice.getCurrentBranch();
+            this.checkConnection();
             this.mdFileService.setSelectedMdFileFromSideNav(node);
           }
         });
@@ -256,12 +265,12 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  commitAndPush(): void {
+  commit(): void {
     let info = new WaitingDialogInfo();
     info.message = "Please wait... commit and pushing branch";
     this.waitingDialogService.showMessageBox(info);
     let pullInfo = new PullInfo();
-    this.gitservice.commitAndPush(pullInfo).subscribe(_ => {
+    this.gitservice.commit(pullInfo).subscribe(_ => {
       if (_.isConnectionMissing) {
         const dialogRef = this.dialog.open(GitMessagesComponent, {
           width: '300px',
@@ -285,7 +294,42 @@ export class ToolbarComponent implements OnInit {
           }
         });
       }
-      this.gitservice.getCurrentBranch();
+      this.checkConnection();
+      this.waitingDialogService.closeMessageBox();
+      this.matMenuTrigger.closeMenu();
+    });
+  }
+
+  Push(): void {
+    let info = new WaitingDialogInfo();
+    info.message = "Please wait... commit and pushing branch";
+    this.waitingDialogService.showMessageBox(info);
+    let pullInfo = new PullInfo();
+    this.gitservice.push(pullInfo).subscribe(_ => {
+      if (_.isConnectionMissing) {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',
+          data: {
+            message: 'Missing connection',
+            description: 'Please verify your vpn or network settings'
+          }
+        });
+      }
+      if (_.isAuthenticationMissing) {
+        const dialogRef = this.dialog.open(GitAuthComponent, {
+          width: '300px',
+        });
+      }
+      if (_.thereAreConflicts) {
+        const dialogRef = this.dialog.open(GitMessagesComponent, {
+          width: '300px',
+          data: {
+            message: 'Conflicts appear',
+            description: _.errorMessage,
+          }
+        });
+      }
+      this.checkConnection();
       this.waitingDialogService.closeMessageBox();
       this.matMenuTrigger.closeMenu();
     });

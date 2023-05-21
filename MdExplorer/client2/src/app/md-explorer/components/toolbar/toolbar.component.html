@@ -21,9 +21,10 @@
          (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
     </span>
     <span class="flexExpand"></span>
-    <button *ngIf="!connectionIsActive" mat-icon-button   matTooltip="missing connection to remote" (click)="bookmarkToggle()">
+    <button *ngIf="!connectionIsActive" mat-icon-button   matTooltip="missing connection to remote" (click)="checkConnection()">
       <mat-icon style="color:yellow">warning</mat-icon> 
-    </button>    
+    </button>
+    <span *ngIf="isCheckingConnection"><img src="/assets/connecting.gif"/></span>
     <span *ngIf="currentBranch!=null">
       <div id="toCommit" *ngIf="somethingIsChangedInTheBranch"
            matBadge="{{howManyFilesAreToCommit}}"
@@ -46,16 +47,25 @@
         <div>
           <div (click)="pull()" class="container" color="warn"
                mat-menu-item (click)="$event.stopPropagation()">
-            <span>Discard changes and Pull</span><span class="flexExpand"></span>
+            <span>Pull</span><span class="flexExpand"></span>
             <button mat-icon-button>
               <mat-icon style="text-align:right"
                         color="warn">arrow_downward</mat-icon>
             </button>
           </div>
-          <div (click)="commitAndPush()"
+          <div (click)="commit()"
                class="container" color="warn"
                mat-menu-item (click)="$event.stopPropagation()">
-            <span>Commit and Push</span><span class="flexExpand"></span>
+            <span>Commit</span><span class="flexExpand"></span>
+            <button mat-icon-button>
+              <mat-icon style="text-align:right"
+                        color="warn">arrow_upward</mat-icon>
+            </button>
+          </div>
+          <div (click)="push()"
+               class="container" color="warn"
+               mat-menu-item (click)="$event.stopPropagation()">
+            <span>Push</span><span class="flexExpand"></span>
             <button mat-icon-button>
               <mat-icon style="text-align:right"
                         color="warn">arrow_upward</mat-icon>
