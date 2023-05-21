@@ -300,7 +300,7 @@ export class ToolbarComponent implements OnInit {
     });
   }
 
-  Push(): void {
+  push(): void {
     let info = new WaitingDialogInfo();
     info.message = "Please wait... commit and pushing branch";
     this.waitingDialogService.showMessageBox(info);
