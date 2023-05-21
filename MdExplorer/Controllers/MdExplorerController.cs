@@ -26,6 +26,9 @@ using MdExplorer.Features.Refactoring.Analysis;
 using System.Globalization;
 using System.Net.Http.Headers;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Features.Yaml.Models;
+using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Abstractions.Entities.UserDB;
 
 namespace MdExplorer.Controllers
 {
@@ -35,6 +38,7 @@ namespace MdExplorer.Controllers
     {
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IHelper _helper;
+        private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -44,11 +48,13 @@ namespace MdExplorer.Controllers
             IEngineDB engineDB,
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
-            IHelper helper
+            IHelper helper,
+            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
         {
             _goodRules = GoodRules;
             _helper = helper;
+            _yamlDocumentDescriptor = yamlDocumentDescriptor;
         }
 
         /// <summary>
@@ -62,59 +68,190 @@ namespace MdExplorer.Controllers
             var currentCultureInfo = CultureInfo.CurrentCulture;
             var test = Encoding.Default;
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
-            string relativePathFileSystem = GetRelativePathFileSystem("mdexplorer");
-            var relativePathExtension = Path.GetExtension(relativePathFileSystem);
+            var relativePathFile = GetRelativePathFileSystem("mdexplorer");
+            var relativePathExtension = Path.GetExtension(relativePathFile);
 
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
-                var filePathSystem = string.Concat(rootPathSystem, relativePathFileSystem);
-                var data = System.IO.File.ReadAllBytes(filePathSystem);
-                var currentContetType = $"image/{relativePathExtension.Replace(".", string.Empty)}";
-                if (relativePathExtension == ".pdf")
-                {
-                    currentContetType = $"application/{relativePathExtension}";
-                }
-                if (relativePathExtension == ".svg")
-                {
-                    currentContetType = $"image/svg+xml";
-                }
-                var notMdFile = new FileContentResult(data, currentContetType);
-                return notMdFile;
+                var responseForNotMdFile = CreateAResponseForNotMdFile(rootPathSystem,
+                                                        relativePathFile,
+                                                        relativePathExtension);
+                return responseForNotMdFile;
             }
 
-            var filePathSystem1 = string.Empty;
-            if (relativePathExtension == ".md")
-            {
-                filePathSystem1 = string.Concat(rootPathSystem, relativePathFileSystem);
-            }
-            else
-            {
-                filePathSystem1 = string.Concat(rootPathSystem, relativePathFileSystem, ".md");
-            }
+            string fullPathFile = ManageIfThePathContainsExtensionMdOrNot(
+                    rootPathSystem, 
+                    relativePathFile, 
+                    relativePathExtension);
 
             var monitoredMd = new MonitoredMDModel
             {
-                Path = filePathSystem1,
-                Name = Path.GetFileName(filePathSystem1),
-                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty),
-                FullPath = filePathSystem1,
-                FullDirectoryPath = Path.GetDirectoryName(filePathSystem1)
+                Path = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
+                RelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                FullPath = fullPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(fullPathFile)
             };
 
-            var readText = string.Empty;
-            using (var fs = new FileStream(filePathSystem1, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            var markdownTxt = string.Empty;
+            using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var sr = new StreamReader(fs, Encoding.UTF8))
             {
-                readText = sr.ReadToEnd();
+                markdownTxt = sr.ReadToEnd();
             }
+
+            var textHash = _helper.GetHashString(markdownTxt, Encoding.UTF8);
+            var cacheName = Path.GetFileName(fullPathFile) + textHash + ".html";
+            XmlDocument doc1 = null; 
+            // parse type of document. Choose between MarkdownType: slides, MarkdownType: document
+            var descriptor = _yamlDocumentDescriptor.GetDescriptor(markdownTxt);
+            if (descriptor!= null &&  descriptor.DocumentType == "slides")
+            {
+                doc1 = await ProcessAsSlideTypeDocument(
+                    markdownTxt,
+                    relativePathFile,
+                    fullPathFile,
+                    monitoredMd);
+            }
+            else
+            {
+                doc1 = await ProcessAsMarkdownTypeDocument(
+                    markdownTxt,
+                    relativePathFile,
+                    fullPathFile,
+                    monitoredMd);
+            }
+
+            
+
+            //.Replace(@"\",@"\\");
+            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+
+            try
+            {
+                System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
+                                        Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
+
+            }
+
+
+            var toReturn = new ContentResult
+            {
+                ContentType = "text/html; charset=utf-8",
+                Content = doc1.InnerXml,
+
+            };
+            return toReturn;
+        }
+
+        private async Task<XmlDocument> ProcessAsSlideTypeDocument(string markdownTxt, 
+                        string relativePathFile, string fullPathFile, MonitoredMDModel monitoredMd)
+        {
+
+            Regex rx = new Regex(@"-{3}([^-{3}]*)-{3}(.*)",
+                               RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var matches = rx.Matches(markdownTxt);
+
+            var innerXML = matches[0].Groups[2].Value;
+
+            var doc1 = new XmlDocument();
+            var html = doc1.CreateElement("html");
+            doc1.AppendChild(html);
+            var head = doc1.CreateElement("head");
+            html.AppendChild(head);
+            var body = doc1.CreateElement("body");
+            html.AppendChild(body);
+
+            head.InnerXml = $@"
+            <link rel=""stylesheet"" href=""/commonSlide.css"" />            
+            "; //<script src=""/commonSlide.js""></script>
+
+            // add final div and script
+
+            var finalExecutionScript = @"
+                <script src=""/reveal/dist/reveal.js""></script>
+                <script src =""/reveal/plugin/zoom/zoom.js""></script>
+                <script src =""/reveal/plugin/notes/notes.js""></script>
+                <script src =""/reveal/plugin/search/search.js""></script>
+                <script src =""/reveal/plugin/markdown/markdown.js""></script>
+                <script src =""/reveal/plugin/highlight/highlight.js""></script>
+                ";
+
+            var execScript = @"
+            <script>
+			// Also available as an ES module, see:
+			// https://revealjs.com/initialization/
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				center: true,
+				hash: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealMarkdown, RevealHighlight ]
+			});
+
+            </script>
+            ";
+
+            var xmlForBody = string.Concat(innerXML, finalExecutionScript, execScript);
+            body.InnerXml += xmlForBody;
+
+            return doc1;            
+        }
+
+        private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)
+        {
+            var fullPathFile = string.Concat(rootPathSystem, relativePathFile, ".md");
+            if (relativePathExtension == ".md")
+            {
+                fullPathFile = string.Concat(rootPathSystem, relativePathFile);
+            }
+
+            return fullPathFile;
+        }
+
+        private FileContentResult CreateAResponseForNotMdFile(string rootPathSystem, string relativePathFile, string relativePathExtension)
+        {
+            var filePathSystem = string.Concat(rootPathSystem, relativePathFile);
+            var data = System.IO.File.ReadAllBytes(filePathSystem);
+            var currentContetType = $"image/{relativePathExtension.Replace(".", string.Empty)}";
+            if (relativePathExtension == ".pdf")
+            {
+                currentContetType = $"application/{relativePathExtension}";
+            }
+            if (relativePathExtension == ".svg")
+            {
+                currentContetType = $"image/svg+xml";
+            }
+            var notMdFile = new FileContentResult(data, currentContetType);
+            return notMdFile;
+        }
+
+        private async Task<XmlDocument> ProcessAsMarkdownTypeDocument(
+                string readText,
+                string relativePathFileSystem,
+                string fullPathFile,
+                MonitoredMDModel monitoredMd)
+        {
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
                 CurrentRoot = _fileSystemWatcher.Path,
-                AbsolutePathFile = filePathSystem1,
+                AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
             };
+            var isPlantuml = false;
+            if (readText.Contains("```plantuml"))
+            {
+                isPlantuml = true;
+                await _hubContext.Clients.All.SendAsync("plantumlWorkStart", monitoredMd);
+            }
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
@@ -124,8 +261,8 @@ namespace MdExplorer.Controllers
 
             var fileNode = new FileInfoNode
             {
-                FullPath = filePathSystem1,
-                Name = Path.GetFileName(filePathSystem1),
+                FullPath = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
                 DataText = readText
             };
             //bool isBroken;
@@ -135,9 +272,9 @@ namespace MdExplorer.Controllers
             {
                 monitoredMd.Message = "It breaks Rule # 1";
                 monitoredMd.Action = "Rename the File!";
-                monitoredMd.FromFileName = Path.GetFileName(filePathSystem1);
+                monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
                 monitoredMd.ToFileName = theNameShouldBe;
-                monitoredMd.FullPath = Path.GetDirectoryName(filePathSystem1);
+                monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
                 await _hubContext.Clients.All.SendAsync("markdownbreakrule1", monitoredMd);
             }
 
@@ -158,8 +295,7 @@ namespace MdExplorer.Controllers
             var result = Markdown.ToHtml(readText, pipeline);
             Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
 
-            var textHash = _helper.GetHashString(readText, Encoding.UTF8);
-            var cacheName = Path.GetFileName(filePathSystem1) + textHash + ".html";
+            
 
             //try
             //{
@@ -202,13 +338,13 @@ namespace MdExplorer.Controllers
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
             var docSettingDal = _session.GetDal<DocumentSetting>();
-            var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == filePathSystem1).FirstOrDefault();
+            var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
             var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""";
             var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
 
             var button1 = AddButtonOnTopPage("toggleMdCanvas()", "/assets/draw.png");
-            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(filePathSystem1)}')", "/assets/TOC.png");
+            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png");
 
             var resultToParse = $@"
                     <div class=""container-fluid"">
@@ -238,7 +374,7 @@ namespace MdExplorer.Controllers
                     
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1, filePathSystem1);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile);
 
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
@@ -259,28 +395,12 @@ namespace MdExplorer.Controllers
                 htmlClass.InnerText = "mdExplorerLink";
                 itemElement.Attributes.Append(htmlClass);
             }
-            //.Replace(@"\",@"\\");
-            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
 
-            try
-            {
-                System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
-                                        Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
+            if (isPlantuml)
+            {                 
+                await _hubContext.Clients.All.SendAsync("plantumlWorkStop", monitoredMd);
             }
-            catch (Exception ex)
-            {
-                var msg = ex.Message;
-
-            }
-
-
-            var toReturn = new ContentResult
-            {
-                ContentType = "text/html; charset=utf-8",
-                Content = doc1.InnerXml,
-
-            };
-            return toReturn;
+            return doc1;
         }
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)

@@ -1,0 +1,29 @@
+.simple-container {
+  display: flex;
+  flex-direction: column;
+}
+
+
+.plantuml-radio-group {
+  display: flex;
+  flex-direction: column;
+  margin: 15px 0;
+  align-items: flex-start;
+  height: 200px;
+}
+
+.plantuml-list-radio-button {
+  margin: 5px;
+}
+
+.slide-radio-group {
+  display: flex;
+  flex-direction: column;
+  margin: 15px 0;
+  align-items: flex-start;
+  height:200px;
+}
+
+.slide-list-radio-button {
+  margin: 5px;
+}

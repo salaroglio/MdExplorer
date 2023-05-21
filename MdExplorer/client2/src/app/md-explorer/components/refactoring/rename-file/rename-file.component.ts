@@ -18,8 +18,7 @@ export class RenameFileComponent implements OnInit {
   public displayedColumns = ['suggestedAction', 'fileName', 'oldLinkStored', 'newLinkToReplace'];
 
   ngOnInit(): void {    
-    this.mdRefactoringService.getRefactoringSourceActionList(this.data.refactoringSourceActionId).subscribe(data => {
-      debugger;
+    this.mdRefactoringService.getRefactoringSourceActionList(this.data.refactoringSourceActionId).subscribe(data => {      
       this.actionList = data;
     },
       error => {

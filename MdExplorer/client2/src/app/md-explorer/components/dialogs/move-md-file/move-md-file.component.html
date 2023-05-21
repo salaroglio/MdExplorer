@@ -1,0 +1,24 @@
+<h1>Move Markdown File</h1>
+
+
+
+<mat-dialog-content>
+  <div class="orizzontal-form-container">
+    <mat-form-field appearance="outline" style="width:100%">
+      <mat-label>Directory</mat-label>
+      <input matInput [(ngModel)]="directoryDestination" placeholder="local filesystem" required>
+      <mat-hint>Set destination directory</mat-hint>
+      <button mat-button matSuffix color="primary" (click)="openFileSystem()"><mat-icon>more_horiz</mat-icon> </button>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+
+<mat-dialog-actions>
+  <button mat-button color="primary" (click)="move()">
+    <mat-icon>save</mat-icon>move!
+  </button>
+  <button mat-button color="primary" (click)="dismiss()">
+    <mat-icon>cancel</mat-icon>Cancel
+  </button>
+</mat-dialog-actions>

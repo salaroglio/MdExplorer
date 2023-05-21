@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "MdExplorer.Migrations.EngineDb": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:58443;http://localhost:58444"
+    }
+  }
+}

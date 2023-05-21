@@ -12,46 +12,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MdExplorer
 {
     public class Program
     {
-        
+
         public static Task<int> _uiTask;
 
+        
         public static void Main(string[] args)
-        {
-            ExtractServer();
+        {            
             CreateHostBuilder(args).Build().Run();
-        }
-
-        private static void ExtractServer()
-        {
-            var plantumlPath = AppContext.BaseDirectory + "plantuml.jar";
-            if (!File.Exists(plantumlPath))
-            {
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.plantuml.jar", plantumlPath);
-            }
-            var dotExePath  = AppContext.BaseDirectory + "dot.exe";
-            if (!File.Exists(dotExePath))
-            {
-                
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.cdt.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.cgraph.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.config6", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.dot.exe", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.expat.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.gvc.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.gvplugin_core.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.gvplugin_dot_layout.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.pathplan.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.vcruntime140.dll", dotExePath);
-                FileUtil.ExtractResFile("MdExplorer.Service.Binaries.GraphWiz.binaries.xdot.dll", dotExePath);
-
-            }
-            
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)

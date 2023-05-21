@@ -4,7 +4,7 @@
 }
 
 .flex-items-overflow {
-  max-height: 600px;
+  max-height: 400px;
   overflow-x: scroll;
   overflow-y: scroll;
   background: tomato;
@@ -15,9 +15,13 @@
 }
 
 .flex-items {
-  max-height: 600px;
-  background: tomato;
-  color: white;
+  width:500px;
+  
   text-align: center;
   font-size: 3em;
+}
+
+.flex-selected-folder {
+  display: flex;
+  flex-direction: row;
 }

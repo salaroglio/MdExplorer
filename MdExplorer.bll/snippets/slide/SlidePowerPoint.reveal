@@ -1,0 +1,22 @@
+﻿<div class="reveal">
+  <div class="slides">
+
+    <section >
+      <h2>__title__</h2>
+      <ul>
+        <li class="fragment fade-down">
+          Punto 1<span class="fragment highlight-green">punto 1</span>
+        </li>
+        <li class="fragment fade-down">
+          Punto 2<span class="fragment highlight-green">punto 2</span>
+        </li>
+        <li class="fragment fade-down">
+          Punto 3<span class="fragment highlight-green">punto 3</span>
+        </li>
+        <li class="fragment fade-down">
+          Punto 4<span class="fragment highlight-green">punto 4</span>
+        </li>
+      </ul>
+    </section>
+  </div>
+</div>

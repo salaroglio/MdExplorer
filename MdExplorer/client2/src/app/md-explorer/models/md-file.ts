@@ -9,10 +9,11 @@ export class MdFile implements IFileInfoNode {
   }
   
   type: string;
-  children: MdFile[];
+  //children: MdFile[];
   isLoading: boolean;
   childrens: MdFile[];
   fullPath: string;
   relativePath: string;
   fullDirectoryPath: string;
+  index: number;
 }

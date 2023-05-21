@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { AppCurrentFolderService } from './app-current-folder.service';
+import { AppCurrentMetadataService } from './app-current-metadata.service';
 
-describe('AppCurrentFolderService', () => {
-  let service: AppCurrentFolderService;
+describe('AppCurrentMetadataService', () => {
+  let service: AppCurrentMetadataService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(AppCurrentFolderService);
+    service = TestBed.inject(AppCurrentMetadataService);
   });
 
   it('should be created', () => {

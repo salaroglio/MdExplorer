@@ -32,14 +32,23 @@ namespace MdExplorer.Features.LinkModifiers
 
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
-            var markdown = File.ReadAllText(filepath);
+            var markdown = string.Empty;
+            using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                using (var reader = new StreamReader(stream))
+                {
+                    markdown = reader.ReadToEnd();
+                }
+            }
+            //var markdown = File.ReadAllText(filepath);
             return GetLinks(markdown);
         }
 
         public void SetLinkIntoFile(string filepath,string oldLink, string newLink)
         {
             var markdown = File.ReadAllText(filepath);            
-            markdown = Regex.Replace(markdown, oldLink, newLink, RegexOptions.IgnoreCase);
+            markdown = markdown.Replace(oldLink, newLink,StringComparison.CurrentCultureIgnoreCase);
+            //Regex.Replace(markdown, oldLink, newLink, RegexOptions.IgnoreCase);
             File.WriteAllText(filepath,markdown);
         }
     }

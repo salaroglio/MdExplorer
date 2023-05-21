@@ -1,12 +1,16 @@
 import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AppCurrentFolderService } from './services/app-current-folder.service';
+import { slideInAnimation } from './shared/animations';
+import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
+  animations: [
+    slideInAnimation
+  ],
 }) 
 export class AppComponent {
   @HostListener('window:unload', ['$event'])
@@ -21,7 +25,7 @@ export class AppComponent {
   }
   title = 'client2';
   constructor(private titleService: Title,
-    private currentFolder: AppCurrentFolderService,
+    private currentFolder: AppCurrentMetadataService,
     private route: ActivatedRoute,
     private router: Router) {
     

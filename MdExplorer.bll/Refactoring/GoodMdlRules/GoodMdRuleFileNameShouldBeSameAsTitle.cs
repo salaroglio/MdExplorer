@@ -44,7 +44,7 @@ namespace MdExplorer.Features.Refactoring.Analysis
             firstTitle = reg.Replace(firstTitleTest, string.Empty);
 
             Regex reg1 = new Regex("[ ]");
-            firstTitle = reg1.Replace(firstTitle, "-");
+            firstTitle = reg1.Replace(firstTitle.Trim(), "-");
             return firstTitle;
         }
 

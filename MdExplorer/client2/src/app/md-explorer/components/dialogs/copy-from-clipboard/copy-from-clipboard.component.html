@@ -1,0 +1,20 @@
+<h1>Copy from clipboard</h1>
+<mat-dialog-content>
+  <div class="simple-container">
+    <mat-form-field appearance="outline">
+      <mat-label>Image name</mat-label>
+      <input matInput [(ngModel)]="imageName" (keyup.enter)="save()" placeholder="imageName">
+      <mat-hint>Name of Image</mat-hint>
+    </mat-form-field>
+  </div>
+
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button mat-button color="primary" (click)="save()">
+    <mat-icon>save</mat-icon>Save
+  </button>
+  <button mat-button color="primary" (click)="dismiss()">
+    <mat-icon>cancel</mat-icon>Cancel
+  </button>
+</mat-dialog-actions>
+

@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Ad.Tools.Dal;
 using MdExplorer.Service.Utilities;
+using MdExplorer.Abstractions.Entities.UserDB;
 
 namespace MdExplorer.Service.Controllers
 {
@@ -33,6 +34,7 @@ namespace MdExplorer.Service.Controllers
             _services = services;
             _processUtil = processUtil;
         }
+
         [HttpGet]
         public IActionResult GetProjects()
         {

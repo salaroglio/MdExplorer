@@ -1,0 +1,49 @@
+
+<h1 style="display:inline;" mat-dialog-title>
+  <img style="display:inline; vertical-align:middle" src="/assets/gitlogo.png" />
+  <span>Clone Project</span>
+</h1>
+
+<mat-dialog-content>
+  <mat-card style="margin-top:10px; margin-bottom:10px">
+    <div class="vertical-form-container">
+      <mat-form-field appearance="outline">
+        <mat-label>URL</mat-label>
+        <input matInput [(ngModel)]="dataForCloning.urlPath" placeholder="gitlab url" required>
+        <mat-hint>Set GIT Path</mat-hint>
+      </mat-form-field>
+      <div class="orizzontal-form-container">
+        <mat-form-field appearance="outline" style="width:100%">
+          <mat-label>Directory</mat-label>
+          <input matInput [(ngModel)]="dataForCloning.directoryPath" placeholder="local filesystem" required>
+          <mat-hint>Set project directory</mat-hint>
+          <button mat-button matSuffix  color="primary" (click)="openFileSystem()"><mat-icon>more_horiz</mat-icon> </button>
+        </mat-form-field>
+
+      </div>
+      <mat-form-field appearance="outline">
+        <mat-label>UserName</mat-label>
+        <input matInput [(ngModel)]="dataForCloning.username" placeholder="username" required>
+        <mat-hint>Username</mat-hint>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Password</mat-label>
+        <input matInput [(ngModel)]="dataForCloning.password" placeholder="password"
+               [type]="hide ? 'password' : 'text'" required>
+        <mat-icon matSuffix (click)="hide = !hide">{{hide ? 'visibility_off' : 'visibility'}}</mat-icon>
+        <mat-hint *ngIf="!dataForCloning.password">Enter your password</mat-hint>
+      </mat-form-field>
+
+      <section class="store-credential">
+        <mat-checkbox [(ngModel)]="dataForCloning.storeCredentials">Store credentials</mat-checkbox>
+      </section>
+
+    </div>
+
+  </mat-card>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button   mat-stroked-button (click)="cloneDirectory()" color="primary">Clone!</button>
+</mat-dialog-actions>

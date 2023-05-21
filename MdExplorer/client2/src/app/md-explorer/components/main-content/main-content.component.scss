@@ -4,3 +4,23 @@
   height: 100%;
   border: 1px solid black;
 }
+
+
+.hideToolbar {
+  height: 0px;
+  transition: height 300ms ease-out;
+}
+
+.hideToolbarNone {
+  display: none;
+}
+
+.hundredPercentContent {
+  height: 100%;
+  width: 100%;
+}
+
+.contentWithToolbar {
+  height: calc(100% - 72px);
+  width: 100%;
+}

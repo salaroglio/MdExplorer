@@ -1,15 +1,14 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { CollectionViewer, SelectionChange, DataSource } from '@angular/cdk/collections';
 import { Component, Injectable, OnInit } from '@angular/core';
-import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { IFileInfoNode } from '../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../md-explorer/models/md-file';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
-import { COMPOSITION_BUFFER_MODE } from '@angular/forms';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
 import { Router } from '@angular/router';
+import { MatDialogRef } from '@angular/material/dialog';
 
 // IFileInfoNode è interfaccia
 // MdFile è la classe -> DynamicFlatNode
@@ -22,35 +21,35 @@ import { Router } from '@angular/router';
 @Injectable({ providedIn: 'root' })
 export class DynamicDatabase {
 
-   constructor(private mdFileService: MdFileService,) {
-     this.mdFileService.loadDynFolders('root', 1);
-     
-     var md1 = new MdFile('12Folder', 'c:primoFolder', 0, true);
-     var md2 = new MdFile('2Folder', 'c:primoFoldersottoFolder', 1, true);
-     var md3 = new MdFile('3Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
-     var md4 = new MdFile('4Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
-     var md5 = new MdFile('5Folder', 'c:cuccu', 3, false);
-     this.dataMap.set(md1, [md2]);
-     this.dataMap.set(md2, [md3, md4]);
-     //this.dataMap.set(md3, [md4]);
-     this.dataMap.set(md4, [md5]);
+  constructor(private mdFileService: MdFileService,) {
+    this.mdFileService.loadDynFolders('root', 1);
 
-    
+    var md1 = new MdFile('12Folder', 'c:primoFolder', 0, true);
+    var md2 = new MdFile('2Folder', 'c:primoFoldersottoFolder', 1, true);
+    var md3 = new MdFile('3Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
+    var md4 = new MdFile('4Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
+    var md5 = new MdFile('5Folder', 'c:cuccu', 3, false);
+    this.dataMap.set(md1, [md2]);
+    this.dataMap.set(md2, [md3, md4]);
+    //this.dataMap.set(md3, [md4]);
+    this.dataMap.set(md4, [md5]);
+
+
     var test = this.dataMap.get(md1);
-     this.rootLevelNodes = [md1];
+    this.rootLevelNodes = [md1];
   }
 
   dataMap = new Map<MdFile, MdFile[]>();
-  rootLevelNodes: MdFile[]; 
+  rootLevelNodes: MdFile[];
 
   /** Initial data from database */
-  initialData():MdFile[] {    
+  initialData(): MdFile[] {
     return this.rootLevelNodes;
   }
 
   getChildren(node: MdFile): MdFile[] | undefined {
-    
-    var test = this.dataMap.get(node);   
+
+    var test = this.dataMap.get(node);
     return test;
   }
 
@@ -59,7 +58,7 @@ export class DynamicDatabase {
   }
 }
 
-export class DynamicDataSource implements DataSource<MdFile> {
+class DynamicDataSource implements DataSource<MdFile> {
 
   dataChange = new BehaviorSubject<MdFile[]>([]);
 
@@ -70,10 +69,10 @@ export class DynamicDataSource implements DataSource<MdFile> {
   }
 
   constructor(private _treeControl: FlatTreeControl<MdFile>,
-    private _database: DynamicDatabase, private _mdFileService: MdFileService ) {
+    private _database: DynamicDatabase,
+    private _mdFileService: MdFileService) {
     this.data = _database.initialData();
-    this._mdFileService.loadDocumentFolder('root', 1).subscribe(_ => {
-      debugger;
+    this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
       this.data = _;
     });
     //this.dataChange = _mdFileService._mdDynFolderDocument;
@@ -107,9 +106,8 @@ export class DynamicDataSource implements DataSource<MdFile> {
    * Toggle the node, remove from display list
    */
   toggleNode(node: MdFile, expand: boolean) {
-    debugger;
     this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(_ => {
-      debugger;
+
       const children = _;
       const index = this.data.indexOf(node);
 
@@ -134,10 +132,9 @@ export class DynamicDataSource implements DataSource<MdFile> {
         this.dataChange.next(this.data);
         node.isLoading = false;
       });
-    });    
+    });
   }
 }
-
 
 
 @Component({
@@ -147,7 +144,7 @@ export class DynamicDataSource implements DataSource<MdFile> {
 })
 export class NewProjectComponent implements OnInit {
 
- 
+
   activeNode: any;
   folder: {
     name: string,
@@ -163,21 +160,22 @@ export class NewProjectComponent implements OnInit {
   dataSource: DynamicDataSource;
 
   hasChild = (_: number, _nodeData: MdFile) => _nodeData.expandable;
-   
 
-  constructor(database: DynamicDatabase,
-                private mdFileService: MdFileService,
-                private router: Router,
-                private projectService: ProjectsService) {
+
+  constructor(private database: DynamicDatabase,
+              private mdFileService: MdFileService,
+              private router: Router,
+              private projectService: ProjectsService,
+              private dialogRef: MatDialogRef<NewProjectComponent>,) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
   }
 
   ngOnInit(): void {
-    this.folder = { name: "test", path: "test path" };
+    this.folder = { name: "<select project>", path: "" };
   }
 
-  public getFolder(node: IFileInfoNode) {    
+  public getFolder(node: IFileInfoNode) {
     this.folder.name = node.name;
     this.folder.path = node.path;
   }
@@ -185,8 +183,8 @@ export class NewProjectComponent implements OnInit {
   public closeDialog() {
     this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
       var dateTime = new Date();
-      this.mdFileService.loadAll(null, null);
-      this.router.navigate(['/main']);
+      this.router.navigate(['/main/navigation/document']); //main
+      this.dialogRef.close();
     });
   }
 

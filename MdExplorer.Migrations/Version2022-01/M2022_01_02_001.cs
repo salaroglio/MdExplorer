@@ -12,8 +12,8 @@ namespace MdExplorer.Migrations.Version202201
     {
         public override void Up()
         {
-            Update.Table("Setting").Set(new { ValueString = @"plantuml.jar" }).Where(new { Name = "PlantumlLocalPath" });
-            Update.Table("Setting").Set(new { ValueString = @"dot.exe" }).Where(new { Name = "LocalGraphvizDotPath" });
+            Update.Table("Setting").Set(new { ValueString = @"Binaries\plantuml.jar" }).Where(new { Name = "PlantumlLocalPath" });
+            Update.Table("Setting").Set(new { ValueString = @"Binaries\GraphWiz\binaries\dot.exe" }).Where(new { Name = "LocalGraphvizDotPath" });
             Delete.FromTable("Setting").Row(new { Name = "PlantumlServer" });
         }
 

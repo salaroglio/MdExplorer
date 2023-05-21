@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MdImageNumbering": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Carlo\\Documents\\0-progetti\\artigiancassa\\artigiancassadocs\\diario-di-progetto\\assets\\installazione-iis-su-WinXp.png\r\nhttp://127.0.0.1:49375/api/"
+    }
+  }
+}

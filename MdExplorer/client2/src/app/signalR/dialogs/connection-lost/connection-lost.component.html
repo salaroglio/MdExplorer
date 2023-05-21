@@ -1,0 +1,14 @@
+<mat-dialog-content>
+  <div *ngIf="!consoleIsClosed">
+      <img style="left:0px; right:0px; margin-left:auto;width:500px; margin-right:auto" src="/assets/ConnectionLost.png" />
+  </div>
+  <div *ngIf="consoleIsClosed">
+    <h1>Server down!</h1>
+    Close the MdExplorer tab browser
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button *ngIf="!consoleIsClosed" mat-button color="primary" (click)="refresh()">
+    <mat-icon>refresh</mat-icon>re-link
+  </button>  
+</mat-dialog-actions>
