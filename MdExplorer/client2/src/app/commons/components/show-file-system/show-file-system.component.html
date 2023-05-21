@@ -1,0 +1,52 @@
+<div style="visibility: hidden; position: fixed;"
+     [style.left.px]="menuTopLeftPosition.x"
+     [style.top.px]="menuTopLeftPosition.y"
+     [matMenuTriggerFor]="rightMenu"></div>
+
+
+<mat-menu #rightMenu="matMenu">
+  <ng-template matMenuContent let-item="item">
+    <div>
+      <button  mat-icon-button matTooltip="create new folder" color="primary" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
+    </div>
+    <button  mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
+  </ng-template>
+</mat-menu>
+
+
+<div class="flex-container">
+  <h1>Document's Folder</h1>
+  <div class="flex-items-overflow">
+    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)" >
+      <!-- This is the tree node template for leaf nodes -->
+      <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
+        <!-- use a disabled button to provide padding for tree leaf -->
+        <button mat-icon-button>
+          <mat-icon class="mat-icon-rtl-mirror">folder</mat-icon>
+        </button>
+        <a style="cursor:pointer" (click)="getFolder(node);activeNode = node;">{{node.name}}</a>
+      </mat-tree-node>
+      <!-- This is the tree node template for expandable nodes -->
+      <mat-tree-node *matTreeNodeDef="let node;when: hasChild" (click)="activeNode = node" (contextmenu)="onRightClick($event, node)" matTreeNodePadding>
+        <button mat-icon-button matTreeNodeToggle
+                [attr.aria-label]="'Toggle ' + node.name">
+          <mat-icon class="mat-icon-rtl-mirror">
+            {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
+          </mat-icon>
+        </button>
+        <a style="cursor:pointer" (click)="getFolder(node)">{{node.name}}</a>
+      </mat-tree-node>
+    </mat-tree>
+  </div>
+
+  <div class="flex-selected-folder">
+    <div class="flex-items">
+      <mat-card-title>{{folder.name}}</mat-card-title>
+      <mat-card-subtitle>{{folder.path}}</mat-card-subtitle>
+    </div>
+    <div>
+      <button mat-stroked-button color="primary" (click)="closeDialog()">Select directory</button>
+    </div>
+  </div>
+
+</div>

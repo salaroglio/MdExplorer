@@ -1,22 +1,6 @@
 
-<div style="visibility: hidden; position: fixed;"
-     [style.left.px]="menuTopLeftPosition.x"
-     [style.top.px]="menuTopLeftPosition.y"
-     [matMenuTriggerFor]="rightMenu"></div>
 
-
-<mat-menu #rightMenu="matMenu">
-  <ng-template matMenuContent let-item="item">
-    <!--<button mat-menu-item>Rename Directory{{item.name}}</button>
-    <button mat-menu-item>Move directory</button>
-    <button mat-menu-item>New directory</button>-->
-    <button mat-menu-item (click)="createMdOn(item)"><b style="color:violet">New</b> Markdown on <b>{{item==null ? 'root': item.name}}</b><b style="color:blue"> dir</b></button>
-
-  </ng-template>
-</mat-menu>
-
-
-<mat-sidenav-container autosize class="app-sidenav-container" (contextmenu)="onRightClick($event, null)">
+<mat-sidenav-container autosize class="app-sidenav-container">
 
   <mat-sidenav #sidenav [style.width]="sideNavWidth" class=" mat-elevation-z10"
                [opened]="!isScreenSmall"
@@ -24,7 +8,7 @@
 
     <mat-toolbar color="primary">
       <div>
-        <button mat-icon-button (click)="openProject()">
+        <button mat-icon-button id="projectcss" matTooltip="projects list" (click)="openProject()">
           <mat-icon>ballot</mat-icon>
         </button>
         <!--<button mat-icon-button>
@@ -34,40 +18,56 @@
           <mat-icon>rule</mat-icon>
         </button>-->
       </div>
-
-
       {{titleProject}}
     </mat-toolbar>
-    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-      <!-- This is the tree node template for leaf nodes -->
-      <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-        <!-- use a disabled button to provide padding for tree leaf -->
-        <button mat-icon-button disabled>
-          <mat-icon class="mat-icon-rtl-mirror">
-            {{'text_snippet'}}
-          </mat-icon>
-        </button>
-        <a style="cursor:pointer" (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>        
-      </mat-tree-node>
-      <!-- This is the tree node template for expandable nodes -->
-      <mat-tree-node *matTreeNodeDef="let node;when: hasChild" matTreeNodePadding>
-        <button mat-icon-button matTreeNodeToggle
-                [attr.aria-label]="'Toggle ' + node.name">
-          <mat-icon class="gold-icon mat-icon-rtl-mirror" (contextmenu)="onRightClick($event, node)">
-            {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
-          </mat-icon>
-        </button>
+    <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
+      <mat-tab style="height:100%">
+        <ng-template mat-tab-label>
+          <img src="/assets/project.png" style="height:24px" />
+          Project docs
+        </ng-template>
+        <app-md-tree></app-md-tree>
+      </mat-tab>
+      <mat-tab *ngIf="currentBranch != null">
+        <ng-template mat-tab-label>
+          <img src="/assets/cicd.png" style="height:24px" />CI/CD
+        </ng-template>
+        <app-publish-md-tree></app-publish-md-tree>
+      </mat-tab>
+    </mat-tab-group>
 
-        {{node.name}}
-      </mat-tree-node>
-    </mat-tree>
   </mat-sidenav>
 
   <div class="flex-container">
-    <div [ngClass]="classForBorderDiv" (pointerdown)="resizeWidth()" (mouseup)="stopResizeWidth()"></div>
+    <div [ngClass]="classForBorderDiv"
+         (pointerdown)="resizeWidth()"
+         (mouseup)="stopResizeWidth()">
+
+    </div>
+    <div style="position:fixed;
+            display:flex;
+            flex-direction:column;
+             align-items:flex-start; background-color:transparent; top:66px">
+      <div (mouseenter)="bookmark.show=true"
+           (mouseleave)="bookmark.show=false"
+           class="mdbookmark"
+           *ngFor="let bookmark of bookmarks;let indexOfElement=index;"
+           style="padding:2px;">
+        <div style="border-color:black" [attr.alt]="bookmark.fullPath">
+
+          <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
+          <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
+          <mat-icon (click)="toggleBookmark(bookmark)"
+                    *ngIf="bookmark.show"
+                    style="vertical-align:bottom;">cancel</mat-icon>
+          <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
+        </div>
+      </div>
+
+    </div>
     <div style="width:100%; height:100%;">
       <div class="app-sidenav-content" style="height:100%;">
-        <app-toolbar (toggleSidenav)="sidenav.toggle()"></app-toolbar>
+
         <router-outlet></router-outlet>
       </div>
     </div>

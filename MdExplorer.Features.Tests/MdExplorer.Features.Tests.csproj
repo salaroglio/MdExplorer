@@ -18,6 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Commands\TestStore\ChangeLinkIntoCallAJavscriptFunction.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="WordTests\FilesDocx\PrimaPaginaTitolo.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -27,6 +30,16 @@
     <None Update="WordTests\FilesDocx\testobase.docx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Yaml\Inputs\NormalYaml.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Yaml\Inputs\ParseYaml.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Yaml\ExpectedOutputs\" />
   </ItemGroup>
 
 </Project>

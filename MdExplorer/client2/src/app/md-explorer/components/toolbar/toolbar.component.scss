@@ -1,5 +1,12 @@
 $iconWidth: after 56px;
 
+.branchGood {
+  color: greenyellow;
+}
+
+.branchToCommit {
+  color: white
+}
 
 .sidenav-toggle {
   display: none;
@@ -20,4 +27,29 @@ $iconWidth: after 56px;
     line-height: $iconWidth;
     color: white;
   }
+}
+
+.container{
+    display:flex;
+    flex-direction:row;
+}
+
+.flexExpand {
+  flex: 1 1 auto;
+}
+
+
+#projectcss {
+  ::ng-deep.mat-tooltip {
+    /* your own custom styles here */
+    /* e.g. */
+    color: white;
+    background-color: blue;
+  }
+}
+
+#toPull span{
+    background-color:white;
+    color:black;
+    top:30px;
 }

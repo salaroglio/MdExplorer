@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -54,14 +55,20 @@ namespace MdExplorer.Features.Utilities
 
         private static Dictionary<int, string> NomalizeArray(string requestInfo)
         {
+            Dictionary<int, string> arrayToInvestigate = ImplodePath(requestInfo);
+            return arrayToInvestigate;
+        }
+
+        private static Dictionary<int, string> ImplodePath(string requestInfo)
+        {
             var counter = 0;
-            var arrayToInvestigate = requestInfo.Split(Path.DirectorySeparatorChar).ToDictionary(_ =>  counter++);
-            var itemToCompress = arrayToInvestigate.Where(_ => _.Value.Contains("..")).ToList();
+            var arrayToInvestigate = requestInfo.Split(Path.DirectorySeparatorChar).ToDictionary(_ => counter++);
+            var itemToCompress = arrayToInvestigate.Where(_ => _.Value == "..").ToList();
             var newCompressedPath = new Dictionary<int, string>();
 
 
             var counter1 = 0;
-            while (itemToCompress.Count()>0)
+            while (itemToCompress.Count() > 0)
             {
                 foreach (var item in itemToCompress.OrderBy(_ => _.Key))
                 {
@@ -72,13 +79,27 @@ namespace MdExplorer.Features.Utilities
                     break;
                 }
                 //ricostruisco l'indice
-                counter1 ++;                 
-                
+                counter1++;
             }
-            
+
+            var itemToCompress2 = arrayToInvestigate.Where(_ => _.Value == ".").ToList();
+            var counter2 = 0;
+            while (itemToCompress2.Count() > 0)
+            {
+                foreach (var item in itemToCompress2.OrderBy(_ => _.Key))
+                {
+                    arrayToInvestigate.Remove(item.Key);
+                    itemToCompress2.Remove(item);
+                    break;
+                }
+                //ricostruisco l'indice
+                counter2++;
+            }
+
 
             return arrayToInvestigate;
         }
+
         public string GetHashString(string value, Encoding encoding = null)
         {
             if (encoding == null)
@@ -147,6 +168,67 @@ namespace MdExplorer.Features.Utilities
               different-each-time-i-run-my-program-in-net-core*/
             byte[] result = MD5.Create().ComputeHash(value);
             return result;
+        }
+
+        /// <summary>
+        /// Extract resource files from resource files
+        /// </summary>
+        /// <param name="resFileName">resource file name (resource file name must include directories, separated by ".", the outermost layer is the project default namespace)</param>
+        /// <param name="outputFile">output file</param>
+        public static void ExtractResFile(string resFileName, string outputFile)
+        {
+            BufferedStream inStream = null;
+            FileStream outStream = null;
+            try
+            {
+                Assembly asm = Assembly.GetExecutingAssembly(); //Read embedded resources
+                inStream = new BufferedStream(asm.GetManifestResourceStream(resFileName));
+
+                outStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write);
+
+                byte[] buffer = new byte[1024];
+                int length;
+
+                while ((length = inStream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    outStream.Write(buffer, 0, length);
+                }
+                outStream.Flush();
+            }
+            finally
+            {
+                if (outStream != null)
+                {
+                    outStream.Close();
+                }
+                if (inStream != null)
+                {
+                    inStream.Close();
+                }
+            }
+        }
+
+        public static string ExtractResFileString(string resFileName)
+        {
+            BufferedStream inStream = null;
+            StreamReader outStream = null;
+            try
+            {
+                Assembly asm = Assembly.GetExecutingAssembly(); //Read embedded resources                
+                outStream = new StreamReader(asm.GetManifestResourceStream(resFileName));                
+                return outStream.ReadToEnd();
+            }
+            finally
+            {
+                if (outStream != null)
+                {
+                    outStream.Close();
+                }
+                if (inStream != null)
+                {
+                    inStream.Close();
+                }
+            }
         }
     }
 }

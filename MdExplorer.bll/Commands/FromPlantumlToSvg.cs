@@ -169,31 +169,41 @@ namespace MdExplorer.Features.Commands
             var matches = GetMatches(markdown);
             foreach (Match item in matches)
             {
-                var text = item.Groups[1].Value;
-                var textHash = _helper.GetHashString(text, Encoding.UTF8);
-                var filePathSvg = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.svg"; //text.GetHashCode()
-                if (!File.Exists(filePathSvg))
+                var referenceUrl = "<code>error</code>";
+                try
                 {
-                    var taskSvg = _plantumlServer.GetSvgFromJar(text);
-                    taskSvg.Wait();
-                    var res = taskSvg.Result;
-                    File.WriteAllBytes(filePathSvg, res);
-                    _logger.LogInformation($"write file: {filePathSvg}");
+                    var text = item.Groups[1].Value;
+                    var textHash = _helper.GetHashString(text, Encoding.UTF8);
+                    var filePathSvg = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.svg"; //text.GetHashCode()
+                    if (!File.Exists(filePathSvg))
+                    {
+                        var taskSvg = _plantumlServer.GetSvgFromJar(text);
+                        taskSvg.Wait();
+                        var res = taskSvg.Result;
+                        File.WriteAllBytes(filePathSvg, res);
+                        _logger.LogInformation($"write file: {filePathSvg}");
+                    }
+
+                    var classes = item.Groups[2].Value;
+                    var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.svg";
+                    referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
+                    _logger.LogInformation(referenceUrl);
+                    // i should check if there's a CSS to do
+                    var linkHasClass = item.Groups[2]?.Value != null && item.Groups[2].Value != string.Empty ? "true" : "false";
+                    // devo cercare dentro il CSS e se c'è qualcosa finalmente dire che linkHasClass:true
+                    var linkClassHasCSS = LinkClassHasCSS(markdown, item.Groups[2]?.Value) ? "true" : "false";
+
+                    var isDynamicPlantuml = IsDynamicPlantuml(text) ? "true" : "false";
+
+                    referenceUrl = string.Concat(referenceUrl, "{", classes, " ", $"md-plantuml=\"dynamic:{isDynamicPlantuml};copy:true;linkHasClass:{linkHasClass};linkClassHasCSS:{linkClassHasCSS};\"", "}");
                 }
-
-                var classes = item.Groups[2].Value;
-                var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.svg";
-                var referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
-                _logger.LogInformation(referenceUrl);
-                // i should check if there's a CSS to do
-                var linkHasClass = item.Groups[2]?.Value != null && item.Groups[2].Value != string.Empty ? "true" : "false";
-                // devo cercare dentro il CSS e se c'è qualcosa finalmente dire che linkHasClass:true
-                var linkClassHasCSS = LinkClassHasCSS(markdown, item.Groups[2]?.Value) ? "true":"false";
+                catch (Exception ex)
+                {
+                    referenceUrl = $"<code>{ex.Message}</code>";
 
 
-                var isDynamicPlantuml = IsDynamicPlantuml(text) ? "true":"false";
+                }
                 
-                referenceUrl = string.Concat(referenceUrl,"{",classes," ", $"md-plantuml=\"dynamic:{isDynamicPlantuml};copy:true;linkHasClass:{linkHasClass};linkClassHasCSS:{linkClassHasCSS};\"" ,"}");
 
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
             }

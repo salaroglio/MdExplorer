@@ -1,11 +1,11 @@
-import { Component, EventEmitter, NgZone, OnInit, Output } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, NgZone, OnInit, Output, ViewChild } from '@angular/core';
 import { MdFile } from '../../models/md-file';
-import { HrefInterceptorService, IWorkWithElement } from '../../services/href-interceptor.service';
+//import { IWorkWithElement } from '../../services/href-interceptor.service';
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
-import { MonitorMDService } from '../../services/monitor-md.service';
-import { SideNavDataService } from '../../services/side-nav-data.service';
+import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
+import { MatDialog } from '@angular/material/dialog';
+//import { ConnectionLostComponent } from '../../../signalR/dialogs/connection-lost/connection-lost.component';///dialogs/connection-lost/connection-lost.component
 
 
 @Component({
@@ -13,67 +13,106 @@ import { SideNavDataService } from '../../services/side-nav-data.service';
   templateUrl: './main-content.component.html',
   styleUrls: ['./main-content.component.scss']
 })
-export class MainContentComponent implements OnInit {
+export class MainContentComponent implements OnInit, AfterViewInit {
+  @ViewChild('myBelovedIframe') el: ElementRef;
+  public classForToolbar: string = "showToolbar";
+  public classForContent: string = "contentWithToolbar";
+  
+  ngAfterViewInit() {
+    
+    this.el.nativeElement.onload = _ => {
+      try {
+        _.target.contentWindow.document.myReferenceObject = this;
+        _.target.contentWindow.document.addEventListener('wheel',
+          this.toolbarHandler);
+      } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
+        this.service.setWhatDisplayForToolbar('showToolbar');
+      }
+    };
+  }
+
+
+
+  toolbarHandler(event) {
+    event.currentTarget.myReferenceObject.lastCall(event);
+  }
+
+  lastCall(event) {
+    if (event.deltaY < 0) {
+      // visualizzare
+      this.service.setWhatDisplayForToolbar('showToolbar');
+      
+    } else {
+      // nascondere
+      this.service.setWhatDisplayForToolbar('hideToolbar');
+      
+    }    
+  }
 
   mdFile: MdFile;
   html: string;
   htmlSource: string = '../welcome.html';
 
-  helloWorld: IWorkWithElement = (msg) => {
-    alert('this is the callback');
-  };
+  //helloWorld: IWorkWithElement = (msg) => {
+  //  alert('this is the callback');
+  //};
 
-  //private _this: any;
-  public _HideImg = true;
+
   public _HideIFrame = false;
 
   constructor(
-    private route: ActivatedRoute,    
     private service: MdFileService,
     private sanitizer: DomSanitizer,
-    private monitorMDService: MonitorMDService,
-    private zone: NgZone,
-    private sideNavDataService: SideNavDataService
+    private monitorMDService: ServerMessagesService,
+    public dialog: MatDialog,
+    private ref: ChangeDetectorRef,
   ) {
     console.log("MainContentComponent constructor");
     this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
-    this.monitorMDService.addOnCloseEvent(this.ShowConnectionLost, this);
   }
 
   ngOnInit(): void {
-    this.service.selectedMdFileFromSideNav.subscribe(_ => {
+    
+    this.service.selectedMdFileFromSideNav.subscribe(_ => {      
       this.callMdExplorerController(_);
     });
-    this.service.selectedMdFileFromToolbar.subscribe(_ => {
+    this.service.selectedMdFileFromToolbar.subscribe(_ => {      
       let current = _[0];
       if (current != undefined) {
         this.callMdExplorerController(current);
       }      
     });
+    
+    this.service.whatDisplayForToolbar.subscribe(_ => {
 
-
+      if ((_ == 'showToolbar' && this.classForToolbar != _) ||
+        (_ == 'hideToolbar' && this.classForToolbar != _ + ' ' + 'hideToolbarNone')
+      ) { // check if something is truely changed
+        this.classForToolbar = _;
+        this.classForContent = 'contentWithToolbar';
+          if (_ == 'hideToolbar' && _ != undefined) {
+            this.classForToolbar = _ + ' ' + 'hideToolbarNone'
+            this.classForContent = 'hundredPercentContent';
+            this.ref.detectChanges();
+          }
+        this.ref.detectChanges();
+      }
+    });
   }
-
-  private callMdExplorerController(node:  MdFile) {
-    debugger;
+  private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
-      let dateTime = new Date().getTime() / 1000;
+      let dateTime = new Date().getTime() / 1000;      
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
     }
   }
 
-  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {
-    debugger;
+  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {    
     let dateTime = new Date();
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
     objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
   }
  
-  private ShowConnectionLost(data: any, objectThis: any) {
-    objectThis._HideImg = false;
-  }
-
 
 
 }

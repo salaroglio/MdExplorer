@@ -1,13 +1,5 @@
-<!--<div [innerHtml]="html"></div>-->
-<div>
-  <img style="left:0px; right:0px; margin-left:auto; margin-right:auto" src="/assets/ConnectionLost.png" [hidden]="_HideImg" />
-</div>
-
-  <iframe id="mdIframe" name="mdIframe" [hidden]="_HideIFrame"
-          
-          style="width: 100%; height: 100%; "
-          [src]="htmlSource | safe">
-    
-  </iframe>
-
-
+<app-toolbar [ngClass]="classForToolbar"></app-toolbar>
+<iframe #myBelovedIframe id="mdIframe" name="mdIframe" [hidden]="_HideIFrame"
+        [ngClass]="classForContent"
+        [src]="htmlSource | safe">
+</iframe>

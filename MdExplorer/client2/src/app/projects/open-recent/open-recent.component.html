@@ -1,5 +1,6 @@
-<h1>Open recent</h1>
-<mat-card *ngFor="let element of dataSource | async">
+<h1>Recent Projects</h1>
+
+<mat-card *ngFor="let element of dataSource | async; let i = index" [@bounceInLeftOnEnter]="{ value: '', params: { delay: i * 100 } }" >
   <mat-card-title>{{element.name}}</mat-card-title>
   <mat-card-subtitle>{{element.path}}</mat-card-subtitle>
   <mat-card-actions>

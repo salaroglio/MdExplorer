@@ -10,21 +10,33 @@ import { Routes, RouterModule } from '@angular/router';
 import { MdFileService } from './services/md-file.service';
 import { HttpClientModule } from '@angular/common/http';
 import { SafePipe } from './pipes/safePipe';
-import { SettingsComponent } from './components/settings/settings.component';
+import { SettingsComponent } from './components/dialogs/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
-import { RulesComponent } from './components/rules/rules.component';
-import { NewMarkdownComponent } from './components/new-markdown/new-markdown.component';
- 
+import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
+import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
+import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
+import { MdTreeComponent } from './components/md-tree/md-tree.component';
+import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
+import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
+import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
+import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
+import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
+import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
+import { DocumentSettingsComponent } from './components/document-settings/document-settings.component';
+import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
+import { GitModule } from '../git/git.module';
+import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
 
 
 
 const routes: Routes = [
-  { path: '', component: SidenavComponent},
+  { path: '', component: SidenavComponent },
   {
   path: 'navigation', component: SidenavComponent,
   children: [
-    { path: ':path', component: MainContentComponent },
-    //{ path: '', component: MainContentComponent },    
+    { path: 'document', component: MainContentComponent },
+    { path: 'gitlabsettings', component: GitlabSettingsComponent },
+    { path: 'documentsettings', component: DocumentSettingsComponent },
   ]
   }];
 
@@ -39,17 +51,30 @@ const routes: Routes = [
     SettingsComponent,
     RenameFileComponent,
     RulesComponent,
-    NewMarkdownComponent,    
+    NewMarkdownComponent,
+    NewDirectoryComponent,
+    MdTreeComponent,
+    ConnectionLostComponent,
+    ParsingProjectComponent,
+    ChangeDirectoryComponent,
+    DeleteMarkdownComponent,
+    PublishMdTreeComponent,
+    GitlabSettingsComponent,
+    DocumentSettingsComponent,
+    CopyFromClipboardComponent,    
+    MoveMdFileComponent
   ],
   imports: [
     CommonModule,
     MaterialModule,
     HttpClientModule,
     FormsModule,
+    GitModule,
     RouterModule.forChild(routes)
   ],
   providers: [
-    MdFileService
+    MdFileService,
+    
   ]
 })
 export class MdExplorerModule {

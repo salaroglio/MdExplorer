@@ -1,0 +1,4 @@
+﻿@import url('/reveal/dist/reset.css');
+@import url('/reveal/dist/reveal.css');
+@import url('/reveal/dist/theme/black.css');
+@import url('/reveal/plugin/highlight/monokai.css');

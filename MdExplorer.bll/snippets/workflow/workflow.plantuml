@@ -1,0 +1,40 @@
+﻿
+```plantuml
+@startuml
+legend __title__
+
+start
+:Step1;
+note right
+Commento step 1
+end note
+:Step2;
+note right
+Commento step 2
+end note
+:Step3;
+note right
+Commento step 3
+[[https://www.advice.it link ]]
+end note
+:Step4;
+note right
+Commento step 4
+end note
+package #lightgreen "" {
+    repeat :per ogni oggetto 1; 
+        package  #hotpink "" {
+        repeat : per ogni oggetto2;
+        :cambia i link dentro il database;
+        repeat while (ci sono altri oggetto 2?) is (si)
+        }
+    repeat while (ci sono altri oggetto 1?) is (yes)
+}
+end
+:return oggetto 3;
+note right
+Commento ritorno oggetto 3
+end note
+
+@enduml
+```

@@ -7,6 +7,7 @@
     
     
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
@@ -15,6 +16,8 @@
     <ApplicationIcon>MdIcon3.ico</ApplicationIcon>
     <OutputType>Exe</OutputType>
     <StartupObject />
+    <FileVersion></FileVersion>
+    <AssemblyVersion>2023.05.11.001</AssemblyVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -39,15 +42,29 @@
     <EmbeddedResource Remove="Documents\**" />
     <None Remove="Documents\**" />
   </ItemGroup>
+  
+  <!--INTEGRATE ImageNumbering application-->
+  <ItemGroup>
+    <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe">
+      <DestinationSubDirectory>bin</DestinationSubDirectory>
+    </Content>
+  </ItemGroup>
 
+  
   <ItemGroup>
     <Content Remove="wwwroot\assets\AliasEmoji.PNG" />
+    <Content Remove="wwwroot\assets\cicd.png" />
+    <Content Remove="wwwroot\assets\cicd.svg" />
     <Content Remove="wwwroot\assets\clipboard.png" />
     <Content Remove="wwwroot\assets\clipboard48.png" />
+    <Content Remove="wwwroot\assets\connecting.gif" />
     <Content Remove="wwwroot\assets\ConnectionLost.png" />
     <Content Remove="wwwroot\assets\draw.png" />
     <Content Remove="wwwroot\assets\eyes.png" />
     <Content Remove="wwwroot\assets\eyes48.png" />
+    <Content Remove="wwwroot\assets\gitlab.png" />
+    <Content Remove="wwwroot\assets\gitlabcicd.png" />
+    <Content Remove="wwwroot\assets\gitlogo.png" />
     <Content Remove="wwwroot\assets\green_right_arrow.png" />
     <Content Remove="wwwroot\assets\green_right_arrow48.png" />
     <Content Remove="wwwroot\assets\IconReady.png" />
@@ -63,11 +80,16 @@
     <Content Remove="wwwroot\assets\move.png" />
     <Content Remove="wwwroot\assets\Move48 %282%29.png" />
     <Content Remove="wwwroot\assets\move48.png" />
+    <Content Remove="wwwroot\assets\new-document.png" />
     <Content Remove="wwwroot\assets\notes.png" />
     <Content Remove="wwwroot\assets\notes48.png" />
     <Content Remove="wwwroot\assets\plantuml.png" />
+    <Content Remove="wwwroot\assets\Plantuml_Logo.svg" />
     <Content Remove="wwwroot\assets\PrepareToIcon.png" />
+    <Content Remove="wwwroot\assets\project.png" />
+    <Content Remove="wwwroot\assets\projects.png" />
     <Content Remove="wwwroot\assets\Refactoring.png" />
+    <Content Remove="wwwroot\assets\rename.png" />
     <Content Remove="wwwroot\assets\resize.png" />
     <Content Remove="wwwroot\assets\resize48.png" />
     <Content Remove="wwwroot\assets\run.png" />
@@ -118,7 +140,7 @@
     <Content Remove="wwwroot\bootstrap\js\bootstrap.js.map" />
     <Content Remove="wwwroot\bootstrap\js\bootstrap.min.js" />
     <Content Remove="wwwroot\client2\common.js" />
-    <Content Remove="wwwroot\client2\common.js.map" />
+    <Content Remove="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js" />
     <Content Remove="wwwroot\client2\favicon.ico" />
     <Content Remove="wwwroot\client2\index.html" />
     <Content Remove="wwwroot\client2\main.js" />
@@ -137,6 +159,10 @@
     <Content Remove="wwwroot\client2\vendor.js.map" />
     <Content Remove="wwwroot\common.css" />
     <Content Remove="wwwroot\common.js" />
+    <Content Remove="wwwroot\commonSlide.css" />
+    <Content Remove="wwwroot\commonSlide.js" />
+    <Content Remove="wwwroot\highlightjs\default.min.css" />
+    <Content Remove="wwwroot\highlightjs\highlight.min.js" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
@@ -146,7 +172,80 @@
     <Content Remove="wwwroot\jquery_ui\jquery-ui.min.js" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.structure.css" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.theme.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\index.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jexcel.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jexcel.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.datatables.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.theme.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jsuites.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jsuites.js" />
     <Content Remove="wwwroot\MdCustomCSS.css" />
+    <Content Remove="wwwroot\reveal\dist\reset.css" />
+    <Content Remove="wwwroot\reveal\dist\reveal.css" />
+    <Content Remove="wwwroot\reveal\dist\reveal.esm.js" />
+    <Content Remove="wwwroot\reveal\dist\reveal.esm.js.map" />
+    <Content Remove="wwwroot\reveal\dist\reveal.js" />
+    <Content Remove="wwwroot\reveal\dist\reveal.js.map" />
+    <Content Remove="wwwroot\reveal\dist\theme\beige.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\black.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\blood.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\LICENSE" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\LICENSE" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\league.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\moon.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\night.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\serif.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\simple.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\sky.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\solarized.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\white.css" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\highlight.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\highlight.js" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\monokai.css" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\zenburn.css" />
+    <Content Remove="wwwroot\reveal\plugin\markdown\markdown.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\markdown\markdown.js" />
+    <Content Remove="wwwroot\reveal\plugin\markdown\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\katex.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\math.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\math.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\mathjax2.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\mathjax3.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\notes.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\notes.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\speaker-view.html" />
+    <Content Remove="wwwroot\reveal\plugin\search\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\search\search.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\search\search.js" />
+    <Content Remove="wwwroot\reveal\plugin\zoom\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\zoom\zoom.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\zoom\zoom.js" />
+    <Content Remove="wwwroot\tippy\popper.js" />
+    <Content Remove="wwwroot\tippy\popper.min.js.map" />
+    <Content Remove="wwwroot\tippy\tippy-bundle.iife.min.js.map" />
+    <Content Remove="wwwroot\tippy\tippy.css" />
+    <Content Remove="wwwroot\tippy\tippy.js" />
     <Content Remove="wwwroot\TocBot\styles.css" />
     <Content Remove="wwwroot\TocBot\tocbot.css" />
     <Content Remove="wwwroot\TocBot\tocbot.min.js" />
@@ -157,7 +256,6 @@
     <None Remove="Binaries\GraphWiz\binaries\cdt.dll" />
     <None Remove="Binaries\GraphWiz\binaries\cgraph.dll" />
     <None Remove="Binaries\GraphWiz\binaries\config6" />
-    <None Remove="Binaries\GraphWiz\binaries\dot.exe" />
     <None Remove="Binaries\GraphWiz\binaries\expat.dll" />
     <None Remove="Binaries\GraphWiz\binaries\gvc.dll" />
     <None Remove="Binaries\GraphWiz\binaries\gvplugin_core.dll" />
@@ -168,6 +266,7 @@
     <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
+    <None Remove="EmojiForPandoc\calendar.png" />
     <None Remove="EmojiForPandoc\construction.png" />
     <None Remove="EmojiForPandoc\key.png" />
     <None Remove="EmojiForPandoc\link.png" />
@@ -178,6 +277,8 @@
     <None Remove="MdEngine.db" />
     <None Remove="MdExplorer.db" />
     <None Remove="reference.docx" />
+    <None Remove="templates\minute.docx" />
+    <None Remove="templates\project.docx" />
   </ItemGroup>
 
 
@@ -206,9 +307,9 @@
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Content Include="Binaries\GraphWiz\binaries\LICENSE.txt">
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\LICENSE.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    </EmbeddedResource>
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\pathplan.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -221,7 +322,8 @@
     <EmbeddedResource Include="Binaries\plantuml.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="eisvogel.tex" />
+    <EmbeddedResource Include="templates\pdf\eisvogel.tex" />
+    <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
     <EmbeddedResource Include="EmojiForPandoc\key.png" />
     <EmbeddedResource Include="EmojiForPandoc\link.png" />
@@ -233,14 +335,22 @@
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="reference.docx" />
+    <EmbeddedResource Include="templates\word\minute.docx" />
+    <EmbeddedResource Include="templates\word\project.docx" />
+    <EmbeddedResource Include="templates\word\reference.docx" />
     <EmbeddedResource Include="wwwroot\assets\AliasEmoji.PNG" />
+    <EmbeddedResource Include="wwwroot\assets\cicd.png" />
+    <EmbeddedResource Include="wwwroot\assets\cicd.svg" />
     <EmbeddedResource Include="wwwroot\assets\clipboard.png" />
     <EmbeddedResource Include="wwwroot\assets\clipboard48.png" />
+    <EmbeddedResource Include="wwwroot\assets\connecting.gif" />
     <EmbeddedResource Include="wwwroot\assets\ConnectionLost.png" />
     <EmbeddedResource Include="wwwroot\assets\draw.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlab.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlabcicd.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlogo.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
     <EmbeddedResource Include="wwwroot\assets\green_right_arrow48.png" />
     <EmbeddedResource Include="wwwroot\assets\IconReady.png" />
@@ -256,11 +366,16 @@
     <EmbeddedResource Include="wwwroot\assets\move.png" />
     <EmbeddedResource Include="wwwroot\assets\Move48 (2).png" />
     <EmbeddedResource Include="wwwroot\assets\move48.png" />
+    <EmbeddedResource Include="wwwroot\assets\new-document.png" />
     <EmbeddedResource Include="wwwroot\assets\notes.png" />
     <EmbeddedResource Include="wwwroot\assets\notes48.png" />
     <EmbeddedResource Include="wwwroot\assets\plantuml.png" />
+    <EmbeddedResource Include="wwwroot\assets\Plantuml_Logo.svg" />
     <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\project.png" />
+    <EmbeddedResource Include="wwwroot\assets\projects.png" />
     <EmbeddedResource Include="wwwroot\assets\Refactoring.png" />
+    <EmbeddedResource Include="wwwroot\assets\rename.png" />
     <EmbeddedResource Include="wwwroot\assets\resize48.png" />
     <EmbeddedResource Include="wwwroot\assets\run.png" />
     <EmbeddedResource Include="wwwroot\assets\resize.png" />
@@ -312,27 +427,50 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.min.js" />
-    <EmbeddedResource Include="wwwroot\client2\common.js" />
-    <EmbeddedResource Include="wwwroot\client2\common.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\favicon.ico" />
-    <EmbeddedResource Include="wwwroot\client2\index.html" />
-    <EmbeddedResource Include="wwwroot\client2\main.js" />
+    <EmbeddedResource Include="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\favicon.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\index.html">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\main.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\main.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js" />
+    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\polyfills.js" />
+    <EmbeddedResource Include="wwwroot\client2\polyfills.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\polyfills.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js" />
+    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\runtime.js" />
+    <EmbeddedResource Include="wwwroot\client2\runtime.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\runtime.js.map" />
-    <EmbeddedResource Include="wwwroot\client2\styles.css" />
+    <EmbeddedResource Include="wwwroot\client2\styles.css">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="wwwroot\client2\styles.css.map" />
-    <EmbeddedResource Include="wwwroot\client2\vendor.js" />
+    <EmbeddedResource Include="wwwroot\client2\vendor.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="EmojiForPandoc\ok.png" />
     <EmbeddedResource Include="wwwroot\client2\vendor.js.map" />
     <EmbeddedResource Include="wwwroot\common.css" />
     <EmbeddedResource Include="wwwroot\common.js" />
+    <EmbeddedResource Include="wwwroot\commonSlide.css" />
+    <EmbeddedResource Include="wwwroot\commonSlide.js" />
+    <EmbeddedResource Include="wwwroot\highlightjs\default.min.css" />
+    <EmbeddedResource Include="wwwroot\highlightjs\highlight.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />
@@ -342,7 +480,80 @@
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.js" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.structure.css" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.theme.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\index.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jexcel.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jexcel.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.datatables.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.theme.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jsuites.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jsuites.js" />
     <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reset.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.esm.js.map" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.js" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.js.map" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\beige.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\black.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\blood.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\LICENSE" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\LICENSE" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\league.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\moon.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\night.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\serif.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\simple.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\sky.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\solarized.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\white.css" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\highlight.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\highlight.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\monokai.css" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\zenburn.css" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\markdown\markdown.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\markdown\markdown.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\markdown\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\katex.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\math.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\math.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\mathjax2.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\mathjax3.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\notes.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\notes.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\speaker-view.html" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\search\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\search\search.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\search\search.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\zoom.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\zoom.js" />
+    <EmbeddedResource Include="wwwroot\tippy\popper.js" />
+    <EmbeddedResource Include="wwwroot\tippy\popper.min.js.map" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy-bundle.iife.min.js.map" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy.css" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy.js" />
     <EmbeddedResource Include="wwwroot\TocBot\styles.css" />
     <EmbeddedResource Include="wwwroot\TocBot\tocbot.css" />
     <EmbeddedResource Include="wwwroot\TocBot\tocbot.min.js" />
@@ -352,7 +563,9 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
+    <PackageReference Include="LibGit2Sharp" Version="0.27.0-preview-0182" />
     <PackageReference Include="Markdig" Version="0.25.0" />
+    <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
   </ItemGroup>
@@ -370,7 +583,9 @@
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
     <ProjectReference Include="..\MdExplorer.DataAccess.Engine\MdExplorer.DataAccess.Engine.csproj" />
+    <ProjectReference Include="..\MdExplorer.DataAccess.Project\MdExplorer.DataAccess.Project.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations.EngineDb\MdExplorer.Migrations.EngineDb.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations.ProjectDb\MdExplorer.Migrations.ProjectDb.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
   </ItemGroup>
 
@@ -402,6 +617,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="client2\src\app\md-explorer\services\models\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
@@ -496,6 +712,12 @@
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.vi.js" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-CN.js" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Binaries\plantuml-old.jar">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 

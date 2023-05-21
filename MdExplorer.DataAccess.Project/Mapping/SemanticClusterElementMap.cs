@@ -1,5 +1,5 @@
 ﻿using FluentNHibernate.Mapping;
-using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Entities.ProjectDB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +13,7 @@ namespace MdExplorer.DataAccess.Project.Mapping
         public SemanticClusterElementMap()
         {
             Table("SemanticClusterElement");
-            Id().GeneratedBy.GuidComb();
+            Id(_ => _.Id).GeneratedBy.GuidComb();            
             Map(_ => _.Name).Length(255).Not.Nullable();
             Map(_ => _.Description).Length(int.MaxValue).Nullable();
             References(_ => _.Cluster).Column("SemanticClusterId");  

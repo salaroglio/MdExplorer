@@ -1,133 +1,75 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { FlatTreeControl } from '@angular/cdk/tree';
-import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
-import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/layout';
-import { MdFileService } from '../../services/md-file.service';
-import { Observable } from 'rxjs';
+
+import { AfterViewInit, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { Router }                                          from '@angular/router';
+import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
+import { MdFileService }      from '../../services/md-file.service';
+import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
+import { GITService } from '../../../git/services/gitservice.service';
+import { MatSidenav } from '@angular/material/sidenav';
+import { ServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { MdFile } from '../../models/md-file';
-import { IFileInfoNode } from '../../models/IFileInfoNode';
-import { Router, ActivatedRoute } from '@angular/router';
-import { SideNavDataService } from '../../services/side-nav-data.service';
-import { MatDialog } from '@angular/material/dialog';
-import { AppCurrentFolderService } from '../../../services/app-current-folder.service';
-import { MatMenuTrigger } from '@angular/material/menu';
-import { NewMarkdownComponent } from '../new-markdown/new-markdown.component';
+import { BookmarksService } from '../../services/bookmarks.service';
+
 
 
 const SMALL_WIDTH_BREAKPOINT = 720;
 
-const TREE_DATA: IFileInfoNode[] =[];
-
-/** Flat node with expandable and level information */
-interface IFlatNode {
-  expandable: boolean;
-  name: string;
-  level: number;
-  path: string;
-  relativePath: string;
-  fullPath: string;
-}
-
 @Component({
   selector: 'app-sidenav',
   templateUrl: './sidenav.component.html',
-  styleUrls: ['./sidenav.component.scss']
+  styleUrls: ['./sidenav.component.scss'],
+ 
 })
 export class SidenavComponent implements OnInit {
+ 
 
-  menuTopLeftPosition = { x: 0, y: 0 }
-  @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
-
-
-  onRightClick(event: MouseEvent, item) {
-    // preventDefault avoids to show the visualization of the right-click menu of the browser
-    event.preventDefault();
-
-    // we record the mouse position in our object
-    this.menuTopLeftPosition.x = event.clientX;
-    this.menuTopLeftPosition.y = event.clientY;
-
-    // we open the menu
-    // we pass to the menu the information about our object
-    this.matMenuTrigger.menuData = { item: item }
-
-    // we open the menu
-    this.matMenuTrigger.openMenu();
-
-  }
-
-  private _transformer = (node: IFileInfoNode, level: number) => {
-    return {
-      expandable: !!node.childrens && node.childrens.length > 0,
-      name: node.name,
-      level: level,
-      path: node.path,
-      relativePath: node.path,
-      fullPath:node.fullPath,
-
-    };
-  }
-  treeControl = new FlatTreeControl<IFlatNode>(
-    node => node.level, node => node.expandable);
-
-  treeFlattener = new MatTreeFlattener(
-    this._transformer, node => node.level, node => node.expandable, node => node.childrens);
-
-  dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-
-  hasChild = (_: number, node: IFlatNode) => node.expandable;
-
-  ///////////////////////////////
-  mdFiles: Observable<MdFile[]>;
-
-  public isScreenSmall: boolean;
-  private activeNode: any;
-
-  private hooked: boolean = false;
-
+  public showText:boolean = false;
   public sideNavWidth: string = "240px";
+  public isScreenSmall: boolean;
+  private hooked: boolean = false;
   public classForBorderDiv: string = "border-div";
   public titleProject: string;
+  public currentBranch: string = null;
+  public bookmarks: MdFile[]
+  @ViewChild('sidenav') sidenav: MatSidenav;
 
-  constructor(private breakpointObserver: BreakpointObserver,
-    private mdFileService: MdFileService,
-    public dialog: MatDialog,
+  constructor(
+    private breakpointObserver: BreakpointObserver,
+    private mdFileService: MdFileService,    
     private router: Router,
-    private sideNavDataService: SideNavDataService,
-    private route: ActivatedRoute,
-    private currentFolder: AppCurrentFolderService
+    private currentFolder: AppCurrentMetadataService,
+    private bookmarksService:BookmarksService,
+    private gitService: GITService,    
   ) {
-    this.dataSource.data = TREE_DATA;
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
-        this.sideNavWidth = event.clientX + "px";        
-      }  
+        this.sideNavWidth = event.clientX + "px";
+      }
     });
     document.addEventListener("mouseup", (event) => {
       if (this.hooked) {
         this.stopResizeWidth();
       }
     });
+    
     this.currentFolder.folderName.subscribe((data: any) => {      
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
-
-      const myClonedArray = [];
-      _.forEach(val => myClonedArray.push(Object.assign({}, val)));
-
-      while (myClonedArray.length > 1) {
-        var toExpand = myClonedArray.pop();
-        var test = this.treeControl.dataNodes.find(_=>_.path == toExpand.path) ;
-        
-        this.treeControl.expand(test);
-      }      
-      if (myClonedArray.length >0) {
-        var toExpand = myClonedArray.pop();
-        this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-      }      
+    this.gitService.getCurrentBranch().subscribe(_ => {
+      this.currentBranch = _.name;
     });
+
+    this.currentFolder.showSidenav.subscribe(_ => {      
+      if (this.sidenav != undefined ) {
+        if (_) {
+          this.sidenav.open();
+        } else {
+          this.sidenav.close();
+        }
+      }
+    });
+    
   }
 
   resizeWidth(): void {    
@@ -140,12 +82,11 @@ export class SidenavComponent implements OnInit {
     this.classForBorderDiv = "border-div";
   }
 
-  openProject(): void {    
+  openProject(): void {
+    var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html',0,false);
+    mdFile.relativePath = '/../../welcome.html';
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
     this.router.navigate(['/projects']);
-  }
-
-  deferredOpenProject(data, objectThis): void {
-    
   }
 
 
@@ -155,32 +96,21 @@ export class SidenavComponent implements OnInit {
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches
       });
-
-    this.mdFiles = this.mdFileService.mdFiles;
-    this.mdFileService.mdFiles.subscribe(data => {      
-      this.dataSource.data = data;      
-    });    
-    this.mdFileService.loadAll(this.deferredOpenProject,this); 
-    
+    this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
   }
 
-  public getNode(node: MdFile) {
-    this.mdFileService.setSelectedMdFileFromSideNav(node);
-    this.activeNode = node;
+  openDocument(mdFile: MdFile) {
+    this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
   }
 
-  // Manu management
-
-  createMdOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(NewMarkdownComponent, {
-      width: '300px',
-      data:node,
-    });    
+  toggleBookmark(mdFile: MdFile) {
+    this.bookmarksService.toggleBookmark(mdFile);
   }
 
+
+  
 
 }
+
+

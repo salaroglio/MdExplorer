@@ -1,7 +1,7 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
-using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Entities.UserDB;
 using NHibernate;
 using PlantUml.Net;
 using System;
@@ -64,6 +64,7 @@ namespace MdExplorer.Features.Commands
                 LocalGraphvizDotPath = localGraphvizDotPath,
                 RenderingMode = RenderingMode.Local,
                 LocalPlantUmlPath = plantumlSetting,//@"E:\Sviluppo\MdExplorer\InstallBinaries\plantuml.jar"
+                
             });
             return renderer;
         }
