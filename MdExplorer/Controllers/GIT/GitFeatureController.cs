@@ -62,5 +62,43 @@ namespace MdExplorer.Service.Controllers.GIT
                 errorMessage = errorMessage
             });
         }
+
+        [HttpPost("commit")]
+        public IActionResult Commit(PullInfo pullInfo)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            (bool isConnectionMissing,
+               bool isAuthenticationMissing,
+               bool thereAreConflicts,
+               string errorMessage) = _gitService.Commit(pullInfo);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(new
+            {
+                isConnectionMissing = isConnectionMissing,
+                isAuthenticationMissing = isAuthenticationMissing,
+                thereAreConflicts = thereAreConflicts,
+                errorMessage = errorMessage
+            });
+        }
+
+        [HttpPost("push")]
+        public IActionResult Push(PullInfo pullInfo)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            (bool isConnectionMissing,
+               bool isAuthenticationMissing,
+               bool thereAreConflicts,
+               string errorMessage) = _gitService.Push(pullInfo);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(new
+            {
+                isConnectionMissing = isConnectionMissing,
+                isAuthenticationMissing = isAuthenticationMissing,
+                thereAreConflicts = thereAreConflicts,
+                errorMessage = errorMessage
+            });
+        }
     }
 }

@@ -90,4 +90,14 @@ export class GITService {
     return this.http.post<ResponsePull>(url, request);
   }
 
+  commit(request: PullInfo): Observable<ResponsePull> {
+    const url = '../api/gitfeatures/commit';
+    return this.http.post<ResponsePull>(url, request);
+  }
+
+  push(request: PullInfo): Observable<ResponsePull> {
+    const url = '../api/gitfeatures/push';
+    return this.http.post<ResponsePull>(url, request);
+  }
+
 }

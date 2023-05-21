@@ -21,5 +21,7 @@ namespace MdExplorer.Features.GIT
         bool CloneRepository(CloneInfo request);
         (bool,bool,bool, string) Pull(PullInfo pullInfo);
         (bool, bool, bool, string) CommitAndPush(PullInfo commitAndPushInfo);
+        (bool, bool, bool, string) Commit(PullInfo commitAndPushInfo);
+        (bool, bool, bool, string) Push(PullInfo commitAndPushInfo);
     }
 }
