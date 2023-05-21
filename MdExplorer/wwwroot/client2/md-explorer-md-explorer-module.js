@@ -1376,7 +1376,7 @@ class ToolbarComponent {
             this.matMenuTrigger.closeMenu();
         });
     }
-    Push() {
+    push() {
         let info = new _commons_waitingdialog_waiting_dialog_models_WaitingDialogInfo__WEBPACK_IMPORTED_MODULE_5__["WaitingDialogInfo"]();
         info.message = "Please wait... commit and pushing branch";
         this.waitingDialogService.showMessageBox(info);
