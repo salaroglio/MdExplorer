@@ -47,6 +47,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using System.Windows.Forms;
 using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
@@ -121,9 +122,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult OpenFileInApplication([FromBody] OpenFileInApplicationcs data)
         {
-            var fullpath = data.FullPath.Replace('/', Path.DirectorySeparatorChar);
+            var fullpath = HttpUtility.UrlDecode(data.FullPath).Replace('/', Path.DirectorySeparatorChar);
+            fullpath = fullpath.Replace("\\.\\", "\\");
 
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{data.FullPath.Replace("%20", " ")}\"")
+            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{fullpath}\"")
             {
                 CreateNoWindow = false
             };
@@ -546,6 +548,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             SaveRealationships(list);
             _engineDB.Commit();
+            
+            GC.Collect();
             var nodeempty = new FileInfoNode
             {
                 Name = "root",
@@ -801,6 +805,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private void SaveRealationships(IList<IFileInfoNode> list, Guid? parentId = null)
         {
             // clean all data
+            var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var relDal = _engineDB.GetDal<MarkdownFile>();
 
             foreach (var item in list)
             {
@@ -810,18 +816,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     Path = item.FullPath,
                     FileType = "File"
                 };
-
-                var relDal = _engineDB.GetDal<MarkdownFile>();
                 if (item.Childrens.Count > 0)
                 {
                     markdownFile.FileType = "Folder";
                     SaveRealationships(item.Childrens, markdownFile.Id);
                 }
                 relDal.Save(markdownFile);
-
-                var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
                 SaveLinksFromMarkdown(item, markdownFile, linkInsideMarkdownDal);
             }
+            
         }
 
         private void SaveLinksFromMarkdown(IFileInfoNode item, 
