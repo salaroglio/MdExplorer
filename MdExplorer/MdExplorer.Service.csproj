@@ -59,7 +59,7 @@
     <Content Remove="wwwroot\assets\clipboard48.png" />
     <Content Remove="wwwroot\assets\connecting.gif" />
     <Content Remove="wwwroot\assets\ConnectionLost.png" />
-    <Content Remove="wwwroot\assets\draw.png" />
+    <Content Remove="wwwroot\assets\drawOld.png" />
     <Content Remove="wwwroot\assets\eyes.png" />
     <Content Remove="wwwroot\assets\eyes48.png" />
     <Content Remove="wwwroot\assets\gitlab.png" />
@@ -345,7 +345,7 @@
     <EmbeddedResource Include="wwwroot\assets\clipboard48.png" />
     <EmbeddedResource Include="wwwroot\assets\connecting.gif" />
     <EmbeddedResource Include="wwwroot\assets\ConnectionLost.png" />
-    <EmbeddedResource Include="wwwroot\assets\draw.png" />
+    <EmbeddedResource Include="wwwroot\assets\drawOld.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
     <EmbeddedResource Include="wwwroot\assets\gitlab.png" />
