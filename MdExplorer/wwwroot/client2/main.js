@@ -187,9 +187,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ConnectionLostComponent", function() { return ConnectionLostComponent; });
 /* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common */ "ofXK");
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../git/services/gitservice.service */ "N73s");
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common */ "ofXK");
+/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+
 
 
 
@@ -220,10 +222,11 @@ function ConnectionLostComponent_button_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
 } }
 class ConnectionLostComponent {
-    constructor(data, 
+    constructor(data, gitservice, 
     //private monitorMDService: MonitorMDService,    
     dialogRef) {
         this.data = data;
+        this.gitservice = gitservice;
         this.dialogRef = dialogRef;
         //private _this: any;
         this._HideImg = true;
@@ -238,10 +241,11 @@ class ConnectionLostComponent {
     }
     refresh() {
         //this.monitorMDService.startConnection();
+        this.gitservice.getCurrentBranch();
         this.dialogRef.close();
     }
 }
-ConnectionLostComponent.ɵfac = function ConnectionLostComponent_Factory(t) { return new (t || ConnectionLostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MAT_DIALOG_DATA"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogRef"])); };
+ConnectionLostComponent.ɵfac = function ConnectionLostComponent_Factory(t) { return new (t || ConnectionLostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MAT_DIALOG_DATA"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_2__["GITService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogRef"])); };
 ConnectionLostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: ConnectionLostComponent, selectors: [["app-connection-lost"]], decls: 5, vars: 3, consts: [[4, "ngIf"], ["mat-button", "", "color", "primary", 3, "click", 4, "ngIf"], ["src", "/assets/ConnectionLost.png", 2, "left", "0px", "right", "0px", "margin-left", "auto", "width", "500px", "margin-right", "auto"], ["mat-button", "", "color", "primary", 3, "click"]], template: function ConnectionLostComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-dialog-content");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](1, ConnectionLostComponent_div_1_Template, 2, 0, "div", 0);
@@ -257,7 +261,7 @@ ConnectionLostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵ
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.consoleIsClosed);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.consoleIsClosed);
-    } }, directives: [_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogContent"], _angular_common__WEBPACK_IMPORTED_MODULE_2__["NgIf"], _angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogActions"], _angular_material_button__WEBPACK_IMPORTED_MODULE_3__["MatButton"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_4__["MatIcon"]], styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJjb25uZWN0aW9uLWxvc3QuY29tcG9uZW50LnNjc3MifQ== */"] });
+    } }, directives: [_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogContent"], _angular_common__WEBPACK_IMPORTED_MODULE_3__["NgIf"], _angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogActions"], _angular_material_button__WEBPACK_IMPORTED_MODULE_4__["MatButton"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_5__["MatIcon"]], styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJjb25uZWN0aW9uLWxvc3QuY29tcG9uZW50LnNjc3MifQ== */"] });
 
 
 /***/ }),
@@ -322,6 +326,22 @@ class PlantumlWorkingProvider {
 }
 PlantumlWorkingProvider.ɵfac = function PlantumlWorkingProvider_Factory(t) { return new (t || PlantumlWorkingProvider)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__["MatDialog"])); };
 PlantumlWorkingProvider.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: PlantumlWorkingProvider, factory: PlantumlWorkingProvider.ɵfac });
+
+
+/***/ }),
+
+/***/ "MVql":
+/*!**********************************************!*\
+  !*** ./src/app/git/models/gitlab-setting.ts ***!
+  \**********************************************/
+/*! exports provided: GitlabSetting */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GitlabSetting", function() { return GitlabSetting; });
+class GitlabSetting {
+}
 
 
 /***/ }),
@@ -428,6 +448,101 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "WaitingDialogInfo", function() { return WaitingDialogInfo; });
 class WaitingDialogInfo {
 }
+
+
+/***/ }),
+
+/***/ "N73s":
+/*!****************************************************!*\
+  !*** ./src/app/git/services/gitservice.service.ts ***!
+  \****************************************************/
+/*! exports provided: GITService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GITService", function() { return GITService; });
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../models/gitlab-setting */ "MVql");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+
+
+
+
+class GITService {
+    constructor(http) {
+        this.http = http;
+        this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
+            id: "", name: "",
+            somethingIsChangedInTheBranch: true,
+            howManyFilesAreChanged: 0,
+            fullPath: ""
+        });
+        this.commmitsToPull$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
+            howManyFilesAreToPull: 0,
+            somethingIsToPull: false,
+            connectionIsActive: false,
+        });
+    }
+    clone(request) {
+        const url = '../api/gitfeatures/cloneRepository';
+        return this.http.post(url, request);
+    }
+    getCurrentBranch() {
+        const url = '../api/gitservice/branches/feat/getcurrentbranch';
+        let data$ = this.http.get(url);
+        data$.subscribe(_ => {
+            this.currentBranch$.next(_);
+        });
+        const url2 = '../api/gitservice/branches/feat/getdatatopull';
+        let data2$ = this.http.get(url2);
+        data2$.subscribe(_ => {
+            this.commmitsToPull$.next(_);
+        });
+        return data$;
+    }
+    getBranchList() {
+        const url = '../api/gitservice/branches';
+        return this.http.get(url);
+    }
+    checkoutSelectedBranch(selected) {
+        const url = '../api/gitservice/branches/feat/checkoutBranch';
+        return this.http.post(url, selected);
+    }
+    getTagList() {
+        const url = '../api/gitservice/tags';
+        return this.http.get(url);
+    }
+    storeGitlabSettings(user, password, gitlabLink) {
+        const url = '../api/gitservice/gitlabsettings';
+        let setting = new _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_1__["GitlabSetting"]();
+        return this.http.post(url, setting);
+    }
+    getGitlabSettings() {
+        const url = '../api/gitservice/gitlabsettings';
+        return this.http.get(url);
+    }
+    pull(request) {
+        const url = '../api/gitfeatures/pull';
+        return this.http.post(url, request);
+        //return this.http.get<any>(url);
+    }
+    commitAndPush(request) {
+        const url = '../api/gitfeatures/commitandpush';
+        return this.http.post(url, request);
+    }
+    commit(request) {
+        const url = '../api/gitfeatures/commit';
+        return this.http.post(url, request);
+    }
+    push(request) {
+        const url = '../api/gitfeatures/push';
+        return this.http.post(url, request);
+    }
+}
+GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };
+GITService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: GITService, factory: GITService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),

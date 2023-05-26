@@ -343,8 +343,8 @@ namespace MdExplorer.Controllers
             var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""";
             var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
 
-            var button1 = AddButtonOnTopPage("toggleMdCanvas()", "/assets/draw.png");
-            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png");
+            var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
+            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png","toc");
 
             var resultToParse = $@"
                     <div class=""container-fluid"">
@@ -432,7 +432,7 @@ namespace MdExplorer.Controllers
             body.InnerXml += resultToParse;
         }
 
-        private string AddButtonOnTopPage(string functionJs, string image)
+        private string AddButtonOnTopPage(string functionJs, string image, string Id)
         {
             var doc1 = new XmlDocument();
             var body = doc1.CreateElement("div");
@@ -447,8 +447,11 @@ namespace MdExplorer.Controllers
             var imgEl = doc1.CreateElement("img");
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
+            var id = doc1.CreateAttribute("id");
             srcImg.Value = image;
+            id.Value = Id;
             imgEl.Attributes.Append(srcImg);
+            imgEl.Attributes.Append(id);
             body.AppendChild(a);
             return body.OuterXml;
         }
