@@ -307,16 +307,6 @@ function resizeImage(currentDiv) {
 }
 
 
-// test di caricamento tooltip
-$(function () {
-    
-    //tippy('[data-tippy-content]');
-    //var test = tippy('#myButton', {
-    //    content: 'My tooltip!',
-    //});
-    //var test1 = test;
-});
-
 
 // gestione del floppy_disk e salvataggio
 function activateSaveCopy(el, path) {
@@ -634,6 +624,7 @@ function toggleTOC(documentPath) {
 // inizializzazione, al caricamnto della pagina,
 // del canvas, tela per la matitina, fuori dal campo visivo dell'utente
 $(function () {
+    console.log("Create canvas");
     if (window.toggleCanvas == 'undefined') {
         window.toggleCanvas = false;
     }
@@ -658,11 +649,11 @@ $(function () {
     resize();
 
     // last known position
-
+    console.log()
     window.shiftY = 0;
     window.shiftX = -40;
     window.pos = { x: 0, y: 0 };
-    window.scrollPos = { x: window.shitX, y: window.shiftY };
+    window.scrollPos = { x: window.shiftX, y: window.shiftY };
 
     window.addEventListener('resize', resize);
     document.addEventListener('mousemove', draw);
@@ -672,9 +663,10 @@ $(function () {
 });
 
 // gestione della matitina per evidenziare la pagina
-function toggleMdCanvas() {
-
+function toggleMdCanvas(me) {
+    debugger;
     if (window.toggleCanvas) {
+        me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
         $(window.canvas).animate({
             left: 40,
@@ -682,6 +674,7 @@ function toggleMdCanvas() {
         });
 
     } else {
+        me.children[0].src = "/assets/drawStatic.png";
         $(window.canvas).animate({
             left: window.innerWidth,
         }, function () {
@@ -704,26 +697,30 @@ function setPosition(e) {
 
 // resize canvas
 function resize() {
-    ctx.canvas.width = window.innerWidth;
-    ctx.canvas.height = document.documentElement.scrollHeight;
+    window.ctx.canvas.width = window.innerWidth;
+    window.ctx.canvas.height = document.documentElement.scrollHeight;
 }
+
 
 function draw(e) {
     if (!window.toggleCanvas) {
+
+        
         // mouse left button must be pressed
         if (e.buttons !== 1) return;
 
-        ctx.beginPath(); // begin
+        console.log("draw");
+        window.ctx.beginPath(); // begin
 
-        ctx.lineWidth = 5;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#2bc02d';
+        window.ctx.lineWidth = 5;
+        window.ctx.lineCap = 'round';
+        window.ctx.strokeStyle = '#2bc02d';
 
-        ctx.moveTo(pos.x, pos.y); // from
+        window.ctx.moveTo(pos.x, pos.y); // from
         setPosition(e);
-        ctx.lineTo(pos.x, pos.y); // to
+        window.ctx.lineTo(pos.x, pos.y); // to
 
-        ctx.stroke(); // draw it!
+        window.ctx.stroke(); // draw it!
     }
 
 }

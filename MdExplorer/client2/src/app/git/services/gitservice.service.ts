@@ -43,7 +43,7 @@ export class GITService {
     data$.subscribe(_ => {      
       this.currentBranch$.next(_);
     });
-    debugger;
+    
     const url2 = '../api/gitservice/branches/feat/getdatatopull';
     let data2$ = this.http.get<DataToPull>(url2);
     data2$.subscribe(_ => {
