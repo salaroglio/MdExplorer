@@ -354,10 +354,7 @@ namespace MdExplorer.Features.GIT
                     isConnectionMissing = true;
                     return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, ex.Message);
                 }
-
             }
-
-
         }
 
         public class CommitAndPushResponse
