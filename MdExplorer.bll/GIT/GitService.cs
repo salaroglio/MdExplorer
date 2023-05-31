@@ -17,16 +17,19 @@ using MdExplorer.Abstractions.DB;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Ubiety.Dns.Core;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Features.GIT
 {
     public class GitService : IGitService
     {
         private readonly IUserSettingsDB _userSettingDb;
+        private readonly ILogger<GitService> _logger;
 
-        public GitService(IUserSettingsDB userSettingDb)
+        public GitService(IUserSettingsDB userSettingDb, ILogger<GitService> logger)
         {
             _userSettingDb = userSettingDb;
+            _logger = logger;
         }
 
         public string GetCurrentUser(string projectPath)
@@ -265,7 +268,7 @@ namespace MdExplorer.Features.GIT
             var isConnectionMissing = false;
             var isAuthMissingIntoDB = false;
             var thereAreConflicts = false;
-
+            _logger.Log(Microsoft.Extensions.Logging.LogLevel.Information, "Pulling docs");
 
             // Check if we have authentication stored
             //_userSettingDb.BeginTransaction();
@@ -274,10 +277,12 @@ namespace MdExplorer.Features.GIT
                 .Where(_ => _.LocalPath == pullinfo.ProjectPath).FirstOrDefault();
             if (currentGitlab == null)
             {
+                _logger.Log(Microsoft.Extensions.Logging.LogLevel.Information, "Missing GitlabSetting");
                 isAuthMissingIntoDB = true;
                 if (pullinfo.UserName == null)
                 {
-                    return (isConnectionMissing, true, thereAreConflicts, "Missing credentials");
+                    _logger.Log(Microsoft.Extensions.Logging.LogLevel.Information, "Missing credentials");
+                    return (isConnectionMissing, true, thereAreConflicts, "Missing credentials");                    
                 }
                 else
                 {
@@ -297,6 +302,8 @@ namespace MdExplorer.Features.GIT
 
                 var currentEmail = GetCurrentUserEmail(pullinfo.ProjectPath);
                 var currentStatus = repo.RetrieveStatus();
+
+                #region discard changes
                 //try
                 //{
                 //    foreach (var item in repo.Diff.Compare<TreeChanges>())
@@ -314,7 +321,7 @@ namespace MdExplorer.Features.GIT
                 //    thereAreConflicts = true;
                 //    return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, ex.Message);
                 //}
-
+                #endregion
 
                 PullOptions pullOptions = new PullOptions();
                 pullOptions.FetchOptions = new FetchOptions();
@@ -332,6 +339,7 @@ namespace MdExplorer.Features.GIT
                     }
                     if (isAuthMissingIntoDB)
                     {
+                        _logger.Log(Microsoft.Extensions.Logging.LogLevel.Information, "Storing credentials");
                         _userSettingDb.BeginTransaction();
                         var gitlabSettingDal = _userSettingDb.GetDal<GitlabSetting>();
                         gitlabSettingDal.Save(currentGitlab);
@@ -342,6 +350,7 @@ namespace MdExplorer.Features.GIT
                 catch (Exception ex)
                 {
                     // Missing conneciton
+                    _logger.LogError(ex.Message);
                     isConnectionMissing = true;
                     return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, ex.Message);
                 }
