@@ -21,58 +21,52 @@
          (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
     </span>
     <span class="flexExpand"></span>
-    <button *ngIf="!connectionIsActive" mat-icon-button   matTooltip="missing connection to remote" (click)="checkConnection()">
-      <mat-icon style="color:yellow">warning</mat-icon> 
+    <button *ngIf="!connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
+      <mat-icon style="color:yellow">warning</mat-icon>
     </button>
-    <span *ngIf="isCheckingConnection"><img src="/assets/connecting.gif"/></span>
-    <span *ngIf="currentBranch!=null">
-      <div id="toCommit" *ngIf="somethingIsChangedInTheBranch"
-           matBadge="{{howManyFilesAreToCommit}}"
-           matBadgePosition="before"
-           matBadgeColor="accent"
-           matBadgeSize="small">
-      </div>
-      <div id="toPull" *ngIf="somethingIsToPull"
-           matBadgePosition="before"
-           matBadge="{{howManyFilesAreToPull}}"
-           matBadgePosition="before"
-           matBadgeSize="small">
-      </div>
+    <span *ngIf="isCheckingConnection"><img src="/assets/connecting.gif" /></span>
 
+    <span style="display:flex; flex-direction:row" *ngIf="currentBranch!=null">
+      <div style="display:flex; flex-direction:column">
+        <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
+        <button class="smallMessagesToPull" (click)="pull()" *ngIf="somethingIsToPull">{{howManyFilesAreToPull}} to pull</button>
+      </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />
       </button>
-      <mat-menu #tagsAndBranches="matMenu">
-        <div>
-          <div (click)="pull()" class="container" color="warn"
-               mat-menu-item (click)="$event.stopPropagation()">
-            <span>Pull</span><span class="flexExpand"></span>
-            <button mat-icon-button>
-              <mat-icon style="text-align:right"
-                        color="warn">arrow_downward</mat-icon>
-            </button>
-          </div>
-          <div (click)="commit()"
-               class="container" color="warn"
-               mat-menu-item (click)="$event.stopPropagation()">
-            <span>Commit</span><span class="flexExpand"></span>
-            <button mat-icon-button>
-              <mat-icon style="text-align:right"
-                        color="warn">arrow_upward</mat-icon>
-            </button>
-          </div>
-          <div (click)="push()"
-               class="container" color="warn"
-               mat-menu-item (click)="$event.stopPropagation()">
-            <span>Push</span><span class="flexExpand"></span>
-            <button mat-icon-button>
-              <mat-icon style="text-align:right"
-                        color="warn">arrow_upward</mat-icon>
-            </button>
-          </div>
-        </div>
-      </mat-menu>
     </span>
   </mat-toolbar-row>
 </mat-toolbar>
+
+
+<mat-menu #tagsAndBranches="matMenu">
+  <div>
+    <div (click)="pull()" class="container" color="warn"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Pull</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right"
+                  color="warn">arrow_downward</mat-icon>
+      </button>
+    </div>
+    <div (click)="commit()"
+         class="container" color="warn"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Commit</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right"
+                  color="warn">arrow_upward</mat-icon>
+      </button>
+    </div>
+    <div (click)="push()"
+         class="container" color="warn"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Push</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right"
+                  color="warn">arrow_upward</mat-icon>
+      </button>
+    </div>
+  </div>
+</mat-menu>

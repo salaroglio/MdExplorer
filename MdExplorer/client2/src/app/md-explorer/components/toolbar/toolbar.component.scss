@@ -29,9 +29,9 @@ $iconWidth: after 56px;
   }
 }
 
-.container{
-    display:flex;
-    flex-direction:row;
+.container {
+  display: flex;
+  flex-direction: row;
 }
 
 .flexExpand {
@@ -48,8 +48,24 @@ $iconWidth: after 56px;
   }
 }
 
-#toPull span{
-    background-color:white;
-    color:black;
-    top:30px;
+#toPull span {
+  background-color: white;
+  color: black;
+  top: 30px;
+}
+
+.smallMessagesToCommit {
+  cursor: pointer;
+  font-size: 12px;
+  height: 20px;
+  background-color: deeppink;
+  color: white;
+}
+
+.smallMessagesToPull {
+  cursor: pointer;  
+  font-size: 12px;
+  height: 20px;  
+  background-color: white;
+  color: black;
 }
