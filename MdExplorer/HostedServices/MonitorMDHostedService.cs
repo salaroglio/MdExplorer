@@ -155,6 +155,7 @@ namespace MdExplorer.Service.HostedServices
                                         || e.FullPath.ToLower().Contains($".docx")
                                         || e.FullPath.ToLower().Contains($".xlsx")
                                         || e.FullPath.ToLower().Contains($".xlsb")
+                                        || e.FullPath.ToLower().Contains($".bmpr")
                                         || e.FullPath.ToLower().Contains($".tmp");
             var isWrongGitFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD")
                                         || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG")
