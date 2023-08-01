@@ -159,8 +159,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             
 
-            _refactoringManager.SetRefactoringInvolvedFilesActionsForMoveFile(
-                fromRelativePathFileName, 
+            _refactoringManager.SetRefactoringInvolvedLinksActionsForMoveFile(
+                //fromRelativePathFileName, 
                 toRelativePathFileName,
                 projectBasePath, //requestMoveMdFile.MdFile.FullPath, 
                 refSourceAct);

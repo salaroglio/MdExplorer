@@ -87,8 +87,7 @@ namespace MdExplorer.Features.Refactoring
             return refSourceAct;
         }
 
-        public void SetRefactoringInvolvedFilesActionsForMoveFile(
-            string fromSourceFileName,
+        public void SetRefactoringInvolvedLinksActionsForMoveFile(
             string toDestinationFileName,
             string projectBasePath,
             RefactoringSourceAction refSourceAct
@@ -97,7 +96,7 @@ namespace MdExplorer.Features.Refactoring
             toDestinationFileName = refSourceAct.NewFullPath.Replace(projectBasePath, string.Empty)
                 .Substring(1);
 
-            SetRefactoringInvolvedFilesActionsForMove1File(
+            SetRefactoringInvolvedLinksActionsForMoveFileInExternalFiles(
                 //fromSourceFileName,
                 toDestinationFileName,
                 refSourceAct.OldFullPath,
@@ -132,7 +131,7 @@ namespace MdExplorer.Features.Refactoring
 
         }
 
-        public void SetRefactoringInvolvedFilesActionsForMove1File(
+        public void SetRefactoringInvolvedLinksActionsForMoveFileInExternalFiles(
             string toFileName,
             string oldFullPath,
             RefactoringSourceAction refSourceAct
