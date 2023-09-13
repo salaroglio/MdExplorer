@@ -13,7 +13,7 @@ using System.Xml;
 
 namespace MdExplorer.Features.Commands
 {
-    public class MDShowMD : ICommand
+    public class MDShowMD : CommandBase,ICommand
     {
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 10;

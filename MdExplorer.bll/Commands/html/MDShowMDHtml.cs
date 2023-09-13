@@ -1,4 +1,5 @@
-﻿using MdExplorer.Abstractions.Models;
+﻿using ExCSS;
+using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
@@ -35,8 +36,11 @@ namespace MdExplorer.Features.Commands.html
 
             var matches = GetMatches(markdown);
 
+            var matchCounter = 0;
+            var currentIncrement = 0;
             foreach (Match item in matches)
             {
+                             
                 var fileName = item.Groups[1].Value;
                 if (item.Groups[1].Value.StartsWith("../") || item.Groups[1].Value.StartsWith("./"))
                 {
@@ -155,7 +159,10 @@ namespace MdExplorer.Features.Commands.html
 
                         var stringToReplace = nodeDiv.OuterXml;
                         var allElementToReplace = item.Groups[0].Value;
-                        markdown = tagStyle + markdown.Replace(allElementToReplace, stringToReplace);
+
+                        (markdown, currentIncrement) = ManageReplaceOnMD(markdown, currentIncrement, item, stringToReplace);
+
+                        markdown = tagStyle + markdown; //.Replace(allElementToReplace, stringToReplace);
                     }
                 }
 

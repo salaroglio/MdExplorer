@@ -49,7 +49,7 @@ namespace MdExplorer.Service.Controllers
                 postData.RelativePathFile.Replace('/', Path.DirectorySeparatorChar)
                 .Replace("%20"," "); // GetRelativePathFileSystem("mdexplorer2");
             // manage recursion level for composition document
-            var recursionLevel = string.IsNullOrEmpty(Request.Query["recursionLevel"]) ? 0 : Convert.ToInt32(Request.Query["recursionLevel"]);
+            var recursionLevel = postData.Recursionlevel; //  string.IsNullOrEmpty(Request.Query["recursionLevel"]) ? 0 : Convert.ToInt32(Request.Query["recursionLevel"]);
 
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
 
