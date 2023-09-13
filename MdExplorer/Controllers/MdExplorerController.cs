@@ -347,6 +347,14 @@ namespace MdExplorer.Controllers
             var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png","toc");
 
             var resultToParse = $@"
+                    <div class=""edith1-popup-overlay"">
+                        <div class=""popup-content"">
+                            <h4 >Inline Editor</h4>
+                           <textarea rows=""10"" class=""edith1textarea "" id=""editH1"">if you see this, something wrong happened</textarea>
+                            <button class=""close"">Close</button>    
+                            <button class=""save"" onclick=""saveInlineData()"">save</button>  
+                        </div>
+                    </div>
                     <div class=""container-fluid"">
                         <div class=""row"">                            
                             <div id=""page"" {classForMain}>
@@ -371,6 +379,7 @@ namespace MdExplorer.Controllers
                             </nav>
                         </div>
                     </div>
+                    
                     
                     ";
             XmlDocument doc1 = new XmlDocument();
@@ -445,6 +454,7 @@ namespace MdExplorer.Controllers
             a.Attributes.Append(att2);
             aAtt.Value = functionJs;
             var imgEl = doc1.CreateElement("img");
+            //imgEl.SetAttribute("style", "z-index:50;");
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
             var id = doc1.CreateAttribute("id");

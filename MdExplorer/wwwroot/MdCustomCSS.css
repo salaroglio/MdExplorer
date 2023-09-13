@@ -63,10 +63,10 @@ img.overrideImgFluid {
 }
 /*----------------------*/
 
-    .resizable img {
-        width: 100%;
-        height: 100%;
-    }
+.resizable img {
+    width: 100%;
+    height: 100%;
+}
 
 .defaultImg {
     width: 300px;
@@ -150,6 +150,7 @@ img.overrideImgFluid {
     border-width: 1px;
     border-color: white;
 }
+
 .tippy-tooltip.processInfo-theme {
     background-color: white;
     color: black;
@@ -174,6 +175,7 @@ img.overrideImgFluid {
     border-width: 1px;
     border-color: red;
 }
+
 .tippy-tooltip.priorityAnnullato-theme {
     background-color: black;
     color: red;
@@ -182,6 +184,7 @@ img.overrideImgFluid {
     border-width: 1px;
     border-color: red;
 }
+
 .tippy-tooltip.priorityFermata-theme {
     background-color: red;
     color: white;
@@ -189,6 +192,7 @@ img.overrideImgFluid {
     border-width: 1px;
     border-color: black;
 }
+
 .tippy-tooltip.priorityDaCapireUrgentemente-theme {
     background-color: white;
     color: red;
@@ -224,3 +228,73 @@ img.overrideImgFluid {
 
 
 
+/*EditH1*/
+.edith1-popup-overlay {
+    /*Hides pop-up when there is no "active" class*/
+    z-index:100;    
+    display:none;
+    visibility:hidden;
+    position: fixed;
+    background: #ffffff;
+    border: 3px solid #666666;
+    width: 100%;    
+    
+}
+
+.edith1-popup-overlay.active {
+        /*displays pop-up when "active" class is present*/
+        display: inline;
+        visibility: visible;
+        height:90%;
+        /*text-align: center;*/
+ }
+.edith1textarea{
+    width:100%;
+    height:100%;
+}
+
+.popup-content {
+    /*Hides pop-up content when there is no "active" class */
+    visibility: hidden;
+    display: none;
+}
+
+    .popup-content.active {
+        /*Shows pop-up content when "active" class is present */
+        visibility: visible;
+        display: inline;
+    }
+
+button {
+    display: inline-block;
+    vertical-align: middle;
+    border-radius: 30px;
+    margin: .20rem;
+    font-size: 1rem;
+    color: #666666;
+    background: #ffffff;
+    border: 1px solid #666666;
+}
+
+button:hover {
+    border: 1px solid #666666;
+    background: #666666;
+    color: #ffffff;
+}
+
+.hidecanvas{
+    visibility:hidden;
+}
+
+.hidetoc {
+    visibility: hidden;
+}
+
+.red{
+    background-color:palevioletred;
+    color:white;
+}
+
+.blue{
+    background-color:deepskyblue;
+}

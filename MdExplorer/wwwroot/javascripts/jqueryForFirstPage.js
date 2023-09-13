@@ -1,4 +1,77 @@
-﻿
+﻿// EDITOR H1
+
+
+function editH1(index) {        
+    var test$ = $('div[md-itemmatchindex=' + index + ']'); 
+    $(".edith1-popup-overlay, .popup-content").addClass("active");    
+    var textArea$ = $('#editH1');    
+    $('#editH1').val(test$[0].innerText);
+    var canvas$ = $('#canvas');
+    var toc$ = $('#toc');
+    canvas$.addClass("hidecanvas");
+    toc$.addClass("hidetoc");   
+    $('#editH1').highlightWithinTextarea('update');
+    if ($('#TOC').is(":hidden")) {
+    } else {
+        tocWasShown = true;
+    }
+    hideTocForEditH1();
+}
+
+tocWasShown = false; 
+function hideTocForEditH1() {
+    if ($('#TOC').is(":hidden")) {        
+        if (tocWasShown) {
+            var $page = $('#page');
+            $page.attr('class', 'col-9');
+            setTimeout(function () {
+                var $toc = $('#TOC');
+                $toc.attr('class', 'col-3');
+                $toc.show();
+
+            }, 500);
+        }
+    } else {        
+        var $toc = $('#TOC');
+        $toc.hide();
+        $toc.removeAttr('class');
+        var $page = $('#page');
+        $page.attr('class', 'col-12');        
+    }
+}
+
+// configuration of editH1
+$(function () {    
+    var editorH1$ = $('#editH1');
+    editorH1$.highlightWithinTextarea({
+        highlight: [
+            {
+                highlight: '#',
+                className: 'red'
+            },
+            {
+                highlight: ':ok:',
+                className: 'blue'
+            },
+            {
+                highlight: ':exclamation:',
+                className: 'red'
+            }
+        ]
+    });
+
+    var overlay$ = $(".close, .popup-overlay");
+
+    overlay$.on("click", function () {
+        $(".edith1-popup-overlay, .popup-content").removeClass("active");
+
+        $('#canvas').removeClass("hidecanvas");
+        $('#toc').removeClass("hidetoc");
+        hideTocForEditH1();
+    });
+});
+
+/////// end editH1
 
 const cyrb53 = function (str, seed = 0) {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
@@ -11,13 +84,6 @@ const cyrb53 = function (str, seed = 0) {
     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 };
-
-
-$(function () {
-    
-    //hljs.highlight();    
-});
-
 
 
 //Open link directly in the application
@@ -595,8 +661,18 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 function toggleTOC(documentPath) {
 
     var showToc = false;
-    if ($('#TOC').is(":hidden")) {
+    showToc = toggleToc2();
 
+    $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
+        console.log(data);
+    });
+
+    
+}
+
+function toggleToc2() {
+    var showToc = false;
+    if ($('#TOC').is(":hidden")) {
         var $page = $('#page');
         $page.attr('class', 'col-9');
         setTimeout(function () {
@@ -615,10 +691,7 @@ function toggleTOC(documentPath) {
         $page.attr('class', 'col-12');
         showToc = false;
     }
-
-    $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
-        console.log(data);
-    });
+    return showToc;
 }
 
 // inizializzazione, al caricamnto della pagina,
