@@ -223,5 +223,13 @@ namespace MdExplorer.Service.Controllers
             _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok("done");
         }
+
+
+        [HttpPost]
+        public IActionResult SetEditorH1()
+        {
+
+            return Ok();
+        }
     }
 }
