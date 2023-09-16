@@ -20,7 +20,7 @@ namespace MdExplorer.Features.Commands.html
     {
         private readonly IHelper _helper;
 
-        private string[] colorsArray = new []{"red","green","yellow","brown","black"};
+        private string[] colorsArray = new[] { "red", "green", "yellow", "brown", "black" };
 
         public MDShowMDHtml(string ServerAddress, ILogger<MDShowMDHtml> logger, IHelper helper) : base(ServerAddress, logger)
         {
@@ -40,70 +40,72 @@ namespace MdExplorer.Features.Commands.html
             var currentIncrement = 0;
             foreach (Match item in matches)
             {
-                             
-                var fileName = item.Groups[1].Value;
-                if (item.Groups[1].Value.StartsWith("../") || item.Groups[1].Value.StartsWith("./"))
+                if (matchCounter < (matches.Count / 2))
                 {
-
-                    // here you should compose the path adding missing part
-                    // the missing part is the distance from the root folder and the current file
-                    // you can build this using requestInfo.currentqueryrequest
-                    var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
-                    listOfItem.RemoveAt(listOfItem.Count - 1);
-                    var currentWebFolder = string.Empty;
-                    foreach (var item1 in listOfItem)
+                    matchCounter++;
+                    var fileName = item.Groups[1].Value;
+                    if (item.Groups[1].Value.StartsWith("../") || item.Groups[1].Value.StartsWith("./"))
                     {
-                        if (item1 == listOfItem.First())
+
+                        // here you should compose the path adding missing part
+                        // the missing part is the distance from the root folder and the current file
+                        // you can build this using requestInfo.currentqueryrequest
+                        var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
+                        listOfItem.RemoveAt(listOfItem.Count - 1);
+                        var currentWebFolder = string.Empty;
+                        foreach (var item1 in listOfItem)
                         {
-                            currentWebFolder = item1;
+                            if (item1 == listOfItem.First())
+                            {
+                                currentWebFolder = item1;
+                            }
+                            else
+                            {
+                                currentWebFolder += Path.DirectorySeparatorChar + item1;
+                            }
                         }
-                        else
-                        {
-                            currentWebFolder += Path.DirectorySeparatorChar + item1;
-                        }
+
+                        currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
+                        fileName = currentWebFolder + Path.DirectorySeparatorChar + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
+
+
+                        fileName = _helper.NormalizePath(fileName);
                     }
-
-                    currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                    fileName = currentWebFolder + Path.DirectorySeparatorChar + item.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
-                    
-
-                    fileName = _helper.NormalizePath(fileName);
-                }
-                else if (item.Groups[1].Value.StartsWith("/"))
-                {
-                    fileName = item.Groups[1].Value.Remove(0,1);
-                }
-                var queryEncoded = fileName.Replace("\\", "/");// HttpUtility.UrlEncode(fileName);
-                var httpClientHandler = new HttpClientHandler();
-                httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
-                {
-                    return true;
-                };
-
-                using (var httpClient = new HttpClient(httpClientHandler))
-                {
-                    requestInfo.Recursionlevel++;
-                    requestInfo.RelativePathFile = fileName;
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2");
-                    var uriUrlRoot = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
-                    _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
-                    //var response = httpClient.GetAsync(uriUrl);
-                    var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);
-                    HttpContent c = new StringContent(payload, Encoding.UTF8, "application/json");
-                    var response = httpClient.PostAsync(uriUrl, c);
-                    response.Wait();
-
-                    if (response.IsCompletedSuccessfully)
+                    else if (item.Groups[1].Value.StartsWith("/"))
                     {
-                        var result = response.Result;
-                        var taskRead = result.Content.ReadAsStringAsync();
-                        taskRead.Wait();
-                        var rnd = new Random();
-                        var numberedColor = rnd.Next(0, 4);
-                        
-                        var selectedColor = colorsArray[numberedColor];
-                        XmlDocument doc1 = new XmlDocument();
-                        var tagStyle = @"<style>
+                        fileName = item.Groups[1].Value.Remove(0, 1);
+                    }
+                    var queryEncoded = fileName.Replace("\\", "/");// HttpUtility.UrlEncode(fileName);
+                    var httpClientHandler = new HttpClientHandler();
+                    httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
+                    {
+                        return true;
+                    };
+
+                    using (var httpClient = new HttpClient(httpClientHandler))
+                    {
+                        requestInfo.Recursionlevel++;
+                        requestInfo.RelativePathFile = fileName;
+                        var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2");
+                        var uriUrlRoot = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
+                        _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
+                        //var response = httpClient.GetAsync(uriUrl);
+                        var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);
+                        HttpContent c = new StringContent(payload, Encoding.UTF8, "application/json");
+                        var response = httpClient.PostAsync(uriUrl, c);
+                        response.Wait();
+
+                        if (response.IsCompletedSuccessfully)
+                        {
+                            var result = response.Result;
+                            var taskRead = result.Content.ReadAsStringAsync();
+                            taskRead.Wait();
+                            var rnd = new Random();
+                            var numberedColor = rnd.Next(0, 4);
+
+                            var selectedColor = colorsArray[numberedColor];
+                            XmlDocument doc1 = new XmlDocument();
+                            var tagStyle = @"<style>
                                 #overlay" + numberedColor + @" {
                                   position:relative;
                                   top: 0;
@@ -131,47 +133,50 @@ namespace MdExplorer.Features.Commands.html
                                 }  
                                 </style>" + "\r\n";
 
-                        var nodeDiv = doc1.CreateElement("div");                       
-                        nodeDiv.InnerXml = taskRead.Result;
+                            var nodeDiv = doc1.CreateElement("div");
+                            nodeDiv.InnerXml = taskRead.Result;
 
 
 
 
-                        var attributeId = doc1.CreateAttribute("id");
-                        attributeId.Value = "overlay" + numberedColor;
-                        nodeDiv.Attributes.Append(attributeId);
+                            var attributeId = doc1.CreateAttribute("id");
+                            attributeId.Value = "overlay" + numberedColor;
+                            nodeDiv.Attributes.Append(attributeId);
 
-                        var nodeA = doc1.CreateElement("a");
-                        var attraHref = doc1.CreateAttribute("href");
-                        attraHref.Value = uriUrlRoot.AbsoluteUri.Replace("127.0.0.1","localhost"); // WorkAraound bug in Avalonia CefGlue
+                            var nodeA = doc1.CreateElement("a");
+                            var attraHref = doc1.CreateAttribute("href");
+                            attraHref.Value = uriUrlRoot.AbsoluteUri.Replace("127.0.0.1", "localhost"); // WorkAraound bug in Avalonia CefGlue
 
-                        nodeA.Attributes.Append(attraHref);
-                        nodeDiv.AppendChild(nodeA);
+                            nodeA.Attributes.Append(attraHref);
+                            nodeDiv.AppendChild(nodeA);
 
-                        var nodeSpan = doc1.CreateElement("span");
-                        var attrTitle = doc1.CreateAttribute("title");
-                        attrTitle.Value = fileName;
-                        nodeSpan.Attributes.Append(attrTitle);
-                        var spanClass = doc1.CreateAttribute("class");
-                        spanClass.Value = "link-spanner";
-                        nodeSpan.Attributes.Append(spanClass);
-                        nodeA.AppendChild(nodeSpan);
+                            var nodeSpan = doc1.CreateElement("span");
+                            var attrTitle = doc1.CreateAttribute("title");
+                            attrTitle.Value = fileName;
+                            nodeSpan.Attributes.Append(attrTitle);
+                            var spanClass = doc1.CreateAttribute("class");
+                            spanClass.Value = "link-spanner";
+                            nodeSpan.Attributes.Append(spanClass);
+                            nodeA.AppendChild(nodeSpan);
 
-                        var stringToReplace = nodeDiv.OuterXml;
-                        var allElementToReplace = item.Groups[0].Value;
+                            var stringToReplace = nodeDiv.OuterXml;
+                            var allElementToReplace = item.Groups[0].Value;
 
-                        (markdown, currentIncrement) = ManageReplaceOnMD(markdown, currentIncrement, item, stringToReplace);
+                            (markdown, currentIncrement) = ManageReplaceOnMD(markdown, currentIncrement, item, stringToReplace);
 
-                        markdown = tagStyle + markdown; //.Replace(allElementToReplace, stringToReplace);
+                            //markdown = markdown.Replace(allElementToReplace, stringToReplace);
+
+                            markdown =  markdown + tagStyle;
+                        }
                     }
                 }
-
+                else { break; }
             }
 
 
             return markdown;
         }
 
-       
+
     }
 }
