@@ -4,18 +4,23 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MdExplorer;
+using MdExplorer.Service;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Controllers.WriteMD.dto;
+using MdExplorer.Service.Controllers.WriteMDDto;
 
-namespace MdExplorer.Service.Controllers.WriteMDDto
+namespace MdExplorer.Service.Controllers.WriteMD.dto
 {
     public class SaveImgPostionAndSizeDto
-    {        
+    {
         public string PathFile { get; set; }
         public string LinkHash { get; set; }
         public string CSSHash { get; set; }
         public int Width { get; set; }
-        public int Height { get; set; }        
-        public int ClientX { get; set; } 
-        public int ClientY { get; set; } 
+        public int Height { get; set; }
+        public int ClientX { get; set; }
+        public int ClientY { get; set; }
         public string Position { get; set; }
         public string CurrentQueryRequest { get; set; }
     }

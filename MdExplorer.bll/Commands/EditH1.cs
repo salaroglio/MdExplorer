@@ -55,10 +55,10 @@ namespace MdExplorer.Features.Commands
                 var mdText = File.ReadAllText(requestInfo.AbsolutePathFile);
                 var matches = GetMatches(mdText).ToList();
 
-                SetHTag(dom, h1tags, matches, 1);
-                SetHTag(dom, h2tags, matches, 2);
-                SetHTag(dom, h3tags, matches, 3);
-                SetHTag(dom, h4tags, matches, 4);
+                SetHTag(dom, h1tags, matches, 1,requestInfo);
+                SetHTag(dom, h2tags, matches, 2, requestInfo);
+                SetHTag(dom, h3tags, matches, 3, requestInfo);
+                SetHTag(dom, h4tags, matches, 4, requestInfo);
 
 
                 
@@ -77,9 +77,8 @@ namespace MdExplorer.Features.Commands
         }
 
         private void SetHTag(XmlDocument dom, XmlNodeList hTags,
-            List<Match> matches, int level)
+            List<Match> matches, int level, RequestInfo requestInfo)
         {
-            string html;
             foreach (XmlElement h1Tag in hTags)
             {
                 foreach (Match itemMatch in matches.Where(_ => _.Groups[1].Value.Length == level))
@@ -107,9 +106,7 @@ namespace MdExplorer.Features.Commands
                         divEncapsulator.SetAttribute("style", "border:2px solid blue; cursor:pointer;");
                         divEncapsulator.SetAttribute("class", "editorH1");
                         divEncapsulator.AppendChild(h1Clone);
-
-                        h1Clone.SetAttribute("md-itemMatchIndex", itemMatch.Index.ToString());
-
+                        h1Clone.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());                       
 
                         while (h1Tag.NextSibling != null
                                && !h1Tag.NextSibling.Name.StartsWith("h")
@@ -132,7 +129,10 @@ namespace MdExplorer.Features.Commands
                         // Inject hidden text
                         var hiddenInput = dom.CreateElement("div");
                         hiddenInput.SetAttribute("style", "display:none");
-                        hiddenInput.SetAttribute("md-itemMatchIndex", itemMatch.Index.ToString());
+                        hiddenInput.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());
+                        var nextIndex = itemMatch.NextMatch().Index;
+                        hiddenInput.SetAttribute("md-itemmatchindex-end", nextIndex.ToString());                        
+                        hiddenInput.SetAttribute("md-path-file", requestInfo.AbsolutePathFile);
                         hiddenInput.InnerText = content;
                         dom.DocumentElement.AppendChild(hiddenInput);
                         break;
@@ -140,7 +140,6 @@ namespace MdExplorer.Features.Commands
                 }
             }
 
-            //return dom;
         }
 
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
