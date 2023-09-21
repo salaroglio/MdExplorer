@@ -1,10 +1,12 @@
 ﻿// EDITOR H1
 
+editorH1CurrentIndex = 0;
 
-function editH1(index) {        
+function editH1(index) {    
+    editorH1CurrentIndex = index;
     var test$ = $('div[md-itemmatchindex=' + index + ']'); 
     $(".edith1-popup-overlay, .popup-content").addClass("active");    
-    var textArea$ = $('#editH1');    
+    
     $('#editH1').val(test$[0].innerText);
     var canvas$ = $('#canvas');
     var toc$ = $('#toc');
@@ -56,19 +58,61 @@ $(function () {
             {
                 highlight: ':exclamation:',
                 className: 'red'
+            },
+            {
+                highlight: '-',
+                className: 'yellow'
             }
         ]
     });
 
-    var overlay$ = $(".close, .popup-overlay");
+    var closeButton$ = $(".close, .popup-overlay");
 
-    overlay$.on("click", function () {
+    closeButton$.on("click", function () {
         $(".edith1-popup-overlay, .popup-content").removeClass("active");
-
         $('#canvas').removeClass("hidecanvas");
         $('#toc').removeClass("hidetoc");
         hideTocForEditH1();
     });
+
+    var operButton$ = $(".save, .popup-overlay");
+
+    operButton$.on("click", function () {
+
+        var oldData$ = $('div[md-itemmatchindex=' + editorH1CurrentIndex + ']');
+        var textArea$ = $('#editH1');   
+        var oldMd = oldData$[0].innerText;
+        var newMd = textArea$.val();
+        var pathFile = oldData$.attr("md-path-file");
+        var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
+        var indexEnd = parseInt(oldData$.attr("md-itemmatchindex-end"));
+
+        debugger;
+
+        let toStringify = { oldMd: oldMd, newMd: newMd, pathFile: pathFile, indexStart: indexStart, indexEnd: indexEnd };
+        $.ajax({
+            url: "/api/WriteMD/SetEditorH1",
+            type: "POST",
+            data: JSON.stringify(toStringify),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (data) {
+                console.log(data);
+            }
+        });
+
+        $(".edith1-popup-overlay, .popup-content").removeClass("active");
+        $('#canvas').removeClass("hidecanvas");
+        $('#toc').removeClass("hidetoc");
+        hideTocForEditH1();
+    });
+
+
+
+    
+
+
+
 });
 
 /////// end editH1
@@ -88,7 +132,7 @@ const cyrb53 = function (str, seed = 0) {
 
 //Open link directly in the application
 function openApplication(fullpath) {
-    debugger;
+    
     let toStringify = { fullPath: fullpath };
     $.ajax({
         url: "/api/MdFiles/OpenFileInApplication",
