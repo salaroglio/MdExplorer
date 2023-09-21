@@ -9,9 +9,8 @@ document.write("<script src='/jspreadsheet_ce/jsuites.js'></script>");
 document.write("<script src='/jspreadsheet_ce/jexcel.js'></script>");
 document.write("<script src='/tippy/popper.js'></script>");
 document.write("<script src='/tippy/tippy.js'></script>");
-document.write("<script src='/highlight-within-textarea/jquery.highlight-within-textarea.js'></script>")
-
-
+document.write("<script src='/highlight_within_textarea/highlight-within-textarea.js'></script>")
+                             
 
 
 
