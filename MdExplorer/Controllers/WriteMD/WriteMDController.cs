@@ -1,9 +1,13 @@
-﻿using MdExplorer.Abstractions.Models;
+﻿using MdExplorer;
+using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Commands.FunctionParameters;
 using MdExplorer.Features.Commands.Markdown;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
+using MdExplorer.Service;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Controllers.WriteMD.dto;
 using MdExplorer.Service.Controllers.WriteMDDto;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -13,7 +17,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MdExplorer.Service.Controllers
+namespace MdExplorer.Service.Controllers.WriteMDDto
 {
     [ApiController]
     [Route("/api/WriteMD/{action}")]
@@ -51,7 +55,7 @@ namespace MdExplorer.Service.Controllers
                 {
                     AbsolutePathFile = dto.PathFile,
                     CurrentRoot = _fileSystemWatcher.Path,
-                    CurrentQueryRequest = dto.CurrentQueryRequest 
+                    CurrentQueryRequest = dto.CurrentQueryRequest
                 };
                 var param = new CSSSavedOnPageInfo
                 {
@@ -61,19 +65,19 @@ namespace MdExplorer.Service.Controllers
                     Height = dto.Height,
                     LinkHash = dto.LinkHash,
                     Width = dto.Width,
-                    Position = dto.Position                                       
+                    Position = dto.Position
                 };
                 // transform
                 var replaceSingleItem = (IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>)_commandRunner.Commands
                         .Where(_ => _.Name == "CSSSavedOnPage").FirstOrDefault();
 
-                (markdown,  cssInfo) = replaceSingleItem
+                (markdown, cssInfo) = replaceSingleItem
                         .ReplaceSingleItem(markdown, requestInfo, param);
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
             }
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(new { Message = "Done", CSSHash = cssInfo.CSSHash});
+            return Ok(new { Message = "Done", cssInfo.CSSHash });
         }
 
         [HttpGet]
@@ -226,10 +230,19 @@ namespace MdExplorer.Service.Controllers
 
 
         [HttpPost]
-        public IActionResult SetEditorH1()
+        public IActionResult SetEditorH1([FromBody] SetEditorH1Request dto)
         {
+            var systePathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
+            var markdown = System.IO.File.ReadAllText(systePathFile);
+            var replace = (IEditorH1Context)_commandRunner.Commands
+                       .Where(_ => _.Name == "EditH1").FirstOrDefault();
+
+            markdown = replace.SaveNewMarkdown(markdown, dto.IndexStart, dto.IndexEnd, dto.NewMd, dto.OldMd);
+            System.IO.File.WriteAllText(systePathFile, markdown);
 
             return Ok();
         }
     }
+
+
 }
