@@ -102,8 +102,8 @@ namespace MdExplorer.Features.Commands
                         // delete the current
                         var divEncapsulator = dom.CreateElement("div");
                         var h1Clone = (XmlElement)h1Tag.CloneNode(true);
-                        divEncapsulator.SetAttribute("onclick", $"editH1({itemMatch.Index})");
-                        divEncapsulator.SetAttribute("style", "border:2px solid blue; cursor:pointer;");
+                        divEncapsulator.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());
+                        //divEncapsulator.SetAttribute("style", "border:2px solid blue; cursor:pointer;");
                         divEncapsulator.SetAttribute("class", "editorH1");
                         divEncapsulator.AppendChild(h1Clone);
                         h1Clone.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());                       
@@ -131,7 +131,8 @@ namespace MdExplorer.Features.Commands
                         hiddenInput.SetAttribute("style", "display:none");
                         hiddenInput.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());
                         var nextIndex = itemMatch.NextMatch().Index;
-                        hiddenInput.SetAttribute("md-itemmatchindex-end", nextIndex.ToString());                        
+                        hiddenInput.SetAttribute("md-itemmatchindex-end", nextIndex.ToString());
+                        hiddenInput.SetAttribute("class", "hiddendataforeditorh1");
                         hiddenInput.SetAttribute("md-path-file", requestInfo.AbsolutePathFile);
                         hiddenInput.InnerText = content;
                         dom.DocumentElement.AppendChild(hiddenInput);

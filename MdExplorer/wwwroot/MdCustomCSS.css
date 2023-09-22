@@ -237,8 +237,12 @@ img.overrideImgFluid {
     position: fixed;
     background: #ffffff;
     border: 3px solid #666666;
-    width: 100%;    
-    
+    width: 98%;        
+}
+
+.showAreaH1 {
+    border: 2px solid blue;
+    cursor: pointer;
 }
 
 .edith1-popup-overlay.active {

@@ -62,6 +62,7 @@
     <Content Remove="wwwroot\assets\drawAnimated.gif" />
     <Content Remove="wwwroot\assets\drawOld.png" />
     <Content Remove="wwwroot\assets\drawStatic.png" />
+    <Content Remove="wwwroot\assets\editorInLine.png" />
     <Content Remove="wwwroot\assets\eyes.png" />
     <Content Remove="wwwroot\assets\eyes48.png" />
     <Content Remove="wwwroot\assets\gitlab.png" />
@@ -352,6 +353,7 @@
     <EmbeddedResource Include="wwwroot\assets\drawAnimated.gif" />
     <EmbeddedResource Include="wwwroot\assets\drawStatic.png" />
     <EmbeddedResource Include="wwwroot\assets\drawOld.png" />
+    <EmbeddedResource Include="wwwroot\assets\editorInLine.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes.png" />
     <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
     <EmbeddedResource Include="wwwroot\assets\gitlab.png" />
