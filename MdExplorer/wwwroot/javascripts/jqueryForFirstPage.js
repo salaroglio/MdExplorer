@@ -2,11 +2,11 @@
 
 editorH1CurrentIndex = 0;
 
-function editH1(index) {    
-    editorH1CurrentIndex = index;
-    var test$ = $('div[md-itemmatchindex=' + index + ']'); 
-    $(".edith1-popup-overlay, .popup-content").addClass("active");    
-    
+function editH1(e) {    
+    //debugger;    
+    editorH1CurrentIndex = e;
+    var test$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']'); 
+    $(".edith1-popup-overlay, .popup-content").addClass("active");        
     $('#editH1').val(test$[0].innerText);
     var canvas$ = $('#canvas');
     var toc$ = $('#toc');
@@ -66,6 +66,8 @@ $(function () {
         ]
     });
 
+
+
     var closeButton$ = $(".close, .popup-overlay");
 
     closeButton$.on("click", function () {
@@ -79,15 +81,14 @@ $(function () {
 
     operButton$.on("click", function () {
 
-        var oldData$ = $('div[md-itemmatchindex=' + editorH1CurrentIndex + ']');
+        var oldData$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']');
         var textArea$ = $('#editH1');   
         var oldMd = oldData$[0].innerText;
         var newMd = textArea$.val();
         var pathFile = oldData$.attr("md-path-file");
         var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
         var indexEnd = parseInt(oldData$.attr("md-itemmatchindex-end"));
-
-        debugger;
+        
 
         let toStringify = { oldMd: oldMd, newMd: newMd, pathFile: pathFile, indexStart: indexStart, indexEnd: indexEnd };
         $.ajax({
@@ -108,12 +109,26 @@ $(function () {
     });
 
 
-
-    
-
-
-
 });
+
+editorIsShown = false;
+function toggleEditor() {
+    var arrayOfEditorH1$ = $(".editorH1");
+    if (!editorIsShown) {
+        //Set click for editorH1        
+        arrayOfEditorH1$.on("click", function () {
+            let currentTag$ = $(this);
+            let index = currentTag$.attr("md-itemmatchindex");
+            editH1(index);
+        });
+        arrayOfEditorH1$.addClass("showAreaH1");
+    } else {
+        var arrayOfEditorH1$ = $(".editorH1");
+        arrayOfEditorH1$.off("click");
+        arrayOfEditorH1$.removeClass("showAreaH1");
+    }
+    editorIsShown = !editorIsShown;
+}
 
 /////// end editH1
 

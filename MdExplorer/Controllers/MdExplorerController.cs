@@ -345,7 +345,7 @@ namespace MdExplorer.Controllers
 
             var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
             var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png","toc");
-
+            var button3 = AddButtonOnTopPage($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
             var resultToParse = $@"
                     <div class=""edith1-popup-overlay"">
                         <div class=""popup-content"">
@@ -364,6 +364,7 @@ namespace MdExplorer.Controllers
                                     <div class=""sticky-top"">
                                     {button1}
                                     {button2}
+                                    {button3}
                                     </div>
                                 </div>
                                 <div class=""col-11 md-tocbot-content js-toc-content"">
