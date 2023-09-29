@@ -138,14 +138,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             var projectBasePath = _fileSystemWatcher.Path;
             var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath.Substring(1);
-            var fromFullPathFileName =Path.Combine( projectBasePath ,  fromRelativePathFileName) ;
+            var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
 
             var fileName = requestMoveMdFile.MdFile.Name;
             var relativeDestinationPath = requestMoveMdFile.DestinationPath
                                     .Replace(_fileSystemWatcher.Path, "").Substring(1);
-            var toRelativePathFileName =  Path.Combine(relativeDestinationPath, fileName);
-            var toFullPathFileName = Path.Combine( _fileSystemWatcher.Path ,  toRelativePathFileName);
-            var newFullPath = Path.Combine( requestMoveMdFile.DestinationPath , fileName);
+            var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
+            var toFullPathFileName = Path.Combine(_fileSystemWatcher.Path, toRelativePathFileName);
+            var newFullPath = Path.Combine(requestMoveMdFile.DestinationPath, fileName);
             MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
             _engineDB.BeginTransaction();
@@ -157,7 +157,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Path.GetDirectoryName(fromFullPathFileName),
                 requestMoveMdFile.DestinationPath); // Save the concept of change
 
-            
+
 
             _refactoringManager.SetRefactoringInvolvedLinksActionsForMoveFile(
                 //fromRelativePathFileName, 
@@ -165,7 +165,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 projectBasePath, //requestMoveMdFile.MdFile.FullPath, 
                 refSourceAct);
             // After save, get back the list of links inside involved files
-            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct); //newFullPath,
+            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
 
             _engineDB.Commit();
             return Ok("");
@@ -173,7 +173,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private void MoveFileOnFilesystem(string oldFullPath, string newFullPath)
         {
-            
+
             // gestisci il rename di un file
             System.IO.File.Move(oldFullPath, newFullPath, true);
             if (_visualStudioCode.CurrentVisualStudio != null)
@@ -213,9 +213,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             });
             myTask.Wait();
 
-            textToGet = textToGet.Contains("http") && textToGet.Contains("git") ? textToGet:string.Empty ;
+            textToGet = textToGet.Contains("http") && textToGet.Contains("git") ? textToGet : string.Empty;
 
-            return Ok( new { url = textToGet });
+            return Ok(new { url = textToGet });
         }
 
         [HttpPost]
@@ -548,7 +548,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             SaveRealationships(list);
             _engineDB.Commit();
-            
+
             GC.Collect();
             var nodeempty = new FileInfoNode
             {
@@ -745,13 +745,24 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _fileSystemWatcher.EnableRaisingEvents = false;
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
             Directory.CreateDirectory(fullPath);
-            
+
             _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok(fileData);
         }
 
+        [HttpGet]
+        public IActionResult GetBookmarks(string projectId)
+        {
+            return Ok();
+        }
 
-            [HttpPost]
+        [HttpPost]
+        public IActionResult ToggleBookmark([FromBody] Bookmark fileData)
+        {
+            return  Ok(fileData);
+        }
+
+        [HttpPost]
         public IActionResult CreateNewDirectory([FromBody] NewDirectory fileData)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -824,11 +835,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 relDal.Save(markdownFile);
                 SaveLinksFromMarkdown(item, markdownFile, linkInsideMarkdownDal);
             }
-            
+
         }
 
-        private void SaveLinksFromMarkdown(IFileInfoNode item, 
-            MarkdownFile relationship, 
+        private void SaveLinksFromMarkdown(IFileInfoNode item,
+            MarkdownFile relationship,
             IDAL<LinkInsideMarkdown> linkInsideMarkdownDal)
         {
             foreach (var getModifier in _getModifiers)
@@ -843,10 +854,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     // manage absolute path in link
                     if (singleLink.LinkPath.StartsWith("/"))
                     {
-                        fullPath = _fileSystemWatcher.Path                            
+                        fullPath = _fileSystemWatcher.Path
                             + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
                     }
-                    
+
                     var linkToStore = new LinkInsideMarkdown
                     {
                         FullPath = _helper.NormalizePath(fullPath),

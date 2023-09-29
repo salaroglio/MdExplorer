@@ -235,9 +235,10 @@ img.overrideImgFluid {
     display:none;
     visibility:hidden;
     position: fixed;
+    left:20px;
     background: #ffffff;
-    border: 3px solid #666666;
-    width: 98%;        
+    
+    width: 100%;        
 }
 
 .showAreaH1 {
@@ -255,6 +256,8 @@ img.overrideImgFluid {
 .edith1textarea{
     width:100%;
     height:100%;
+    border:none !important;
+    
 }
 
 .popup-content {

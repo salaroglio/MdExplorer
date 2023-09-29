@@ -1,8 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { GITService } from '../../../git/services/gitservice.service';
-//import { MdFile } from '../../../models/md-file';
-import { ServerMessagesService } from '../../services/server-messages.service'; //../../../compoments/services/monitor-md.service
 
 @Component({
   selector: 'app-connection-lost',
@@ -17,7 +15,6 @@ export class ConnectionLostComponent implements OnInit {
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: any,
     private gitservice: GITService,
-    //private monitorMDService: MonitorMDService,    
     private dialogRef: MatDialogRef<ConnectionLostComponent>){
     console.log('MAT_DIALOG_DATA = ' + data);
     if (data ==='serverIsDown') {
