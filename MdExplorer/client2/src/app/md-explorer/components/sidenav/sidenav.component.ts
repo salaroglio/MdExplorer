@@ -6,9 +6,9 @@ import { MdFileService }      from '../../services/md-file.service';
 import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
-import { ServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { MdFile } from '../../models/md-file';
 import { BookmarksService } from '../../services/bookmarks.service';
+import { ProjectsService } from '../../services/projects.service';
 
 
 
@@ -39,7 +39,8 @@ export class SidenavComponent implements OnInit {
     private router: Router,
     private currentFolder: AppCurrentMetadataService,
     private bookmarksService:BookmarksService,
-    private gitService: GITService,    
+    private gitService: GITService,
+    private projectService: ProjectsService,
   ) {
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
@@ -87,6 +88,7 @@ export class SidenavComponent implements OnInit {
     mdFile.relativePath = '/../../welcome.html';
     this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
     this.router.navigate(['/projects']);
+    this.projectService.currentProjects$.next(null);
   }
 
 
@@ -97,6 +99,7 @@ export class SidenavComponent implements OnInit {
         this.isScreenSmall = state.matches
       });
     this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
+    this.bookmarksService.initBookmark(this.projectService.currentProjects$.value.Id);
   }
 
   openDocument(mdFile: MdFile) {

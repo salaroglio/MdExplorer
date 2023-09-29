@@ -34,6 +34,142 @@ var MessageType;
 
 /***/ }),
 
+/***/ "+dpY":
+/*!*************************************************************!*\
+  !*** ./src/app/signalR/services/server-messages.service.ts ***!
+  \*************************************************************/
+/*! exports provided: MdServerMessagesService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdServerMessagesService", function() { return MdServerMessagesService; });
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../git/services/gitservice.service */ "N73s");
+
+
+
+
+
+
+class MdServerMessagesService {
+    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider, gitService) {
+        this.parsingProjectProvider = parsingProjectProvider;
+        this.plantumlWorkingProvider = plantumlWorkingProvider;
+        this.connectionLostProvider = connectionLostProvider;
+        this.gitService = gitService;
+        this.connectionIsLost = false;
+        this.consoleIsClosed = false;
+        this.startConnection = () => {
+            if (this.hubConnection == null) {
+                this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__["HubConnectionBuilder"]()
+                    .withUrl('../signalr/monitormd')
+                    .build();
+                this.hubConnection.on('markdownfileisprocessed', (data) => {
+                    this.processCallBack(data, 'markdownfileisprocessed');
+                });
+                this.hubConnection.on('parsingProjectStart', (data) => {
+                    this.parsingProjectProvider.show(data);
+                });
+                this.hubConnection.on('parsingProjectStop', (data) => {
+                    this.parsingProjectProvider.hide(data);
+                });
+                this.hubConnection.on('plantumlWorkStart', (data) => {
+                    this.plantumlWorkingProvider.show(data);
+                });
+                this.hubConnection.on('plantumlWorkStop', (data) => {
+                    this.plantumlWorkingProvider.hide(data);
+                });
+                this.hubConnection.on('consoleClosed', (data) => {
+                    console.log('consoleClosed');
+                    this.consoleIsClosed = true;
+                    this.connectionLostProvider.showConsoleClosed();
+                });
+                this.hubConnection.onclose((data) => {
+                    if (!this.consoleIsClosed) {
+                        this.connectionLostProvider.show(this);
+                        this.connectionIsLost = true;
+                    }
+                });
+            }
+            if (this.hubConnection.state == "Disconnected") {
+                this.hubConnection
+                    .start()
+                    .then(() => {
+                    console.log('Connection started');
+                    this.connectionIsLost = false;
+                })
+                    .catch(err => {
+                    console.log('Error while starting connection: ' + err);
+                });
+            }
+        };
+        this.startConnection();
+        console.log('MonitorMDService constructor');
+        this.linkEventCompArray = [];
+    }
+    addRefactoringFileEvent(callback, objectThis) {
+        this.hubConnection.on('refactoringFileEvent', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addMarkdownFileListener(callback, objectThis) {
+        this.hubConnection.on('markdownfileischanged', (data) => {
+            this.gitService.getCurrentBranch();
+            callback(data, objectThis);
+            console.log('markdownfileischanged');
+        });
+    }
+    processCallBack(data, signalREvent) {
+        this.linkEventCompArray.forEach(_ => {
+            if (_.key == signalREvent) {
+                _.callback(data, _.object);
+            }
+        });
+    }
+    addMdProcessedListener(callback, objectThis) {
+        let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
+        if (check == undefined) {
+            this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
+        }
+    }
+    addMdRule1Listener(callback, objectThis) {
+        // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
+        console.log('addMdRule1Listener');
+        if (this.rule1IsRegistered == undefined) {
+            this.rule1IsRegistered = objectThis;
+            this.hubConnection.on('markdownbreakrule1', (data) => {
+                callback(data, objectThis);
+            });
+        }
+    }
+    addPdfIsReadyListener(callback, objectThis) {
+        this.hubConnection.on('pdfisready', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addConnectionIdListener(callback, objectThis) {
+        this.hubConnection.on('getconnectionid', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    getConnectionId(callback, objectThis) {
+        this.hubConnection.invoke('GetConnectionId')
+            .then(function (connectionId) {
+            callback(connectionId, objectThis);
+        });
+    }
+}
+MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__["GITService"])); };
+MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: MdServerMessagesService, factory: MdServerMessagesService.ɵfac, providedIn: 'root' });
+
+
+/***/ }),
+
 /***/ "1/4N":
 /*!*********************************************************************!*\
   !*** ./node_modules/@microsoft/signalr/dist/esm/FetchHttpClient.js ***!
@@ -1344,17 +1480,22 @@ class NewProjectComponent {
     }
     ngOnInit() {
         this.folder = { name: "<select project>", path: "" };
+        // when the project change, then switch to navigation environment
+        this.projectService.currentProjects$.subscribe(_ => {
+            debugger;
+            if (_ != null && _ != undefined) {
+                var dateTime = new Date();
+                this.router.navigate(['/main/navigation/document']); //main
+                this.dialogRef.close();
+            }
+        });
     }
     getFolder(node) {
         this.folder.name = node.name;
         this.folder.path = node.path;
     }
     closeDialog() {
-        this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
-            var dateTime = new Date();
-            this.router.navigate(['/main/navigation/document']); //main
-            this.dialogRef.close();
-        });
+        this.projectService.setNewFolderProject(this.folder.path);
     }
 }
 NewProjectComponent.ɵfac = function NewProjectComponent_Factory(t) { return new (t || NewProjectComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](DynamicDatabase), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_5__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_6__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_7__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_8__["MatDialogRef"])); };
@@ -6333,142 +6474,6 @@ GitAuthComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineC
 
 /***/ }),
 
-/***/ "jQFx":
-/*!*************************************************************!*\
-  !*** ./src/app/signalr/services/server-messages.service.ts ***!
-  \*************************************************************/
-/*! exports provided: ServerMessagesService */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ServerMessagesService", function() { return ServerMessagesService; });
-/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
-/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../git/services/gitservice.service */ "N73s");
-
-
-
-
-
-
-class ServerMessagesService {
-    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider, gitService) {
-        this.parsingProjectProvider = parsingProjectProvider;
-        this.plantumlWorkingProvider = plantumlWorkingProvider;
-        this.connectionLostProvider = connectionLostProvider;
-        this.gitService = gitService;
-        this.connectionIsLost = false;
-        this.consoleIsClosed = false;
-        this.startConnection = () => {
-            if (this.hubConnection == null) {
-                this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__["HubConnectionBuilder"]()
-                    .withUrl('../signalr/monitormd')
-                    .build();
-                this.hubConnection.on('markdownfileisprocessed', (data) => {
-                    this.processCallBack(data, 'markdownfileisprocessed');
-                });
-                this.hubConnection.on('parsingProjectStart', (data) => {
-                    this.parsingProjectProvider.show(data);
-                });
-                this.hubConnection.on('parsingProjectStop', (data) => {
-                    this.parsingProjectProvider.hide(data);
-                });
-                this.hubConnection.on('plantumlWorkStart', (data) => {
-                    this.plantumlWorkingProvider.show(data);
-                });
-                this.hubConnection.on('plantumlWorkStop', (data) => {
-                    this.plantumlWorkingProvider.hide(data);
-                });
-                this.hubConnection.on('consoleClosed', (data) => {
-                    console.log('consoleClosed');
-                    this.consoleIsClosed = true;
-                    this.connectionLostProvider.showConsoleClosed();
-                });
-                this.hubConnection.onclose((data) => {
-                    if (!this.consoleIsClosed) {
-                        this.connectionLostProvider.show(this);
-                        this.connectionIsLost = true;
-                    }
-                });
-            }
-            if (this.hubConnection.state == "Disconnected") {
-                this.hubConnection
-                    .start()
-                    .then(() => {
-                    console.log('Connection started');
-                    this.connectionIsLost = false;
-                })
-                    .catch(err => {
-                    console.log('Error while starting connection: ' + err);
-                });
-            }
-        };
-        this.startConnection();
-        console.log('MonitorMDService constructor');
-        this.linkEventCompArray = [];
-    }
-    addRefactoringFileEvent(callback, objectThis) {
-        this.hubConnection.on('refactoringFileEvent', (data) => {
-            callback(data, objectThis);
-        });
-    }
-    addMarkdownFileListener(callback, objectThis) {
-        this.hubConnection.on('markdownfileischanged', (data) => {
-            this.gitService.getCurrentBranch();
-            callback(data, objectThis);
-            console.log('markdownfileischanged');
-        });
-    }
-    processCallBack(data, signalREvent) {
-        this.linkEventCompArray.forEach(_ => {
-            if (_.key == signalREvent) {
-                _.callback(data, _.object);
-            }
-        });
-    }
-    addMdProcessedListener(callback, objectThis) {
-        let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
-        if (check == undefined) {
-            this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
-        }
-    }
-    addMdRule1Listener(callback, objectThis) {
-        // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
-        console.log('addMdRule1Listener');
-        if (this.rule1IsRegistered == undefined) {
-            this.rule1IsRegistered = objectThis;
-            this.hubConnection.on('markdownbreakrule1', (data) => {
-                callback(data, objectThis);
-            });
-        }
-    }
-    addPdfIsReadyListener(callback, objectThis) {
-        this.hubConnection.on('pdfisready', (data) => {
-            callback(data, objectThis);
-        });
-    }
-    addConnectionIdListener(callback, objectThis) {
-        this.hubConnection.on('getconnectionid', (data) => {
-            callback(data, objectThis);
-        });
-    }
-    getConnectionId(callback, objectThis) {
-        this.hubConnection.invoke('GetConnectionId')
-            .then(function (connectionId) {
-            callback(connectionId, objectThis);
-        });
-    }
-}
-ServerMessagesService.ɵfac = function ServerMessagesService_Factory(t) { return new (t || ServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__["GITService"])); };
-ServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ServerMessagesService, factory: ServerMessagesService.ɵfac, providedIn: 'root' });
-
-
-/***/ }),
-
 /***/ "jwHG":
 /*!***********************************************************************!*\
   !*** ./src/app/git/components/git-messages/git-messages.component.ts ***!
@@ -7934,6 +7939,7 @@ __webpack_require__.r(__webpack_exports__);
 class ProjectsService {
     constructor(http) {
         this.http = http;
+        this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"](null);
         this.dataStore = { mdProjects: [] };
         this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]([]);
     }
@@ -7956,7 +7962,9 @@ class ProjectsService {
     }
     setNewFolderProject(path) {
         const url = '../api/MdProjects/SetFolderProject';
-        return this.http.post(url, { path: path });
+        this.http.post(url, { path: path }).subscribe(_ => {
+            this.currentProjects$.next(_);
+        });
     }
     //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {
     //  const url = '../api/MdProjects/SetFolderProject';

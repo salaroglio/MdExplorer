@@ -2,7 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ServerMessagesService } from '../../../signalr/services/server-messages.service';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
 import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
@@ -21,6 +20,7 @@ import { GitAuthComponent } from '../../../git/components/git-auth/git-auth.comp
 import { PullInfo } from '../../../git/models/pullInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { BookmarksService } from '../../services/bookmarks.service';
+import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 
 
 
@@ -51,7 +51,7 @@ export class ToolbarComponent implements OnInit {
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
     public dialog: MatDialog,    
-    private monitorMDService: ServerMessagesService,
+    private monitorMDService: MdServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
     public mdFileService: MdFileService,
@@ -68,6 +68,7 @@ export class ToolbarComponent implements OnInit {
   }
 
   ngOnInit(): void {
+   
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
@@ -341,10 +342,8 @@ export class ToolbarComponent implements OnInit {
       var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html', 0, false);
       mdFile.relativePath = '/../../welcome.html';
       this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
-      this.projectService.setNewFolderProject(_.fullPath).subscribe(_ => {
-        this.mdFileService.loadAll(null, null);
-        this.router.navigate(['/main/navigation/document']);
-      });
+      this.projectService.setNewFolderProject(_.fullPath);
+      
     });
     this.matMenuTrigger.closeMenu();
   }

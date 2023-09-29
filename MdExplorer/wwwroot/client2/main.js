@@ -7,7 +7,7 @@
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
+module.exports = __webpack_require__(/*! C:\Users\Carlo\source\repos\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
 
 
 /***/ }),
@@ -222,9 +222,7 @@ function ConnectionLostComponent_button_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
 } }
 class ConnectionLostComponent {
-    constructor(data, gitservice, 
-    //private monitorMDService: MonitorMDService,    
-    dialogRef) {
+    constructor(data, gitservice, dialogRef) {
         this.data = data;
         this.gitservice = gitservice;
         this.dialogRef = dialogRef;

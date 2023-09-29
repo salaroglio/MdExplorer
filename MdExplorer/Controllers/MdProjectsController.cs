@@ -79,7 +79,7 @@ namespace MdExplorer.Service.Controllers
             projectDal.Save(project);
             _userSettingsDB.Commit();
             ProjectsManager.SetNewProject(_services, folderPath.Path);            
-            return Ok("{\"message\": \"done\"}");
+            return Ok(new { id=project.Id,name=project.Name, path =project.Path });
         }
 
         [HttpPost]

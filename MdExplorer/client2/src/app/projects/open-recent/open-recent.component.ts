@@ -26,6 +26,12 @@ export class OpenRecentComponent implements OnInit {
   ngOnInit(): void {
     this.projectService.fetchProjects();
     this.dataSource = this.projectService.mdProjects;
+    // when the project is loaded, then switch to navigation environment
+    this.projectService.currentProjects$.subscribe(_ => {
+      if (_ != null && _ != undefined) {
+        this.router.navigate(['/main/navigation/document']);
+      }      
+    });
   }
   quickOpenNotes(path: string) {
     this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {      
@@ -34,9 +40,7 @@ export class OpenRecentComponent implements OnInit {
   }
 
   openNewProject(path: string) {    
-    this.projectService.setNewFolderProject(path).subscribe(_ => {      
-      this.router.navigate(['/main/navigation/document']);
-    });
+    this.projectService.setNewFolderProject(path);
   }
 
   getProjectList(data: any, objectThis: OpenRecentComponent): void {

@@ -74,6 +74,13 @@ class CloneProjectComponent {
         this.mdFileService.getTextFromClipboard().subscribe(_ => {
             this.dataForCloning.urlPath = _.url;
         });
+        // when the project change, then switch to navigation environment
+        this.projectService.currentProjects$.subscribe(_ => {
+            if (_ != null && _ != undefined) {
+                this.router.navigate(['/main/navigation/document']); //main
+                this.dialogRef.close();
+            }
+        });
     }
     cloneDirectory() {
         let info = new _commons_waitingdialog_waiting_dialog_models_WaitingDialogInfo__WEBPACK_IMPORTED_MODULE_1__["WaitingDialogInfo"]();
@@ -81,10 +88,7 @@ class CloneProjectComponent {
         this.waitingDialog.showMessageBox(info);
         this.gitService.clone(this.dataForCloning).subscribe(_ => {
             if (_.areCredentialsCorrect) {
-                this.projectService.setNewFolderProject(this.dataForCloning.directoryPath).subscribe(_ => {
-                    this.router.navigate(['/main/navigation/document']); //main
-                    this.dialogRef.close();
-                });
+                this.projectService.setNewFolderProject(this.dataForCloning.directoryPath);
             }
             else {
                 const dialogRef = this.dialog.open(_git_components_git_messages_git_messages_component__WEBPACK_IMPORTED_MODULE_2__["GitMessagesComponent"], {
@@ -415,6 +419,12 @@ class OpenRecentComponent {
     ngOnInit() {
         this.projectService.fetchProjects();
         this.dataSource = this.projectService.mdProjects;
+        // when the project is loaded, then switch to navigation environment
+        this.projectService.currentProjects$.subscribe(_ => {
+            if (_ != null && _ != undefined) {
+                this.router.navigate(['/main/navigation/document']);
+            }
+        });
     }
     quickOpenNotes(path) {
         this.projectService.setNewFolderProjectQuickNotes(path).subscribe(_ => {
@@ -422,9 +432,7 @@ class OpenRecentComponent {
         });
     }
     openNewProject(path) {
-        this.projectService.setNewFolderProject(path).subscribe(_ => {
-            this.router.navigate(['/main/navigation/document']);
-        });
+        this.projectService.setNewFolderProject(path);
     }
     getProjectList(data, objectThis) {
         objectThis.projectService.fetchProjects();
@@ -534,7 +542,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ "vUCT");
 /* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/router */ "tyNb");
-/* harmony import */ var _signalr_services_server_messages_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../signalr/services/server-messages.service */ "jQFx");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ "+dpY");
 /* harmony import */ var _shared_NgDialogAnimationService__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../shared/NgDialogAnimationService */ "O0mF");
 /* harmony import */ var _angular_material_card__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/card */ "Wp6s");
 /* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
@@ -562,6 +570,11 @@ class ProjectsComponent {
         console.log('ProjectsComponent destroyed!');
     }
     ngOnInit() {
+        this.projectService.currentProjects$.subscribe(_ => {
+            if (_ != null && _ != undefined) {
+                this.router.navigate(['/main/navigation/document']); //main        
+            }
+        });
     }
     openRecent() {
         this.router.navigate(['/projects/openrecent']);
@@ -580,9 +593,8 @@ class ProjectsComponent {
             data: null
         });
         dialogRef.afterClosed().subscribe(folderPath => {
-            this.projectService.setNewFolderProject(folderPath.data).subscribe(_ => {
-                this.router.navigate(['/main/navigation/document']); //main        
-            });
+            this.projectService.setNewFolderProject(folderPath.data);
+            // when the project change, then switch to navigation environment
         });
     }
     openSettings() {
@@ -592,7 +604,7 @@ class ProjectsComponent {
         });
     }
 }
-ProjectsComponent.ɵfac = function ProjectsComponent_Factory(t) { return new (t || ProjectsComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_5__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_6__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_signalr_services_server_messages_service__WEBPACK_IMPORTED_MODULE_7__["ServerMessagesService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_shared_NgDialogAnimationService__WEBPACK_IMPORTED_MODULE_8__["NgDialogAnimationService"])); };
+ProjectsComponent.ɵfac = function ProjectsComponent_Factory(t) { return new (t || ProjectsComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_5__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_6__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_7__["MdServerMessagesService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_shared_NgDialogAnimationService__WEBPACK_IMPORTED_MODULE_8__["NgDialogAnimationService"])); };
 ProjectsComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: ProjectsComponent, selectors: [["app-projects"]], decls: 37, vars: 0, consts: [[1, "container-flex"], [1, "container-title"], [1, "item"], [1, "container-columns"], [1, "container-first-column"], ["mat-stroked-button", "", "color", "primary", 3, "click"]], template: function ProjectsComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "div", 1);

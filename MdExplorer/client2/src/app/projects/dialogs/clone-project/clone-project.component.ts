@@ -43,6 +43,13 @@ export class CloneProjectComponent implements OnInit {
     this.mdFileService.getTextFromClipboard().subscribe(_ => {
       this.dataForCloning.urlPath = _.url;
     });
+    // when the project change, then switch to navigation environment
+    this.projectService.currentProjects$.subscribe(_ => {
+      if (_!=null && _!=undefined) {
+        this.router.navigate(['/main/navigation/document']); //main
+        this.dialogRef.close();
+      }
+    });
   }
 
   cloneDirectory(): void {
@@ -51,10 +58,8 @@ export class CloneProjectComponent implements OnInit {
     this.waitingDialog.showMessageBox(info);
     this.gitService.clone(this.dataForCloning).subscribe(_ => {
       if (_.areCredentialsCorrect) {
-        this.projectService.setNewFolderProject(this.dataForCloning.directoryPath).subscribe(_ => {
-          this.router.navigate(['/main/navigation/document']); //main
-          this.dialogRef.close();
-        });
+        this.projectService.setNewFolderProject(this.dataForCloning.directoryPath);
+        
       } else {
         const dialogRef = this.dialog.open(GitMessagesComponent, {
           width: '300px',          
