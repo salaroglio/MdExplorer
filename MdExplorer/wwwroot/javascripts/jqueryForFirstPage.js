@@ -8,10 +8,12 @@ function editH1(e) {
     var test$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']'); 
     $(".edith1-popup-overlay, .popup-content").addClass("active");        
     $('#editH1').val(test$[0].innerText);
-    var canvas$ = $('#canvas');
-    var toc$ = $('#toc');
-    canvas$.addClass("hidecanvas");
-    toc$.addClass("hidetoc");   
+    let canvas$ = $('#canvas');
+    let toc$ = $('#toc');
+    let editorH1$ = $('#editorH1');
+    canvas$.addClass("hideIcons");
+    toc$.addClass("hideIcons");   
+    editorH1$.addClass("hideIcons");   
     $('#editH1').highlightWithinTextarea('update');
     if ($('#TOC').is(":hidden")) {
     } else {
@@ -72,8 +74,9 @@ $(function () {
 
     closeButton$.on("click", function () {
         $(".edith1-popup-overlay, .popup-content").removeClass("active");
-        $('#canvas').removeClass("hidecanvas");
-        $('#toc').removeClass("hidetoc");
+        $('#canvas').removeClass("hideIcons");
+        $('#toc').removeClass("hideIcons");
+        $('#editorH1').removeClass("hideIcons");
         hideTocForEditH1();
     });
 
@@ -103,8 +106,9 @@ $(function () {
         });
 
         $(".edith1-popup-overlay, .popup-content").removeClass("active");
-        $('#canvas').removeClass("hidecanvas");
-        $('#toc').removeClass("hidetoc");
+        $('#canvas').removeClass("hideIcons");
+        $('#toc').removeClass("hideIcons");
+        $('#editorH1').removeClass("hideIcons");
         hideTocForEditH1();
     });
 
