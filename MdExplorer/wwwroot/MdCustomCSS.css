@@ -289,13 +289,11 @@ button:hover {
     color: #ffffff;
 }
 
-.hidecanvas{
+.hideIcons{
     visibility:hidden;
 }
 
-.hidetoc {
-    visibility: hidden;
-}
+
 
 .red{
     background-color:palevioletred;
