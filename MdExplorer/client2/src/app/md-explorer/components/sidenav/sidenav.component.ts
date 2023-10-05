@@ -6,9 +6,10 @@ import { MdFileService }      from '../../services/md-file.service';
 import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
-import { ServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { MdFile } from '../../models/md-file';
 import { BookmarksService } from '../../services/bookmarks.service';
+import { ProjectsService } from '../../services/projects.service';
+import { Bookmark } from '../../services/Types/Bookmark';
 
 
 
@@ -39,7 +40,8 @@ export class SidenavComponent implements OnInit {
     private router: Router,
     private currentFolder: AppCurrentMetadataService,
     private bookmarksService:BookmarksService,
-    private gitService: GITService,    
+    private gitService: GITService,
+    private projectService: ProjectsService,
   ) {
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
@@ -87,6 +89,7 @@ export class SidenavComponent implements OnInit {
     mdFile.relativePath = '/../../welcome.html';
     this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
     this.router.navigate(['/projects']);
+    this.projectService.currentProjects$.next(null);
   }
 
 
@@ -97,15 +100,27 @@ export class SidenavComponent implements OnInit {
         this.isScreenSmall = state.matches
       });
     this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
+    
+    this.projectService.currentProjects$.subscribe(_ => {      
+      if (_ != null && _!= undefined) {
+        this.bookmarksService.initBookmark(_.id);
+      }
+    });
+    
   }
 
-  openDocument(mdFile: MdFile) {
+  openDocument(bookmark: MdFile) {
+    //debugger;
+    let mdfile = this.mdFileService.getMdFileFromDataStore(bookmark);
+    
     this.router.navigate(['/main/navigation/document']);
-    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
+    this.mdFileService.setSelectedMdFileFromSideNav(bookmark);
   }
 
   toggleBookmark(mdFile: MdFile) {
-    this.bookmarksService.toggleBookmark(mdFile);
+    let bookmark: Bookmark = new Bookmark(mdFile);
+    bookmark.projectId = this.projectService.currentProjects$.value.id;    
+    this.bookmarksService.toggleBookmark(bookmark);
   }
 
 

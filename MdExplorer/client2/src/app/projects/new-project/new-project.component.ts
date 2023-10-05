@@ -173,6 +173,15 @@ export class NewProjectComponent implements OnInit {
 
   ngOnInit(): void {
     this.folder = { name: "<select project>", path: "" };
+    // when the project change, then switch to navigation environment
+    this.projectService.currentProjects$.subscribe(_ => {
+      debugger;
+      if (_ != null && _ != undefined) {
+        var dateTime = new Date();
+        this.router.navigate(['/main/navigation/document']); //main
+        this.dialogRef.close();
+      }
+    });
   }
 
   public getFolder(node: IFileInfoNode) {
@@ -181,11 +190,7 @@ export class NewProjectComponent implements OnInit {
   }
 
   public closeDialog() {
-    this.projectService.setNewFolderProject(this.folder.path).subscribe(_ => {
-      var dateTime = new Date();
-      this.router.navigate(['/main/navigation/document']); //main
-      this.dialogRef.close();
-    });
+    this.projectService.setNewFolderProject(this.folder.path);    
   }
 
 }

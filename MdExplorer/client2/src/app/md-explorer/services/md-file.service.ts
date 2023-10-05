@@ -10,7 +10,7 @@ import { IDocumentSettings } from './Types/IDocumentSettings';
 export class MdFileService {
 
   private _whatDisplayForToolbar: BehaviorSubject<string>;
-  private _mdFiles: BehaviorSubject<MdFile[]>;
+  public _mdFiles: BehaviorSubject<MdFile[]>;
   public _mdDynFolderDocument: BehaviorSubject<MdFile[]>;
   public _serverSelectedMdFile: BehaviorSubject<MdFile[]>;
   private _navigationArray: MdFile[] = [];// deve morire
@@ -165,7 +165,8 @@ export class MdFileService {
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
         this.dataStore.mdFiles = data;
-        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        debugger;
+        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);       
         if (callback != null) {
           callback(data, objectThis);
         }

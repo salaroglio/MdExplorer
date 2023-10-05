@@ -1,9 +1,9 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { GitAuthInfo } from '../../models/GitAuthInfo';
 import { PullInfo } from '../../models/pullInfo';
 import { GITService } from '../../services/gitservice.service';
 import { GitMessagesComponent } from '../git-messages/git-messages.component';
+import { GitAuthInfo } from '../../models/gitAuthInfo';
 
 @Component({
   selector: 'app-git-auth',

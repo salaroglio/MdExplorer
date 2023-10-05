@@ -9,6 +9,8 @@ import { BehaviorSubject, Observable } from 'rxjs';
 export class ProjectsService {
 
   private _mdProjects: BehaviorSubject<MdProject[]>;
+  currentProjects$: BehaviorSubject<MdProject> = new BehaviorSubject<MdProject>(null);
+
   get mdProjects() {
     return this._mdProjects.asObservable();
   }
@@ -39,9 +41,12 @@ export class ProjectsService {
     return this.http.post<any>(url, { path: path });    
   }
 
-  setNewFolderProject(path: string):Observable<any> {
+  setNewFolderProject(path: string):void {
     const url = '../api/MdProjects/SetFolderProject';
-    return this.http.post<any>(url, { path: path });    
+    this.http.post<MdProject>(url, { path: path }).subscribe(_ => {
+      this.currentProjects$.next(_);
+    });
+    
   }
 
   //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {

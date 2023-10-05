@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
-import { ServerMessagesService } from "../../services/server-messages.service";
+import { MdServerMessagesService } from "../../services/server-messages.service";
 import { ConnectionLostComponent } from "./connection-lost.component";
 
 
@@ -13,7 +13,7 @@ export class ConnectionLostProvider {
     private dialog: MatDialog) {
   }
 
-  show(hub: ServerMessagesService): ConnectionLostProvider {
+  show(hub: MdServerMessagesService): ConnectionLostProvider {
     this._dialogRef = this.dialog.open(ConnectionLostComponent, {
       data: null
     });
