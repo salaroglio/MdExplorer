@@ -80,9 +80,6 @@
             </Directory>
             <Directory Id="dir3D83A529A2122889D4016E7D784625D5" Name="wwwroot">
                 <Directory Id="dir89EB03C3EAD84D074D9B56E6D99D0A33" Name="assets">
-                    <Component Id="cmp52988527C266529CDA425C0695F4FA87" Guid="*">
-                        <File Id="filB39652A280DE05E3A090C83FA5A9D138" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\draw.png" />
-                    </Component>
                     <Component Id="cmpBE3CE7E96B2456821FF2FFE3ECF8E561" Guid="*">
                         <File Id="fil4F6D7FD1C8DF5FF3A181F8C33604CF14" KeyPath="yes" Source="$(var.HarvestPath)\wwwroot\assets\IconReady (2).png" />
                     </Component>
@@ -450,7 +447,6 @@
             <ComponentRef Id="cmpA964A847AD6177F00FFB96B8E1AFD3DE" />
             <ComponentRef Id="cmpFFC59F91BA2A40263777A08887C4DE28" />
             <ComponentRef Id="cmp419937E1F1A4AD6EBAD761C73BBB9BBB" />
-            <ComponentRef Id="cmp52988527C266529CDA425C0695F4FA87" />
             <ComponentRef Id="cmpBE3CE7E96B2456821FF2FFE3ECF8E561" />
             <ComponentRef Id="cmpC97E830794BEEB3D44C72280C3895AB1" />
             <ComponentRef Id="cmpE0C2BDEC541FAF8309914CE1CD170B66" />
