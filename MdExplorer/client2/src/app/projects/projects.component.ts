@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { MdProject } from '../md-explorer/models/md-project';
 import { MdFileService } from '../md-explorer/services/md-file.service';
-import { ServerMessagesService } from '../signalr/services/server-messages.service';
+import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { NewProjectComponent } from './new-project/new-project.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
@@ -22,7 +22,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
     private router: Router,
-    private signalRService: ServerMessagesService,
+    private signalRService: MdServerMessagesService,
     private dialogAn: NgDialogAnimationService,
   ) { }
 
@@ -34,6 +34,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]
 
   ngOnInit(): void {
+    this.projectService.currentProjects$.subscribe(_ => {
+      if (_ != null && _!= undefined) {
+        this.router.navigate(['/main/navigation/document']); //main        
+      }
+    });
   }
 
 
@@ -57,9 +62,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
 
     dialogRef.afterClosed().subscribe(folderPath => {      
-      this.projectService.setNewFolderProject(folderPath.data).subscribe(_ => {        
-        this.router.navigate(['/main/navigation/document']); //main        
-      });
+      this.projectService.setNewFolderProject(folderPath.data)
+      // when the project change, then switch to navigation environment
+      
     });
 
   }
