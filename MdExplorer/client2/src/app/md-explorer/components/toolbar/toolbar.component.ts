@@ -21,6 +21,7 @@ import { PullInfo } from '../../../git/models/pullInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
+import { Bookmark } from '../../services/Types/Bookmark';
 
 
 
@@ -349,6 +350,8 @@ export class ToolbarComponent implements OnInit {
   }
 
   bookmarkToggle(): void {
-    this.bookmarksService.toggleBookmark(this.currentMdFile);
+    let bookmark: Bookmark = new Bookmark(this.currentMdFile);
+    bookmark.projectId = this.projectService.currentProjects$.value.id;    
+    this.bookmarksService.toggleBookmark(bookmark);
   }
 }

@@ -9,6 +9,7 @@ import { MatSidenav } from '@angular/material/sidenav';
 import { MdFile } from '../../models/md-file';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { ProjectsService } from '../../services/projects.service';
+import { Bookmark } from '../../services/Types/Bookmark';
 
 
 
@@ -99,16 +100,27 @@ export class SidenavComponent implements OnInit {
         this.isScreenSmall = state.matches
       });
     this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
-    this.bookmarksService.initBookmark(this.projectService.currentProjects$.value.Id);
+    
+    this.projectService.currentProjects$.subscribe(_ => {      
+      if (_ != null && _!= undefined) {
+        this.bookmarksService.initBookmark(_.id);
+      }
+    });
+    
   }
 
-  openDocument(mdFile: MdFile) {
+  openDocument(bookmark: MdFile) {
+    //debugger;
+    let mdfile = this.mdFileService.getMdFileFromDataStore(bookmark);
+    
     this.router.navigate(['/main/navigation/document']);
-    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
+    this.mdFileService.setSelectedMdFileFromSideNav(bookmark);
   }
 
   toggleBookmark(mdFile: MdFile) {
-    this.bookmarksService.toggleBookmark(mdFile);
+    let bookmark: Bookmark = new Bookmark(mdFile);
+    bookmark.projectId = this.projectService.currentProjects$.value.id;    
+    this.bookmarksService.toggleBookmark(bookmark);
   }
 
 

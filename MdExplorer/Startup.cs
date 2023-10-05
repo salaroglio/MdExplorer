@@ -52,7 +52,7 @@ namespace MdExplorer
             string pathFromParameter = Args.Count() > 0 ? Path.GetDirectoryName(Args[0]) : null;
             ProjectsManager.SetProjectInitialization(services, pathFromParameter);
 
-            services.AddAutoMapper(typeof(RefactoringMapper).Assembly);
+            services.AddAutoMapper(typeof(ProjectProfile).Assembly);
             services.AddMDExplorerCommands();
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>
