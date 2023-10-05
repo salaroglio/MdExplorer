@@ -12,8 +12,14 @@ using System.Threading.Tasks;
 using Ad.Tools.Dal;
 using MdExplorer.Service.Utilities;
 using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer;
+using MdExplorer.Service;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Controllers.MdProjects;
+using AutoMapper;
+using MdExplorer.Service.Controllers.MdProjects.dto;
 
-namespace MdExplorer.Service.Controllers
+namespace MdExplorer.Service.Controllers.MdProjects
 {
     [ApiController]
     [Route("api/MdProjects/{action}")]
@@ -23,16 +29,19 @@ namespace MdExplorer.Service.Controllers
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IServiceProvider _services;
         private readonly ProcessUtil _processUtil;
+        private readonly IMapper _mapper;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 FileSystemWatcher fileSystemWatcher,
                 IServiceProvider services,
-                ProcessUtil processUtil)
+                ProcessUtil processUtil,
+                IMapper mapper)
         {
             _userSettingsDB = userSettingsDB;
             _fileSystemWatcher = fileSystemWatcher;
             _services = services;
             _processUtil = processUtil;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -40,16 +49,17 @@ namespace MdExplorer.Service.Controllers
         {
 
             // check if folder exists in project table
-            
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            
 
+            var projectDal = _userSettingsDB.GetDal<Project>();
             var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
-            return Ok(list);
+            var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list);
+
+
+            return Ok(listToReturn);
         }
 
         [HttpPost]
-        public IActionResult DeleteProject([FromBody]Project project)
+        public IActionResult DeleteProject([FromBody] Project project)
         {
             _userSettingsDB.BeginTransaction();
             var projectDal = _userSettingsDB.GetDal<Project>();
@@ -60,7 +70,7 @@ namespace MdExplorer.Service.Controllers
         }
 
         [HttpPost]
-        public IActionResult SetFolderProject([FromBody]FolderPath folderPath)
+        public IActionResult SetFolderProject([FromBody] FolderPath folderPath)
         {
             _fileSystemWatcher.Path = folderPath.Path;
             // renew project data
@@ -78,8 +88,8 @@ namespace MdExplorer.Service.Controllers
             project.LastUpdate = DateTime.Now;
             projectDal.Save(project);
             _userSettingsDB.Commit();
-            ProjectsManager.SetNewProject(_services, folderPath.Path);            
-            return Ok(new { id=project.Id,name=project.Name, path =project.Path });
+            ProjectsManager.SetNewProject(_services, folderPath.Path);
+            return Ok(new { id = project.Id, name = project.Name, path = project.Path });
         }
 
         [HttpPost]
@@ -123,7 +133,7 @@ namespace MdExplorer.Service.Controllers
             {
                 System.IO.File.WriteAllText(currentIdNotes, $"# {currentDate}");
             }
-            
+
             return currentIdNotes;
         }
     }

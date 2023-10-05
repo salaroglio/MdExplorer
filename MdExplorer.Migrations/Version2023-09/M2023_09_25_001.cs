@@ -5,7 +5,8 @@ using System.Text;
 
 namespace MdExplorer.Migrations.Version2023_09
 {
-    internal class M2023_09_25_001 : Migration
+    [Migration(20231001001, "Add bookmark management")]
+    public class M2023_09_25_001 : Migration
     {
         public override void Up()
         {

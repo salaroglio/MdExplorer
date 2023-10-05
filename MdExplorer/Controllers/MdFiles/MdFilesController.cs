@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
+using DocumentFormat.OpenXml.Vml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Markdig;
 using MdExplorer;
@@ -753,13 +754,42 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpGet]
         public IActionResult GetBookmarks(string projectId)
         {
-            return Ok();
+            _userSettingsDB.BeginTransaction();
+            var bookmarkDal = _userSettingsDB.GetDal<Bookmark>();
+            var guidProjectId = new Guid(projectId);
+            var bookmarkList = bookmarkDal.GetList()
+                .Where(_ => _.Project.Id == guidProjectId).Select(_ =>
+                     new { _.Id, _.Name, _.FullPath, ProjectId = _.Project.Id }
+                ).ToList();
+            _userSettingsDB.Commit();
+
+            return Ok(bookmarkList);
         }
 
         [HttpPost]
-        public IActionResult ToggleBookmark([FromBody] Bookmark fileData)
+        public IActionResult ToggleBookmark([FromBody] ToggleBookmarkRequest request)
         {
-            return  Ok(fileData);
+            _userSettingsDB.BeginTransaction();
+            var bookmarkDal = _userSettingsDB.GetDal<Bookmark>();
+            var bookmarkDb= bookmarkDal.GetList().Where(_ => _.Project.Id == request.ProjectId 
+                                                        && _.FullPath == request.FullPath).FirstOrDefault();
+            if (bookmarkDb != null)
+            {
+                bookmarkDal.Delete(bookmarkDb);
+            }
+            else
+            {
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var currentProject = projectDal.GetList().Where(_ => _.Id == request.ProjectId).FirstOrDefault();
+                // Ok, pay attention, here we are managing TOGGLE
+                var bookmark = new Bookmark { FullPath = request.FullPath, Name = request.Name, Project = currentProject };
+                currentProject.Bookmarks.Add(bookmark);
+                projectDal.Save(currentProject);
+                
+            }
+            _userSettingsDB.Commit();
+
+            return Ok(request);
         }
 
         [HttpPost]

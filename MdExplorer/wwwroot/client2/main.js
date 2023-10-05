@@ -1223,6 +1223,7 @@ class MdFileService {
         return this.http.get(url)
             .subscribe(data => {
             this.dataStore.mdFiles = data;
+            debugger;
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
             if (callback != null) {
                 callback(data, objectThis);

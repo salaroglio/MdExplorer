@@ -9,5 +9,6 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual Guid Id { get; set; }
         public virtual string Name { get; set; }
         public virtual string FullPath { get; set; }
+        public virtual Project Project { get; set; }
     }
 }

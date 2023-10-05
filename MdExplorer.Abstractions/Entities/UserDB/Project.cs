@@ -12,5 +12,6 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string Name { get; set; }
         public virtual string Path { get; set; }
         public virtual DateTime LastUpdate { get; set; }
+        public virtual IList<Bookmark> Bookmarks { get; set; }
     }
 }
