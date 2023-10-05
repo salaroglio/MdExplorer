@@ -269,6 +269,7 @@
     <None Remove="Binaries\GraphWiz\binaries\pathplan.dll" />
     <None Remove="Binaries\GraphWiz\binaries\vcruntime140.dll" />
     <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
+    <None Remove="Binaries\plantuml-1.jar" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\calendar.png" />
@@ -322,6 +323,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\xdot.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\plantuml-1.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Binaries\plantuml.jar">
@@ -729,7 +733,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Binaries\plantuml-old.jar">
+    <None Update="Binaries\plantuml-2.jar">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
