@@ -109,12 +109,11 @@ export class SidenavComponent implements OnInit {
     
   }
 
-  openDocument(bookmark: MdFile) {
-    //debugger;
+  openDocument(bookmark: MdFile) {    
     let mdfile = this.mdFileService.getMdFileFromDataStore(bookmark);
     
     this.router.navigate(['/main/navigation/document']);
-    this.mdFileService.setSelectedMdFileFromSideNav(bookmark);
+    this.mdFileService.setSelectedMdFileFromSideNav(mdfile);
   }
 
   toggleBookmark(mdFile: MdFile) {

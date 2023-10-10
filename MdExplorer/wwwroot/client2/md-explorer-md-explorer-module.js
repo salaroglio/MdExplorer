@@ -2228,7 +2228,6 @@ class BookmarksService {
         let bookmarksWaitingAllMdFiles$ = Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["combineLatest"])([this.mdFileService._mdFiles, bookmarks$$]);
         bookmarksWaitingAllMdFiles$.subscribe(([mdFiles, bookmarks]) => {
             let mdcheck = mdFiles;
-            debugger;
             bookmarks.forEach(_ => {
                 // devo ricostruirmi la lista di mdFile
                 let mdFileToSearch = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__["MdFile"](_.name, _.fullPath, null, null);
@@ -2241,13 +2240,13 @@ class BookmarksService {
         });
     }
     toggleBookmark(bookmark) {
-        //const url = '../api/mdFiles/ToggleBookmark';
-        //let post$ = this.http.post<any>(url, bookmark);    
-        //post$.subscribe(_ => {
-        //  this.bookmarks$.next(_);
-        //});
+        const url = '../api/mdFiles/ToggleBookmark';
+        let post$ = this.http.post(url, bookmark);
+        post$.subscribe(_ => {
+            //this.bookmarks$.next(_);
+        });
         let currentBookmarks = this.bookmarks$.value;
-        let currentBookmark = currentBookmarks.find(_ => _.path === bookmark.path);
+        let currentBookmark = currentBookmarks.find(_ => _.fullPath === bookmark.fullPath);
         if (currentBookmark == null || currentBookmark == undefined) {
             // call api
             currentBookmarks.push(bookmark);
@@ -2493,10 +2492,9 @@ class SidenavComponent {
         });
     }
     openDocument(bookmark) {
-        //debugger;
         let mdfile = this.mdFileService.getMdFileFromDataStore(bookmark);
         this.router.navigate(['/main/navigation/document']);
-        this.mdFileService.setSelectedMdFileFromSideNav(bookmark);
+        this.mdFileService.setSelectedMdFileFromSideNav(mdfile);
     }
     toggleBookmark(mdFile) {
         let bookmark = new _services_Types_Bookmark__WEBPACK_IMPORTED_MODULE_1__["Bookmark"](mdFile);

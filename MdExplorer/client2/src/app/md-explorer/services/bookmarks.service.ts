@@ -27,8 +27,7 @@ export class BookmarksService {
     let bookmarks$$ = this.http.get<GetBookmarkResponseDto[]>(url, { params });
     let bookmarksWaitingAllMdFiles$ = combineLatest([this.mdFileService._mdFiles, bookmarks$$]);
     bookmarksWaitingAllMdFiles$.subscribe(([mdFiles, bookmarks]) => {
-      let mdcheck = mdFiles;
-      debugger;
+      let mdcheck = mdFiles;      
       bookmarks.forEach(_ => {
         // devo ricostruirmi la lista di mdFile
         let mdFileToSearch = new MdFile(_.name, _.fullPath, null, null);
@@ -44,14 +43,15 @@ export class BookmarksService {
   }
 
   toggleBookmark(bookmark: Bookmark): void {
-    //const url = '../api/mdFiles/ToggleBookmark';
-    //let post$ = this.http.post<any>(url, bookmark);    
-    //post$.subscribe(_ => {
-    //  this.bookmarks$.next(_);
-    //});
+    
+    const url = '../api/mdFiles/ToggleBookmark';
+    let post$ = this.http.post<any>(url, bookmark);    
+    post$.subscribe(_ => {
+      //this.bookmarks$.next(_);
+    });
 
     let currentBookmarks = this.bookmarks$.value;
-    let currentBookmark = currentBookmarks.find(_ => _.path === bookmark.path);
+    let currentBookmark = currentBookmarks.find(_ => _.fullPath === bookmark.fullPath);
     if (currentBookmark == null || currentBookmark == undefined) {
       // call api
       currentBookmarks.push(bookmark);
