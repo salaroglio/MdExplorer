@@ -64,7 +64,34 @@ $(function () {
             {
                 highlight: '-',
                 className: 'yellow'
-            }
+            },
+            {
+                highlight: ':warning:',
+                className: 'yellow'
+            },
+            {
+                highlight: ':warning:',
+                className: 'gold'
+            },
+            {
+                highlight: ':heavy_check_mark:',
+                className: 'green'
+            },
+            {
+                highlight: ':no_entry:',
+                className: 'red'
+            },
+            {
+                highlight: ':question:',
+                className: 'red'
+            },
+            
+            {
+                highlight: ':negative_squared_cross_mark:',
+                className: 'darkgreen'
+            },
+            
+
         ]
     });
 
