@@ -231,14 +231,13 @@ img.overrideImgFluid {
 /*EditH1*/
 .edith1-popup-overlay {
     /*Hides pop-up when there is no "active" class*/
-    z-index:100;    
-    display:none;
-    visibility:hidden;
+    z-index: 100;
+    display: none;
+    visibility: hidden;
     position: fixed;
-    left:30px;
+    left: 30px;
     background: #ffffff;
-    
-    width: 100%;        
+    width:100%;
 }
 
 .showAreaH1 {
@@ -257,6 +256,7 @@ img.overrideImgFluid {
     width: calc(100% - 70px);    
     height: calc(100% - 70px);
     border: none !important;
+    outline:none !important;
 }
 
 .popup-content {
@@ -265,11 +265,11 @@ img.overrideImgFluid {
     display: none;
 }
 
-    .popup-content.active {
-        /*Shows pop-up content when "active" class is present */
-        visibility: visible;
-        display: inline;
-    }
+.popup-content.active {
+    /*Shows pop-up content when "active" class is present */
+    visibility: visible;
+    display: inline;
+}
 
 button {
     display: inline-block;
@@ -301,4 +301,16 @@ button:hover {
 
 .blue{
     background-color:deepskyblue;
+}
+.green{
+    background-color:greenyellow;
+}s
+.yellow{
+    background-color:yellow;
+}
+.gold{
+    background-color:gold;
+}
+.darkgreen{
+    background-color:limegreen
 }
