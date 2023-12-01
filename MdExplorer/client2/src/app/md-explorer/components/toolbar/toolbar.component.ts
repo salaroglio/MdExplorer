@@ -351,7 +351,7 @@ export class ToolbarComponent implements OnInit {
 
   bookmarkToggle(): void {
     let bookmark: Bookmark = new Bookmark(this.currentMdFile);
-    bookmark.projectId = this.projectService.currentProjects$.value.id;    
+    bookmark.projectId = this.projectService.currentProjects$.value.id;   
     this.bookmarksService.toggleBookmark(bookmark);
   }
 }
