@@ -352,7 +352,7 @@ namespace MdExplorer.Controllers
                             <h4 >Inline Editor</h4>
                            <textarea rows=""10"" class=""edith1textarea "" id=""editH1"">if you see this, something wrong happened</textarea>
                             <button class=""close"">Close</button>    
-                            <button class=""save"" onclick=""saveInlineData()"">save</button>  
+                            <button class=""save"" >save</button>  
                         </div>
                     </div>
                     <div class=""container-fluid"">

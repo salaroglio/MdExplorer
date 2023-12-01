@@ -228,6 +228,15 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             return Ok("done");
         }
 
+        [HttpGet]
+        public IActionResult GetEditorH1(string editorH1CurrentIndex, string absolutePathFile)
+        {
+            var getData = (IEditorH1Context)_commandRunner.Commands
+                       .Where(_ => _.Name == "EditH1").FirstOrDefault();
+            var toReturn = getData.GetDataBy(editorH1CurrentIndex,absolutePathFile);
+            return Ok(toReturn);
+        }
+
 
         [HttpPost]
         public IActionResult SetEditorH1([FromBody] SetEditorH1Request dto)

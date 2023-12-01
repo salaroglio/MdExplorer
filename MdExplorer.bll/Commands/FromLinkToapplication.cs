@@ -26,7 +26,7 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromLinkToApplication";
 
-        private string[] ExtensionArrayToOpenInApplication = { "xlsx", "pdf", "bmpr" };
+        private string[] ExtensionArrayToOpenInApplication = { "xlsx", "pdf", "bmpr", "docx", "pptx" };
 
         public MatchCollection GetMatches(string markdown)
         {
