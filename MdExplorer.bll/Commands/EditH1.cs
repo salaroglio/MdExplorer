@@ -12,15 +12,15 @@ namespace MdExplorer.Features.Commands
 {
     public class EditH1 : CommandBase, ICommand
     {
+        private readonly ILogger<EditH1> _logger;
+
         public int Priority { get; set; } = 10;
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "EditH1";
 
-
-
         public EditH1(ILogger<EditH1> logger)
         {
-
+            _logger = logger;
         }
 
         public MatchCollection GetMatches(string markdown)
@@ -59,8 +59,6 @@ namespace MdExplorer.Features.Commands
                 SetHTag(dom, h2tags, matches, 2, requestInfo);
                 SetHTag(dom, h3tags, matches, 3, requestInfo);
                 SetHTag(dom, h4tags, matches, 4, requestInfo);
-
-
                 
 
                 html = Beautify(dom);
