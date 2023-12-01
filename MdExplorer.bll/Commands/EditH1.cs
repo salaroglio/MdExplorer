@@ -48,8 +48,8 @@ namespace MdExplorer.Features.Commands
                 var h2tags = dom.SelectNodes("//h2");
                 var h3tags = dom.SelectNodes("//h3");
                 var h4tags = dom.SelectNodes("//h4");
-                var h5tags = dom.SelectNodes("//h5");
-                var h6tags = dom.SelectNodes("//h6");
+                //var h5tags = dom.SelectNodes("//h5");
+                //var h6tags = dom.SelectNodes("//h6");
 
 
                 var mdText = File.ReadAllText(requestInfo.AbsolutePathFile);

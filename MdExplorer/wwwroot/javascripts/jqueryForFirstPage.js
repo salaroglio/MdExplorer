@@ -2,24 +2,34 @@
 
 editorH1CurrentIndex = 0;
 
-function editH1(e) {    
+function editH1(currentIndex) {    
     //debugger;    
-    editorH1CurrentIndex = e;
-    var test$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']'); 
-    $(".edith1-popup-overlay, .popup-content").addClass("active");        
-    $('#editH1').val(test$[0].innerText);
-    let canvas$ = $('#canvas');
-    let toc$ = $('#toc');
-    let editorH1$ = $('#editorH1');
-    canvas$.addClass("hideIcons");
-    toc$.addClass("hideIcons");   
-    editorH1$.addClass("hideIcons");   
-    $('#editH1').highlightWithinTextarea('update');
-    if ($('#TOC').is(":hidden")) {
-    } else {
-        tocWasShown = true;
-    }
-    hideTocForEditH1();
+    editorH1CurrentIndex = currentIndex;
+    var test$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']');     
+    $(".edith1-popup-overlay, .popup-content").addClass("active");
+
+    var pathFile = test$.attr("md-path-file");
+    $.get("/api/WriteMD/GetEditorH1?editorH1CurrentIndex=" + editorH1CurrentIndex + "&absolutePathFile=" + pathFile, function (data) {
+        test$[0].innerText = data;
+        $('#editH1').val(data); 
+        let canvas$ = $('#canvas');
+        let toc$ = $('#toc');
+        let editorH1$ = $('#editorH1');
+        canvas$.addClass("hideIcons");
+        toc$.addClass("hideIcons");
+        editorH1$.addClass("hideIcons");
+        $('#editH1').highlightWithinTextarea('update');
+        if ($('#TOC').is(":hidden")) {
+        } else {
+            tocWasShown = true;
+        }
+        hideTocForEditH1();
+    });
+    
+
+    //$('#editH1').val(test$[0].innerText); riga di codice originale
+
+    
 }
 
 tocWasShown = false; 
