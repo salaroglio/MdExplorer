@@ -614,7 +614,7 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
 function dynamicEmojiForProcess(el, index, pathfile) {
     
 
-
+    
     let dataToSet;
     el.removeAttribute('data-tippy-content');
     if (el.innerText.trim() == 'ℹ️') {
@@ -674,9 +674,6 @@ function setTooltipProcess(dataToSet, el) {
 // gestione degli emoji di priorità
 function dynamicEmojiForPriority(el, index, pathfile) {
     
-    if (el.attributes['data-md-table-game-index'] == undefined) {
-        return;
-    }
     if (el.innerText == '❓') {
         el.innerText = '❔';
         //el.title = 'da valutare';
