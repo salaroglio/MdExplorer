@@ -1,6 +1,7 @@
 ﻿// EDITOR H1
 
 editorH1CurrentIndex = 0;
+oldDataText = "";
 
 function editH1(currentIndex) {    
     //debugger;    
@@ -10,7 +11,8 @@ function editH1(currentIndex) {
 
     var pathFile = test$.attr("md-path-file");
     $.get("/api/WriteMD/GetEditorH1?editorH1CurrentIndex=" + editorH1CurrentIndex + "&absolutePathFile=" + pathFile, function (data) {
-        test$[0].innerText = data;
+        debugger;
+        oldDataText = test$[0].innerText;        
         $('#editH1').val(data); 
         let canvas$ = $('#canvas');
         let toc$ = $('#toc');
@@ -123,7 +125,7 @@ $(function () {
 
         var oldData$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']');
         var textArea$ = $('#editH1');   
-        var oldMd = oldData$[0].innerText;
+        var oldMd = oldDataText; // oldData$[0].innerText;
         var newMd = textArea$.val();
         var pathFile = oldData$.attr("md-path-file");
         var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
