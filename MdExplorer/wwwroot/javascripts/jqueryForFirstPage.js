@@ -712,7 +712,7 @@ function dynamicEmojiForPriority(el, index, pathfile) {
                             if (check) {
                                 element = element.parent();
                             }
-                            element.fadeOut(3000);
+                            //element.fadeOut(3000);
                         } else
 
                             if (el.innerText == '❎') {
