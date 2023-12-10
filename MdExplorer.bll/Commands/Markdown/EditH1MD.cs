@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Commands.html
 {
-    internal class EditH1MD : EditH1, ICommandMD, IEditorH1Context
+    public class EditH1MD : EditH1, ICommandMD, IEditorH1Context
     {
         public EditH1MD(ILogger<EditH1> logger) : base(logger)
         {
@@ -33,9 +33,17 @@ namespace MdExplorer.Features.Commands.html
 
         }
 
+        public ItemMatch[] RenewEditorH1Index(string absolutePathFile)
+        {
+            var mdText = File.ReadAllText(absolutePathFile);
+            var matches = GetMatches(mdText).ToList();
+            var arrayToReturn = matches.Select(item => new ItemMatch { ItemMatchIndex = item.Index});           
+            return arrayToReturn.ToArray();
+        }
+
         public string SaveNewMarkdown(string markdown, int indexStart, int indexEnd, string replace, string oldMd)
         {
-            var countEnd = oldMd.Replace("\n", "\r\n").Length;
+            var countEnd = oldMd.Length;
             var markdown1 = markdown.Remove(indexStart, countEnd);
             var count = replace.Length;
             var markdown2 = markdown1.Insert(indexStart, replace.Replace("\n", "\r\n"));
@@ -44,5 +52,13 @@ namespace MdExplorer.Features.Commands.html
 
             return markdown;
         }
+    }
+
+    /// <summary>
+    /// Just store the new indexes
+    /// </summary>
+    public class ItemMatch
+    {
+        public int ItemMatchIndex { get; set; }
     }
 }

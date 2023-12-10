@@ -1,18 +1,18 @@
 ﻿// EDITOR H1
 
-editorH1CurrentIndex = 0;
+currenth1Id = 0;
 oldDataText = "";
 
-function editH1(currentIndex) {    
-    //debugger;    
-    editorH1CurrentIndex = currentIndex;
-    var test$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']');     
+function editH1(h1Id) {    
+    var test$ = $('div.hiddendataforeditorh1[md-h1Id=' + h1Id + ']');     
+    currenth1Id = h1Id;
     $(".edith1-popup-overlay, .popup-content").addClass("active");
+    editorH1CurrentIndex = test$.attr("md-itemmatchindex");
 
     var pathFile = test$.attr("md-path-file");
     $.get("/api/WriteMD/GetEditorH1?editorH1CurrentIndex=" + editorH1CurrentIndex + "&absolutePathFile=" + pathFile, function (data) {
-        debugger;
-        oldDataText = test$[0].innerText;        
+        
+        oldDataText = data;
         $('#editH1').val(data); 
         let canvas$ = $('#canvas');
         let toc$ = $('#toc');
@@ -123,8 +123,9 @@ $(function () {
 
     operButton$.on("click", function () {
 
-        var oldData$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']');
+        var oldData$ = $('div.hiddendataforeditorh1[md-h1Id=' + currenth1Id + ']');
         var textArea$ = $('#editH1');   
+        debugger;
         var oldMd = oldDataText; // oldData$[0].innerText;
         var newMd = textArea$.val();
         var pathFile = oldData$.attr("md-path-file");
@@ -648,8 +649,15 @@ function dynamicEmojiForProcess(el, index, pathfile) {
     var currentIndex = el.attributes['data-md-process-index'].value;
     $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText.trim(), function (data) {
         $(".result").html(data);
-        console.log(data);
+        var oldData$ = $('div.hiddendataforeditorh1');
+        for (i = 0; i < oldData$.length; i++) {
+            let myData$ = $(oldData$.get(i));
+            let check = myData$.attr("md-itemmatchindex");
+            myData$.attr("md-itemmatchindex", data[i].itemMatchIndex);
+        }
+
     });
+  
     setTooltipProcess(dataToSet, el);
 
 }
@@ -731,8 +739,17 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     var currentIndex = el.attributes['data-md-priority-index'].value;
     $.get("/api/WriteMD/SetEmojiPriority?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
-        console.log(data);
+       
+        var oldData$ = $('div.hiddendataforeditorh1');
+        for (i = 0; i < oldData$.length; i++) {
+            let myData$ = $(oldData$.get(i));
+            let check = myData$.attr("md-itemmatchindex");
+            myData$.attr("md-itemmatchindex", data[i].itemMatchIndex);
+        }
+        
+        
     });
+    
     setTooltipPriority(dataToSet, el);
 }
 
