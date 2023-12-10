@@ -101,10 +101,12 @@ namespace MdExplorer.Features.Commands
                         var divEncapsulator = dom.CreateElement("div");
                         var h1Clone = (XmlElement)h1Tag.CloneNode(true);
                         divEncapsulator.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());
+                        divEncapsulator.SetAttribute("md-h1Id", itemMatch.Index.ToString());
                         //divEncapsulator.SetAttribute("style", "border:2px solid blue; cursor:pointer;");
                         divEncapsulator.SetAttribute("class", "editorH1");
                         divEncapsulator.AppendChild(h1Clone);
-                        h1Clone.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());                       
+                        h1Clone.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());
+                        h1Clone.SetAttribute("md-h1Id", itemMatch.Index.ToString());
 
                         while (h1Tag.NextSibling != null
                                && !h1Tag.NextSibling.Name.StartsWith("h")
@@ -127,6 +129,7 @@ namespace MdExplorer.Features.Commands
                         // Inject hidden text
                         var hiddenInput = dom.CreateElement("div");
                         hiddenInput.SetAttribute("style", "display:none");
+                        hiddenInput.SetAttribute("md-h1Id", itemMatch.Index.ToString());
                         hiddenInput.SetAttribute("md-itemmatchindex", itemMatch.Index.ToString());
                         var nextIndex = itemMatch.NextMatch().Index;
                         hiddenInput.SetAttribute("md-itemmatchindex-end", nextIndex.ToString());

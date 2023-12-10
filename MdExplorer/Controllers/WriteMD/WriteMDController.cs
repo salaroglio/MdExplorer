@@ -1,7 +1,9 @@
-﻿using MdExplorer;
+﻿using DocumentFormat.OpenXml.EMMA;
+using MdExplorer;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Commands.FunctionParameters;
+using MdExplorer.Features.Commands.html;
 using MdExplorer.Features.Commands.Markdown;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
@@ -106,6 +108,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             _fileSystemWatcher.EnableRaisingEvents = false;
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             EmojiPriorityOrderInfo info = null;
+            
 
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -135,7 +138,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 // write
             }
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(info);
+            return Ok(info); 
         }
 
         [HttpGet]
@@ -163,8 +166,13 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 // write
             }
 
+
+            var editorH1 = (IEditorH1Context)_commandRunner.Commands
+                    .Where(_ => _.Name == "EditH1").FirstOrDefault();
+            var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
+
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok("done");
+            return Ok(indexItemMatchArray);
         }
 
         [HttpGet]
@@ -193,9 +201,12 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
 
                 // write
             }
+            var editorH1 = (IEditorH1Context)_commandRunner.Commands
+                   .Where(_ => _.Name == "EditH1").FirstOrDefault();
+            var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
 
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok("done");
+            return Ok(indexItemMatchArray);
         }
 
         [HttpGet]
