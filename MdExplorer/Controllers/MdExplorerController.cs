@@ -343,8 +343,8 @@ namespace MdExplorer.Controllers
             var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""";
             var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
 
-            var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
-            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png","toc");
+            var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
+            var button2 = AddButtonTextOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "Index", "toc");
             var button3 = AddButtonOnTopPage($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
             var resultToParse = $@"
                     <div class=""edith1-popup-overlay"">
@@ -354,34 +354,33 @@ namespace MdExplorer.Controllers
                             <button class=""close"">Close</button>    
                             <button class=""save"" >save</button>  
                         </div>
-                    </div>
-                    <div class=""container-fluid"">
-                        <div class=""row"">                            
-                            <div id=""page"" {classForMain}>
-                        <div class=""container "">
-                            <div class=""row"">
-                                <div  class=""col-1"">
-                                    <div class=""sticky-top"">
-                                    {button1}
-                                    {button2}
-                                    {button3}
-                                    </div>
-                                </div>
-                                <div class=""col-11 md-tocbot-content js-toc-content"">
-                    {result}
-                                </div>
-                            </div>
-                        </div>
-                            </div>  
-                            <nav id=""TOC"" {styleForToc} >
-                                <div class=""sticky-top"">
-                                    <div class=""toc js-toc is-position-fixed""></div>                                    
-                                </div>
+                    </div>                    
+                    <div  class=""mdeTocSticky-top"">                        
+                        <div id=""TOC"" class=""tocNavigation"">
+                            <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
+                            <nav class=""tocNavNavigation"">
+                                <div class=""toc js-toc""></div>                                    
                             </nav>
                         </div>
                     </div>
-                    
-                    
+                    <div class=""mdeContainerIFrameApplciation"">
+                        <div class=""mdeItemMainPageLeftMenu"">                            
+                            <span class=""flexExpand""></span>
+                            <div class=""sticky-top"">               
+                            <div style=""height:calc(100vh - 100px);""></div>
+                            {button1}                            
+                            {button3}
+                            </div>
+                        </div>  
+                        <div class=""mdeItemMainPageCenter md-tocbot-content js-toc-content"">
+                            {result}
+                        </div>
+                        <div class=""mdeItemRightTabs"">
+                            <div class=""mdeTabSticky-top"">
+                                <div class=""buttonTab "">{button2}</div>
+                            </div>
+                        </div>  
+                    </div>
                     ";
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1, fullPathFile);
@@ -446,16 +445,14 @@ namespace MdExplorer.Controllers
         {
             var doc1 = new XmlDocument();
             var body = doc1.CreateElement("div");
-
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
             var att2 = doc1.CreateAttribute("style");
-            att2.Value = "cursor: pointer";
+            att2.Value = "cursor: pointer;";
             a.Attributes.Append(aAtt);
             a.Attributes.Append(att2);
             aAtt.Value = functionJs;
-            var imgEl = doc1.CreateElement("img");
-            //imgEl.SetAttribute("style", "z-index:50;");
+            var imgEl = doc1.CreateElement("img");            
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
             var id = doc1.CreateAttribute("id");
@@ -463,6 +460,34 @@ namespace MdExplorer.Controllers
             id.Value = Id;
             imgEl.Attributes.Append(srcImg);
             imgEl.Attributes.Append(id);
+            body.AppendChild(a);
+            return body.OuterXml;
+        }
+
+        private string AddButtonTextOnTopPage(string functionJs, string text, string Id)
+        {
+            var doc1 = new XmlDocument();
+            var body = doc1.CreateElement("div");
+            var a = doc1.CreateElement("div");
+            a.InnerText = text;
+            var aAtt = doc1.CreateAttribute("onClick");
+            var att2 = doc1.CreateAttribute("style");
+            att2.Value = "cursor: pointer";
+            a.Attributes.Append(aAtt);
+            a.Attributes.Append(att2);
+            aAtt.Value = functionJs;
+            //var imgEl = doc1.CreateElement("img");
+            //a.AppendChild(imgEl);
+            //var srcImg = doc1.CreateAttribute("src");
+            var id = doc1.CreateAttribute("id");
+            //srcImg.Value = image;
+            id.Value = Id;
+            //imgEl.Attributes.Append(srcImg);
+            //imgEl.Attributes.Append(id);
+            body.AppendChild(a);
+            return body.OuterXml;
+
+
             body.AppendChild(a);
             return body.OuterXml;
         }

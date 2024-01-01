@@ -28,6 +28,7 @@ using MdExplorer.Service.Controllers.MdFiles;
 using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Utilities;
+using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.SignalR;
@@ -496,11 +497,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             return Ok(list);
         }
-
+        private string signalRConnectionId;
         [HttpGet]
-        public async Task<IActionResult> GetAllMdFiles()
+        public async Task<IActionResult> GetAllMdFiles(string connectionId)
         {
-            await _hubContext.Clients.All.SendAsync("parsingProjectStart", "process started");
+            signalRConnectionId = connectionId;
+
+            await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("parsingProjectStart", "process started");
+
             var list = new List<IFileInfoNode>();
             var currentPath = _fileSystemWatcher.Path;
             if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
@@ -525,6 +529,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
+                _hubContext.Clients.Client(connectionId: signalRConnectionId)
+                    .SendAsync("indexingFolder", itemFolder).Wait();
                 (var node, var isempty) = CreateNodeFolder(itemFolder);
                 if (!isempty)
                 {
@@ -539,7 +545,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 list.Add(node);
             }
 
-
+            _hubContext.Clients.Client(connectionId: connectionId)
+                    .SendAsync("indexingFolder", "deleting database").Wait();
             // nettificazione dei folder che non contengono md            
             _engineDB.BeginTransaction();
             _engineDB.Delete("from LinkInsideMarkdown");
@@ -547,6 +554,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _engineDB.Delete("from MarkdownFile");
             _engineDB.Flush();
 
+            _hubContext.Clients.Client(connectionId: connectionId)
+                    .SendAsync("indexingFolder", "creating database").Wait();
             SaveRealationships(list);
             _engineDB.Commit();
 
@@ -561,8 +570,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Expandable = false
             };
 
-            list.Add(nodeempty);
-            await _hubContext.Clients.All.SendAsync("parsingProjectStop", "process completed");
+            list.Add(nodeempty);            
+            await _hubContext.Clients.Client(connectionId: connectionId)
+                    .SendAsync("parsingProjectStop", "process completed");
             return Ok(list);
         }
 
@@ -859,6 +869,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 };
                 if (item.Childrens.Count > 0)
                 {
+                    _hubContext.Clients.Client(connectionId: signalRConnectionId)
+                    .SendAsync("indexingFolder", markdownFile.FileName).Wait();
                     markdownFile.FileType = "Folder";
                     SaveRealationships(item.Childrens, markdownFile.Id);
                 }
@@ -919,6 +931,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private (FileInfoNode, bool) CreateNodeFolder(string itemFolder)
         {
+            
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
             var node = new FileInfoNode
             {

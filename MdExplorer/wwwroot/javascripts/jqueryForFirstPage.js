@@ -554,7 +554,7 @@ $(function () {
             });
         console.log('sortstop parents Event = ', event, '  ui = ', ui);
         console.log(ui.item);
-
+        tocbot.refresh();
         //do sort of parents
     });
 });
@@ -659,12 +659,14 @@ function dynamicEmojiForProcess(el, index, pathfile) {
     });
   
     setTooltipProcess(dataToSet, el);
-
+    tocbot.refresh();
 }
 
 function setTooltipPriority(dataToSet, el) {    
     
-    let currentPriority = tippyDictPriority[el.attributes[8].value];
+    let $el = $(el);
+    let attributeValue = $el.attr("data-tippy-priority-id");
+    let currentPriority = tippyDictPriority[attributeValue]; //el.attributes[8].value
     currentPriority.setContent(dataToSet);
     currentPriority.reference.setAttribute('data-tippy-content',dataToSet)
     setTippyTypePriority(currentPriority.reference, currentPriority);
@@ -672,8 +674,9 @@ function setTooltipPriority(dataToSet, el) {
 }
 
 function setTooltipProcess(dataToSet, el) {
-    
-    let current = tippyDictProcess[el.attributes[4].value]; //data-tippy-process-id
+    let $el = $(el);
+    let attributeValue = $el.attr("data-tippy-process-id");
+    let current = tippyDictProcess[attributeValue]; //data-tippy-process-id //el.attributes[4].value
     current.setContent(dataToSet);    
     current.reference.setAttribute('data-tippy-content', dataToSet)
     setTippyTypeProcess(current.reference, current);
@@ -751,6 +754,7 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     });
     
     setTooltipPriority(dataToSet, el);
+    tocbot.refresh();
 }
 
 // gestione del box di ricerca della toc
@@ -778,7 +782,7 @@ function toggleTOC(documentPath) {
 
     var showToc = false;
     showToc = toggleToc2();
-
+    
     $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
         console.log(data);
     });
@@ -788,23 +792,15 @@ function toggleTOC(documentPath) {
 
 function toggleToc2() {
     var showToc = false;
-    if ($('#TOC').is(":hidden")) {
-        var $page = $('#page');
-        $page.attr('class', 'col-9');
-        setTimeout(function () {
-            var $toc = $('#TOC');
-            $toc.attr('class', 'col-3');
-            $toc.show();
-
-        }, 500);
+    if ($('#TOC').is(":hidden")) {                       
+        var $toc = $('#TOC');        
+        $toc.show();
         showToc = true;
 
     } else {
         var $toc = $('#TOC');
         $toc.hide();
-        $toc.removeAttr('class');
-        var $page = $('#page');
-        $page.attr('class', 'col-12');
+        $toc.removeClass('hidden');                
         showToc = false;
     }
     return showToc;
@@ -959,4 +955,35 @@ async function presentationSVG(relativePathFile, hashFile) {
     $forwardArrow.attr('data-step', trueStep);
 }
 
-//presentationSVG
+//resizeToc
+hooked = false
+function resizeToc() {
+    
+    hooked = true;   
+}
+
+$(function () {
+    document.addEventListener("mousemove", mouseMoveEvent, false);
+    document.addEventListener("mouseup", mouseUpEvent, false);
+});
+
+function mouseUpEvent(event) {
+    
+    let toc$ = $('#TOC');
+    if (hooked) {
+        hooked = false;       
+    }
+}
+
+function mouseMoveEvent(event) {
+    
+    let toc$ = $('#TOC');
+    if (hooked) {
+        console.log('mousemove');
+
+        toc$.css("left", event.clientX + "px");
+        let value = parseInt(event.clientX) + 30;
+        console.log(value)
+        toc$.css("width", "calc(100% - " + value +"px");
+    }
+}

@@ -19,6 +19,6 @@ namespace MdExplorer.Hubs
 
         //public async Task GetConnectionId()
         //    => await Clients.Client(Context.ConnectionId).SendAsync("getconnectionid", Context.ConnectionId);
-                
+
     }
 }

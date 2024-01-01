@@ -1,4 +1,10 @@
-﻿/*change color to folders in treeview*/
+﻿/*impostazione generica*/
+body {
+    user-select: none;
+}
+
+/*change color to folders in treeview*/
+
 
 .gold-icon {
     color: gold;
@@ -237,7 +243,7 @@ img.overrideImgFluid {
     position: fixed;
     left: 30px;
     background: #ffffff;
-    width:100%;
+    width: 100%;
 }
 
 .showAreaH1 {
@@ -252,11 +258,12 @@ img.overrideImgFluid {
     height: calc(100% - 70px);
     /*text-align: center;*/
 }
+
 .edith1textarea {
-    width: calc(100% - 70px);    
+    width: calc(100% - 70px);
     height: calc(100% - 70px);
     border: none !important;
-    outline:none !important;
+    outline: none !important;
 }
 
 .popup-content {
@@ -265,11 +272,11 @@ img.overrideImgFluid {
     display: none;
 }
 
-.popup-content.active {
-    /*Shows pop-up content when "active" class is present */
-    visibility: visible;
-    display: inline;
-}
+    .popup-content.active {
+        /*Shows pop-up content when "active" class is present */
+        visibility: visible;
+        display: inline;
+    }
 
 button {
     display: inline-block;
@@ -282,35 +289,131 @@ button {
     border: 1px solid #666666;
 }
 
-button:hover {
-    border: 1px solid #666666;
-    background: #666666;
-    color: #ffffff;
+    button:hover {
+        border: 1px solid #666666;
+        background: #666666;
+        color: #ffffff;
+    }
+
+.hideIcons {
+    visibility: hidden;
 }
 
-.hideIcons{
-    visibility:hidden;
+
+
+.red {
+    background-color: palevioletred;
+    color: white;
+}
+
+.blue {
+    background-color: deepskyblue;
+}
+
+.green {
+    background-color: greenyellow;
+}
+
+s
+.yellow {
+    background-color: yellow;
+}
+
+.gold {
+    background-color: gold;
+}
+
+.darkgreen {
+    background-color: limegreen
+}
+
+/*main page MDE*/
+
+.mdeContainerIFrameApplciation {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+}
+
+.mdeItemMainPageLeftMenu {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    flex: 0 0 0px;
+    
+}
+
+.mdeItemMainPageCenter {
+    flex: 1;
+}
+
+mdeItemRightTabs {
+    flex: 0 0 0px;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    
+}
+
+.buttonTab {
+    transform: rotate(90deg);
+    position: relative;
+    border-color: grey;
+    border-style: solid;
+    top: 20px;
+    cursor: pointer;
+    font: bold;
+    padding: 0px 8px;
+    border-width: 5 0 0 0;
+    user-select: none;
+    height:10px;
+    width:50px;
+}
+
+    .buttonTab:hover {                
+        font: bold;
+        border-color: #1823d3;
+        border-style: solid;
+        border-width: 5 0 0 0;
+        padding:0px 8px;
+    }
+
+.tocNavigation {    
+    position: absolute;
+    left: calc(100% - 300px);
+    width: 270px;
+    display:flex;
+    flex-direction:row;
+}
+
+.tocNavNavigation {
+    max-height: 100vh;    
+    overflow-y: auto;
+    width:-webkit-fill-available;
+}
+.tocSeparator {
+    width: 5px;
+    background-color: grey;    
+    max-height: 100vh;
+}
+.tocSeparator:hover {
+    cursor:e-resize
 }
 
 
-
-.red{
-    background-color:palevioletred;
-    color:white;
+.mdeTocSticky-top {    
+    direction: ltr;
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1020;
 }
 
-.blue{
-    background-color:deepskyblue;
-}
-.green{
-    background-color:greenyellow;
-}s
-.yellow{
-    background-color:yellow;
-}
-.gold{
-    background-color:gold;
-}
-.darkgreen{
-    background-color:limegreen
+.mdeTabSticky-top {    
+    direction: ltr;
+    position: -webkit-sticky;
+    position: sticky;
+    width:30px;
+    top: 0;    
 }

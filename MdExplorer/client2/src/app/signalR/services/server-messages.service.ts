@@ -4,6 +4,7 @@ import { GITService } from '../../git/services/gitservice.service';
 import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
 import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/parsing-project.provider';
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
+import { connect } from 'net';
 
 interface linkSignalREvent_Component {
   key: string
@@ -17,6 +18,7 @@ interface linkSignalREvent_Component {
 export class MdServerMessagesService {
 
   linkEventCompArray: linkSignalREvent_Component[];
+  public connectionId: string;
 
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
@@ -26,12 +28,14 @@ export class MdServerMessagesService {
     this.startConnection();
     console.log('MonitorMDService constructor');
     this.linkEventCompArray = [];
+    
   }
 
   private hubConnection: signalR.HubConnection
   private rule1IsRegistered: any;
   private connectionIsLost: boolean = false;
   private consoleIsClosed: boolean = false;
+  
 
   public startConnection = () => {
     if (this.hubConnection == null) {
@@ -52,6 +56,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('plantumlWorkStop', (data) => {
         this.plantumlWorkingProvider.hide(data);
+      });
+      this.hubConnection.on('indexingFolder', (folder) => {
+        this.parsingProjectProvider.folder$.next(folder);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {
@@ -74,6 +81,7 @@ export class MdServerMessagesService {
         .then(() => {
           console.log('Connection started');
           this.connectionIsLost = false;
+          this.getCurrentConnectionId(this);
         }
 
         )
@@ -82,6 +90,9 @@ export class MdServerMessagesService {
         }
         );
     }
+
+    
+
   }
 
 
@@ -145,11 +156,17 @@ export class MdServerMessagesService {
 
   public getConnectionId(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.invoke('GetConnectionId')
-      .then(function (connectionId) {
+      .then(function (connectionId) {        
+        objectThis.connectionId = connectionId;
         callback(connectionId, objectThis);
       });
   }
 
-
+  public getCurrentConnectionId(objectThis: MdServerMessagesService): void {
+    this.hubConnection.invoke('GetConnectionId')
+      .then(function (connectionId) {        
+        objectThis.connectionId = connectionId;        
+      });
+  }
 
 }
