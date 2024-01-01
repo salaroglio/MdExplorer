@@ -20,7 +20,7 @@ namespace MdExplorer
     public class Program
     {
 
-        public static Task<int> _uiTask;
+        //public static Task<int> _uiTask;
 
         
         public static void Main(string[] args)
