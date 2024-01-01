@@ -1,5 +1,152 @@
 (window["webpackJsonp"] = window["webpackJsonp"] || []).push([["main"],{
 
+/***/ "+dpY":
+/*!*************************************************************!*\
+  !*** ./src/app/signalR/services/server-messages.service.ts ***!
+  \*************************************************************/
+/*! exports provided: MdServerMessagesService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdServerMessagesService", function() { return MdServerMessagesService; });
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../git/services/gitservice.service */ "N73s");
+
+
+
+
+
+
+class MdServerMessagesService {
+    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider, gitService) {
+        this.parsingProjectProvider = parsingProjectProvider;
+        this.plantumlWorkingProvider = plantumlWorkingProvider;
+        this.connectionLostProvider = connectionLostProvider;
+        this.gitService = gitService;
+        this.connectionIsLost = false;
+        this.consoleIsClosed = false;
+        this.startConnection = () => {
+            if (this.hubConnection == null) {
+                this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__["HubConnectionBuilder"]()
+                    .withUrl('../signalr/monitormd')
+                    .build();
+                this.hubConnection.on('markdownfileisprocessed', (data) => {
+                    this.processCallBack(data, 'markdownfileisprocessed');
+                });
+                this.hubConnection.on('parsingProjectStart', (data) => {
+                    this.parsingProjectProvider.show(data);
+                });
+                this.hubConnection.on('parsingProjectStop', (data) => {
+                    this.parsingProjectProvider.hide(data);
+                });
+                this.hubConnection.on('plantumlWorkStart', (data) => {
+                    this.plantumlWorkingProvider.show(data);
+                });
+                this.hubConnection.on('plantumlWorkStop', (data) => {
+                    this.plantumlWorkingProvider.hide(data);
+                });
+                this.hubConnection.on('indexingFolder', (folder) => {
+                    this.parsingProjectProvider.folder$.next(folder);
+                });
+                this.hubConnection.on('consoleClosed', (data) => {
+                    console.log('consoleClosed');
+                    this.consoleIsClosed = true;
+                    this.connectionLostProvider.showConsoleClosed();
+                });
+                this.hubConnection.onclose((data) => {
+                    if (!this.consoleIsClosed) {
+                        this.connectionLostProvider.show(this);
+                        this.connectionIsLost = true;
+                    }
+                });
+            }
+            if (this.hubConnection.state == "Disconnected") {
+                this.hubConnection
+                    .start()
+                    .then(() => {
+                    console.log('Connection started');
+                    this.connectionIsLost = false;
+                    this.getCurrentConnectionId(this);
+                })
+                    .catch(err => {
+                    console.log('Error while starting connection: ' + err);
+                });
+            }
+        };
+        this.startConnection();
+        console.log('MonitorMDService constructor');
+        this.linkEventCompArray = [];
+    }
+    addRefactoringFileEvent(callback, objectThis) {
+        this.hubConnection.on('refactoringFileEvent', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addMarkdownFileListener(callback, objectThis) {
+        this.hubConnection.on('markdownfileischanged', (data) => {
+            this.gitService.getCurrentBranch();
+            callback(data, objectThis);
+            console.log('markdownfileischanged');
+        });
+    }
+    processCallBack(data, signalREvent) {
+        this.linkEventCompArray.forEach(_ => {
+            if (_.key == signalREvent) {
+                _.callback(data, _.object);
+            }
+        });
+    }
+    addMdProcessedListener(callback, objectThis) {
+        let check = this.linkEventCompArray.find(_ => _.key == 'markdownfileisprocessed' && _.object.constructor.name === objectThis.constructor.name);
+        if (check == undefined) {
+            this.linkEventCompArray.push({ key: 'markdownfileisprocessed', object: objectThis, callback: callback });
+        }
+    }
+    addMdRule1Listener(callback, objectThis) {
+        // giusto per evitare di effettuare l'instanziazione un centinaio di volte l'evento
+        console.log('addMdRule1Listener');
+        if (this.rule1IsRegistered == undefined) {
+            this.rule1IsRegistered = objectThis;
+            this.hubConnection.on('markdownbreakrule1', (data) => {
+                callback(data, objectThis);
+            });
+        }
+    }
+    addPdfIsReadyListener(callback, objectThis) {
+        this.hubConnection.on('pdfisready', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addConnectionIdListener(callback, objectThis) {
+        this.hubConnection.on('getconnectionid', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    getConnectionId(callback, objectThis) {
+        this.hubConnection.invoke('GetConnectionId')
+            .then(function (connectionId) {
+            objectThis.connectionId = connectionId;
+            callback(connectionId, objectThis);
+        });
+    }
+    getCurrentConnectionId(objectThis) {
+        this.hubConnection.invoke('GetConnectionId')
+            .then(function (connectionId) {
+            objectThis.connectionId = connectionId;
+        });
+    }
+}
+MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__["GITService"])); };
+MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: MdServerMessagesService, factory: MdServerMessagesService.ɵfac, providedIn: 'root' });
+
+
+/***/ }),
+
 /***/ 0:
 /*!***************************!*\
   !*** multi ./src/main.ts ***!
@@ -840,18 +987,21 @@ class MdSetting {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ParsingProjectProvider", function() { return ParsingProjectProvider; });
 /* harmony import */ var _parsing_project_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./parsing-project.component */ "oPln");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
+
 
 
 
 class ParsingProjectProvider {
     constructor(dialog) {
         this.dialog = dialog;
+        this.folder$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]("Processing");
     }
     show(data) {
         this._dialogRef = this.dialog.open(_parsing_project_component__WEBPACK_IMPORTED_MODULE_0__["ParsingProjectComponent"], {
-            data: data
+            data: { data: data, folder$: this.folder$ }
         });
         return this;
     }
@@ -859,8 +1009,8 @@ class ParsingProjectProvider {
         this._dialogRef.close();
     }
 }
-ParsingProjectProvider.ɵfac = function ParsingProjectProvider_Factory(t) { return new (t || ParsingProjectProvider)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__["MatDialog"])); };
-ParsingProjectProvider.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ParsingProjectProvider, factory: ParsingProjectProvider.ɵfac });
+ParsingProjectProvider.ɵfac = function ParsingProjectProvider_Factory(t) { return new (t || ParsingProjectProvider)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__["MatDialog"])); };
+ParsingProjectProvider.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: ParsingProjectProvider, factory: ParsingProjectProvider.ɵfac });
 
 
 /***/ }),
@@ -1068,16 +1218,21 @@ class ParsingProjectComponent {
     constructor(data, dialogRef) {
         this.data = data;
         this.dialogRef = dialogRef;
+        this.folder$ = data.folder$;
         dialogRef.disableClose = true;
     }
     ngOnInit() {
     }
 }
 ParsingProjectComponent.ɵfac = function ParsingProjectComponent_Factory(t) { return new (t || ParsingProjectComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MAT_DIALOG_DATA"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogRef"])); };
-ParsingProjectComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: ParsingProjectComponent, selectors: [["app-parsing-project"]], decls: 2, vars: 0, template: function ParsingProjectComponent_Template(rf, ctx) { if (rf & 1) {
+ParsingProjectComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: ParsingProjectComponent, selectors: [["app-parsing-project"]], decls: 3, vars: 1, template: function ParsingProjectComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h1");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "Indexing documents");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
+    } if (rf & 2) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"]("\n", ctx.folder$.value, "\n");
     } }, styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJwYXJzaW5nLXByb2plY3QuY29tcG9uZW50LnNjc3MifQ== */"] });
 
 
@@ -1096,13 +1251,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ "+dpY");
+
 
 
 
 
 class MdFileService {
-    constructor(http) {
+    constructor(http, mdServerMessages) {
         this.http = http;
+        this.mdServerMessages = mdServerMessages;
         this._navigationArray = []; // deve morire
         var defaultSelectedMdFile = [];
         this.dataStore = {
@@ -1219,7 +1377,8 @@ class MdFileService {
         }
     }
     loadAll(callback, objectThis) {
-        const url = '../api/mdfiles/GetAllMdFiles';
+        const url = '../api/mdfiles/GetAllMdFiles?connectionId=' + this.mdServerMessages.connectionId;
+        debugger;
         return this.http.get(url)
             .subscribe(data => {
             this.dataStore.mdFiles = data;
@@ -1413,7 +1572,7 @@ class MdFileService {
         return found2;
     }
 }
-MdFileService.ɵfac = function MdFileService_Factory(t) { return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpClient"])); };
+MdFileService.ɵfac = function MdFileService_Factory(t) { return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__["MdServerMessagesService"])); };
 MdFileService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: MdFileService, factory: MdFileService.ɵfac, providedIn: 'root' });
 
 

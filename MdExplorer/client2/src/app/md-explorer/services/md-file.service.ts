@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
+import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 
 @Injectable({
   providedIn: 'root'
@@ -24,7 +25,8 @@ export class MdFileService {
     mdDynFolderDocument: MdFile[]
     serverSelectedMdFile: MdFile[]
   }
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient,
+    private mdServerMessages: MdServerMessagesService) {
 
     var defaultSelectedMdFile = [];
     this.dataStore = {
@@ -161,7 +163,7 @@ export class MdFileService {
 
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
-    const url = '../api/mdfiles/GetAllMdFiles';
+    const url = '../api/mdfiles/GetAllMdFiles?connectionId=' + this.mdServerMessages.connectionId;    
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
         this.dataStore.mdFiles = data;        

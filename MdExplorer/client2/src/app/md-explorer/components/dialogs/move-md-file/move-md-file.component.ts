@@ -3,6 +3,7 @@ import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dial
 import { ShowFileSystemComponent } from '../../../../commons/components/show-file-system/show-file-system.component';
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
+import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 
 @Component({
   selector: 'app-move-md-file',
@@ -16,7 +17,8 @@ export class MoveMdFileComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) private dataMdFile: MdFile,
     private dialog: MatDialog,
     private dialogRef: MatDialogRef<MoveMdFileComponent>,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private mdServerMessages: MdServerMessagesService
   ) { }
   
   ngOnInit(): void { }
