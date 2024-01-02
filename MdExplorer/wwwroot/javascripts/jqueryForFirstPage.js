@@ -978,9 +978,7 @@ function mouseUpEvent(event) {
 function mouseMoveEvent(event) {
     
     let toc$ = $('#TOC');
-    if (hooked) {
-        console.log('mousemove');
-
+    if (hooked) {        
         toc$.css("left", event.clientX + "px");
         let value = parseInt(event.clientX) + 30;
         console.log(value)
