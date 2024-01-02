@@ -132,6 +132,7 @@ namespace MdExplorer.Features.Commands
                         var nextIndex = itemMatch.NextMatch().Index;
                         hiddenInput.SetAttribute("md-itemmatchindex-end", nextIndex.ToString());
                         hiddenInput.SetAttribute("class", "hiddendataforeditorh1");
+                        hiddenInput.InnerText = "todo";
                         hiddenInput.SetAttribute("md-path-file", requestInfo.AbsolutePathFile);
                         dom.DocumentElement.AppendChild(hiddenInput);
                         break;
