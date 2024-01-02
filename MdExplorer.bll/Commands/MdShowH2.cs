@@ -7,18 +7,18 @@ using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Commands
 {
-    public class MDShowH1 : CommandBase, ICommand
+    public class MDShowH2 : CommandBase, ICommand
     {
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 10;
         public string Name { get; set; } = "MDShowH1";
-        public MDShowH1(string ServerAddress, ILogger<MDShowH1> logger)
+        public MDShowH2(string ServerAddress, ILogger<MDShowH2> logger)
         {
             _serverAddress = ServerAddress;
             _logger = logger;
         }
         protected readonly string _serverAddress;
-        protected readonly ILogger<MDShowH1> _logger;
+        protected readonly ILogger<MDShowH2> _logger;
 
         public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"MDShowH1\((.*),(.*),(.*)\)",
+            Regex rx = new Regex(@"MDShowH2\((.*),(.*),(.*)\)",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var matches = rx.Matches(markdown);
             return matches;

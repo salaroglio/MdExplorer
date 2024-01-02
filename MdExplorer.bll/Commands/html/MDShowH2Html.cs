@@ -17,20 +17,20 @@ using System.Xml;
 
 namespace MdExplorer.Features.Commands.html
 {
-    public class MDShowH1Html : MDShowH1, ICommandHtml
+    public class MDShowH2Html : MDShowH2, ICommandHtml
     {
         private readonly IHelper _helper;
 
         private string[] colorsArray = new[] { "red", "green", "yellow", "brown", "black" };
 
-        public MDShowH1Html(string ServerAddress, ILogger<MDShowH1Html> logger, IHelper helper) : base(ServerAddress, logger)
+        public MDShowH2Html(string ServerAddress, ILogger<MDShowH2Html> logger, IHelper helper) : base(ServerAddress, logger)
         {
             _helper = helper;
         }
 
-        private MatchCollection GetMatchesH1(string markdown)
+        private MatchCollection GetMatchesH2(string markdown)
         {
-            Regex rx = new Regex(@"# ([^\n])*(.*)",
+            Regex rx = new Regex(@"## ([^\n])*((?!\n#).)*",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;
@@ -38,9 +38,9 @@ namespace MdExplorer.Features.Commands.html
 
         override public string TransformAfterConversion(string markdown, RequestInfo requestInfo)
         {
-            // Devo cercare dentro markdown il comando MDShowH1(pathfile)
+            // Devo cercare dentro markdown il comando MDShowH2Html(pathfile)
             // potrei usare le regular expression
-            // Devo agganciare la parola "MdShowH1(xxx, title of interest)"
+            // Devo agganciare la parola "MDShowH2Html(xxx, title of interest)"
             // ed in più devo prendere xxx e il nome del paragrafo
 
             var matches = GetMatches(markdown);
@@ -81,37 +81,49 @@ namespace MdExplorer.Features.Commands.html
                         fileName = _helper.NormalizePath(fileName);
 
 
-                        // now we know where to search for the second instance of the command
-
-                        var markdownTxt = string.Empty;
-                        var rootPathSystem = requestInfo.CurrentRoot;
-                        var filePathSystem = string.Concat(rootPathSystem, Path.DirectorySeparatorChar , fileName.Replace('/', Path.DirectorySeparatorChar));
-
-                        using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                        using (var sr = new StreamReader(fs, Encoding.UTF8))
-                        {
-                            markdownTxt = sr.ReadToEnd();
-                        }
-                        var matceshH1 = GetMatchesH1(markdownTxt);
-
-                        foreach (Match matchH1 in matceshH1) {
-                            if (matchH1.Groups[0].Value == item.Groups[2].Value)
-                            {
-                                // qui scrivo uno shapshot
-                            }
-                        }
+                        
 
                     }
                     else if (item.Groups[1].Value.StartsWith("/"))
                     {
                         fileName = item.Groups[1].Value.Remove(0, 1);
                     }
-                    var queryEncoded = fileName.Replace("\\", "/");// HttpUtility.UrlEncode(fileName);
+                    var queryEncoded = fileName.Replace("\\", "/")+item.Groups[3].Value;// HttpUtility.UrlEncode(fileName);
                     var httpClientHandler = new HttpClientHandler();
                     httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
                     {
                         return true;
                     };
+
+                    // now we know where to search for the second instance of the command
+
+                    var markdownTxt = string.Empty;
+                    var rootPathSystem = requestInfo.CurrentRoot;
+                    var filePathSystem = string.Concat(rootPathSystem, Path.DirectorySeparatorChar, fileName.Replace('/', Path.DirectorySeparatorChar));
+
+                    using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var sr = new StreamReader(fs, Encoding.UTF8))
+                    {
+                        markdownTxt = sr.ReadToEnd();
+                    }
+                    var matchesH2 = GetMatchesH2(markdownTxt);
+
+                    var fullPathFileMdToRender = string.Empty;
+
+                    foreach (Match matchH1 in matchesH2)
+                    {
+                        var title = string.Join(string.Empty, matchH1.Groups[1].Captures).Replace("\r", string.Empty);
+                        if (title == item.Groups[2].Value.Trim())
+                        {
+                            var allContent = matchH1.Groups[0].Value;
+                            // hash, and save
+                            var textHash = _helper.GetHashString(matchH1.Groups[0].Value, Encoding.UTF8);
+                            fullPathFileMdToRender = rootPathSystem + Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar + textHash + ".md";
+                            File.WriteAllText(fullPathFileMdToRender, allContent);
+                            break;
+                        }
+                    }
+                    fileName = fullPathFileMdToRender.Replace(rootPathSystem,string.Empty);
 
                     using (var httpClient = new HttpClient(httpClientHandler))
                     {
