@@ -40,7 +40,7 @@ namespace MdExplorer.Features.Commands.html
             var currentIncrement = 0;
             foreach (Match item in matches)
             {
-                if (matchCounter < (matches.Count / 2))
+                if (matchCounter < (matches.Count))
                 {
                     matchCounter++;
                     var fileName = item.Groups[1].Value;
