@@ -30,7 +30,7 @@ namespace MdExplorer.Features.Commands.html
 
         private MatchCollection GetMatchesH2(string markdown)
         {
-            Regex rx = new Regex(@"## ([^\n])*((?!\n#).)*",
+            Regex rx = new Regex(@"## ([^\n])*((?!\n## )(?!\n# ).)*",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;
