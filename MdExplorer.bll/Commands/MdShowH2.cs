@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Commands
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"MDShowH2\((.*),(.*),(.*)\)",
+            Regex rx = new Regex(@"MDShowH2\((.*?),(.*?),(.*?)(?:,(.*?))?\)", //
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var matches = rx.Matches(markdown);
             return matches;

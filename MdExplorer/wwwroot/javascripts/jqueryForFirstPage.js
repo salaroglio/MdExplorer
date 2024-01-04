@@ -38,21 +38,11 @@ tocWasShown = false;
 function hideTocForEditH1() {
     if ($('#TOC').is(":hidden")) {        
         if (tocWasShown) {
-            var $page = $('#page');
-            $page.attr('class', 'col-9');
-            setTimeout(function () {
-                var $toc = $('#TOC');
-                $toc.attr('class', 'col-3');
-                $toc.show();
-
-            }, 500);
+            
         }
     } else {        
         var $toc = $('#TOC');
-        $toc.hide();
-        $toc.removeAttr('class');
-        var $page = $('#page');
-        $page.attr('class', 'col-12');        
+        $toc.hide();             
     }
 }
 
@@ -124,8 +114,7 @@ $(function () {
     operButton$.on("click", function () {
 
         var oldData$ = $('div.hiddendataforeditorh1[md-h1Id=' + currenth1Id + ']');
-        var textArea$ = $('#editH1');   
-        debugger;
+        var textArea$ = $('#editH1');           
         var oldMd = oldDataText; // oldData$[0].innerText;
         var newMd = textArea$.val();
         var pathFile = oldData$.attr("md-path-file");
@@ -849,7 +838,7 @@ $(function () {
 
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas(me) {
-    debugger;
+    
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
