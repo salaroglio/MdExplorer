@@ -358,6 +358,7 @@ mdeItemRightTabs {
 }
 
 .buttonTab {
+    left:calc(100vw - 47px);
     transform: rotate(90deg);
     position: relative;
     border-color: grey;
