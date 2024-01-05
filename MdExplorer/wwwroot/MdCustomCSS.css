@@ -334,13 +334,14 @@ s
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: stretch;
+    width:100%;    
 }
 
-.mdeItemMainPageLeftMenu {
+.mdeItemMainPageLeftMenu {    
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
-    flex: 0 0 0px;
+    flex: 0 0 45px;
     
 }
 
@@ -416,4 +417,21 @@ mdeItemRightTabs {
     position: sticky;
     width:30px;
     top: 0;    
+}
+
+.mdeLowerBar {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    position: fixed;
+    top: calc(100vh - 60px);
+    left: calc(50vw - 60px);
+    width: 120px;
+    border: solid;
+    border-width:2px;
+    border-color: red;
+    border-radius: 20px;
+    float:none;
+    background-color: white;
+    z-index: 1020;
 }
