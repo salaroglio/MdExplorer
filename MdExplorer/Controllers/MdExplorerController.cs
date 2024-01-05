@@ -363,6 +363,7 @@ namespace MdExplorer.Controllers
                                 <div class=""toc js-toc""></div>                                    
                             </nav>
                         </div>
+                        <div class=""buttonTab "">{button2}</div>
                     </div>
                     <div class=""mdeLowerBar"">
                              {button1}                            
@@ -376,7 +377,7 @@ namespace MdExplorer.Controllers
                         </div>
                         <div class=""mdeItemRightTabs"">
                             <div class=""mdeTabSticky-top"">
-                                <div class=""buttonTab "">{button2}</div>
+                               
                             </div>
                         </div>  
                     </div>
