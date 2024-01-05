@@ -344,7 +344,7 @@ namespace MdExplorer.Controllers
             //var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
 
             var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
-            var button2 = AddButtonTextOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "Index", "toc");
+            var button2 = AddButtonTextOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
             var button3 = AddButtonOnTopPage($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
             var resultToParse = $@"
                     <div class=""edith1-popup-overlay"">
@@ -354,7 +354,8 @@ namespace MdExplorer.Controllers
                             <button class=""close"">Close</button>    
                             <button class=""save"" >save</button>  
                         </div>
-                    </div>                    
+                    </div>    
+                   
                     <div  class=""mdeTocSticky-top"">                        
                         <div id=""TOC"" class=""tocNavigation"">
                             <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
@@ -363,15 +364,13 @@ namespace MdExplorer.Controllers
                             </nav>
                         </div>
                     </div>
+                    <div class=""mdeLowerBar"">
+                             {button1}                            
+                             {button3}
+                    </div>
                     <div class=""mdeContainerIFrameApplciation"">
-                        <div class=""mdeItemMainPageLeftMenu"">                            
-                            <span class=""flexExpand""></span>
-                            <div class=""sticky-top"">               
-                            <div style=""height:calc(100vh - 100px);""></div>
-                            {button1}                            
-                            {button3}
-                            </div>
-                        </div>  
+                        <div class=""mdeItemMainPageLeftMenu"" ></div>
+                        
                         <div class=""mdeItemMainPageCenter md-tocbot-content js-toc-content"">
                             {result}
                         </div>
@@ -381,6 +380,7 @@ namespace MdExplorer.Controllers
                             </div>
                         </div>  
                     </div>
+                     
                     ";
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1, fullPathFile);
