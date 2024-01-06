@@ -245,7 +245,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var currentImageToSave = currentDirectory + Path.DirectorySeparatorChar + title;
                     imageToSave.Save(currentImageToSave);
                     var allText = System.IO.File.ReadAllText(fileData.FileInfoNode.FullPath);
-                    var newLineTextToAdd = @$"![{fileData.FileName}](assets/{title})";
+                    //We have to set an absolute path
+                    var relativePathMDE = fileData.FileInfoNode.Path.Replace(fileData.FileInfoNode.Name,string.Empty).Replace("\\","/");
+                    var newLineTextToAdd = @$"![{fileData.FileName}]({relativePathMDE}assets/{title})";
                     allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
                     _fileSystemWatcher.EnableRaisingEvents = true;
                     System.IO.File.WriteAllText(fileData.FileInfoNode.FullPath, allText);
