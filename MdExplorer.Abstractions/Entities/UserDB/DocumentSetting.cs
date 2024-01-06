@@ -16,5 +16,7 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual Guid Id { get; set; }
         public virtual string DocumentPath { get; set; }
         public virtual bool ShowTOC { get; set; }
+        public virtual int? TocWidth { get; set;}
+        public virtual int? TocLeft { get; set; }
     }
 }
