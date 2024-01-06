@@ -338,10 +338,8 @@ namespace MdExplorer.Controllers
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
             var docSettingDal = _session.GetDal<DocumentSetting>();
-            var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
+            //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
-            //var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""";
-            //var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
 
             var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
             var button2 = AddButtonTextOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
@@ -357,7 +355,7 @@ namespace MdExplorer.Controllers
                     </div>    
                    
                     <div  class=""mdeTocSticky-top"">                        
-                        <div id=""TOC"" class=""tocNavigation"">
+                        <div id=""TOC"" class=""tocNavigation"" mdeFullPathDocument=""{fullPathFile}"">
                             <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
                             <nav class=""tocNavNavigation"">
                                 <div class=""toc js-toc""></div>                                    

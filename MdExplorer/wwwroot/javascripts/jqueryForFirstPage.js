@@ -3,17 +3,17 @@
 currenth1Id = 0;
 oldDataText = "";
 
-function editH1(h1Id) {    
-    var test$ = $('div.hiddendataforeditorh1[md-h1Id=' + h1Id + ']');     
+function editH1(h1Id) {
+    var test$ = $('div.hiddendataforeditorh1[md-h1Id=' + h1Id + ']');
     currenth1Id = h1Id;
     $(".edith1-popup-overlay, .popup-content").addClass("active");
     editorH1CurrentIndex = test$.attr("md-itemmatchindex");
 
     var pathFile = test$.attr("md-path-file");
     $.get("/api/WriteMD/GetEditorH1?editorH1CurrentIndex=" + editorH1CurrentIndex + "&absolutePathFile=" + pathFile, function (data) {
-        
+
         oldDataText = data;
-        $('#editH1').val(data); 
+        $('#editH1').val(data);
         let canvas$ = $('#canvas');
         let toc$ = $('#toc');
         let editorH1$ = $('#editorH1');
@@ -27,27 +27,27 @@ function editH1(h1Id) {
         }
         hideTocForEditH1();
     });
-    
+
 
     //$('#editH1').val(test$[0].innerText); riga di codice originale
 
-    
+
 }
 
-tocWasShown = false; 
+tocWasShown = false;
 function hideTocForEditH1() {
-    if ($('#TOC').is(":hidden")) {        
+    if ($('#TOC').is(":hidden")) {
         if (tocWasShown) {
-            
+
         }
-    } else {        
+    } else {
         var $toc = $('#TOC');
-        $toc.hide();             
+        $toc.hide();
     }
 }
 
 // configuration of editH1
-$(function () {    
+$(function () {
     var editorH1$ = $('#editH1');
     editorH1$.highlightWithinTextarea({
         highlight: [
@@ -87,12 +87,12 @@ $(function () {
                 highlight: ':question:',
                 className: 'red'
             },
-            
+
             {
                 highlight: ':negative_squared_cross_mark:',
                 className: 'darkgreen'
             },
-            
+
 
         ]
     });
@@ -114,13 +114,13 @@ $(function () {
     operButton$.on("click", function () {
 
         var oldData$ = $('div.hiddendataforeditorh1[md-h1Id=' + currenth1Id + ']');
-        var textArea$ = $('#editH1');           
+        var textArea$ = $('#editH1');
         var oldMd = oldDataText; // oldData$[0].innerText;
         var newMd = textArea$.val();
         var pathFile = oldData$.attr("md-path-file");
         var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
         var indexEnd = parseInt(oldData$.attr("md-itemmatchindex-end"));
-        
+
 
         let toStringify = { oldMd: oldMd, newMd: newMd, pathFile: pathFile, indexStart: indexStart, indexEnd: indexEnd };
         $.ajax({
@@ -180,7 +180,7 @@ const cyrb53 = function (str, seed = 0) {
 
 //Open link directly in the application
 function openApplication(fullpath) {
-    
+
     let toStringify = { fullPath: fullpath };
     $.ajax({
         url: "/api/MdFiles/OpenFileInApplication",
@@ -189,11 +189,13 @@ function openApplication(fullpath) {
         contentType: "application/json; charset=utf-8",
         dataType: "json",
         success: function (data) {
-            console.log(data);            
+            console.log(data);
         }
     });
 
 }
+
+currentDocumentSetting = {};
 
 // gestione tocbot
 $(function () {
@@ -209,7 +211,31 @@ $(function () {
 
     });
     setTimeout(tocbot.refresh());
-    //console.log('Tocbot initialized');
+    // visualizzazione toc
+    let $TOC = $("#TOC");
+    let pathFile = $TOC.attr("mdeFullPathDocument");
+    $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
+        debugger;
+        currentDocumentSetting = documentSetting;
+        if (documentSetting !=undefined) {
+            let toc$ = $('#TOC');
+
+
+            if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
+                toc$.css("width", "calc(100% - " + currentDocumentSetting.tocWidth + "px");
+            }
+            if (currentDocumentSetting.tocLeft != null && currentDocumentSetting.tocLeft != 0) {
+                toc$.css("left", currentDocumentSetting.tocLeft + "px");
+            }
+            if (documentSetting.showTOC) {
+                $TOC.show();
+            } else {
+                $TOC.hide();
+            }
+        }
+        
+    });
+
 });
 
 // array di tutti gli tooltip con emoji
@@ -265,7 +291,7 @@ function setTippyTypePriority(tippyReference, _) {
         _.setProps({ theme: 'priorityObbligatorio' });
     }
 
-    
+
 
 }
 
@@ -287,7 +313,7 @@ function setTippyTypeProcess(tippyReference, _) {
         _.setProps({ theme: 'processAttenzione' });
     }
 
-    
+
 }
 
 
@@ -604,9 +630,9 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
 
 // gestione degli emoji di processo
 function dynamicEmojiForProcess(el, index, pathfile) {
-    
 
-    
+
+
     let dataToSet;
     el.removeAttribute('data-tippy-content');
     if (el.innerText.trim() == 'ℹ️') {
@@ -646,18 +672,18 @@ function dynamicEmojiForProcess(el, index, pathfile) {
         }
 
     });
-  
+
     setTooltipProcess(dataToSet, el);
     tocbot.refresh();
 }
 
-function setTooltipPriority(dataToSet, el) {    
-    
+function setTooltipPriority(dataToSet, el) {
+
     let $el = $(el);
     let attributeValue = $el.attr("data-tippy-priority-id");
     let currentPriority = tippyDictPriority[attributeValue]; //el.attributes[8].value
     currentPriority.setContent(dataToSet);
-    currentPriority.reference.setAttribute('data-tippy-content',dataToSet)
+    currentPriority.reference.setAttribute('data-tippy-content', dataToSet)
     setTippyTypePriority(currentPriority.reference, currentPriority);
     currentPriority.show();
 }
@@ -666,7 +692,7 @@ function setTooltipProcess(dataToSet, el) {
     let $el = $(el);
     let attributeValue = $el.attr("data-tippy-process-id");
     let current = tippyDictProcess[attributeValue]; //data-tippy-process-id //el.attributes[4].value
-    current.setContent(dataToSet);    
+    current.setContent(dataToSet);
     current.reference.setAttribute('data-tippy-content', dataToSet)
     setTippyTypeProcess(current.reference, current);
     current.show();
@@ -675,7 +701,7 @@ function setTooltipProcess(dataToSet, el) {
 
 // gestione degli emoji di priorità
 function dynamicEmojiForPriority(el, index, pathfile) {
-    
+
     if (el.innerText == '❓') {
         el.innerText = '❔';
         //el.title = 'da valutare';
@@ -731,17 +757,17 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     var currentIndex = el.attributes['data-md-priority-index'].value;
     $.get("/api/WriteMD/SetEmojiPriority?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
-       
+
         var oldData$ = $('div.hiddendataforeditorh1');
         for (i = 0; i < oldData$.length; i++) {
             let myData$ = $(oldData$.get(i));
             let check = myData$.attr("md-itemmatchindex");
             myData$.attr("md-itemmatchindex", data[i].itemMatchIndex);
         }
-        
-        
+
+
     });
-    
+
     setTooltipPriority(dataToSet, el);
     tocbot.refresh();
 }
@@ -769,30 +795,36 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 
 function toggleTOC(documentPath) {
 
-    var showToc = false;
-    showToc = toggleToc2();
-    
-    $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
-        console.log(data);
-    });
+     toggleToc2();
 
-    
 }
 
 function toggleToc2() {
-    var showToc = false;
-    if ($('#TOC').is(":hidden")) {                       
-        var $toc = $('#TOC');        
-        $toc.show();
-        showToc = true;
+    let $toc = $('#TOC');
+    
+    if ($('#TOC').is(":hidden")) {
+
+        $toc.fadeIn();
+        currentDocumentSetting.showTOC = true;
 
     } else {
-        var $toc = $('#TOC');
-        $toc.hide();
-        $toc.removeClass('hidden');                
-        showToc = false;
+
+        currentDocumentSetting.showTOC = false;
+        $toc.fadeOut();
+        $toc.removeClass('hidden');
     }
-    return showToc;
+
+    $.ajax({
+        url: "/api/tabcontroller/SaveTOCData",
+        type: "POST",
+        data: JSON.stringify(currentDocumentSetting),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            debugger;
+            console.log(data);
+        }
+    });
 }
 
 // inizializzazione, al caricamnto della pagina,
@@ -838,7 +870,7 @@ $(function () {
 
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas(me) {
-    
+
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
@@ -879,7 +911,7 @@ function resize() {
 function draw(e) {
     if (!window.toggleCanvas) {
 
-        
+
         // mouse left button must be pressed
         if (e.buttons !== 1) return;
 
@@ -947,8 +979,8 @@ async function presentationSVG(relativePathFile, hashFile) {
 //resizeToc
 hooked = false
 function resizeToc() {
-    
-    hooked = true;   
+
+    hooked = true;
 }
 
 $(function () {
@@ -957,20 +989,37 @@ $(function () {
 });
 
 function mouseUpEvent(event) {
-    
+
     let toc$ = $('#TOC');
     if (hooked) {
-        hooked = false;       
+        hooked = false;
+        let value = parseInt(event.clientX) + 30; 
+        currentDocumentSetting.tocLeft = event.clientX;
+        currentDocumentSetting.tocWidth = value;
+        $.ajax({
+            url: "/api/tabcontroller/SaveTOCData",
+            type: "POST",
+            data: JSON.stringify(currentDocumentSetting),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (data) {
+                debugger;
+                console.log(data);
+            }
+        });
+
     }
 }
 
 function mouseMoveEvent(event) {
-    
+
     let toc$ = $('#TOC');
-    if (hooked) {        
+    if (hooked) {
+        
         toc$.css("left", event.clientX + "px");
-        let value = parseInt(event.clientX) + 30;
-        console.log(value)
-        toc$.css("width", "calc(100% - " + value +"px");
+        
+        let value = parseInt(event.clientX) + 30;        
+        toc$.css("width", "calc(100% - " + value + "px");
+        
     }
 }
