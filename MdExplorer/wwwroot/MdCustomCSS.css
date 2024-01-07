@@ -311,20 +311,24 @@ button {
     background-color: deepskyblue;
 }
 
-.green {
+.greenH1 {
     background-color: greenyellow;
 }
 
 s
 .yellow {
-    background-color: yellow;
+    background-color:yellow;
 }
 
-.gold {
+.purpleH1 {
+    background-color:#f5c7f4;
+}
+
+.goldH1 {
     background-color: gold;
 }
 
-.darkgreen {
+.darkgreenH1 {
     background-color: limegreen
 }
 
