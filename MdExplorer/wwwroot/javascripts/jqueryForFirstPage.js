@@ -1001,7 +1001,7 @@ function mouseUpEvent(event) {
         hooked = false;
         let value = parseInt(event.clientX) + 30;
         //currentDocumentSetting.tocLeft = event.clientX;
-        currentDocumentSetting.tocWidth = +toc$.css("width").substring(0,toc$.css("width").length -2) ;
+        currentDocumentSetting.tocWidth = parseInt(toc$.css("width").substring(0,toc$.css("width").length -2)) ;
         $.ajax({
             url: "/api/tabcontroller/SaveTOCData",
             type: "POST",
