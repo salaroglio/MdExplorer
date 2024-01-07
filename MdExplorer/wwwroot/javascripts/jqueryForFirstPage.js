@@ -28,10 +28,6 @@ function editH1(h1Id) {
         hideTocForEditH1();
     });
 
-
-    //$('#editH1').val(test$[0].innerText); riga di codice originale
-
-
 }
 
 tocWasShown = false;
@@ -73,11 +69,11 @@ $(function () {
             },
             {
                 highlight: ':warning:',
-                className: 'gold'
+                className: 'goldH1'
             },
             {
                 highlight: ':heavy_check_mark:',
-                className: 'green'
+                className: 'greenH1'
             },
             {
                 highlight: ':no_entry:',
@@ -87,13 +83,31 @@ $(function () {
                 highlight: ':question:',
                 className: 'red'
             },
+            {
+                highlight: '|',
+                className: 'purpleH1'
+            },
 
             {
                 highlight: ':negative_squared_cross_mark:',
-                className: 'darkgreen'
+                className: 'darkgreenH1'
             },
-
-
+            {
+                highlight: '[',
+                className: 'darkgreenH1'
+            },
+            {
+                highlight: ']',
+                className: 'darkgreenH1'
+            },
+            {
+                highlight: '(',
+                className: 'darkgreenH1'
+            },
+            {
+                highlight: ')',
+                className: 'darkgreenH1'
+            },
         ]
     });
 
