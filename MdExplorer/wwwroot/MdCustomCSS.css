@@ -129,6 +129,7 @@ img.overrideImgFluid {
 /* set canvas on top of html elements*/
 .canvasForWriting {
     z-index: 100;
+    width:100%;
 }
 
 /*tippy colors*/
@@ -429,10 +430,24 @@ mdeItemRightTabs {
     left: calc(50vw - 60px);
     width: 120px;
     border: solid;
-    border-width:2px;
-    border-color: red;
+    border-width: 2px;
+    border-color: black;
     border-radius: 20px;
-    float:none;
-    background-color: white;
+    float: none;
+    background-color: grey;
     z-index: 1020;
+}
+
+.mdeLowerBarButton {
+    cursor: pointer;
+    border-radius: 10px;
+    background-color: grey;
+    padding:2px;
+    margin:0px 2px 0px 2px;
+}
+
+.mdeLowerBarButton:hover{
+    background-color:white;
+    border-color:black;
+    border-width:2px;
 }

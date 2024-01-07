@@ -49,8 +49,16 @@ export class SidenavComponent implements OnInit {
       }
     });
     document.addEventListener("mouseup", (event) => {
+      console.log(this.hooked);
+      
       if (this.hooked) {
-        this.stopResizeWidth();
+        
+        //this.stopResizeWidth();
+        this.hooked = false;
+        this.classForBorderDiv = "border-div";
+        this.projectService.currentProjects$.value.sidenavWidth = event.clientX;
+        this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value); 
+       
       }
     });
     
@@ -79,9 +87,12 @@ export class SidenavComponent implements OnInit {
     this.classForBorderDiv = "border-div-moving";
   }
 
-  stopResizeWidth(): void {    
-    this.hooked = false;
-    this.classForBorderDiv = "border-div";
+  stopResizeWidth(): void {
+    
+    
+   
+    
+    
   }
 
   openProject(): void {
@@ -102,8 +113,13 @@ export class SidenavComponent implements OnInit {
     this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
     
     this.projectService.currentProjects$.subscribe(_ => {      
-      if (_ != null && _!= undefined) {
+      if (_ != null && _ != undefined) {
+        debugger;
         this.bookmarksService.initBookmark(_.id);
+        if (_.sidenavWidth != null && _.sidenavWidth != 0) {
+          this.sideNavWidth = _.sidenavWidth + "px";
+        }
+        
       }
     });
     

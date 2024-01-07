@@ -341,9 +341,9 @@ namespace MdExplorer.Controllers
             //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
 
-            var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
-            var button2 = AddButtonTextOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
-            var button3 = AddButtonOnTopPage($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
+            var button1 = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
+            var button2 = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
+            var button3 = AddButtonOnLowerBar($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
             var resultToParse = $@"
                     <div class=""edith1-popup-overlay"">
                         <div class=""popup-content"">
@@ -440,18 +440,20 @@ namespace MdExplorer.Controllers
             body.InnerXml += resultToParse;
         }
 
-        private string AddButtonOnTopPage(string functionJs, string image, string Id)
+       
+
+        private string AddButtonOnLowerBar(string functionJs, string image, string Id)
         {
             var doc1 = new XmlDocument();
             var body = doc1.CreateElement("div");
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
-            var att2 = doc1.CreateAttribute("style");
-            att2.Value = "cursor: pointer;";
-            a.Attributes.Append(aAtt);
-            a.Attributes.Append(att2);
+            var aAtt3 = doc1.CreateAttribute("class");
+            aAtt3.Value = "mdeLowerBarButton";
+            body.Attributes.Append(aAtt3);
+            a.Attributes.Append(aAtt);            
             aAtt.Value = functionJs;
-            var imgEl = doc1.CreateElement("img");            
+            var imgEl = doc1.CreateElement("img");
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
             var id = doc1.CreateAttribute("id");
@@ -463,7 +465,7 @@ namespace MdExplorer.Controllers
             return body.OuterXml;
         }
 
-        private string AddButtonTextOnTopPage(string functionJs, string text, string Id)
+        private string AddButtonTextOnVerticalBar(string functionJs, string text, string Id)
         {
             var doc1 = new XmlDocument();
             var body = doc1.CreateElement("div");
@@ -475,18 +477,10 @@ namespace MdExplorer.Controllers
             a.Attributes.Append(aAtt);
             a.Attributes.Append(att2);
             aAtt.Value = functionJs;
-            //var imgEl = doc1.CreateElement("img");
-            //a.AppendChild(imgEl);
-            //var srcImg = doc1.CreateAttribute("src");
             var id = doc1.CreateAttribute("id");
-            //srcImg.Value = image;
             id.Value = Id;
-            //imgEl.Attributes.Append(srcImg);
-            //imgEl.Attributes.Append(id);
             body.AppendChild(a);
             return body.OuterXml;
-
-
             body.AppendChild(a);
             return body.OuterXml;
         }

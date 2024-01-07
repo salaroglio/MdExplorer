@@ -8,7 +8,7 @@ export class INCOMING_ROTATE_OPTION implements AnimationOption {
   keyframes?: Keyframe[];
   keyframeAnimationOptions: KeyframeAnimationOptions;
   constructor() {
-    debugger;
+    
     this.keyframes = [
       { transform: "rotate(360deg)" },
       { transform: "rotate(0)" }
@@ -25,7 +25,7 @@ export class OUTGOING_ROTATE_OPTION implements AnimationOption {
   keyframes?: Keyframe[];
   keyframeAnimationOptions: KeyframeAnimationOptions;
   constructor() {
-    debugger;
+    
     this.keyframes = [
       { transform: "rotate(0)" },
       { transform: "rotate(360deg)" }
