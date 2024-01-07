@@ -1,4 +1,7 @@
-﻿/*impostazione generica*/
+﻿:root{
+    --toc-width:300px;
+}
+/*impostazione generica*/
 body {
     user-select: none;
 }
@@ -386,12 +389,12 @@ mdeItemRightTabs {
         padding:0px 8px;
     }
 
-.tocNavigation {    
+.tocNavigation {
     position: absolute;
-    left: calc(100% - 300px);
-    width: 270px;
-    display:flex;
-    flex-direction:row;
+    left: calc(100% - var(--toc-width) - 30px);
+    width: calc(var(--toc-width));
+    display: flex;
+    flex-direction: row;
 }
 
 .tocNavNavigation {

@@ -229,17 +229,15 @@ $(function () {
     let $TOC = $("#TOC");
     let pathFile = $TOC.attr("mdeFullPathDocument");
     $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
-
+        debugger;
         currentDocumentSetting = documentSetting;
         if (documentSetting != undefined) {
             let toc$ = $('#TOC');
 
             if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
-                toc$.css("width", "calc(100% - " + currentDocumentSetting.tocWidth + "px");
+                document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
             }
-            if (currentDocumentSetting.tocLeft != null && currentDocumentSetting.tocLeft != 0) {
-                toc$.css("left", currentDocumentSetting.tocLeft + "px");
-            }
+            
             if (documentSetting.showTOC) {
                 $TOC.show();
             } else {
@@ -1002,8 +1000,8 @@ function mouseUpEvent(event) {
     if (hooked) {
         hooked = false;
         let value = parseInt(event.clientX) + 30;
-        currentDocumentSetting.tocLeft = event.clientX;
-        currentDocumentSetting.tocWidth = value;
+        //currentDocumentSetting.tocLeft = event.clientX;
+        currentDocumentSetting.tocWidth = +toc$.css("width").substring(0,toc$.css("width").length -2) ;
         $.ajax({
             url: "/api/tabcontroller/SaveTOCData",
             type: "POST",
@@ -1023,11 +1021,12 @@ function mouseMoveEvent(event) {
 
     let toc$ = $('#TOC');
     if (hooked) {
+        let value = document.documentElement.scrollWidth - parseInt(event.clientX) -30;
+        document.documentElement.style.setProperty("--toc-width", value + "px");
+        //toc$.css("left", event.clientX + "px");
 
-        toc$.css("left", event.clientX + "px");
-
-        let value = parseInt(event.clientX) + 30;
-        toc$.css("width", "calc(100% - " + value + "px");
+        
+        //toc$.css("width", "calc(100% - " + value + "px");
 
     }
 }
