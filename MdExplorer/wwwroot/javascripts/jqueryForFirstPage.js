@@ -215,9 +215,9 @@ $(function () {
     let $TOC = $("#TOC");
     let pathFile = $TOC.attr("mdeFullPathDocument");
     $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
-        
+
         currentDocumentSetting = documentSetting;
-        if (documentSetting !=undefined) {
+        if (documentSetting != undefined) {
             let toc$ = $('#TOC');
 
 
@@ -233,7 +233,7 @@ $(function () {
                 $TOC.hide();
             }
         }
-        
+
     });
 
 });
@@ -587,7 +587,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     var position2 = test3.substring(0, position);
     var test2 = cyrb53(position2);
     var scrollpos1 = localStorage.getItem(test2);
-    if (scrollpos1) window.scrollTo(0, scrollpos1);
+    if (scrollpos1) window.scrollTo({ left: 0, top: scrollpos1, behavior: "instant" });
 
 });
 
@@ -795,13 +795,13 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 
 function toggleTOC(documentPath) {
 
-     toggleToc2();
+    toggleToc2();
 
 }
 
 function toggleToc2() {
     let $toc = $('#TOC');
-    
+
     if ($('#TOC').is(":hidden")) {
 
         $toc.fadeIn();
@@ -821,7 +821,7 @@ function toggleToc2() {
         contentType: "application/json; charset=utf-8",
         dataType: "json",
         success: function (data) {
-            
+
             console.log(data);
         }
     });
@@ -850,7 +850,7 @@ $(function () {
     window.canvas.style.top = 0;
     window.canvas.width = window.innerWidth - 40;
     //window.canvas.style.left = window.innerWidth; // qui è dove si imposta il canvas FUORI dal campo visivo
-    
+
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
     resize();
@@ -871,7 +871,7 @@ $(function () {
 
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas(me) {
-    
+
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
@@ -886,7 +886,7 @@ function toggleMdCanvas(me) {
         //$(window.canvas).animate({
         //    left: window.innerWidth,
         //}, function () {
-            
+
         //});
         window.canvas.setAttribute('hidden', 'hidden');
     }
@@ -899,8 +899,10 @@ function scrollPosition(e) {
 }
 // new position from mouse event
 function setPosition(e) {
-    pos.x = scrollPos.x + e.clientX;
-    pos.y = scrollPos.y + e.clientY;
+    
+    pos.x = Math.round(e.clientX * 1.01) + Math.round(scrollPos.x * 1.01)  ;
+    pos.y = Math.round(e.clientY * 1.01) + Math.round(scrollPos.y * 1.01);
+    
 }
 
 // resize canvas
@@ -995,7 +997,7 @@ function mouseUpEvent(event) {
     let toc$ = $('#TOC');
     if (hooked) {
         hooked = false;
-        let value = parseInt(event.clientX) + 30; 
+        let value = parseInt(event.clientX) + 30;
         currentDocumentSetting.tocLeft = event.clientX;
         currentDocumentSetting.tocWidth = value;
         $.ajax({
@@ -1005,7 +1007,7 @@ function mouseUpEvent(event) {
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function (data) {
-                
+
                 console.log(data);
             }
         });
@@ -1017,11 +1019,11 @@ function mouseMoveEvent(event) {
 
     let toc$ = $('#TOC');
     if (hooked) {
-        
+
         toc$.css("left", event.clientX + "px");
-        
-        let value = parseInt(event.clientX) + 30;        
+
+        let value = parseInt(event.clientX) + 30;
         toc$.css("width", "calc(100% - " + value + "px");
-        
+
     }
 }
