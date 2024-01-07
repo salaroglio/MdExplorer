@@ -259,7 +259,6 @@ class NgDialogAnimationService {
                 config.animation.to = dir === 'rtl' ? 'left' : 'right';
             }
         }
-        debugger;
         if (config.position && config.position.rowEnd) {
             if (dir === 'rtl') {
                 config.position.right = config.position.rowEnd;

@@ -215,7 +215,7 @@ $(function () {
     let $TOC = $("#TOC");
     let pathFile = $TOC.attr("mdeFullPathDocument");
     $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
-        debugger;
+        
         currentDocumentSetting = documentSetting;
         if (documentSetting !=undefined) {
             let toc$ = $('#TOC');
@@ -821,7 +821,7 @@ function toggleToc2() {
         contentType: "application/json; charset=utf-8",
         dataType: "json",
         success: function (data) {
-            debugger;
+            
             console.log(data);
         }
     });
@@ -848,8 +848,9 @@ $(function () {
     window.canvas.setAttribute('hidden', 'hidden');
     window.canvas.style.position = 'absolute';
     window.canvas.style.top = 0;
-    window.canvas.style.left = window.innerWidth - 40; // qui è dove si imposta il canvas FUORI dal campo visivo
-
+    window.canvas.width = window.innerWidth - 40;
+    //window.canvas.style.left = window.innerWidth; // qui è dove si imposta il canvas FUORI dal campo visivo
+    
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
     resize();
@@ -857,7 +858,7 @@ $(function () {
     // last known position
     console.log()
     window.shiftY = 0;
-    window.shiftX = -40;
+    window.shiftX = 0;
     window.pos = { x: 0, y: 0 };
     window.scrollPos = { x: window.shiftX, y: window.shiftY };
 
@@ -870,23 +871,24 @@ $(function () {
 
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas(me) {
-
+    
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
-        $(window.canvas).animate({
-            left: 40,
-        }, function () {
-        });
+        window.canvas.style.left = 0;
+        //$(window.canvas).animate({
+        //    left: 0,
+        //}, function () {
+        //});
 
     } else {
         me.children[0].src = "/assets/drawStatic.png";
-        $(window.canvas).animate({
-            left: window.innerWidth,
-        }, function () {
-            window.canvas.setAttribute('hidden', 'hidden');
-        });
-
+        //$(window.canvas).animate({
+        //    left: window.innerWidth,
+        //}, function () {
+            
+        //});
+        window.canvas.setAttribute('hidden', 'hidden');
     }
     window.toggleCanvas = !window.toggleCanvas;
 }
@@ -1003,7 +1005,7 @@ function mouseUpEvent(event) {
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function (data) {
-                debugger;
+                
                 console.log(data);
             }
         });

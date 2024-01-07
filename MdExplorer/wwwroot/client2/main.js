@@ -154,7 +154,7 @@ MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵ�
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
+module.exports = __webpack_require__(/*! C:\Users\Carlo\source\repos\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
 
 
 /***/ }),
@@ -1378,7 +1378,6 @@ class MdFileService {
     }
     loadAll(callback, objectThis) {
         const url = '../api/mdfiles/GetAllMdFiles?connectionId=' + this.mdServerMessages.connectionId;
-        debugger;
         return this.http.get(url)
             .subscribe(data => {
             this.dataStore.mdFiles = data;

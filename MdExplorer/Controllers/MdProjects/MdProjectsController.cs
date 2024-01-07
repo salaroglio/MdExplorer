@@ -89,7 +89,21 @@ namespace MdExplorer.Service.Controllers.MdProjects
             projectDal.Save(project);
             _userSettingsDB.Commit();
             ProjectsManager.SetNewProject(_services, folderPath.Path);
-            return Ok(new { id = project.Id, name = project.Name, path = project.Path });
+            return Ok(new { id = project.Id, name = project.Name, path = project.Path, sidenavWidth= project.SidenavWidth });
+        }
+
+        [HttpPost]
+        public IActionResult SetSideNavWidth([FromBody] Project project)
+        {
+            _userSettingsDB.BeginTransaction();
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            var projectDB = projectDal.GetList().Where(_=>_.Id == project.Id).FirstOrDefault();
+            if (projectDB != null)
+            {
+                projectDB.SidenavWidth = project.SidenavWidth;
+            }
+            _userSettingsDB.Commit();
+            return Ok();
         }
 
         [HttpPost]

@@ -174,8 +174,7 @@ export class NewProjectComponent implements OnInit {
   ngOnInit(): void {
     this.folder = { name: "<select project>", path: "" };
     // when the project change, then switch to navigation environment
-    this.projectService.currentProjects$.subscribe(_ => {
-      debugger;
+    this.projectService.currentProjects$.subscribe(_ => {      
       if (_ != null && _ != undefined) {
         var dateTime = new Date();
         this.router.navigate(['/main/navigation/document']); //main

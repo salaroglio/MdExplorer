@@ -2445,8 +2445,13 @@ class SidenavComponent {
             }
         });
         document.addEventListener("mouseup", (event) => {
+            console.log(this.hooked);
             if (this.hooked) {
-                this.stopResizeWidth();
+                //this.stopResizeWidth();
+                this.hooked = false;
+                this.classForBorderDiv = "border-div";
+                this.projectService.currentProjects$.value.sidenavWidth = event.clientX;
+                this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value);
             }
         });
         this.currentFolder.folderName.subscribe((data) => {
@@ -2472,8 +2477,6 @@ class SidenavComponent {
         this.classForBorderDiv = "border-div-moving";
     }
     stopResizeWidth() {
-        this.hooked = false;
-        this.classForBorderDiv = "border-div";
     }
     openProject() {
         var mdFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__["MdFile"]("Welcome to MDExplorer", '/../welcome.html', 0, false);
@@ -2490,7 +2493,11 @@ class SidenavComponent {
         this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
         this.projectService.currentProjects$.subscribe(_ => {
             if (_ != null && _ != undefined) {
+                debugger;
                 this.bookmarksService.initBookmark(_.id);
+                if (_.sidenavWidth != null && _.sidenavWidth != 0) {
+                    this.sideNavWidth = _.sidenavWidth + "px";
+                }
             }
         });
     }
@@ -2840,7 +2847,6 @@ class DocumentSettingsComponent {
         });
     }
     openCustomWord() {
-        debugger;
         this.mdFileService.opencustomwordtemplate(this.selectedMdFile)
             .subscribe(_ => {
             this._snackBar.open("Opening Word Custom template!");
