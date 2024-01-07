@@ -220,7 +220,6 @@ $(function () {
         if (documentSetting != undefined) {
             let toc$ = $('#TOC');
 
-
             if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
                 toc$.css("width", "calc(100% - " + currentDocumentSetting.tocWidth + "px");
             }
@@ -835,8 +834,6 @@ $(function () {
         window.toggleCanvas = false;
     }
 
-    //console.log('initialize canvas');
-
     window.toggleCanvas = !window.toggleCanvas;
     window.canvas = document.createElement('canvas');
     window.canvas.setAttribute('id', 'writeCanvas');
@@ -876,18 +873,9 @@ function toggleMdCanvas(me) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
         window.canvas.style.left = 0;
-        //$(window.canvas).animate({
-        //    left: 0,
-        //}, function () {
-        //});
 
     } else {
         me.children[0].src = "/assets/drawStatic.png";
-        //$(window.canvas).animate({
-        //    left: window.innerWidth,
-        //}, function () {
-
-        //});
         window.canvas.setAttribute('hidden', 'hidden');
     }
     window.toggleCanvas = !window.toggleCanvas;
@@ -900,13 +888,15 @@ function scrollPosition(e) {
 // new position from mouse event
 function setPosition(e) {
     
-    pos.x = Math.round(e.clientX * 1.01) + Math.round(scrollPos.x * 1.01)  ;
-    pos.y = Math.round(e.clientY * 1.01) + Math.round(scrollPos.y * 1.01);
+    pos.x = Math.round(e.clientX * 1.01) + Math.round(scrollPos.x * 1.014)  ;
+    pos.y = Math.round(e.clientY * 1.01) + Math.round(scrollPos.y * 1.014);
     
 }
 
 // resize canvas
 function resize() {
+    window.scaleX = window.ctx.canvas.width / window.innerWidth;
+    window.scaleY = window.ctx.canvas.height / document.documentElement.scrollHeight;
     window.ctx.canvas.width = window.innerWidth;
     window.ctx.canvas.height = document.documentElement.scrollHeight;
 }
