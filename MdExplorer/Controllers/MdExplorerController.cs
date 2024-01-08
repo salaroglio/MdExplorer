@@ -341,9 +341,10 @@ namespace MdExplorer.Controllers
             //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
 
-            var button1 = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
-            var button2 = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
-            var button3 = AddButtonOnLowerBar($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
+            var btnDraw = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
+            var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
+            var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
+            var btnEdit = AddButtonOnLowerBar($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
             var resultToParse = $@"
                     <div class=""edith1-popup-overlay"">
                         <div class=""popup-content"">
@@ -361,11 +362,18 @@ namespace MdExplorer.Controllers
                                 <div class=""toc js-toc""></div>                                    
                             </nav>
                         </div>
-                        <div class=""buttonTab "">{button2}</div>
+                        <div class=""mdeVerticalTab"">
+                            <div class=""buttonTabToc"">
+                                {btnTOC}                             
+                            </div>
+                            <div class=""buttonTabRefs"">
+                                {btnRefs}
+                            </div>
+                        </div>
                     </div>
                     <div class=""mdeLowerBar"">
-                             {button1}                            
-                             {button3}
+                             {btnDraw}                            
+                             {btnEdit}
                     </div>
                     <div class=""mdeContainerIFrameApplciation"">
                         <div class=""mdeItemMainPageLeftMenu"" ></div>
@@ -373,11 +381,7 @@ namespace MdExplorer.Controllers
                         <div class=""mdeItemMainPageCenter md-tocbot-content js-toc-content"">
                             {result}
                         </div>
-                        <div class=""mdeItemRightTabs"">
-                            <div class=""mdeTabSticky-top"">
-                               
-                            </div>
-                        </div>  
+                        
                     </div>
                      
                     ";

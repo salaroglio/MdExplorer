@@ -1,4 +1,20 @@
-﻿// EDITOR H1
+﻿//Refs
+
+$(function () {
+    window.addEventListener("scroll", function () {
+        const scrollX = window.scrollX;
+        document.documentElement.style.setProperty("--toc-scroll", Math.round(scrollX) + "px");
+        
+    });
+});
+
+
+function toggleReferences(fullpathFile) {
+    
+}
+
+
+// EDITOR H1
 
 currenth1Id = 0;
 oldDataText = "";
@@ -228,13 +244,12 @@ $(function () {
     // visualizzazione toc
     let $TOC = $("#TOC");
     let pathFile = $TOC.attr("mdeFullPathDocument");
-    $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
-        debugger;
+    $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {        
         currentDocumentSetting = documentSetting;
         if (documentSetting != undefined) {
             let toc$ = $('#TOC');
 
-            if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
+            if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {                 
                 document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
             }
             
@@ -1021,12 +1036,11 @@ function mouseMoveEvent(event) {
 
     let toc$ = $('#TOC');
     if (hooked) {
-        let value = document.documentElement.scrollWidth - parseInt(event.clientX) -30;
+        let value = document.documentElement.scrollWidth - parseInt(event.clientX) - 30;
+        let scrolldata = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        console.log(scrolldata);
+        value = value - scrolldata;
         document.documentElement.style.setProperty("--toc-width", value + "px");
-        //toc$.css("left", event.clientX + "px");
-
-        
-        //toc$.css("width", "calc(100% - " + value + "px");
 
     }
 }
