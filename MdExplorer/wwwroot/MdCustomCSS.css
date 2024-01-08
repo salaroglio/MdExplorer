@@ -1,5 +1,6 @@
 ﻿:root{
     --toc-width:300px;
+    --toc-scroll:0px;
 }
 /*impostazione generica*/
 body {
@@ -357,16 +358,14 @@ s
     flex: 1;
 }
 
-mdeItemRightTabs {
-    flex: 0 0 0px;
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    
+.mdeVerticalTab {
+   display:flex;
+   flex-direction:column;
 }
 
-.buttonTab {
-    left:calc(100% - 30px);
+
+.buttonTabToc {
+    left: calc(100% - 30px + var(--toc-scroll));
     transform: rotate(90deg);
     position: relative;
     border-color: grey;
@@ -377,21 +376,45 @@ mdeItemRightTabs {
     padding: 0px 8px;
     border-width: 5 0 0 0;
     user-select: none;
-    height:10px;
-    width:50px;
+    height: 10px;
+    width: 50px;
 }
 
-    .buttonTab:hover {                
+    .buttonTabToc:hover {
         font: bold;
         border-color: #1823d3;
         border-style: solid;
         border-width: 5 0 0 0;
-        padding:0px 8px;
+        padding: 0px 8px;
+    }
+
+.buttonTabRefs {
+    left: calc(100% - 30px + var(--toc-scroll));
+    transform: rotate(90deg);
+    position: relative;
+    border-color: grey;
+    border-style: solid;
+    top: 60px;
+    cursor: pointer;
+    font: bold;
+    padding: 0px 8px;
+    border-width: 5 0 0 0;
+    user-select: none;
+    height: 10px;
+    width: 50px;
+}
+
+    .buttonTabRefs:hover {
+        font: bold;
+        border-color: red;
+        border-style: solid;
+        border-width: 5 0 0 0;
+        padding: 0px 8px;
     }
 
 .tocNavigation {
     position: absolute;
-    left: calc(100% - var(--toc-width) - 30px);
+    left: calc(100% - var(--toc-width) - 30px + var(--toc-scroll));
     width: calc(var(--toc-width));
     display: flex;
     flex-direction: row;
