@@ -413,13 +413,27 @@ s
         border-width: 5 0 0 0;
         padding: 0px 8px;
     }
+.mdeTocTitle {
+    color: white;
+    background-color: #1823d3;
+}
+
+.mdeRefsTitle {
+    color: white;
+    background-color: red;
+}
+
+.mdeNavigationMain {
+    display: flex;
+    flex-direction: row;
+}
 
 .tocNavigation {
     position: absolute;
     left: calc(100% - var(--toc-width) - 30px + var(--toc-scroll));
     width: calc(var(--toc-width));
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
 }
 
 .tocNavNavigation {

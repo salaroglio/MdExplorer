@@ -15,6 +15,7 @@ namespace MDExplorer.DataAccess.Mapping
             Table("DocumentSetting");
             Id(_ => _.Id).GeneratedBy.GuidComb();
             Map(_ => _.ShowTOC).Not.Nullable();
+            Map(_=>_.ShowRefs).Not.Nullable();
             Map(_ => _.DocumentPath).Not.Nullable();
             Map(_=>_.TocLeft).Nullable();
             Map(_=>_.TocWidth).Nullable();

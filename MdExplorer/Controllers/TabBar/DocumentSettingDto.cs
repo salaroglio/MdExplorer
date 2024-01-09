@@ -9,5 +9,6 @@ namespace MdExplorer.Service.Controllers.TabBar
         public  bool ShowTOC { get; set; }
         public  int? TocWidth { get; set; }
         public  int? TocLeft { get; set; }
+        public bool ShowRefs { get; set; }
     }
 }

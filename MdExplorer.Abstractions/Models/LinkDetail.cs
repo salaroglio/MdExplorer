@@ -11,6 +11,7 @@ namespace MdExplorer.Abstractions.Models
         public int SectionIndex { get; set; }
         public string LinkPath { get; set; }
         public string LinkedCommand { get; set; }
+        public string Title { get; set; }
 
     }
 }

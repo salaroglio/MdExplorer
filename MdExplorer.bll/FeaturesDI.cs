@@ -54,7 +54,8 @@ namespace MdExplorer.Features
                     new WorkLinkImgFromPlantuml(),
                     new WorkLinkFromPlantuml(),
                     new WorkLinkFromMarkdown(),
-                    new WorkLinkMdShowMd()
+                    new WorkLinkMdShowMd(),
+                    new WorkLinkMdShowH2(),
                 };
                 return listOfModfier.ToArray();
                 } );
