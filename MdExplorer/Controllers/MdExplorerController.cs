@@ -357,10 +357,22 @@ namespace MdExplorer.Controllers
                    
                     <div  class=""mdeTocSticky-top"">                        
                         <div id=""TOC"" class=""tocNavigation"" mdeFullPathDocument=""{fullPathFile}"">
-                            <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
-                            <nav class=""tocNavNavigation"">
-                                <div class=""toc js-toc""></div>                                    
-                            </nav>
+                            <div class=""mdeTocTitle"">Table of content</div>
+                            <div class=""mdeNavigationMain"">
+                                <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
+                                <nav class=""tocNavNavigation"">
+                                    <div class=""toc js-toc""></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div id=""Refs"" class=""tocNavigation"" mdeFullPathDocument=""{fullPathFile}"">
+                            <div class=""mdeRefsTitle"">References</div>
+                            <div class=""mdeNavigationMain"">
+                                <div class=""tocSeparator"" onmousedown=""resizeRefs()""></div>
+                                <nav class=""refsNavNavigation"">
+                                    <div class=""refsMain"">something to write</div>                                    
+                                </nav>
+                            </div>
                         </div>
                         <div class=""mdeVerticalTab"">
                             <div class=""buttonTabToc"">

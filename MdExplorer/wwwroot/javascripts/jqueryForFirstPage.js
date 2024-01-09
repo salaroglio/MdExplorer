@@ -243,20 +243,26 @@ $(function () {
     setTimeout(tocbot.refresh());
     // visualizzazione toc
     let $TOC = $("#TOC");
+    
     let pathFile = $TOC.attr("mdeFullPathDocument");
     $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {        
         currentDocumentSetting = documentSetting;
         if (documentSetting != undefined) {
-            let toc$ = $('#TOC');
-
+            let $Toc = $('#TOC');
+            let $Refs = $("#Refs");
             if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {                 
                 document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
             }
             
             if (documentSetting.showTOC) {
-                $TOC.show();
+                $Toc.show();
             } else {
-                $TOC.hide();
+                $Toc.hide();
+            }
+            if (documentSetting.showRefs) {
+                $Refs.show();
+            } else {
+                $Refs.hide();
             }
         }
 
@@ -821,23 +827,68 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 
 function toggleTOC(documentPath) {
 
-    toggleToc2();
+    let $refs = $('#Refs');
+    let $toc = $('#TOC');
+
+    if ($('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $toc.fadeIn();
+        currentDocumentSetting.showTOC = true;
+        currentDocumentSetting.showRefs = false;
+
+    } else if ($('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $toc.fadeOut();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = false;
+    } else if (!$('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $toc.fadeIn();
+        $refs.fadeOut();
+        currentDocumentSetting.showTOC = true;
+        currentDocumentSetting.showRefs = false;
+    } else if (!$('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $toc.fadeIn();
+        $refs.fadeOut();
+        currentDocumentSetting.showTOC = true;
+        currentDocumentSetting.showRefs = false;
+    }
+    
+    $.ajax({
+        url: "/api/tabcontroller/SaveTOCData",
+        type: "POST",
+        data: JSON.stringify(currentDocumentSetting),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+
+            console.log(data);
+        }
+    });
 
 }
 
-function toggleToc2() {
+
+function toggleReferences() {
+    let $refs = $('#Refs');
     let $toc = $('#TOC');
 
-    if ($('#TOC').is(":hidden")) {
-
-        $toc.fadeIn();
-        currentDocumentSetting.showTOC = true;
-
-    } else {
-
+    if ($('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $refs.fadeIn();
         currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = true;
+
+    } else if ($('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $refs.fadeIn();
         $toc.fadeOut();
-        $toc.removeClass('hidden');
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = true;
+    } else if (!$('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $refs.fadeOut();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = false;
+    } else if (!$('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $toc.fadeOut();
+        $refs.fadeIn();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = true;
     }
 
     $.ajax({
@@ -852,6 +903,8 @@ function toggleToc2() {
         }
     });
 }
+
+
 
 // inizializzazione, al caricamnto della pagina,
 // del canvas, tela per la matitina, fuori dal campo visivo dell'utente
@@ -1015,7 +1068,6 @@ function mouseUpEvent(event) {
     if (hooked) {
         hooked = false;
         let value = parseInt(event.clientX) + 30;
-        //currentDocumentSetting.tocLeft = event.clientX;
         currentDocumentSetting.tocWidth = parseInt(toc$.css("width").substring(0,toc$.css("width").length -2)) ;
         $.ajax({
             url: "/api/tabcontroller/SaveTOCData",

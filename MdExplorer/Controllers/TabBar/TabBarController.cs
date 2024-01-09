@@ -74,13 +74,15 @@ namespace MdExplorer.Service.Controllers.TabBar
                     TocLeft = documentSetting.TocLeft,
                     TocWidth = documentSetting.TocWidth,
                     DocumentPath = documentSetting.DocumentPath,
+                    ShowRefs = documentSetting.ShowRefs,
                 };
             }
             else
             {
                 currentDocSetting.ShowTOC = documentSetting.ShowTOC;
                 currentDocSetting.TocWidth = documentSetting.TocWidth;
-                currentDocSetting.TocLeft = documentSetting.TocLeft;                
+                currentDocSetting.TocLeft = documentSetting.TocLeft;
+                currentDocSetting.ShowRefs = documentSetting.ShowRefs;
 
             }
             docSettingDal.Save(currentDocSetting);
