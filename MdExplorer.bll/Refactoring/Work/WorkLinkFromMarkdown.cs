@@ -14,7 +14,9 @@ namespace MdExplorer.Features.ActionLinkModifiers
     {
         public LinkDetail[] GetLinks(string markdown)
         {
-            var rx = new Regex(@"[^!]\[[^\]]*\]\(([^\)]*)\)",
+            //Regex rx = new Regex(@"MdShowH2\((.*?),(.*?),(.*?)(?:,(.*?))?\)", //
+
+            var rx = new Regex(@"[^!]\[[^\]]*\]\((.*?)(?:(#.*?))?\)",
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             var listToReturn = new List<LinkDetail>();
@@ -25,6 +27,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
                 {
                     LinkedCommand = item.Groups[0].Value,
                     LinkPath = item.Groups[1].Value,
+                    HTMLTitle = item.Groups[2].Value,
                 };
                 listToReturn.Add(toStore);
             }

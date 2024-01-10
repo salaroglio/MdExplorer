@@ -389,7 +389,7 @@ s
     }
 
 .buttonTabRefs {
-    visibility:hidden;
+    
     left: calc(100% - 30px + var(--toc-scroll));
     transform: rotate(90deg);
     position: relative;
@@ -406,7 +406,7 @@ s
 }
 
     .buttonTabRefs:hover {
-        visibility: hidden;
+        
         font: bold;
         border-color: red;
         border-style: solid;

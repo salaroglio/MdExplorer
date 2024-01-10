@@ -370,7 +370,7 @@ namespace MdExplorer.Controllers
                             <div class=""mdeNavigationMain"">
                                 <div class=""tocSeparator"" onmousedown=""resizeRefs()""></div>
                                 <nav class=""refsNavNavigation"">
-                                    <div class=""refsMain"">something to write</div>                                    
+                                    <div id=""references"" class=""refsMain""></div>                                    
                                 </nav>
                             </div>
                         </div>

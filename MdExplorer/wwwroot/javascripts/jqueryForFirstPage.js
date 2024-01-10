@@ -267,6 +267,19 @@ $(function () {
         }
 
     });
+    $.get("/api/tabcontroller/GetRefsData?fullPathFile=" + pathFile, function (references) {
+        if (references == undefined) {
+            return;
+        }
+        debugger;
+        $ref = $("#references");
+        $ref.append("<table>");
+        $ref.append("<tr><th>FileName</th></tr>");
+        references.forEach(_ => {
+            $ref.append("<tr><td>" + _.markdownFile.fileName + "</td></tr>")
+        });        
+        $ref.append("</table>")
+    });
 
 });
 
