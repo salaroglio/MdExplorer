@@ -12,15 +12,20 @@ using System.IO;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
 using System.Linq;
+using MdExplorer.Abstractions.Entities.EngineDB;
+using MdExplorer.Service.Controllers.TabBar.Automapper;
+using System.Collections.Generic;
+using AutoMapper;
 
 namespace MdExplorer.Service.Controllers.TabBar
 {
     [ApiController]
-    [Route("/api/tabcontroller/{*url}")]
+    [Route("/api/tabcontroller/{action}")]
     public class TabBarController : MdControllerBase<TabBarController>
     {
         private readonly ILogger<TabBarController> _logger;
         private readonly FileSystemWatcher _fileSystemWatcher;
+        private readonly IMapper _mapper;
         private readonly IOptions<MdExplorerAppSettings> _options;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IUserSettingsDB _sessionDB;
@@ -28,7 +33,8 @@ namespace MdExplorer.Service.Controllers.TabBar
         private readonly ICommandRunner _commandRunner;
 
         public TabBarController(ILogger<TabBarController> logger, 
-                                    FileSystemWatcher fileSystemWatcher, 
+                                    FileSystemWatcher fileSystemWatcher,
+                                    IMapper mapper,
                                     IOptions<MdExplorerAppSettings> options, 
                                     IHubContext<MonitorMDHub> hubContext, 
                                     IUserSettingsDB session, 
@@ -37,6 +43,7 @@ namespace MdExplorer.Service.Controllers.TabBar
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
+            _mapper = mapper;
             _options = options;
             _hubContext = hubContext;
             _sessionDB = session;
@@ -88,6 +95,17 @@ namespace MdExplorer.Service.Controllers.TabBar
             docSettingDal.Save(currentDocSetting);
             _session.Commit();
             return Ok("done");
+        }
+
+        [HttpGet]
+        public IActionResult GetRefsData([FromQuery] string fullPathFile)
+        {
+            //_session.BeginTransaction();
+            var docLinkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var links = docLinkInsideMarkdownDal.GetList().Where(_ => _.FullPath.Contains(fullPathFile)).ToList();
+            var linkDtoList = _mapper.Map<List<LinkInsideMarkdownDto>>(links);
+            //_session.Commit();
+            return Ok(linkDtoList);
         }
 
     }
