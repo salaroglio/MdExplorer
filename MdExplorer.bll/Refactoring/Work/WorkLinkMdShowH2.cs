@@ -22,7 +22,8 @@ namespace MdExplorer.Features.Refactoring.Work
                 {
                     LinkedCommand = item.Groups[0].Value,
                     LinkPath = item.Groups[1].Value,
-                    Title = item.Groups[2].Value,
+                    MdTitle = item.Groups[2].Value,
+                    HTMLTitle = item.Groups[3].Value,
                 };
                 listToReturn.Add(toStore);
             }

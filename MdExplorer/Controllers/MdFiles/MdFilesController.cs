@@ -906,6 +906,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     {
                         FullPath = _helper.NormalizePath(fullPath),
                         Path = singleLink.LinkPath,
+                        MdTitle = singleLink.MdTitle,
+                        HTMLTitle = singleLink.HTMLTitle,
                         Source = getModifier.GetType().Name,
                         LinkedCommand = singleLink.LinkedCommand,
                         SectionIndex = singleLink.SectionIndex,
