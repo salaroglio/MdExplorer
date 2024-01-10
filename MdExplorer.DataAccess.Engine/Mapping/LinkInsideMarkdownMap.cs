@@ -18,6 +18,8 @@ namespace MdExplorer.DataAccess.Engine.Mapping
             Map(_ => _.Path).Length(255).Not.Nullable();
             Map(_ => _.Source).Length(255).Not.Nullable();
             Map(_ => _.SectionIndex).Nullable();
+            Map(_ => _.MdTitle).Nullable();
+            Map(_=>_.HTMLTitle).Nullable();
             Map(_ => _.LinkedCommand).Not.Nullable();
             Map(_ => _.FullPath).Not.Nullable();
         }
