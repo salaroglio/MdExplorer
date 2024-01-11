@@ -103,7 +103,8 @@ namespace MdExplorer.Service.Controllers.TabBar
             //_session.BeginTransaction();
             var docLinkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
             var links = docLinkInsideMarkdownDal.GetList().Where(_ => _.FullPath.Contains(fullPathFile)).ToList();
-            var linkDtoList = _mapper.Map<List<LinkInsideMarkdownDto>>(links);
+            
+            var linkDtoList = _mapper.Map<List<LinkInsideMarkdownDto>>(links);            
             //_session.Commit();
             return Ok(linkDtoList);
         }

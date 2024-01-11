@@ -114,7 +114,7 @@ export class SidenavComponent implements OnInit {
     
     this.projectService.currentProjects$.subscribe(_ => {      
       if (_ != null && _ != undefined) {
-        debugger;
+        
         this.bookmarksService.initBookmark(_.id);
         if (_.sidenavWidth != null && _.sidenavWidth != 0) {
           this.sideNavWidth = _.sidenavWidth + "px";

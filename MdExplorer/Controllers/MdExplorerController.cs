@@ -368,7 +368,7 @@ namespace MdExplorer.Controllers
                         <div id=""Refs"" class=""tocNavigation"" mdeFullPathDocument=""{fullPathFile}"">
                             <div class=""mdeRefsTitle"">References</div>
                             <div class=""mdeNavigationMain"">
-                                <div class=""tocSeparator"" onmousedown=""resizeRefs()""></div>
+                                <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
                                 <nav class=""refsNavNavigation"">
                                     <div id=""references"" class=""refsMain""></div>                                    
                                 </nav>

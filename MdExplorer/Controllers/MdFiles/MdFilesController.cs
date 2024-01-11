@@ -895,6 +895,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var fullPath = Path.GetDirectoryName(item.FullPath)
                         + Path.DirectorySeparatorChar
                         + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+
                     // manage absolute path in link
                     if (singleLink.LinkPath.StartsWith("/"))
                     {
@@ -902,16 +903,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
                             + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
                     }
 
+                    var trueFullPath = _helper.NormalizePath(fullPath);
+                    var context = Path.GetDirectoryName(trueFullPath)
+                        .Replace(_fileSystemWatcher.Path, string.Empty)
+                        .Replace(Path.DirectorySeparatorChar, '/');
                     var linkToStore = new LinkInsideMarkdown
                     {
-                        FullPath = _helper.NormalizePath(fullPath),
+                        FullPath = trueFullPath,
                         Path = singleLink.LinkPath,
                         MdTitle = singleLink.MdTitle,
                         HTMLTitle = singleLink.HTMLTitle,
                         Source = getModifier.GetType().Name,
                         LinkedCommand = singleLink.LinkedCommand,
                         SectionIndex = singleLink.SectionIndex,
-                        MarkdownFile = relationship
+                        MarkdownFile = relationship,
+                        MdContext = context,
                     };
                     linkInsideMarkdownDal.Save(linkToStore);
                 }

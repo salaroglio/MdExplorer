@@ -79,10 +79,6 @@ namespace MdExplorer.Features.Commands.html
 
 
                         fileName = _helper.NormalizePath(fileName);
-
-
-                        
-
                     }
                     else if (item.Groups[1].Value.StartsWith("/"))
                     {
@@ -113,7 +109,11 @@ namespace MdExplorer.Features.Commands.html
                     foreach (Match matchH1 in matchesH2)
                     {
                         var title = string.Join(string.Empty, matchH1.Groups[1].Captures).Replace("\r", string.Empty);
-                        if (title == item.Groups[2].Value.Trim())
+
+                        string pattern = @":[^:]*:";
+                        var titleFromDoc = Regex.Replace(title, pattern, string.Empty);
+
+                        if (titleFromDoc.Trim() == item.Groups[2].Value.Trim())
                         {
                             var allContent = matchH1.Groups[0].Value;
                             // hash, and save
@@ -179,7 +179,6 @@ namespace MdExplorer.Features.Commands.html
                             var nodeDiv = doc1.CreateElement("div");
                             nodeDiv.InnerXml = taskRead.Result;
 
-
                             var attributeId = doc1.CreateAttribute("id");
                             attributeId.Value = "overlay" + numberedColor;
                             nodeDiv.Attributes.Append(attributeId);
@@ -204,8 +203,6 @@ namespace MdExplorer.Features.Commands.html
                             var allElementToReplace = item.Groups[0].Value;
 
                             (markdown, currentIncrement) = ManageReplaceOnMD(markdown, currentIncrement, item, stringToReplace);
-
-                            //markdown = markdown.Replace(allElementToReplace, stringToReplace);
 
                             markdown =  markdown + tagStyle;
                         }
