@@ -4,14 +4,10 @@ $(function () {
     window.addEventListener("scroll", function () {
         const scrollX = window.scrollX;
         document.documentElement.style.setProperty("--toc-scroll", Math.round(scrollX) + "px");
-        
+
     });
 });
 
-
-function toggleReferences(fullpathFile) {
-    
-}
 
 
 // EDITOR H1
@@ -243,41 +239,54 @@ $(function () {
     setTimeout(tocbot.refresh());
     // visualizzazione toc
     let $TOC = $("#TOC");
-    
-    let pathFile = $TOC.attr("mdeFullPathDocument");
-    $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {        
-        currentDocumentSetting = documentSetting;
-        if (documentSetting != undefined) {
-            let $Toc = $('#TOC');
-            let $Refs = $("#Refs");
-            if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {                 
-                document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
-            }
-            
-            if (documentSetting.showTOC) {
-                $Toc.show();
-            } else {
-                $Toc.hide();
-            }
-            if (documentSetting.showRefs) {
-                $Refs.show();
-            } else {
-                $Refs.hide();
-            }
-        }
 
-    });
-    $.get("/api/tabcontroller/GetRefsData?fullPathFile=" + pathFile, function (references) {
-        if (references == undefined) {
+    let pathFile = $TOC.attr("mdeFullPathDocument");
+    // This set TOC/References visible
+    $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
+        if (documentSetting == undefined) {
             return;
         }
+        currentDocumentSetting = documentSetting;
+
+        let $Toc = $('#TOC');
+        let $Refs = $("#Refs");
+        if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
+            document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
+        }
+
+        if (documentSetting.showTOC) {
+            $Toc.show();
+        } else {
+            $Toc.hide();
+        }
+        if (documentSetting.showRefs) {
+            $Refs.show();
+        } else {
+            $Refs.hide();
+        }
+
+
+    });
+    // this populate References
+    $.get("/api/tabcontroller/GetRefsData?fullPathFile=" + pathFile, function (references) {
+        let $Refs = $("#Refs");
+        // if there are NO references hide again
+        if (references == undefined || references.length == 0) {
+            $Refs.hide();             
+        } 
+        
         debugger;
         $ref = $("#references");
         $ref.append("<table>");
         $ref.append("<tr><th>FileName</th></tr>");
-        references.forEach(_ => {
-            $ref.append("<tr><td>" + _.markdownFile.fileName + "</td></tr>")
-        });        
+        if (references == undefined || references.length == 0) {
+            $ref.append("<tr><td>No references</td></tr>")
+        } else {
+            references.forEach(_ => {
+                $ref.append("<tr><td>" + _.markdownFile.fileName + "</td></tr>")
+            });
+        }
+        
         $ref.append("</table>")
     });
 
@@ -863,7 +872,7 @@ function toggleTOC(documentPath) {
         currentDocumentSetting.showTOC = true;
         currentDocumentSetting.showRefs = false;
     }
-    
+
     $.ajax({
         url: "/api/tabcontroller/SaveTOCData",
         type: "POST",
@@ -980,10 +989,10 @@ function scrollPosition(e) {
 }
 // new position from mouse event
 function setPosition(e) {
-    
-    pos.x = Math.round(e.clientX * 1.01) + Math.round(scrollPos.x * 1.014)  ;
+
+    pos.x = Math.round(e.clientX * 1.01) + Math.round(scrollPos.x * 1.014);
     pos.y = Math.round(e.clientY * 1.01) + Math.round(scrollPos.y * 1.014);
-    
+
 }
 
 // resize canvas
@@ -1081,7 +1090,7 @@ function mouseUpEvent(event) {
     if (hooked) {
         hooked = false;
         let value = parseInt(event.clientX) + 30;
-        currentDocumentSetting.tocWidth = parseInt(toc$.css("width").substring(0,toc$.css("width").length -2)) ;
+        currentDocumentSetting.tocWidth = parseInt(toc$.css("width").substring(0, toc$.css("width").length - 2));
         $.ajax({
             url: "/api/tabcontroller/SaveTOCData",
             type: "POST",
