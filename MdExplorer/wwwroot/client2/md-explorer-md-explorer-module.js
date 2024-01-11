@@ -2493,7 +2493,6 @@ class SidenavComponent {
         this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
         this.projectService.currentProjects$.subscribe(_ => {
             if (_ != null && _ != undefined) {
-                debugger;
                 this.bookmarksService.initBookmark(_.id);
                 if (_.sidenavWidth != null && _.sidenavWidth != 0) {
                     this.sideNavWidth = _.sidenavWidth + "px";

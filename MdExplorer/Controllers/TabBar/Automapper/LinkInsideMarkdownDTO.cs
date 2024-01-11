@@ -10,6 +10,22 @@ namespace MdExplorer.Service.Controllers.TabBar.Automapper
         public string FullPath { get; set; }
         public string Source { get; set; }
         public int? SectionIndex { get; set; }
+        public string MdContext { get; set; }
+        public string LinkType { get {
+                switch (Source)
+                {
+                    case "WorkLinkFromMarkdown":
+                        return  "link";
+                        break;
+                    case "WorkLinkMdShowMd":
+                        return "Publication";
+                        break;
+                    case "WorkLinkMdShowH2":
+                        return "Excerpt";
+                        break;
+                }
+                return string.Empty;
+            } }
         public string MdTitle { get; set; }
         public string HTMLTitle { get; set; }
         public string LinkedCommand { get; set; }

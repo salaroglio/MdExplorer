@@ -274,16 +274,15 @@ $(function () {
         if (references == undefined || references.length == 0) {
             $Refs.hide();             
         } 
-        
-        debugger;
+        debugger;        
         $ref = $("#references");
         $ref.append("<table>");
-        $ref.append("<tr><th>FileName</th></tr>");
+        $ref.append("<tr><th>Context</th><th>FileName</th><th>Link Type</th></tr>");
         if (references == undefined || references.length == 0) {
             $ref.append("<tr><td>No references</td></tr>")
         } else {
             references.forEach(_ => {
-                $ref.append("<tr><td>" + _.markdownFile.fileName + "</td></tr>")
+                $ref.append("<tr><td>" + _.mdContext + "</td><td>" + _.markdownFile.fileName + "</td><td>" + _.linkType +"</td></tr>")
             });
         }
         
