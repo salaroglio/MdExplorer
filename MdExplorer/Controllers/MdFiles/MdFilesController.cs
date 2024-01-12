@@ -903,13 +903,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
                             + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
                     }
 
-                    var trueFullPath = _helper.NormalizePath(fullPath);
-                    var context = Path.GetDirectoryName(trueFullPath)
+                    var normalizedFullPath = _helper.NormalizePath(fullPath);
+                    
+                    var context = Path.GetDirectoryName(relationship.Path)
                         .Replace(_fileSystemWatcher.Path, string.Empty)
                         .Replace(Path.DirectorySeparatorChar, '/');
                     var linkToStore = new LinkInsideMarkdown
                     {
-                        FullPath = trueFullPath,
+                        FullPath = normalizedFullPath,
                         Path = singleLink.LinkPath,
                         MdTitle = singleLink.MdTitle,
                         HTMLTitle = singleLink.HTMLTitle,
