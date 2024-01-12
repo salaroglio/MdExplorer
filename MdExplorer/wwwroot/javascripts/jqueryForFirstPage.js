@@ -282,7 +282,7 @@ $(function () {
             $ref.append("<tr><td>No references</td></tr>")
         } else {
             references.forEach(_ => {
-                $ref.append("<tr><td>" + _.mdContext + "</td><td>" + _.markdownFile.fileName + "</td><td>" + _.linkType +"</td></tr>")
+                $ref.append("<tr><td>" + _.mdContext + "</td><td><a class='mdExplorerLink' href='/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "'>" + _.markdownFile.fileName + "</a></td><td>" + _.linkType +"</td></tr>")
             });
         }
         
