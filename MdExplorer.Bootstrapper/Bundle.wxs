@@ -31,7 +31,7 @@
           PerMachine="yes"
           Permanent="yes"
           Vital="no"
-          SourceFile=".\assets\dotnet-runtime-3.1.32-win-x64.exe"         
+          SourceFile=".\assets\aspnetcore-runtime-3.1.32-win-x64.exe"         
           >
       </ExePackage>
     </PackageGroup>
