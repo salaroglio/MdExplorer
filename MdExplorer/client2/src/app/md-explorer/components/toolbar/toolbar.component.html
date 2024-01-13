@@ -15,11 +15,9 @@
     <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()">
       <mat-icon>bookmark</mat-icon>
     </button>
-    <span *ngFor="let doc of this.mdFileService.navigationArray">
-      <span style="color:aquamarine" *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span>
-      <a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}"
-         (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
-    </span>
+    <span>{{currentMdFile?.name}}</span>
+    
+    
     <span class="flexExpand"></span>
     <button *ngIf="!connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
       <mat-icon style="color:yellow">warning</mat-icon>
