@@ -1147,6 +1147,7 @@ class ToolbarComponent {
         this.connectionIsActive = true;
     }
     ngOnInit() {
+        this.FullScreenToggle();
         this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
         this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this); //TODO: da spostare in SignalR
