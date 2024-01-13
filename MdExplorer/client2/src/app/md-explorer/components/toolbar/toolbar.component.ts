@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
@@ -22,6 +22,8 @@ import { GitMessagesComponent } from '../../../git/components/git-messages/git-m
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
+import { MdNavigationService } from '../../services/md-navigation.service';
+import { Subscription } from 'rxjs';
 
 
 
@@ -30,7 +32,7 @@ import { Bookmark } from '../../services/Types/Bookmark';
   templateUrl: './toolbar.component.html',
   styleUrls: ['./toolbar.component.scss'],
 })
-export class ToolbarComponent implements OnInit {
+export class ToolbarComponent implements OnInit, OnDestroy {
 
   public currentBranch: string;
   @ViewChild(MatMenuTrigger) matMenuTrigger: MatMenuTrigger;
@@ -45,9 +47,10 @@ export class ToolbarComponent implements OnInit {
   howManyFilesAreToPull: number;
   branches: IBranch[];
   taglist: ITag[];
-  private currentMdFile: MdFile
+  currentMdFile: MdFile
   public connectionIsActive: boolean = true;
   public isCheckingConnection: boolean = false;
+  subscriptionserverSelectedMdFile: Subscription;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -61,7 +64,8 @@ export class ToolbarComponent implements OnInit {
     private projectService: ProjectsService,
     private router: Router,
     private waitingDialogService: WaitingDialogService,
-    private bookmarksService: BookmarksService
+    private bookmarksService: BookmarksService,
+    private navService:MdNavigationService,
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -115,7 +119,8 @@ export class ToolbarComponent implements OnInit {
       }
     });
     // something has changed on filesystem
-    this.mdFileService.serverSelectedMdFile.subscribe(val => {
+    this.subscriptionserverSelectedMdFile =this.mdFileService.serverSelectedMdFile.subscribe(val => {
+      
       var current = val[0];
       if (current != undefined) {
         let index = this.mdFileService.navigationArray.length;
@@ -125,12 +130,19 @@ export class ToolbarComponent implements OnInit {
             //return;
           }
         }
+        
+        this.navService.setNewNavigation(current);
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
         this.currentMdFile = current;
       }
 
     });
+  }
+
+  ngOnDestroy(): void {
+    console.log("ngOnDestroy toolbar");
+    this.subscriptionserverSelectedMdFile.unsubscribe();
   }
 
  

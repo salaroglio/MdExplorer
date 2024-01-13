@@ -71,7 +71,7 @@ export class MdTreeComponent implements OnInit {
     private mdFileService: MdFileService,
     public dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private clipboard: Clipboard,
+    private clipboard: Clipboard,    
 
   ) {
     this.dataSource.data = TREE_DATA;
@@ -134,7 +134,7 @@ export class MdTreeComponent implements OnInit {
 
   }
 
-  public getNode(node: MdFile) {
+  public getNode(node: MdFile) {    
     this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(node);
     this.activeNode = node;

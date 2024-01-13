@@ -10,6 +10,7 @@ import { MdFile } from '../../models/md-file';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { ProjectsService } from '../../services/projects.service';
 import { Bookmark } from '../../services/Types/Bookmark';
+import { MdNavigationService } from '../../services/md-navigation.service';
 
 
 
@@ -42,6 +43,7 @@ export class SidenavComponent implements OnInit {
     private bookmarksService:BookmarksService,
     private gitService: GITService,
     private projectService: ProjectsService,
+    public navService:MdNavigationService,
   ) {
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
@@ -138,8 +140,21 @@ export class SidenavComponent implements OnInit {
     this.bookmarksService.toggleBookmark(bookmark);
   }
 
+  forward(): void {
+    
+    let navToMdFile = this.navService.forward();
+    this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(navToMdFile);
 
-  
+  }
+
+  backward(): void {
+    
+    let navToMdFile = this.navService.back();
+    this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(navToMdFile);
+    
+  }
 
 }
 

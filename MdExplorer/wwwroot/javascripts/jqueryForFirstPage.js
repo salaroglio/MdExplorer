@@ -273,8 +273,7 @@ $(function () {
         // if there are NO references hide again
         if (references == undefined || references.length == 0) {
             $Refs.hide();             
-        } 
-        debugger;        
+        }          
         $ref = $("#references");
         $ref.append("<table>");
         $ref.append("<tr><th>Context</th><th>FileName</th><th>Link Type</th></tr>");
