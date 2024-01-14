@@ -1147,7 +1147,6 @@ class ToolbarComponent {
         this.connectionIsActive = true;
     }
     ngOnInit() {
-        this.FullScreenToggle();
         this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
         this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this); //TODO: da spostare in SignalR
@@ -2797,14 +2796,16 @@ class MainContentComponent {
     callMdExplorerController(node) {
         if (node != null && node.relativePath != undefined) {
             let dateTime = new Date().getTime() / 1000;
-            this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
+            this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime + "&connectionId=" + this.monitorMDService.connectionId;
         }
     }
     markdownFileIsChanged(data, objectThis) {
+        debugger;
         let dateTime = new Date();
         objectThis.service.navigationArray = [];
         objectThis.service.setSelectedMdFileFromServer(data);
-        objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
+        objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime + "&connectionId=" + objectThis.monitorMDService.connectionId;
+        ;
     }
 }
 MainContentComponent.ɵfac = function MainContentComponent_Factory(t) { return new (t || MainContentComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_1__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_2__["DomSanitizer"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__["MdServerMessagesService"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ChangeDetectorRef"])); };

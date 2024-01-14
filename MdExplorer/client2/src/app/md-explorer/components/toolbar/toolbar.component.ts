@@ -73,7 +73,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.FullScreenToggle();
+    
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
@@ -191,7 +191,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
   }
 
-  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
     objectThis.currentMdFile = data;
     objectThis.mdFileService.navigationArray.push(data);
     objectThis.mdFileService.setSelectedMdFileFromServer(data);

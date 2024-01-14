@@ -7,11 +7,14 @@ using MdExplorer.Features.Commands.html;
 using MdExplorer.Features.Commands.Markdown;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
+using MdExplorer.Hubs;
+using MdExplorer.Models;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.WriteMD.dto;
 using MdExplorer.Service.Controllers.WriteMDDto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,12 +31,16 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         private static object lockAccessToFileMD = new object();
         private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ICommandRunnerMD _commandRunner;
+        private readonly Microsoft.AspNetCore.SignalR.IHubContext<MonitorMDHub> _hubContext;
 
-        public WriteMDController(FileSystemWatcher fileSystemWatcher, ICommandRunnerMD commandRunner)
+        public WriteMDController(FileSystemWatcher fileSystemWatcher, 
+            ICommandRunnerMD commandRunner,
+            IHubContext<MonitorMDHub> hubContext)
         {
             _fileSystemWatcher = fileSystemWatcher;
 
             _commandRunner = commandRunner;
+            _hubContext = hubContext;
         }
 
         /// <summary>
@@ -250,16 +257,28 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
 
 
         [HttpPost]
-        public IActionResult SetEditorH1([FromBody] SetEditorH1Request dto)
+        async public Task<IActionResult> SetEditorH1([FromBody] SetEditorH1Request dto)
         {
-            var systePathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
-            var markdown = System.IO.File.ReadAllText(systePathFile);
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            var systemPathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
+            var markdown = System.IO.File.ReadAllText(systemPathFile);
             var replace = (IEditorH1Context)_commandRunner.Commands
                        .Where(_ => _.Name == "EditH1").FirstOrDefault();
 
+            
             markdown = replace.SaveNewMarkdown(markdown, dto.IndexStart, dto.IndexEnd, dto.NewMd, dto.OldMd);
-            System.IO.File.WriteAllText(systePathFile, markdown);
-
+            System.IO.File.WriteAllText(systemPathFile, markdown);
+            var relativePath = dto.PathFile.Replace(_fileSystemWatcher.Path, string.Empty).Replace(Path.DirectorySeparatorChar, '/');
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = relativePath,
+                Name = Path.GetFileName(systemPathFile),
+                RelativePath = systemPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                FullPath = systemPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(systemPathFile)
+            };
+            await _hubContext.Clients.Client(connectionId: dto.connectionId).SendAsync("markdownfileischanged", monitoredMd);
+            _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok();
         }
     }

@@ -29,6 +29,7 @@ using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Features.Yaml.Interfaces;
 using MdExplorer.Abstractions.Entities.UserDB;
+using Microsoft.AspNetCore.Http;
 
 namespace MdExplorer.Controllers
 {
@@ -67,6 +68,7 @@ namespace MdExplorer.Controllers
         {
             var currentCultureInfo = CultureInfo.CurrentCulture;
             var test = Encoding.Default;
+            
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             var relativePathFile = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFile);
@@ -79,7 +81,7 @@ namespace MdExplorer.Controllers
                                                         relativePathExtension);
                 return responseForNotMdFile;
             }
-
+            var connectionId = Request.Query["ConnectionId"];
             string fullPathFile = ManageIfThePathContainsExtensionMdOrNot(
                     rootPathSystem, 
                     relativePathFile, 
@@ -120,13 +122,14 @@ namespace MdExplorer.Controllers
                     markdownTxt,
                     relativePathFile,
                     fullPathFile,
+                    connectionId,
                     monitoredMd);
             }
 
             
 
             //.Replace(@"\",@"\\");
-            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            await _hubContext.Clients.Client(connectionId:connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
 
             try
             {
@@ -237,6 +240,7 @@ namespace MdExplorer.Controllers
                 string readText,
                 string relativePathFileSystem,
                 string fullPathFile,
+                string connectionId,
                 MonitoredMDModel monitoredMd)
         {
             var requestInfo = new RequestInfo()
@@ -245,12 +249,13 @@ namespace MdExplorer.Controllers
                 CurrentRoot = _fileSystemWatcher.Path,
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
+                ConnectionId = connectionId,
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))
             {
                 isPlantuml = true;
-                await _hubContext.Clients.All.SendAsync("plantumlWorkStart", monitoredMd);
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
             }
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
@@ -275,7 +280,7 @@ namespace MdExplorer.Controllers
                 monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
                 monitoredMd.ToFileName = theNameShouldBe;
                 monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
-                await _hubContext.Clients.All.SendAsync("markdownbreakrule1", monitoredMd);
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd);
             }
 
             var settingDal = _session.GetDal<Setting>();
@@ -398,7 +403,7 @@ namespace MdExplorer.Controllers
                      
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId);
 
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
@@ -422,12 +427,12 @@ namespace MdExplorer.Controllers
 
             if (isPlantuml)
             {                 
-                await _hubContext.Clients.All.SendAsync("plantumlWorkStop", monitoredMd);
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
             }
             return doc1;
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId)
         {
             var html = doc1.CreateElement("html");
 
@@ -447,7 +452,14 @@ namespace MdExplorer.Controllers
 
             html.AppendChild(head);
             var body = doc1.CreateElement("body");
+            var BodyId = doc1.CreateAttribute("Id");
+            var ConnectionId = doc1.CreateAttribute("ConnectionId");
+            BodyId.Value = "MdBody";
+            ConnectionId.Value = connectionId;
+            body.Attributes.Append(BodyId);
+            body.Attributes.Append(ConnectionId);
             html.AppendChild(body);
+
 
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />            

@@ -146,9 +146,16 @@ $(function () {
         var pathFile = oldData$.attr("md-path-file");
         var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
         var indexEnd = parseInt(oldData$.attr("md-itemmatchindex-end"));
-
-
-        let toStringify = { oldMd: oldMd, newMd: newMd, pathFile: pathFile, indexStart: indexStart, indexEnd: indexEnd };
+        let MdBody = $("#MdBody");
+        let connectionId = MdBody.attr("connectionid");        
+        let toStringify = {
+            oldMd: oldMd,
+            newMd: newMd,
+            pathFile: pathFile,
+            indexStart: indexStart,
+            indexEnd: indexEnd,
+            connectionId: connectionId
+        };
         $.ajax({
             url: "/api/WriteMD/SetEditorH1",
             type: "POST",
@@ -270,10 +277,13 @@ $(function () {
     // this populate References
     $.get("/api/tabcontroller/GetRefsData?fullPathFile=" + pathFile, function (references) {
         let $Refs = $("#Refs");
+        let $body = $("#MdBody");
+
         // if there are NO references hide again
         if (references == undefined || references.length == 0) {
             $Refs.hide();             
         }          
+        
         $ref = $("#references");
         $ref.append("<table>");
         $ref.append("<tr><th>Context</th><th>FileName</th><th>Link Type</th></tr>");
@@ -281,7 +291,8 @@ $(function () {
             $ref.append("<tr><td>No references</td></tr>")
         } else {
             references.forEach(_ => {
-                $ref.append("<tr><td>" + _.mdContext + "</td><td><a class='mdExplorerLink' href='/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "'>" + _.markdownFile.fileName + "</a></td><td>" + _.linkType +"</td></tr>")
+                let urlWithConnectionId = "/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "?connectionid=" + $body.attr("connectionid");
+                $ref.append("<tr><td>" + _.mdContext + "</td><td><a class='mdExplorerLink' href='" + urlWithConnectionId +"'>" + _.markdownFile.fileName + "</a></td><td>" + _.linkType +"</td></tr>")
             });
         }
         

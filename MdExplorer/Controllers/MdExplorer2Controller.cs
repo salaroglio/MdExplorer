@@ -52,7 +52,7 @@ namespace MdExplorer.Service.Controllers
             var recursionLevel = postData.Recursionlevel; //  string.IsNullOrEmpty(Request.Query["recursionLevel"]) ? 0 : Convert.ToInt32(Request.Query["recursionLevel"]);
 
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
-
+            var connectionId= postData.ConnectionId; 
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
@@ -101,7 +101,8 @@ namespace MdExplorer.Service.Controllers
                 AbsolutePathFile = filePathSystem1,
                 Recursionlevel = recursionLevel,
                 RootQueryRequest = postData.RootQueryRequest,
-                RelativePathFile = postData.RelativePathFile
+                RelativePathFile = postData.RelativePathFile,
+                ConnectionId = connectionId,
             };
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);

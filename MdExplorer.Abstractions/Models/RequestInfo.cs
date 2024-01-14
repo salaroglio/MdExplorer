@@ -18,6 +18,7 @@ namespace MdExplorer.Abstractions.Models
         public string CurrentRoot { get; set; }
         public int Recursionlevel { get; set; }
         public string RootQueryRequest { get; set; }
+        public string ConnectionId {  get; set; }
 
     }
 }
