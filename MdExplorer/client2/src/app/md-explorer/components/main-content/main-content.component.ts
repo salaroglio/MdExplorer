@@ -109,10 +109,10 @@ export class MainContentComponent implements OnInit, AfterViewInit {
 
   private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {
     debugger;
-    let dateTime = new Date();
+    let dateTime = new Date().getTime() / 1000;  
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
-    objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime + "&connectionId=" + objectThis.monitorMDService.connectionId; ;
+    objectThis.htmlSource = '../api/mdexplorer' + data.path + '?time=' + dateTime + "&connectionId=" + objectThis.monitorMDService.connectionId; ;
   }
  
 
