@@ -646,6 +646,7 @@ $.fn.datepicker.noConflict = function () {
 document.addEventListener("DOMContentLoaded", function (event) {
     // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh    
     var test3 = document.location.href;
+    debugger;
     var position = test3.indexOf('?');
     var position2 = test3.substring(0, position);
     var test2 = cyrb53(position2);
@@ -657,6 +658,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 // gestione ultima posizione dello scroll
 window.onbeforeunload = function (e) {
     var test3 = document.location.href;
+    debugger;
     var position = test3.indexOf('?');
     var position2 = test3.substring(0, position);
     var test2 = cyrb53(position2);
