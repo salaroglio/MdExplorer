@@ -103,15 +103,16 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   private callMdExplorerController(node:  MdFile) {    
     if (node != null && node.relativePath != undefined) {
       let dateTime = new Date().getTime() / 1000;      
-      this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime;
+      this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime + "&connectionId=" + this.monitorMDService.connectionId;
     }
   }
 
-  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {    
+  private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {
+    debugger;
     let dateTime = new Date();
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
-    objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime;
+    objectThis.htmlSource = '../api/mdexplorer/' + data.path + '?time=' + dateTime + "&connectionId=" + objectThis.monitorMDService.connectionId; ;
   }
  
 
