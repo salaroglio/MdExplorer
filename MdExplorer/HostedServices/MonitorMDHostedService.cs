@@ -152,6 +152,7 @@ namespace MdExplorer.Service.HostedServices
         {
             var isWrongDirectory = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
             var isWrongExtensionFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")
+                                        || e.FullPath.ToLower().Contains($".pptx")
                                         || e.FullPath.ToLower().Contains($".docx")
                                         || e.FullPath.ToLower().Contains($".xlsx")
                                         || e.FullPath.ToLower().Contains($".xlsb")
