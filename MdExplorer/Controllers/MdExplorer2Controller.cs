@@ -5,7 +5,9 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Controllers;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
+using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
@@ -36,8 +38,10 @@ namespace MdExplorer.Service.Controllers
             IHubContext<MonitorMDHub> hubContext, 
             IUserSettingsDB session, 
             IEngineDB engineDB,
-            ICommandRunnerHtml commandRunner) : 
-            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
+            ICommandRunnerHtml commandRunner,
+            IWorkLink[] modifiers,
+            IHelper helper) : 
+            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper)
         {
         }      
 
@@ -109,7 +113,7 @@ namespace MdExplorer.Service.Controllers
 
             readText = processSharp(readText, recursionLevel);
 
-            var settingDal = _session.GetDal<Setting>();
+            var settingDal = _userSettingsDB.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
 
             var pipeline = new MarkdownPipelineBuilder()

@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Yaml.Interfaces;
@@ -41,8 +42,10 @@ namespace MdExplorer.Service.Controllers
                 IEngineDB engineDB,
                 ICommandRunnerPdf commandRunner,
                 IHelperPdf helperPdf,
-                IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
+                IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
+                IWorkLink[] modifiers,
+                IHelper helper
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
         {
             _helperPdf = helperPdf;
             _yamlDocumentManager = yamlDocumentManager;

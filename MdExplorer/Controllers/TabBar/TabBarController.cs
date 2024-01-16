@@ -16,6 +16,8 @@ using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Service.Controllers.TabBar.Automapper;
 using System.Collections.Generic;
 using AutoMapper;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Utilities;
 
 namespace MdExplorer.Service.Controllers.TabBar
 {
@@ -39,7 +41,9 @@ namespace MdExplorer.Service.Controllers.TabBar
                                     IHubContext<MonitorMDHub> hubContext, 
                                     IUserSettingsDB session, 
                                     IEngineDB engineDB,
-                                    ICommandRunnerHtml commandRunner) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
+                                    IWorkLink[] modifiers,
+                                    IHelper helper,
+                                    ICommandRunnerHtml commandRunner) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper)
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
@@ -54,8 +58,8 @@ namespace MdExplorer.Service.Controllers.TabBar
         [HttpGet]
         public IActionResult GetTOCData([FromQuery]string fullPathFile)
         {
-            _session.BeginTransaction();
-            var docSettingDal = _session.GetDal<DocumentSetting>();
+            _userSettingsDB.BeginTransaction();
+            var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();
             var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
             if (currentDocSetting == null)
             {
@@ -63,15 +67,15 @@ namespace MdExplorer.Service.Controllers.TabBar
                 currentDocSetting = new DocumentSetting { DocumentPath = fullPathFile,ShowTOC=true };
                 docSettingDal.Save(currentDocSetting);
             }
-            _session.Commit();
+            _userSettingsDB.Commit();
             return Ok( currentDocSetting);
         }
 
         [HttpPost]
         public IActionResult SaveTOCData([FromBody] DocumentSettingDto documentSetting)
         {
-            _session.BeginTransaction();
-            var docSettingDal = _session.GetDal<DocumentSetting>();
+            _userSettingsDB.BeginTransaction();
+            var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();
             var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == documentSetting.DocumentPath).FirstOrDefault();            
             if (currentDocSetting == null)
             {
@@ -93,7 +97,7 @@ namespace MdExplorer.Service.Controllers.TabBar
 
             }
             docSettingDal.Save(currentDocSetting);
-            _session.Commit();
+            _userSettingsDB.Commit();
             return Ok("done");
         }
 

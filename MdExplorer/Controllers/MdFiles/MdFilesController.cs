@@ -12,6 +12,7 @@ using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Controllers;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Commands;
 using MdExplorer.Features.ProjectBody;
 using MdExplorer.Features.Refactoring;
 using MdExplorer.Features.Refactoring.Analysis;
@@ -27,11 +28,15 @@ using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdFiles;
 using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
+using MdExplorer.Service.Models;
 using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MySqlX.XDevAPI;
 using Newtonsoft.Json.Linq;
 using NHibernate.Criterion;
 using NHibernate.Exceptions;
@@ -58,13 +63,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 {
     [ApiController]
     [Route("api/MdFiles/{action}")]
-    public class MdFilesController : ControllerBase
+    public class MdFilesController : MdControllerBase<MdFilesController>
     {
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IWorkLink[] _getModifiers;
-        private readonly IHelper _helper;
-        private readonly IUserSettingsDB _userSettingsDB;
-        private readonly IHubContext<MonitorMDHub> _hubContext;
+        
+        
+        private readonly IHelper _helper;        
+        
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IProjectDB _projectDB;
         private readonly ISnippet<DictionarySnippetParam>[] _snippets;
@@ -72,28 +76,28 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
         private readonly RefactoringManager _refactoringManager;
         private readonly ProcessUtil _visualStudioCode;
-
-        public IEngineDB _engineDB { get; }
+        
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
-            IEngineDB engineDB, IWorkLink[] getModifiers, IHelper helper,
+            IOptions<MdExplorerAppSettings> options,
+            ILogger<MdFilesController> logger,
+            IEngineDB engineDB, 
+            IWorkLink[] getModifiers, 
+            IHelper helper,
             IUserSettingsDB userSettingsDB,
             IHubContext<MonitorMDHub> hubContext,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IProjectDB projectDB,
+            ICommandRunnerHtml commandRunner,
+
             ISnippet<DictionarySnippetParam>[] snippets,
             ProjectBodyEngine projectBodyEngine,
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
-            RefactoringManager refactoringManager,
-            ProcessUtil visualStudioCode
-            )
+        RefactoringManager refactoringManager,
+        ProcessUtil visualStudioCode
+            ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper)
         {
-            _fileSystemWatcher = fileSystemWatcher;
-            _engineDB = engineDB;
-            _getModifiers = getModifiers;
-            _helper = helper;
-            _userSettingsDB = userSettingsDB;
-            _hubContext = hubContext;
+                   
             _goodRules = GoodRules;
             _projectDB = projectDB;
             _snippets = snippets;
@@ -859,7 +863,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private void SaveRealationships(IList<IFileInfoNode> list, Guid? parentId = null)
         {
             // clean all data
-            var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+           
             var relDal = _engineDB.GetDal<MarkdownFile>();
 
             foreach (var item in list)
@@ -878,54 +882,54 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     SaveRealationships(item.Childrens, markdownFile.Id);
                 }
                 relDal.Save(markdownFile);
-                SaveLinksFromMarkdown(item, markdownFile, linkInsideMarkdownDal);
+                SaveLinksFromMarkdown( markdownFile);
             }
 
         }
 
-        private void SaveLinksFromMarkdown(IFileInfoNode item,
-            MarkdownFile relationship,
-            IDAL<LinkInsideMarkdown> linkInsideMarkdownDal)
-        {
-            foreach (var getModifier in _getModifiers)
-            {
-                var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(item.FullPath) : new List<LinkDetail>().ToArray();
-                foreach (var singleLink in linksToStore)
-                {
-                    // manage relative path
-                    var fullPath = Path.GetDirectoryName(item.FullPath)
-                        + Path.DirectorySeparatorChar
-                        + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+        //private void SaveLinksFromMarkdown(IFileInfoNode item,
+        //    MarkdownFile relationship)
+        //{
+        //    var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+        //    foreach (var getModifier in _getModifiers)
+        //    {
+        //        var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(item.FullPath) : new List<LinkDetail>().ToArray();
+        //        foreach (var singleLink in linksToStore)
+        //        {
+        //            // manage relative path
+        //            var fullPath = Path.GetDirectoryName(item.FullPath)
+        //                + Path.DirectorySeparatorChar
+        //                + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
 
-                    // manage absolute path in link
-                    if (singleLink.LinkPath.StartsWith("/"))
-                    {
-                        fullPath = _fileSystemWatcher.Path
-                            + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
-                    }
+        //            // manage absolute path in link
+        //            if (singleLink.LinkPath.StartsWith("/"))
+        //            {
+        //                fullPath = _fileSystemWatcher.Path
+        //                    + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+        //            }
 
-                    var normalizedFullPath = _helper.NormalizePath(fullPath);
+        //            var normalizedFullPath = _helper.NormalizePath(fullPath);
                     
-                    var context = Path.GetDirectoryName(relationship.Path)
-                        .Replace(_fileSystemWatcher.Path, string.Empty)
-                        .Replace(Path.DirectorySeparatorChar, '/');
-                    var linkToStore = new LinkInsideMarkdown
-                    {
-                        FullPath = normalizedFullPath,
-                        Path = singleLink.LinkPath,
-                        MdTitle = singleLink.MdTitle,
-                        HTMLTitle = singleLink.HTMLTitle,
-                        Source = getModifier.GetType().Name,
-                        LinkedCommand = singleLink.LinkedCommand,
-                        SectionIndex = singleLink.SectionIndex,
-                        MarkdownFile = relationship,
-                        MdContext = context,
-                    };
-                    linkInsideMarkdownDal.Save(linkToStore);
-                }
-            }
+        //            var context = Path.GetDirectoryName(relationship.Path)
+        //                .Replace(_fileSystemWatcher.Path, string.Empty)
+        //                .Replace(Path.DirectorySeparatorChar, '/');
+        //            var linkToStore = new LinkInsideMarkdown
+        //            {
+        //                FullPath = normalizedFullPath,
+        //                Path = singleLink.LinkPath,
+        //                MdTitle = singleLink.MdTitle,
+        //                HTMLTitle = singleLink.HTMLTitle,
+        //                Source = getModifier.GetType().Name,
+        //                LinkedCommand = singleLink.LinkedCommand,
+        //                SectionIndex = singleLink.SectionIndex,
+        //                MarkdownFile = relationship,
+        //                MdContext = context,
+        //            };
+        //            linkInsideMarkdownDal.Save(linkToStore);
+        //        }
+        //    }
 
-        }
+        //}
 
         //private FileInfoNode CreateNodeMdFile(string itemFile)
         //{
