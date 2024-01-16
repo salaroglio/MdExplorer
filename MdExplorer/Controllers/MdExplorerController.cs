@@ -30,6 +30,9 @@ using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Features.Yaml.Interfaces;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.AspNetCore.Http;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using DocumentFormat.OpenXml.Wordprocessing;
+using MdExplorer.Abstractions.Entities.EngineDB;
 
 namespace MdExplorer.Controllers
 {
@@ -37,8 +40,7 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
-        private readonly IHelper _helper;
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;        
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
@@ -50,11 +52,12 @@ namespace MdExplorer.Controllers
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IHelper helper,
-            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
+            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor,
+            IWorkLink[] modifiers            
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper)
         {
             _goodRules = GoodRules;
-            _helper = helper;
+            
             _yamlDocumentDescriptor = yamlDocumentDescriptor;
         }
 
@@ -141,8 +144,23 @@ namespace MdExplorer.Controllers
                 var msg = ex.Message;
 
             }
-
-
+            // Refresh database
+            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
+            _engineDB.BeginTransaction();
+            if (mdFile == null)
+            {
+                var markdownFile = new MarkdownFile
+                {
+                    FileName = Path.GetFileName(fullPathFile),
+                    Path = fullPathFile,                    
+                    FileType = "File"
+                };
+                relDal.Save(markdownFile);
+            }
+            
+            SaveLinksFromMarkdown(mdFile);
+            _engineDB.Commit();
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
@@ -283,7 +301,7 @@ namespace MdExplorer.Controllers
                 await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd);
             }
 
-            var settingDal = _session.GetDal<Setting>();
+            var settingDal = _userSettingsDB.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
 
             var pipeline = new MarkdownPipelineBuilder()
@@ -342,7 +360,7 @@ namespace MdExplorer.Controllers
             //Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
-            var docSettingDal = _session.GetDal<DocumentSetting>();
+            var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();
             //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
 
