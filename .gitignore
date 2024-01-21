@@ -366,3 +366,6 @@ FodyWeavers.xsd
 /MdExplorer/Documents/.md
 /MdExplorer/Documents/Tests/CarloSalaroglio/.md
 /MdExplorer/Documents/Tests/AssetMonitor/StateDiagrams/.md
+
+/MdExplorer/ElectronExplorer/release-builds/
+/MdExplorer/ElectronMdExplorer/release-builds/ElectronMdExplorer-win32-x64
