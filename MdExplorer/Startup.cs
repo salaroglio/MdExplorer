@@ -28,6 +28,7 @@ using MdExplorer.Service.Automapper.RefactoringFilesController;
 using Ad.Tools.FluentMigrator.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer
 {
@@ -64,8 +65,12 @@ namespace MdExplorer
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+        public void Configure(IApplicationBuilder app,
+            IWebHostEnvironment env,
+            IHostApplicationLifetime lifetime,
+            ILogger<Startup> logger)
         {
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -107,28 +112,31 @@ namespace MdExplorer
             lifetime.ApplicationStarted.Register(
           () =>
           {
-              DiscoverAddresses(app.ServerFeatures);
+              DiscoverAddresses(app.ServerFeatures, logger);
           });
             //#endif
         }
 
-        void DiscoverAddresses(IFeatureCollection features)
+        void DiscoverAddresses(IFeatureCollection features, ILogger<Startup> logger)
         {
             var addressFeature = features.Get<IServerAddressesFeature>();
             // Do something with the addresses
             foreach (var addresses in addressFeature.Addresses)
             {
-                OpenUrl($"{addresses}/client2/index.html");
+                OpenUrl($"{addresses}/client2/index.html", logger);
             }
         }
 
-        private void OpenUrl(string url)
+        private void OpenUrl(string url, ILogger<Startup> logger)
         {
             // hack because of this: https://github.com/dotnet/corefx/issues/10361
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 //url = url.Replace("&", "^&");
-                var command = $"Binaries\\ElectronMdExplorer\\ElectronMdExplorer \".\" \"{url}\"";
+                //var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
+                var currentApplicationPath = AppContext.BaseDirectory;
+                logger.LogInformation($"basedirectory: {currentApplicationPath}");
+                var command = $"{currentApplicationPath}Binaries\\ElectronMdExplorer\\ElectronMdExplorer \".\" \"{url}\"";
                 var processToStart = new ProcessStartInfo("cmd", $"/c start {command}") { CreateNoWindow = true };
                 var processStarted = Process.Start(processToStart);
             }
