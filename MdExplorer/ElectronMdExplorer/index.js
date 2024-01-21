@@ -3,7 +3,6 @@ const { app, BrowserWindow } = require('electron')
 const remote = require('electron').remote;
 
 
-
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1024,
@@ -20,11 +19,7 @@ const createWindow = () => {
 
   const args = process.argv.slice(2);
   
-  test = win.loadURL(args[0]);//ex: 'http://127.0.0.1:52414/client2/index.html');
-  
-
-
-  //win.loadFile('index.html')
+  test = win.loadURL(args[0]);
 }
 
 app.whenReady().then(() => {
