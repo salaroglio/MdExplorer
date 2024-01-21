@@ -1,0 +1,15 @@
+{
+  "name": "mdexplorer",
+  "version": "1.0.0",
+  "description": "This app will kill JIRA",
+  "main": "index.js",
+  "scripts": {
+    "start":"electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "carlo-emilio salaroglio",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.1.4"
+  }
+}

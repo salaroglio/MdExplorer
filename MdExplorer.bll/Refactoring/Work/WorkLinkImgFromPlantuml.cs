@@ -12,7 +12,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
 {
     public class WorkLinkImgFromPlantuml : IWorkLink
     {
-        public LinkDetail[] GetLinks(string markdown)
+        public LinkDetail[] GetLinksFromMarkdown(string markdown)
         {
             var toReturn = new List<LinkDetail>();
             // Devo prima isolare la quota parte di plantuml
@@ -30,7 +30,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
                     var linkDetail = new LinkDetail
                     {
                         LinkedCommand = match.Groups[0].Value,
-                        LinkPath = match.Groups[1].Value,
+                        FullPath = match.Groups[1].Value,
                         SectionIndex = counter
                     };
                     toReturn.Add(linkDetail);
@@ -52,7 +52,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
                     markdown = reader.ReadToEnd();
                 }
             }
-            return GetLinks(markdown);
+            return GetLinksFromMarkdown(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
