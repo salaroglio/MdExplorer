@@ -127,8 +127,9 @@ namespace MdExplorer
             // hack because of this: https://github.com/dotnet/corefx/issues/10361
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                url = url.Replace("&", "^&");
-                var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
+                //url = url.Replace("&", "^&");
+                var command = $"Binaries\\ElectronMdExplorer\\ElectronMdExplorer \".\" \"{url}\"";
+                var processToStart = new ProcessStartInfo("cmd", $"/c start {command}") { CreateNoWindow = true };
                 var processStarted = Process.Start(processToStart);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))

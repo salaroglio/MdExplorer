@@ -37,9 +37,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Binaries\ElectronExplorer\**" />
     <Compile Remove="Documents\**" />
+    <Content Remove="Binaries\ElectronExplorer\**" />
     <Content Remove="Documents\**" />
+    <EmbeddedResource Remove="Binaries\ElectronExplorer\**" />
     <EmbeddedResource Remove="Documents\**" />
+    <None Remove="Binaries\ElectronExplorer\**" />
     <None Remove="Documents\**" />
   </ItemGroup>
   
@@ -269,7 +273,6 @@
     <None Remove="Binaries\GraphWiz\binaries\pathplan.dll" />
     <None Remove="Binaries\GraphWiz\binaries\vcruntime140.dll" />
     <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
-    <None Remove="Binaries\plantuml-1.jar" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\calendar.png" />
@@ -323,9 +326,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Binaries\GraphWiz\binaries\xdot.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\plantuml-1.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Binaries\plantuml.jar">
@@ -636,6 +636,7 @@
 
   <ItemGroup>
     <Folder Include="client2\src\app\md-explorer\services\models\" />
+    <Folder Include="ElectronMdExplorer\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
@@ -733,6 +734,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Binaries\plantuml-1.jar">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Binaries\plantuml-2.jar">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>

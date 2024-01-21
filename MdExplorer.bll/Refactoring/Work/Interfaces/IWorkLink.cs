@@ -9,7 +9,7 @@ namespace MdExplorer.Features.ActionLinkModifiers.Interfaces
 {
     public interface IWorkLink
     {
-        LinkDetail[] GetLinks(string markdown);
+        LinkDetail[] GetLinksFromMarkdown(string markdown);
         LinkDetail[] GetLinksFromFile(string filepath);
         void SetLinkIntoFile(string filepath, string oldLink, string newLink);
     }

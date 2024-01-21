@@ -41,7 +41,7 @@ namespace MdExplorer.Features.Commands.html
             return arrayToReturn.ToArray();
         }
 
-        public string SaveNewMarkdown(string markdown, int indexStart, int indexEnd, string replace, string oldMd)
+        public string ApplyChangesToMarkdown(string markdown, int indexStart, int indexEnd, string replace, string oldMd)
         {
             var countEnd = oldMd.Length;
             var markdown1 = markdown.Remove(indexStart, countEnd);

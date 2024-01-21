@@ -203,11 +203,11 @@ namespace MdExplorer.Service.HostedServices
                     var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
                     foreach (var singleLink in linksToStore)
                     {
-                        var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                        var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
                         var linkToStore = new LinkInsideMarkdown
                         {
                             FullPath = _helper.NormalizePath(fullPath),
-                            Path = singleLink.LinkPath,
+                            Path = singleLink.FullPath,
                             Source = getModifier.GetType().Name,
                             LinkedCommand = singleLink.LinkedCommand,
                             SectionIndex = singleLink.SectionIndex,

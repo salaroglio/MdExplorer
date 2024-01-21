@@ -77,13 +77,13 @@ namespace MdExplorer.Service.Controllers
                     // manage relative path
                     var fullPath = Path.GetDirectoryName(relationship.Path)
                         + Path.DirectorySeparatorChar
-                        + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                        + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
 
                     // manage absolute path in link
-                    if (singleLink.LinkPath.StartsWith("/"))
+                    if (singleLink.FullPath.StartsWith("/"))
                     {
                         fullPath = _fileSystemWatcher.Path
-                            + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
+                            + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
                     }
 
                     var normalizedFullPath = _helper.NormalizePath(fullPath);
@@ -103,7 +103,7 @@ namespace MdExplorer.Service.Controllers
                         linkToStore = new LinkInsideMarkdown
                         {
                             FullPath = normalizedFullPath,
-                            Path = singleLink.LinkPath,
+                            Path = singleLink.FullPath,
                             MdTitle = singleLink.MdTitle,
                             HTMLTitle = singleLink.HTMLTitle,
                             Source = getModifier.GetType().Name,

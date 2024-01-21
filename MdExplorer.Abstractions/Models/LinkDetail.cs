@@ -9,7 +9,7 @@ namespace MdExplorer.Abstractions.Models
     public class LinkDetail
     {
         public int SectionIndex { get; set; }
-        public string LinkPath { get; set; }
+        public string FullPath { get; set; }
         public string LinkedCommand { get; set; }
         public string MdTitle { get; set; }
         public string HTMLTitle { get; set; }

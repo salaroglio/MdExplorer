@@ -12,7 +12,7 @@ namespace MdExplorer.Features.Refactoring.Work
 {
     public class WorkLinkMdShowMd : IWorkLink
     {
-        public LinkDetail[] GetLinks(string markdown)
+        public LinkDetail[] GetLinksFromMarkdown(string markdown)
         {
         
             var rx = new Regex(@"mdShowMd\(([^\)]*)\)",
@@ -24,7 +24,7 @@ namespace MdExplorer.Features.Refactoring.Work
                 var toStore = new LinkDetail
                 {
                     LinkedCommand = item.Groups[0].Value,
-                    LinkPath = item.Groups[1].Value,
+                    FullPath = item.Groups[1].Value,
                 };
                 listToReturn.Add(toStore);
             }
@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Refactoring.Work
                 }                
             }
             //var markdown = File.ReadAllText(filepath);
-            return GetLinks(markdown);
+            return GetLinksFromMarkdown(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
