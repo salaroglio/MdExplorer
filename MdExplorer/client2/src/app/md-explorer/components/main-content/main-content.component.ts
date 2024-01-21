@@ -21,15 +21,14 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   
   ngAfterViewInit() {
     
-    this.el.nativeElement.onload = _ => {
-      try {
-        _.target.contentWindow.document.myReferenceObject = this;
-        _.target.contentWindow.document.addEventListener('wheel',
-          this.toolbarHandler);
-      } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
-        this.service.setWhatDisplayForToolbar('showToolbar');
-      }
-    };
+    //this.el.nativeElement.onload = _ => {
+    //  try {
+    //    _.target.contentWindow.document.myReferenceObject = this;
+    //    _.target.contentWindow.document.addEventListener('wheel',this.toolbarHandler);
+    //  } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
+    //    this.service.setWhatDisplayForToolbar('showToolbar');
+    //  }
+    //};
   }
 
 
