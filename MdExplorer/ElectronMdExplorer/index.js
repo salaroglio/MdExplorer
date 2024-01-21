@@ -1,29 +1,37 @@
 console.log("Hello from Electron")
 const { app, BrowserWindow } = require('electron')
+const remote = require('electron').remote;
+
+
 
 const createWindow = () => {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1024,
+    height: 768,    
+    autoHideMenuBar:true,
     //frame:false,
     webPreferences: {
       nodeIntegration: false, // It's recommended to disable nodeIntegration for security
       contextIsolation: true, // Protect against prototype pollution
-      enableRemoteModule: false, // Turn off remote
+      //enableRemoteModule: false, // Turn off remote
     }
   })
   console.log(process.argv);
 
-  const args = process.argv;
+  const args = process.argv.slice(2);
   
-  win.loadURL(args);//'http://127.0.0.1:52414/client2/index.html');
+  test = win.loadURL(args[0]);//ex: 'http://127.0.0.1:52414/client2/index.html');
+  
+
 
   //win.loadFile('index.html')
 }
 
 app.whenReady().then(() => {
   createWindow()
+ 
   app.on('activate', () => {
+
     if (BrowserWindow.getAllWindows().length === 0) 
     createWindow()
   })
