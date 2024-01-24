@@ -1,6 +1,8 @@
 ﻿:root{
     --toc-width:300px;
     --toc-scroll:0px;
+    --refs-width:400px;
+    --refs-scroll:0px;
 }
 /*impostazione generica*/
 body {
@@ -390,7 +392,7 @@ s
 
 .buttonTabRefs {
     
-    left: calc(100% - 30px + var(--toc-scroll));
+    left: calc(100% - 30px + var(--refs-scroll));
     transform: rotate(90deg);
     position: relative;
     border-color: grey;
@@ -437,10 +439,24 @@ s
     background-color:white;
 }
 
+.refsNavigation {
+    position: absolute;
+    left: calc(100% - var(--refs-width) - 30px + var(--refs-scroll));
+    width: calc(var(--refs-width));
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+}
+
 .tocNavNavigation {
     max-height: 100vh;    
     overflow-y: auto;
     width:-webkit-fill-available;
+}
+.refsNavNavigation {
+    max-height: 100vh;
+    overflow-y: auto;
+    width: -webkit-fill-available;
 }
 .tocSeparator {
     width: 5px;

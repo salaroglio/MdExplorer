@@ -82,7 +82,7 @@ namespace MdExplorer.Service.Controllers.TabBar
                 currentDocSetting = new DocumentSetting
                 {
                     ShowTOC = documentSetting.ShowTOC,
-                    TocLeft = documentSetting.TocLeft,
+                    RefsWidth = documentSetting.RefsWidth,
                     TocWidth = documentSetting.TocWidth,
                     DocumentPath = documentSetting.DocumentPath,
                     ShowRefs = documentSetting.ShowRefs,
@@ -92,7 +92,7 @@ namespace MdExplorer.Service.Controllers.TabBar
             {
                 currentDocSetting.ShowTOC = documentSetting.ShowTOC;
                 currentDocSetting.TocWidth = documentSetting.TocWidth;
-                currentDocSetting.TocLeft = documentSetting.TocLeft;
+                currentDocSetting.RefsWidth = documentSetting.RefsWidth;
                 currentDocSetting.ShowRefs = documentSetting.ShowRefs;
 
             }
@@ -100,6 +100,8 @@ namespace MdExplorer.Service.Controllers.TabBar
             _userSettingsDB.Commit();
             return Ok("done");
         }
+
+      
 
         [HttpGet]
         public IActionResult GetRefsData([FromQuery] string fullPathFile)
