@@ -259,6 +259,10 @@ $(function () {
         let $Refs = $("#Refs");
         if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
             document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
+            
+        }
+        if (currentDocumentSetting.refsWidth != null && currentDocumentSetting.refsWidth != 0) {
+            document.documentElement.style.setProperty("--refs-width", currentDocumentSetting.refsWidth + "px");
         }
 
         if (documentSetting.showTOC) {
@@ -291,7 +295,15 @@ $(function () {
             $ref.append("<tr><td>No references</td></tr>")
         } else {
             references.forEach(_ => {
-                let urlWithConnectionId = "/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "?connectionid=" + $body.attr("connectionid");
+                let urlWithConnectionId = "/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "?connectionid=" + $body.attr("connectionid");                
+                tippy(_.htmlTitle, {
+                    interactive: true,
+                    placement: 'up',
+                    theme: 'priorityUrgente',
+                    content: "<a class='mdExplorerLink' href='" + urlWithConnectionId + "'>" + _.markdownFile.fileName + "</a>",
+                    allowHTML:true,
+                });
+                
                 $ref.append("<tr><td>" + _.mdContext + "</td><td><a class='mdExplorerLink' href='" + urlWithConnectionId +"'>" + _.markdownFile.fileName + "</a></td><td>" + _.linkType +"</td></tr>")
             });
         }
@@ -1082,11 +1094,17 @@ async function presentationSVG(relativePathFile, hashFile) {
 }
 
 //resizeToc
-hooked = false
+hookedToc = false;
+hookedRefs = false;
 function resizeToc() {
 
-    hooked = true;
+    hookedToc = true;
 }
+function resizeRefs() {
+
+    hookedRefs = true;
+}
+
 
 $(function () {
     document.addEventListener("mousemove", mouseMoveEvent, false);
@@ -1096,12 +1114,32 @@ $(function () {
 function mouseUpEvent(event) {
 
     let toc$ = $('#TOC');
-    if (hooked) {
-        hooked = false;
+    let refs$ = $('#Refs');
+
+    if (hookedToc) {
+        hookedToc = false;
         let value = parseInt(event.clientX) + 30;
         currentDocumentSetting.tocWidth = parseInt(toc$.css("width").substring(0, toc$.css("width").length - 2));
         $.ajax({
             url: "/api/tabcontroller/SaveTOCData",
+            type: "POST",
+            data: JSON.stringify(currentDocumentSetting),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (data) {
+
+                console.log(data);
+            }
+        });
+
+    }
+    if (hookedRefs) {
+        hookedRefs = false;
+        let value = parseInt(event.clientX) + 30;
+        
+        currentDocumentSetting.refsWidth = parseInt(refs$.css("width").substring(0, refs$.css("width").length - 2));
+        $.ajax({
+            url: "/api/tabcontroller/SaveRefsData",
             type: "POST",
             data: JSON.stringify(currentDocumentSetting),
             contentType: "application/json; charset=utf-8",
@@ -1118,12 +1156,21 @@ function mouseUpEvent(event) {
 function mouseMoveEvent(event) {
 
     let toc$ = $('#TOC');
-    if (hooked) {
+    let refs$ = $('Refs');
+    if (hookedToc) {
         let value = document.documentElement.scrollWidth - parseInt(event.clientX) - 30;
         let scrolldata = document.documentElement.scrollWidth - document.documentElement.clientWidth;
         console.log(scrolldata);
         value = value - scrolldata;
         document.documentElement.style.setProperty("--toc-width", value + "px");
+
+    }
+    if (hookedRefs) {
+        let value = document.documentElement.scrollWidth - parseInt(event.clientX) - 30;
+        let scrolldata = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        console.log(scrolldata);
+        value = value - scrolldata;
+        document.documentElement.style.setProperty("--refs-width", value + "px");
 
     }
 }

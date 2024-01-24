@@ -18,6 +18,6 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool ShowTOC { get; set; }
         public virtual bool ShowRefs { get; set; }
         public virtual int? TocWidth { get; set;}
-        public virtual int? TocLeft { get; set; }
+        public virtual int? RefsWidth { get; set; }
     }
 }
