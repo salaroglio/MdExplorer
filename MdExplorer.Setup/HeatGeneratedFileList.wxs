@@ -78,6 +78,14 @@
                     </Component>
                 </Directory>
             </Directory>
+            <Directory Id="dirFA6A475E49769918A456954892B0D4DB" Name="ElectronMdExplorer">
+                <Component Id="cmp67B8AD11A0824E781D65EF34F1F57141" Guid="*">
+                    <File Id="filF5040DE8FC37D315EF8F3E2BC51A7EE3" KeyPath="yes" Source="$(var.HarvestPath)\ElectronMdExplorer\package-lock.json" />
+                </Component>
+                <Component Id="cmp5FC7C25D9BA38777CAA0E9E1CC8712EA" Guid="*">
+                    <File Id="fil586E3389BDEF9596A399FCF603BBDC35" KeyPath="yes" Source="$(var.HarvestPath)\ElectronMdExplorer\package.json" />
+                </Component>
+            </Directory>
             <Directory Id="dir3D83A529A2122889D4016E7D784625D5" Name="wwwroot">
                 <Directory Id="dir89EB03C3EAD84D074D9B56E6D99D0A33" Name="assets">
                     <Component Id="cmpBE3CE7E96B2456821FF2FFE3ECF8E561" Guid="*">
@@ -447,6 +455,8 @@
             <ComponentRef Id="cmpA964A847AD6177F00FFB96B8E1AFD3DE" />
             <ComponentRef Id="cmpFFC59F91BA2A40263777A08887C4DE28" />
             <ComponentRef Id="cmp419937E1F1A4AD6EBAD761C73BBB9BBB" />
+            <ComponentRef Id="cmp67B8AD11A0824E781D65EF34F1F57141" />
+            <ComponentRef Id="cmp5FC7C25D9BA38777CAA0E9E1CC8712EA" />
             <ComponentRef Id="cmpBE3CE7E96B2456821FF2FFE3ECF8E561" />
             <ComponentRef Id="cmpC97E830794BEEB3D44C72280C3895AB1" />
             <ComponentRef Id="cmpE0C2BDEC541FAF8309914CE1CD170B66" />
