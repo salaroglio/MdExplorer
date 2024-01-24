@@ -68,6 +68,10 @@ namespace MdExplorer.Service.Controllers
 
         protected void SaveLinksFromMarkdown(MarkdownFile relationship)
         {
+            if (relationship==null)
+            {
+                return;
+            }
             var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
             foreach (var getModifier in _getModifiers)
             {

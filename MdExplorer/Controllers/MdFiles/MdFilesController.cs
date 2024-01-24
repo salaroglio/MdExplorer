@@ -567,17 +567,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _engineDB.Commit();
 
             GC.Collect();
-            var nodeempty = new FileInfoNode
-            {
-                Name = "root",
-                FullPath = currentPath,
-                Path = currentPath,
-                //Level = currentLevel,
-                Type = "emptyroot",
-                Expandable = false
-            };
+            //var nodeempty = new FileInfoNode
+            //{
+            //    Name = "root",
+            //    FullPath = currentPath,
+            //    Path = currentPath,
+            //    //Level = currentLevel,
+            //    Type = "emptyroot",
+            //    Expandable = false
+            //};
 
-            list.Add(nodeempty);            
+            //list.Add(nodeempty);            
             await _hubContext.Clients.Client(connectionId: connectionId)
                     .SendAsync("parsingProjectStop", "process completed");
             return Ok(list);
