@@ -567,17 +567,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _engineDB.Commit();
 
             GC.Collect();
-            //var nodeempty = new FileInfoNode
-            //{
-            //    Name = "root",
-            //    FullPath = currentPath,
-            //    Path = currentPath,
-            //    //Level = currentLevel,
-            //    Type = "emptyroot",
-            //    Expandable = false
-            //};
+            var nodeempty = new FileInfoNode
+            {
+                Name = "root",
+                FullPath = currentPath,
+                Path = currentPath,
+                //Level = currentLevel,
+                Type = "emptyroot",
+                Expandable = false
+            };
 
-            //list.Add(nodeempty);            
+            list.Add(nodeempty);
             await _hubContext.Clients.Client(connectionId: connectionId)
                     .SendAsync("parsingProjectStop", "process completed");
             return Ok(list);
@@ -761,7 +761,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult CreateNewDirectoryEx([FromBody] NewDirectory fileData)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + 
+                fileData.DirectoryName.Replace(" ","-");
             Directory.CreateDirectory(fullPath);
 
             _fileSystemWatcher.EnableRaisingEvents = true;
