@@ -295,14 +295,21 @@ $(function () {
             $ref.append("<tr><td>No references</td></tr>")
         } else {
             references.forEach(_ => {
-                let urlWithConnectionId = "/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "?connectionid=" + $body.attr("connectionid");                
-                tippy(_.htmlTitle, {
-                    interactive: true,
-                    placement: 'up',
-                    theme: 'priorityUrgente',
-                    content: "<a class='mdExplorerLink' href='" + urlWithConnectionId + "'>" + _.markdownFile.fileName + "</a>",
-                    allowHTML:true,
-                });
+                let urlWithConnectionId = "/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "?connectionid=" + $body.attr("connectionid");
+                if (_.linkType === "Excerpt") {                    
+                    let htmlTitle$ = $(_.htmlTitle);
+                    let htmlTitleTippy = _.htmlTitle + '-tippy';
+                    debugger;
+                    htmlTitle$[0].innerHTML = htmlTitle$[0].innerHTML.replace(_.mdTitle, '<span id="' + htmlTitleTippy.replace('#', '') + '">' + _.mdTitle + '</span>');
+                    tippy(htmlTitleTippy, {
+                        interactive: true,
+                        placement: 'right',
+                        theme: 'priorityUrgente',
+                        content: "<a class='mdExplorerLink' href='" + urlWithConnectionId + "'>" + _.markdownFile.fileName + "</a>",
+                        allowHTML: true,
+                    });
+                }
+                
                 
                 $ref.append("<tr><td>" + _.mdContext + "</td><td><a class='mdExplorerLink' href='" + urlWithConnectionId +"'>" + _.markdownFile.fileName + "</a></td><td>" + _.linkType +"</td></tr>")
             });
