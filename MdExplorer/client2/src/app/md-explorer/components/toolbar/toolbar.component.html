@@ -28,6 +28,7 @@
       <div style="display:flex; flex-direction:column">
         <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
         <button class="smallMessagesToPull" (click)="pull()" *ngIf="somethingIsToPull">{{howManyFilesAreToPull}} to pull</button>
+        <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{howManyCommitAreToPush}} to push</button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">

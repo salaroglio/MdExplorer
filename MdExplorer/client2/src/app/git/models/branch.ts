@@ -3,5 +3,6 @@ export interface IBranch {
   name: string
   somethingIsChangedInTheBranch: boolean
   howManyFilesAreChanged: number
+  howManyCommitAreToPush: number
   fullPath:string
 }
