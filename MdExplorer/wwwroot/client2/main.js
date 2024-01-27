@@ -622,11 +622,14 @@ class GITService {
             id: "", name: "",
             somethingIsChangedInTheBranch: true,
             howManyFilesAreChanged: 0,
-            fullPath: ""
+            fullPath: "",
+            howManyCommitAreToPush: 0,
         });
         this.commmitsToPull$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
             howManyFilesAreToPull: 0,
+            howManyCommitAreToPush: 0,
             somethingIsToPull: false,
+            somethingIsToPush: false,
             connectionIsActive: false,
         });
     }

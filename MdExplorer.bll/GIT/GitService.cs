@@ -138,6 +138,39 @@ namespace MdExplorer.Features.GIT
             }
         }
 
+        public int CountCommitsBehindTrackedBranch(string projectPath)
+        {
+            if (!Repository.IsValid(projectPath))
+            {
+                return 0;
+            }
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == projectPath).FirstOrDefault();
+            if (currentGitlab == null)
+            {
+                return 0;
+            }
+
+            using (var repo = new Repository(projectPath))
+            {
+                Branch currentBranch = repo.Head;
+
+                if (currentBranch.TrackedBranch != null)
+                {
+                    // Get the divergence between the current branch and its tracked remote branch
+                    HistoryDivergence divergence = repo.ObjectDatabase.CalculateHistoryDivergence(currentBranch.Tip, currentBranch.TrackedBranch.Tip);
+
+                    if (divergence != null)
+                    {
+                        // Return the count of how many commits the current branch is behind
+                        return divergence.BehindBy ?? 0;
+                    }
+                }
+            }
+            return 0;
+        }
+
         public GitBranch[] GetBranches(string projectPath)
         {
             try
