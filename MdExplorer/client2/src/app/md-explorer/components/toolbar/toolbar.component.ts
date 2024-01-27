@@ -43,7 +43,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   connectionId: string;
   somethingIsChangedInTheBranch: boolean;
   somethingIsToPull: boolean;
+  somethingIsToPush: boolean;
   howManyFilesAreToCommit: number;
+  howManyCommitAreToPush: number;
   howManyFilesAreToPull: number;
   branches: IBranch[];
   taglist: ITag[];
@@ -82,12 +84,15 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
       this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
+      this.howManyCommitAreToPush = branch.howManyCommitAreToPush;
       this.connectionIsActive = true;
     });
 
     this.gitservice.commmitsToPull$.subscribe(_ => {      
       this.somethingIsToPull = _.somethingIsToPull;
+      this.somethingIsToPush = _.howManyFilesAreToPull > 0;
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
+      this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
       this.isCheckingConnection = false;
     });
