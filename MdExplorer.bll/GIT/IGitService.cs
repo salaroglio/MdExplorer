@@ -15,6 +15,7 @@ namespace MdExplorer.Features.GIT
         string GetCurrentBranch(string projectPath);
         int HowManyFilesAreChanged(string projectPath);
         int HowManyFilesAreToPull(string projectPath);
+        int CountCommitsBehindTrackedBranch(string projectPath);
         GitBranch[] GetBranches(string projectPath);
         GitTag[] GetTagList(string path);
         GitBranch CheckoutBranch(GitBranch branch, string path, GitCallBack callback);

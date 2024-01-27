@@ -21,12 +21,15 @@ export class GITService {
       id: "", name: "",
       somethingIsChangedInTheBranch: true,
       howManyFilesAreChanged: 0,            
-      fullPath : ""
+      fullPath: "",
+      howManyCommitAreToPush:0,
     });
 
   public commmitsToPull$: BehaviorSubject<DataToPull> = new BehaviorSubject<DataToPull>({
     howManyFilesAreToPull: 0,
+    howManyCommitAreToPush:0,
     somethingIsToPull: false,
+    somethingIsToPush:false,
     connectionIsActive:false,
   });
 

@@ -44,10 +44,12 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult GetDataToPull()
         {
             var howManyFilesAreToPull = 0;
+            var howManyCommitAreToPush = 0;
             var connectionIsActive = true;
             try
             {
                 howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
+                howManyCommitAreToPush = _gitService.CountCommitsBehindTrackedBranch(_fileSystemWatcher.Path);
 
             }
             catch (Exception ex)
@@ -58,7 +60,8 @@ namespace MdExplorer.Service.Controllers.GIT
             {
                 somethingIsToPull = howManyFilesAreToPull > 0,
                 howManyFilesAreToPull = howManyFilesAreToPull,
-                connectionIsActive = connectionIsActive
+                connectionIsActive = connectionIsActive,
+                howManyCommitAreToPush = howManyCommitAreToPush
             });
         }
 
