@@ -89,8 +89,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
 
     this.gitservice.commmitsToPull$.subscribe(_ => {      
-      this.somethingIsToPull = _.somethingIsToPull;
-      this.somethingIsToPush = _.howManyFilesAreToPull > 0;
+      this.somethingIsToPull = _.somethingIsToPull;      
+      this.somethingIsToPush = _.howManyCommitAreToPush > 0;
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
       this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
@@ -211,20 +211,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   Export() {
     this._snackBar.open("Export request queued!", null, { duration: 2000, verticalPosition: 'top' });
     this.monitorMDService.getConnectionId(this.sendExportRequest, this);
-  }
-
-  backToDocument(doc: MdFile) {
-    var thatFile = this.mdFileService.navigationArray.find(_ => _.fullPath == doc.fullPath);
-    if (thatFile != null && thatFile != undefined) {
-      let i = this.mdFileService.navigationArray.length;
-      let toDelete = this.mdFileService.navigationArray[i - 1];
-      do {
-        this.mdFileService.navigationArray.pop();
-        i = i - 1;
-        toDelete = this.mdFileService.navigationArray[i - 1];
-      } while (toDelete != undefined && toDelete.fullPath == thatFile.fullPath)
-    }
-    this.mdFileService.setSelectedMdFileFromToolbar(doc);
   }
 
 
