@@ -164,7 +164,7 @@ namespace MdExplorer.Features.GIT
                     if (divergence != null)
                     {
                         // Return the count of how many commits the current branch is behind
-                        return divergence.BehindBy ?? 0;
+                        return divergence.AheadBy ?? 0;
                     }
                 }
             }
