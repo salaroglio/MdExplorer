@@ -83,16 +83,19 @@ namespace MdExplorer.Service.Controllers
             var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
             RenameFileOnFilesystem(fileData);
 
-            _engineDB.BeginTransaction();
-            _refactoringManager.RenameTheMdFileIntoEngineDB(fileData.FullPath,
-                fileData.FromFileName, fileData.ToFileName);
+            _engineDB.BeginTransaction();            
             var refSourceAct = _refactoringManager
                 .SaveRefactoringActionForRenameFile(fileData.FullPath,
                 fileData.FromFileName, fileData.ToFileName); // Save the concept of change
-            _refactoringManager.SetRefactoringInvolvedFilesActionsForRenameFile(
+            _refactoringManager
+                .SetRefactoringInvolvedFilesActionsForRenameFile(
                 fileData.FromFileName, fileData.ToFileName, oldFullPath, refSourceAct);
             // After save, get back the list of links inside involved files
-            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct);//newFullPath
+            _refactoringManager
+                .UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct);//newFullPath
+            _refactoringManager
+                .RenameTheMdFileIntoEngineDB(fileData.FullPath,
+                fileData.FromFileName, fileData.ToFileName);
 
             _engineDB.Commit();
 
