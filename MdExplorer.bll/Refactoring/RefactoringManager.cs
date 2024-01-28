@@ -7,6 +7,7 @@ using DocumentFormat.OpenXml.Bibliography;
 using System;
 using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Refactoring
 {
@@ -118,7 +119,7 @@ namespace MdExplorer.Features.Refactoring
                     FileName = Path.GetFileName(item.MarkdownFile.FileName),
                     FullPath = item.MarkdownFile.Path,
                     NewLinkToReplace = item.LinkedCommand.ToLower()
-                    .Replace(item.Path.ToLower(), itemProjectPath.ToLower()),
+                    .Replace(item.Path.ToLower(), itemProjectPath),
                     OldLinkStored = item.LinkedCommand,
                     SuggestedAction = "Replace link",
                     RefactoringSourceAction = refSourceAct,
@@ -143,8 +144,8 @@ namespace MdExplorer.Features.Refactoring
             var RefInvolvedFilesActionDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
             foreach (var item in listOfLink)
             {
-                var newLinkToReplace = item.LinkedCommand.ToLower()
-                    .Replace(item.Path.ToLower(), "/" + toFileName.ToLower().Replace("\\","/"));
+                var newLinkToReplace = item.LinkedCommand
+                    .Replace(item.Path, "/" + toFileName.Replace("\\","/"));
                 var refactoringInvolvedFile = new RefactoringInvolvedFilesAction
                 {
                     CreationDate = DateTime.Now,
@@ -181,8 +182,8 @@ namespace MdExplorer.Features.Refactoring
                     CreationDate = DateTime.Now,
                     FileName = item.MarkdownFile.FileName,
                     FullPath = item.MarkdownFile.Path,
-                    NewLinkToReplace = item.LinkedCommand.ToLower()
-                    .Replace(fromFileName.ToLower(), toFileName.ToLower()),
+                    NewLinkToReplace = Regex.Replace(item.LinkedCommand,
+                            Regex.Escape( fromFileName), toFileName, RegexOptions.IgnoreCase),
                     OldLinkStored = item.LinkedCommand,
                     SuggestedAction = "Replace link",
                     RefactoringSourceAction = refSourceAct,

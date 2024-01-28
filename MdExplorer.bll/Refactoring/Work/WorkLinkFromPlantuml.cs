@@ -23,14 +23,14 @@ namespace MdExplorer.Features.ActionLinkModifiers
             var counter = 0;
             foreach (Match item in matches)
             {
-                Regex rx1 = new Regex(@"\[\[[^#]([^\]]*)\]\]");
+                Regex rx1 = new Regex(@"\[\[([^\]]*)\]\]");
                 var matches1 = rx1.Matches(item.Groups[1].Value);
                 foreach (Match match in matches1)
                 {
                     // i have to parse the filename from the link
-                    var toParse = match.Groups[0].Value;
-                    Regex rx2 = new Regex(@"\[\[([^\.]*\.md)");
-                    var matches2 = rx2.Matches(toParse);
+                    var toParse = match.Groups[1].Value;
+                    Regex rx2 = new Regex(@"(.*\.md)(?:(#.*?))?");
+                    var matches2 = rx2.Matches(toParse.ToLower());
 
                     foreach (Match match2 in matches2)
                     {
@@ -38,6 +38,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
                         {
                             LinkedCommand = match.Groups[0].Value,
                             FullPath = match2.Groups[1].Value,
+                            HTMLTitle = match2.Groups[2]?.Value,
                             SectionIndex = counter
                         };
                         toReturn.Add(linkDetail);
