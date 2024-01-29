@@ -33,7 +33,9 @@ export class GITService {
     connectionIsActive:false,
   });
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {
+    setInterval(this.getCurrentBranch, 120000);
+  }
 
   clone(request: CloneInfo): Observable<ResposneClone> {
     const url = '../api/gitfeatures/cloneRepository';

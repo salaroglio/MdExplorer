@@ -154,7 +154,7 @@ MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵ�
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
+module.exports = __webpack_require__(/*! C:\Users\Carlo\source\repos\MdExplorer\MdExplorer\client2\src\main.ts */"zUnb");
 
 
 /***/ }),
@@ -632,6 +632,7 @@ class GITService {
             somethingIsToPush: false,
             connectionIsActive: false,
         });
+        setInterval(this.getCurrentBranch, 120000);
     }
     clone(request) {
         const url = '../api/gitfeatures/cloneRepository';
