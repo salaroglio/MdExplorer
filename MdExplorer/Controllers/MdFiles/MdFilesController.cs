@@ -815,7 +815,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
 
-            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + 
+                fileData.DirectoryName.Replace(" ", "-"); ;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + fileData.DirectoryName;
@@ -849,7 +850,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             var nodeFile = new FileInfoNode
             {
-                Name = fileData.DirectoryName,
+                Name = fileData.DirectoryName.Replace(" ", "-"),
                 FullPath = fullPath,
                 Path = relativePath,
                 RelativePath = relativePath,
