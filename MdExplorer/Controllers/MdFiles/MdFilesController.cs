@@ -151,7 +151,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                                     .Replace(_fileSystemWatcher.Path, "").Substring(1);
             var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
             var toFullPathFileName = Path.Combine(_fileSystemWatcher.Path, toRelativePathFileName);
-            var newFullPath = Path.Combine(requestMoveMdFile.DestinationPath, fileName);
+            
             MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
             _engineDB.BeginTransaction();
@@ -164,11 +164,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 requestMoveMdFile.DestinationPath); // Save the concept of change
 
 
+            _refactoringManager.SetExternalLinks(
+               toRelativePathFileName,
+               refSourceAct);
 
-            _refactoringManager.SetRefactoringInvolvedLinksActionsForMoveFile(
-                //fromRelativePathFileName, 
+            _refactoringManager.SetInternalLinks(
                 toRelativePathFileName,
-                projectBasePath, //requestMoveMdFile.MdFile.FullPath, 
+                projectBasePath, 
                 refSourceAct);
             // After save, get back the list of links inside involved files
             _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
