@@ -151,7 +151,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                                     .Replace(_fileSystemWatcher.Path, "").Substring(1);
             var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
             var toFullPathFileName = Path.Combine(_fileSystemWatcher.Path, toRelativePathFileName);
-            var newFullPath = Path.Combine(requestMoveMdFile.DestinationPath, fileName);
+            
             MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
             _engineDB.BeginTransaction();
@@ -164,11 +164,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 requestMoveMdFile.DestinationPath); // Save the concept of change
 
 
+            _refactoringManager.SetExternalLinks(
+               toRelativePathFileName,
+               refSourceAct);
 
-            _refactoringManager.SetRefactoringInvolvedLinksActionsForMoveFile(
-                //fromRelativePathFileName, 
+            _refactoringManager.SetInternalLinks(
                 toRelativePathFileName,
-                projectBasePath, //requestMoveMdFile.MdFile.FullPath, 
+                projectBasePath, 
                 refSourceAct);
             // After save, get back the list of links inside involved files
             _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
@@ -815,7 +817,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
 
-            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + 
+                fileData.DirectoryName.Replace(" ", "-"); ;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
                 fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + fileData.DirectoryName;
@@ -849,7 +852,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             var nodeFile = new FileInfoNode
             {
-                Name = fileData.DirectoryName,
+                Name = fileData.DirectoryName.Replace(" ", "-"),
                 FullPath = fullPath,
                 Path = relativePath,
                 RelativePath = relativePath,

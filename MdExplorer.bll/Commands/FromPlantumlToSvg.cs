@@ -162,7 +162,9 @@ namespace MdExplorer.Features.Commands
                                 firstPart = itemAttribute.InnerText.Substring(0, indexOfSharp);
                                 secondPart = itemAttribute.InnerText.Substring(indexOfSharp + 1);
                             }
-                            
+                            if (firstPart.StartsWith('/')) { // manage relative path from the root of the project
+                                firstPart = "/api/mdexplorer/" + firstPart;
+                            }
                             var stringURI = $@"{firstPart}" + "?connectionId=" + requestInfo.ConnectionId + secondPart;
                             itemAttribute.InnerText = stringURI;
                         }

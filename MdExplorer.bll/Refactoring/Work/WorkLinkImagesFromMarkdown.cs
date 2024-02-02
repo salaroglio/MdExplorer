@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -50,6 +51,14 @@ namespace MdExplorer.Features.LinkModifiers
             markdown = markdown.Replace(oldLink, newLink,StringComparison.CurrentCultureIgnoreCase);
             //Regex.Replace(markdown, oldLink, newLink, RegexOptions.IgnoreCase);
             File.WriteAllText(filepath,markdown);
+        }
+
+        public string Relink(RelinkInfo relinkInfo)
+        {
+            var oldPathFile = Path.Combine(relinkInfo.OldRelativePath, relinkInfo.OdlFileName);
+            var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            var newCommand = relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
+            return newCommand;
         }
     }
 }
