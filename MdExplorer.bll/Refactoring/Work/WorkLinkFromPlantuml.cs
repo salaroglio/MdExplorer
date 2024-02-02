@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -71,6 +72,20 @@ namespace MdExplorer.Features.ActionLinkModifiers
             var markdown = File.ReadAllText(filepath);
             markdown = markdown.Replace(oldLink, newLink);
             File.WriteAllText(filepath, markdown);
+        }
+
+        public string Relink(RelinkInfo relinkInfo)
+        {
+            var oldPathFile = relinkInfo.OldRelativePath;
+            var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            newPathFile ="/" +  newPathFile.Replace(Path.DirectorySeparatorChar, '/');
+
+            Regex rx = new Regex(oldPathFile, //([^:^ ]*) //replace all emoji from markdown
+                             RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            var commandToReplace = rx.Replace(relinkInfo.LinkedCommand, newPathFile);
+
+            var newCommand = commandToReplace;// relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
+            return newCommand;
         }
     }
 }

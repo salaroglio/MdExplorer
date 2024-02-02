@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -50,6 +51,15 @@ namespace MdExplorer.Features.Refactoring.Work
             var markdown = File.ReadAllText(filepath);
             markdown = markdown.Replace(oldLink, newLink);
             File.WriteAllText(filepath, markdown);
+        }
+
+        public string Relink(RelinkInfo relinkInfo)
+        {
+            var oldPathFile = relinkInfo.OldRelativePath;
+            var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            newPathFile = "/" + newPathFile.Replace(Path.DirectorySeparatorChar, '/');
+            var newCommand = relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
+            return newCommand;
         }
     }
 }
