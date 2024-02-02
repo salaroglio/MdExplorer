@@ -1,12 +1,13 @@
 console.log("Hello from Electron")
 const { app, BrowserWindow } = require('electron')
 const remote = require('electron').remote;
-
+const path = require('path');
 
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1024,
-    height: 768,    
+    height: 768,  
+    icon: path.join(__dirname, 'assets/icons/IconReady.png'),  
     autoHideMenuBar:true,
     //frame:false,
     webPreferences: {
@@ -24,7 +25,8 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   createWindow()
- 
+  win.setIcon('./images/MdIcon2.ico');
+
   app.on('activate', () => {
 
     if (BrowserWindow.getAllWindows().length === 0) 
