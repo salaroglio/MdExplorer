@@ -13,7 +13,7 @@
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
     <Nullable>annotations</Nullable>
-    <ApplicationIcon>MdIcon3.ico</ApplicationIcon>
+    <ApplicationIcon>SpaceShip.ico</ApplicationIcon>
     <OutputType>Exe</OutputType>
     <StartupObject />
     <FileVersion></FileVersion>
@@ -52,6 +52,7 @@
     <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe">
       <DestinationSubDirectory>bin</DestinationSubDirectory>
     </Content>
+    <Content Include="SpaceShip.ico" />
   </ItemGroup>
 
   
@@ -949,10 +950,19 @@
     <None Update="Binaries\ElectronMdExplorer\resources\app\.gitignore">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\assets\icons\IconReady.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\assets\icons\MdIcon2.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Binaries\ElectronMdExplorer\resources\app\index.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Binaries\ElectronMdExplorer\resources\app\index.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\readme.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Binaries\ElectronMdExplorer\snapshot_blob.bin">
