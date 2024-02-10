@@ -34,7 +34,7 @@ export class GITService {
   });
 
   constructor(private http: HttpClient) {
-    setInterval(this.getCurrentBranch, 120000);
+    setInterval(()=> this.getCurrentBranch(), 10000);
   }
 
   clone(request: CloneInfo): Observable<ResposneClone> {

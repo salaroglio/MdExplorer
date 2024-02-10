@@ -2,7 +2,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"  xmlns:iis="http://schemas.microsoft.com/wix/IIsExtension">
   
   
-  <Product Id="*" Name="MdExplorer" Language="1033" Version="1.0.2" 
+  <Product Id="*" Name="MdExplorer" Language="1033" Version="1.0.6" 
            Manufacturer="Advice" UpgradeCode="8c305313-4d21-4e33-ad3a-a4c68e702d07">
     <Package Description="Markdown Explorer Installer" InstallScope="perMachine" Compressed="yes"/>
     <MajorUpgrade DowngradeErrorMessage="A newer version of MdEplorer is already installed." />
@@ -10,7 +10,7 @@
 
     <UIRef Id="WixUI_Minimal" />
     <WixVariable Id="WixUIBannerBmp" Value="assets/Advice.png" />
-    <WixVariable Id="WixUIDialogBmp" Value="assets/MdExplorer1.png" />
+    <WixVariable Id="WixUIDialogBmp" Value="assets/MdExplorerTarros.png" />
     <WixVariable Id="WixUILicenseRtf" Value="assets/LicenseAgreement.rtf" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
