@@ -10,7 +10,7 @@
 
     <UIRef Id="WixUI_Minimal" />
     <WixVariable Id="WixUIBannerBmp" Value="assets/Advice.png" />
-    <WixVariable Id="WixUIDialogBmp" Value="assets/MdExplorer1.png" />
+    <WixVariable Id="WixUIDialogBmp" Value="assets/MdExplorerTarros.png" />
     <WixVariable Id="WixUILicenseRtf" Value="assets/LicenseAgreement.rtf" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">

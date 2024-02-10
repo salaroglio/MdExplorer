@@ -1,1 +1,9 @@
-﻿So tutti razzi tuoi.
+﻿General Use - The [Software Name] ("Software") is provided "as is" and with all faults. The creators of the Software make no representations or warranties of any kind concerning the safety, suitability, inaccuracies, typographical errors, or other harmful components of this Software. There are inherent dangers in the use of any software, and you are solely responsible for determining whether this Software is compatible with your equipment and other software installed on your equipment.
+
+No Warranties - To the maximum extent permitted by applicable law, the Software is provided "as is" without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, or non-infringement. No advice or information, whether oral or written, obtained by you from the creators or from the Software's website shall create any warranty not expressly stated in these terms.
+
+Liability Limitation - In no event shall the creators of the Software be liable for any special, incidental, indirect, or consequential damages whatsoever (including, without limitation, damages for loss of business profits, business interruption, loss of business information, or any other pecuniary loss) arising out of the use of or inability to use the Software, even if the creators have been advised of the possibility of such damages.
+
+Your Responsibility - You are solely responsible for any damage to your computer system or loss of data that results from the download or use of the Software. Additionally, you agree to comply with all applicable laws and regulations, including but not limited to export and import regulations.
+
+By downloading, installing, or using the [Software Name], you acknowledge that you have read this disclaimer, understand it, and agree to be bound by its terms and conditions. If you do not agree to the terms and conditions of this disclaimer, do not download, install, or use the Software.
