@@ -50,8 +50,11 @@
   <ItemGroup>
     <Content Include="assets\Advice.png" />
     <Content Include="assets\disclaimer.txt" />
+    <Content Include="assets\LicenseAgreement.rtf" />
     <Content Include="assets\MdExplorer.png" />
+    <Content Include="assets\MdExplorerDedeagroup.png" />
     <Content Include="assets\MdExplorerCert.pfx" />
+    <Content Include="assets\MdExplorerTarros.png" />
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" Condition=" '$(WixTargetsPath)' != '' " />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets" Condition=" '$(WixTargetsPath)' == '' AND Exists('$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets') " />
