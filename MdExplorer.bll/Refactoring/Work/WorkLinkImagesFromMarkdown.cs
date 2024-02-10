@@ -55,8 +55,9 @@ namespace MdExplorer.Features.LinkModifiers
 
         public string Relink(RelinkInfo relinkInfo)
         {
-            var oldPathFile = Path.Combine(relinkInfo.OldRelativePath, relinkInfo.OdlFileName);
+            var oldPathFile = relinkInfo.OldRelativePath;
             var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            newPathFile = "/" + newPathFile.Replace(Path.DirectorySeparatorChar, '/');
             var newCommand = relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
             return newCommand;
         }
