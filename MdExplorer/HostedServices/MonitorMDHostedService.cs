@@ -122,9 +122,9 @@ namespace MdExplorer.Service.HostedServices
         {
             // If wrong files then don't alert to client
             //bool isWrongDirectory = false, isWrongExtensionFile = false, isWrongGitFile =false;
-            (var isWrongDirectory, var isWrongExtensionFile,var  isWrongGitFile) = ThereIsNoNeedToAlertClient(e) ;
+            (var isWrongDirectory, var isWrongExtensionFile,var  isWrongGitFile, var hasNoExtension) = ThereIsNoNeedToAlertClient(e) ;
 
-            if (isWrongDirectory || isWrongExtensionFile || isWrongGitFile)
+            if (isWrongDirectory || isWrongExtensionFile || isWrongGitFile || hasNoExtension)
             {
                 return;
             }
@@ -148,13 +148,15 @@ namespace MdExplorer.Service.HostedServices
             }
         }
 
-        private (bool,bool,bool) ThereIsNoNeedToAlertClient(FileSystemEventArgs e)
+        private (bool,bool,bool,bool) ThereIsNoNeedToAlertClient(FileSystemEventArgs e)
         {
             var isWrongDirectory = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
             var isWrongExtensionFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")
                                         || e.FullPath.ToLower().Contains($".pptx")
                                         || e.FullPath.ToLower().Contains($".docx")
                                         || e.FullPath.ToLower().Contains($".xlsx")
+                                        || e.FullPath.ToLower().Contains($".xls")
+                                        || e.FullPath.ToLower().Contains($".ppt")
                                         || e.FullPath.ToLower().Contains($".xlsb")
                                         || e.FullPath.ToLower().Contains($".bmpr")
                                         || e.FullPath.ToLower().Contains($".tmp");
@@ -162,7 +164,8 @@ namespace MdExplorer.Service.HostedServices
                                         || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG")
                                         || e.FullPath.Contains($".0.pdnSave")
                                         || e.FullPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"); // Paint.net problem
-            return (isWrongDirectory, isWrongExtensionFile, isWrongGitFile);
+            var hasNoExtension = Path.GetExtension(e.FullPath) == string.Empty;
+            return (isWrongDirectory, isWrongExtensionFile, isWrongGitFile, hasNoExtension);
         }
 
         private void ParseNewFileIntoDB(FileSystemEventArgs e)

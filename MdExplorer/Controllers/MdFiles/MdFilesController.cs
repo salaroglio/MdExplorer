@@ -234,9 +234,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // creating the folder if not exists
             var folderContainintMdFile = Path.GetDirectoryName(request.MdFile.FullPath);
             var destinationDirectory = Directory.CreateDirectory(folderContainintMdFile + Path.DirectorySeparatorChar + "assets");
-            var fullPathFileName = destinationDirectory.FullName 
+            var fullPathFileName = destinationDirectory.FullName
                 + Path.DirectorySeparatorChar +  
-                Path.GetFileName(request.FullPath);
+                Path.GetFileName(request.FullPath.Replace(" ","-"));
             _fileSystemWatcher.EnableRaisingEvents = false;
             System.IO.File.Copy(request.FullPath, fullPathFileName);
             _fileSystemWatcher.EnableRaisingEvents = true;
@@ -246,7 +246,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var newLineTextToAdd = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
             allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
             System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
-            return  Ok("done");
+            return  Ok(new { message = "done" });
 
         }
 

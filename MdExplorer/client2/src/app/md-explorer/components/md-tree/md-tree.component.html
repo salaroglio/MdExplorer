@@ -17,7 +17,7 @@
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="moveDocument(item)" matTooltip="move"><mat-icon>open_with</mat-icon></button>
     </div>
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
-    <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)"><b style="color:violet">Add</b>existing file<b style="color:blue">on MDE project</b></button>
+    <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)"><b style="color:violet">Add</b> existing file<b style="color:blue"> as link</b></button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>Clone timed document</b></button>
   </ng-template>

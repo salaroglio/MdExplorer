@@ -3471,9 +3471,9 @@ function MdTreeComponent_ng_template_3_button_10_Template(rf, ctx) { if (rf & 1)
     _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementStart"](1, "b", 25);
     _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵtext"](2, "Add");
     _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵtext"](3, "existing file");
+    _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵtext"](3, " existing file");
     _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementStart"](4, "b", 26);
-    _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵtext"](5, "on MDE project");
+    _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵtext"](5, " as link");
     _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementEnd"]();
 } }
