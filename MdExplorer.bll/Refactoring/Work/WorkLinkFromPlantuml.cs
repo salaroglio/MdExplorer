@@ -57,13 +57,23 @@ namespace MdExplorer.Features.ActionLinkModifiers
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
             var markdown = string.Empty;
-            using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            try
             {
-                using (var reader = new StreamReader(stream))
+                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    markdown = reader.ReadToEnd();
+                    using (var reader = new StreamReader(stream))
+                    {
+                        markdown = reader.ReadToEnd();
+                    }
                 }
+
             }
+            catch (Exception)
+            {
+
+               return new LinkDetail[] { }; 
+            }
+            
             return GetLinksFromMarkdown(markdown);
         }
 
