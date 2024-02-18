@@ -68,6 +68,28 @@ namespace MdExplorer.Features.Commands
                 }
             }
 
+            foreach (var extension in ExtensionArrayToOpenInApplication)
+            {
+                foreach (Match item in matches.Where(_ => _.Groups[0].Value.Contains($".{extension}")))
+                {
+                    Regex rx = new Regex(@$"(<a.+?)(href="")(.+?\.{extension})""", //lnk?
+                                    RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+                    var matches1 = rx.Matches(item.Groups[0].Value);
+                    if (matches1.Count == 0)
+                    {
+                        return html;
+                    }
+                    var item1 = matches1[0];
+
+                    var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
+
+                    var relativePath = documentRelativePath + Path.DirectorySeparatorChar + item1.Groups[3].Value.ToString();
+                    var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{requestInfo.CurrentRoot + Path.DirectorySeparatorChar + relativePath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
+                    html = html.Replace(item1.Groups[0].Value, openApplication);
+                }
+            }
+
 
             return html;
 
