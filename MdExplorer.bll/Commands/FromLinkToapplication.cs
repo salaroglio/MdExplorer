@@ -50,7 +50,7 @@ namespace MdExplorer.Features.Commands
             {
                 foreach (Match item in matches.Where(_ => _.Groups[0].Value.Contains($".{extension}")))
                 {
-                    Regex rx = new Regex(@$"(<a.+?)(href="")(.+?\.{extension})""", //lnk?
+                    Regex rx = new Regex(@$"(<a.+?)(href="")(.+?\.{extension})\?(.*)""", //lnk?
                                     RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
                     var matches1 = rx.Matches(item.Groups[0].Value);
