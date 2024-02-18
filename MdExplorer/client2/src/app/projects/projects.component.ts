@@ -11,6 +11,7 @@ import { ShowFileSystemComponent } from '../commons/components/show-file-system/
 import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
 import { SettingsComponent } from '../md-explorer/components/dialogs/settings/settings.component';
+import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
 
 @Component({
   selector: 'app-projects',
@@ -55,10 +56,15 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   openNewFolder(): void {
+    let data = new ShowFileMetadata();
+    data.start = null;
+    data.title = "Select folder";
+    data.typeOfSelection = "Folders";
+
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
       width: '600px',
       maxHeight: '600px',
-      data: null
+      data: data
     });
 
     dialogRef.afterClosed().subscribe(folderPath => {      

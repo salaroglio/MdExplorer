@@ -26,6 +26,7 @@ import { DocumentSettingsComponent } from './components/document-settings/docume
 import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { GitModule } from '../git/git.module';
 import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
+import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 
 
 
@@ -62,7 +63,7 @@ const routes: Routes = [
     GitlabSettingsComponent,
     DocumentSettingsComponent,
     CopyFromClipboardComponent,    
-    MoveMdFileComponent
+    MoveMdFileComponent, AddNewFileToMDEComponent
   ],
   imports: [
     CommonModule,

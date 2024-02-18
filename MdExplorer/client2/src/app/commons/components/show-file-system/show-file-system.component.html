@@ -15,13 +15,16 @@
 
 
 <div class="flex-container">
-  <h1>Document's Folder</h1>
+  <h1>{{title}}</h1>
   <div class="flex-items-overflow">
     <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)" >
       <!-- This is the tree node template for leaf nodes -->
       <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
         <!-- use a disabled button to provide padding for tree leaf -->
-        <button mat-icon-button>
+        <button *ngIf="node.type==='file'"  mat-icon-button color="primary" style="cursor:pointer">
+          <mat-icon class="mat-icon-rtl-mirror">text_snippet</mat-icon>
+        </button>
+        <button *ngIf="node.type==='folder'" mat-icon-button>
           <mat-icon class="mat-icon-rtl-mirror">folder</mat-icon>
         </button>
         <a style="cursor:pointer" (click)="getFolder(node);activeNode = node;">{{node.name}}</a>

@@ -17,6 +17,7 @@ import { Router } from '@angular/router';
 import { fadeInOnEnterAnimation } from 'angular-animations';
 import { CopyFromClipboardComponent } from '../dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { MoveMdFileComponent } from '../dialogs/move-md-file/move-md-file.component';
+import { AddNewFileToMDEComponent } from '../dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -189,6 +190,13 @@ export class MdTreeComponent implements OnInit {
   openFolderOn(node: MdFile) {
     this.mdFileService.openFolderOnFileExplorer(node).subscribe(_ => {
       this.snackBar.open("file explorer open", "", { duration: 500 });
+    });
+  }
+
+  AddExistingFileOnMDEProject(node: MdFile) {
+    this.dialog.open(AddNewFileToMDEComponent, {
+      width: '600px',
+      data: node,
     });
   }
 
