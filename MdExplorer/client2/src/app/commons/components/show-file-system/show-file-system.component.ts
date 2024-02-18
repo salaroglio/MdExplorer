@@ -3,14 +3,13 @@ import { FlatTreeControl } from '@angular/cdk/tree';
 import { Component, Inject, Injectable, OnInit, ViewChild } from '@angular/core';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
-import { Router } from '@angular/router';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NewDirectoryComponent } from '../new-directory/new-directory.component';
 import { IFileInfoNode } from '../../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../../md-explorer/models/md-file';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
-import { ProjectsService } from '../../../md-explorer/services/projects.service';
+import { ShowFileMetadata } from './show-file-metadata';
 
 
 
@@ -75,13 +74,15 @@ class DynamicDataSource implements DataSource<MdFile> {
   constructor(private _treeControl: FlatTreeControl<MdFile>,
     private _database: DynamicDatabase,
     private _mdFileService: MdFileService,
-    private baseStart:string) {
+    private baseStart: string,
+    private typeOfSelection: string) {
     this.data = _database.initialData();
-    this._mdFileService.loadDocumentFolder(baseStart, 0).subscribe(_ => {// 'root'
+    console.log("constructor-> this.typeOfSelection " + this.typeOfSelection);
+    this._mdFileService.loadDocumentFolder(baseStart, 0, this.typeOfSelection).subscribe(_ => {// 'root'
       this.data = _;
     });
-    //this.dataChange = _mdFileService._mdDynFolderDocument;
-    //_mdFileService.loadDynFolders('root', 1);
+
+
   }
 
   connect(collectionViewer: CollectionViewer): Observable<MdFile[]> {
@@ -111,7 +112,8 @@ class DynamicDataSource implements DataSource<MdFile> {
    * Toggle the node, remove from display list
    */
   toggleNode(node: MdFile, expand: boolean) {
-    this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(_ => {
+    
+    this._mdFileService.loadDocumentFolder(node.path, node.level + 1, this.typeOfSelection).subscribe(_ => {
 
       const children = _;
       const index = this.data.indexOf(node);
@@ -141,7 +143,8 @@ class DynamicDataSource implements DataSource<MdFile> {
   }
 
   refreshNode(node: MdFile) {
-    this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(children => {
+    
+    this._mdFileService.loadDocumentFolder(node.path, node.level + 1,this.typeOfSelection).subscribe(children => {
       const index = this.data.indexOf(node);
       let count = 0;
       for (let i = index + 1; i < this.data.length
@@ -162,6 +165,8 @@ class DynamicDataSource implements DataSource<MdFile> {
 })
 export class ShowFileSystemComponent implements OnInit {
 
+  public title: string = "Document's Folder";
+
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
   activeNode: any;
@@ -176,17 +181,18 @@ export class ShowFileSystemComponent implements OnInit {
   hasChild = (_: number, _nodeData: MdFile) => _nodeData.expandable;
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public baseStart: string,
+    @Inject(MAT_DIALOG_DATA) public baseStart: ShowFileMetadata,
     private database: DynamicDatabase,
     public dialog: MatDialog,
     private mdFileService: MdFileService,
     private dialogRef: MatDialogRef<ShowFileSystemComponent>,) {
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
-    let start = this.baseStart == null ? 'root' :this.baseStart;
-    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService, start);
+    let start = this.baseStart.start == null ? 'root' : this.baseStart.start;
+    this.title = this.baseStart.title;
+    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService, start, baseStart.typeOfSelection);
   }
 
-  createDirectoryOn(node: MdFile) {    
+  createDirectoryOn(node: MdFile) {
     if (node == null) {
       node = new MdFile("root", "root", 0, false);
       node.fullPath = "root";
@@ -232,7 +238,7 @@ export class ShowFileSystemComponent implements OnInit {
   }
 
   public closeDialog() {
-    this.dialogRef.close({ event: 'open', data: this.folder.path });         
+    this.dialogRef.close({ event: 'open', data: this.folder.path });
   }
 
 }

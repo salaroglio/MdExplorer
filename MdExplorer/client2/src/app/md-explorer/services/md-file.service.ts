@@ -197,11 +197,18 @@ export class MdFileService {
         });
   }
 
-  loadDocumentFolder(path: string, level: number): Observable<MdFile[]> {
-    const url = '../api/mdfiles/GetDynFoldersDocument';
+  loadDocumentFolder(path: string, level: number, typeOfSelection:string): Observable<MdFile[]> {
+    let url = '../api/mdfiles/GetDynFoldersDocument';
+        
+    if (typeOfSelection==="FoldersAndFiles") {
+      url = '../api/mdfiles/GetDynFoldersAndFilesDocument';
+    }
+    console.log(url);
     var params = new HttpParams().set('path', path).set('level', String(level));
     return this.http.get<MdFile[]>(url, { params });
   }
+
+
 
   loadPublishNodes(path: string, level: number): Observable<MdFile[]> {
     const url = '../api/mdPublishNodes';
@@ -292,6 +299,12 @@ export class MdFileService {
   pasteFromClipboard(node: any) {
     const url = '../api/mdfiles/pasteFromClipboard';
     return this.http.post<any>(url, node);
+  }
+
+
+  addExistingFileToMDEProject(node: MdFile,path:String) {
+    const url = '../api/mdfiles/addExistingFileToMDEProject';
+    return this.http.post<string>(url, { mdFile: node, fullPath:path });
   }
 
   getTextFromClipboard() {

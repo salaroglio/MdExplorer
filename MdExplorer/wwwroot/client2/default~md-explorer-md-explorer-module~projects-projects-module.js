@@ -123,7 +123,7 @@ class DynamicDataSource {
         this._mdFileService = _mdFileService;
         this.dataChange = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
         this.data = _database.initialData();
-        this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
+        this._mdFileService.loadDocumentFolder('root', 0, "Folders").subscribe(_ => {
             this.data = _;
         });
         //this.dataChange = _mdFileService._mdDynFolderDocument;
@@ -157,7 +157,7 @@ class DynamicDataSource {
      * Toggle the node, remove from display list
      */
     toggleNode(node, expand) {
-        this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(_ => {
+        this._mdFileService.loadDocumentFolder(node.path, node.level + 1, "Folders").subscribe(_ => {
             const children = _;
             const index = this.data.indexOf(node);
             if (!children || index < 0) { // If no children, or cannot find the node, no op

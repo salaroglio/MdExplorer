@@ -4,6 +4,7 @@ import { ShowFileSystemComponent } from '../../../../commons/components/show-fil
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
+import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
 
 @Component({
   selector: 'app-move-md-file',
@@ -24,10 +25,15 @@ export class MoveMdFileComponent implements OnInit {
   ngOnInit(): void { }
 
   openFileSystem() {
+    let data = new ShowFileMetadata();
+    data.start = 'project';
+    data.title = "Project's folders";
+    data.typeOfSelection = "Folders";
+
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
       width: '600px',
       height: '600px',
-      data: 'project'
+      data: data,
     });
     dialogRef.afterClosed().subscribe(_ => {
       this.directoryDestination = _.data;

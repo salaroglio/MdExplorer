@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
+using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Vml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Markdig;
@@ -227,6 +228,29 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         [HttpPost]
+        public IActionResult AddExistingFileToMDEProject([FromBody] RequestAddExistingFileToMdeproject request)
+        {
+            // Generate a function that copy the file from request.FullPath into request.MdFIle.FullPath adding the "\assets" folder,
+            // creating the folder if not exists
+            var folderContainintMdFile = Path.GetDirectoryName(request.MdFile.FullPath);
+            var destinationDirectory = Directory.CreateDirectory(folderContainintMdFile + Path.DirectorySeparatorChar + "assets");
+            var fullPathFileName = destinationDirectory.FullName 
+                + Path.DirectorySeparatorChar +  
+                Path.GetFileName(request.FullPath);
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            System.IO.File.Copy(request.FullPath, fullPathFileName);
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            var allText = System.IO.File.ReadAllText(request.MdFile.FullPath);
+            //We have to set an absolute path
+            var relativePathMDE = fullPathFileName.Replace(_fileSystemWatcher.Path, string.Empty).Replace("\\", "/");
+            var newLineTextToAdd = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
+            allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
+            System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
+            return  Ok("done");
+
+        }
+
+        [HttpPost]
         public IActionResult PasteFromClipboard([FromBody] RequestPasteFromClipboard fileData)
         {
             Thread t = new Thread(new ThreadStart(() =>
@@ -416,10 +440,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 
-            //.Where(_ => !_.Contains("Immagini") &&
-            //        !_.Contains("Musica") &&
-            //        !_.Contains("Video"))
-            //        )
             foreach (var itemFolder in Directory.GetDirectories(currentPath))
             {
                 if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
@@ -447,6 +467,69 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 }
 
 
+            }
+
+
+            return Ok(list);
+        }
+
+        [HttpGet]
+        public IActionResult GetDynFoldersAndFilesDocument([FromQuery] string path, string level)
+        {
+            var currentPath = path == "root" ? @"C:\" : path;
+            currentPath = path == "project" ? _fileSystemWatcher.Path : currentPath;
+            currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
+
+            var currentLevel = Convert.ToInt32(level);
+            var list = new List<IFileInfoNode>();
+
+            foreach (var itemFolder in Directory.GetDirectories(currentPath))
+            {
+                if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
+                {
+                    try
+                    {
+                        var node = new FileInfoNode
+                        {
+                            Name = Path.GetFileName(itemFolder),
+                            FullPath = itemFolder,
+                            Path = itemFolder,
+                            Level = currentLevel,
+                            Type = "folder",
+                            Expandable = true //Directory.GetDirectories(itemFolder).Count() > 0
+                        };
+
+                        list.Add(node);
+                    }
+                    catch (Exception)
+                    {
+
+                        // Do nothing
+                    }
+
+                }
+
+
+            }// End foreach for folders
+
+            foreach (var itemFile in Directory.GetFiles(currentPath).Where(
+                _ => Path.GetExtension(_) != ".dll" &&
+                    Path.GetExtension(_) != ".exe" &&
+                    Path.GetExtension(_) != ".sys" &&
+                    Path.GetExtension(_) != ".tmp" ))
+            {
+                var node = new FileInfoNode
+                {
+                    Name = Path.GetFileName(itemFile),
+                    FullPath = itemFile,
+                    Path = itemFile,
+                    Level = currentLevel,
+                    Expandable = false,
+                    Type = "file"
+                };
+
+                
+                list.Add(node);
             }
 
 
