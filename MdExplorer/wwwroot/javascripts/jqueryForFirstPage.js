@@ -1,4 +1,30 @@
-﻿//Refs
+﻿// Create snapshot
+
+function createSnapshot(fullpath) {
+    
+    var $dialog = $('<div></div>')
+        .html('<p>Picture name:</p><input type="text" id="myTextbox" style="width: 100%;" />')
+        .dialog({
+            title: "Take a picture!",
+            autoOpen: false,
+            modal: true,
+            buttons: {
+                Ok: function () {
+                    var textboxValue = $('#myTextbox').val();
+                    $(this).dialog("close");
+                },
+                Cancel: function () {
+                    $(this).dialog("close");
+                }
+            }
+        });
+
+    // Open the dialog
+    $dialog.dialog('open');
+}
+
+
+//Refs
 
 $(function () {
     window.addEventListener("scroll", function () {

@@ -76,7 +76,7 @@ export class MdTreeComponent implements OnInit {
 
   ) {
     this.dataSource.data = TREE_DATA;
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
+    this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
       while (myClonedArray.length > 1) {
@@ -89,7 +89,9 @@ export class MdTreeComponent implements OnInit {
         this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
       }
     });
+
   }
+ 
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
     this.mdFiles = this.mdFileService.mdFiles;

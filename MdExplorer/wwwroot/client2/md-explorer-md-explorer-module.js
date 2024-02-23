@@ -3276,7 +3276,7 @@ class NewDirectoryComponent {
         this.mdFileService.CreateNewDirectory(this.data.fullPath, this.directoryName, this.data.level)
             .subscribe(data => {
             this.mdFileService.addNewDirectory(data);
-            this.mdFileService.setSelectedDirectoryFromNewDirectory(data[data.length - 1]);
+            this.mdFileService.setSelectionMdFile(data.reverse());
         });
         this.dialogRef.close();
     }
