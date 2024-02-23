@@ -918,14 +918,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var item in relativeSplitted)
             {
                 dynamicRelativePath =
-                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
+                        relativeSplitted.First() == item ? "\\" : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
                 dynamicRelativePath += item;
 
                 var node = new FileInfoNode
                 {
                     Name = item,
-                    FullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + dynamicRelativePath,
-                    RelativePath = dynamicRelativePath,
+                    FullPath = _fileSystemWatcher.Path + dynamicRelativePath,
+                    RelativePath =  dynamicRelativePath,
                     Path = dynamicRelativePath,
                     Type = "folder",
                     Level = currentLevel,
@@ -937,7 +937,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 Name = fileData.DirectoryName.Replace(" ", "-"),
                 FullPath = fullPath,
-                Path = relativePath,
+                Path =  relativePath,
                 RelativePath = relativePath,
                 Type = "folder",
                 Level = currentLevel,
