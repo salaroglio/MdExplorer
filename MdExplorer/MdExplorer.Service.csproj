@@ -178,6 +178,12 @@
     <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
     <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
     <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_444444_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_555555_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_777620_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_777777_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_cc0000_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_ffffff_256x240.png" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.css" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.js" />
     <Content Remove="wwwroot\jquery_ui\jquery-ui.min.css" />
@@ -495,6 +501,12 @@
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
     <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
     <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_444444_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_555555_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_777620_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_777777_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_cc0000_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_ffffff_256x240.png" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.css" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.js" />
     <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.css" />

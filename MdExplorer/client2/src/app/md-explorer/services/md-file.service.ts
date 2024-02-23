@@ -131,7 +131,8 @@ export class MdFileService {
 
 
   addNewDirectory(data: MdFile[]) {
-    // searching directories    
+    // searching directories
+    
     var currentItem = data[0];
     currentItem.expandable = true;
     let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
@@ -369,6 +370,10 @@ export class MdFileService {
   setSelectedMdFileFromServer(selectedFile: MdFile) {    
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
     this._serverSelectedMdFile.next(returnFound);
+  }
+
+  setSelectionMdFile(selectedFile: MdFile[]) {
+    this._serverSelectedMdFile.next(selectedFile);
   }
 
 
