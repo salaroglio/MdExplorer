@@ -442,7 +442,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 
-            foreach (var itemFolder in Directory.GetDirectories(currentPath))
+            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_=>!Path.GetFileName(_).StartsWith(".")))
             {
                 if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
                 {
