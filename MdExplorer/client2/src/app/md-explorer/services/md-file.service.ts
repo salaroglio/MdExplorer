@@ -247,13 +247,15 @@ export class MdFileService {
 
   deleteFile(file: MdFile) {
     const url = '../api/mdfiles/DeleteFile';
-    return this.http.post<MdFile>(url, file).subscribe(_ => {
-      this.recursiveDeleteFileFromDataStore(file);
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    });
+    return this.http.post<MdFile>(url, file);
+      
+
+      //this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    
   }
 
   recursiveDeleteFileFromDataStore(fileToFind: MdFile) {
+    
     let dataFound: MdFile[] =[];    
     this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
     if (dataFound.length == 1) {
@@ -261,19 +263,24 @@ export class MdFileService {
       this.dataStore.mdFiles.splice(dataIndex, 1);
     }
     if (dataFound.length > 1) {
-      let cursor = this.dataStore.mdFiles;
-      let currentFolder:MdFile[] = []
+      //let cursor = this.dataStore.mdFiles;
+      let currentFolder: MdFile[] = this.dataStore.mdFiles;
       for (var i = dataFound.length -1 ; i >0 ; i--) {
-        currentFolder = cursor[cursor.indexOf(dataFound[i])].childrens;
+        currentFolder = currentFolder[currentFolder.indexOf(dataFound[i])].childrens;
       }
       currentFolder.splice(currentFolder.indexOf(dataFound[dataFound.length - 1]), 1);
       
 
     }
-    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-
-    
+    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);    
   }
+
+  recursiveSearchForShowData(fileToFind):MdFile[] {
+    let dataFound: MdFile[] = [];
+    this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
+    return dataFound;
+  }
+
 
   CreateNewDirectoryEx(path: string, directoryName: string, directoryLevel: number) {
     const url = '../api/mdfiles/CreateNewDirectoryEx';
