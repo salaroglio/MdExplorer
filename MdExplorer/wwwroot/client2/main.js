@@ -1360,7 +1360,13 @@ class MdFileService {
         }
         else {
             if (currentFolder == undefined) { // the file is in the root
+                // first find the dummy (transparent)
+                // the remove-it
+                // then add folder
+                // then add the dummy again
+                let dummyItem = this.dataStore.mdFiles.pop();
                 this.dataStore.mdFiles.push(data[0]);
+                this.dataStore.mdFiles.push(dummyItem);
             }
             else {
                 currentFolder.childrens.push(data[0]); // insert new file in folder
@@ -1378,7 +1384,9 @@ class MdFileService {
         }
         else {
             if (currentFolder == undefined) { // the directory is in the root
+                let dummyItem = this.dataStore.mdFiles.pop();
                 this.dataStore.mdFiles.push(currentItem);
+                this.dataStore.mdFiles.push(dummyItem);
             }
             else {
                 currentFolder.childrens.push(currentItem); // insert new directory in folder
