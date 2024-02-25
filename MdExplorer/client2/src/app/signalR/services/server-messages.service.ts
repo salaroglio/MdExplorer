@@ -5,6 +5,7 @@ import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/co
 import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/parsing-project.provider';
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { connect } from 'net';
+import { OpeningApplicationProvider } from '../dialogs/opening-application/opening-application.provider';
 
 interface linkSignalREvent_Component {
   key: string
@@ -24,6 +25,7 @@ export class MdServerMessagesService {
     private parsingProjectProvider: ParsingProjectProvider,
     private plantumlWorkingProvider: PlantumlWorkingProvider,
     private connectionLostProvider: ConnectionLostProvider,
+    private openingApplicationProvider: OpeningApplicationProvider,
     private gitService: GITService) {
     this.startConnection();
     console.log('MonitorMDService constructor');
@@ -47,6 +49,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('parsingProjectStart', (data) => {
         this.parsingProjectProvider.show(data);
+      });
+      this.hubConnection.on('openingApplication', (data) => {
+        this.openingApplicationProvider.show(data);
       });
       this.hubConnection.on('parsingProjectStop', (data) => {
         this.parsingProjectProvider.hide(data);

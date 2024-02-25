@@ -17,6 +17,8 @@ import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plan
 import { ShowFileSystemComponent } from './commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/waiting-dialog.component';
 import { NewDirectoryComponent } from './commons/components/new-directory/new-directory.component';
+import { OpeningApplicationComponent } from './signalR/dialogs/opening-application/opening-application.component';
+import { OpeningApplicationProvider } from './signalR/dialogs/opening-application/opening-application.provider';
 
 
 const routes: Routes = [
@@ -38,7 +40,8 @@ const routes: Routes = [
     PlantumlWorkingComponent,
     ShowFileSystemComponent,
     WaitingDialogComponent,
-    NewDirectoryComponent
+    NewDirectoryComponent,
+    OpeningApplicationComponent
   ],
   imports: [
     BrowserModule,
@@ -51,7 +54,9 @@ const routes: Routes = [
     
   ],
   providers: [ParsingProjectProvider,
-               ConnectionLostProvider, PlantumlWorkingProvider],
+    ConnectionLostProvider,
+    PlantumlWorkingProvider,
+    OpeningApplicationProvider],
   bootstrap: [AppComponent]
 })
 export class AppModule {
