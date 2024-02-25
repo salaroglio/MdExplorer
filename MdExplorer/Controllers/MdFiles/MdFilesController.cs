@@ -137,6 +137,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 CreateNoWindow = false
             };
             Process.Start(processToStart);
+            _hubContext.Clients.Client(connectionId: data.ConnectionId).SendAsync("openingApplication", Path.GetFileName(fullpath)).Wait();            
             return Ok(new { message = "done" });
         }
 
@@ -238,7 +239,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 + Path.DirectorySeparatorChar +  
                 Path.GetFileName(request.FullPath.Replace(" ","-"));
             _fileSystemWatcher.EnableRaisingEvents = false;
-            System.IO.File.Copy(request.FullPath, fullPathFileName);
+            try
+            {
+                System.IO.File.Copy(request.FullPath, fullPathFileName);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogInformation(ex.Message);
+            }
+           
             _fileSystemWatcher.EnableRaisingEvents = true;
             var allText = System.IO.File.ReadAllText(request.MdFile.FullPath);
             //We have to set an absolute path

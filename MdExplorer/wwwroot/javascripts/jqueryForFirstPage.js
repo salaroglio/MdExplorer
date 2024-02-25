@@ -239,8 +239,8 @@ const cyrb53 = function (str, seed = 0) {
 
 //Open link directly in the application
 function openApplication(fullpath) {
-
-    let toStringify = { fullPath: fullpath };
+    let $body = $("#MdBody");
+    let toStringify = { fullPath: fullpath, connectionId: $body.attr("connectionid") };
     $.ajax({
         url: "/api/MdFiles/OpenFileInApplication",
         type: "POST",
