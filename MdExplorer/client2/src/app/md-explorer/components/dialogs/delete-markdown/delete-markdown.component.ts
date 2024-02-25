@@ -24,7 +24,18 @@ export class DeleteMarkdownComponent implements OnInit {
   }
 
   delete() {
-    this.mdFileService.deleteFile(this.data);
-    this.dialogRef.close();
+    
+    this.mdFileService.deleteFile(this.data)
+      .subscribe(_ => {
+        debugger;
+        
+        let filePath = this.mdFileService.recursiveSearchForShowData(this.data);
+        filePath.reverse().pop(); // i'm ripping away the file element
+        let folderContainer = filePath.reverse(); // i'm putting the array in the shape tha like to structure setSelectionMdFile
+        this.mdFileService.recursiveDeleteFileFromDataStore(this.data);
+        this.mdFileService.setSelectionMdFile(folderContainer);
+        this.dialogRef.close();
+      });
+    
   }
 }

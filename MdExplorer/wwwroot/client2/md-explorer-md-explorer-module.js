@@ -732,8 +732,16 @@ class DeleteMarkdownComponent {
         this.dialogRef.close();
     }
     delete() {
-        this.mdFileService.deleteFile(this.data);
-        this.dialogRef.close();
+        this.mdFileService.deleteFile(this.data)
+            .subscribe(_ => {
+            debugger;
+            let filePath = this.mdFileService.recursiveSearchForShowData(this.data);
+            filePath.reverse().pop(); // i'm ripping away the file element
+            let folderContainer = filePath.reverse(); // i'm putting the array in the shape tha like to structure setSelectionMdFile
+            this.mdFileService.recursiveDeleteFileFromDataStore(this.data);
+            this.mdFileService.setSelectionMdFile(folderContainer);
+            this.dialogRef.close();
+        });
     }
 }
 DeleteMarkdownComponent.ɵfac = function DeleteMarkdownComponent_Factory(t) { return new (t || DeleteMarkdownComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogRef"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_2__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MAT_DIALOG_DATA"])); };
@@ -3656,6 +3664,10 @@ class MdTreeComponent {
             if (myClonedArray.length > 0) {
                 var toExpand = myClonedArray.pop();
                 this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
+                debugger;
+                if (this.activeNode != undefined && this.activeNode.type == "folder") {
+                    this.treeControl.expand(this.activeNode);
+                }
             }
         });
     }

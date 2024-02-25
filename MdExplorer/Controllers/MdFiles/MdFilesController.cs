@@ -379,8 +379,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult DeleteFile([FromBody] FileInfoNode fileData)
         {
+            _fileSystemWatcher.EnableRaisingEvents = false;
             System.IO.File.Delete(fileData.FullPath);
             return Ok(new { message = "done" });
+            _fileSystemWatcher.EnableRaisingEvents = true;
         }
 
         [HttpPost]

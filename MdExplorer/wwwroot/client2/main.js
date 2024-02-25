@@ -1468,10 +1468,8 @@ class MdFileService {
     }
     deleteFile(file) {
         const url = '../api/mdfiles/DeleteFile';
-        return this.http.post(url, file).subscribe(_ => {
-            this.recursiveDeleteFileFromDataStore(file);
-            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-        });
+        return this.http.post(url, file);
+        //this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
     recursiveDeleteFileFromDataStore(fileToFind) {
         let dataFound = [];
@@ -1481,14 +1479,19 @@ class MdFileService {
             this.dataStore.mdFiles.splice(dataIndex, 1);
         }
         if (dataFound.length > 1) {
-            let cursor = this.dataStore.mdFiles;
-            let currentFolder = [];
+            //let cursor = this.dataStore.mdFiles;
+            let currentFolder = this.dataStore.mdFiles;
             for (var i = dataFound.length - 1; i > 0; i--) {
-                currentFolder = cursor[cursor.indexOf(dataFound[i])].childrens;
+                currentFolder = currentFolder[currentFolder.indexOf(dataFound[i])].childrens;
             }
             currentFolder.splice(currentFolder.indexOf(dataFound[dataFound.length - 1]), 1);
         }
         this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+    }
+    recursiveSearchForShowData(fileToFind) {
+        let dataFound = [];
+        this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
+        return dataFound;
     }
     CreateNewDirectoryEx(path, directoryName, directoryLevel) {
         const url = '../api/mdfiles/CreateNewDirectoryEx';
