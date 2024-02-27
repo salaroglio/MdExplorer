@@ -76,7 +76,7 @@ namespace MdExplorer.Features.Commands
                 }
                 var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
                 var fullPathFile = Path.Combine(documentRelativePath, link.Replace('/',Path.DirectorySeparatorChar));
-                var newHtml = $@"<span style=""cursor: pointer""  onclick=""createSnapshot('{fullPathFile}')""> :camera_flash: </span>";
+                var newHtml = $@"<span style=""cursor: pointer"" md-fullpath=""{fullPathFile}"" md-camera_flash_id=""{item.Index}"" onclick=""createSnapshot('{item.Index}')""> :camera_flash: </span>";
                 var newToReplace = item.Groups[0].Value.Replace(":camera_flash:", newHtml);
                 //var markdown1 = markdown.Remove(indexStart, countEnd);
                 //var count = replace.Length;
