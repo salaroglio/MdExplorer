@@ -1,9 +1,11 @@
 ﻿// Create snapshot
 
-function createSnapshot(fullpath) {
-    
-    var $dialog = $('<div></div>')
-        .html('<p>Picture name:</p><input type="text" id="myTextbox" style="width: 100%;" />')
+function createSnapshot(index) {
+    let $camera_flash_Id = $('span[md-camera_flash_id=' + index + ']');
+    let fullpath = $camera_flash_Id.attr('md-fullpath');
+
+    let $dialog = $('<div></div>')
+        .html('<p>Snapshot name:</p><input type="text" id="myTextbox" style="width: 100%;" />')
         .dialog({
             title: "Take a picture!",
             autoOpen: false,
@@ -11,6 +13,9 @@ function createSnapshot(fullpath) {
             buttons: {
                 Ok: function () {
                     var textboxValue = $('#myTextbox').val();
+                    $.post("/api/MdFiles/CreateSnapshot", { fullPath: fullpath, versioningdesc: textboxValue },
+                        function (data) {
+                        });
                     $(this).dialog("close");
                 },
                 Cancel: function () {

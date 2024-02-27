@@ -121,6 +121,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             return Ok(data);
         }
+
+        [HttpPost]
+        public IActionResult CreateSnapshot([FromBody] CreateSnapshtoRequest data)
+        {
+            return Ok(data);
+        }
+
         /// <summary>
         /// MdLink:
         /// </summary>
