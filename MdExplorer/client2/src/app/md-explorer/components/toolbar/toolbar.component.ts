@@ -24,6 +24,7 @@ import { MdServerMessagesService } from '../../../signalR/services/server-messag
 import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { Subscription } from 'rxjs';
+import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 
 
 
@@ -35,8 +36,10 @@ import { Subscription } from 'rxjs';
 export class ToolbarComponent implements OnInit, OnDestroy {
 
   public currentBranch: string;
-  @ViewChild(MatMenuTrigger) matMenuTrigger: MatMenuTrigger;
+  @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;  
+  @ViewChild('tagsAndBranches') matMenuTrigger: MatMenuTrigger;
   @ViewChild(MatTabGroup) tabGroup: MatTabGroup;
+  
   TitleToShow: string;
   absolutePath: string;
   relativePath: string;
@@ -52,7 +55,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
   public isCheckingConnection: boolean = false;
+  public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
+  public showMenu:boolean = false;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -67,7 +72,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private router: Router,
     private waitingDialogService: WaitingDialogService,
     private bookmarksService: BookmarksService,
-    private navService:MdNavigationService,
+    private navService: MdNavigationService,
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -94,7 +99,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
       this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
-      this.isCheckingConnection = false;
+      this.isCheckingConnection = false;      
+      this.filesAndAuthors = _.whatFilesAreChanged;
     });
     this.checkConnection();
 
@@ -112,7 +118,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.branches = branches;
     });
 
-
+    
 
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
@@ -144,6 +150,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     });
   }
+
 
   ngOnDestroy(): void {
     console.log("ngOnDestroy toolbar");

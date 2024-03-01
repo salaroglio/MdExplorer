@@ -27,7 +27,7 @@ export class DeleteMarkdownComponent implements OnInit {
     
     this.mdFileService.deleteFile(this.data)
       .subscribe(_ => {
-        debugger;
+        
         
         let filePath = this.mdFileService.recursiveSearchForShowData(this.data);
         filePath.reverse().pop(); // i'm ripping away the file element

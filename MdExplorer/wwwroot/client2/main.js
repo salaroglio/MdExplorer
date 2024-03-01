@@ -655,6 +655,7 @@ class GITService {
             somethingIsToPull: false,
             somethingIsToPush: false,
             connectionIsActive: false,
+            whatFilesAreChanged: []
         });
         setInterval(() => this.getCurrentBranch(), 10000);
     }

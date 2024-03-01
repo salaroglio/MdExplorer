@@ -1,6 +1,7 @@
 ﻿using MdExplorer;
 using MdExplorer.Abstractions.Models.GIT;
 using MdExplorer.Features.GIT;
+using MdExplorer.Features.GIT.models;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.GIT;
@@ -46,11 +47,12 @@ namespace MdExplorer.Service.Controllers.GIT
             var howManyFilesAreToPull = 0;
             var howManyCommitAreToPush = 0;
             var connectionIsActive = true;
+            IList<FileNameAndAuthor> whatFilesAreChanged = new List<FileNameAndAuthor>();
             try
             {
                 howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
                 howManyCommitAreToPush = _gitService.CountCommitsBehindTrackedBranch(_fileSystemWatcher.Path);
-
+                whatFilesAreChanged = _gitService.GetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path);
             }
             catch (Exception ex)
             {
@@ -61,7 +63,8 @@ namespace MdExplorer.Service.Controllers.GIT
                 somethingIsToPull = howManyFilesAreToPull > 0,
                 howManyFilesAreToPull = howManyFilesAreToPull,
                 connectionIsActive = connectionIsActive,
-                howManyCommitAreToPush = howManyCommitAreToPush
+                howManyCommitAreToPush = howManyCommitAreToPush,
+                whatFilesAreChanged = whatFilesAreChanged
             });
         }
 

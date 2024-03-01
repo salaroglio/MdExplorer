@@ -1,4 +1,5 @@
 ﻿using MdExplorer.Abstractions.Models.GIT;
+using MdExplorer.Features.GIT.models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,5 +25,7 @@ namespace MdExplorer.Features.GIT
         (bool, bool, bool, string) CommitAndPush(PullInfo commitAndPushInfo);
         (bool, bool, bool, string) Commit(PullInfo commitAndPushInfo);
         (bool, bool, bool, string) Push(PullInfo commitAndPushInfo);
+        IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(string projectPath, string repository, string branch);
+        IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(string projectPath);
     }
 }

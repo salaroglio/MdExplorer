@@ -242,9 +242,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // creating the folder if not exists
             var folderContainintMdFile = Path.GetDirectoryName(request.MdFile.FullPath);
             var destinationDirectory = Directory.CreateDirectory(folderContainintMdFile + Path.DirectorySeparatorChar + "assets");
-            var fullPathFileName = destinationDirectory.FullName
-                + Path.DirectorySeparatorChar +  
-                Path.GetFileName(request.FullPath.Replace(" ","-"));
+            
+            var trueFileName = Path.GetFileNameWithoutExtension(request.FullPath.Replace(" ", "-")) + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(request.FullPath);
+            var fullPathFileName = destinationDirectory.FullName 
+                + Path.DirectorySeparatorChar + trueFileName
+                ;
             _fileSystemWatcher.EnableRaisingEvents = false;
             try
             {
