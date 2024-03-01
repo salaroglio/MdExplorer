@@ -16,8 +16,8 @@
       <mat-icon>bookmark</mat-icon>
     </button>
     <span>{{currentMdFile?.name}}</span>
-    
-    
+
+
     <span class="flexExpand"></span>
     <button *ngIf="!connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
       <mat-icon style="color:yellow">warning</mat-icon>
@@ -27,7 +27,18 @@
     <span style="display:flex; flex-direction:row" *ngIf="currentBranch!=null">
       <div style="display:flex; flex-direction:column">
         <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
-        <button class="smallMessagesToPull" (click)="pull()" *ngIf="somethingIsToPull">{{howManyFilesAreToPull}} to pull</button>
+        <div class="menu-container">
+          <button class="smallMessagesToPull" (click)="pull()"
+                  (mouseover)="showMenu=true" (mouseleave)="showMenu=false"
+                  *ngIf="somethingIsToPull">
+            {{howManyFilesAreToPull}} to pull
+          </button>
+          <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">            
+              <table>
+                <tr *ngFor="let fileAndAuthor of filesAndAuthors"><td>{{fileAndAuthor.author}}</td><td>{{fileAndAuthor.fileName}}</td></tr>
+              </table>                          
+          </div>
+        </div>
         <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{howManyCommitAreToPush}} to push</button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches"
@@ -35,9 +46,14 @@
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />
       </button>
     </span>
-    
+
   </mat-toolbar-row>
 </mat-toolbar>
+<!--[matMenuTriggerFor]="FileAndAutorsToPull"
+#menuTrigger="matMenuTrigger"
+ (mouseenter)="openMenu(menuTrigger)"
+ (mouseleave)="closeMenu(menuTrigger)"-->
+
 
 
 <mat-menu #tagsAndBranches="matMenu">

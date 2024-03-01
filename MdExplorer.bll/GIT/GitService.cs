@@ -18,6 +18,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Ubiety.Dns.Core;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.GIT.models;
 
 namespace MdExplorer.Features.GIT
 {
@@ -192,6 +193,81 @@ namespace MdExplorer.Features.GIT
             }
 
         }
+
+        public IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(string repoPath)
+        {
+            return GetFilesAndAuthorsToBeChanged(repoPath, "origin", "main");
+        }
+
+        public IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(
+            string repoPath, 
+            string remoteName = "origin", string branchName = "main")
+        {
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == repoPath).FirstOrDefault();
+
+            var filesAndAuthors = new List<FileNameAndAuthor>();
+            var options = new FetchOptions
+            {
+                CredentialsProvider = (_url, _user, _cred) => new UsernamePasswordCredentials { 
+                    Username = currentGitlab.UserName, Password = currentGitlab.Password}
+            };
+
+
+            using (var repo = new Repository(repoPath))
+            {
+                // Fetch the latest changes from the remote repository
+                LibGit2Sharp.Commands.Fetch(repo, remoteName, new string[0], options, "fetch");
+
+                // Get the commit of the current branch (e.g., 'main')
+                var localBranch = repo.Branches[branchName];
+                var remoteBranch = repo.Branches[$"{remoteName}/{branchName}"];
+
+                if (localBranch == null || remoteBranch == null)
+                    throw new InvalidOperationException("Branch not found.");
+
+                // Get the merge base of the two branches
+                var mergeBase = repo.ObjectDatabase.FindMergeBase(localBranch.Tip, remoteBranch.Tip);
+
+                // Compare the branches to get the list of changes
+                var compareOptions = new CompareOptions { IncludeUnmodified = false };
+                var patches = repo.Diff.Compare<Patch>(mergeBase.Tree, remoteBranch.Tip.Tree, compareOptions);
+
+                foreach (var p in patches)
+                {
+                    // Find the commit that introduced the change
+                    var commit = FindLastCommitAffectingPath(repo, remoteBranch.Tip, p.Path);
+
+                    if (commit != null)
+                    {
+                        var authorName = commit.Author.Name;
+                        filesAndAuthors.Add(new FileNameAndAuthor { FullPath = p.Path, Author = authorName, FileName = Path.GetFileName(p.Path)});
+                    }
+                }
+            }
+
+            return filesAndAuthors;
+        }
+
+        private Commit FindLastCommitAffectingPath(Repository repo, Commit startCommit, string path)
+        {
+            var filter = new CommitFilter
+            {
+                SortBy = CommitSortStrategies.Time,
+                IncludeReachableFrom = startCommit
+            };
+
+            // Correctly handling the return type of QueryBy
+            foreach (var entry in repo.Commits.QueryBy(path, filter))
+            {
+                // Accessing the commit from the LogEntry
+                return entry.Commit;
+            }
+
+            return null;
+        }
+
 
         public GitTag[] GetTagList(string projectPath)
         {
@@ -644,5 +720,6 @@ namespace MdExplorer.Features.GIT
 
             return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, null);
         }
+        
     }
 }

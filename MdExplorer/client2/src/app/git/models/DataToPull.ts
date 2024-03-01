@@ -3,5 +3,13 @@ export class DataToPull {
   somethingIsToPush:boolean
   howManyFilesAreToPull: number
   connectionIsActive: boolean
-  howManyCommitAreToPush:number
+  howManyCommitAreToPush: number
+  whatFilesAreChanged: FileNameAndAuthor[]
+}
+
+export class FileNameAndAuthor {
+  fileName: string
+  author: string
+  fullPath: string
+
 }
