@@ -87,7 +87,7 @@ export class MdTreeComponent implements OnInit {
       if (myClonedArray.length > 0) {
         var toExpand = myClonedArray.pop();
         this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-        debugger;
+        
         if (this.activeNode!= undefined && this.activeNode.type == "folder") {
           this.treeControl.expand(this.activeNode);
         }
