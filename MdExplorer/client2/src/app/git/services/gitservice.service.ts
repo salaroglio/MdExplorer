@@ -30,7 +30,8 @@ export class GITService {
     howManyCommitAreToPush:0,
     somethingIsToPull: false,
     somethingIsToPush:false,
-    connectionIsActive:false,
+    connectionIsActive: false,
+    whatFilesAreChanged: []
   });
 
   constructor(private http: HttpClient) {
