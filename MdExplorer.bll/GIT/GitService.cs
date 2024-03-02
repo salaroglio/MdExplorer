@@ -242,7 +242,8 @@ namespace MdExplorer.Features.GIT
                     if (commit != null)
                     {
                         var authorName = commit.Author.Name;
-                        filesAndAuthors.Add(new FileNameAndAuthor { FullPath = p.Path, Author = authorName, FileName = Path.GetFileName(p.Path)});
+                        var changeType = p.Status.ToString();
+                        filesAndAuthors.Add(new FileNameAndAuthor { FullPath = p.Path, Author = authorName, FileName = Path.GetFileName(p.Path), Status = changeType});
                     }
                 }
             }
