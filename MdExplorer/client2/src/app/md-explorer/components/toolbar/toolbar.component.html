@@ -35,7 +35,7 @@
           </button>
           <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">            
               <table>
-                <tr *ngFor="let fileAndAuthor of filesAndAuthors"><td>{{fileAndAuthor.author}}</td><td>{{fileAndAuthor.fileName}}</td></tr>
+                <tr *ngFor="let fileAndAuthor of filesAndAuthors"><td style="color:blue;">{{fileAndAuthor.author}}</td><td>{{fileAndAuthor.fileName}}</td></tr>
               </table>                          
           </div>
         </div>
