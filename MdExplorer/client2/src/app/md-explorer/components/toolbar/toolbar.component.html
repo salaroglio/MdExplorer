@@ -29,7 +29,7 @@
         <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
         <div class="menu-container">
           <button class="smallMessagesToPull" (click)="pull()"
-                  (mouseover)="showMenu=true" (mouseleave)="showMenu=false"
+                  (mouseover)="showMenu=true" 
                   *ngIf="somethingIsToPull">
             {{howManyFilesAreToPull}} to pull
           </button>

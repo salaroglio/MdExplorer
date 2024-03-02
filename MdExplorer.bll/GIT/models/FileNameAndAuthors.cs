@@ -9,5 +9,6 @@ namespace MdExplorer.Features.GIT.models
         public string FileName { get; set; }
         public string Author { get; set; }
         public string FullPath { get; set; }
+        public string Status { get; set; }
     }
 }
