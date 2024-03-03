@@ -1361,13 +1361,23 @@ class ToolbarComponent {
                 });
             }
             if (!_.isAuthenticationMissing && !_.isConnectionMissing && !_.thereAreConflicts) {
+                // update the tree
+                // you should add new file paying attention to the folder
+                // checking if allready exists or not
+                // and delete the deleted files.
+                // the updated are not in our interest becouse they are
+                // allready present in the tree.
+                //this.mdFileService.recursiveDeleteFileFromDataStore()
+                // check if the directory exists, and then eventually create it
+                //this.mdFileService.addNewDirectory()
                 this.mdFileService.loadAll(null, null);
-                this.mdFileService.getLandingPage().subscribe(node => {
-                    if (node != null) {
-                        this.checkConnection();
-                        this.mdFileService.setSelectedMdFileFromSideNav(node);
-                    }
-                });
+                this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
+                //this.mdFileService.getLandingPage().subscribe(node => {
+                //  if (node != null) {
+                //    this.checkConnection();
+                //    this.mdFileService.setSelectedMdFileFromSideNav(node);
+                //  }
+                //});
             }
             this.waitingDialogService.closeMessageBox();
             this.matMenuTrigger.closeMenu();
