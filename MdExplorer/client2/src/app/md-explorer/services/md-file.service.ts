@@ -113,60 +113,62 @@ export class MdFileService {
     return this.http.get<IDocumentSettings>(url, { params });
   }
 
+
   addNewFile(data: MdFile[]) {
-    // searching directories    
-    var currentItem = data[0];
-    let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
-    if (currentFolder != undefined) {
-      this.recursiveSearchFolder(data, 0, currentFolder);
-    } else {
-      if (currentFolder == undefined) { // the file is in the root
-        // first find the dummy (transparent)
-        // the remove-it
-        // then add folder
-        // then add the dummy again
-        let dummyItem = this.dataStore.mdFiles.pop();
-        this.dataStore.mdFiles.push(data[0]);
-        this.dataStore.mdFiles.push(dummyItem);
-      } else {
-        currentFolder.childrens.push(data[0]); // insert new file in folder
-      }
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    }
-  }
-
-
-  addNewDirectory(data: MdFile[]) {
-    // searching directories
     
-    var currentItem = data[0];
-    currentItem.expandable = true;
-    let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
-    if (currentFolder != undefined) {
+    // searching directories    
+    const currentItem = data[0];
+    const currentFolder = this.dataStore.mdFiles.find(item => item.fullPath == currentItem.fullPath);
+
+    if (currentFolder) {
       this.recursiveSearchFolder(data, 0, currentFolder);
     } else {
-      if (currentFolder == undefined) { // the directory is in the root
-        let dummyItem = this.dataStore.mdFiles.pop();
-        this.dataStore.mdFiles.push(currentItem);
-        this.dataStore.mdFiles.push(dummyItem);
-      } else {
-        currentFolder.childrens.push(currentItem); // insert new directory in folder
-      }
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+      // The file is in the root
+      const dummyItem = this.dataStore.mdFiles.pop();
+      this.dataStore.mdFiles.push(currentItem, dummyItem); // Simplified push operation
+      this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified object cloning and notification
     }
   }
+
+
+
+  addNewDirectory(data: MdFile[]) {    
+    // Initialize the current item and mark it as expandable
+    const currentItem = data[0];
+    currentItem.expandable = true;
+
+    // Search for the directory in the current datastore
+    const currentFolder = this.dataStore.mdFiles.find(item => item.fullPath == currentItem.fullPath);
+
+    if (currentFolder) {
+      // If found, perform a recursive search to insert the directory
+      this.recursiveSearchFolder(data, 0, currentFolder);
+    } else {
+      // If the directory is in the root, handle the dummy item and reinsert
+      const dummyItem = this.dataStore.mdFiles.pop(); // Remove the last item (dummy)
+      this.dataStore.mdFiles.push(currentItem, dummyItem); // Add the current item and then the dummy back
+
+      // Notify subscribers of the update
+      this._mdFiles.next({ ...this.dataStore }.mdFiles);
+    }
+  }
+
+
+
 
   recursiveSearchFolder(data: MdFile[], i: number, parentFolder: MdFile) {
-    var currentI = i + 1;
-    var currentItem = data[currentI];
-    let currentFolder = parentFolder.childrens.find(_ => _.fullPath == currentItem.fullPath);
-    if (currentFolder != undefined) {
-      this.recursiveSearchFolder(data, currentI, currentFolder);
+    
+    const currentItem = data[i + 1];
+    const currentFolder = parentFolder.childrens.find(folder => folder.fullPath == currentItem.fullPath);
+
+    if (currentFolder) {
+      this.recursiveSearchFolder(data, i + 1, currentFolder);
     } else {
-      parentFolder.childrens.push(data[currentI]); // insert new file
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+      parentFolder.childrens.push(currentItem); // Directly use currentItem
+      this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified notification
     }
   }
+
 
 
 
@@ -255,24 +257,24 @@ export class MdFileService {
   }
 
   recursiveDeleteFileFromDataStore(fileToFind: MdFile) {
-    
-    let dataFound: MdFile[] =[];    
+    const dataFound: MdFile[] = [];
     this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
-    if (dataFound.length == 1) {
-      var dataIndex = this.dataStore.mdFiles.indexOf(dataFound[0]);
-      this.dataStore.mdFiles.splice(dataIndex, 1);
-    }
-    if (dataFound.length > 1) {
+
+    if (dataFound.length === 1) {
+      const dataIndex = this.dataStore.mdFiles.indexOf(dataFound[0]);
+      if (dataIndex > -1) {
+        this.dataStore.mdFiles.splice(dataIndex, 1);
+      }
+    } if (dataFound.length > 1) {
       //let cursor = this.dataStore.mdFiles;
       let currentFolder: MdFile[] = this.dataStore.mdFiles;
       for (var i = dataFound.length -1 ; i >0 ; i--) {
         currentFolder = currentFolder[currentFolder.indexOf(dataFound[i])].childrens;
       }
       currentFolder.splice(currentFolder.indexOf(dataFound[dataFound.length - 1]), 1);
-      
-
     }
-    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);    
+    this._mdFiles.next({ ...this.dataStore }.mdFiles); 
+
   }
 
   recursiveSearchForShowData(fileToFind):MdFile[] {
@@ -405,30 +407,26 @@ export class MdFileService {
   }
 
 
-  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]):boolean {
-    if (arrayMd.length == 0) {
-      return;
-    }
-    let found2 = false;
-    var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
+  recursiveSearch(arrayMd: MdFile[], fileToFind: MdFile, arrayFound: MdFile[]): boolean {
+    if (arrayMd.length === 0) {
+      return false;
+    }    
+    const thatFile = arrayMd.find(item => item.fullPath.toLowerCase() === fileToFind.fullPath.toLowerCase());
 
-    if (thatFile == undefined) {
-      for (var i = 0; i < arrayMd.length; i++) {
-        var _ = arrayMd[i];
-        if (!found2) { //this.fileFoundMd
-          found2 = this.recursiveSearch(_.childrens, fileTofind, arrayFound);//, newFile
+    if (!thatFile) {
+      return arrayMd.some(item => {
+        const found = this.recursiveSearch(item.childrens, fileToFind, arrayFound);
+        if (found) {
+          arrayFound.push(item);
         }
-        if (found2) { //this.fileFoundMd
-          arrayFound.push(_);
-          break;
-        }
-      }
+        return found;
+      });
     } else {
-      found2 = true; //this.fileFoundMd
       arrayFound.push(thatFile);
+      return true;
     }
-    return found2;
   }
+
 
 }
 
