@@ -18,8 +18,11 @@ using MdExplorer.Controllers;
 using MdExplorer.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
-using MdExplorer.Service.Controllers.GIT.models;
+
 using System.Collections.Generic;
+using MdExplorer.Features.GIT.models;
+using MdExplorer.Service.Controllers.GIT.models;
+using MdExplorer.Abstractions.Models;
 
 namespace MdExplorer.Service.Controllers.GIT
 {
@@ -27,11 +30,7 @@ namespace MdExplorer.Service.Controllers.GIT
     [Route("/api/gitfeatures/")]
     public class GitFeatureController:MdControllerBase<GitFeatureController>
     {
-        private readonly IGitService _gitService;                     
-        
-        
-        
-        
+        private readonly IGitService _gitService;                                                   
         public GitFeatureController(IGitService gitService,
         FileSystemWatcher fileSystemWatcher,        
         IOptions<MdExplorerAppSettings> options,
@@ -46,9 +45,6 @@ namespace MdExplorer.Service.Controllers.GIT
             modifiers, helper)
         {
             _gitService = gitService;            
-            
-            
-           
         }
 
         [HttpPost("cloneRepository")]
@@ -65,63 +61,107 @@ namespace MdExplorer.Service.Controllers.GIT
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
 
-            // Check if there are files to be changed
-            var whatFilesWillBeChanged = _gitService.GetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path);
+            var filesToBeChanged = _gitService.GetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path);
+            var filesMdo = filesToBeChanged.Select(_ => {
+                var myData = new FilesAndAuthorsChangedMdo
+                {
+                    Author = _.Author,
+                    FileName = _.FileName,
+                    FullPath = _.FullPath,
+                    RelativePath = _.RelativePath,
+                    Status = _.Status
+                };
+                return myData;
+                
+            }).ToList();
+
+            foreach (var fileMdo in filesMdo)
+            {
+                var splittedFullPath = fileMdo.FullPath.Replace(_fileSystemWatcher.Path, string.Empty).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
+                var currentPathName = string.Empty;
+                var currentLevel = 0;
+                foreach (var item in splittedFullPath)
+                {
+                    currentPathName += "\\" + item;
+                    var myNewMd = new FileInfoNode
+                    {
+                        Name = item,
+                        FullPath = _fileSystemWatcher.Path + currentPathName,
+                        Level = currentLevel,
+                        Path = currentPathName,
+                        RelativePath = currentPathName,
+                        Expandable = true,
+
+                    };
+                    if (item != splittedFullPath.Last())
+                    {
+                        myNewMd.Type = "Folder";
+                    }
+                    else
+                    {
+                        myNewMd.Type = "mdFile";
+                    }
+
+                    fileMdo.MdFiles.Add(myNewMd);
+                    currentLevel++;
+                }
+            }
+            
+
+            
+
+            // prepare multiple data for client
+
 
             pullInfo.ProjectPath = _fileSystemWatcher.Path;
 
-            // PULL
-            (bool isConnectionMissing,
-                bool isAuthenticationMissing,
-                bool thereAreConflicts,
-                string errorMessage) = _gitService.Pull(pullInfo);
+            var pullResult = _gitService.Pull(pullInfo);
+            RefreshDatabase(filesToBeChanged);            
 
-            // Refresh the database
-            var relDal = _engineDB.GetDal<MarkdownFile>();
-            foreach (var item in whatFilesWillBeChanged)
+            _fileSystemWatcher.EnableRaisingEvents = true;
+            return Ok(new
             {
-                // Refresh database
-                
-                var mdFile = relDal.GetList().Where(_ => _.Path == item.FullPath).FirstOrDefault();
+                isConnectionMissing = pullResult.IsConnectionMissing,
+                isAuthenticationMissing = pullResult.IsAuthenticationMissing,
+                thereAreConflicts = pullResult.ThereAreConflicts,
+                errorMessage = pullResult.ErrorMessage,
+                whatFilesWillBeChanged = filesMdo
+            });
+        }
+
+       
+
+ 
+
+
+        private void RefreshDatabase(IEnumerable<FileNameAndAuthor> filesToBeChanged)
+        {
+            var relDal = _engineDB.GetDal<MarkdownFile>();
+            foreach (var item in filesToBeChanged)
+            {
+                var mdFile = relDal.GetList().FirstOrDefault(_ => _.Path == item.FullPath);
                 _engineDB.BeginTransaction();
                 if (mdFile == null)
                 {
-                    var markdownFile = new MarkdownFile
+                    relDal.Save(new MarkdownFile
                     {
                         FileName = Path.GetFileName(item.FullPath),
                         Path = item.FullPath,
                         FileType = "File"
-                    };
-                    relDal.Save(markdownFile);
+                    });
                 }
-
-                SaveLinksFromMarkdown(mdFile);
+                else
+                {
+                    SaveLinksFromMarkdown(mdFile);
+                }
                 _engineDB.Commit();
             }
-
-            // generate the new array of data
-            var filesToBeChangedMdo = new List<FileToBeChangedMdo>();
-            foreach (var item in whatFilesWillBeChanged)
-            {
-                var fileToFullPath = new FileToBeChangedMdo
-                {
-                    Author = item.Author,
-                    FileName = item.FileName,
-                    FullPath = item.FullPath,
-                    Status = item.Status,                    
-                };
-
-                filesToBeChangedMdo.Add(fileToFullPath);
-            }
-
-            _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok(new { isConnectionMissing = isConnectionMissing, 
-                            isAuthenticationMissing= isAuthenticationMissing,
-                            thereAreConflicts = thereAreConflicts,
-                            errorMessage = errorMessage,
-                            whatFilesWillBeChanged = filesToBeChangedMdo
-            });
         }
+
+        
+
+
+       
 
 
         [HttpPost("commitandpush")]
