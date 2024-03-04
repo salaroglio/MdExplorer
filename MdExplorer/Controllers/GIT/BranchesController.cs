@@ -64,7 +64,7 @@ namespace MdExplorer.Service.Controllers.GIT
                 howManyFilesAreToPull = howManyFilesAreToPull,
                 connectionIsActive = connectionIsActive,
                 howManyCommitAreToPush = howManyCommitAreToPush,
-                whatFilesAreChanged = whatFilesAreChanged
+                whatFilesWillBeChanged = whatFilesAreChanged
             });
         }
 

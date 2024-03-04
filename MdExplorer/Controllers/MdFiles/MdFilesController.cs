@@ -273,11 +273,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             Thread t = new Thread(new ThreadStart(() =>
             {
-                //DataObject data = new DataObject();
-                //data.SetData(typeof(string), "SampleText");
-                //Clipboard.SetDataObject(data);
-                //string text = ((DataObject)Clipboard.GetDataObject()).GetText();
-                //IDataObject test = Clipboard.GetDataObject();
                 if (Clipboard.ContainsImage())
                 {
                     _fileSystemWatcher.EnableRaisingEvents = false;

@@ -655,7 +655,7 @@ class GITService {
             somethingIsToPull: false,
             somethingIsToPush: false,
             connectionIsActive: false,
-            whatFilesAreChanged: []
+            whatFilesWillBeChanged: []
         });
         setInterval(() => this.getCurrentBranch(), 10000);
     }
@@ -1434,6 +1434,11 @@ class MdFileService {
         var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpParams"]().set('fullPath', mdFile.fullPath);
         return this.http.get(url, { params });
     }
+    // This function adds a new file,
+    // looking for the right position in the
+    // folder hierarchy.
+    // It assumes that all structures are complete,
+    // and the only thing to add is the file itself.
     addNewFile(data) {
         // searching directories    
         const currentItem = data[0];
@@ -1448,7 +1453,25 @@ class MdFileService {
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles); // Simplified object cloning and notification
         }
     }
+    // This function adds new directories
+    // if one or more on the file path are missing.
+    // At the end of the process, it will call the classic addNewFile method.
+    addNewDirectoryExtended(folders) {
+        let currentfolder = [];
+        folders.forEach((folder, index) => {
+            const folderFound = this.dataStore.mdFiles.find(item => item.fullPath == folder.fullPath);
+            currentfolder.push(folder);
+            if (!folderFound) {
+                this.addNewDirectory(currentfolder);
+            }
+        });
+    }
+    // This function adds a new directory.
+    // Assuming that all directories/folders are already present,
+    // and there is just one to add consequently to
+    // what already exists in the store.
     addNewDirectory(data) {
+        alert(JSON.stringify(data, null, 2));
         // Initialize the current item and mark it as expandable
         const currentItem = data[0];
         currentItem.expandable = true;
@@ -1542,6 +1565,9 @@ class MdFileService {
         return this.http.post(url, file);
         //this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     }
+    //Minimum information to set
+    // 1. fullPath:ex: "C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\UnitTestMdExplorer\RockSolidEdition\using-chatGPT\eargaer.md"
+    // 2. level: not important
     recursiveDeleteFileFromDataStore(fileToFind) {
         const dataFound = [];
         this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);

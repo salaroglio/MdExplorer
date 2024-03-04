@@ -25,7 +25,7 @@ import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { Subscription } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
-
+import _ from 'lodash';
 
 
 @Component({
@@ -100,7 +100,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
       this.isCheckingConnection = false;      
-      this.filesAndAuthors = _.whatFilesAreChanged;
+      this.filesAndAuthors = _.whatFilesWillBeChanged;
     });
     this.checkConnection();
 
@@ -237,9 +237,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     info.message = "Please wait... Pulling branch"
     this.waitingDialogService.showMessageBox(info);
     let pullInfo = new PullInfo();
-    this.gitservice.pull(pullInfo).subscribe(_ => {
+    this.gitservice.pull(pullInfo).subscribe(responseFromPull => {
       // manage failed connection
-      if (_.isConnectionMissing) {
+      if (responseFromPull.isConnectionMissing) {
         const dialogRef = this.dialog.open(GitMessagesComponent, {
           width: '300px',
           data: {
@@ -248,44 +248,47 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           }
         });
       }
-      if (_.isAuthenticationMissing) {
+      if (responseFromPull.isAuthenticationMissing) {
         const dialogRef = this.dialog.open(GitAuthComponent, {
           width: '300px',
         });
       }
-      if (_.thereAreConflicts) {
+      if (responseFromPull.thereAreConflicts) {
         const dialogRef = this.dialog.open(GitMessagesComponent, {
           width: '300px',
           data: {
             message: 'Conflicts appear',
-            description: _.errorMessage
+            description: responseFromPull.errorMessage
           }
         });
       }
 
-      if (!_.isAuthenticationMissing && !_.isConnectionMissing && !_.thereAreConflicts) {
+      if (!responseFromPull.isAuthenticationMissing && !responseFromPull.isConnectionMissing
+        && !responseFromPull.thereAreConflicts) {
 
-        // update the tree
-        // you should add new file paying attention to the folder
-        // checking if allready exists or not
-        // and delete the deleted files.
-        // the updated are not in our interest becouse they are
-        // allready present in the tree.
+        // Update the tree.
+        // Add a new file, ensuring attention is given to the folder structure.
+        // Check whether the file already exists.
+        // Delete files that have been removed.
+        // Ignore updated files as they are already present in the tree.
+        responseFromPull.whatFilesWillBeChanged.forEach(file => {                    
+          debugger;
+          if (file.status === "Added") {
+            const folders = _.cloneDeep(file.mdFiles);
+            folders.pop();
+            this.mdFileService.addNewDirectoryExtended(folders);                        
+            this.mdFileService.addNewFile(file.mdFiles);
+          }
 
-        //this.mdFileService.recursiveDeleteFileFromDataStore()
-        // check if the directory exists, and then eventually create it
-        //this.mdFileService.addNewDirectory()
-
-        this.mdFileService.loadAll(null, null);
+          if (file.status === "Deleted") {
+            this.mdFileService.recursiveDeleteFileFromDataStore(file.mdFiles[file.mdFiles.length-1]);
+          }
+          
+        });
 
         this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
-        
-        //this.mdFileService.getLandingPage().subscribe(node => {
-        //  if (node != null) {
-        //    this.checkConnection();
-        //    this.mdFileService.setSelectedMdFileFromSideNav(node);
-        //  }
-        //});
+        this.checkConnection();
+       
       }
 
       this.waitingDialogService.closeMessageBox();

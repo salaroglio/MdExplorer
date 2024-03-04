@@ -48,6 +48,7 @@ export class AddNewFileToMDEComponent implements OnInit {
 
   add() {
     this.mdFileService.addExistingFileToMDEProject(this.data, this.fullPath).subscribe(data => {
+      
       this.snackBar.open("File added", null, { duration: 5000 })
     });
     this.dialogRef.close();

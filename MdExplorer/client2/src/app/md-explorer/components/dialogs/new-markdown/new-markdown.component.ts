@@ -53,6 +53,7 @@ export class NewMarkdownComponent implements OnInit {
       this.selectedTemplate.id,
       this.selectedTemplate.documentType )
       .subscribe(data => {
+        console.log(JSON.stringify(data, null, 2));
         this.mdFileService.addNewFile(data);
         this.mdFileService.setSelectedMdFileFromSideNav(data[data.length - 1]);
       });
