@@ -1370,23 +1370,28 @@ class ToolbarComponent {
                 // Check whether the file already exists.
                 // Delete files that have been removed.
                 // Ignore updated files as they are already present in the tree.
+                let bCurrentfileHasBeenDeleted = false;
                 responseFromPull.whatFilesWillBeChanged.forEach(file => {
-                    debugger;
                     if (file.status === "Added") {
+                        debugger;
                         const folders = lodash__WEBPACK_IMPORTED_MODULE_9___default.a.cloneDeep(file.mdFiles);
                         folders.pop();
                         this.mdFileService.addNewDirectoryExtended(folders);
                         this.mdFileService.addNewFile(file.mdFiles);
                     }
                     if (file.status === "Deleted") {
+                        if (file.fullPath === this.currentMdFile.fullPath) {
+                            bCurrentfileHasBeenDeleted = true;
+                        }
                         this.mdFileService.recursiveDeleteFileFromDataStore(file.mdFiles[file.mdFiles.length - 1]);
                     }
                 });
-                this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
+                if (!bCurrentfileHasBeenDeleted) {
+                    this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
+                }
                 this.checkConnection();
             }
             this.waitingDialogService.closeMessageBox();
-            this.matMenuTrigger.closeMenu();
         });
     }
     commit() {

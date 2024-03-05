@@ -142,10 +142,11 @@ export class MdFileService {
   addNewDirectoryExtended(folders: MdFile[]) {
 
     let currentfolder = [];
-    folders.forEach((folder, index) => {
-      const folderFound = this.dataStore.mdFiles.find(item => item.fullPath == folder.fullPath);
+    folders.forEach((folder, index) => {      
+      const dataFound: MdFile[] = [];
+      this.recursiveSearch(this.dataStore.mdFiles, folder, dataFound);
       currentfolder.push(folder);
-      if (!folderFound) {        
+      if (dataFound.length === 0) {        
         this.addNewDirectory(currentfolder);
       }
       
@@ -191,6 +192,7 @@ export class MdFileService {
     if (currentFolder) {
       this.recursiveSearchFolder(data, i + 1, currentFolder);
     } else {
+      debugger;
       parentFolder.childrens.push(currentItem); // Directly use currentItem
       this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified notification
     }
@@ -303,7 +305,7 @@ export class MdFileService {
       for (var i = dataFound.length -1 ; i >0 ; i--) {
         currentFolder = currentFolder[currentFolder.indexOf(dataFound[i])].childrens;
       }
-      currentFolder.splice(currentFolder.indexOf(dataFound[dataFound.length - 1]), 1);
+      currentFolder.splice(currentFolder.indexOf(dataFound[0]), 1);
     }
     this._mdFiles.next({ ...this.dataStore }.mdFiles); 
 

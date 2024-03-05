@@ -36,10 +36,10 @@ import _ from 'lodash';
 export class ToolbarComponent implements OnInit, OnDestroy {
 
   public currentBranch: string;
-  @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;  
+  @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;
   @ViewChild('tagsAndBranches') matMenuTrigger: MatMenuTrigger;
   @ViewChild(MatTabGroup) tabGroup: MatTabGroup;
-  
+
   TitleToShow: string;
   absolutePath: string;
   relativePath: string;
@@ -57,11 +57,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public isCheckingConnection: boolean = false;
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
-  public showMenu:boolean = false;
+  public showMenu: boolean = false;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
-    public dialog: MatDialog,    
+    public dialog: MatDialog,
     private monitorMDService: MdServerMessagesService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
@@ -80,7 +80,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    
+
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
@@ -93,13 +93,13 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.connectionIsActive = true;
     });
 
-    this.gitservice.commmitsToPull$.subscribe(_ => {      
-      this.somethingIsToPull = _.somethingIsToPull;      
+    this.gitservice.commmitsToPull$.subscribe(_ => {
+      this.somethingIsToPull = _.somethingIsToPull;
       this.somethingIsToPush = _.howManyCommitAreToPush > 0;
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
       this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
-      this.isCheckingConnection = false;      
+      this.isCheckingConnection = false;
       this.filesAndAuthors = _.whatFilesWillBeChanged;
     });
     this.checkConnection();
@@ -118,7 +118,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.branches = branches;
     });
 
-    
+
 
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
@@ -130,8 +130,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       }
     });
     // something has changed on filesystem
-    this.subscriptionserverSelectedMdFile =this.mdFileService.serverSelectedMdFile.subscribe(val => {
-      
+    this.subscriptionserverSelectedMdFile = this.mdFileService.serverSelectedMdFile.subscribe(val => {
+
       var current = val[0];
       if (current != undefined) {
         let index = this.mdFileService.navigationArray.length;
@@ -141,7 +141,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
             //return;
           }
         }
-        
+
         this.navService.setNewNavigation(current);
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
@@ -157,7 +157,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.subscriptionserverSelectedMdFile.unsubscribe();
   }
 
- 
+
 
   toggleSidenav() {
     let test = !this.appSettings.showSidenav.value;
@@ -203,7 +203,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
   }
 
-  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {    
+  private markdownFileIsProcessed(data: MdFile, objectThis: ToolbarComponent) {
     objectThis.currentMdFile = data;
     objectThis.mdFileService.navigationArray.push(data);
     objectThis.mdFileService.setSelectedMdFileFromServer(data);
@@ -271,28 +271,35 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         // Check whether the file already exists.
         // Delete files that have been removed.
         // Ignore updated files as they are already present in the tree.
-        responseFromPull.whatFilesWillBeChanged.forEach(file => {                    
-          debugger;
+        let bCurrentfileHasBeenDeleted = false;
+        responseFromPull.whatFilesWillBeChanged.forEach(file => {
+
           if (file.status === "Added") {
+            debugger;
             const folders = _.cloneDeep(file.mdFiles);
             folders.pop();
-            this.mdFileService.addNewDirectoryExtended(folders);                        
+            this.mdFileService.addNewDirectoryExtended(folders);
             this.mdFileService.addNewFile(file.mdFiles);
           }
 
           if (file.status === "Deleted") {
-            this.mdFileService.recursiveDeleteFileFromDataStore(file.mdFiles[file.mdFiles.length-1]);
+            if (file.fullPath === this.currentMdFile.fullPath) {
+              bCurrentfileHasBeenDeleted = true;
+            }
+            this.mdFileService.recursiveDeleteFileFromDataStore(file.mdFiles[file.mdFiles.length - 1]);
           }
-          
-        });
 
-        this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
+        });
+        if (!bCurrentfileHasBeenDeleted) {
+          this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
+        }
+        
         this.checkConnection();
-       
+
       }
 
       this.waitingDialogService.closeMessageBox();
-      this.matMenuTrigger.closeMenu();
+
     });
   }
 
@@ -373,14 +380,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       mdFile.relativePath = '/../../welcome.html';
       this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
       this.projectService.setNewFolderProject(_.fullPath);
-      
+
     });
     this.matMenuTrigger.closeMenu();
   }
 
   bookmarkToggle(): void {
     let bookmark: Bookmark = new Bookmark(this.currentMdFile);
-    bookmark.projectId = this.projectService.currentProjects$.value.id;   
+    bookmark.projectId = this.projectService.currentProjects$.value.id;
     this.bookmarksService.toggleBookmark(bookmark);
   }
 }

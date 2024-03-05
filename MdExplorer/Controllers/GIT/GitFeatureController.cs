@@ -95,7 +95,7 @@ namespace MdExplorer.Service.Controllers.GIT
                     };
                     if (item != splittedFullPath.Last())
                     {
-                        myNewMd.Type = "Folder";
+                        myNewMd.Type = "folder";
                     }
                     else
                     {
