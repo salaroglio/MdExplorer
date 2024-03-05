@@ -77,16 +77,19 @@ $iconWidth: after 56px;
   color: black;
 }
 
-.menu-container {
+.menu-container {  
   position: relative;
-  display: inline-block;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .menu {
   display: none;
   color: black;
+  font-size: 12px;
   position: absolute;
-  left: - 300px;
+  top:20px;
+  float:right;
   background-color: #f9f9f9;
   min-width: 300px;
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);

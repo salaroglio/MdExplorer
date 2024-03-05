@@ -31,7 +31,7 @@ export class GITService {
     somethingIsToPull: false,
     somethingIsToPush:false,
     connectionIsActive: false,
-    whatFilesAreChanged: []
+    whatFilesWillBeChanged: []
   });
 
   constructor(private http: HttpClient) {
