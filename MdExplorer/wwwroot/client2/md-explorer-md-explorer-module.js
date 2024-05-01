@@ -1373,7 +1373,6 @@ class ToolbarComponent {
                 let bCurrentfileHasBeenDeleted = false;
                 responseFromPull.whatFilesWillBeChanged.forEach(file => {
                     if (file.status === "Added") {
-                        debugger;
                         const folders = lodash__WEBPACK_IMPORTED_MODULE_9___default.a.cloneDeep(file.mdFiles);
                         folders.pop();
                         this.mdFileService.addNewDirectoryExtended(folders);
