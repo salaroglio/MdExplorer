@@ -51,7 +51,7 @@ namespace MdExplorer.Features.Commands
             var links = GetMatches(markdown);
             foreach (Match link in links)
             {
-                if (link.Groups[2].Value.StartsWith("/"))
+                if (link.Groups[2].Value.StartsWith("/") || link.Groups[2].Value.StartsWith("../"))
                 {
                     var newlink = "/api/mdexplorer" + link.Groups[2].Value;
 
