@@ -1472,7 +1472,7 @@ class MdFileService {
     // and there is just one to add consequently to
     // what already exists in the store.
     addNewDirectory(data) {
-        alert(JSON.stringify(data, null, 2));
+        //alert(JSON.stringify(data, null, 2));
         // Initialize the current item and mark it as expandable
         const currentItem = data[0];
         currentItem.expandable = true;
@@ -1497,7 +1497,6 @@ class MdFileService {
             this.recursiveSearchFolder(data, i + 1, currentFolder);
         }
         else {
-            debugger;
             parentFolder.childrens.push(currentItem); // Directly use currentItem
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles); // Simplified notification
         }

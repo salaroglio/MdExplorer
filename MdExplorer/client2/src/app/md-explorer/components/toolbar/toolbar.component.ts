@@ -275,7 +275,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         responseFromPull.whatFilesWillBeChanged.forEach(file => {
 
           if (file.status === "Added") {
-            debugger;
+            
             const folders = _.cloneDeep(file.mdFiles);
             folders.pop();
             this.mdFileService.addNewDirectoryExtended(folders);
