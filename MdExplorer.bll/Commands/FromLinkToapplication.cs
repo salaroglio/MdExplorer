@@ -56,7 +56,7 @@ namespace MdExplorer.Features.Commands
                     var matches1 = rx.Matches(item.Groups[0].Value);
                     if (matches1.Count == 0)
                     {
-                        return html;
+                        break;
                     }
                     var item1 = matches1[0];
 
