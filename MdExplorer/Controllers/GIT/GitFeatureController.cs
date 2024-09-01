@@ -61,7 +61,8 @@ namespace MdExplorer.Service.Controllers.GIT
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
 
-            var filesToBeChanged = _gitService.GetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path);
+
+            var filesToBeChanged = _gitService.CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path, pullInfo);
             var filesMdo = filesToBeChanged.Select(_ => {
                 var myData = new FilesAndAuthorsChangedMdo
                 {

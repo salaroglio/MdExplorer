@@ -194,8 +194,32 @@ namespace MdExplorer.Features.GIT
 
         }
 
+        public IList<FileNameAndAuthor> CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(string repoPath, PullInfo pullInfo)
+        {
+            _userSettingDb.BeginTransaction();
+            // Devo fare un check delle credenziali, se non le trovo, memorizzo quelle che mi sono passate
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+               .Where(_ => _.LocalPath == repoPath).FirstOrDefault();
+           
+            if (currentGitlab == null)
+            {
+                currentGitlab = new GitlabSetting
+                {
+                    LocalPath = repoPath,
+                    UserName = pullInfo.UserName,
+                    Password = pullInfo.Password,
+                    GitlabLink = "missing",
+                };
+                dalGitlabSetting.Save(currentGitlab);
+            }
+            _userSettingDb.Commit();
+            return GetFilesChangesAndAuthors(repoPath, "origin", "main");
+            
+        }
+
         public IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(string repoPath)
-        {            
+        {           
             return GetFilesChangesAndAuthors(repoPath, "origin", "main");
         }
 
