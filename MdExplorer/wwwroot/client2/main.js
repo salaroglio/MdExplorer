@@ -657,7 +657,7 @@ class GITService {
             connectionIsActive: false,
             whatFilesWillBeChanged: []
         });
-        setInterval(() => this.getCurrentBranch(), 10000);
+        setInterval(() => this.getCurrentBranch(), 20000);
     }
     clone(request) {
         const url = '../api/gitfeatures/cloneRepository';

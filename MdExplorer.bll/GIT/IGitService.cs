@@ -2,6 +2,7 @@
 using MdExplorer.Features.GIT.models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,5 +28,6 @@ namespace MdExplorer.Features.GIT
         (bool, bool, bool, string) Push(PullInfo commitAndPushInfo);
         IList<FileNameAndAuthor> GetFilesChangesAndAuthors(string projectPath, string repository, string branch);
         IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(string projectPath);
+        IList<FileNameAndAuthor> CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(string projectPath, PullInfo pullInfo);
     }
 }
