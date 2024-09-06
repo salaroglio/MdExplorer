@@ -1,2 +1,0 @@
-|Chiave|Path|Valori|descrizione|
-|------|----|------|-----------|

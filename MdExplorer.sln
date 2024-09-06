@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Features", "MdEx
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MDExplorer.DataAccess", "MDExplorer.dal\MDExplorer.DataAccess.csproj", "{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Tests", "MdExplorer.Tests\MdExplorer.Tests.csproj", "{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Abstractions", "MdExplorer.Abstractions\MdExplorer.Abstractions.csproj", "{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MdExplorer.Migrations", "MdExplorer.Migrations\MdExplorer.Migrations.csproj", "{CD81B656-C664-49C5-851E-E6CFF7DEE917}"
@@ -123,26 +121,6 @@ Global
 		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.ReleaseWPF|x64.Build.0 = Release|Any CPU
 		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.ReleaseWPF|x86.ActiveCfg = Release|Any CPU
 		{EA7370F3-55F2-4159-8BA3-BD4B52A5C8BC}.ReleaseWPF|x86.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Debug|x64.Build.0 = Debug|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Debug|x86.Build.0 = Debug|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Release|x64.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Release|x64.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Release|x86.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.Release|x86.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvalonia|x64.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvalonia|x64.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvalonia|x86.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvalonia|x86.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvaloniaRemoteDebugSupport|x64.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvaloniaRemoteDebugSupport|x64.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvaloniaRemoteDebugSupport|x86.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseAvaloniaRemoteDebugSupport|x86.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseWPF|x64.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseWPF|x64.Build.0 = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseWPF|x86.ActiveCfg = Release|Any CPU
-		{1F0A0DA7-138A-4E98-BF94-217B8B92CF8A}.ReleaseWPF|x86.Build.0 = Release|Any CPU
 		{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}.Debug|x64.Build.0 = Debug|Any CPU
 		{10CC8FE9-F20A-4ECD-AD9C-19A28A2C8A87}.Debug|x86.ActiveCfg = Debug|Any CPU
