@@ -1,11 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageOutputPath>C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\Ad.Tools.Dal\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath>C:\sviluppo\AdToolsPackages</PackageOutputPath>
     <Version>1.1.1</Version>
   </PropertyGroup>
 

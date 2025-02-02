@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <UserSecretsId>aa0ba68a-9723-47a7-b3e8-fecd91dd5988</UserSecretsId>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageOutputPath>C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\Ad.Tools.Dal\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath>C:\sviluppo\AdToolsPackages</PackageOutputPath>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Version>3.1.4</Version>
