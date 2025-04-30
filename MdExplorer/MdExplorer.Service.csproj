@@ -657,12 +657,14 @@
 
   <ItemGroup>
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css.map" />
-    <None Include="Binaries\ElectronMdExplorer\resources\app\package.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="Binaries\ElectronMdExplorer\vk_swiftshader_icd.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <!-- Rimosso riferimento a resources\app\package.json -->
+    <!-- <None Include="Binaries\ElectronMdExplorer\resources\app\package.json"> -->
+    <!--  <CopyToOutputDirectory>Always</CopyToOutputDirectory> -->
+    <!-- </None> -->
+    <!-- Rimosso riferimento a vk_swiftshader_icd.json -->
+    <!-- <None Include="Binaries\ElectronMdExplorer\vk_swiftshader_icd.json"> -->
+    <!--   <CopyToOutputDirectory>Always</CopyToOutputDirectory> -->
+    <!-- </None> -->
     <None Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css.map" />
     <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.css.map" />
     <None Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.standalone.css.map" />

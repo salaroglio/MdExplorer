@@ -370,3 +370,5 @@ FodyWeavers.xsd
 
 /MdExplorer/ElectronMdExplorer/release-builds/
 /MdExplorer/Binaries/ElectronMdExplorer
+/MdExplorer/ElectronMdExplorer/dist/
+/MdExplorer/ElectronMdExplorer/node_modules/

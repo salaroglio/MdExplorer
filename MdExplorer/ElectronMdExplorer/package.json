@@ -4,12 +4,19 @@
   "description": "This app will kill JIRA",
   "main": "index.js",
   "scripts": {
-    "start":"electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "electron-builder && post-build.bat"
   },
   "author": "carlo-emilio salaroglio",
   "license": "ISC",
+  "build": {
+    "directories": {
+      "output": "../../Binaries/ElectronMdExplorer"
+    }
+  },
   "devDependencies": {
-    "electron": "^28.1.4"
+    "electron": "^28.1.4",
+    "electron-builder": "^26.0.12"
   }
 }

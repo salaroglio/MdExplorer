@@ -12,6 +12,7 @@ import { CloneProjectComponent } from './dialogs/clone-project/clone-project.com
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
 import { SettingsComponent } from '../md-explorer/components/dialogs/settings/settings.component';
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
+import { versionInfo } from '../../environments/version'; // Importa la versione
 
 @Component({
   selector: 'app-projects',
@@ -19,6 +20,8 @@ import { ShowFileMetadata } from '../commons/components/show-file-system/show-fi
   styleUrls: ['./projects.component.scss']
 })
 export class ProjectsComponent implements OnInit, OnDestroy {
+
+  public appVersion = versionInfo.version; // Rendi la versione disponibile nel template
 
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
@@ -37,7 +40,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.projectService.currentProjects$.subscribe(_ => {
       if (_ != null && _!= undefined) {
-        this.router.navigate(['/main/navigation/document']); //main        
+        this.router.navigate(['/main/navigation/document']); //main
       }
     });
   }
@@ -67,10 +70,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       data: data
     });
 
-    dialogRef.afterClosed().subscribe(folderPath => {      
+    dialogRef.afterClosed().subscribe(folderPath => {
       this.projectService.setNewFolderProject(folderPath.data)
       // when the project change, then switch to navigation environment
-      
+
     });
 
   }
