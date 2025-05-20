@@ -32,10 +32,22 @@ namespace MdExplorer
         {
             Startup.Args = args;
 
+            string url = "http://127.0.0.1:0"; // Default to random port
+
+            if (args != null && args.Length > 0)
+            {
+                if (int.TryParse(args[0], out int port) && port > 0 && port <= 65535)
+                {
+                    url = $"http://127.0.0.1:{port}";
+                }
+                // Optional: Add more sophisticated argument parsing here, e.g., --port <number>
+                // For now, we assume the first argument, if an integer, is the port.
+            }
+
             var toReturn = Host.CreateDefaultBuilder(args)
                .ConfigureWebHostDefaults(webBuilder =>
                {
-                   webBuilder.UseUrls("http://127.0.0.1:0");
+                   webBuilder.UseUrls(url);
                    webBuilder.UseStartup<Startup>();
                })
                .ConfigureServices(services =>
@@ -50,4 +62,3 @@ namespace MdExplorer
 
     }
 }
-

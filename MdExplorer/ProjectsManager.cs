@@ -142,15 +142,25 @@ namespace MdExplorer.Service
             builder.Dispose();
         }
 
-        private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
-        {
-            var defaultPath = pathFromParameter ?? AppDomain.CurrentDomain.BaseDirectory; // @".\Documents";
+private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
+{
+    string effectivePath = pathFromParameter;
 
-            services.AddSingleton(new FileSystemWatcher { Path = defaultPath });
-            var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
-            services.AddSingleton(_fileSystemWatcher);
-            return defaultPath;
-        }
+    // Check if pathFromParameter is null, empty, or not a valid directory path.
+    // Path.GetDirectoryName on a simple string like "5000" returns an empty string.
+    if (string.IsNullOrEmpty(effectivePath) || !Directory.Exists(effectivePath))
+    {
+        // If pathFromParameter is not a valid directory, default to the application's base directory.
+        // This ensures FileSystemWatcher always gets a valid directory.
+        effectivePath = AppDomain.CurrentDomain.BaseDirectory;
+    }
+    
+    // It's generally better to register a factory or a configured instance once.
+    // Registering FileSystemWatcher as a singleton that gets configured here.
+    services.AddSingleton<FileSystemWatcher>(sp => new FileSystemWatcher(effectivePath));
+    
+    return effectivePath; // Return the path that was actually used.
+}
 
         private static void ConfigTemplates(string mdPath, IServiceCollection services = null)
         {

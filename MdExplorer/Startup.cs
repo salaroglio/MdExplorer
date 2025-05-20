@@ -76,7 +76,7 @@ namespace MdExplorer
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseHttpsRedirection();
+            // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
 
             app.UseRouting();
             var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
@@ -135,15 +135,16 @@ namespace MdExplorer
 #if DEBUG
                 url = url.Replace("&", "^&");
                 var processToStart = new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true };
-#else
-                var currentApplicationPath = AppContext.BaseDirectory;
-                logger.LogInformation($"basedirectory: {currentApplicationPath}");
-                var command = $"{currentApplicationPath}Binaries\\ElectronMdExplorer\\ElectronMdExplorer \".\" \"{url}\"";
-                var processToStart = new ProcessStartInfo("cmd", $"/c start {command}") { CreateNoWindow = true };
+                var processStarted = Process.Start(processToStart);
+//#else
+//                var currentApplicationPath = AppContext.BaseDirectory;
+//                logger.LogInformation($"basedirectory: {currentApplicationPath}");
+//                var command = $"{currentApplicationPath}Binaries\\ElectronMdExplorer\\ElectronMdExplorer \".\" \"{url}\"";
+//                var processToStart = new ProcessStartInfo("cmd", $"/c start {command}") { CreateNoWindow = true };
 #endif
 
 
-                var processStarted = Process.Start(processToStart);
+
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {

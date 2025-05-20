@@ -1002,5 +1002,7 @@
     </None>
   </ItemGroup>
 
+  <!-- Removed ItemGroup that explicitly copied wwwroot for Debug builds to avoid NETSDK1022 -->
+  <!-- Relying on SDK default behavior and existing EmbeddedResource items -->
 
 </Project>
