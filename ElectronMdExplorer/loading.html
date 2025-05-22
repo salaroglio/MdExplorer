@@ -79,16 +79,85 @@
             border-radius: 10px;
         }
 
+        .output-log {
+            width: 80%;
+            max-width: 600px;
+            height: 200px;
+            background-color: #1a242f; /* Even darker background for log */
+            border: 1px solid #34495e;
+            border-radius: 5px;
+            margin-top: 20px;
+            padding: 10px;
+            overflow-y: auto;
+            text-align: left;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            word-wrap: break-word; /* Break long words */
+        }
+        .output-log p {
+            margin: 0;
+            padding: 2px 0;
+            color: #ecf0f1;
+        }
+        .output-log p.error {
+            color: #e74c3c; /* Red for errors */
+        }
+        .ready-message {
+            color: #2ecc71; /* Green for ready message */
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>MdExplorer</h1>
-        <p class="initializing-text"><initializing></p>
+        <p class="initializing-text" id="status-text">Inizializzazione del servizio .NET...</p>
         <div class="progress-bar-container">
             <!-- Using the alternative animation as it's more common for indeterminate -->
             <div class="progress-bar-alt"></div>
         </div>
+        <div class="output-log" id="output-log">
+            <!-- Service output will be appended here -->
+        </div>
+        <p class="ready-message" id="ready-message" style="display: none;">Servizio pronto! Caricamento dell'applicazione...</p>
     </div>
+
+    <script>
+        const outputLog = document.getElementById('output-log');
+        const statusText = document.getElementById('status-text');
+        const readyMessage = document.getElementById('ready-message');
+
+        // Function to append messages to the log
+        function appendLog(message, isError = false) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            if (isError) {
+                p.classList.add('error');
+            }
+            outputLog.appendChild(p);
+            // Scroll to the bottom
+            outputLog.scrollTop = outputLog.scrollHeight;
+        }
+
+        // Listen for service output messages from the main process
+        window.electronAPI.onServiceOutput((message) => {
+            appendLog(message, message.startsWith('ERROR:'));
+        });
+
+        // Listen for the service ready signal from the main process
+        window.electronAPI.onServiceReady(() => {
+            statusText.style.display = 'none';
+            readyMessage.style.display = 'block';
+            // The main process (index.js) will handle loading the main URL
+            // once it receives the 'service-ready' signal.
+            // No need for a redirect here.
+        });
+
+        // Initial message
+        appendLog('Avvio del servizio MdExplorer.Service...');
+    </script>
 </body>
 </html>

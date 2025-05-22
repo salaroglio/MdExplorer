@@ -3,9 +3,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 // It's good practice to use contextBridge to expose APIs to the renderer,
 // but for this specific task of sending an event, it's not strictly necessary
 // to expose anything if the preload script handles the event listener itself.
-// contextBridge.exposeInMainWorld('electronAPI', {
-//   sendZoomEvent: (args) => ipcRenderer.send('zoom-mouse-wheel', args)
-// });
+contextBridge.exposeInMainWorld('electronAPI', {
+  sendZoomEvent: (args) => ipcRenderer.send('zoom-mouse-wheel', args),
+  onServiceOutput: (callback) => ipcRenderer.on('service-output', (event, ...args) => callback(...args)),
+  onServiceReady: (callback) => ipcRenderer.on('service-ready', (event, ...args) => callback(...args))
+});
 
 window.addEventListener('wheel', (event) => {
   if (event.ctrlKey) {

@@ -1,11 +1,31 @@
 // MdExplorer/ElectronMdExplorer/index.js
-console.log("Hello from Electron - Modified");
-
 const { app, BrowserWindow, ipcMain } = require('electron'); // Added ipcMain
 const path = require('path');
 const net = require('net');
 const { spawn } = require('child_process');
 const fs = require('fs'); // Added fs module
+
+// --- Start Logging Setup ---
+const logFilePath = path.join(app.getPath('userData'), 'electron_main.log');
+const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.log = (...args) => {
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+  logStream.write(`[LOG] ${new Date().toISOString()} ${message}\n`);
+  originalConsoleLog(...args);
+};
+
+console.error = (...args) => {
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+  logStream.write(`[ERROR] ${new Date().toISOString()} ${message}\n`);
+  originalConsoleError(...args);
+};
+// --- End Logging Setup ---
+
+console.log("Hello from Electron - Modified");
 
 // Function to find a free port
 const findFreePort = () => {
@@ -28,6 +48,7 @@ const findFreePort = () => {
 let mainWindow; // Keep a reference to the main window
 let mdServiceProcess; // Keep a reference to the spawned service process
 let isAppQuitting = false; // Flag to track if the app is quitting
+let targetUrl; // Moved targetUrl to global scope
 
 const createWindow = async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -50,7 +71,6 @@ const createWindow = async () => {
 
   console.log('Command line arguments:', process.argv);
   const cliArgs = process.argv.slice(2); // First two are executable and script path
-  let targetUrl;
 
   if (cliArgs.length > 0 && cliArgs[0]) {
     // URL is provided as a command line argument
@@ -139,12 +159,36 @@ const createWindow = async () => {
         }
       );
 
-      mdServiceProcess.stdout.on('data', (data) => {
-        console.log(`MdExplorer.Service stdout: ${data.toString().trim()}`);
+      mdServiceProcess.stdout.on('data', async (data) => { // Made this callback async
+        const message = data.toString().trim();
+        console.log(`[Service Output] stdout: ${message}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('service-output', message);
+          if (message.includes('Application started.')) {
+            console.log('[Service Output] "Application started." detected. Directly loading main URL.');
+            if (mainWindow && !mainWindow.isDestroyed() && targetUrl) {
+              try {
+                await mainWindow.loadURL(targetUrl);
+              } catch (error) {
+                console.error(`Failed to load main URL ${targetUrl} after service ready:`, error);
+                mainWindow.loadURL(`data:text/html,<h1>Error</h1><p>Failed to load main application after service started.</p><pre>${error.message}</pre>`);
+              }
+            } else {
+              console.warn('[Service Output] Service ready, but mainWindow is destroyed or targetUrl is null.');
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.loadURL(`data:text/html,<h1>Error</h1><p>Service ready, but target URL is missing or window destroyed.</p>`);
+              }
+            }
+          }
+        }
       });
 
       mdServiceProcess.stderr.on('data', (data) => {
-        console.error(`MdExplorer.Service stderr: ${data.toString().trim()}`);
+        const message = data.toString().trim();
+        console.error(`[Service Output] stderr: ${message}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('service-output', `ERROR: ${message}`);
+        }
       });
 
       mdServiceProcess.on('error', (err) => {
@@ -163,11 +207,8 @@ const createWindow = async () => {
         }
       });
       
-      console.log(`Waiting a few seconds for the service to initialize...`);
-      await new Promise(resolve => setTimeout(resolve, 20000)); // 20 seconds
-
-      console.log(`Loading URL in Electron: ${targetUrl}`);
-      await mainWindow.loadURL(targetUrl);
+      // Removed the fixed 20-second timeout.
+      // The transition to the main URL will now be triggered by the 'service-ready' IPC message.
 
     } catch (error) {
       console.error('Error during fallback service setup or URL loading:', error);
@@ -219,6 +260,27 @@ const createWindow = async () => {
 
 app.whenReady().then(async () => {
   await createWindow();
+
+  // Listen for the 'service-ready' event from the main process (triggered by .NET service output)
+  ipcMain.on('service-ready', async () => {
+    console.log('[IPC] Received service-ready signal in main process listener.');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (targetUrl) {
+        console.log(`[IPC] Service ready signal received. Loading main URL: ${targetUrl}`);
+        try {
+          await mainWindow.loadURL(targetUrl);
+        } catch (error) {
+          console.error(`Failed to load main URL ${targetUrl} after service ready:`, error);
+          mainWindow.loadURL(`data:text/html,<h1>Error</h1><p>Failed to load main application after service started.</p><pre>${error.message}</pre>`);
+        }
+      } else {
+        console.warn('[IPC] Service ready signal received, but targetUrl is not set. This should not happen.');
+        mainWindow.loadURL(`data:text/html,<h1>Error</h1><p>Service ready, but target URL is missing.</p>`);
+      }
+    } else {
+      console.warn('[IPC] Service ready signal received, but mainWindow is destroyed or null.');
+    }
+  });
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
