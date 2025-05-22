@@ -368,7 +368,10 @@ FodyWeavers.xsd
 /MdExplorer/Documents/Tests/AssetMonitor/StateDiagrams/.md
 
 
-/MdExplorer/ElectronMdExplorer/release-builds/
+/ElectronMdExplorer/release-builds/
 /MdExplorer/Binaries/ElectronMdExplorer
-/MdExplorer/ElectronMdExplorer/dist/
-/MdExplorer/ElectronMdExplorer/node_modules/
+/ElectronMdExplorer/dist/
+/ElectronMdExplorer/Binaries/
+/ElectronMdExplorer/node_modules/
+/ElectronMdExplorer/service_payload/
+/release-builds/

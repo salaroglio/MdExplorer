@@ -1,0 +1,35 @@
+{
+  "name": "mdexplorer",
+  "version": "1.0.0",
+  "description": "This app will kill JIRA",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "electron-builder"
+  },
+  "author": "carlo-emilio salaroglio",
+  "license": "ISC",
+  "build": {
+    "appId": "com.mdexplorer.app",
+    "directories": {
+      "output": "./Binaries"
+    },
+    "extraResources": [
+      {
+        "from": "./service_payload",
+        "to": "app_service",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.1.4",
+    "electron-builder": "^26.0.12"
+  }
+}
