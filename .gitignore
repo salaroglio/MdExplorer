@@ -371,7 +371,9 @@ FodyWeavers.xsd
 /ElectronMdExplorer/release-builds/
 /MdExplorer/Binaries/ElectronMdExplorer
 /ElectronMdExplorer/dist/
+/ElectronMdExplorer/react_app/
 /ElectronMdExplorer/Binaries/
 /ElectronMdExplorer/node_modules/
 /ElectronMdExplorer/service_payload/
 /release-builds/
+/MdEditor.React/dist
