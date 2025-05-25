@@ -84,7 +84,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
-    // get current branch name and if the branch has something to commit    
+    // get current branch name and if the branch has something to commit
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
       this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
@@ -275,7 +275,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         responseFromPull.whatFilesWillBeChanged.forEach(file => {
 
           if (file.status === "Added") {
-            
+
             const folders = _.cloneDeep(file.mdFiles);
             folders.pop();
             this.mdFileService.addNewDirectoryExtended(folders);
@@ -293,7 +293,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         if (!bCurrentfileHasBeenDeleted) {
           this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
         }
-        
+
         this.checkConnection();
 
       }
@@ -389,5 +389,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     let bookmark: Bookmark = new Bookmark(this.currentMdFile);
     bookmark.projectId = this.projectService.currentProjects$.value.id;
     this.bookmarksService.toggleBookmark(bookmark);
+  }
+
+  openReactEditor(): void {
+    // Navigate to the route defined in MdExplorerModule
+    // Assumes MdExplorerModule is loaded under '/main' and 'navigation' is a parent route segment
+    this.router.navigate(['/main/navigation/react-editor']);
   }
 }

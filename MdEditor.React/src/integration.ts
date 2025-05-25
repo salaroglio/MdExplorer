@@ -104,15 +104,29 @@ export class DocsPilotElement extends HTMLElement {
     
     // Crea shadow DOM
     this.shadowRoot = this.attachShadow({ mode: 'open' });
-    
-    // Determina il percorso base in base all'URL corrente
-    const basePath = new URL('.', window.location.href).href;
-    
-    // Aggiungi stili CSS con percorso assoluto
-    // Utilizziamo direttamente il CSS di Milkdown
+
+    // Aggiungi stili CSS in modo che il percorso sia relativo allo script stesso
     const linkElem = document.createElement('link');
     linkElem.setAttribute('rel', 'stylesheet');
-    linkElem.setAttribute('href', `${basePath}assets/css/milkdown-all.css`);
+    
+    let cssPath: string; 
+    const currentScript = document.currentScript as HTMLScriptElement;
+
+    if (currentScript && currentScript.src) {
+      const scriptFolderURL = new URL('.', currentScript.src).href;
+      cssPath = new URL('assets/css/milkdown-all.css', scriptFolderURL).href;
+      console.log('[DocsPilotElement] CSS Path calcolato (da currentScript):', cssPath);
+      console.log('[DocsPilotElement] document.currentScript.src:', currentScript.src);
+    } else {
+      console.warn('[DocsPilotElement] Impossibile determinare il percorso dello script corrente. Tentativo con percorso fisso relativo alla pagina.');
+      const fixedRelativePath = '../../../milk_react/assets/css/milkdown-all.css';
+      // window.location.href è l'URL della pagina Angular (es. http://.../client2/index.html)
+      // new URL(fixedRelativePath, window.location.href) dovrebbe risolvere a http://.../milk_react/assets/css/milkdown-all.css
+      cssPath = new URL(fixedRelativePath, window.location.href).href;
+      console.log('[DocsPilotElement] CSS Path (fallback con percorso fisso calcolato):', cssPath);
+    }
+    
+    linkElem.setAttribute('href', cssPath);
     this.shadowRoot.appendChild(linkElem);
     
     // Crea container per l'editor Milkdown

@@ -199,6 +199,47 @@
     <Content Remove="wwwroot\jspreadsheet_ce\jsuites.css" />
     <Content Remove="wwwroot\jspreadsheet_ce\jsuites.js" />
     <Content Remove="wwwroot\MdCustomCSS.css" />
+    <Content Remove="wwwroot\milk_react\index-0jcHX3N_.js" />
+    <Content Remove="wwwroot\milk_react\index-B3KiKTSt-lNOxgXlf.js" />
+    <Content Remove="wwwroot\milk_react\index-BAn8YrKh.js" />
+    <Content Remove="wwwroot\milk_react\index-BFsG6770-C4S0TkY0.js" />
+    <Content Remove="wwwroot\milk_react\index-BHrKa6UE.js" />
+    <Content Remove="wwwroot\milk_react\index-BtTBqtbp.js" />
+    <Content Remove="wwwroot\milk_react\index-C6iWXHqD.js" />
+    <Content Remove="wwwroot\milk_react\index-CBrOT1fW-BmrKbP5t.js" />
+    <Content Remove="wwwroot\milk_react\index-CGUqme2R.js" />
+    <Content Remove="wwwroot\milk_react\index-CoKzj_lX.js" />
+    <Content Remove="wwwroot\milk_react\index-CQ81awoH.js" />
+    <Content Remove="wwwroot\milk_react\index-CQtfxiOk.js" />
+    <Content Remove="wwwroot\milk_react\index-CsEtSFhk-p2BcZdQe.js" />
+    <Content Remove="wwwroot\milk_react\index-CtMjrW8D.js" />
+    <Content Remove="wwwroot\milk_react\index-Cuk7cL-r-J_U3HQUs.js" />
+    <Content Remove="wwwroot\milk_react\index-CxJ9fxJm-DfATOtg2.js" />
+    <Content Remove="wwwroot\milk_react\index-D2Og3aqu.js" />
+    <Content Remove="wwwroot\milk_react\index-D8fg8rkZ.js" />
+    <Content Remove="wwwroot\milk_react\index-DcRgwPLd-D2Nus4Ej.js" />
+    <Content Remove="wwwroot\milk_react\index-DiKbJQKP.js" />
+    <Content Remove="wwwroot\milk_react\index-DkMglwbk.js" />
+    <Content Remove="wwwroot\milk_react\index-DLz2PfVM.js" />
+    <Content Remove="wwwroot\milk_react\index-DOrkOhki-CLkwyAZZ.js" />
+    <Content Remove="wwwroot\milk_react\index-DpkcxZlB.js" />
+    <Content Remove="wwwroot\milk_react\index-DputB8Uj.js" />
+    <Content Remove="wwwroot\milk_react\index-drY3dXMA.js" />
+    <Content Remove="wwwroot\milk_react\index-DV-5Wqod.js" />
+    <Content Remove="wwwroot\milk_react\index-EAOQD6cm.js" />
+    <Content Remove="wwwroot\milk_react\index-flGig9u_.js" />
+    <Content Remove="wwwroot\milk_react\index-s33c_M2f-CKKd828V.js" />
+    <Content Remove="wwwroot\milk_react\index-toto-Of2.js" />
+    <Content Remove="wwwroot\milk_react\index-uHWmZXqe-BnfVJr2O.js" />
+    <Content Remove="wwwroot\milk_react\index-wrkH3t_5.js" />
+    <Content Remove="wwwroot\milk_react\index-ZfvjIKTs.js" />
+    <Content Remove="wwwroot\milk_react\index-ZJtWSqp-.js" />
+    <Content Remove="wwwroot\milk_react\index.es-BDByIY7Z.js" />
+    <Content Remove="wwwroot\milk_react\index.es-Bp8jzeZh.js" />
+    <Content Remove="wwwroot\milk_react\index.es-C3m-ZQQL.js" />
+    <Content Remove="wwwroot\milk_react\index.es-SGmWwuar.js" />
+    <Content Remove="wwwroot\milk_react\inline-latex-C9IGAXXQ-DOFGPslc.js" />
+    <Content Remove="wwwroot\milk_react\integration-axMWPCUy.js" />
     <Content Remove="wwwroot\reveal\dist\reset.css" />
     <Content Remove="wwwroot\reveal\dist\reveal.css" />
     <Content Remove="wwwroot\reveal\dist\reveal.esm.js" />
@@ -653,6 +694,7 @@
     <Folder Include="client2\src\app\md-explorer\services\models\" />
     <Folder Include="ElectronMdExplorer\" />
     <Folder Include="Properties\PublishProfiles\" />
+    <Folder Include="wwwroot\milk_react\" />
   </ItemGroup>
 
   <ItemGroup>

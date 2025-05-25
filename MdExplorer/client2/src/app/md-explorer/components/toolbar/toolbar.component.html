@@ -15,6 +15,9 @@
     <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()">
       <mat-icon>bookmark</mat-icon>
     </button>
+    <button mat-icon-button matTooltip="Open React Editor" (click)="openReactEditor()">
+      <mat-icon>article</mat-icon>
+    </button>
     <span>{{currentMdFile?.name}}</span>
 
 
@@ -29,14 +32,14 @@
         <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
         <div class="menu-container">
           <button class="smallMessagesToPull" (click)="pull()"
-                  (mouseover)="showMenu=true" 
+                  (mouseover)="showMenu=true"
                   *ngIf="somethingIsToPull">
             {{howManyFilesAreToPull}} to pull
           </button>
-          <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">            
+          <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">
               <table>
                 <tr *ngFor="let fileAndAuthor of filesAndAuthors"><td style="color:blue;">{{fileAndAuthor.author}}</td><td>{{fileAndAuthor.fileName}}</td></tr>
-              </table>                          
+              </table>
           </div>
         </div>
         <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{howManyCommitAreToPush}} to push</button>

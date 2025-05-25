@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core'; // Added CUSTOM_ELEMENTS_SCHEMA
 import { CommonModule } from '@angular/common';
 import { SidenavComponent } from './components/sidenav/sidenav.component';
 import { ToolbarComponent } from './components/toolbar/toolbar.component';
@@ -27,6 +27,7 @@ import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipb
 import { GitModule } from '../git/git.module';
 import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
 import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
+import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component'; // Added import
 
 
 
@@ -38,6 +39,7 @@ const routes: Routes = [
     { path: 'document', component: MainContentComponent },
     { path: 'gitlabsettings', component: GitlabSettingsComponent },
     { path: 'documentsettings', component: DocumentSettingsComponent },
+    { path: 'react-editor', component: MilkdownReactHostComponent } // Added route
   ]
   }];
 
@@ -62,8 +64,9 @@ const routes: Routes = [
     PublishMdTreeComponent,
     GitlabSettingsComponent,
     DocumentSettingsComponent,
-    CopyFromClipboardComponent,    
-    MoveMdFileComponent, AddNewFileToMDEComponent
+    CopyFromClipboardComponent,
+    MoveMdFileComponent, AddNewFileToMDEComponent,
+    MilkdownReactHostComponent // Added to declarations
   ],
   imports: [
     CommonModule,
@@ -75,8 +78,9 @@ const routes: Routes = [
   ],
   providers: [
     MdFileService,
-    
-  ]
+
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA] // Added schemas array
 })
 export class MdExplorerModule {
   constructor() {
