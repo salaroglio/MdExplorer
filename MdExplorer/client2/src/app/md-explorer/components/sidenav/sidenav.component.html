@@ -76,8 +76,9 @@
       </div>
 
     </div>
-    <div style="width:100%; height:100%;">
-      <div class="app-sidenav-content" style="height:100%;">
+    <div style="width:100%; height:100%; display: flex; flex-direction: column;">
+      <app-toolbar [ngClass]="classForToolbar" style="flex-shrink: 0;"></app-toolbar>
+      <div class="app-sidenav-content" style="flex-grow: 1; overflow: auto; height: auto;">
 
         <router-outlet></router-outlet>
       </div>

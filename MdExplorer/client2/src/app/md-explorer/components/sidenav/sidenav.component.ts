@@ -1,5 +1,5 @@
 
-import { AfterViewInit, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core'; // Added ChangeDetectionStrategy
 import { Router }                                          from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { MdFileService }      from '../../services/md-file.service';
@@ -20,10 +20,10 @@ const SMALL_WIDTH_BREAKPOINT = 720;
   selector: 'app-sidenav',
   templateUrl: './sidenav.component.html',
   styleUrls: ['./sidenav.component.scss'],
- 
+
 })
 export class SidenavComponent implements OnInit {
- 
+
 
   public showText:boolean = false;
   public sideNavWidth: string = "240px";
@@ -32,18 +32,20 @@ export class SidenavComponent implements OnInit {
   public classForBorderDiv: string = "border-div";
   public titleProject: string;
   public currentBranch: string = null;
-  public bookmarks: MdFile[]
+  public bookmarks: MdFile[];
+  public classForToolbar: string = "showToolbar"; // Added for toolbar CSS class
   @ViewChild('sidenav') sidenav: MatSidenav;
 
   constructor(
     private breakpointObserver: BreakpointObserver,
-    private mdFileService: MdFileService,    
+    private mdFileService: MdFileService,
     private router: Router,
     private currentFolder: AppCurrentMetadataService,
     private bookmarksService:BookmarksService,
     private gitService: GITService,
     private projectService: ProjectsService,
     public navService:MdNavigationService,
+    private ref: ChangeDetectorRef // Injected ChangeDetectorRef
   ) {
     document.addEventListener("mousemove", (event) => {
       if (this.hooked) {
@@ -52,19 +54,19 @@ export class SidenavComponent implements OnInit {
     });
     document.addEventListener("mouseup", (event) => {
       console.log(this.hooked);
-      
+
       if (this.hooked) {
-        
+
         //this.stopResizeWidth();
         this.hooked = false;
         this.classForBorderDiv = "border-div";
         this.projectService.currentProjects$.value.sidenavWidth = event.clientX;
-        this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value); 
-       
+        this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value);
+
       }
     });
-    
-    this.currentFolder.folderName.subscribe((data: any) => {      
+
+    this.currentFolder.folderName.subscribe((data: any) => {
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
@@ -72,7 +74,7 @@ export class SidenavComponent implements OnInit {
       this.currentBranch = _.name;
     });
 
-    this.currentFolder.showSidenav.subscribe(_ => {      
+    this.currentFolder.showSidenav.subscribe(_ => {
       if (this.sidenav != undefined ) {
         if (_) {
           this.sidenav.open();
@@ -81,20 +83,20 @@ export class SidenavComponent implements OnInit {
         }
       }
     });
-    
+
   }
 
-  resizeWidth(): void {    
+  resizeWidth(): void {
     this.hooked = true;
     this.classForBorderDiv = "border-div-moving";
   }
 
   stopResizeWidth(): void {
-    
-    
-   
-    
-    
+
+
+
+
+
   }
 
   openProject(): void {
@@ -107,41 +109,53 @@ export class SidenavComponent implements OnInit {
 
 
   ngOnInit(): void {
-    
+
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches
       });
     this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
-    
-    this.projectService.currentProjects$.subscribe(_ => {      
+
+    this.projectService.currentProjects$.subscribe(_ => {
       if (_ != null && _ != undefined) {
-        
+
         this.bookmarksService.initBookmark(_.id);
         if (_.sidenavWidth != null && _.sidenavWidth != 0) {
           this.sideNavWidth = _.sidenavWidth + "px";
         }
-        
+
       }
     });
-    
+
+    this.mdFileService.whatDisplayForToolbar.subscribe(toolbarState => {
+      if ((toolbarState === 'showToolbar' && this.classForToolbar !== toolbarState) ||
+          (toolbarState === 'hideToolbar' && this.classForToolbar !== toolbarState + ' ' + 'hideToolbarNone')
+      ) {
+        this.classForToolbar = toolbarState;
+        if (toolbarState === 'hideToolbar') {
+          this.classForToolbar = toolbarState + ' ' + 'hideToolbarNone';
+        }
+        this.ref.detectChanges();
+      }
+    });
+
   }
 
-  openDocument(bookmark: MdFile) {    
+  openDocument(bookmark: MdFile) {
     let mdfile = this.mdFileService.getMdFileFromDataStore(bookmark);
-    
+
     this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(mdfile);
   }
 
   toggleBookmark(mdFile: MdFile) {
     let bookmark: Bookmark = new Bookmark(mdFile);
-    bookmark.projectId = this.projectService.currentProjects$.value.id;    
+    bookmark.projectId = this.projectService.currentProjects$.value.id;
     this.bookmarksService.toggleBookmark(bookmark);
   }
 
   forward(): void {
-    
+
     let navToMdFile = this.navService.forward();
     this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(navToMdFile);
@@ -149,13 +163,11 @@ export class SidenavComponent implements OnInit {
   }
 
   backward(): void {
-    
+
     let navToMdFile = this.navService.back();
     this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(navToMdFile);
-    
+
   }
 
 }
-
-

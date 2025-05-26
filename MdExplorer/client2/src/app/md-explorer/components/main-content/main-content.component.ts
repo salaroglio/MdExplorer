@@ -14,40 +14,9 @@ import { MatDialog } from '@angular/material/dialog';
   templateUrl: './main-content.component.html',
   styleUrls: ['./main-content.component.scss']
 })
-export class MainContentComponent implements OnInit, AfterViewInit {
+export class MainContentComponent implements OnInit { // Removed AfterViewInit
   @ViewChild('myBelovedIframe') el: ElementRef;
-  public classForToolbar: string = "showToolbar";
-  public classForContent: string = "contentWithToolbar";
-  
-  ngAfterViewInit() {
-    
-    //this.el.nativeElement.onload = _ => {
-    //  try {
-    //    _.target.contentWindow.document.myReferenceObject = this;
-    //    _.target.contentWindow.document.addEventListener('wheel',this.toolbarHandler);
-    //  } catch (e) { // for some reason the wheel event "injection" failed, so in ordet to Not hide tolbar i set block
-    //    this.service.setWhatDisplayForToolbar('showToolbar');
-    //  }
-    //};
-  }
-
-
-
-  toolbarHandler(event) {
-    event.currentTarget.myReferenceObject.lastCall(event);
-  }
-
-  lastCall(event) {
-    if (event.deltaY < 0) {
-      // visualizzare
-      this.service.setWhatDisplayForToolbar('showToolbar');
-      
-    } else {
-      // nascondere
-      this.service.setWhatDisplayForToolbar('hideToolbar');
-      
-    }    
-  }
+  public classForContent: string = "hundredPercentContent"; // Set to a default, assuming it fills its container
 
   mdFile: MdFile;
   html: string;
@@ -72,48 +41,33 @@ export class MainContentComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
-    
-    this.service.selectedMdFileFromSideNav.subscribe(_ => {      
+
+    this.service.selectedMdFileFromSideNav.subscribe(_ => {
       this.callMdExplorerController(_);
     });
-    this.service.selectedMdFileFromToolbar.subscribe(_ => {      
+    this.service.selectedMdFileFromToolbar.subscribe(_ => {
       let current = _[0];
       if (current != undefined) {
         this.callMdExplorerController(current);
-      }      
-    });
-    
-    this.service.whatDisplayForToolbar.subscribe(_ => {
-
-      if ((_ == 'showToolbar' && this.classForToolbar != _) ||
-        (_ == 'hideToolbar' && this.classForToolbar != _ + ' ' + 'hideToolbarNone')
-      ) { // check if something is truely changed
-        this.classForToolbar = _;
-        this.classForContent = 'contentWithToolbar';
-          if (_ == 'hideToolbar' && _ != undefined) {
-            this.classForToolbar = _ + ' ' + 'hideToolbarNone'
-            this.classForContent = 'hundredPercentContent';
-            this.ref.detectChanges();
-          }
-        this.ref.detectChanges();
       }
     });
+    // Removed subscription to this.service.whatDisplayForToolbar
   }
-  private callMdExplorerController(node:  MdFile) {    
+  private callMdExplorerController(node:  MdFile) {
     if (node != null && node.relativePath != undefined) {
-      let dateTime = new Date().getTime() / 1000;      
+      let dateTime = new Date().getTime() / 1000;
       this.htmlSource = '../api/mdexplorer' + node.relativePath + '?time=' + dateTime + "&connectionId=" + this.monitorMDService.connectionId;
     }
   }
 
   private markdownFileIsChanged(data: any, objectThis: MainContentComponent) {
-    
-    let dateTime = new Date().getTime() / 1000;  
+
+    let dateTime = new Date().getTime() / 1000;
     objectThis.service.navigationArray = [];
     objectThis.service.setSelectedMdFileFromServer(data);
     objectThis.htmlSource = '../api/mdexplorer' + data.path + '?time=' + dateTime + "&connectionId=" + objectThis.monitorMDService.connectionId; ;
   }
- 
+
 
 
 }
