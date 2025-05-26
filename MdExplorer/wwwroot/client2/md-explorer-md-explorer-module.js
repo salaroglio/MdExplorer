@@ -781,13 +781,15 @@ DeleteMarkdownComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵ
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MilkdownReactHostComponent", function() { return MilkdownReactHostComponent; });
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs/operators */ "kU1M");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common */ "ofXK");
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/router */ "tyNb");
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
-/* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../services/md-file.service */ "xmhS");
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ "kU1M");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common */ "ofXK");
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/router */ "tyNb");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../services/md-file.service */ "xmhS");
+/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+
 
 
 
@@ -804,36 +806,16 @@ class MilkdownReactHostComponent {
         this.http = http;
         this.mdFileService = mdFileService;
         this.markdownContent = '# Benvenuto nell\\\'Editor React (Milkdown)!';
+        this.currentFilePath = null; // Per memorizzare il percorso del file corrente
     }
     ngOnInit() {
-        this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_0__["filter"])((file) => file !== null && file !== undefined), // Assicura che file non sia null/undefined
-        Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_0__["tap"])(file => console.log('React Host: File selezionato:', file.fullPath)), // Log per debug
-        Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_0__["switchMap"])(file => {
-            if (file && file.fullPath) {
-                // Pulisce il percorso da eventuali caratteri problematici o normalizza i separatori se necessario
-                // Per ora, assumiamo che fullPath sia già corretto per l'URL.
-                // L'API controller usa {*url}, quindi dovrebbe catturare il percorso correttamente.
-                const encodedPath = encodeURIComponent(file.fullPath);
-                // NOTA: Il controller /api/MdExplorerEditorReact/{*url} si aspetta che il path sia parte dell'URL,
-                // non un parametro query. encodeURIComponent potrebbe non essere necessario se il path non contiene
-                // caratteri speciali che romperebbero l'URL. Tuttavia, il controller C# usa GetRelativePathFileSystem
-                // che potrebbe fare delle assunzioni sul formato del path.
-                // Per sicurezza, passiamo il fullPath direttamente, dato che {*url} lo catturerà.
-                // Se ci fossero problemi, potremmo dover aggiustare come il path viene inviato o processato.
-                // La route del controller è [Route("/api/MdExplorerEditorReact/{*url}")]
-                // Quindi l'URL sarà /api/MdExplorerEditorReact/C:/path/to/file.md (o simile)
-                // Il controller usa GetRelativePathFileSystem("mdexplorer") che prende l'URL dalla request.
-                // Quindi, il path deve essere relativo alla stringa "mdexplorer" nell'URL.
-                // Questo implica che il path inviato deve essere solo la parte dopo /api/MdExplorerEditorReact/
-                // Es: se fullPath è "C:\projects\MdExplorer\Notes\file.md"
-                // e il controller si aspetta "Notes/file.md" (relativo a _fileSystemWatcher.Path)
-                // Dovremo inviare il path relativo.
-                // Tuttavia, il controller sembra già gestire fullPath tramite _fileSystemWatcher.Path + relativePathFile
-                // e GetRelativePathFileSystem usa HttpUtility.UrlDecode(Request.Path.Value).Replace("/api/MdExplorerEditorReact/", string.Empty);
-                // Quindi, passare il fullPath direttamente dovrebbe funzionare.
-                return this.http.get(`/api/MdExplorerEditorReact/${file.fullPath}`, { responseType: 'text' });
-            }
-            return ''; // O un Observable vuoto, es: EMPTY
+        this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["filter"])((file) => file !== null && file !== undefined), // Assicura che file non sia null/undefined
+        Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(file => {
+            this.currentFilePath = file.fullPath; // Memorizza il percorso del file
+            console.log('React Host: File selezionato:', this.currentFilePath);
+        }), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["switchMap"])(file => {
+            // Non è necessario controllare file.fullPath qui perché filter e tap lo hanno già fatto
+            return this.http.get(`/api/MdExplorerEditorReact/${file.fullPath}`, { responseType: 'text' });
         })).subscribe({
             next: (markdown) => {
                 var _a;
@@ -870,8 +852,55 @@ class MilkdownReactHostComponent {
         //    this.docsPilotElementRef.nativeElement.markdown = this.markdownContent;
         // }
     }
+    saveMarkdown() {
+        var _a;
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (!this.currentFilePath) {
+                console.error('React Host: Nessun percorso file corrente per salvare.');
+                return;
+            }
+            let markdownToSave = null;
+            const editorElement = (_a = this.docsPilotElementRef) === null || _a === void 0 ? void 0 : _a.nativeElement; // Cast to any to access potential custom properties
+            if (editorElement) {
+                // Tentativo 1: Accedere alla proprietà 'markdown' (che dovrebbe invocare il getter del WebComponent)
+                // Questo getter, come visto in integration.ts, prova a chiamare this.editor.getMarkdown()
+                if (typeof editorElement.markdown !== 'undefined') {
+                    markdownToSave = editorElement.markdown;
+                    console.log('React Host: Markdown ottenuto tramite proprietà .markdown del WebComponent.');
+                }
+                else {
+                    // Tentativo 2: Fallback a getAttribute se la proprietà non esiste o è undefined
+                    markdownToSave = editorElement.getAttribute('markdown');
+                    console.log('React Host: Markdown ottenuto tramite .getAttribute(\'markdown\') del WebComponent.');
+                }
+            }
+            // Se entrambi i metodi sopra falliscono o restituiscono null (improbabile se l'editor funziona)
+            if (markdownToSave === null) {
+                markdownToSave = this.markdownContent; // Fallback estremo
+                console.warn('React Host: Impossibile ottenere il markdown aggiornato dal WebComponent tramite proprietà o attributo. Utilizzo di this.markdownContent (potenzialmente obsoleto).');
+            }
+            console.log('React Host: Tentativo di salvataggio per:', this.currentFilePath);
+            // console.log('React Host: Contenuto da salvare:', markdownToSave ? markdownToSave.substring(0,100) + "..." : "null");
+            const requestBody = {
+                FilePath: this.currentFilePath,
+                MarkdownContent: markdownToSave
+            };
+            try {
+                yield this.http.post('/api/MdExplorerEditorReact/UpdateMarkdown', requestBody).toPromise();
+                console.log('React Host: Markdown salvato con successo per:', this.currentFilePath);
+                // Aggiungere un feedback per l'utente, es. con MatSnackBar
+            }
+            catch (error) {
+                console.error('React Host: Errore durante il salvataggio del markdown:', error);
+                // Aggiungere un feedback di errore per l'utente
+            }
+        });
+    }
     goBack() {
-        this.location.back();
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            yield this.saveMarkdown(); // Salva prima di tornare indietro
+            this.location.back();
+        });
     }
     sendSampleMarkdown() {
         var _a;
@@ -884,28 +913,28 @@ class MilkdownReactHostComponent {
         }
     }
 }
-MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_2__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_3__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_5__["MdFileService"])); };
-MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: MilkdownReactHostComponent, selectors: [["app-milkdown-react-host"]], viewQuery: function MilkdownReactHostComponent_Query(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_c0, 1);
+MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_3__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"])); };
+MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: MilkdownReactHostComponent, selectors: [["app-milkdown-react-host"]], viewQuery: function MilkdownReactHostComponent_Query(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c0, 1);
     } if (rf & 2) {
         let _t;
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.docsPilotElementRef = _t.first);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.docsPilotElementRef = _t.first);
     } }, decls: 7, vars: 1, consts: [[2, "height", "calc(100vh - 100px)", "border", "1px solid #ccc"], ["docsPilotElement", ""], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mat-raised-button", "", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "docs-pilot", null, 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "button", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_3_listener() { return ctx.goBack(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4, "Torna ad Angular");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "button", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_5_listener() { return ctx.sendSampleMarkdown(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "Invia Markdown di Esempio");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 0);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "docs-pilot", null, 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "button", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_3_listener() { return ctx.goBack(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4, "Torna ad Angular");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](5, "button", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_5_listener() { return ctx.sendSampleMarkdown(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](6, "Invia Markdown di Esempio");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵattribute"]("markdown", ctx.markdownContent);
-    } }, directives: [_angular_material_button__WEBPACK_IMPORTED_MODULE_6__["MatButton"]], encapsulation: 2 });
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵattribute"]("markdown", ctx.markdownContent);
+    } }, directives: [_angular_material_button__WEBPACK_IMPORTED_MODULE_7__["MatButton"]], encapsulation: 2 });
 
 
 /***/ }),

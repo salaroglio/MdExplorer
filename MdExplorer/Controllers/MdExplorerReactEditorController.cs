@@ -38,10 +38,10 @@ using System.Collections.Generic;
 namespace MdExplorer.Controllers
 {
     [ApiController]
-    [Route("/api/MdExplorerEditorReact/{*url}")]
+    [Route("/api/MdExplorerEditorReact")] // Rimosso {*url} da qui
     public class MdExplorerReactEditorController : MdControllerBase<MdExplorerReactEditorController>//ControllerBase
     {
-        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;        
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         // private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor; // Field removed
 
         public MdExplorerReactEditorController(ILogger<MdExplorerReactEditorController> logger,
@@ -51,7 +51,7 @@ namespace MdExplorer.Controllers
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IHelper helper,
-            IWorkLink[] modifiers            
+            IWorkLink[] modifiers
             ) : base(logger, fileSystemWatcher, options, null, session, null, commandRunner, modifiers, helper) // hubContext and engineDB passed as null to base
         {
             _goodRules = GoodRules;
@@ -63,13 +63,13 @@ namespace MdExplorer.Controllers
         /// It's good to get images for example
         /// </summary>
         /// <returns></returns>
-        [HttpGet]
-        public async Task<IActionResult> GetAsync(string url) // Added url parameter from route
+        [HttpGet("{*url}")] // Aggiunto {*url} specificamente a HttpGet
+        public async Task<IActionResult> GetAsync(string url)
         {
             // The 'url' parameter is automatically bound from the {*url} part of the route.
             // ASP.NET Core handles URL decoding for route parameters.
-            var requestedPathFromClient = url; 
-            
+            var requestedPathFromClient = url;
+
             if (string.IsNullOrEmpty(requestedPathFromClient))
             {
                 _logger.LogWarning("Requested path from client is null or empty.");
@@ -101,7 +101,7 @@ namespace MdExplorer.Controllers
                     return NotFound($"File not found: {filePathToAccessOnServer}");
                 }
             }
-            
+
             // Handle non-markdown files
             if (!string.IsNullOrEmpty(fileExtension) && fileExtension.ToLowerInvariant() != ".md")
             {
@@ -136,13 +136,16 @@ namespace MdExplorer.Controllers
                         // Cerca l'inizio del secondo separatore "---" seguito da newline
                         // partendo da dopo il primo blocco separatore completo (incluso il newline dopo il primo "---")
                         int searchStartIndexForSecondSeparator = -1;
-                        if (markdownTxt.Substring(yamlSeparator.Length).StartsWith(newLines[0])) {
+                        if (markdownTxt.Substring(yamlSeparator.Length).StartsWith(newLines[0]))
+                        {
                             searchStartIndexForSecondSeparator = yamlSeparator.Length + newLines[0].Length;
-                        } else if (markdownTxt.Substring(yamlSeparator.Length).StartsWith(newLines[1])) {
+                        }
+                        else if (markdownTxt.Substring(yamlSeparator.Length).StartsWith(newLines[1]))
+                        {
                             searchStartIndexForSecondSeparator = yamlSeparator.Length + newLines[1].Length;
                         }
-                        
-                        if(searchStartIndexForSecondSeparator > 0)
+
+                        if (searchStartIndexForSecondSeparator > 0)
                         {
                             var secondSeparatorActualStartIndex = -1;
                             // Cerchiamo "---" seguito da newline
@@ -158,10 +161,13 @@ namespace MdExplorer.Controllers
                                 // Il contenuto inizia dopo il secondo separatore e il suo newline
                                 int contentActualStartIndex = secondSeparatorActualStartIndex + yamlSeparator.Length;
                                 // Aggiungiamo la lunghezza del newline specifico trovato
-                                if (markdownTxt.Substring(contentActualStartIndex).StartsWith(newLines[0])) {
+                                if (markdownTxt.Substring(contentActualStartIndex).StartsWith(newLines[0]))
+                                {
                                     contentActualStartIndex += newLines[0].Length;
-                                } else if (markdownTxt.Substring(contentActualStartIndex).StartsWith(newLines[1])) {
-                                     contentActualStartIndex += newLines[1].Length;
+                                }
+                                else if (markdownTxt.Substring(contentActualStartIndex).StartsWith(newLines[1]))
+                                {
+                                    contentActualStartIndex += newLines[1].Length;
                                 }
 
                                 contentWithoutYaml = markdownTxt.Substring(contentActualStartIndex);
@@ -180,7 +186,7 @@ namespace MdExplorer.Controllers
                     }
                     else // Questo caso è improbabile se StartsWith ha avuto successo, ma per sicurezza
                     {
-                         _logger.LogInformation($"File starts with '---' but structure is unusual. Serving full content for: {filePathToAccessOnServer}");
+                        _logger.LogInformation($"File starts with '---' but structure is unusual. Serving full content for: {filePathToAccessOnServer}");
                     }
                 }
 
@@ -209,7 +215,7 @@ namespace MdExplorer.Controllers
                     relativePathForProcessing, // Pass the potentially adjusted relative path
                     filePathToAccessOnServer,  // Pass the absolute path
                     monitoredMd);
-                
+
                 _logger.LogInformation($"Serving markdown file: {filePathToAccessOnServer}");
                 return Content(processedMarkdownText, "text/plain; charset=utf-8");
             }
@@ -292,7 +298,7 @@ namespace MdExplorer.Controllers
                 Name = Path.GetFileName(fullPathFile),
                 DataText = readText
             };
-            
+
             (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
             if (isBroken)
             {
@@ -308,7 +314,7 @@ namespace MdExplorer.Controllers
 
             // HTML Pipeline, HTML Conversion, Post-HTML Conversion, and UI Element creation removed.
             // Directory.SetCurrentDirectory, cache logic, and HTML specific transformations removed.
-            
+
             //if (isPlantuml)
             //{                 
             //    // await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd); // Removed
@@ -319,5 +325,138 @@ namespace MdExplorer.Controllers
         // private static void CreateHTMLBody(...) // Method removed
         // private string AddButtonOnLowerBar(...) // Method removed
         // private string AddButtonTextOnVerticalBar(...) // Method removed
+
+        public class UpdateMarkdownRequest
+        {
+            public string FilePath { get; set; }
+            public string MarkdownContent { get; set; }
+        }
+
+        [HttpPost("UpdateMarkdown")]
+        public async Task<IActionResult> UpdateMarkdownAsync([FromBody] UpdateMarkdownRequest request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.FilePath) || request.MarkdownContent == null)
+            {
+                _logger.LogWarning("UpdateMarkdownAsync: Richiesta non valida o campi mancanti.");
+                return BadRequest("Richiesta non valida o campi mancanti.");
+            }
+
+            var filePathToAccessOnServer = request.FilePath;
+
+            if (!System.IO.File.Exists(filePathToAccessOnServer))
+            {
+                // Prova ad aggiungere .md se non esiste e non ha estensione
+                if (string.IsNullOrEmpty(Path.GetExtension(filePathToAccessOnServer)))
+                {
+                    filePathToAccessOnServer = request.FilePath + ".md";
+                    if (!System.IO.File.Exists(filePathToAccessOnServer))
+                    {
+                        _logger.LogWarning($"UpdateMarkdownAsync: File non trovato: {request.FilePath} o {filePathToAccessOnServer}");
+                        return NotFound($"File non trovato: {request.FilePath}");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"UpdateMarkdownAsync: File non trovato: {filePathToAccessOnServer}");
+                    return NotFound($"File non trovato: {filePathToAccessOnServer}");
+                }
+            }
+
+            try
+            {
+                var originalFullContent = await System.IO.File.ReadAllTextAsync(filePathToAccessOnServer, Encoding.UTF8);
+                string originalYamlBlock = "";
+                const string yamlSeparator = "---";
+                string[] newLines = { Environment.NewLine, "\n" }; // \r\n e \n
+
+                // Verifica se il contenuto inizia con il separatore YAML
+                bool startsWithYaml = false;
+                string firstNewLine = "";
+                foreach (var nl in newLines)
+                {
+                    if (originalFullContent.StartsWith(yamlSeparator + nl))
+                    {
+                        startsWithYaml = true;
+                        firstNewLine = nl;
+                        break;
+                    }
+                }
+
+                if (startsWithYaml)
+                {
+                    // Trovato l'inizio del blocco YAML. Cerchiamo la fine.
+                    // L'indice di partenza per la ricerca del secondo separatore è dopo il primo separatore e il suo newline.
+                    int searchStartIndexForSecondSeparator = yamlSeparator.Length + firstNewLine.Length;
+
+                    int secondSeparatorActualStartIndex = -1;
+                    string secondNewLine = "";
+
+                    foreach (var nl in newLines)
+                    {
+                        // Cerchiamo "---" seguito da un newline
+                        secondSeparatorActualStartIndex = originalFullContent.IndexOf(yamlSeparator + nl, searchStartIndexForSecondSeparator);
+                        if (secondSeparatorActualStartIndex != -1) // Trovato
+                        {
+                            secondNewLine = nl;
+                            break;
+                        }
+                    }
+
+                    if (secondSeparatorActualStartIndex != -1)
+                    {
+                        // Trovato il secondo separatore. Il blocco YAML va dall'inizio fino alla fine del secondo separatore + newline.
+                        int endOfYamlBlockIndex = secondSeparatorActualStartIndex + yamlSeparator.Length + secondNewLine.Length;
+                        originalYamlBlock = originalFullContent.Substring(0, endOfYamlBlockIndex);
+                        _logger.LogInformation($"UpdateMarkdownAsync: Blocco YAML originale estratto per {filePathToAccessOnServer}");
+                    }
+                    else
+                    {
+                        // Iniziato con YAML ma non trovato un secondo separatore valido.
+                        _logger.LogInformation($"UpdateMarkdownAsync: YAML front matter iniziato ma non chiuso correttamente in {filePathToAccessOnServer}. Nessun blocco YAML preservato.");
+                        // In questo caso, originalYamlBlock rimane vuoto, quindi l'intero contenuto originale non viene considerato YAML.
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation($"UpdateMarkdownAsync: Nessun YAML front matter trovato in {filePathToAccessOnServer}.");
+                }
+
+                // Combina l'YAML originale (se presente) con il nuovo contenuto Markdown.
+                // Assicurati che non ci siano doppi newline se originalYamlBlock è vuoto e MarkdownContent inizia con newline,
+                // o se originalYamlBlock finisce con newline e MarkdownContent inizia con newline.
+                // Se originalYamlBlock è vuoto, usiamo direttamente request.MarkdownContent.
+                // Se originalYamlBlock non è vuoto, termina con un newline. request.MarkdownContent dovrebbe iniziare senza newline.
+                string finalContentToWrite;
+
+                // Normalizza il contenuto Markdown ricevuto dal client
+                string contentFromClient = request.MarkdownContent;
+                // Primo: normalizza tutti i tipi di newline a \n
+                string normalizedToLfContent = contentFromClient.Replace("\r\n", "\n");
+                // Secondo: converti \n nel newline specifico della piattaforma
+                string platformSpecificContent = normalizedToLfContent.Replace("\n", Environment.NewLine);
+
+                if (!string.IsNullOrEmpty(originalYamlBlock))
+                {
+                    // originalYamlBlock dovrebbe già finire con il newline corretto (estratto dal file originale)
+                    // platformSpecificContent ora ha i newlines corretti per la piattaforma corrente.
+                    // TrimStart è per evitare doppi newlines se platformSpecificContent iniziasse con uno
+                    // e originalYamlBlock finisse già con uno.
+                    finalContentToWrite = originalYamlBlock + platformSpecificContent.TrimStart('\r', '\n');
+                }
+                else
+                {
+                    finalContentToWrite = platformSpecificContent;
+                }
+
+                await System.IO.File.WriteAllTextAsync(filePathToAccessOnServer, finalContentToWrite, Encoding.UTF8);
+                _logger.LogInformation($"UpdateMarkdownAsync: File aggiornato con successo: {filePathToAccessOnServer}");
+                return NoContent(); // O Ok() se si preferisce
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"UpdateMarkdownAsync: Errore durante l'aggiornamento del file: {filePathToAccessOnServer}");
+                return StatusCode(StatusCodes.Status500InternalServerError, "Errore durante l'aggiornamento del file.");
+            }
+        }
     }
 }

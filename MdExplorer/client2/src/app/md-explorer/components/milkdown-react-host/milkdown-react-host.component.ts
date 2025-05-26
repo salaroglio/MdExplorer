@@ -23,6 +23,7 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
 
   markdownContent: string = '# Benvenuto nell\\\'Editor React (Milkdown)!';
   private fileSubscription: Subscription;
+  private currentFilePath: string | null = null; // Per memorizzare il percorso del file corrente
 
   constructor(
     private location: Location,
@@ -34,33 +35,13 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
   ngOnInit(): void {
     this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(
       filter((file): file is MdFile => file !== null && file !== undefined), // Assicura che file non sia null/undefined
-      tap(file => console.log('React Host: File selezionato:', file.fullPath)), // Log per debug
+      tap(file => {
+        this.currentFilePath = file.fullPath; // Memorizza il percorso del file
+        console.log('React Host: File selezionato:', this.currentFilePath);
+      }),
       switchMap(file => {
-        if (file && file.fullPath) {
-          // Pulisce il percorso da eventuali caratteri problematici o normalizza i separatori se necessario
-          // Per ora, assumiamo che fullPath sia già corretto per l'URL.
-          // L'API controller usa {*url}, quindi dovrebbe catturare il percorso correttamente.
-          const encodedPath = encodeURIComponent(file.fullPath);
-          // NOTA: Il controller /api/MdExplorerEditorReact/{*url} si aspetta che il path sia parte dell'URL,
-          // non un parametro query. encodeURIComponent potrebbe non essere necessario se il path non contiene
-          // caratteri speciali che romperebbero l'URL. Tuttavia, il controller C# usa GetRelativePathFileSystem
-          // che potrebbe fare delle assunzioni sul formato del path.
-          // Per sicurezza, passiamo il fullPath direttamente, dato che {*url} lo catturerà.
-          // Se ci fossero problemi, potremmo dover aggiustare come il path viene inviato o processato.
-          // La route del controller è [Route("/api/MdExplorerEditorReact/{*url}")]
-          // Quindi l'URL sarà /api/MdExplorerEditorReact/C:/path/to/file.md (o simile)
-          // Il controller usa GetRelativePathFileSystem("mdexplorer") che prende l'URL dalla request.
-          // Quindi, il path deve essere relativo alla stringa "mdexplorer" nell'URL.
-          // Questo implica che il path inviato deve essere solo la parte dopo /api/MdExplorerEditorReact/
-          // Es: se fullPath è "C:\projects\MdExplorer\Notes\file.md"
-          // e il controller si aspetta "Notes/file.md" (relativo a _fileSystemWatcher.Path)
-          // Dovremo inviare il path relativo.
-          // Tuttavia, il controller sembra già gestire fullPath tramite _fileSystemWatcher.Path + relativePathFile
-          // e GetRelativePathFileSystem usa HttpUtility.UrlDecode(Request.Path.Value).Replace("/api/MdExplorerEditorReact/", string.Empty);
-          // Quindi, passare il fullPath direttamente dovrebbe funzionare.
-          return this.http.get(`/api/MdExplorerEditorReact/${file.fullPath}`, { responseType: 'text' });
-        }
-        return ''; // O un Observable vuoto, es: EMPTY
+        // Non è necessario controllare file.fullPath qui perché filter e tap lo hanno già fatto
+        return this.http.get(`/api/MdExplorerEditorReact/${file.fullPath}`, { responseType: 'text' });
       })
     ).subscribe({
       next: (markdown) => {
@@ -99,7 +80,55 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     // }
   }
 
-  goBack(): void {
+  async saveMarkdown(): Promise<void> {
+    if (!this.currentFilePath) {
+      console.error('React Host: Nessun percorso file corrente per salvare.');
+      return;
+    }
+
+    let markdownToSave: string | null = null;
+    const editorElement = this.docsPilotElementRef?.nativeElement as any; // Cast to any to access potential custom properties
+
+    if (editorElement) {
+      // Tentativo 1: Accedere alla proprietà 'markdown' (che dovrebbe invocare il getter del WebComponent)
+      // Questo getter, come visto in integration.ts, prova a chiamare this.editor.getMarkdown()
+      if (typeof editorElement.markdown !== 'undefined') {
+        markdownToSave = editorElement.markdown;
+        console.log('React Host: Markdown ottenuto tramite proprietà .markdown del WebComponent.');
+      } else {
+        // Tentativo 2: Fallback a getAttribute se la proprietà non esiste o è undefined
+        markdownToSave = editorElement.getAttribute('markdown');
+        console.log('React Host: Markdown ottenuto tramite .getAttribute(\'markdown\') del WebComponent.');
+      }
+    }
+
+    // Se entrambi i metodi sopra falliscono o restituiscono null (improbabile se l'editor funziona)
+    if (markdownToSave === null) {
+        markdownToSave = this.markdownContent; // Fallback estremo
+        console.warn('React Host: Impossibile ottenere il markdown aggiornato dal WebComponent tramite proprietà o attributo. Utilizzo di this.markdownContent (potenzialmente obsoleto).');
+    }
+
+    console.log('React Host: Tentativo di salvataggio per:', this.currentFilePath);
+    // console.log('React Host: Contenuto da salvare:', markdownToSave ? markdownToSave.substring(0,100) + "..." : "null");
+
+
+    const requestBody = {
+      FilePath: this.currentFilePath,
+      MarkdownContent: markdownToSave
+    };
+
+    try {
+      await this.http.post('/api/MdExplorerEditorReact/UpdateMarkdown', requestBody).toPromise();
+      console.log('React Host: Markdown salvato con successo per:', this.currentFilePath);
+      // Aggiungere un feedback per l'utente, es. con MatSnackBar
+    } catch (error) {
+      console.error('React Host: Errore durante il salvataggio del markdown:', error);
+      // Aggiungere un feedback di errore per l'utente
+    }
+  }
+
+  async goBack(): Promise<void> {
+    await this.saveMarkdown(); // Salva prima di tornare indietro
     this.location.back();
   }
 
