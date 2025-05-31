@@ -1,0 +1,14 @@
+# MdExplorer Application Extension Configuration
+# This file defines which file extensions should be opened in external applications
+# when clicked in the markdown viewer
+
+# Extensions that should open in external applications
+supportedExtensions:
+  - xlsx    # Microsoft Excel files
+  - xls     # Microsoft Excel files (old format)
+  - pdf     # PDF documents
+  - docx    # Microsoft Word documents
+  - pptx    # Microsoft PowerPoint presentations
+  - ppt     # Microsoft PowerPoint presentations (old format)
+  - bmpr    # Balsamiq mockup files
+  - xml		# file xml

@@ -17,21 +17,21 @@
         <mat-card-title>Clone a repository</mat-card-title>
         <mat-card-subtitle>Get code from an online repository like GitLab</mat-card-subtitle>
         <mat-card-actions>
-          <button mat-stroked-button (click)="prepareToClone()" color="primary">Clone</button>
+          <button mat-stroked-button data-test="clone-button" (click)="prepareToClone()" color="primary">Clone</button>
         </mat-card-actions>
       </mat-card>
       <mat-card>
         <mat-card-title>Create new project</mat-card-title>
         <mat-card-subtitle>Choose filesystem folder to get started</mat-card-subtitle>
         <mat-card-actions>
-          <button mat-stroked-button color="primary" (click)="openNewFolder()">Create</button>
+          <button mat-stroked-button color="primary" data-test="new-folder-button" (click)="openNewFolder()">Create</button>
         </mat-card-actions>
       </mat-card>
       <mat-card>
         <mat-card-title>General settings</mat-card-title>
         <mat-card-subtitle>Change main settings</mat-card-subtitle>
         <mat-card-actions>
-          <button mat-stroked-button color="primary" (click)="openSettings()">Settings</button>
+          <button mat-stroked-button color="primary" data-test="settings-button" (click)="openSettings()">Settings</button>
         </mat-card-actions>
       </mat-card>
     </div>

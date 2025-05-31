@@ -16,7 +16,7 @@ namespace MdExplorer.Features.Refactoring.Analysis
     {
         public (bool, string) ItBreakTheRule(FileInfoNode toCheck)
         {
-            var rx = new Regex("# (.*)\r",
+            var rx = new Regex("^# (.*)$",
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(toCheck.DataText);
             var firstTitle = matches[0].Groups[1].Value;

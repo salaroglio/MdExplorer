@@ -1,0 +1,78 @@
+﻿<html><head>
+            <link rel="stylesheet" href="/common.css" />            
+            <script src="/common.js"></script></head><body Id="MdBody" ConnectionId="dtBl0iJxMIrT27WxO5OUbQ">
+                    <div class="edith1-popup-overlay">
+                        <div class="popup-content">
+                            <h4>Inline Editor</h4>
+                           <textarea rows="10" class="edith1textarea " id="editH1">if you see this, something wrong happened</textarea>
+                            <button class="close">Close</button>    
+                            <button class="save">save</button>  
+                        </div>
+                    </div>    
+                   
+                    <div class="mdeTocSticky-top">                        
+                        <div id="TOC" class="tocNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\CLAUDE.md">
+                            <div class="mdeTocTitle">Table of content</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeToc()"></div>
+                                <nav class="tocNavNavigation">
+                                    <div class="toc js-toc"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div id="Refs" class="refsNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\CLAUDE.md">
+                            <div class="mdeRefsTitle">References</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeRefs()"></div>
+                                <nav class="refsNavNavigation">
+                                    <div id="references" class="refsMain"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="mdeVerticalTab">
+                            <div class="buttonTabToc">
+                                <div><div onClick="toggleTOC('C%3a%5csviluppo%5cmdExplorer%5cCLAUDE.md')" style="cursor: pointer">TOC</div></div>                             
+                            </div>
+                            <div class="buttonTabRefs">
+                                <div><div onClick="toggleReferences('C%3a%5csviluppo%5cmdExplorer%5cCLAUDE.md')" style="cursor: pointer">Refs</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mdeLowerBar">
+                             <div class="mdeLowerBarButton"><a onClick="toggleMdCanvas(this)" class="mdExplorerLink"><img src="/assets/drawStatic.png" id="canvas" /></a></div>                            
+                             <div class="mdeLowerBarButton"><a onClick="toggleEditor()" class="mdExplorerLink"><img src="/assets/editorInLine.png" id="editorH1" /></a></div>
+                    </div>
+                    <div class="mdeContainerIFrameApplciation">
+                        <div class="mdeItemMainPageLeftMenu"></div>
+                        
+                        <div class="mdeItemMainPageCenter md-tocbot-content js-toc-content">
+                            <div md-itemmatchindex="0" md-h1Id="0" class="editorH1"><h1 id="claude" md-itemmatchindex="0" md-h1Id="0">CLAUDE</h1><p>This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.</p></div><div md-itemmatchindex="118" md-h1Id="118" class="editorH1"><h2 id="architecture-overview" md-itemmatchindex="118" md-h1Id="118">Architecture Overview</h2><p>MdExplorer is a multi-project .NET solution for Markdown file management and editing with the following architecture:</p></div><div md-itemmatchindex="267" md-h1Id="267" class="editorH1"><h3 id="core-services" md-itemmatchindex="267" md-h1Id="267">Core Services</h3><ul><li><strong>MdExplorer.Service</strong> - ASP.NET Core 3.1 web API serving Angular and React frontends</li><li><strong>MdExplorer.Features</strong> - Business logic layer containing commands, exports (PDF/Word), and feature implementations</li><li><strong>Data Access Layer</strong> - Currently undergoing migration from <code>Ad.Tools.Dal</code> to <code>Ad.Tools.Dal.Evo</code> using Strangler Fig Pattern
+<ul><li>Uses NHibernate ORM with FluentNHibernate mappings</li><li>SQLite databases: <code>MdExplorer.db</code> (user data), <code>MdEngine.db</code> (engine data), project-specific DBs</li><li>FluentMigrator for database schema migrations</li></ul></li></ul></div><div md-itemmatchindex="835" md-h1Id="835" class="editorH1"><h3 id="frontend-applications" md-itemmatchindex="835" md-h1Id="835">Frontend Applications</h3><ul><li><strong>Angular Client</strong> (<code>MdExplorer/client2</code>) - Main UI built with Angular 11 and Material Design</li><li><strong>React Editor</strong> (<code>MdEditor.React</code>) - Milkdown-based markdown editor using React 19</li><li><strong>Electron Desktop</strong> (<code>ElectronMdExplorer</code>) - Desktop wrapper for the web application</li></ul></div><div md-itemmatchindex="1139" md-h1Id="1139" class="editorH1"><h3 id="key-patterns" md-itemmatchindex="1139" md-h1Id="1139">Key Patterns</h3><ul><li>Command Pattern for markdown transformations (see <code>Commands/</code> folders)</li><li>Repository/Unit of Work pattern (being introduced in new DAL)</li><li>SignalR for real-time file monitoring</li><li>Dependency Injection throughout</li></ul></div><div md-itemmatchindex="1376" md-h1Id="1376" class="editorH1"><h2 id="common-development-commands" md-itemmatchindex="1376" md-h1Id="1376">Common Development Commands</h2></div><div md-itemmatchindex="1410" md-h1Id="1410" class="editorH1"><h3 id="backend-development" md-itemmatchindex="1410" md-h1Id="1410">Backend Development</h3><pre><code class="language-Shell"># Build entire solution
+dotnet build
+
+# Run the main service
+dotnet run --project MdExplorer/MdExplorer.Service.csproj
+
+# Run specific tests
+dotnet test MdExplorer.Features.Tests/MdExplorer.Features.Tests.csproj
+</code></pre></div><div md-itemmatchindex="1674" md-h1Id="1674" class="editorH1"><h3 id="frontend-development" md-itemmatchindex="1674" md-h1Id="1674">Frontend Development</h3></div><div md-itemmatchindex="1702" md-h1Id="1702" class="editorH1"><h4 id="angular-client" md-itemmatchindex="1702" md-h1Id="1702">Angular Client</h4><pre><code class="language-Shell">cd MdExplorer/client2
+npm install
+npm run build    # Production build with correct base href
+npm start        # Development server
+npm run lint     # Run linter
+npm test         # Run tests
+</code></pre></div><div md-itemmatchindex="1938" md-h1Id="1938" class="editorH1"><h4 id="react-editor" md-itemmatchindex="1938" md-h1Id="1938">React Editor</h4><pre><code class="language-Shell">cd MdEditor.React
+npm install
+npm run build    # Production build
+npm run dev      # Development server with Vite
+npm run lint     # Run ESLint
+</code></pre></div><div md-itemmatchindex="2125" md-h1Id="2125" class="editorH1"><h4 id="electron-desktop" md-itemmatchindex="2125" md-h1Id="2125">Electron Desktop</h4><pre><code class="language-Shell">cd ElectronMdExplorer
+npm install
+npm start        # Run Electron app
+npm run build    # Build distributables
+</code></pre></div><div md-itemmatchindex="2281" md-h1Id="2281" class="editorH1"><h2 id="database-migrations" md-itemmatchindex="2281" md-h1Id="2281">Database Migrations</h2><p>The project uses FluentMigrator for database schema management:</p><ul><li>User DB migrations: <code>MdExplorer.Migrations/</code></li><li>Engine DB migrations: <code>MdExplorer.Migrations.EngineDb/</code></li><li>Project DB migrations: <code>MdExplorer.Migrations.ProjectDb/</code></li></ul><p>Migrations run automatically on startup.</p></div><div md-itemmatchindex="2588" md-h1Id="2588" class="editorH1"><h2 id="key-features-integration-points" md-itemmatchindex="2588" md-h1Id="2588">Key Features &amp; Integration Points</h2></div><div md-itemmatchindex="2628" md-h1Id="2628" class="editorH1"><h3 id="plantuml-integration" md-itemmatchindex="2628" md-h1Id="2628">PlantUML Integration</h3><ul><li>Server configured in <code>appsettings.json</code> under <code>MdExplorer.PlantumlServer</code></li><li>JAR files located in <code>MdExplorer/Binaries/</code></li><li>Conversion handled by <code>FromPlantumlToPng</code> and <code>FromPlantumlToSvg</code> commands</li></ul></div><div md-itemmatchindex="2860" md-h1Id="2860" class="editorH1"><h3 id="git-integration" md-itemmatchindex="2860" md-h1Id="2860">Git Integration</h3><ul><li>Uses LibGit2Sharp for Git operations</li><li>Controllers: <code>BranchesController</code>, <code>TagsController</code>, <code>GitFeatureController</code></li><li>Service: <code>GitService</code> in Features project</li></ul></div><div md-itemmatchindex="3049" md-h1Id="3049" class="editorH1"><h3 id="document-export" md-itemmatchindex="3049" md-h1Id="3049">Document Export</h3><ul><li>PDF export uses Pandoc with eisvogel template</li><li>Word export uses custom DOCX templates in <code>MdExplorer/templates/word/</code></li><li>Implementation in <code>PdfFeatures</code> and <code>WordFeatures</code> classes</li></ul></div><div md-itemmatchindex="3259" md-h1Id="3259" class="editorH1"><h3 id="real-time-features" md-itemmatchindex="3259" md-h1Id="3259">Real-time Features</h3><ul><li>SignalR hub: <code>MonitorMDHub</code></li><li>File monitoring: <code>MonitorMDHostedService</code></li><li>Refactoring support with file tracking</li></ul></div><div md-itemmatchindex="3405" md-h1Id="3405" class="editorH1"><h2 id="testing-approach" md-itemmatchindex="3405" md-h1Id="3405">Testing Approach</h2><ul><li>Test files organized by feature in test projects</li><li>Test data includes sample Markdown, HTML, DOCX, and YAML files</li><li>Angular tests use Karma/Jasmine</li><li>.NET tests use MSTest framework</li></ul></div><div md-itemmatchindex="3618" md-h1Id="3618" class="editorH1"><h2 id="active-refactoring" md-itemmatchindex="3618" md-h1Id="3618">Active Refactoring</h2><p>The DAL is being migrated from <code>Ad.Tools.Dal</code> to <code>Ad.Tools.Dal.Evo</code> following the Strangler Fig Pattern. See <code>Ad.Tools.Dal/EvoluzionDal.md</code> for details. When working with data access:</p><ul><li>New features should use <code>IUnitOfWork</code> and <code>IRepository&lt;T&gt;</code> from <code>Ad.Tools.Dal.Evo.Abstractions</code></li><li>Existing code may still use the old DAL interfaces</li><li>Both DALs currently coexist in the application</li></ul><br /><div style="display:none" md-h1Id="0" md-itemmatchindex="0" md-itemmatchindex-end="118" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="118" md-itemmatchindex="118" md-itemmatchindex-end="267" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="1376" md-itemmatchindex="1376" md-itemmatchindex-end="1410" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="2281" md-itemmatchindex="2281" md-itemmatchindex-end="2588" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="2588" md-itemmatchindex="2588" md-itemmatchindex-end="2628" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="3405" md-itemmatchindex="3405" md-itemmatchindex-end="3618" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div></div><div style="display:none" md-h1Id="3618" md-itemmatchindex="3618" md-itemmatchindex-end="0" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="267" md-itemmatchindex="267" md-itemmatchindex-end="835" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="835" md-itemmatchindex="835" md-itemmatchindex-end="1139" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="1139" md-itemmatchindex="1139" md-itemmatchindex-end="1376" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="1410" md-itemmatchindex="1410" md-itemmatchindex-end="1447" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="1674" md-itemmatchindex="1674" md-itemmatchindex-end="1702" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="2628" md-itemmatchindex="2628" md-itemmatchindex-end="2860" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="2860" md-itemmatchindex="2860" md-itemmatchindex-end="3049" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="3049" md-itemmatchindex="3049" md-itemmatchindex-end="3259" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="3259" md-itemmatchindex="3259" md-itemmatchindex-end="3405" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="1702" md-itemmatchindex="1702" md-itemmatchindex-end="1938" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="1938" md-itemmatchindex="1938" md-itemmatchindex-end="2125" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div><div style="display:none" md-h1Id="2125" md-itemmatchindex="2125" md-itemmatchindex-end="2281" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\CLAUDE.md">todo</div>
+                        </div>
+                        
+                    </div>
+                     
+                    </body></html>

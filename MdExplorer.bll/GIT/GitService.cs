@@ -33,7 +33,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 return config.Where(_ => _.Key == "user.name").First().Value.ToString();
             }
         }
@@ -47,7 +47,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var data = repo.Head.FriendlyName;
                 dataToReturn = data;
             }
@@ -62,7 +62,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 return config.Where(_ => _.Key == "user.email").First().Value.ToString();
             }
         }
@@ -343,7 +343,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var tags = repo.Tags;
                 var gitTags = tags.AsQueryable().Select(_ => new GitTag
                 {
@@ -573,7 +573,7 @@ namespace MdExplorer.Features.GIT
             using (var repo = new Repository(pullInfo.ProjectPath))
             {
                 var currentEmail = GetCurrentUserEmail(pullInfo.ProjectPath);
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var data = repo.Head.CanonicalName;
 
                 var currentStatus = repo.RetrieveStatus();
@@ -717,7 +717,7 @@ namespace MdExplorer.Features.GIT
             using (var repo = new Repository(pullInfo.ProjectPath))
             {
                 var currentEmail = GetCurrentUserEmail(pullInfo.ProjectPath);
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var data = repo.Head.CanonicalName;
 
                 var currentStatus = repo.RetrieveStatus();

@@ -1,10 +1,12 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
+using MdExplorer.Features.Configuration.Interfaces;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NHibernate;
@@ -113,6 +115,11 @@ namespace MdExplorer.Features.Commands
                         if (param.Name == "serverCache")
                         {
                             paramsTo.Add(_serverCache);
+                        }
+                        if (param.Name == "extensionConfiguration")
+                        {
+                            var extensionConfig = _serviceProvider.GetService<IApplicationExtensionConfiguration>();
+                            paramsTo.Add(extensionConfig);
                         }
                         
                     }

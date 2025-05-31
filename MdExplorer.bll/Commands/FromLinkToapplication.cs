@@ -3,6 +3,7 @@ using DocumentFormat.OpenXml.Office.CustomUI;
 using Markdig;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands.html;
+using MdExplorer.Features.Configuration.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -16,17 +17,17 @@ namespace MdExplorer.Features.Commands
     public class FromLinkToApplication : ICommand
     {
         private readonly ILogger<FromLinkToApplicationHtml> _logger;
+        private readonly IApplicationExtensionConfiguration _extensionConfiguration;
 
-        public FromLinkToApplication(ILogger<FromLinkToApplicationHtml> logger)
+        public FromLinkToApplication(ILogger<FromLinkToApplicationHtml> logger, IApplicationExtensionConfiguration extensionConfiguration)
         {
             _logger = logger;
+            _extensionConfiguration = extensionConfiguration;
         }
 
         public int Priority { get; set; } = 30;
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromLinkToApplication";
-
-        private string[] ExtensionArrayToOpenInApplication = { "xlsx", "pdf", "bmpr", "docx", "pptx", "xls", "ppt" };
 
         public MatchCollection GetMatches(string markdown)
         {
@@ -45,8 +46,9 @@ namespace MdExplorer.Features.Commands
         public string TransformAfterConversion(string html, RequestInfo requestInfo)
         {
             var matches = GetMatches(html);
+            var supportedExtensions = _extensionConfiguration.GetSupportedExtensions();
 
-            foreach (var extension in ExtensionArrayToOpenInApplication)
+            foreach (var extension in supportedExtensions)
             {
                 foreach (Match item in matches.Where(_ => _.Groups[0].Value.Contains($".{extension}")))
                 {
@@ -68,7 +70,7 @@ namespace MdExplorer.Features.Commands
                 }
             }
 
-            foreach (var extension in ExtensionArrayToOpenInApplication)
+            foreach (var extension in supportedExtensions)
             {
                 foreach (Match item in matches.Where(_ => _.Groups[0].Value.Contains($".{extension}")))
                 {

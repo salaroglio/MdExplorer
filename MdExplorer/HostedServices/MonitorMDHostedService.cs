@@ -19,6 +19,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace MdExplorer.Service.HostedServices
 {
@@ -30,6 +32,7 @@ namespace MdExplorer.Service.HostedServices
         private readonly IServiceProvider _serviceProvider;
         private readonly IWorkLink[] _linkManagers;
         private readonly IHelper _helper;
+        private readonly FileChangeIgnoreConfiguration _ignoreConfiguration;
 
         public MonitorMDHostedService(
                 IHubContext<MonitorMDHub> hubContext,
@@ -45,6 +48,10 @@ namespace MdExplorer.Service.HostedServices
             _serviceProvider = serviceProvider;
             _linkManagers = linkManagers;
             _helper = helper;
+            
+            // Load the ignore configuration from YAML file
+            _ignoreConfiguration = LoadIgnoreConfiguration();
+            
             // console closing management, send back closing server to the angular client
             handler = new ConsoleEventDelegate(SendExitToAngular);
             SetConsoleCtrlHandler(handler, true);
@@ -58,6 +65,44 @@ namespace MdExplorer.Service.HostedServices
                 _hubContext.Clients.All.SendAsync("consoleClosed");
             }
             return false;                        
+        }
+
+        private FileChangeIgnoreConfiguration LoadIgnoreConfiguration()
+        {
+            var configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".mdchangeignore");
+            
+            if (File.Exists(configFilePath))
+            {
+                try
+                {
+                    var yamlContent = File.ReadAllText(configFilePath);
+                    var deserializer = new DeserializerBuilder()
+                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                        .Build();
+                    
+                    var config = deserializer.Deserialize<FileChangeIgnoreConfiguration>(yamlContent);
+                    _logger.LogInformation("Loaded file change ignore configuration from .mdchangeignore");
+                    return config ?? new FileChangeIgnoreConfiguration();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to load .mdchangeignore configuration. Using default hardcoded values.");
+                }
+            }
+            else
+            {
+                _logger.LogWarning(".mdchangeignore file not found. Using default hardcoded values.");
+            }
+
+            // Return default configuration if file doesn't exist or parsing fails
+            return new FileChangeIgnoreConfiguration
+            {
+                IgnoredDirectories = new List<string> { ".md" },
+                IgnoredExtensions = new List<string> { ".pptx", ".docx", ".xlsx", ".xls", ".ppt", ".xlsb", ".bmpr", ".tmp" },
+                IgnoredPatterns = new List<string> { ".md", ".0.pdnSave" },
+                GitIgnoredFiles = new List<string> { "FETCH_HEAD", "COMMIT_EDITMSG", ".git/" },
+                IgnoreFilesWithoutExtension = true
+            };
         }
 
         static ConsoleEventDelegate handler;   // Keeps it from getting garbage collected
@@ -150,21 +195,38 @@ namespace MdExplorer.Service.HostedServices
 
         private (bool,bool,bool,bool) ThereIsNoNeedToAlertClient(FileSystemEventArgs e)
         {
-            var isWrongDirectory = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
-            var isWrongExtensionFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}.md")
-                                        || e.FullPath.ToLower().Contains($".pptx")
-                                        || e.FullPath.ToLower().Contains($".docx")
-                                        || e.FullPath.ToLower().Contains($".xlsx")
-                                        || e.FullPath.ToLower().Contains($".xls")
-                                        || e.FullPath.ToLower().Contains($".ppt")
-                                        || e.FullPath.ToLower().Contains($".xlsb")
-                                        || e.FullPath.ToLower().Contains($".bmpr")
-                                        || e.FullPath.ToLower().Contains($".tmp");
-            var isWrongGitFile = e.FullPath.Contains($"{Path.DirectorySeparatorChar}FETCH_HEAD")
-                                        || e.FullPath.Contains($"{Path.DirectorySeparatorChar}COMMIT_EDITMSG")
-                                        || e.FullPath.Contains($".0.pdnSave")
-                                        || e.FullPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"); // Paint.net problem
-            var hasNoExtension = Path.GetExtension(e.FullPath) == string.Empty;
+            // Check if file is in an ignored directory
+            var isWrongDirectory = _ignoreConfiguration.IgnoredDirectories.Any(dir => 
+                e.FullPath.Contains($"{Path.DirectorySeparatorChar}{dir}{Path.DirectorySeparatorChar}"));
+            
+
+            // Check if file has an ignored extension
+            var extension = Path.GetExtension(e.FullPath).ToLower();
+            var isWrongExtensionFile = _ignoreConfiguration.IgnoredExtensions.Any(ext => 
+                extension == ext.ToLower());
+            
+            // Check for ignored patterns
+            isWrongExtensionFile = isWrongExtensionFile || _ignoreConfiguration.IgnoredPatterns.Any(pattern => 
+                e.FullPath.Contains(pattern));
+            
+            // Check for Git-related ignored files
+            var isWrongGitFile = _ignoreConfiguration.GitIgnoredFiles.Any(gitFile => 
+            {
+                if (gitFile.EndsWith("/"))
+                {
+                    // It's a directory pattern
+                    return e.FullPath.Contains($"{Path.DirectorySeparatorChar}{gitFile.TrimEnd('/')}{Path.DirectorySeparatorChar}");
+                }
+                else
+                {
+                    // It's a file pattern
+                    return e.FullPath.Contains($"{Path.DirectorySeparatorChar}{gitFile}") || e.FullPath.Contains($".{gitFile}");
+                }
+            });
+            
+            var hasNoExtension = _ignoreConfiguration.IgnoreFilesWithoutExtension && 
+                                Path.GetExtension(e.FullPath) == string.Empty;
+                                
             return (isWrongDirectory, isWrongExtensionFile, isWrongGitFile, hasNoExtension);
         }
 

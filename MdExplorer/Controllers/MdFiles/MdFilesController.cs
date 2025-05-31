@@ -49,10 +49,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-
-using System.Text;
 using System.Text.RegularExpressions;
+using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -604,11 +603,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(list);
         }
         private string signalRConnectionId;
+        private List<string> mdIgnorePatterns;
 
         [HttpGet]
         public async Task<IActionResult> GetAllMdFiles(string connectionId)
         {
             signalRConnectionId = connectionId;
+            
+            // Load .mdignore patterns
+            LoadMdIgnorePatterns();
 
             await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("parsingProjectStart", "process started");
 
@@ -636,6 +639,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
+                // Check if folder should be ignored
+                if (ShouldIgnorePath(itemFolder))
+                {
+                    continue;
+                }
+                
                 _hubContext.Clients.Client(connectionId: signalRConnectionId)
                     .SendAsync("indexingFolder", itemFolder).Wait();
                 (var node, var isempty) = CreateNodeFolder(itemFolder);
@@ -1110,6 +1119,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
             {
+                // Check if folder should be ignored
+                if (ShouldIgnorePath(itemFolder))
+                {
+                    continue;
+                }
+                
                 (FileInfoNode node, bool isempty) = CreateNodeFolder(itemFolder);
                 if (!isempty)
                 {
@@ -1126,6 +1141,78 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 isEmpty = false;
             }
             return isEmpty;
+        }
+
+        private void LoadMdIgnorePatterns()
+        {
+            mdIgnorePatterns = new List<string>();
+            var mdIgnorePath = Path.Combine(_fileSystemWatcher.Path, ".mdignore");
+            
+            if (System.IO.File.Exists(mdIgnorePath))
+            {
+                var lines = System.IO.File.ReadAllLines(mdIgnorePath);
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    // Skip empty lines and comments
+                    if (!string.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("#"))
+                    {
+                        mdIgnorePatterns.Add(trimmedLine);
+                    }
+                }
+            }
+        }
+
+        private bool ShouldIgnorePath(string path)
+        {
+            if (mdIgnorePatterns == null || mdIgnorePatterns.Count == 0)
+                return false;
+
+            // Get relative path from project root
+            var relativePath = path.Substring(_fileSystemWatcher.Path.Length).TrimStart(Path.DirectorySeparatorChar);
+            relativePath = relativePath.Replace(Path.DirectorySeparatorChar, '/');
+
+            foreach (var pattern in mdIgnorePatterns)
+            {
+                if (IsPatternMatch(relativePath, pattern))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsPatternMatch(string path, string pattern)
+        {
+            // Handle exact matches
+            if (pattern == path)
+                return true;
+
+            // Handle directory patterns (ending with /)
+            if (pattern.EndsWith("/"))
+            {
+                var dirPattern = pattern.TrimEnd('/');
+                if (path == dirPattern || path.StartsWith(dirPattern + "/"))
+                    return true;
+            }
+
+            // Handle wildcard patterns
+            if (pattern.Contains("*"))
+            {
+                var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+                return Regex.IsMatch(path, regexPattern);
+            }
+
+            // Handle patterns that should match at any level
+            if (!pattern.Contains("/"))
+            {
+                var pathParts = path.Split('/');
+                return pathParts.Any(part => part == pattern);
+            }
+
+            // Handle patterns with path separators
+            return path == pattern || path.StartsWith(pattern + "/");
         }
     }
 }

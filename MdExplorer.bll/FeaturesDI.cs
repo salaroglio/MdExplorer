@@ -3,6 +3,8 @@ using MdExplorer.Features.ActionLinkModifiers;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Commands.Runners;
+using MdExplorer.Features.Configuration.Interfaces;
+using MdExplorer.Features.Configuration.Services;
 using MdExplorer.Features.GIT;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
@@ -33,6 +35,9 @@ namespace MdExplorer.Features
     {
         public static IServiceCollection AddMDExplorerCommands(this IServiceCollection services)
         {
+            // Configuration services
+            services.AddSingleton<IApplicationExtensionConfiguration, ApplicationExtensionConfigurationService>();
+            
             services.AddSingleton<ICommandFactoryMD, CommandFactoryMD>();
             services.AddTransient(_ => _.GetService<ICommandFactoryMD>().GetCommands());
             services.AddSingleton<ICommandFactoryHtml, CommandFactoryHtml>();            

@@ -1,0 +1,76 @@
+﻿<html><head>
+            <link rel="stylesheet" href="/common.css" />            
+            <script src="/common.js"></script></head><body Id="MdBody" ConnectionId="C2csl4oZSrB5kw5GNOmA3w">
+                    <div class="edith1-popup-overlay">
+                        <div class="popup-content">
+                            <h4>Inline Editor</h4>
+                           <textarea rows="10" class="edith1textarea " id="editH1">if you see this, something wrong happened</textarea>
+                            <button class="close">Close</button>    
+                            <button class="save">save</button>  
+                        </div>
+                    </div>    
+                   
+                    <div class="mdeTocSticky-top">                        
+                        <div id="TOC" class="tocNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">
+                            <div class="mdeTocTitle">Table of content</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeToc()"></div>
+                                <nav class="tocNavNavigation">
+                                    <div class="toc js-toc"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div id="Refs" class="refsNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">
+                            <div class="mdeRefsTitle">References</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeRefs()"></div>
+                                <nav class="refsNavNavigation">
+                                    <div id="references" class="refsMain"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="mdeVerticalTab">
+                            <div class="buttonTabToc">
+                                <div><div onClick="toggleTOC('C%3a%5csviluppo%5cmdExplorer%5cAd.Tools.Dal%5cEvoluzionDal.md')" style="cursor: pointer">TOC</div></div>                             
+                            </div>
+                            <div class="buttonTabRefs">
+                                <div><div onClick="toggleReferences('C%3a%5csviluppo%5cmdExplorer%5cAd.Tools.Dal%5cEvoluzionDal.md')" style="cursor: pointer">Refs</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mdeLowerBar">
+                             <div class="mdeLowerBarButton"><a onClick="toggleMdCanvas(this)" class="mdExplorerLink"><img src="/assets/drawStatic.png" id="canvas" /></a></div>                            
+                             <div class="mdeLowerBarButton"><a onClick="toggleEditor()" class="mdExplorerLink"><img src="/assets/editorInLine.png" id="editorH1" /></a></div>
+                    </div>
+                    <div class="mdeContainerIFrameApplciation">
+                        <div class="mdeItemMainPageLeftMenu"></div>
+                        
+                        <div class="mdeItemMainPageCenter md-tocbot-content js-toc-content">
+                            <br /><div md-itemmatchindex="10" md-h1Id="10" class="editorH1"><h1 id="evoluzionedal" md-itemmatchindex="10" md-h1Id="10">EvoluzioneDal</h1></div><div md-itemmatchindex="29" md-h1Id="29" class="editorH1"><h1 id="refactoring-evolutivo-di-ad.tools.dal-con-pattern-unit-of-work" md-itemmatchindex="29" md-h1Id="29">Refactoring Evolutivo di Ad.Tools.Dal con Pattern Unit of Work</h1></div><div md-itemmatchindex="97" md-h1Id="97" class="editorH1"><h2 id="obiettivo" md-itemmatchindex="97" md-h1Id="97">Obiettivo</h2><p>Refactoring del layer di accesso ai dati (<code>Ad.Tools.Dal</code>) per introdurre il pattern <strong>Unit of Work (UoW)</strong> e <strong>Repository</strong>, migliorando la gestione delle transazioni, la testabilità e l'allineamento con le pratiche moderne di NHibernate. Si mira inoltre a risolvere l'uso di API obsolete e aggiornare potenziali dipendenze vulnerabili.</p></div><div md-itemmatchindex="453" md-h1Id="453" class="editorH1"><h2 id="approccio-scelto-strangler-fig-pattern" md-itemmatchindex="453" md-h1Id="453">Approccio Scelto: Strangler Fig Pattern</h2><p>Per minimizzare i rischi e permettere un'evoluzione graduale senza interrompere la funzionalità esistente durante il processo, adotteremo lo <strong>Strangler Fig Pattern</strong>.</p><p>Questo approccio prevede la creazione di una nuova implementazione del DAL (che chiameremo <code>Ad.Tools.Dal.Evo</code>) che coesisterà temporaneamente con quella vecchia (<code>Ad.Tools.Dal</code>). I componenti dell'applicazione (principalmente nel BLL - Business Logic Layer) verranno migrati incrementalmente per utilizzare la nuova implementazione. Man mano che più componenti usano il nuovo DAL, quello vecchio viene progressivamente "strangolato" fino a poter essere rimosso in sicurezza.</p><div class="mermaid">graph TD
+    A[Applicazione / BLL] --&gt;|Chiama| O(Ad.Tools.Dal - Vecchio);
+    A --&gt;|Chiama (gradualmente)| N(Ad.Tools.Dal.Evo - Nuovo);
+    O --&gt; DB[(Database)];
+    N --&gt; DB;
+
+    subgraph "Fase Iniziale"
+        A -- Utilizzo Esclusivo --&gt; O;
+    end
+
+    subgraph "Fase Intermedia (Migrazione)"
+        A -- Utilizzo Misto --&gt; O;
+        A -- Utilizzo Misto --&gt; N;
+    end
+
+    subgraph "Fase Finale"
+        A -- Utilizzo Esclusivo --&gt; N;
+        O -- Dismesso --&gt; X((X));
+    end
+
+    style O fill:#f9f,stroke:#333,stroke-width:2px;
+    style N fill:#9cf,stroke:#333,stroke-width:2px;
+</div><p><strong>Vantaggi di Questo Approccio:</strong></p><ul><li><strong>Rischio Ridotto:</strong> L'applicazione principale rimane funzionante durante il refactoring. Le modifiche sono isolate.</li><li><strong>Progresso Incrementale:</strong> Le modifiche vengono introdotte e testate gradualmente, componente per componente.</li><li><strong>Rollback Facilitato:</strong> Se la migrazione di un componente causa problemi, è più semplice isolare il problema e/o tornare alla vecchia implementazione per quel componente specifico senza bloccare l'intera applicazione.</li><li><strong>Nessun "Big Bang":</strong> Si evita un unico grande rilascio con molte modifiche rischiose e difficili da testare contemporaneamente.</li><li><strong>Feedback Continuo:</strong> Si ottiene feedback sul funzionamento del nuovo DAL man mano che viene utilizzato da più parti dell'applicazione.</li></ul></div><div md-itemmatchindex="2547" md-h1Id="2547" class="editorH1"><h2 id="piano-dettagliato" md-itemmatchindex="2547" md-h1Id="2547">Piano Dettagliato</h2><p>La tabella seguente descrive i passi incrementali pianificati. Aggiorneremo lo stato man mano che procediamo.</p><table class="table"><thead><tr><th style="text-align: left;">Fase</th><th style="text-align: left;">Passo</th><th style="text-align: left;">Descrizione</th><th style="text-align: left;">Stato</th></tr></thead><tbody><tr><td style="text-align: left;"><strong>1: Creazione Nuovo DAL</strong></td><td style="text-align: left;">1.1 Creare <code>Ad.Tools.Dal.Evo.Abstractions</code></td><td style="text-align: left;">Nuovo progetto libreria .NET Standard. Definire le interfacce <code>IRepository&lt;T&gt;</code> e <code>IUnitOfWork</code> (con <code>CommitAsync</code>, <code>GetRepository&lt;T&gt;</code>, <code>IDisposable</code>, ecc.).</td><td style="text-align: left;"><code>[X]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">1.2 Creare <code>Ad.Tools.Dal.Evo</code></td><td style="text-align: left;">Nuovo progetto libreria .NET Standard. Referenziare <code>Abstractions</code>, NHibernate, FluentNHibernate. Implementare <code>Repository&lt;T&gt;</code> e <code>UnitOfWork</code>. Adattare/aggiornare config NHibernate.</td><td style="text-align: left;"><code>[X]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">1.3 Configurazione DI per <code>Ad.Tools.Dal.Evo</code></td><td style="text-align: left;">Creare metodo di estensione <code>AddDalEvoFeatures</code> per registrare <code>IUnitOfWork</code> (Scoped), <code>IRepository&lt;T&gt;</code> (Transient), <code>ISessionFactory</code> (Singleton).</td><td style="text-align: left;"><code>[X]</code></td></tr><tr><td style="text-align: left;"><strong>2: Migrazione BLL/Svc</strong></td><td style="text-align: left;">2.1 Identificare Componente Pilota</td><td style="text-align: left;">Scegliere un componente BLL/Service (es. <code>PlantumlServer</code>) con dipendenze chiare dal vecchio DAL per iniziare la migrazione.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">2.2 Migrare Componente Pilota</td><td style="text-align: left;">Modificare il componente per iniettare e usare <code>IUnitOfWork</code> dal nuovo DAL (<code>Ad.Tools.Dal.Evo.Abstractions</code>). Aggiornare logica per <code>GetRepository</code> e <code>CommitAsync</code>.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">2.3 Aggiornare DI per Componente Pilota</td><td style="text-align: left;">Modificare la registrazione DI principale per fornire al componente pilota le dipendenze dal nuovo <code>AddDalEvoFeatures</code>.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">2.4 Testare Componente Pilota</td><td style="text-align: left;">Verificare che il componente migrato funzioni correttamente con il nuovo DAL attraverso test unitari e/o funzionali.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">2.5 Migrare Componenti Restanti</td><td style="text-align: left;">Ripetere i passi 2.2-2.4 per gli altri componenti BLL/Service che usano il DAL, procedendo incrementalmente.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">2.6 Test Funzionali Completi</td><td style="text-align: left;">Eseguire test funzionali completi dell'applicazione con l'utilizzo misto dei DAL per assicurare che non ci siano regressioni.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><strong>3: Completamento</strong></td><td style="text-align: left;">3.1 Verifica Finale Migrazione</td><td style="text-align: left;">Assicurarsi che tutti i componenti che necessitano accesso ai dati siano stati migrati e usino esclusivamente il nuovo DAL.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">3.2 Rimuovere Vecchio DAL (DI)</td><td style="text-align: left;">Rimuovere la chiamata a <code>AddDalFeatures</code> (o equivalente) dalla configurazione della Dependency Injection.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">3.3 Rimuovere Vecchio DAL (Riferimenti)</td><td style="text-align: left;">Rimuovere i riferimenti ai progetti <code>Ad.Tools.Dal</code> e <code>Ad.Tools.Dal.Abstractions</code> dagli altri progetti nella solution.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">3.4 Rimuovere Vecchio DAL (Progetti)</td><td style="text-align: left;">Eliminare i progetti <code>Ad.Tools.Dal</code> e <code>Ad.Tools.Dal.Abstractions</code> dalla solution.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">3.5 Test Finali</td><td style="text-align: left;">Eseguire un'ultima sessione di test completi dell'applicazione assicurandosi che funzioni correttamente usando solo il nuovo DAL.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">3.6 (Opzionale) Rinominare <code>*.Evo</code></td><td style="text-align: left;">Se desiderato, rinominare i progetti <code>Ad.Tools.Dal.Evo.*</code> nei nomi originali (<code>Ad.Tools.Dal.*</code>) per pulizia finale.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><strong>4: Miglioramenti</strong></td><td style="text-align: left;">4.1 Aggiornare API NHibernate Obsolete nel Nuovo DAL</td><td style="text-align: left;">Assicurarsi che <code>Ad.Tools.Dal.Evo</code> utilizzi le API NHibernate più recenti e non obsolete.</td><td style="text-align: left;"><code>[ ]</code></td></tr><tr><td style="text-align: left;"><br /></td><td style="text-align: left;">4.2 (Opzionale) Aggiornare Dipendenze NuGet nel Nuovo DAL</td><td style="text-align: left;">Valutare l'aggiornamento di NHibernate, FluentNHibernate e altre dipendenze a versioni più recenti/sicure, gestendo eventuali breaking changes.</td><td style="text-align: left;"><code>[ ]</code></td></tr></tbody></table></div><hr /><p>Questo documento serve come traccia condivisa per il refactoring. Aggiorneremo lo stato dei checkbox man mano che completiamo i vari passi.</p><div style="display:none" md-h1Id="10" md-itemmatchindex="10" md-itemmatchindex-end="29" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">todo</div><div style="display:none" md-h1Id="29" md-itemmatchindex="29" md-itemmatchindex-end="97" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">todo</div><div style="display:none" md-h1Id="97" md-itemmatchindex="97" md-itemmatchindex-end="453" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">todo</div><div style="display:none" md-h1Id="453" md-itemmatchindex="453" md-itemmatchindex-end="2547" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">todo</div><div style="display:none" md-h1Id="2547" md-itemmatchindex="2547" md-itemmatchindex-end="0" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\Ad.Tools.Dal\EvoluzionDal.md">todo</div>
+                        </div>
+                        
+                    </div>
+                     
+                    </body></html>

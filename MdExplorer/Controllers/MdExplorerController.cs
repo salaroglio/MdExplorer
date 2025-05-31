@@ -306,13 +306,14 @@ namespace MdExplorer.Controllers
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
-
+                .UseDiagrams()
                 .UsePipeTables()
                 .UseBootstrap()
                 .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
                 .UseEmojiAndSmiley()
                 .UseYamlFrontMatter()
                 .UseGenericAttributes()
+                
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
