@@ -1,0 +1,1384 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <Target Name="PostPublish" AfterTargets="AfterPublish">
+    <Exec Command="echo BEGIN After-publish&#xD;PublishDir=$(PublishDir)&#xD;PublishUrl=$(PublishUrl)&#xD;copy $(OutDir)\Binaries\Plantuml.jar $(PublishUrl)\Plantuml.jar&#xD;echo END After-publish" />
+  </Target>
+  
+  <PropertyGroup>
+    
+    
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
+    <Nullable>annotations</Nullable>
+    <ApplicationIcon>SpaceShip.ico</ApplicationIcon>
+    <OutputType>Exe</OutputType>
+    <StartupObject />
+    <FileVersion></FileVersion>
+    <AssemblyVersion>2023.05.11.001</AssemblyVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+    <FileAlignment>512</FileAlignment>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <WarningLevel>0</WarningLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Binaries\ElectronExplorer\**" />
+    <Compile Remove="Documents\**" />
+    <Content Remove="Binaries\ElectronExplorer\**" />
+    <Content Remove="Documents\**" />
+    <EmbeddedResource Remove="Binaries\ElectronExplorer\**" />
+    <EmbeddedResource Remove="Documents\**" />
+    <None Remove="Binaries\ElectronExplorer\**" />
+    <None Remove="Documents\**" />
+  </ItemGroup>
+  
+  <!--INTEGRATE ImageNumbering application-->
+  <ItemGroup>
+    <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe">
+      <DestinationSubDirectory>bin</DestinationSubDirectory>
+    </Content>
+    <Content Include="SpaceShip.ico" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <Content Remove="Binaries\ElectronMdExplorer\resources\app\package.json" />
+    <Content Remove="Binaries\ElectronMdExplorer\vk_swiftshader_icd.json" />
+    <Content Remove="wwwroot\assets\AliasEmoji.PNG" />
+    <Content Remove="wwwroot\assets\cicd.png" />
+    <Content Remove="wwwroot\assets\cicd.svg" />
+    <Content Remove="wwwroot\assets\clipboard.png" />
+    <Content Remove="wwwroot\assets\clipboard48.png" />
+    <Content Remove="wwwroot\assets\connecting.gif" />
+    <Content Remove="wwwroot\assets\ConnectionLost.png" />
+    <Content Remove="wwwroot\assets\drawAnimated.gif" />
+    <Content Remove="wwwroot\assets\drawOld.png" />
+    <Content Remove="wwwroot\assets\drawStatic.png" />
+    <Content Remove="wwwroot\assets\editorInLine.png" />
+    <Content Remove="wwwroot\assets\eyes.png" />
+    <Content Remove="wwwroot\assets\eyes48.png" />
+    <Content Remove="wwwroot\assets\gitlab.png" />
+    <Content Remove="wwwroot\assets\gitlabcicd.png" />
+    <Content Remove="wwwroot\assets\gitlogo.png" />
+    <Content Remove="wwwroot\assets\green_right_arrow.png" />
+    <Content Remove="wwwroot\assets\green_right_arrow48.png" />
+    <Content Remove="wwwroot\assets\IconReady.png" />
+    <Content Remove="wwwroot\assets\markdown.png" />
+    <Content Remove="wwwroot\assets\Matrioska.png" />
+    <Content Remove="wwwroot\assets\MdExplorer.png" />
+    <Content Remove="wwwroot\assets\MdExplorerForGitHub.png" />
+    <Content Remove="wwwroot\assets\MdIcon.png" />
+    <Content Remove="wwwroot\assets\MdIcon.xcf" />
+    <Content Remove="wwwroot\assets\MdIcon2.ico" />
+    <Content Remove="wwwroot\assets\MdIcon2.xcf" />
+    <Content Remove="wwwroot\assets\MdIcon3.ico" />
+    <Content Remove="wwwroot\assets\move.png" />
+    <Content Remove="wwwroot\assets\Move48 %282%29.png" />
+    <Content Remove="wwwroot\assets\move48.png" />
+    <Content Remove="wwwroot\assets\new-document.png" />
+    <Content Remove="wwwroot\assets\notes.png" />
+    <Content Remove="wwwroot\assets\notes48.png" />
+    <Content Remove="wwwroot\assets\plantuml.png" />
+    <Content Remove="wwwroot\assets\Plantuml_Logo.svg" />
+    <Content Remove="wwwroot\assets\PrepareToIcon.png" />
+    <Content Remove="wwwroot\assets\project.png" />
+    <Content Remove="wwwroot\assets\projects.png" />
+    <Content Remove="wwwroot\assets\Refactoring.png" />
+    <Content Remove="wwwroot\assets\rename.png" />
+    <Content Remove="wwwroot\assets\resize.png" />
+    <Content Remove="wwwroot\assets\resize48.png" />
+    <Content Remove="wwwroot\assets\run.png" />
+    <Content Remove="wwwroot\assets\spaceship.png" />
+    <Content Remove="wwwroot\assets\TOC.png" />
+    <Content Remove="wwwroot\assets\word.png" />
+    <Content Remove="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
+    <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
+    <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.min.css" />
+    <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css" />
+    <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.css" />
+    <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.min.css" />
+    <Content Remove="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.standalone.css" />
+    <Content Remove="wwwroot\bootstrap_datepicker\js\bootstrap-datepicker.js" />
+    <Content Remove="wwwroot\bootstrap_datepicker\js\bootstrap-datepicker.min.js" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.min.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.rtl.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.rtl.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-grid.rtl.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.min.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.rtl.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.rtl.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-reboot.rtl.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.min.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.rtl.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.rtl.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap-utilities.rtl.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.min.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.min.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.rtl.css" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.rtl.css.map" />
+    <Content Remove="wwwroot\bootstrap\css\bootstrap.rtl.min.css" />
+    <Content Remove="wwwroot\bootstrap\jquery-3.6.0.js" />
+    <Content Remove="wwwroot\bootstrap\js\bootstrap.bundle.js" />
+    <Content Remove="wwwroot\bootstrap\js\bootstrap.esm.js" />
+    <Content Remove="wwwroot\bootstrap\js\bootstrap.js" />
+    <Content Remove="wwwroot\bootstrap\js\bootstrap.js.map" />
+    <Content Remove="wwwroot\bootstrap\js\bootstrap.min.js" />
+    <Content Remove="wwwroot\client2\common.js" />
+    <Content Remove="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js" />
+    <Content Remove="wwwroot\client2\favicon.ico" />
+    <Content Remove="wwwroot\client2\index.html" />
+    <Content Remove="wwwroot\client2\main.js" />
+    <Content Remove="wwwroot\client2\main.js.map" />
+    <Content Remove="wwwroot\client2\md-explorer-md-explorer-module.js" />
+    <Content Remove="wwwroot\client2\md-explorer-md-explorer-module.js.map" />
+    <Content Remove="wwwroot\client2\polyfills.js" />
+    <Content Remove="wwwroot\client2\polyfills.js.map" />
+    <Content Remove="wwwroot\client2\projects-projects-module.js" />
+    <Content Remove="wwwroot\client2\projects-projects-module.js.map" />
+    <Content Remove="wwwroot\client2\runtime.js" />
+    <Content Remove="wwwroot\client2\runtime.js.map" />
+    <Content Remove="wwwroot\client2\styles.css" />
+    <Content Remove="wwwroot\client2\styles.css.map" />
+    <Content Remove="wwwroot\client2\vendor.js" />
+    <Content Remove="wwwroot\client2\vendor.js.map" />
+    <Content Remove="wwwroot\common.css" />
+    <Content Remove="wwwroot\common.js" />
+    <Content Remove="wwwroot\commonSlide.css" />
+    <Content Remove="wwwroot\commonSlide.js" />
+    <Content Remove="wwwroot\highlight_within_textarea\highlight-within-textarea.css" />
+    <Content Remove="wwwroot\highlight_within_textarea\highlight-within-textarea.js" />
+    <Content Remove="wwwroot\highlightjs\default.min.css" />
+    <Content Remove="wwwroot\highlightjs\highlight.min.js" />
+    <Content Remove="wwwroot\javascripts\angular-resizable.min.css" />
+    <Content Remove="wwwroot\javascripts\angular-resizable.min.js" />
+    <Content Remove="wwwroot\javascripts\jqueryForFirstPage.js" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_444444_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_555555_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_777620_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_777777_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_cc0000_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\images\ui-icons_ffffff_256x240.png" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.css" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.js" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.min.css" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.min.js" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.structure.css" />
+    <Content Remove="wwwroot\jquery_ui\jquery-ui.theme.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\index.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jexcel.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jexcel.js" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.datatables.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jspreadsheet.theme.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jsuites.css" />
+    <Content Remove="wwwroot\jspreadsheet_ce\jsuites.js" />
+    <Content Remove="wwwroot\MdCustomCSS.css" />
+    <Content Remove="wwwroot\milk_react\apl-B2DGVGxc.js" />
+    <Content Remove="wwwroot\milk_react\asciiarmor-2LVJmxlE.js" />
+    <Content Remove="wwwroot\milk_react\asn1-jKiBa2Ya.js" />
+    <Content Remove="wwwroot\milk_react\assets\css\katex\dist\katex.min.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-all.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-block-edit.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-code-mirror.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-cursor.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-image-block.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-latex.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-link-tooltip.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-list-item.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-placeholder.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-prosemirror.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-table.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-common-toolbar.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-crepe-theme-crepe-style.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\milkdown-prose-prosemirror.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\prosemirror-gapcursor-gapcursor.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\prosemirror-tables-tables.css" />
+    <Content Remove="wwwroot\milk_react\assets\css\prosemirror-view-prosemirror.css" />
+    <Content Remove="wwwroot\milk_react\assets\_internal\classic-common.css" />
+    <Content Remove="wwwroot\milk_react\asterisk-DS281yxp.js" />
+    <Content Remove="wwwroot\milk_react\brainfuck-C_p9pTT8.js" />
+    <Content Remove="wwwroot\milk_react\clike-BUuHEmgZ.js" />
+    <Content Remove="wwwroot\milk_react\clojure-CCKyeQKf.js" />
+    <Content Remove="wwwroot\milk_react\cmake-CuaCgAKt.js" />
+    <Content Remove="wwwroot\milk_react\cobol-BlTKFDRj.js" />
+    <Content Remove="wwwroot\milk_react\coffeescript-BVCvwO8I.js" />
+    <Content Remove="wwwroot\milk_react\commonlisp-D_kxz07b.js" />
+    <Content Remove="wwwroot\milk_react\crystal-D309uH6_.js" />
+    <Content Remove="wwwroot\milk_react\css-bIlmDBTK.js" />
+    <Content Remove="wwwroot\milk_react\css\milkdown-all-deploy.css" />
+    <Content Remove="wwwroot\milk_react\css\milkdown-all.css" />
+    <Content Remove="wwwroot\milk_react\cypher-BMq4Fwjl.js" />
+    <Content Remove="wwwroot\milk_react\d-BZcgY6La.js" />
+    <Content Remove="wwwroot\milk_react\diff-Cg9d_RX2.js" />
+    <Content Remove="wwwroot\milk_react\dockerfile-DIy8NleC.js" />
+    <Content Remove="wwwroot\milk_react\docspilot.es.js" />
+    <Content Remove="wwwroot\milk_react\docspilot.umd.js" />
+    <Content Remove="wwwroot\milk_react\dtd-CtLokQ-U.js" />
+    <Content Remove="wwwroot\milk_react\dylan-QYeExnWK.js" />
+    <Content Remove="wwwroot\milk_react\ebnf-DUPDuY4r.js" />
+    <Content Remove="wwwroot\milk_react\ecl-CiXN-g_D.js" />
+    <Content Remove="wwwroot\milk_react\eiffel-yQhjl4T1.js" />
+    <Content Remove="wwwroot\milk_react\elm-CNT9vbN0.js" />
+    <Content Remove="wwwroot\milk_react\erlang-CFOYdy9e.js" />
+    <Content Remove="wwwroot\milk_react\factor-DDOC7X6P.js" />
+    <Content Remove="wwwroot\milk_react\fcl-CPC2WYrI.js" />
+    <Content Remove="wwwroot\milk_react\floating-ui.dom-C8djGRJz.js" />
+    <Content Remove="wwwroot\milk_react\forth-BmxRyE9S.js" />
+    <Content Remove="wwwroot\milk_react\fortran-9bvPyrOW.js" />
+    <Content Remove="wwwroot\milk_react\functions-Bsik6ikd-DhlhsyMB.js" />
+    <Content Remove="wwwroot\milk_react\gas-BdfkXJT_.js" />
+    <Content Remove="wwwroot\milk_react\gherkin-CJuwpceU.js" />
+    <Content Remove="wwwroot\milk_react\groovy-DZeT_VM-.js" />
+    <Content Remove="wwwroot\milk_react\haskell-Bvt3Qq1t.js" />
+    <Content Remove="wwwroot\milk_react\haxe-70NVW1pR.js" />
+    <Content Remove="wwwroot\milk_react\hooks-CCspbR-r.js" />
+    <Content Remove="wwwroot\milk_react\http-D9LttvKF.js" />
+    <Content Remove="wwwroot\milk_react\idl-B6TRFYjl.js" />
+    <Content Remove="wwwroot\milk_react\index-03LFkKCN.js" />
+    <Content Remove="wwwroot\milk_react\index-0jcHX3N_.js" />
+    <Content Remove="wwwroot\milk_react\index-25rGbqkg.js" />
+    <Content Remove="wwwroot\milk_react\index-B3KiKTSt-Dla4yOC_.js" />
+    <Content Remove="wwwroot\milk_react\index-B3KiKTSt-lNOxgXlf.js" />
+    <Content Remove="wwwroot\milk_react\index-BAn8YrKh.js" />
+    <Content Remove="wwwroot\milk_react\index-BE0sKD7p.js" />
+    <Content Remove="wwwroot\milk_react\index-BetZgtXv.js" />
+    <Content Remove="wwwroot\milk_react\index-BFsG6770-C4S0TkY0.js" />
+    <Content Remove="wwwroot\milk_react\index-BFsG6770-DHtlwtpY.js" />
+    <Content Remove="wwwroot\milk_react\index-BHrKa6UE.js" />
+    <Content Remove="wwwroot\milk_react\index-Bjb4cgZN.js" />
+    <Content Remove="wwwroot\milk_react\index-BJD7FV-Z.js" />
+    <Content Remove="wwwroot\milk_react\index-BL75rrnU.js" />
+    <Content Remove="wwwroot\milk_react\index-BtTBqtbp.js" />
+    <Content Remove="wwwroot\milk_react\index-BXEC2rDE.js" />
+    <Content Remove="wwwroot\milk_react\index-C4_lqffc.js" />
+    <Content Remove="wwwroot\milk_react\index-C6iWXHqD.js" />
+    <Content Remove="wwwroot\milk_react\index-CaYrMNFe.js" />
+    <Content Remove="wwwroot\milk_react\index-CBrOT1fW-BmrKbP5t.js" />
+    <Content Remove="wwwroot\milk_react\index-CBrOT1fW-CbrMgMIz.js" />
+    <Content Remove="wwwroot\milk_react\index-CGUqme2R.js" />
+    <Content Remove="wwwroot\milk_react\index-CoKzj_lX.js" />
+    <Content Remove="wwwroot\milk_react\index-CQ81awoH.js" />
+    <Content Remove="wwwroot\milk_react\index-CQtfxiOk.js" />
+    <Content Remove="wwwroot\milk_react\index-Crfuao6v.js" />
+    <Content Remove="wwwroot\milk_react\index-CsEtSFhk-p2BcZdQe.js" />
+    <Content Remove="wwwroot\milk_react\index-CsEtSFhk-vc9nsGmJ.js" />
+    <Content Remove="wwwroot\milk_react\index-CtMjrW8D.js" />
+    <Content Remove="wwwroot\milk_react\index-Cuk7cL-r-CPLW1_wK.js" />
+    <Content Remove="wwwroot\milk_react\index-Cuk7cL-r-J_U3HQUs.js" />
+    <Content Remove="wwwroot\milk_react\index-CXD1A2ot.js" />
+    <Content Remove="wwwroot\milk_react\index-CxJ9fxJm-BE0w9TAT.js" />
+    <Content Remove="wwwroot\milk_react\index-CxJ9fxJm-DfATOtg2.js" />
+    <Content Remove="wwwroot\milk_react\index-CxKKDT4X.js" />
+    <Content Remove="wwwroot\milk_react\index-D2Og3aqu.js" />
+    <Content Remove="wwwroot\milk_react\index-D6fLMv29-BbUkr3pX.js" />
+    <Content Remove="wwwroot\milk_react\index-D8fg8rkZ.js" />
+    <Content Remove="wwwroot\milk_react\index-Daw4TR-O.js" />
+    <Content Remove="wwwroot\milk_react\index-Db2n-tOX.js" />
+    <Content Remove="wwwroot\milk_react\index-DcRgwPLd-BWI7DgDg.js" />
+    <Content Remove="wwwroot\milk_react\index-DcRgwPLd-D2Nus4Ej.js" />
+    <Content Remove="wwwroot\milk_react\index-DiKbJQKP.js" />
+    <Content Remove="wwwroot\milk_react\index-DJKHFWAZ.js" />
+    <Content Remove="wwwroot\milk_react\index-DkMglwbk.js" />
+    <Content Remove="wwwroot\milk_react\index-DLz2PfVM.js" />
+    <Content Remove="wwwroot\milk_react\index-DMBvW7_g.js" />
+    <Content Remove="wwwroot\milk_react\index-DNsr7zpY.js" />
+    <Content Remove="wwwroot\milk_react\index-DOrkOhki-Btp2sKOe.js" />
+    <Content Remove="wwwroot\milk_react\index-DOrkOhki-CLkwyAZZ.js" />
+    <Content Remove="wwwroot\milk_react\index-DpkcxZlB.js" />
+    <Content Remove="wwwroot\milk_react\index-DpS5s5Au.js" />
+    <Content Remove="wwwroot\milk_react\index-DputB8Uj.js" />
+    <Content Remove="wwwroot\milk_react\index-DqIzs31h.js" />
+    <Content Remove="wwwroot\milk_react\index-drY3dXMA.js" />
+    <Content Remove="wwwroot\milk_react\index-DV-5Wqod.js" />
+    <Content Remove="wwwroot\milk_react\index-EAOQD6cm.js" />
+    <Content Remove="wwwroot\milk_react\index-fcJfYc1P.js" />
+    <Content Remove="wwwroot\milk_react\index-flGig9u_.js" />
+    <Content Remove="wwwroot\milk_react\index-jM38O6Kt.js" />
+    <Content Remove="wwwroot\milk_react\index-s33c_M2f-BehpTq0G.js" />
+    <Content Remove="wwwroot\milk_react\index-s33c_M2f-CKKd828V.js" />
+    <Content Remove="wwwroot\milk_react\index-sTs0qsI6.js" />
+    <Content Remove="wwwroot\milk_react\index-toto-Of2.js" />
+    <Content Remove="wwwroot\milk_react\index-uHWmZXqe-BIlmB7hx.js" />
+    <Content Remove="wwwroot\milk_react\index-uHWmZXqe-BnfVJr2O.js" />
+    <Content Remove="wwwroot\milk_react\index-viDjrg2r.js" />
+    <Content Remove="wwwroot\milk_react\index-wrkH3t_5.js" />
+    <Content Remove="wwwroot\milk_react\index-x8Lflwxi.js" />
+    <Content Remove="wwwroot\milk_react\index-ZfvjIKTs.js" />
+    <Content Remove="wwwroot\milk_react\index-ZJtWSqp-.js" />
+    <Content Remove="wwwroot\milk_react\index.es-BATVdN5b.js" />
+    <Content Remove="wwwroot\milk_react\index.es-BDByIY7Z.js" />
+    <Content Remove="wwwroot\milk_react\index.es-Bp8jzeZh.js" />
+    <Content Remove="wwwroot\milk_react\index.es-C3m-ZQQL.js" />
+    <Content Remove="wwwroot\milk_react\index.es-Cho9Kr7B.js" />
+    <Content Remove="wwwroot\milk_react\index.es-CmV4tOEk.js" />
+    <Content Remove="wwwroot\milk_react\index.es-Dganzb1x.js" />
+    <Content Remove="wwwroot\milk_react\index.es-SGmWwuar.js" />
+    <Content Remove="wwwroot\milk_react\inline-latex-C9IGAXXQ-DOFGPslc.js" />
+    <Content Remove="wwwroot\milk_react\inline-latex-C9IGAXXQ-nhqqOT-l.js" />
+    <Content Remove="wwwroot\milk_react\integration-axMWPCUy.js" />
+    <Content Remove="wwwroot\milk_react\integration-BHt4Ncdo.js" />
+    <Content Remove="wwwroot\milk_react\javascript-WMWNx-Vj.js" />
+    <Content Remove="wwwroot\milk_react\jinja2-DnB6dQmV.js" />
+    <Content Remove="wwwroot\milk_react\julia-DpvXAuO6.js" />
+    <Content Remove="wwwroot\milk_react\livescript-CanGTf8u.js" />
+    <Content Remove="wwwroot\milk_react\lua-XplVlWi_.js" />
+    <Content Remove="wwwroot\milk_react\mathematica-jaRHnSxC.js" />
+    <Content Remove="wwwroot\milk_react\mbox-BctzC1hL.js" />
+    <Content Remove="wwwroot\milk_react\mirc-CFBPAOaF.js" />
+    <Content Remove="wwwroot\milk_react\mllike-BSnXJBGA.js" />
+    <Content Remove="wwwroot\milk_react\modelica-vUgVs--1.js" />
+    <Content Remove="wwwroot\milk_react\mscgen-Cpl0NYLN.js" />
+    <Content Remove="wwwroot\milk_react\mumps-CQoS1kWX.js" />
+    <Content Remove="wwwroot\milk_react\nginx-zDPm3Z74.js" />
+    <Content Remove="wwwroot\milk_react\nsis-fePjrhq7.js" />
+    <Content Remove="wwwroot\milk_react\ntriples-CsNjv2QF.js" />
+    <Content Remove="wwwroot\milk_react\octave-C8PmmSRH.js" />
+    <Content Remove="wwwroot\milk_react\oz-Ce8aN8oE.js" />
+    <Content Remove="wwwroot\milk_react\pascal-De0D6mP7.js" />
+    <Content Remove="wwwroot\milk_react\perl-B4bSCe1C.js" />
+    <Content Remove="wwwroot\milk_react\pig-D24Z8EXi.js" />
+    <Content Remove="wwwroot\milk_react\powershell-DkYVfTzP.js" />
+    <Content Remove="wwwroot\milk_react\properties-Dn9wna3M.js" />
+    <Content Remove="wwwroot\milk_react\protobuf-BPIjwpzm.js" />
+    <Content Remove="wwwroot\milk_react\pug-BqUR2bBq.js" />
+    <Content Remove="wwwroot\milk_react\puppet-nyd4dhjf.js" />
+    <Content Remove="wwwroot\milk_react\python-B5QdSKoL.js" />
+    <Content Remove="wwwroot\milk_react\q-DXjKs-tC.js" />
+    <Content Remove="wwwroot\milk_react\r-LKEuhEGI.js" />
+    <Content Remove="wwwroot\milk_react\rpm-IznJm2Xc.js" />
+    <Content Remove="wwwroot\milk_react\ruby-CcYfvIk6.js" />
+    <Content Remove="wwwroot\milk_react\sas-7E8yHoCW.js" />
+    <Content Remove="wwwroot\milk_react\scheme-DjibxsNh.js" />
+    <Content Remove="wwwroot\milk_react\shell-C0C2sNA_.js" />
+    <Content Remove="wwwroot\milk_react\sieve-Bwz7vjP5.js" />
+    <Content Remove="wwwroot\milk_react\simple-mode-B0dvCdAA.js" />
+    <Content Remove="wwwroot\milk_react\smalltalk-Bhddl2pB.js" />
+    <Content Remove="wwwroot\milk_react\solr-BNlsLglM.js" />
+    <Content Remove="wwwroot\milk_react\sparql-FarWu_Gb.js" />
+    <Content Remove="wwwroot\milk_react\spreadsheet-C-cy4P5N.js" />
+    <Content Remove="wwwroot\milk_react\sql-mMre1Bo3.js" />
+    <Content Remove="wwwroot\milk_react\stex-92raWT1r.js" />
+    <Content Remove="wwwroot\milk_react\stylus-DRcbY16X.js" />
+    <Content Remove="wwwroot\milk_react\swift-DSxqR9R6.js" />
+    <Content Remove="wwwroot\milk_react\tcl-xfoLljhY.js" />
+    <Content Remove="wwwroot\milk_react\test.es.js" />
+    <Content Remove="wwwroot\milk_react\test.html" />
+    <Content Remove="wwwroot\milk_react\test.js" />
+    <Content Remove="wwwroot\milk_react\textile-D1AWE-pc.js" />
+    <Content Remove="wwwroot\milk_react\tiddlywiki-5wqsXtSk.js" />
+    <Content Remove="wwwroot\milk_react\tiki-__Kn3CeS.js" />
+    <Content Remove="wwwroot\milk_react\toml-BHiuTcfn.js" />
+    <Content Remove="wwwroot\milk_react\troff-D2UO-fKf.js" />
+    <Content Remove="wwwroot\milk_react\ttcn-Bsa4sfRm.js" />
+    <Content Remove="wwwroot\milk_react\ttcn-cfg-Bac_acMi.js" />
+    <Content Remove="wwwroot\milk_react\turtle-xwJUxoPV.js" />
+    <Content Remove="wwwroot\milk_react\vb-c2kQGd6-.js" />
+    <Content Remove="wwwroot\milk_react\vbscript-Dz1TtKsy.js" />
+    <Content Remove="wwwroot\milk_react\velocity-DJd0pTTC.js" />
+    <Content Remove="wwwroot\milk_react\verilog-C4VGD9n1.js" />
+    <Content Remove="wwwroot\milk_react\vhdl-T9HkrbI2.js" />
+    <Content Remove="wwwroot\milk_react\webidl-CjfDENEo.js" />
+    <Content Remove="wwwroot\milk_react\xquery-BUQdORAS.js" />
+    <Content Remove="wwwroot\milk_react\yacas-C0absKBh.js" />
+    <Content Remove="wwwroot\milk_react\z80-C8rPtw-0.js" />
+    <Content Remove="wwwroot\reveal\dist\reset.css" />
+    <Content Remove="wwwroot\reveal\dist\reveal.css" />
+    <Content Remove="wwwroot\reveal\dist\reveal.esm.js" />
+    <Content Remove="wwwroot\reveal\dist\reveal.esm.js.map" />
+    <Content Remove="wwwroot\reveal\dist\reveal.js" />
+    <Content Remove="wwwroot\reveal\dist\reveal.js.map" />
+    <Content Remove="wwwroot\reveal\dist\theme\beige.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\black.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\blood.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\league-gothic\LICENSE" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\LICENSE" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.eot" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.ttf" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.woff" />
+    <Content Remove="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\league.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\moon.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\night.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\serif.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\simple.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\sky.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\solarized.css" />
+    <Content Remove="wwwroot\reveal\dist\theme\white.css" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\highlight.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\highlight.js" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\monokai.css" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\highlight\zenburn.css" />
+    <Content Remove="wwwroot\reveal\plugin\markdown\markdown.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\markdown\markdown.js" />
+    <Content Remove="wwwroot\reveal\plugin\markdown\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\katex.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\math.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\math.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\mathjax2.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\mathjax3.js" />
+    <Content Remove="wwwroot\reveal\plugin\math\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\notes.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\notes.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\notes\speaker-view.html" />
+    <Content Remove="wwwroot\reveal\plugin\search\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\search\search.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\search\search.js" />
+    <Content Remove="wwwroot\reveal\plugin\zoom\plugin.js" />
+    <Content Remove="wwwroot\reveal\plugin\zoom\zoom.esm.js" />
+    <Content Remove="wwwroot\reveal\plugin\zoom\zoom.js" />
+    <Content Remove="wwwroot\tippy\popper.js" />
+    <Content Remove="wwwroot\tippy\popper.min.js.map" />
+    <Content Remove="wwwroot\tippy\tippy-bundle.iife.min.js.map" />
+    <Content Remove="wwwroot\tippy\tippy.css" />
+    <Content Remove="wwwroot\tippy\tippy.js" />
+    <Content Remove="wwwroot\TocBot\styles.css" />
+    <Content Remove="wwwroot\TocBot\tocbot.css" />
+    <Content Remove="wwwroot\TocBot\tocbot.min.js" />
+    <Content Remove="wwwroot\welcome.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Binaries\GraphWiz\binaries\cdt.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\cgraph.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\config6" />
+    <None Remove="Binaries\GraphWiz\binaries\expat.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\gvc.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\gvplugin_core.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\LICENSE.txt" />
+    <None Remove="Binaries\GraphWiz\binaries\pathplan.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\vcruntime140.dll" />
+    <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
+    <None Remove="Binaries\plantuml.jar" />
+    <None Remove="eisvogel.tex" />
+    <None Remove="EmojiForPandoc\calendar.png" />
+    <None Remove="EmojiForPandoc\construction.png" />
+    <None Remove="EmojiForPandoc\key.png" />
+    <None Remove="EmojiForPandoc\link.png" />
+    <None Remove="EmojiForPandoc\memo.png" />
+    <None Remove="EmojiForPandoc\one.png" />
+    <None Remove="EmojiForPandoc\two.png" />
+    <None Remove="EmojiForPandoc\warning.png" />
+    <None Remove="MdEngine.db" />
+    <None Remove="MdExplorer.db" />
+    <None Remove="reference.docx" />
+    <None Remove="templates\minute.docx" />
+    <None Remove="templates\project.docx" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\cdt.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\cgraph.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\config6">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\dot.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\expat.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvc.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_core.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\LICENSE.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\pathplan.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\vcruntime140.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\GraphWiz\binaries\xdot.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Binaries\plantuml.jar">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="templates\pdf\eisvogel.tex" />
+    <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
+    <EmbeddedResource Include="EmojiForPandoc\construction.png" />
+    <EmbeddedResource Include="EmojiForPandoc\key.png" />
+    <EmbeddedResource Include="EmojiForPandoc\link.png" />
+    <EmbeddedResource Include="EmojiForPandoc\memo.png" />
+    <EmbeddedResource Include="EmojiForPandoc\one.png" />
+    <EmbeddedResource Include="EmojiForPandoc\two.png" />
+    <EmbeddedResource Include="EmojiForPandoc\warning.png" />
+    <EmbeddedResource Include="MdEngine.db" />
+    <EmbeddedResource Include="MdExplorer.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="templates\word\minute.docx" />
+    <EmbeddedResource Include="templates\word\project.docx" />
+    <EmbeddedResource Include="templates\word\reference.docx" />
+    <EmbeddedResource Include="wwwroot\assets\AliasEmoji.PNG" />
+    <EmbeddedResource Include="wwwroot\assets\cicd.png" />
+    <EmbeddedResource Include="wwwroot\assets\cicd.svg" />
+    <EmbeddedResource Include="wwwroot\assets\clipboard.png" />
+    <EmbeddedResource Include="wwwroot\assets\clipboard48.png" />
+    <EmbeddedResource Include="wwwroot\assets\connecting.gif" />
+    <EmbeddedResource Include="wwwroot\assets\ConnectionLost.png" />
+    <EmbeddedResource Include="wwwroot\assets\drawAnimated.gif" />
+    <EmbeddedResource Include="wwwroot\assets\drawStatic.png" />
+    <EmbeddedResource Include="wwwroot\assets\drawOld.png" />
+    <EmbeddedResource Include="wwwroot\assets\editorInLine.png" />
+    <EmbeddedResource Include="wwwroot\assets\eyes.png" />
+    <EmbeddedResource Include="wwwroot\assets\eyes48.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlab.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlabcicd.png" />
+    <EmbeddedResource Include="wwwroot\assets\gitlogo.png" />
+    <EmbeddedResource Include="wwwroot\assets\green_right_arrow.png" />
+    <EmbeddedResource Include="wwwroot\assets\green_right_arrow48.png" />
+    <EmbeddedResource Include="wwwroot\assets\IconReady.png" />
+    <EmbeddedResource Include="wwwroot\assets\markdown.png" />
+    <EmbeddedResource Include="wwwroot\assets\Matrioska.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdExplorer.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdExplorerForGitHub.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon.xcf" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon2.ico" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon2.xcf" />
+    <EmbeddedResource Include="wwwroot\assets\MdIcon3.ico" />
+    <EmbeddedResource Include="wwwroot\assets\move.png" />
+    <EmbeddedResource Include="wwwroot\assets\Move48 (2).png" />
+    <EmbeddedResource Include="wwwroot\assets\move48.png" />
+    <EmbeddedResource Include="wwwroot\assets\new-document.png" />
+    <EmbeddedResource Include="wwwroot\assets\notes.png" />
+    <EmbeddedResource Include="wwwroot\assets\notes48.png" />
+    <EmbeddedResource Include="wwwroot\assets\plantuml.png" />
+    <EmbeddedResource Include="wwwroot\assets\Plantuml_Logo.svg" />
+    <EmbeddedResource Include="wwwroot\assets\PrepareToIcon.png" />
+    <EmbeddedResource Include="wwwroot\assets\project.png" />
+    <EmbeddedResource Include="wwwroot\assets\projects.png" />
+    <EmbeddedResource Include="wwwroot\assets\Refactoring.png" />
+    <EmbeddedResource Include="wwwroot\assets\rename.png" />
+    <EmbeddedResource Include="wwwroot\assets\resize48.png" />
+    <EmbeddedResource Include="wwwroot\assets\run.png" />
+    <EmbeddedResource Include="wwwroot\assets\resize.png" />
+    <EmbeddedResource Include="wwwroot\assets\spaceship.png" />
+    <EmbeddedResource Include="wwwroot\assets\TOC.png" />
+    <EmbeddedResource Include="wwwroot\assets\word.png" />
+    <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.bundle.js.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.standalone.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\js\bootstrap-datepicker.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\js\bootstrap-datepicker.min.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.min.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.rtl.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.rtl.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-grid.rtl.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.min.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.rtl.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.rtl.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-reboot.rtl.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.min.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.rtl.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.rtl.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap-utilities.rtl.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.min.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.rtl.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.rtl.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap\css\bootstrap.rtl.min.css" />
+    <EmbeddedResource Include="wwwroot\bootstrap\jquery-3.6.0.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.bundle.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.esm.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.js.map">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\bootstrap\js\bootstrap.min.js" />
+    <EmbeddedResource Include="wwwroot\client2\default~md-explorer-md-explorer-module~projects-projects-module.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\favicon.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\index.html">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\main.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\main.js.map" />
+    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\md-explorer-md-explorer-module.js.map" />
+    <EmbeddedResource Include="wwwroot\client2\polyfills.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\polyfills.js.map" />
+    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\projects-projects-module.js.map" />
+    <EmbeddedResource Include="wwwroot\client2\runtime.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\runtime.js.map" />
+    <EmbeddedResource Include="wwwroot\client2\styles.css">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\client2\styles.css.map" />
+    <EmbeddedResource Include="wwwroot\client2\vendor.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="EmojiForPandoc\ok.png" />
+    <EmbeddedResource Include="wwwroot\client2\vendor.js.map" />
+    <EmbeddedResource Include="wwwroot\common.css" />
+    <EmbeddedResource Include="wwwroot\common.js" />
+    <EmbeddedResource Include="wwwroot\commonSlide.css" />
+    <EmbeddedResource Include="wwwroot\commonSlide.js" />
+    <EmbeddedResource Include="wwwroot\highlight_within_textarea\highlight-within-textarea.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\highlight_within_textarea\highlight-within-textarea.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="wwwroot\highlightjs\default.min.css" />
+    <EmbeddedResource Include="wwwroot\highlightjs\highlight.min.js" />
+    <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.css" />
+    <EmbeddedResource Include="wwwroot\javascripts\angular-resizable.min.js" />
+    <EmbeddedResource Include="wwwroot\javascripts\jqueryForFirstPage.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_444444_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_555555_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_777620_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_777777_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_cc0000_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\images\ui-icons_ffffff_256x240.png" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.css" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.css" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.min.js" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.structure.css" />
+    <EmbeddedResource Include="wwwroot\jquery_ui\jquery-ui.theme.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\index.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jexcel.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jexcel.js" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.datatables.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jspreadsheet.theme.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jsuites.css" />
+    <EmbeddedResource Include="wwwroot\jspreadsheet_ce\jsuites.js" />
+    <EmbeddedResource Include="wwwroot\MdCustomCSS.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\apl-B2DGVGxc.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\asciiarmor-2LVJmxlE.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\asn1-jKiBa2Ya.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\katex\dist\katex.min.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-all.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-block-edit.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-code-mirror.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-cursor.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-image-block.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-latex.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-link-tooltip.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-list-item.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-placeholder.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-prosemirror.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-table.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-common-toolbar.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-crepe-theme-crepe-style.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\milkdown-prose-prosemirror.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\prosemirror-gapcursor-gapcursor.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\prosemirror-tables-tables.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\css\prosemirror-view-prosemirror.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\assets\_internal\classic-common.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\asterisk-DS281yxp.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\brainfuck-C_p9pTT8.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\clike-BUuHEmgZ.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\clojure-CCKyeQKf.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\cmake-CuaCgAKt.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\cobol-BlTKFDRj.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\coffeescript-BVCvwO8I.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\commonlisp-D_kxz07b.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\crystal-D309uH6_.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\css-bIlmDBTK.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\css\milkdown-all-deploy.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\css\milkdown-all.css" />
+    <EmbeddedResource Include="wwwroot\milk_react\cypher-BMq4Fwjl.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\d-BZcgY6La.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\diff-Cg9d_RX2.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\dockerfile-DIy8NleC.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\docspilot.es.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\docspilot.umd.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\dtd-CtLokQ-U.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\dylan-QYeExnWK.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\ebnf-DUPDuY4r.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\ecl-CiXN-g_D.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\eiffel-yQhjl4T1.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\elm-CNT9vbN0.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\erlang-CFOYdy9e.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\factor-DDOC7X6P.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\fcl-CPC2WYrI.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\floating-ui.dom-C8djGRJz.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\forth-BmxRyE9S.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\fortran-9bvPyrOW.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\functions-Bsik6ikd-DhlhsyMB.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\gas-BdfkXJT_.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\gherkin-CJuwpceU.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\groovy-DZeT_VM-.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\haskell-Bvt3Qq1t.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\haxe-70NVW1pR.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\hooks-CCspbR-r.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\http-D9LttvKF.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\idl-B6TRFYjl.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-03LFkKCN.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-25rGbqkg.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-B3KiKTSt-Dla4yOC_.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-BE0sKD7p.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-BetZgtXv.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-BFsG6770-DHtlwtpY.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-Bjb4cgZN.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-BJD7FV-Z.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-BL75rrnU.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-BXEC2rDE.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-C4_lqffc.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-CaYrMNFe.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-CBrOT1fW-CbrMgMIz.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-Crfuao6v.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-CsEtSFhk-vc9nsGmJ.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-Cuk7cL-r-CPLW1_wK.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-CXD1A2ot.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-CxJ9fxJm-BE0w9TAT.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-CxKKDT4X.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-D6fLMv29-BbUkr3pX.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-Daw4TR-O.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-Db2n-tOX.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DcRgwPLd-BWI7DgDg.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DJKHFWAZ.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DMBvW7_g.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DNsr7zpY.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DOrkOhki-Btp2sKOe.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DpS5s5Au.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-DqIzs31h.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-fcJfYc1P.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-jM38O6Kt.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-s33c_M2f-BehpTq0G.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-sTs0qsI6.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-uHWmZXqe-BIlmB7hx.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-viDjrg2r.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index-x8Lflwxi.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index.es-BATVdN5b.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index.es-Cho9Kr7B.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index.es-CmV4tOEk.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\index.es-Dganzb1x.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\inline-latex-C9IGAXXQ-nhqqOT-l.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\integration-BHt4Ncdo.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\javascript-WMWNx-Vj.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\jinja2-DnB6dQmV.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\julia-DpvXAuO6.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\livescript-CanGTf8u.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\lua-XplVlWi_.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\mathematica-jaRHnSxC.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\mbox-BctzC1hL.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\mirc-CFBPAOaF.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\mllike-BSnXJBGA.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\modelica-vUgVs--1.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\mscgen-Cpl0NYLN.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\mumps-CQoS1kWX.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\nginx-zDPm3Z74.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\nsis-fePjrhq7.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\ntriples-CsNjv2QF.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\octave-C8PmmSRH.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\oz-Ce8aN8oE.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\pascal-De0D6mP7.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\perl-B4bSCe1C.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\pig-D24Z8EXi.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\powershell-DkYVfTzP.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\properties-Dn9wna3M.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\protobuf-BPIjwpzm.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\pug-BqUR2bBq.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\puppet-nyd4dhjf.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\python-B5QdSKoL.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\q-DXjKs-tC.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\r-LKEuhEGI.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\rpm-IznJm2Xc.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\ruby-CcYfvIk6.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\sas-7E8yHoCW.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\scheme-DjibxsNh.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\shell-C0C2sNA_.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\sieve-Bwz7vjP5.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\simple-mode-B0dvCdAA.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\smalltalk-Bhddl2pB.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\solr-BNlsLglM.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\sparql-FarWu_Gb.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\spreadsheet-C-cy4P5N.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\sql-mMre1Bo3.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\stex-92raWT1r.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\stylus-DRcbY16X.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\swift-DSxqR9R6.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\tcl-xfoLljhY.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\test.es.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\test.html" />
+    <EmbeddedResource Include="wwwroot\milk_react\test.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\textile-D1AWE-pc.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\tiddlywiki-5wqsXtSk.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\tiki-__Kn3CeS.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\toml-BHiuTcfn.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\troff-D2UO-fKf.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\ttcn-Bsa4sfRm.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\ttcn-cfg-Bac_acMi.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\turtle-xwJUxoPV.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\vb-c2kQGd6-.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\vbscript-Dz1TtKsy.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\velocity-DJd0pTTC.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\verilog-C4VGD9n1.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\vhdl-T9HkrbI2.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\webidl-CjfDENEo.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\xquery-BUQdORAS.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\yacas-C0absKBh.js" />
+    <EmbeddedResource Include="wwwroot\milk_react\z80-C8rPtw-0.js" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reset.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.esm.js.map" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.js" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\reveal.js.map" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\beige.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\black.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\blood.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\league-gothic.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\league-gothic\LICENSE" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\LICENSE" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-italic.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-regular.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibold.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.eot" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.ttf" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro-semibolditalic.woff" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\fonts\source-sans-pro\source-sans-pro.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\league.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\moon.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\night.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\serif.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\simple.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\sky.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\solarized.css" />
+    <EmbeddedResource Include="wwwroot\reveal\dist\theme\white.css" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\highlight.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\highlight.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\monokai.css" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\highlight\zenburn.css" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\markdown\markdown.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\markdown\markdown.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\markdown\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\katex.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\math.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\math.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\mathjax2.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\mathjax3.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\math\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\notes.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\notes.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\notes\speaker-view.html" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\search\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\search\search.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\search\search.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\plugin.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\zoom.esm.js" />
+    <EmbeddedResource Include="wwwroot\reveal\plugin\zoom\zoom.js" />
+    <EmbeddedResource Include="wwwroot\tippy\popper.js" />
+    <EmbeddedResource Include="wwwroot\tippy\popper.min.js.map" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy-bundle.iife.min.js.map" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy.css" />
+    <EmbeddedResource Include="wwwroot\tippy\tippy.js" />
+    <EmbeddedResource Include="wwwroot\TocBot\styles.css" />
+    <EmbeddedResource Include="wwwroot\TocBot\tocbot.css" />
+    <EmbeddedResource Include="wwwroot\TocBot\tocbot.min.js" />
+    <EmbeddedResource Include="wwwroot\welcome.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
+    <PackageReference Include="LibGit2Sharp" Version="0.27.0-preview-0182" />
+    <PackageReference Include="Markdig" Version="0.25.0" />
+    <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
+    <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
+    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
+    <PackageReference Include="YamlDotNet" Version="11.2.1" />
+  </ItemGroup>
+
+  <!--<ItemGroup>
+    <Folder Include="client2\src\app\md-explorer\services\" />
+    <Folder Include="client2\src\app\wwwroot\" />
+  </ItemGroup>-->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />
+    <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
+    <ProjectReference Include="..\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj" />
+    <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
+    <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
+    <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
+    <ProjectReference Include="..\MdExplorer.DataAccess.Engine\MdExplorer.DataAccess.Engine.csproj" />
+    <ProjectReference Include="..\MdExplorer.DataAccess.Project\MdExplorer.DataAccess.Project.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations.EngineDb\MdExplorer.Migrations.EngineDb.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations.ProjectDb\MdExplorer.Migrations.ProjectDb.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="MdExplorer.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="package-lock.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="client2\src\app\md-explorer\services\models\" />
+    <Folder Include="ElectronMdExplorer\" />
+    <Folder Include="Properties\PublishProfiles\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.css.map" />
+    <!-- Rimosso riferimento a resources\app\package.json -->
+    <!-- <None Include="Binaries\ElectronMdExplorer\resources\app\package.json"> -->
+    <!--  <CopyToOutputDirectory>Always</CopyToOutputDirectory> -->
+    <!-- </None> -->
+    <!-- Rimosso riferimento a vk_swiftshader_icd.json -->
+    <!-- <None Include="Binaries\ElectronMdExplorer\vk_swiftshader_icd.json"> -->
+    <!--   <CopyToOutputDirectory>Always</CopyToOutputDirectory> -->
+    <!-- </None> -->
+    <None Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker.standalone.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.css.map" />
+    <None Include="wwwroot\bootstrap_datepicker\css\bootstrap-datepicker3.standalone.css.map" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker-en-CA.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ar-DZ.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ar-tn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ar.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.az.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bg.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bm.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.br.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.bs.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ca.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.cs.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.cy.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.da.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.de.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.el.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-AU.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-CA.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-GB.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-IE.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-NZ.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-US.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.en-ZA.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.eo.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.es.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.et.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.eu.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fa.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fi.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fo.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fr-CH.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.fr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.gl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.he.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hi.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hu.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.hy.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.id.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.is.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.it-CH.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.it.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ja.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ka.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.kh.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.kk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.km.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ko.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.kr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.lt.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.lv.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.me.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.mk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.mn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.mr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ms.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.nl-BE.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.nl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.no.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.oc.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.pl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.pt-BR.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.pt.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ro.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.rs-latin.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.rs.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ru.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.si.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sq.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sr-latin.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sv.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.sw.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.ta.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.tg.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.th.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.tk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.tr.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.uk.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.uz-cyrl.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.uz-latn.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.vi.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-CN.js" />
+    <EmbeddedResource Include="wwwroot\bootstrap_datepicker\locales\bootstrap-datepicker.zh-TW.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Binaries\ElectronMdExplorer\chrome_100_percent.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\chrome_200_percent.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\d3dcompiler_47.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\dxcompiler.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\dxil.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\ElectronMdExplorer.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\ffmpeg.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\icudtl.dat">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\libEGL.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\libGLESv2.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\LICENSE">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\LICENSES.chromium.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\af.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\am.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ar.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\bg.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\bn.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ca.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\cs.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\da.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\de.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\el.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\en-GB.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\en-US.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\es-419.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\es.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\et.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\fa.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\fi.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\fil.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\fr.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\gu.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\he.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\hi.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\hr.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\hu.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\id.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\it.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ja.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\kn.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ko.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\lt.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\lv.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ml.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\mr.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ms.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\nb.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\nl.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\pl.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\pt-BR.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\pt-PT.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ro.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ru.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\sk.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\sl.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\sr.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\sv.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\sw.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ta.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\te.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\th.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\tr.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\uk.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\ur.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\vi.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\zh-CN.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\locales\zh-TW.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources.pak">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\.gitignore">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\assets\icons\IconReady.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\assets\icons\MdIcon2.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\index.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\index.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\resources\app\readme.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\snapshot_blob.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\v8_context_snapshot.bin">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\version">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\vk_swiftshader.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\ElectronMdExplorer\vulkan-1.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\plantuml-1.jar">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Binaries\plantuml-2.jar">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Removed ItemGroup that explicitly copied wwwroot for Debug builds to avoid NETSDK1022 -->
+  <!-- Relying on SDK default behavior and existing EmbeddedResource items -->
+
+</Project>

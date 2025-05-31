@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -377,3 +378,6 @@ FodyWeavers.xsd
 /ElectronMdExplorer/service_payload/
 /release-builds/
 /MdEditor.React/dist
+
+/.md
+/.claude

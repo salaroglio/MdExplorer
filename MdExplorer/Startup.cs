@@ -13,14 +13,12 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using MdExplorer.Features;
 using MdExplorer.Service;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.DataAccess.Engine;
 using MdExplorer.Features.Utilities;
-using Microsoft.Extensions.FileProviders;
 using System.Linq;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
@@ -79,18 +77,8 @@ namespace MdExplorer
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
 
             app.UseRouting();
-            var assembly = Assembly.Load(new AssemblyName("MdExplorer.Service"));
-
-#if !DEBUG
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new EmbeddedFileProvider(
-                assembly: Assembly.Load(new AssemblyName("MdExplorer.Service")),
-                baseNamespace: "MdExplorer.Service.wwwroot")
-            });
-#else
+            
             app.UseStaticFiles();
-#endif
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

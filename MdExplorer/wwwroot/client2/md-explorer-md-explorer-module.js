@@ -789,6 +789,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
 /* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../services/md-file.service */ "xmhS");
 /* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+
 
 
 
@@ -852,6 +854,13 @@ class MilkdownReactHostComponent {
         //    this.docsPilotElementRef.nativeElement.markdown = this.markdownContent;
         // }
     }
+    handleKeyDown(event) {
+        // Intercetta Ctrl+S o Cmd+S (per Mac)
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+            event.preventDefault(); // Previene il comportamento di default del browser
+            this.saveMarkdown();
+        }
+    }
     saveMarkdown() {
         var _a;
         return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
@@ -888,29 +897,14 @@ class MilkdownReactHostComponent {
             try {
                 yield this.http.post('/api/MdExplorerEditorReact/UpdateMarkdown', requestBody).toPromise();
                 console.log('React Host: Markdown salvato con successo per:', this.currentFilePath);
-                // Aggiungere un feedback per l'utente, es. con MatSnackBar
+                // Dopo il salvataggio, torna indietro
+                this.location.back();
             }
             catch (error) {
                 console.error('React Host: Errore durante il salvataggio del markdown:', error);
                 // Aggiungere un feedback di errore per l'utente
             }
         });
-    }
-    goBack() {
-        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
-            yield this.saveMarkdown(); // Salva prima di tornare indietro
-            this.location.back();
-        });
-    }
-    sendSampleMarkdown() {
-        var _a;
-        const sampleMd = `## Markdown da Angular\n\n- Lista puntata\n- **Grassetto**\n\nTimestamp: ${new Date().toLocaleTimeString()}`;
-        if ((_a = this.docsPilotElementRef) === null || _a === void 0 ? void 0 : _a.nativeElement) {
-            // Usare setAttribute è più robusto per i WebComponent che osservano gli attributi.
-            this.docsPilotElementRef.nativeElement.setAttribute('markdown', sampleMd);
-            // In alternativa, se il setter della proprietà gestisce la logica di re-render:
-            // this.docsPilotElementRef.nativeElement.markdown = sampleMd;
-        }
     }
 }
 MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_3__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"])); };
@@ -919,22 +913,25 @@ MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["�
     } if (rf & 2) {
         let _t;
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.docsPilotElementRef = _t.first);
-    } }, decls: 7, vars: 1, consts: [[2, "height", "calc(100vh - 100px)", "border", "1px solid #ccc"], ["docsPilotElement", ""], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mat-raised-button", "", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
+    } }, hostBindings: function MilkdownReactHostComponent_HostBindings(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("keydown", function MilkdownReactHostComponent_keydown_HostBindingHandler($event) { return ctx.handleKeyDown($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresolveWindow"]);
+    } }, decls: 8, vars: 1, consts: [[2, "height", "calc(100vh - 60px)", "border", "1px solid #ccc", "overflow-y", "auto", "position", "relative"], ["docsPilotElement", ""], [2, "position", "fixed", "bottom", "20px", "left", "20px", "z-index", "1000"], ["mat-raised-button", "", "color", "primary", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "docs-pilot", null, 1);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "button", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_3_listener() { return ctx.goBack(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4, "Torna ad Angular");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "div", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "button", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_4_listener() { return ctx.saveMarkdown(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](5, "mat-icon");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](6, "save");
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](5, "button", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_5_listener() { return ctx.sendSampleMarkdown(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](6, "Invia Markdown di Esempio");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, " Salva ");
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     } if (rf & 2) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵattribute"]("markdown", ctx.markdownContent);
-    } }, directives: [_angular_material_button__WEBPACK_IMPORTED_MODULE_7__["MatButton"]], encapsulation: 2 });
+    } }, directives: [_angular_material_button__WEBPACK_IMPORTED_MODULE_7__["MatButton"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_8__["MatIcon"]], styles: ["[_nghost-%COMP%] {\n      display: block;\n      height: 100vh;\n      position: relative;\n    }"] });
 
 
 /***/ }),

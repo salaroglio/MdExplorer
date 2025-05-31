@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router'; // Per ricevere dati, se necessario
 import { HttpClient } from '@angular/common/http';
@@ -10,13 +10,23 @@ import { filter, switchMap, tap } from 'rxjs/operators';
 @Component({
   selector: 'app-milkdown-react-host',
   template: `
-    <div style="height: calc(100vh - 100px); border: 1px solid #ccc;">
+    <div style="height: calc(100vh - 60px); border: 1px solid #ccc; overflow-y: auto; position: relative;">
       <docs-pilot #docsPilotElement [attr.markdown]="markdownContent"></docs-pilot>
     </div>
-    <button mat-raised-button color="primary" (click)="goBack()">Torna ad Angular</button>
-    <button mat-raised-button (click)="sendSampleMarkdown()">Invia Markdown di Esempio</button>
+    <div style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
+      <button mat-raised-button color="primary" (click)="saveMarkdown()">
+        <mat-icon>save</mat-icon>
+        Salva
+      </button>
+    </div>
   `,
-  // styleUrls: ['./milkdown-react-host.component.scss'] // Se avessimo stili specifici
+  styles: [`
+    :host {
+      display: block;
+      height: 100vh;
+      position: relative;
+    }
+  `]
 })
 export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('docsPilotElement') docsPilotElementRef: ElementRef<HTMLElement & { markdown: string }>;
@@ -80,6 +90,15 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     // }
   }
 
+  @HostListener('window:keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent): void {
+    // Intercetta Ctrl+S o Cmd+S (per Mac)
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault(); // Previene il comportamento di default del browser
+      this.saveMarkdown();
+    }
+  }
+
   async saveMarkdown(): Promise<void> {
     if (!this.currentFilePath) {
       console.error('React Host: Nessun percorso file corrente per salvare.');
@@ -120,25 +139,12 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     try {
       await this.http.post('/api/MdExplorerEditorReact/UpdateMarkdown', requestBody).toPromise();
       console.log('React Host: Markdown salvato con successo per:', this.currentFilePath);
-      // Aggiungere un feedback per l'utente, es. con MatSnackBar
+      // Dopo il salvataggio, torna indietro
+      this.location.back();
     } catch (error) {
       console.error('React Host: Errore durante il salvataggio del markdown:', error);
       // Aggiungere un feedback di errore per l'utente
     }
   }
 
-  async goBack(): Promise<void> {
-    await this.saveMarkdown(); // Salva prima di tornare indietro
-    this.location.back();
-  }
-
-  sendSampleMarkdown(): void {
-    const sampleMd = `## Markdown da Angular\n\n- Lista puntata\n- **Grassetto**\n\nTimestamp: ${new Date().toLocaleTimeString()}`;
-    if (this.docsPilotElementRef?.nativeElement) {
-      // Usare setAttribute è più robusto per i WebComponent che osservano gli attributi.
-      this.docsPilotElementRef.nativeElement.setAttribute('markdown', sampleMd);
-      // In alternativa, se il setter della proprietà gestisce la logica di re-render:
-      // this.docsPilotElementRef.nativeElement.markdown = sampleMd;
-    }
-  }
 }
