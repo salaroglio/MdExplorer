@@ -10,21 +10,50 @@ import { filter, switchMap, tap } from 'rxjs/operators';
 @Component({
   selector: 'app-milkdown-react-host',
   template: `
-    <div style="height: calc(100vh - 60px); border: 1px solid #ccc; overflow-y: auto; position: relative;">
-      <docs-pilot #docsPilotElement [attr.markdown]="markdownContent"></docs-pilot>
+    <div class="editor-container">
+      <div class="editor-content">
+        <docs-pilot #docsPilotElement [attr.markdown]="markdownContent"></docs-pilot>
+      </div>
     </div>
-    <div style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
-      <button mat-raised-button color="primary" (click)="saveMarkdown()">
-        <mat-icon>save</mat-icon>
-        Salva
-      </button>
-    </div>
+    <button class="save-button" (click)="saveMarkdown()">
+      Salva
+    </button>
   `,
   styles: [`
     :host {
       display: block;
-      height: 100vh;
       position: relative;
+      height: 100%;
+    }
+    .editor-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+    }
+    .editor-content {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+    }
+    .save-button {
+      position: fixed;  /* Torniamo a fixed per mantenerlo fisso durante lo scroll */
+      bottom: 20px;
+      left: 280px;  /* Spostiamo a destra per evitare la sidebar (assumendo larghezza sidebar ~250px) */
+      z-index: 100;
+      background-color: #3f51b5;
+      color: white;
+      padding: 10px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12);
+      text-transform: uppercase;
+    }
+    .save-button:hover {
+      background-color: #303f9f;
     }
   `]
 })
@@ -43,6 +72,7 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
   ) {}
 
   ngOnInit(): void {
+    console.log('MilkdownReactHostComponent initialized');
     this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(
       filter((file): file is MdFile => file !== null && file !== undefined), // Assicura che file non sia null/undefined
       tap(file => {

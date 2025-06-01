@@ -991,25 +991,31 @@ $(function () {
     window.canvas.setAttribute('id', 'writeCanvas');
     window.canvas.setAttribute('class', 'canvasForWriting'); // setting z-index to 100
     document.body.appendChild(canvas);
+    
+    // Crea la tavolozza colori
+    createColorPalette();
 
     // some hotfixes... ( ≖_≖)
     //document.body.style.margin = 0;
     window.canvas.setAttribute('hidden', 'hidden');
-    window.canvas.style.position = 'absolute';
+    window.canvas.style.position = 'absolute';  // torniamo ad absolute per seguire il contenuto
     window.canvas.style.top = 0;
-    window.canvas.width = window.innerWidth - 40;
-    //window.canvas.style.left = window.innerWidth; // qui è dove si imposta il canvas FUORI dal campo visivo
+    window.canvas.style.left = 0;
+    window.canvas.width = document.documentElement.scrollWidth;
+    window.canvas.height = document.documentElement.scrollHeight;  // intero documento
 
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
     resize();
 
     // last known position
-    console.log()
-    window.shiftY = 0;
-    window.shiftX = 0;
     window.pos = { x: 0, y: 0 };
-    window.scrollPos = { x: window.shiftX, y: window.shiftY };
+    window.scrollPos = { x: 0, y: 0 };
+    
+    // Drawing settings
+    window.currentColor = '#2bc02d'; // Verde di default
+    window.isErasing = false;
+    window.brushSize = 5;
 
     window.addEventListener('resize', resize);
     document.addEventListener('mousemove', draw);
@@ -1018,63 +1024,195 @@ $(function () {
     document.addEventListener('scroll', scrollPosition);
 });
 
+// Crea la tavolozza colori
+function createColorPalette() {
+    const palette = document.createElement('div');
+    palette.id = 'colorPalette';
+    palette.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        display: none;
+        z-index: 101;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    `;
+    
+    // Colori disponibili
+    const colors = [
+        '#2bc02d', // Verde (default)
+        '#ff0000', // Rosso
+        '#0000ff', // Blu
+        '#ffff00', // Giallo
+        '#ff00ff', // Magenta
+        '#00ffff', // Ciano
+        '#000000', // Nero
+        '#ffffff', // Bianco (per correzioni)
+        '#ffa500', // Arancione
+        '#800080'  // Viola
+    ];
+    
+    // Crea i bottoni colore
+    colors.forEach(color => {
+        const colorBtn = document.createElement('button');
+        colorBtn.style.cssText = `
+            width: 30px;
+            height: 30px;
+            margin: 2px;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            background-color: ${color};
+        `;
+        colorBtn.onclick = () => selectColor(color);
+        palette.appendChild(colorBtn);
+    });
+    
+    // Separatore
+    const separator = document.createElement('div');
+    separator.style.cssText = 'width: 100%; height: 1px; background: #ccc; margin: 5px 0;';
+    palette.appendChild(separator);
+    
+    // Bottone gomma
+    const eraserBtn = document.createElement('button');
+    eraserBtn.innerHTML = '🧹 Gomma';
+    eraserBtn.style.cssText = `
+        padding: 5px 10px;
+        margin: 2px;
+        cursor: pointer;
+        background: #f0f0f0;
+        border: 2px solid #ccc;
+    `;
+    eraserBtn.onclick = toggleEraser;
+    palette.appendChild(eraserBtn);
+    
+    // Selezione dimensione pennello
+    const sizeLabel = document.createElement('span');
+    sizeLabel.innerHTML = ' Dimensione: ';
+    sizeLabel.style.marginLeft = '10px';
+    palette.appendChild(sizeLabel);
+    
+    const sizeInput = document.createElement('input');
+    sizeInput.type = 'range';
+    sizeInput.min = '1';
+    sizeInput.max = '20';
+    sizeInput.value = '5';
+    sizeInput.style.width = '80px';
+    sizeInput.oninput = (e) => { window.brushSize = parseInt(e.target.value); };
+    palette.appendChild(sizeInput);
+    
+    document.body.appendChild(palette);
+}
+
+// Seleziona un colore
+function selectColor(color) {
+    window.currentColor = color;
+    window.isErasing = false;
+    // Feedback visivo
+    document.querySelectorAll('#colorPalette button').forEach(btn => {
+        btn.style.border = '2px solid #ccc';
+    });
+    event.target.style.border = '3px solid #000';
+}
+
+// Toggle modalità gomma
+function toggleEraser() {
+    window.isErasing = !window.isErasing;
+    const eraserBtn = event.target;
+    if (window.isErasing) {
+        eraserBtn.style.background = '#ffa500';
+        eraserBtn.innerHTML = '🧹 Gomma ON';
+    } else {
+        eraserBtn.style.background = '#f0f0f0';
+        eraserBtn.innerHTML = '🧹 Gomma';
+    }
+}
+
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas(me) {
-
+    const palette = document.getElementById('colorPalette');
+    const buttonDiv = me.parentElement; // Il div con classe mdeLowerBarButton
+    
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
         window.canvas.style.left = 0;
+        palette.style.display = 'block'; // Mostra la tavolozza
+        buttonDiv.classList.add('active'); // Aggiungi classe active
 
     } else {
         me.children[0].src = "/assets/drawStatic.png";
         window.canvas.setAttribute('hidden', 'hidden');
+        palette.style.display = 'none'; // Nascondi la tavolozza
+        buttonDiv.classList.remove('active'); // Rimuovi classe active
     }
     window.toggleCanvas = !window.toggleCanvas;
 }
 
 function scrollPosition(e) {
-    scrollPos.x = window.scrollX + window.shiftX;
-    scrollPos.y = window.scrollY + window.shiftY;
+    scrollPos.x = window.pageXOffset || document.documentElement.scrollLeft;
+    scrollPos.y = window.pageYOffset || document.documentElement.scrollTop;
 }
 // new position from mouse event
 function setPosition(e) {
-
-    pos.x = Math.round(e.clientX * 1.01) + Math.round(scrollPos.x * 1.014);
-    pos.y = Math.round(e.clientY * 1.01) + Math.round(scrollPos.y * 1.014);
-
+    // Aggiorna sempre la posizione dello scroll corrente
+    scrollPos.x = window.pageXOffset || document.documentElement.scrollLeft;
+    scrollPos.y = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Calcoliamo l'offset del canvas
+    const canvasRect = window.canvas.getBoundingClientRect();
+    
+    // Posizione relativa al documento
+    // clientX/Y sono relative alla viewport, quindi aggiungiamo lo scroll
+    pos.x = e.clientX + scrollPos.x;
+    pos.y = e.clientY + scrollPos.y;
 }
 
 // resize canvas
 function resize() {
-    window.scaleX = window.ctx.canvas.width / window.innerWidth;
-    window.scaleY = window.ctx.canvas.height / document.documentElement.scrollHeight;
-    window.ctx.canvas.width = window.innerWidth;
+    // Salva il contenuto del canvas prima di ridimensionare
+    const imageData = window.ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
+    
+    // Ridimensiona all'intero documento
+    window.ctx.canvas.width = document.documentElement.scrollWidth;
     window.ctx.canvas.height = document.documentElement.scrollHeight;
+    
+    // Ripristina il contenuto
+    window.ctx.putImageData(imageData, 0, 0);
 }
 
 
 function draw(e) {
     if (!window.toggleCanvas) {
-
-
         // mouse left button must be pressed
         if (e.buttons !== 1) return;
 
-        console.log("draw");
-        window.ctx.beginPath(); // begin
-
-        window.ctx.lineWidth = 5;
-        window.ctx.lineCap = 'round';
-        window.ctx.strokeStyle = '#2bc02d';
-
-        window.ctx.moveTo(pos.x, pos.y); // from
-        setPosition(e);
-        window.ctx.lineTo(pos.x, pos.y); // to
-
-        window.ctx.stroke(); // draw it!
+        if (window.isErasing) {
+            // Modalità gomma - usa clearRect per cancellare
+            window.ctx.save();
+            window.ctx.globalCompositeOperation = 'destination-out';
+            window.ctx.beginPath();
+            window.ctx.arc(pos.x, pos.y, window.brushSize * 2, 0, Math.PI * 2);
+            window.ctx.fill();
+            window.ctx.restore();
+            setPosition(e);
+        } else {
+            // Modalità disegno normale
+            window.ctx.beginPath();
+            window.ctx.lineWidth = window.brushSize;
+            window.ctx.lineCap = 'round';
+            window.ctx.strokeStyle = window.currentColor;
+            
+            window.ctx.moveTo(pos.x, pos.y);
+            setPosition(e);
+            window.ctx.lineTo(pos.x, pos.y);
+            
+            window.ctx.stroke();
+        }
     }
-
 }
 
 //Gestione Clipboard *************

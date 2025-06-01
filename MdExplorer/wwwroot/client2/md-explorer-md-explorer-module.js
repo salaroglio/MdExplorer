@@ -788,10 +788,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
 /* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../services/md-file.service */ "xmhS");
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
-
-
 
 
 
@@ -811,6 +807,7 @@ class MilkdownReactHostComponent {
         this.currentFilePath = null; // Per memorizzare il percorso del file corrente
     }
     ngOnInit() {
+        console.log('MilkdownReactHostComponent initialized');
         this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["filter"])((file) => file !== null && file !== undefined), // Assicura che file non sia null/undefined
         Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(file => {
             this.currentFilePath = file.fullPath; // Memorizza il percorso del file
@@ -915,23 +912,20 @@ MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["�
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.docsPilotElementRef = _t.first);
     } }, hostBindings: function MilkdownReactHostComponent_HostBindings(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("keydown", function MilkdownReactHostComponent_keydown_HostBindingHandler($event) { return ctx.handleKeyDown($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresolveWindow"]);
-    } }, decls: 8, vars: 1, consts: [[2, "height", "calc(100vh - 60px)", "border", "1px solid #ccc", "overflow-y", "auto", "position", "relative"], ["docsPilotElement", ""], [2, "position", "fixed", "bottom", "20px", "left", "20px", "z-index", "1000"], ["mat-raised-button", "", "color", "primary", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
+    } }, decls: 6, vars: 1, consts: [[1, "editor-container"], [1, "editor-content"], ["docsPilotElement", ""], [1, "save-button", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "docs-pilot", null, 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](1, "div", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](2, "docs-pilot", null, 2);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "div", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "button", 3);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_4_listener() { return ctx.saveMarkdown(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](5, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](6, "save");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, " Salva ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](5, " Salva ");
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵattribute"]("markdown", ctx.markdownContent);
-    } }, directives: [_angular_material_button__WEBPACK_IMPORTED_MODULE_7__["MatButton"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_8__["MatIcon"]], styles: ["[_nghost-%COMP%] {\n      display: block;\n      height: 100vh;\n      position: relative;\n    }"] });
+    } }, styles: ["[_nghost-%COMP%] {\n      display: block;\n      position: relative;\n      height: 100%;\n    }\n    .editor-container[_ngcontent-%COMP%] {\n      display: flex;\n      flex-direction: column;\n      height: 100%;\n      position: relative;\n    }\n    .editor-content[_ngcontent-%COMP%] {\n      flex: 1;\n      overflow-y: auto;\n      border: 1px solid #ccc;\n    }\n    .save-button[_ngcontent-%COMP%] {\n      position: fixed;  \n      bottom: 20px;\n      left: 280px;  \n      z-index: 100;\n      background-color: #3f51b5;\n      color: white;\n      padding: 10px 24px;\n      border: none;\n      border-radius: 4px;\n      font-size: 14px;\n      font-weight: 500;\n      cursor: pointer;\n      box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12);\n      text-transform: uppercase;\n    }\n    .save-button[_ngcontent-%COMP%]:hover {\n      background-color: #303f9f;\n    }"] });
 
 
 /***/ }),

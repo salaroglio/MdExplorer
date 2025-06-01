@@ -486,29 +486,58 @@ s
     display: flex;
     flex-direction: row;
     justify-content: center;
+    align-items: center;
     position: fixed;
-    top: calc(100vh - 60px);
-    left: calc(50vw - 60px);
-    width: 120px;
-    border: solid;
-    border-width: 2px;
-    border-color: black;
-    border-radius: 20px;
-    float: none;
-    background-color: grey;
+    bottom: 20px;
+    left: 20px;  /* Posizionata in basso a sinistra invece che al centro */
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 1020;
+    transition: all 0.3s ease;
+}
+
+.mdeLowerBar:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15);
 }
 
 .mdeLowerBarButton {
     cursor: pointer;
-    border-radius: 10px;
-    background-color: grey;
-    padding:2px;
-    margin:0px 2px 0px 2px;
+    border-radius: 16px;
+    background-color: transparent;
+    padding: 8px;
+    margin: 0 4px;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
-.mdeLowerBarButton:hover{
-    background-color:white;
-    border-color:black;
-    border-width:2px;
+.mdeLowerBarButton:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.mdeLowerBarButton:active {
+    transform: translateY(0);
+}
+
+.mdeLowerBarButton img {
+    width: 24px;
+    height: 24px;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+.mdeLowerBarButton:hover img {
+    transform: scale(1.1);
+}
+
+/* Stile speciale per il pulsante attivo del canvas */
+.mdeLowerBarButton.active {
+    background-color: #4CAF50;
+}
+
+.mdeLowerBarButton.active img {
+    filter: brightness(0) invert(1);
 }
