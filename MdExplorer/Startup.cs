@@ -27,6 +27,7 @@ using Ad.Tools.FluentMigrator.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Services.Git;
 
 namespace MdExplorer
 {
@@ -53,6 +54,10 @@ namespace MdExplorer
 
             services.AddAutoMapper(typeof(ProjectProfile).Assembly);
             services.AddMDExplorerCommands();
+            
+            // Add modern Git services with native credential management
+            services.AddModernGitServices(_Configuration);
+            
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>
             {
