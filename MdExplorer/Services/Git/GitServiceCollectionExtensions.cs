@@ -72,18 +72,15 @@ namespace MdExplorer.Services.Git
             // Add platform-specific credential resolvers based on the current OS
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // Windows-specific services will be added in Phase 2
-                // services.AddScoped<ICredentialResolver, WindowsCredentialStoreResolver>();
+                services.AddScoped<ICredentialResolver, CredentialStores.WindowsCredentialStoreResolver>();
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                // macOS-specific services will be added in Phase 2
-                // services.AddScoped<ICredentialResolver, MacOSKeychainResolver>();
+                services.AddScoped<ICredentialResolver, CredentialStores.MacOSKeychainResolver>();
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                // Linux-specific services will be added in Phase 2
-                // services.AddScoped<ICredentialResolver, LinuxSecretServiceResolver>();
+                services.AddScoped<ICredentialResolver, CredentialStores.LinuxSecretServiceResolver>();
             }
         }
     }

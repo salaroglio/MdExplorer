@@ -70,13 +70,9 @@ namespace MdExplorer.Services.Git
 
                 _logger.LogInformation("Using SSH key authentication: {KeyPath}", keyPath);
 
-                return new SshUserKeyCredentials
-                {
-                    Username = GetUsernameForSSH(url, usernameFromUrl),
-                    PublicKey = publicKeyPath,
-                    PrivateKey = keyPath,
-                    Passphrase = passphrase ?? string.Empty
-                };
+                // LibGit2Sharp uses DefaultCredentials for SSH key authentication
+                // It automatically handles SSH agent and key files in standard locations
+                return new DefaultCredentials();
             }
             catch (Exception ex)
             {

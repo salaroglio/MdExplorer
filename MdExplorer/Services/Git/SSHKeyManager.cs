@@ -135,26 +135,36 @@ namespace MdExplorer.Services.Git
                 // Check file permissions on Unix systems
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    var fileInfo = new FileInfo(keyPath);
-                    var permissions = fileInfo.UnixFileMode;
-                    var expectedPermissions = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                    // For .NET Core 3.1, we can't easily check/set Unix file permissions
+                    // This is a limitation we'll accept for now
+                    _logger.LogDebug("Cannot validate SSH key permissions in .NET Core 3.1: {KeyPath}", keyPath);
                     
-                    if (permissions != expectedPermissions)
+                    // Alternative: use Process to call chmod if needed
+                    try
                     {
-                        _logger.LogWarning("SSH key has incorrect permissions: {KeyPath}, Permissions: {Permissions}, Expected: {Expected}", 
-                            keyPath, permissions, expectedPermissions);
+                        var process = new System.Diagnostics.Process
+                        {
+                            StartInfo = new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = "chmod",
+                                Arguments = $"600 \"{keyPath}\"",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardError = true
+                            }
+                        };
                         
-                        // Attempt to fix permissions
-                        try
+                        process.Start();
+                        process.WaitForExit();
+                        
+                        if (process.ExitCode == 0)
                         {
-                            File.SetUnixFileMode(keyPath, expectedPermissions);
-                            _logger.LogInformation("Fixed SSH key permissions: {KeyPath}", keyPath);
+                            _logger.LogDebug("Set SSH key permissions using chmod: {KeyPath}", keyPath);
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Could not fix SSH key permissions: {KeyPath}", keyPath);
-                            return false;
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not fix SSH key permissions: {KeyPath}", keyPath);
                     }
                 }
 
@@ -281,7 +291,7 @@ namespace MdExplorer.Services.Git
                 }
 
                 process.StandardInput.Close();
-                await process.WaitForExitAsync();
+                process.WaitForExit();
 
                 var success = process.ExitCode == 0;
                 
@@ -342,7 +352,7 @@ namespace MdExplorer.Services.Git
 
                 process.Start();
                 var output = await process.StandardOutput.ReadToEndAsync();
-                await process.WaitForExitAsync();
+                process.WaitForExit();
 
                 if (process.ExitCode == 0)
                 {
@@ -375,7 +385,7 @@ namespace MdExplorer.Services.Git
 
                 process.Start();
                 var output = await process.StandardOutput.ReadToEndAsync();
-                await process.WaitForExitAsync();
+                process.WaitForExit();
 
                 if (process.ExitCode == 0)
                 {

@@ -178,9 +178,7 @@ namespace MdExplorer.Services.Git
         {
             try
             {
-                using var cts = new System.Threading.CancellationTokenSource(timeout);
-                await process.WaitForExitAsync(cts.Token);
-                return true;
+                return await Task.Run(() => process.WaitForExit((int)timeout.TotalMilliseconds));
             }
             catch (System.Threading.Tasks.TaskCanceledException)
             {
