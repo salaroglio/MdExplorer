@@ -20,6 +20,13 @@
     <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)"><b style="color:violet">Add</b> existing file<b style="color:blue"> as link</b></button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>Clone timed document</b></button>
+    <button *ngIf="isFileWaiting(item)" 
+            mat-menu-item 
+            (click)="forceOpenFile(item)"
+            style="color: orange;">
+      <mat-icon>warning</mat-icon>
+      <b>Forza apertura (non indicizzato)</b>
+    </button>
   </ng-template>
 </mat-menu>
 
@@ -30,27 +37,63 @@
   <mat-tree-node *matTreeNodeDef="let node"
                  matTreeNodePadding
                  style="cursor:pointer"
-                 (contextmenu)="onRightClick($event, node)">
+                 (contextmenu)="onRightClick($event, node)"
+                 [style.opacity]="isFileWaiting(node) ? '0.5' : 'inherit'"
+                 [style.pointer-events]="isFileWaiting(node) ? 'none' : 'auto'"
+                 [ngClass]="{
+                   'md-file': node.type === 'mdFile' || node.type === 'mdFileTimer',
+                   'indexed': isFileIndexed(node),
+                   'not-indexed': !isFileIndexed(node),
+                   'indexing': node.indexingStatus === 'indexing',
+                   'selected': isNodeSelected(node)
+                 }">
     <!-- use a disabled button to provide padding for tree leaf -->
-    <button mat-icon-button color="primary" style="cursor:pointer">
+    <button mat-icon-button color="primary" style="cursor:pointer"
+            [ngClass]="{
+              'not-indexed': isFileWaiting(node)
+            }">
       <mat-icon class="mat-icon-rtl-mirror">text_snippet</mat-icon>
     </button>
-    <a (click)="getNode(node)" [ngClass]="activeNode === node ? 'background-highlight': 'blue-link'">{{node.name}}</a>
+    <div (click)="getNode(node)"
+         style="cursor: pointer; padding: 2px;"
+         class="node-text"
+         [style.background-color]="isFileWaiting(node) ? '#fff3cd' : 'transparent'">
+       {{node.name}}
+       <span *ngIf="isFileWaiting(node)" style="color: orange;">⏳</span>
+    </div>
   </mat-tree-node>
 
   <!-- This is the tree node template for expandable nodes -->
   <mat-tree-node [@fadeInOnEnter] *matTreeNodeDef="let node;when: isFolder"
-                 style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
+                 style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)"
+                 [ngClass]="{
+                   'folder-node': true,
+                   'indexing': node.indexingStatus === 'indexing',
+                   'selected': isNodeSelected(node)
+                 }">
     <button mat-icon-button matTreeNodeToggle
-            [attr.aria-label]="'Toggle ' + node.name">
-      <mat-icon *ngIf="node.name!='mdPublish'" class="gold-icon mat-icon-rtl-mirror">
+            [attr.aria-label]="'Toggle ' + node.name"
+            [ngClass]="{
+              'indexing': node.indexingStatus === 'indexing'
+            }">
+      <mat-icon *ngIf="node.name!='mdPublish' && node.indexingStatus !== 'indexing'" 
+                class="gold-icon mat-icon-rtl-mirror folder-icon">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
-      <mat-icon *ngIf="node.name=='mdPublish'" color="accent" class="gold-icon mat-icon-rtl-mirror">
+      <mat-spinner *ngIf="node.name!='mdPublish' && node.indexingStatus === 'indexing'"
+                   diameter="20"
+                   class="folder-spinner">
+      </mat-spinner>
+      <mat-icon *ngIf="node.name=='mdPublish'" 
+                color="accent" 
+                class="gold-icon mat-icon-rtl-mirror folder-icon"
+                [ngClass]="{
+                  'indexing': node.indexingStatus === 'indexing'
+                }">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
     </button>
-    {{node.name}}
+    <span class="folder-name node-text">{{node.name}}</span>
   </mat-tree-node>
   <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
     <button mat-icon-button matTreeNodeToggle></button>
