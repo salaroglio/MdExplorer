@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { IBranch } from '../models/branch';
 import { DataToPull } from '../models/DataToPull'
@@ -14,8 +14,12 @@ import { ResposneClone } from './responses/ResponseClone';
 @Injectable({
   providedIn: 'root'
 })
-export class GITService {
+export class GITService implements OnDestroy {
   private _Settings: BehaviorSubject<GitlabSetting[]>;
+  private gitPollingInterval: any = null;
+  private readonly ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
+  private readonly INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
+  
   public currentBranch$: BehaviorSubject<IBranch> = new BehaviorSubject<IBranch>(
     {
       id: "", name: "",
@@ -35,7 +39,89 @@ export class GITService {
   });
 
   constructor(private http: HttpClient) {
-    setInterval(()=> this.getCurrentBranch(), 20000);
+    this.initializeSmartPolling();
+  }
+
+  /**
+   * Inizializza il polling intelligente che si adatta alla visibilità della finestra
+   */
+  private initializeSmartPolling(): void {
+    // Polling iniziale immediato
+    this.getCurrentBranch();
+    
+    // Avvia polling con intervallo attivo
+    this.startPolling(this.ACTIVE_POLLING_INTERVAL);
+    
+    // Listener per cambio visibilità finestra
+    document.addEventListener('visibilitychange', () => {
+      this.handleVisibilityChange();
+    });
+    
+    // Listener per focus/blur finestra (backup per browser che non supportano visibilitychange)
+    window.addEventListener('focus', () => {
+      this.handleWindowFocus();
+    });
+    
+    window.addEventListener('blur', () => {
+      this.handleWindowBlur();
+    });
+    
+    console.log('🔄 Smart Git polling initialized');
+  }
+
+  /**
+   * Gestisce il cambio di visibilità della finestra
+   */
+  private handleVisibilityChange(): void {
+    if (document.visibilityState === 'visible') {
+      this.handleWindowFocus();
+    } else {
+      this.handleWindowBlur();
+    }
+  }
+
+  /**
+   * Quando la finestra diventa attiva: polling più frequente
+   */
+  private handleWindowFocus(): void {
+    console.log('🟢 Window focused - activating frequent Git polling (60s)');
+    this.startPolling(this.ACTIVE_POLLING_INTERVAL);
+    // Polling immediato quando torna in focus
+    this.getCurrentBranch();
+  }
+
+  /**
+   * Quando la finestra diventa inattiva: polling meno frequente
+   */
+  private handleWindowBlur(): void {
+    console.log('🟡 Window blurred - reducing Git polling frequency (5min)');
+    this.startPolling(this.INACTIVE_POLLING_INTERVAL);
+  }
+
+  /**
+   * Avvia polling con intervallo specificato
+   */
+  private startPolling(interval: number): void {
+    // Ferma polling esistente
+    if (this.gitPollingInterval) {
+      clearInterval(this.gitPollingInterval);
+    }
+    
+    // Avvia nuovo polling
+    this.gitPollingInterval = setInterval(() => {
+      this.getCurrentBranch();
+    }, interval);
+  }
+
+  /**
+   * Ferma completamente il polling (per cleanup)
+   */
+  public stopPolling(): void {
+    if (this.gitPollingInterval) {
+      clearInterval(this.gitPollingInterval);
+      this.gitPollingInterval = null;
+      console.log('🔴 Git polling stopped');
+    }
   }
 
   clone(request: CloneInfo): Observable<ResposneClone> {
@@ -104,6 +190,20 @@ export class GITService {
   push(request: PullInfo): Observable<ResponsePull> {
     const url = '../api/gitfeatures/push';
     return this.http.post<ResponsePull>(url, request);
+  }
+
+  /**
+   * Cleanup quando il service viene distrutto
+   */
+  ngOnDestroy(): void {
+    this.stopPolling();
+    
+    // Rimuovi event listeners per evitare memory leak
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('focus', this.handleWindowFocus);
+    window.removeEventListener('blur', this.handleWindowBlur);
+    
+    console.log('🧹 Git service cleanup completed');
   }
 
 }
