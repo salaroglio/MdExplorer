@@ -10,5 +10,49 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+// Subtle dialog styles for Rule #1
+.subtle-dialog-panel {
+  .mat-dialog-container {
+    padding: 0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  }
+}
+
+// Minimal snackbar styles - base
+.subtle-snackbar, .success-snackbar {
+  .mat-snack-bar-container {
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
+    min-width: auto !important;
+    padding: 12px 16px !important;
+    margin: 16px !important;
+    
+    .mat-button-wrapper {
+      line-height: 1.2 !important;
+    }
+  }
+  
+  // Remove action button since we don't need it
+  .mat-snack-bar-action {
+    display: none !important;
+  }
+}
+
+// Neutral snackbar (for "kept unchanged")
+.subtle-snackbar {
+  .mat-snack-bar-container {
+    background: #333 !important;
+    color: #fff !important;
+  }
+}
+
+// Success snackbar (for "renamed successfully")
+.success-snackbar {
+  .mat-snack-bar-container {
+    background: #2e7d32 !important;
+    color: #fff !important;
+  }
+}

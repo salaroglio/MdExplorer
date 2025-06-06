@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Guidance
+
+* Always explain the reasoning behind code implementation before writing the actual code
+  - Provide a clear breakdown of the approach
+  - Discuss potential alternative solutions
+  - Outline the specific steps that will be taken
+* Le compilazioni di Angular e dotnet, le faccio io
+
 ## Architecture Overview
 
 MdExplorer is a multi-project .NET solution for Markdown file management and editing with the following architecture:

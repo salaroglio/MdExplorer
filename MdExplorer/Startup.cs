@@ -6,6 +6,7 @@ using MDExplorer.DataAccess.Mapping;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git;
+using System.Text;
 
 namespace MdExplorer
 {
@@ -78,6 +80,37 @@ namespace MdExplorer
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            // Add custom middleware to log all requests
+            app.Use(async (context, next) =>
+            {
+                logger.LogInformation("HTTP {Method} {Path} from {RemoteIP}", 
+                    context.Request.Method, 
+                    context.Request.Path, 
+                    context.Connection.RemoteIpAddress);
+                
+                if (context.Request.Path.StartsWithSegments("/api/ModernGitToolbar"))
+                {
+                    logger.LogInformation("ModernGitToolbar request - Headers: {Headers}", 
+                        string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}={h.Value}")));
+                    
+                    if (context.Request.Method == "POST" && context.Request.ContentLength > 0)
+                    {
+                        context.Request.EnableBuffering();
+                        using var reader = new System.IO.StreamReader(context.Request.Body, encoding: System.Text.Encoding.UTF8, leaveOpen: true);
+                        var body = await reader.ReadToEndAsync();
+                        context.Request.Body.Position = 0;
+                        logger.LogInformation("ModernGitToolbar POST Body: {Body}", body);
+                    }
+                }
+                
+                await next.Invoke();
+                
+                logger.LogInformation("HTTP {Method} {Path} responded with {StatusCode}", 
+                    context.Request.Method, 
+                    context.Request.Path, 
+                    context.Response.StatusCode);
+            });
 
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
 

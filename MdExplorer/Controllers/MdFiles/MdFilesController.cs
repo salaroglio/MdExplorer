@@ -391,10 +391,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult DeleteFile([FromBody] FileInfoNode fileData)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
-            System.IO.File.Delete(fileData.FullPath);
-            return Ok(new { message = "done" });
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            try
+            {
+                _fileSystemWatcher.EnableRaisingEvents = false;
+                System.IO.File.Delete(fileData.FullPath);
+                _fileSystemWatcher.EnableRaisingEvents = true;
+                return Ok(new { message = "done" });
+            }
+            catch (Exception ex)
+            {
+                // In caso di errore, assicurati di riabilitare il FileSystemWatcher
+                _fileSystemWatcher.EnableRaisingEvents = true;
+                return StatusCode(500, new { message = $"Error deleting file: {ex.Message}" });
+            }
         }
 
         [HttpPost]
@@ -606,6 +615,90 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private List<string> mdIgnorePatterns;
 
         [HttpGet]
+        public async Task<IActionResult> GetShallowStructure(string connectionId)
+        {
+            signalRConnectionId = connectionId;
+            LoadMdIgnorePatterns();
+            
+            var list = new List<IFileInfoNode>();
+            var currentPath = _fileSystemWatcher.Path;
+            
+            if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
+            {
+                return Ok(list);
+            }
+            
+            // Carica solo primo livello di cartelle che contengono file markdown
+            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
+            {
+                if (ShouldIgnorePath(itemFolder))
+                {
+                    continue;
+                }
+                
+                // Usa la logica esistente per determinare se la cartella contiene file markdown
+                var result = await CreateNodeFolder(itemFolder);
+                var node = result.Item1;
+                var isEmpty = result.Item2;
+                if (!isEmpty)
+                {
+                    // Imposta le proprietà per il caricamento incrementale
+                    node.Level = 0;
+                    node.IsIndexed = false;
+                    node.IndexingStatus = "idle";
+                    
+                    // Marca tutti i file children come non indicizzati
+                    MarkChildrenAsNotIndexed(node);
+                    
+                    list.Add(node);
+                }
+            }
+            
+            // File nella root
+            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
+            {
+                if (ShouldIgnorePath(itemFile))
+                {
+                    continue;
+                }
+                
+                var relativePath = itemFile.Substring(_fileSystemWatcher.Path.Length);
+                var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, relativePath);
+                nodeFile.IsIndexed = false;
+                nodeFile.IndexingStatus = "idle";
+                list.Add(nodeFile);
+            }
+            
+            // Aggiungi nodo empty root
+            var nodeempty = new FileInfoNode
+            {
+                Name = "root",
+                FullPath = currentPath,
+                Path = currentPath,
+                Type = "emptyroot",
+                Expandable = false,
+                IsIndexed = true
+            };
+            list.Add(nodeempty);
+            
+            // Avvia indicizzazione in background senza modificare la struttura visibile
+            // Avvia indicizzazione in background
+            _ = Task.Run(async () => 
+            {
+                try 
+                {
+                    await IndexLinksInBackground(connectionId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during background indexing");
+                }
+            });
+            
+            return Ok(list);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetAllMdFiles(string connectionId)
         {
             signalRConnectionId = connectionId;
@@ -645,9 +738,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     continue;
                 }
                 
-                _hubContext.Clients.Client(connectionId: signalRConnectionId)
-                    .SendAsync("indexingFolder", itemFolder).Wait();
-                (var node, var isempty) = CreateNodeFolder(itemFolder);
+                await _hubContext.Clients.Client(connectionId: signalRConnectionId)
+                    .SendAsync("indexingFolder", itemFolder);
+                var result = await CreateNodeFolder(itemFolder);
+                var node = result.Item1;
+                var isempty = result.Item2;
                 if (!isempty)
                 {
                     list.Add(node);
@@ -780,7 +875,49 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // prepare data to raise back
             List<IFileInfoNode> list = PrepareListToGetBack(title, fullPath, relativePath);
             _fileSystemWatcher.EnableRaisingEvents = true;
+            
+            // Invia evento SignalR per il nuovo file creato
+            var newFileNode = new
+            {
+                Name = title,
+                FullPath = fullPath,
+                Path = relativePath,
+                RelativePath = relativePath,
+                Type = "mdFile",
+                Level = CalculateFileLevel(relativePath),
+                Expandable = false,
+                IsIndexed = true,
+                IndexingStatus = "completed"
+            };
+            
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("markdownFileCreated", newFileNode);
+                    _logger.LogInformation($"📡 SignalR event 'markdownFileCreated' sent for: {title}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"❌ Error sending SignalR event for: {title}");
+                }
+            });
+            
             return Ok(list);
+        }
+
+        private int CalculateFileLevel(string relativePath)
+        {
+            // Rimuovi il separatore iniziale se presente
+            var cleanPath = relativePath.TrimStart(Path.DirectorySeparatorChar);
+            
+            if (string.IsNullOrEmpty(cleanPath))
+            {
+                return 0; // File nella root
+            }
+            
+            // Conta il numero di separatori per determinare il livello
+            return cleanPath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).Length - 1;
         }
 
         private List<IFileInfoNode> PrepareListToGetBack(string title, string fullPath, string relativePath)
@@ -1056,7 +1193,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         //    return node;
         //}
 
-        private (FileInfoNode, bool) CreateNodeFolder(string itemFolder)
+        private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder)
         {
             
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
@@ -1069,7 +1206,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Path = patchedItemFolfer,
                 Type = "folder"
             };
-            var isEmpty = ExploreNodes(node, itemFolder);
+            var isEmpty = await ExploreNodes(node, itemFolder);
             return (node, isEmpty);
         }
 
@@ -1113,7 +1250,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         }
 
-        private bool ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
+        private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
         {
             var isEmpty = true;
 
@@ -1125,10 +1262,23 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     continue;
                 }
                 
-                (FileInfoNode node, bool isempty) = CreateNodeFolder(itemFolder);
+                // Send folderIndexingStart event for subfolder
+                await _hubContext.Clients.Client(signalRConnectionId)
+                    .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
+                
+                var result = await CreateNodeFolder(itemFolder);
+                var node = result.Item1;
+                var isempty = result.Item2;
                 if (!isempty)
                 {
                     fileInfoNode.Childrens.Add(node);
+                    
+                    // Send folderIndexingComplete event for subfolder
+                    await _hubContext.Clients.Client(signalRConnectionId)
+                        .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
+                        
+                    // Small delay to make progress visible
+                    await Task.Delay(50);
                 }
                 isEmpty = isEmpty && isempty;
             }
@@ -1141,6 +1291,91 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 isEmpty = false;
             }
             return isEmpty;
+        }
+
+        private async Task IndexLinksInBackground(string connectionId)
+        {
+            // Per questa implementazione, saltiamo la gestione del database
+            // e ci concentriamo solo sulle notifiche SignalR per il feedback visivo
+            
+            // Carica la struttura completa per l'indicizzazione
+            var fullStructure = new List<IFileInfoNode>();
+            var currentPath = _fileSystemWatcher.Path;
+            
+            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
+            {
+                if (ShouldIgnorePath(itemFolder))
+                    continue;
+                
+                // Notifica inizio indicizzazione cartella
+                await _hubContext.Clients.Client(connectionId)
+                    .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
+                    
+                var result = await CreateNodeFolder(itemFolder);
+                var folderNode = result.Item1;
+                var isEmpty = result.Item2;
+                if (!isEmpty)
+                {
+                    fullStructure.Add(folderNode);
+                    
+                    // Notifica fine indicizzazione cartella
+                    await _hubContext.Clients.Client(connectionId)
+                        .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
+                }
+            }
+            
+            // File nella root
+            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
+            {
+                if (ShouldIgnorePath(itemFile))
+                    continue;
+                    
+                var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, currentPath);
+                fullStructure.Add(nodeFile);
+            }
+            
+            // TODO: Implementare salvataggio relazioni nel database con sessione dedicata
+            
+            // Notifica che i file sono stati indicizzati
+            await NotifyFilesIndexed(fullStructure, connectionId);
+        }
+
+        private async Task NotifyFilesIndexed(List<IFileInfoNode> structure, string connectionId)
+        {
+            // Notifica ricorsivamente tutti i file markdown come indicizzati
+            foreach (var node in structure)
+            {
+                if (node.Type == "mdFile" || node.Type == "mdFileTimer")
+                {
+                    await _hubContext.Clients.Client(connectionId)
+                        .SendAsync("fileIndexed", new { 
+                            path = node.FullPath, 
+                            isIndexed = true 
+                        });
+                }
+                
+                if (node.Childrens != null && node.Childrens.Count > 0)
+                {
+                    await NotifyFilesIndexed(node.Childrens.ToList(), connectionId);
+                }
+            }
+        }
+
+        private void MarkChildrenAsNotIndexed(IFileInfoNode node)
+        {
+            if (node.Type == "mdFile" || node.Type == "mdFileTimer")
+            {
+                node.IsIndexed = false;
+                node.IndexingStatus = "idle";
+            }
+            
+            if (node.Childrens != null)
+            {
+                foreach (var child in node.Childrens)
+                {
+                    MarkChildrenAsNotIndexed(child);
+                }
+            }
         }
 
         private void LoadMdIgnorePatterns()

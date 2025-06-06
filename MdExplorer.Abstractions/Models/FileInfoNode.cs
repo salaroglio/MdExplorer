@@ -21,5 +21,10 @@ namespace MdExplorer.Abstractions.Models
         public bool Expandable { get; set; } = true;
         public string DataText { get; set; }
         public IList<IFileInfoNode> Childrens { get; set; } = new List<IFileInfoNode>();
+        
+        // Nuove proprietà per caricamento incrementale
+        public bool IsIndexed { get; set; } = false;
+        public string IndexingStatus { get; set; } = "idle";
+        public int? IndexingProgress { get; set; }
     }
 }

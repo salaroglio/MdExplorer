@@ -1,11 +1,21 @@
 :host {
-  overflow-y: hidden;
-  overflow-x: hidden;
+  overflow: hidden;
   height: 100%;
-  border: 1px solid black;
+  border: 1px solid #e0e0e0;
+  position: relative;
+  display: block;
 }
 
+// Main container for all content states
+.main-content-container {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
+// Legacy classes maintained for backward compatibility
 .hideToolbar {
   height: 0px;
   transition: height 300ms ease-out;
@@ -23,4 +33,476 @@
 .contentWithToolbar {
   height: calc(100% - 72px);
   width: 100%;
+}
+
+// === LOADING STATE STYLES ===
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  
+  // Smooth fade-in animation
+  animation: fadeIn 0.3s ease-out;
+  
+  .loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+    
+    mat-progress-spinner {
+      margin-bottom: 1rem;
+      
+      // Pulse animation for enhanced visual feedback
+      animation: pulse 2s infinite ease-in-out;
+    }
+    
+    .loading-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #333;
+      margin: 0.5rem 0;
+      letter-spacing: 0.5px;
+    }
+    
+    .loading-subtext {
+      font-size: 0.9rem;
+      color: #666;
+      margin: 0;
+      opacity: 0.8;
+    }
+  }
+}
+
+// === INDEXING STATE STYLES ===
+.indexing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  
+  // Gentle slide-in animation
+  animation: slideInFromLeft 0.4s ease-out;
+  
+  .indexing-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    
+    mat-progress-spinner {
+      margin-bottom: 1rem;
+      
+      // Gentle pulsing for indexing
+      animation: indexingPulse 2.5s infinite ease-in-out;
+    }
+    
+    .indexing-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #ff8f00;
+      margin: 0.5rem 0;
+      letter-spacing: 0.5px;
+    }
+    
+    .indexing-subtext {
+      font-size: 0.9rem;
+      color: #f57c00;
+      margin: 0 0 1rem 0;
+      opacity: 0.9;
+    }
+    
+    .indexing-info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 193, 7, 0.1);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: #e65100;
+      
+      .info-icon {
+        font-size: 1.1rem;
+        width: 1.1rem;
+        height: 1.1rem;
+        margin-right: 0.5rem;
+        color: #ff9800;
+      }
+    }
+  }
+}
+
+// === ERROR STATE STYLES ===
+.error-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  
+  animation: slideInFromTop 0.4s ease-out;
+  
+  .error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+    max-width: 400px;
+    
+    .error-icon {
+      font-size: 3rem;
+      width: 3rem;
+      height: 3rem;
+      margin-bottom: 1rem;
+      
+      // Subtle shake animation for attention
+      animation: shake 0.5s ease-in-out;
+    }
+    
+    .error-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #d32f2f;
+      margin: 0 0 1rem 0;
+    }
+    
+    .error-message {
+      font-size: 1rem;
+      color: #666;
+      line-height: 1.5;
+      margin: 0 0 1.5rem 0;
+    }
+    
+    .error-actions {
+      .retry-button {
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+        
+        mat-icon {
+          margin-right: 0.5rem;
+        }
+        
+        // Hover effect for better interaction feedback
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+          transition: all 0.2s ease;
+        }
+      }
+    }
+  }
+}
+
+// === EMPTY STATE STYLES ===
+.empty-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  
+  animation: fadeIn 0.5s ease-out;
+  
+  .empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    max-width: 500px;
+    
+    .empty-icon {
+      font-size: 4rem;
+      width: 4rem;
+      height: 4rem;
+      color: #90a4ae;
+      margin-bottom: 1.5rem;
+      
+      // Gentle floating animation
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .empty-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #37474f;
+      margin: 0 0 1rem 0;
+    }
+    
+    .empty-message {
+      font-size: 1rem;
+      color: #78909c;
+      line-height: 1.6;
+      margin: 0 0 2rem 0;
+    }
+    
+    .empty-actions {
+      .empty-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: #90a4ae;
+        margin: 0;
+        
+        .hint-icon {
+          font-size: 1.2rem;
+          width: 1.2rem;
+          height: 1.2rem;
+          margin-right: 0.5rem;
+        }
+      }
+    }
+  }
+}
+
+// === IFRAME STYLES ===
+.content-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+  
+  // Smooth transition when showing/hiding
+  transition: opacity 0.3s ease-in-out;
+  
+  &[hidden] {
+    opacity: 0;
+  }
+  
+  &:not([hidden]) {
+    opacity: 1;
+  }
+  
+  // Focus styles for accessibility
+  &:focus {
+    outline: 2px solid #2196f3;
+    outline-offset: -2px;
+  }
+}
+
+// === ANIMATIONS ===
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes indexingPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+// === RESPONSIVE DESIGN ===
+@media (max-width: 768px) {
+  .loading-overlay .loading-content,
+  .indexing-overlay .indexing-content,
+  .error-state .error-content,
+  .empty-state .empty-content {
+    padding: 1.5rem 1rem;
+  }
+  
+  .error-state .error-content .error-icon,
+  .empty-state .empty-content .empty-icon {
+    font-size: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  
+  .empty-state .empty-content .empty-title {
+    font-size: 1.3rem;
+  }
+  
+  .error-state .error-content .error-title {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .loading-overlay .loading-content .loading-text,
+  .indexing-overlay .indexing-content .indexing-text {
+    font-size: 1rem;
+  }
+  
+  .error-state .error-content,
+  .empty-state .empty-content,
+  .indexing-overlay .indexing-content {
+    padding: 1rem;
+  }
+  
+  .error-state .error-content .retry-button {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}
+
+// === DARK MODE SUPPORT ===
+@media (prefers-color-scheme: dark) {
+  :host {
+    border-color: #424242;
+  }
+  
+  .loading-overlay {
+    background: rgba(33, 33, 33, 0.95);
+    
+    .loading-text {
+      color: #e0e0e0;
+    }
+    
+    .loading-subtext {
+      color: #bdbdbd;
+    }
+  }
+  
+  .indexing-overlay {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.2) 100%);
+    
+    .indexing-content {
+      background: rgba(48, 48, 48, 0.95);
+      border-color: rgba(255, 193, 7, 0.6);
+      box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);
+    }
+    
+    .indexing-text {
+      color: #ffb74d;
+    }
+    
+    .indexing-subtext {
+      color: #ffa726;
+    }
+    
+    .indexing-info {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffcc02;
+      
+      .info-icon {
+        color: #ffc107;
+      }
+    }
+  }
+  
+  .error-state {
+    background: linear-gradient(135deg, #303030 0%, #424242 100%);
+    
+    .error-title {
+      color: #f48fb1;
+    }
+    
+    .error-message {
+      color: #bdbdbd;
+    }
+  }
+  
+  .empty-state {
+    background: linear-gradient(135deg, #303030 0%, #424242 100%);
+    
+    .empty-title {
+      color: #e0e0e0;
+    }
+    
+    .empty-message {
+      color: #bdbdbd;
+    }
+    
+    .empty-icon,
+    .empty-hint {
+      color: #90a4ae;
+    }
+  }
+  
+  .content-iframe {
+    background: #1e1e1e;
+  }
 }

@@ -153,6 +153,73 @@ export class MdServerMessagesService {
     });
   }
 
+  // Listener per forzare l'aggiornamento di file rinominati (Rule #1 fix)
+  private rule1ForceUpdateRegistered: any;
+  public addRule1ForceUpdateListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    console.log('addRule1ForceUpdateListener');
+    if (this.rule1ForceUpdateRegistered == undefined) {
+      this.rule1ForceUpdateRegistered = objectThis;
+      // Non abbiamo bisogno di un evento SignalR reale, useremo questo per il pattern locale
+    }
+  }
+  
+  // Metodo per triggerare l'evento di force update localmente
+  public triggerRule1ForceUpdate(filePath: string): void {
+    if (this.rule1ForceUpdateRegistered?.handleRule1ForceUpdate) {
+      this.rule1ForceUpdateRegistered.handleRule1ForceUpdate(filePath);
+    }
+  }
+
+  public addFileIndexedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('fileIndexed', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  public addFolderIndexingStartListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('folderIndexingStart', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  public addFolderIndexingCompleteListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('folderIndexingComplete', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  public addParsingProjectStartListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('parsingProjectStart', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  public addMarkdownFileCreatedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('markdownFileCreated', (data) => {
+      console.log('📄 [SignalR] Evento markdownFileCreated ricevuto:');
+      console.log('📄 [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
+      console.log('📄 [SignalR] Nome file:', data.name);
+      console.log('📄 [SignalR] Path completo:', data.fullPath);
+      callback(data, objectThis);
+    });
+  }
+
+  public addMarkdownFileDeletedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('markdownFileDeleted', (data) => {
+      console.log('🗑️ [SignalR] Evento markdownFileDeleted ricevuto:');
+      console.log('🗑️ [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
+      console.log('🗑️ [SignalR] Nome file:', data.name);
+      console.log('🗑️ [SignalR] Path completo:', data.fullPath);
+      callback(data, objectThis);
+    });
+  }
+
+  public addParsingProjectStopListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('parsingProjectStop', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
   public addConnectionIdListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('getconnectionid', (data) => {
       callback(data, objectThis);

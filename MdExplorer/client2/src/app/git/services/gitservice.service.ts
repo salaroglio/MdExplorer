@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { IBranch } from '../models/branch';
 import { DataToPull } from '../models/DataToPull'
 import { CloneInfo } from '../models/cloneRequest';
@@ -9,6 +10,14 @@ import { PullInfo } from '../models/pullInfo';
 import { ResponsePull } from '../models/responsePull';
 import { ITag } from '../models/Tag';
 import { ResposneClone } from './responses/ResponseClone';
+import { 
+  ModernGitRequest, 
+  ModernGitResponse, 
+  ModernPullResponse, 
+  ModernCommitResponse, 
+  ModernBranchStatusResponse,
+  ModernResponsePull 
+} from '../models/modern-git-models';
 
 
 @Injectable({
@@ -190,6 +199,95 @@ export class GITService implements OnDestroy {
   push(request: PullInfo): Observable<ResponsePull> {
     const url = '../api/gitfeatures/push';
     return this.http.post<ResponsePull>(url, request);
+  }
+
+  // ===== MODERN GIT METHODS WITH NATIVE AUTHENTICATION =====
+
+  /**
+   * Pull using modern Git service with native authentication
+   */
+  modernPull(projectPath: string): Observable<ModernResponsePull> {
+    const request: ModernGitRequest = { ProjectPath: projectPath };
+    const url = '../api/ModernGitToolbar/pull';
+    
+    return this.http.post<ModernPullResponse>(url, request).pipe(
+      map(response => this.adaptModernResponseToLegacy(response))
+    );
+  }
+
+  /**
+   * Commit using modern Git service with native authentication
+   */
+  modernCommit(projectPath: string, commitMessage?: string): Observable<ModernResponsePull> {
+    const request: ModernGitRequest = { 
+      ProjectPath: projectPath, 
+      CommitMessage: commitMessage 
+    };
+    const url = '../api/ModernGitToolbar/commit';
+    
+    return this.http.post<ModernCommitResponse>(url, request).pipe(
+      map(response => this.adaptModernResponseToLegacy(response))
+    );
+  }
+
+  /**
+   * Commit and push using modern Git service with native authentication
+   */
+  modernCommitAndPush(projectPath: string, commitMessage?: string): Observable<ModernResponsePull> {
+    const request: ModernGitRequest = { 
+      ProjectPath: projectPath, 
+      CommitMessage: commitMessage 
+    };
+    const url = '../api/ModernGitToolbar/commit-and-push';
+    
+    console.log('[DEBUG] Sending commit request:', JSON.stringify(request, null, 2));
+    
+    return this.http.post<ModernCommitResponse>(url, request).pipe(
+      map(response => this.adaptModernResponseToLegacy(response))
+    );
+  }
+
+  /**
+   * Push using modern Git service with native authentication
+   */
+  modernPush(projectPath: string): Observable<ModernResponsePull> {
+    const request: ModernGitRequest = { ProjectPath: projectPath };
+    const url = '../api/ModernGitToolbar/push';
+    
+    return this.http.post<ModernGitResponse>(url, request).pipe(
+      map(response => this.adaptModernResponseToLegacy(response))
+    );
+  }
+
+  /**
+   * Get branch status using modern Git service
+   */
+  modernGetBranchStatus(projectPath: string): Observable<IBranch> {
+    const url = `../api/ModernGitToolbar/branch-status?projectPath=${encodeURIComponent(projectPath)}`;
+    
+    return this.http.get<ModernBranchStatusResponse>(url).pipe(
+      map(response => ({
+        id: '',
+        name: response.name,
+        somethingIsChangedInTheBranch: response.somethingIsChangedInTheBranch,
+        howManyFilesAreChanged: response.howManyFilesAreChanged,
+        howManyCommitAreToPush: response.howManyCommitAreToPush,
+        fullPath: response.fullPath
+      }))
+    );
+  }
+
+  /**
+   * Adapts modern Git response to legacy format for backward compatibility
+   */
+  private adaptModernResponseToLegacy(response: ModernGitResponse): ModernResponsePull {
+    return {
+      isConnectionMissing: false, // Modern service handles connection issues differently
+      isAuthenticationMissing: false, // Modern service uses native authentication
+      thereAreConflicts: response.thereAreConflicts,
+      errorMessage: response.errorMessage,
+      whatFilesWillBeChanged: response.changedFiles || []
+    };
   }
 
   /**

@@ -1,5 +1,6 @@
 using LibGit2Sharp;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MdExplorer.Services.Git.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -14,11 +15,19 @@ namespace MdExplorer.Services.Git
     {
         private readonly IEnumerable<ICredentialResolver> _credentialResolvers;
         private readonly ILogger<ModernGitService> _logger;
+        private readonly GitAuthenticationOptions _authOptions;
+        private readonly GitOperationOptions _operationOptions;
 
-        public ModernGitService(IEnumerable<ICredentialResolver> credentialResolvers, ILogger<ModernGitService> logger)
+        public ModernGitService(
+            IEnumerable<ICredentialResolver> credentialResolvers, 
+            ILogger<ModernGitService> logger,
+            IOptions<GitAuthenticationOptions> authOptions = null,
+            IOptions<GitOperationOptions> operationOptions = null)
         {
             _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
             _logger = logger;
+            _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
+            _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
         }
 
         public async Task<GitOperationResult> PullAsync(string repositoryPath)

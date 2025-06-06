@@ -28,18 +28,63 @@
   min-height: 100%;
 }
 
-.border-div {
-  border-left: 10px;
-  border-left-style: solid;
-  border-left-color: grey;
-  cursor:w-resize;
+.resize-handle {
+  width: 6px;
+  height: 100%;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  transition: background-color 0.2s ease;
+  
+  &:before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 30px;
+    background: #ddd;
+    border-radius: 1px;
+    transition: all 0.2s ease;
+  }
+  
+  &:hover:before {
+    background: #007acc;
+    height: 50px;
+    box-shadow: 0 0 4px rgba(0, 122, 204, 0.3);
+  }
+  
+  &.dragging {
+    // Expand hitbox during drag to prevent mouse escape
+    width: 20px;
+    margin-left: -7px; // Center the expanded area
+    z-index: 1000;
+    
+    &:before {
+      background: #005a9e;
+      height: 100%;
+      width: 3px;
+      box-shadow: 0 0 8px rgba(0, 122, 204, 0.5);
+    }
+  }
 }
 
-.border-div-moving {
-  border-left: 50px;
-  border-left-style: solid;
-  border-left-color: grey;
-  cursor: w-resize;
+// Overlay to capture mouse events during drag
+.drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 999;
+  pointer-events: none;
+  
+  &.active {
+    pointer-events: all;
+  }
 }
 
 .showStartToolbar{

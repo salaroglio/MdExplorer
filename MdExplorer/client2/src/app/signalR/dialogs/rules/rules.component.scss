@@ -1,0 +1,159 @@
+.rule-dialog {
+  padding: 24px;
+  max-width: 480px;
+  min-width: 320px;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  
+  .header-icon {
+    color: #666;
+    font-size: 22px;
+    margin-top: 2px;
+  }
+  
+  .header-text {
+    flex: 1;
+    
+    .dialog-title {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .dialog-subtitle {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.4;
+    }
+  }
+}
+
+.dialog-content {
+  margin-bottom: 24px;
+  
+  .error-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    background: #ffebee;
+    border: 1px solid #ffcdd2;
+    border-radius: 6px;
+    color: #c62828;
+    font-size: 14px;
+    
+    .error-icon {
+      font-size: 18px;
+      color: #d32f2f;
+    }
+    
+    .error-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+  }
+  
+  .file-comparison {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 16px;
+    
+    .file-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      
+      &:not(:last-child) {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #eee;
+      }
+      
+      .file-label {
+        font-size: 13px;
+        color: #666;
+        min-width: 70px;
+        font-weight: 500;
+      }
+      
+      .filename {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        padding: 6px 8px;
+        border-radius: 4px;
+        background: white;
+        border: 1px solid #ddd;
+        flex: 1;
+        
+        &.current {
+          border-color: #f57c00;
+          color: #e65100;
+        }
+        
+        &.suggested {
+          border-color: #4caf50;
+          color: #2e7d32;
+        }
+      }
+    }
+  }
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  
+  .action-btn {
+    min-width: 100px;
+    
+    &.secondary {
+      color: #666;
+    }
+    
+    &.primary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      
+      mat-spinner {
+        margin: 0;
+      }
+    }
+    
+    &.retry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      
+      mat-icon {
+        font-size: 18px;
+        margin: 0;
+      }
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 600px) {
+  .rule-dialog {
+    padding: 20px;
+    
+    .dialog-actions {
+      flex-direction: column-reverse;
+      
+      .action-btn {
+        width: 100%;
+      }
+    }
+  }
+}

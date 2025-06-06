@@ -29,8 +29,7 @@ namespace MdExplorer.Controllers.ModernGit
     /// </summary>
     public class CommitRequest : GitOperationRequest
     {
-        [Required]
-        [StringLength(1000, MinimumLength = 1, ErrorMessage = "Commit message must be between 1 and 1000 characters")]
+        [StringLength(1000, ErrorMessage = "Commit message cannot exceed 1000 characters")]
         public string CommitMessage { get; set; }
 
         [Required]

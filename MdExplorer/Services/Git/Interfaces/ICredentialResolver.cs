@@ -8,6 +8,7 @@ namespace MdExplorer.Services.Git.Interfaces
     /// </summary>
     public enum AuthenticationMethod
     {
+        Default = 0,                // Default LibGit2Sharp credentials
         SSHKey = 1,                 // Highest priority - SSH key authentication
         SystemCredentialStore = 2,  // System credential store (Windows, macOS, Linux)
         GitCredentialHelper = 3,    // Git credential helpers

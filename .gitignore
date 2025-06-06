@@ -379,5 +379,5 @@ FodyWeavers.xsd
 /release-builds/
 /MdEditor.React/dist
 
-/.md
+/.md/
 /.claude

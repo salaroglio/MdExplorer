@@ -128,6 +128,63 @@ class MdServerMessagesService {
             callback(data, objectThis);
         });
     }
+    addRule1ForceUpdateListener(callback, objectThis) {
+        console.log('addRule1ForceUpdateListener');
+        if (this.rule1ForceUpdateRegistered == undefined) {
+            this.rule1ForceUpdateRegistered = objectThis;
+            // Non abbiamo bisogno di un evento SignalR reale, useremo questo per il pattern locale
+        }
+    }
+    // Metodo per triggerare l'evento di force update localmente
+    triggerRule1ForceUpdate(filePath) {
+        var _a;
+        if ((_a = this.rule1ForceUpdateRegistered) === null || _a === void 0 ? void 0 : _a.handleRule1ForceUpdate) {
+            this.rule1ForceUpdateRegistered.handleRule1ForceUpdate(filePath);
+        }
+    }
+    addFileIndexedListener(callback, objectThis) {
+        this.hubConnection.on('fileIndexed', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addFolderIndexingStartListener(callback, objectThis) {
+        this.hubConnection.on('folderIndexingStart', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addFolderIndexingCompleteListener(callback, objectThis) {
+        this.hubConnection.on('folderIndexingComplete', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addParsingProjectStartListener(callback, objectThis) {
+        this.hubConnection.on('parsingProjectStart', (data) => {
+            callback(data, objectThis);
+        });
+    }
+    addMarkdownFileCreatedListener(callback, objectThis) {
+        this.hubConnection.on('markdownFileCreated', (data) => {
+            console.log('📄 [SignalR] Evento markdownFileCreated ricevuto:');
+            console.log('📄 [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
+            console.log('📄 [SignalR] Nome file:', data.name);
+            console.log('📄 [SignalR] Path completo:', data.fullPath);
+            callback(data, objectThis);
+        });
+    }
+    addMarkdownFileDeletedListener(callback, objectThis) {
+        this.hubConnection.on('markdownFileDeleted', (data) => {
+            console.log('🗑️ [SignalR] Evento markdownFileDeleted ricevuto:');
+            console.log('🗑️ [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
+            console.log('🗑️ [SignalR] Nome file:', data.name);
+            console.log('🗑️ [SignalR] Path completo:', data.fullPath);
+            callback(data, objectThis);
+        });
+    }
+    addParsingProjectStopListener(callback, objectThis) {
+        this.hubConnection.on('parsingProjectStop', (data) => {
+            callback(data, objectThis);
+        });
+    }
     addConnectionIdListener(callback, objectThis) {
         this.hubConnection.on('getconnectionid', (data) => {
             callback(data, objectThis);
@@ -632,9 +689,11 @@ class WaitingDialogInfo {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GITService", function() { return GITService; });
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ "qCKp");
-/* harmony import */ var _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../models/gitlab-setting */ "MVql");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ "kU1M");
+/* harmony import */ var _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../models/gitlab-setting */ "MVql");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+
 
 
 
@@ -642,6 +701,9 @@ __webpack_require__.r(__webpack_exports__);
 class GITService {
     constructor(http) {
         this.http = http;
+        this.gitPollingInterval = null;
+        this.ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
+        this.INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
         this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
             id: "", name: "",
             somethingIsChangedInTheBranch: true,
@@ -657,7 +719,78 @@ class GITService {
             connectionIsActive: false,
             whatFilesWillBeChanged: []
         });
-        setInterval(() => this.getCurrentBranch(), 20000);
+        this.initializeSmartPolling();
+    }
+    /**
+     * Inizializza il polling intelligente che si adatta alla visibilità della finestra
+     */
+    initializeSmartPolling() {
+        // Polling iniziale immediato
+        this.getCurrentBranch();
+        // Avvia polling con intervallo attivo
+        this.startPolling(this.ACTIVE_POLLING_INTERVAL);
+        // Listener per cambio visibilità finestra
+        document.addEventListener('visibilitychange', () => {
+            this.handleVisibilityChange();
+        });
+        // Listener per focus/blur finestra (backup per browser che non supportano visibilitychange)
+        window.addEventListener('focus', () => {
+            this.handleWindowFocus();
+        });
+        window.addEventListener('blur', () => {
+            this.handleWindowBlur();
+        });
+        console.log('🔄 Smart Git polling initialized');
+    }
+    /**
+     * Gestisce il cambio di visibilità della finestra
+     */
+    handleVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+            this.handleWindowFocus();
+        }
+        else {
+            this.handleWindowBlur();
+        }
+    }
+    /**
+     * Quando la finestra diventa attiva: polling più frequente
+     */
+    handleWindowFocus() {
+        console.log('🟢 Window focused - activating frequent Git polling (60s)');
+        this.startPolling(this.ACTIVE_POLLING_INTERVAL);
+        // Polling immediato quando torna in focus
+        this.getCurrentBranch();
+    }
+    /**
+     * Quando la finestra diventa inattiva: polling meno frequente
+     */
+    handleWindowBlur() {
+        console.log('🟡 Window blurred - reducing Git polling frequency (5min)');
+        this.startPolling(this.INACTIVE_POLLING_INTERVAL);
+    }
+    /**
+     * Avvia polling con intervallo specificato
+     */
+    startPolling(interval) {
+        // Ferma polling esistente
+        if (this.gitPollingInterval) {
+            clearInterval(this.gitPollingInterval);
+        }
+        // Avvia nuovo polling
+        this.gitPollingInterval = setInterval(() => {
+            this.getCurrentBranch();
+        }, interval);
+    }
+    /**
+     * Ferma completamente il polling (per cleanup)
+     */
+    stopPolling() {
+        if (this.gitPollingInterval) {
+            clearInterval(this.gitPollingInterval);
+            this.gitPollingInterval = null;
+            console.log('🔴 Git polling stopped');
+        }
     }
     clone(request) {
         const url = '../api/gitfeatures/cloneRepository';
@@ -690,7 +823,7 @@ class GITService {
     }
     storeGitlabSettings(user, password, gitlabLink) {
         const url = '../api/gitservice/gitlabsettings';
-        let setting = new _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_1__["GitlabSetting"]();
+        let setting = new _models_gitlab_setting__WEBPACK_IMPORTED_MODULE_2__["GitlabSetting"]();
         return this.http.post(url, setting);
     }
     getGitlabSettings() {
@@ -714,9 +847,86 @@ class GITService {
         const url = '../api/gitfeatures/push';
         return this.http.post(url, request);
     }
+    // ===== MODERN GIT METHODS WITH NATIVE AUTHENTICATION =====
+    /**
+     * Pull using modern Git service with native authentication
+     */
+    modernPull(projectPath) {
+        const request = { ProjectPath: projectPath };
+        const url = '../api/ModernGitToolbar/pull';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => this.adaptModernResponseToLegacy(response)));
+    }
+    /**
+     * Commit using modern Git service with native authentication
+     */
+    modernCommit(projectPath, commitMessage) {
+        const request = {
+            ProjectPath: projectPath,
+            CommitMessage: commitMessage
+        };
+        const url = '../api/ModernGitToolbar/commit';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => this.adaptModernResponseToLegacy(response)));
+    }
+    /**
+     * Commit and push using modern Git service with native authentication
+     */
+    modernCommitAndPush(projectPath, commitMessage) {
+        const request = {
+            ProjectPath: projectPath,
+            CommitMessage: commitMessage
+        };
+        const url = '../api/ModernGitToolbar/commit-and-push';
+        console.log('[DEBUG] Sending commit request:', JSON.stringify(request, null, 2));
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => this.adaptModernResponseToLegacy(response)));
+    }
+    /**
+     * Push using modern Git service with native authentication
+     */
+    modernPush(projectPath) {
+        const request = { ProjectPath: projectPath };
+        const url = '../api/ModernGitToolbar/push';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => this.adaptModernResponseToLegacy(response)));
+    }
+    /**
+     * Get branch status using modern Git service
+     */
+    modernGetBranchStatus(projectPath) {
+        const url = `../api/ModernGitToolbar/branch-status?projectPath=${encodeURIComponent(projectPath)}`;
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => ({
+            id: '',
+            name: response.name,
+            somethingIsChangedInTheBranch: response.somethingIsChangedInTheBranch,
+            howManyFilesAreChanged: response.howManyFilesAreChanged,
+            howManyCommitAreToPush: response.howManyCommitAreToPush,
+            fullPath: response.fullPath
+        })));
+    }
+    /**
+     * Adapts modern Git response to legacy format for backward compatibility
+     */
+    adaptModernResponseToLegacy(response) {
+        return {
+            isConnectionMissing: false,
+            isAuthenticationMissing: false,
+            thereAreConflicts: response.thereAreConflicts,
+            errorMessage: response.errorMessage,
+            whatFilesWillBeChanged: response.changedFiles || []
+        };
+    }
+    /**
+     * Cleanup quando il service viene distrutto
+     */
+    ngOnDestroy() {
+        this.stopPolling();
+        // Rimuovi event listeners per evitare memory leak
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        window.removeEventListener('focus', this.handleWindowFocus);
+        window.removeEventListener('blur', this.handleWindowBlur);
+        console.log('🧹 Git service cleanup completed');
+    }
 }
-GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };
-GITService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: GITService, factory: GITService.ɵfac, providedIn: 'root' });
+GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"])); };
+GITService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: GITService, factory: GITService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),
@@ -1440,8 +1650,15 @@ class MdFileService {
     // It assumes that all structures are complete,
     // and the only thing to add is the file itself.
     addNewFile(data) {
+        var _a, _b;
         // searching directories    
         const currentItem = data[0];
+        // Assicuriamoci che le proprietà di indicizzazione siano preservate
+        if (currentItem.type === 'mdFile' || currentItem.type === 'mdFileTimer') {
+            // Preserva le proprietà esistenti o imposta i default
+            currentItem.isIndexed = (_a = currentItem.isIndexed) !== null && _a !== void 0 ? _a : true; // Default true per nuovi file
+            currentItem.indexingStatus = (_b = currentItem.indexingStatus) !== null && _b !== void 0 ? _b : 'completed';
+        }
         const currentFolder = this.dataStore.mdFiles.find(item => item.fullPath == currentItem.fullPath);
         if (currentFolder) {
             this.recursiveSearchFolder(data, 0, currentFolder);
@@ -1491,7 +1708,15 @@ class MdFileService {
         }
     }
     recursiveSearchFolder(data, i, parentFolder) {
+        var _a, _b;
         const currentItem = data[i + 1];
+        if (!currentItem)
+            return; // Guard clause
+        // Assicuriamoci che le proprietà di indicizzazione siano preservate
+        if (currentItem.type === 'mdFile' || currentItem.type === 'mdFileTimer') {
+            currentItem.isIndexed = (_a = currentItem.isIndexed) !== null && _a !== void 0 ? _a : true;
+            currentItem.indexingStatus = (_b = currentItem.indexingStatus) !== null && _b !== void 0 ? _b : 'completed';
+        }
         const currentFolder = parentFolder.childrens.find(folder => folder.fullPath == currentItem.fullPath);
         if (currentFolder) {
             this.recursiveSearchFolder(data, i + 1, currentFolder);
@@ -1501,18 +1726,63 @@ class MdFileService {
             this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles); // Simplified notification
         }
     }
+    getShallowStructure() {
+        const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
+        return this.http.get(url);
+    }
     loadAll(callback, objectThis) {
-        const url = '../api/mdfiles/GetAllMdFiles?connectionId=' + this.mdServerMessages.connectionId;
+        const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
         return this.http.get(url)
             .subscribe(data => {
+            // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
+            this.initializeIndexingProperties(data);
             this.dataStore.mdFiles = data;
-            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+            this._mdFiles.next([...this.dataStore.mdFiles]);
             if (callback != null) {
                 callback(data, objectThis);
             }
         }, error => {
             console.log("failed to fetch mdfile list");
         });
+    }
+    initializeIndexingProperties(nodes) {
+        nodes.forEach(node => {
+            var _a, _b;
+            // Assicura che le proprietà esistano fin dall'inizio
+            if (node.type === 'mdFile' || node.type === 'mdFileTimer') {
+                node.isIndexed = (_a = node.isIndexed) !== null && _a !== void 0 ? _a : false;
+                node.indexingStatus = (_b = node.indexingStatus) !== null && _b !== void 0 ? _b : 'idle';
+            }
+            if (node.childrens && node.childrens.length > 0) {
+                this.initializeIndexingProperties(node.childrens);
+            }
+        });
+    }
+    updateFileIndexStatus(path, isIndexed) {
+        // Ricostruisce completamente l'array invece di modificare gli oggetti esistenti
+        const updateNodeInArray = (nodes) => {
+            return nodes.map(node => {
+                if (node.fullPath === path) {
+                    // Crea un nuovo oggetto invece di modificare quello esistente
+                    return Object.assign(Object.assign({}, node), { isIndexed: isIndexed, indexingStatus: isIndexed ? 'completed' : 'idle' });
+                }
+                if (node.childrens && node.childrens.length > 0) {
+                    return Object.assign(Object.assign({}, node), { childrens: updateNodeInArray(node.childrens) });
+                }
+                return node;
+            });
+        };
+        // Ricostruisce completamente l'array
+        this.dataStore.mdFiles = updateNodeInArray(this.dataStore.mdFiles);
+        // Emette il nuovo array
+        this._mdFiles.next([...this.dataStore.mdFiles]);
+    }
+    // Forza aggiornamento stato indicizzazione per file rinominati Rule #1
+    forceFileAsIndexed(filePath) {
+        this.updateFileIndexStatus(filePath, true);
+        setTimeout(() => {
+            this.mdServerMessages.triggerRule1ForceUpdate(filePath);
+        }, 100);
     }
     loadDynFolders(path, level) {
         const url = '../api/mdfiles/GetDynFoldersDocument';
@@ -1656,12 +1926,23 @@ class MdFileService {
     changeDataStoreMdFiles(oldFile, newFile) {
         var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, oldFile);
         var leaf = returnFound[0];
+        if (!leaf) {
+            console.error('❌ [Service] File non trovato nel datastore:', oldFile.name);
+            return;
+        }
+        // Aggiorna le proprietà del file
         leaf.name = newFile.name;
         leaf.fullPath = newFile.fullPath;
         leaf.path = newFile.path;
         leaf.relativePath = newFile.relativePath;
-        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-        this._serverSelectedMdFile.next(returnFound);
+        // Per file rinominati via Rule #1, forza come indicizzato
+        leaf.isIndexed = true;
+        leaf.indexingStatus = 'completed';
+        // Forza nuova referenza per triggerare OnPush change detection
+        this._mdFiles.next([...this.dataStore.mdFiles]);
+        this._serverSelectedMdFile.next([...returnFound]);
+        // Notifica il tree component per aggiornare il Set di tracking
+        this.mdServerMessages.triggerRule1ForceUpdate(leaf.fullPath);
     }
     setSelectedMdFileFromSideNav(selectedFile) {
         this._selectedMdFileFromSideNav.next(selectedFile);

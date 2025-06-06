@@ -50,10 +50,19 @@
   </mat-sidenav>
 
   <div class="flex-container">
-    <div [ngClass]="classForBorderDiv"
+    <!-- Overlay for capturing mouse events during drag -->
+    <div class="drag-overlay" 
+         [class.active]="hooked">
+    </div>
+    
+    <div class="resize-handle"
+         [class.dragging]="hooked"
          (pointerdown)="resizeWidth()"
-         (mouseup)="stopResizeWidth()">
-
+         (mouseup)="stopResizeWidth()"
+         role="separator" 
+         aria-label="Ridimensiona pannello di navigazione"
+         aria-orientation="vertical"
+         title="Trascina per ridimensionare">
     </div>
     <div style="position:fixed;
             display:flex;

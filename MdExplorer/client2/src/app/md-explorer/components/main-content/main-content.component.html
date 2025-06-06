@@ -1,4 +1,89 @@
-<iframe #myBelovedIframe id="mdIframe" name="mdIframe" [hidden]="_HideIFrame"
-        [ngClass]="classForContent"
-        [src]="htmlSource | safe">
-</iframe>
+<!-- Main Content Container with State Management -->
+<div class="main-content-container" [ngClass]="classForContent">
+  
+  <!-- Loading State Overlay -->
+  <div class="loading-overlay" *ngIf="isLoading$ | async" 
+       role="status" 
+       aria-label="Caricamento documento in corso">
+    <div class="loading-content">
+      <mat-progress-spinner 
+        diameter="40" 
+        mode="indeterminate"
+        color="primary">
+      </mat-progress-spinner>
+      <p class="loading-text">Caricamento documento...</p>
+      <p class="loading-subtext">Attendere prego</p>
+    </div>
+  </div>
+
+  <!-- Indexing State Overlay -->
+  <div class="indexing-overlay" 
+       *ngIf="(currentState$ | async)?.status === 'indexing'" 
+       role="status" 
+       aria-label="Indicizzazione documento in corso">
+    <div class="indexing-content">
+      <mat-progress-spinner 
+        diameter="40" 
+        mode="indeterminate"
+        color="accent">
+      </mat-progress-spinner>
+      <p class="indexing-text">Indicizzazione in corso...</p>
+      <p class="indexing-subtext">Il documento sarà disponibile a breve</p>
+      <div class="indexing-info">
+        <mat-icon class="info-icon">info</mat-icon>
+        <span>Prima visualizzazione del file</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error State Display -->
+  <div class="error-state" *ngIf="hasError$ | async"
+       role="alert"
+       aria-label="Errore di caricamento">
+    <div class="error-content">
+      <mat-icon class="error-icon" color="warn">error_outline</mat-icon>
+      <h3 class="error-title">Errore di caricamento</h3>
+      <p class="error-message">{{ errorMessage$ | async }}</p>
+      <div class="error-actions">
+        <button mat-raised-button 
+                color="primary" 
+                (click)="retry()"
+                class="retry-button">
+          <mat-icon>refresh</mat-icon>
+          Riprova
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State (when no file is selected) -->
+  <div class="empty-state" 
+       *ngIf="(currentState$ | async)?.status === 'idle'"
+       role="main"
+       aria-label="Stato vuoto - nessun documento selezionato">
+    <div class="empty-content">
+      <mat-icon class="empty-icon">description</mat-icon>
+      <h3 class="empty-title">Benvenuto in MdExplorer</h3>
+      <p class="empty-message">Seleziona un file Markdown dalla barra laterale per iniziare la visualizzazione.</p>
+      <div class="empty-actions">
+        <p class="empty-hint">
+          <mat-icon class="hint-icon">info</mat-icon>
+          Usa la navigazione a sinistra per esplorare i tuoi documenti
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Iframe Content -->
+  <iframe #iframe 
+          id="mdIframe" 
+          name="mdIframe" 
+          class="content-iframe"
+          [hidden]="_HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle'"
+          [src]="htmlSource | safe"
+          [attr.aria-label]="'Contenuto del documento: ' + ((currentState$ | async)?.currentPath || 'documento')"
+          tabindex="0"
+          role="document">
+  </iframe>
+
+</div>

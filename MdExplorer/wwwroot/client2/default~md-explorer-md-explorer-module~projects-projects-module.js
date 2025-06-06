@@ -3695,7 +3695,8 @@ class GitAuthComponent {
             UserName: this.dataForCloning.userName,
             Password: this.dataForCloning.password,
             ProjectPath: null,
-            BranchName: null
+            BranchName: null,
+            Message: null
         };
         this.gitService.pull(pullInfo).subscribe(_ => {
             if (_.isConnectionMissing) {

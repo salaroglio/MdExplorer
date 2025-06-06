@@ -3,6 +3,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -72,24 +73,56 @@ namespace MdExplorer.Service.Controllers.MdProjects
         [HttpPost]
         public IActionResult SetFolderProject([FromBody] FolderPath folderPath)
         {
-            _fileSystemWatcher.Path = folderPath.Path;
-            // renew project data
-            _userSettingsDB.BeginTransaction();
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
-            if (project == null)
+            // Prima di cambiare il percorso, disabilita temporaneamente il FileSystemWatcher
+            bool wasEnabled = _fileSystemWatcher.EnableRaisingEvents;
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            
+            try
             {
-                project = new Project
+                // Aggiorna il percorso del FileSystemWatcher
+                _fileSystemWatcher.Path = folderPath.Path;
+                
+                // Log del cambio percorso
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogInformation($"🔄 FileSystemWatcher path changed to: {folderPath.Path}");
+                
+                // renew project data
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
+                if (project == null)
                 {
-                    Path = folderPath.Path,
-                    Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
-                };
+                    project = new Project
+                    {
+                        Path = folderPath.Path,
+                        Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
+                    };
+                }
+                project.LastUpdate = DateTime.Now;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+                
+                // Configura i database per il nuovo progetto
+                ProjectsManager.SetNewProject(_services, folderPath.Path);
+                
+                // Riabilita il FileSystemWatcher se era abilitato prima
+                if (wasEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {folderPath.Path}");
+                }
+                
+                return Ok(new { id = project.Id, name = project.Name, path = project.Path, sidenavWidth= project.SidenavWidth });
             }
-            project.LastUpdate = DateTime.Now;
-            projectDal.Save(project);
-            _userSettingsDB.Commit();
-            ProjectsManager.SetNewProject(_services, folderPath.Path);
-            return Ok(new { id = project.Id, name = project.Name, path = project.Path, sidenavWidth= project.SidenavWidth });
+            catch (Exception ex)
+            {
+                // In caso di errore, riabilita il FileSystemWatcher con il vecchio percorso
+                if (wasEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+                throw;
+            }
         }
 
         [HttpPost]
@@ -109,31 +142,64 @@ namespace MdExplorer.Service.Controllers.MdProjects
         [HttpPost]
         public IActionResult SetFolderProjectQuickNotes([FromBody] FolderPath folderPath)
         {
-            _fileSystemWatcher.Path = folderPath.Path;
-            string currentIdNotes = CreateQuickNote();
-
-            // renew project data
-            _userSettingsDB.BeginTransaction();
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
-            if (project == null)
+            // Prima di cambiare il percorso, disabilita temporaneamente il FileSystemWatcher
+            bool wasEnabled = _fileSystemWatcher.EnableRaisingEvents;
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            
+            try
             {
-                project = new Project
-                {
-                    Path = folderPath.Path,
-                    Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
-                };
-            }
+                // Aggiorna il percorso del FileSystemWatcher
+                _fileSystemWatcher.Path = folderPath.Path;
+                
+                // Log del cambio percorso
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogInformation($"🔄 FileSystemWatcher path changed to: {folderPath.Path} (Quick Notes)");
+                
+                string currentIdNotes = CreateQuickNote();
 
-            project.LastUpdate = DateTime.Now;
-            projectDal.Save(project);
-            _userSettingsDB.Commit();
-            ProjectsManager.SetNewProject(_services, folderPath.Path);
-            var settingDal = _userSettingsDB.GetDal<Setting>();
-            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
-                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
-            _processUtil.OpenFileWithVisualStudioCode(currentIdNotes, editorPath);
-            return Ok(new { message = "done", currentNote = currentIdNotes });
+                // renew project data
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
+                if (project == null)
+                {
+                    project = new Project
+                    {
+                        Path = folderPath.Path,
+                        Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
+                    };
+                }
+
+                project.LastUpdate = DateTime.Now;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+                
+                // Configura i database per il nuovo progetto
+                ProjectsManager.SetNewProject(_services, folderPath.Path);
+                
+                // Riabilita il FileSystemWatcher se era abilitato prima
+                if (wasEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {folderPath.Path}");
+                }
+                
+                var settingDal = _userSettingsDB.GetDal<Setting>();
+                var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
+                    ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+                _processUtil.OpenFileWithVisualStudioCode(currentIdNotes, editorPath);
+                
+                return Ok(new { message = "done", currentNote = currentIdNotes });
+            }
+            catch (Exception ex)
+            {
+                // In caso di errore, riabilita il FileSystemWatcher con il vecchio percorso
+                if (wasEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+                throw;
+            }
         }
 
         private string CreateQuickNote()

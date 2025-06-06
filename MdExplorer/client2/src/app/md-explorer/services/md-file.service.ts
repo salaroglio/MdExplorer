@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -18,6 +18,7 @@ export class MdFileService {
   private _selectedMdFileFromToolbar: BehaviorSubject<MdFile[]>;
   private _selectedMdFileFromSideNav: BehaviorSubject<MdFile>;
   private _selectedDirectoryFromNewDirectory: BehaviorSubject<MdFile>;
+  
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -120,9 +121,16 @@ export class MdFileService {
   // It assumes that all structures are complete,
   // and the only thing to add is the file itself.
   addNewFile(data: MdFile[]) {
-    
     // searching directories    
     const currentItem = data[0];
+    
+    // Assicuriamoci che le proprietà di indicizzazione siano preservate
+    if (currentItem.type === 'mdFile' || currentItem.type === 'mdFileTimer') {
+      // Preserva le proprietà esistenti o imposta i default
+      currentItem.isIndexed = currentItem.isIndexed ?? true; // Default true per nuovi file
+      currentItem.indexingStatus = currentItem.indexingStatus ?? 'completed';
+    }
+    
     const currentFolder = this.dataStore.mdFiles.find(item => item.fullPath == currentItem.fullPath);
 
     if (currentFolder) {
@@ -187,12 +195,19 @@ export class MdFileService {
   recursiveSearchFolder(data: MdFile[], i: number, parentFolder: MdFile) {
     
     const currentItem = data[i + 1];
+    if (!currentItem) return; // Guard clause
+    
+    // Assicuriamoci che le proprietà di indicizzazione siano preservate
+    if (currentItem.type === 'mdFile' || currentItem.type === 'mdFileTimer') {
+      currentItem.isIndexed = currentItem.isIndexed ?? true;
+      currentItem.indexingStatus = currentItem.indexingStatus ?? 'completed';
+    }
+    
     const currentFolder = parentFolder.childrens.find(folder => folder.fullPath == currentItem.fullPath);
 
     if (currentFolder) {
       this.recursiveSearchFolder(data, i + 1, currentFolder);
     } else {
-      
       parentFolder.childrens.push(currentItem); // Directly use currentItem
       this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified notification
     }
@@ -202,12 +217,19 @@ export class MdFileService {
 
 
 
+  getShallowStructure(): Observable<MdFile[]> {
+    const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
+    return this.http.get<MdFile[]>(url);
+  }
+
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
-    const url = '../api/mdfiles/GetAllMdFiles?connectionId=' + this.mdServerMessages.connectionId;    
+    const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;    
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
+        // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
+        this.initializeIndexingProperties(data);
         this.dataStore.mdFiles = data;        
-        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);       
+        this._mdFiles.next([...this.dataStore.mdFiles]);       
         if (callback != null) {
           callback(data, objectThis);
         }
@@ -215,6 +237,59 @@ export class MdFileService {
         error => {
           console.log("failed to fetch mdfile list");
         });
+  }
+
+  private initializeIndexingProperties(nodes: any[]): void {
+    nodes.forEach(node => {
+      // Assicura che le proprietà esistano fin dall'inizio
+      if (node.type === 'mdFile' || node.type === 'mdFileTimer') {
+        node.isIndexed = node.isIndexed ?? false;
+        node.indexingStatus = node.indexingStatus ?? 'idle';
+      }
+      if (node.childrens && node.childrens.length > 0) {
+        this.initializeIndexingProperties(node.childrens);
+      }
+    });
+  }
+
+  updateFileIndexStatus(path: string, isIndexed: boolean): void {
+    // Ricostruisce completamente l'array invece di modificare gli oggetti esistenti
+    const updateNodeInArray = (nodes: any[]): any[] => {
+      return nodes.map(node => {
+        if (node.fullPath === path) {
+          // Crea un nuovo oggetto invece di modificare quello esistente
+          return {
+            ...node,
+            isIndexed: isIndexed,
+            indexingStatus: isIndexed ? 'completed' : 'idle'
+          };
+        }
+        
+        if (node.childrens && node.childrens.length > 0) {
+          return {
+            ...node,
+            childrens: updateNodeInArray(node.childrens)
+          };
+        }
+        
+        return node;
+      });
+    };
+
+    // Ricostruisce completamente l'array
+    this.dataStore.mdFiles = updateNodeInArray(this.dataStore.mdFiles);
+    
+    // Emette il nuovo array
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+  }
+
+  // Forza aggiornamento stato indicizzazione per file rinominati Rule #1
+  forceFileAsIndexed(filePath: string): void {
+    this.updateFileIndexStatus(filePath, true);
+    
+    setTimeout(() => {
+      this.mdServerMessages.triggerRule1ForceUpdate(filePath);
+    }, 100);
   }
 
 
@@ -394,15 +469,30 @@ export class MdFileService {
    * @param newFile
    */
   changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
-
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, oldFile);
     var leaf = returnFound[0];
+    
+    if (!leaf) {
+      console.error('❌ [Service] File non trovato nel datastore:', oldFile.name);
+      return;
+    }
+    
+    // Aggiorna le proprietà del file
     leaf.name = newFile.name;
     leaf.fullPath = newFile.fullPath;
     leaf.path = newFile.path;
     leaf.relativePath = newFile.relativePath;
-    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    this._serverSelectedMdFile.next(returnFound);
+    
+    // Per file rinominati via Rule #1, forza come indicizzato
+    leaf.isIndexed = true;
+    leaf.indexingStatus = 'completed';
+    
+    // Forza nuova referenza per triggerare OnPush change detection
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+    this._serverSelectedMdFile.next([...returnFound]);
+    
+    // Notifica il tree component per aggiornare il Set di tracking
+    this.mdServerMessages.triggerRule1ForceUpdate(leaf.fullPath);
   }
 
   setSelectedMdFileFromSideNav(selectedFile: MdFile) {

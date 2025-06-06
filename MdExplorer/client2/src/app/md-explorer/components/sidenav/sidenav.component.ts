@@ -1,5 +1,5 @@
 
-import { AfterViewInit, ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core'; // Added ChangeDetectionStrategy
+import { AfterViewInit, ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core'; // Added ChangeDetectionStrategy
 import { Router }                                          from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { MdFileService }      from '../../services/md-file.service';
@@ -22,19 +22,27 @@ const SMALL_WIDTH_BREAKPOINT = 720;
   styleUrls: ['./sidenav.component.scss'],
 
 })
-export class SidenavComponent implements OnInit {
+export class SidenavComponent implements OnInit, OnDestroy {
 
 
   public showText:boolean = false;
   public sideNavWidth: string = "240px";
   public isScreenSmall: boolean;
-  private hooked: boolean = false;
-  public classForBorderDiv: string = "border-div";
+  public hooked: boolean = false;
   public titleProject: string;
   public currentBranch: string = null;
   public bookmarks: MdFile[];
   public classForToolbar: string = "showToolbar"; // Added for toolbar CSS class
   @ViewChild('sidenav') sidenav: MatSidenav;
+  
+  // Memory leak prevention
+  private mouseMoveListener?: (event: MouseEvent) => void;
+  private mouseUpListener?: (event: MouseEvent) => void;
+  
+  // Performance and validation
+  private readonly MIN_WIDTH = 200;
+  private readonly MAX_WIDTH = 800;
+  private debounceTimer: any;
 
   constructor(
     private breakpointObserver: BreakpointObserver,
@@ -47,24 +55,7 @@ export class SidenavComponent implements OnInit {
     public navService:MdNavigationService,
     private ref: ChangeDetectorRef // Injected ChangeDetectorRef
   ) {
-    document.addEventListener("mousemove", (event) => {
-      if (this.hooked) {
-        this.sideNavWidth = event.clientX + "px";
-      }
-    });
-    document.addEventListener("mouseup", (event) => {
-      console.log(this.hooked);
-
-      if (this.hooked) {
-
-        //this.stopResizeWidth();
-        this.hooked = false;
-        this.classForBorderDiv = "border-div";
-        this.projectService.currentProjects$.value.sidenavWidth = event.clientX;
-        this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value);
-
-      }
-    });
+    this.setupResizeListeners();
 
     this.currentFolder.folderName.subscribe((data: any) => {
       this.titleProject = data.currentFolder;
@@ -86,9 +77,60 @@ export class SidenavComponent implements OnInit {
 
   }
 
+  private setupResizeListeners(): void {
+    this.mouseMoveListener = (event: MouseEvent) => {
+      if (this.hooked) {
+        const newWidth = this.validateWidth(event.clientX);
+        this.sideNavWidth = newWidth + "px";
+      }
+    };
+
+    this.mouseUpListener = (event: MouseEvent) => {
+      console.log(this.hooked);
+      if (this.hooked) {
+        this.hooked = false;
+        // Restore normal cursor and text selection
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        const finalWidth = this.validateWidth(event.clientX);
+        this.saveWidthDebounced(finalWidth);
+      }
+    };
+
+    document.addEventListener("mousemove", this.mouseMoveListener);
+    document.addEventListener("mouseup", this.mouseUpListener);
+  }
+
+  ngOnDestroy(): void {
+    // Remove event listeners to prevent memory leaks
+    if (this.mouseMoveListener) {
+      document.removeEventListener("mousemove", this.mouseMoveListener);
+    }
+    if (this.mouseUpListener) {
+      document.removeEventListener("mouseup", this.mouseUpListener);
+    }
+    // Clear debounce timer
+    clearTimeout(this.debounceTimer);
+  }
+
+  private validateWidth(width: number): number {
+    return Math.min(Math.max(width, this.MIN_WIDTH), this.MAX_WIDTH);
+  }
+
+  private saveWidthDebounced(width: number): void {
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.projectService.currentProjects$.value.sidenavWidth = width;
+      this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value);
+      console.log('💾 Sidenav width saved:', width);
+    }, 500); // Save only after 500ms of inactivity
+  }
+
   resizeWidth(): void {
     this.hooked = true;
-    this.classForBorderDiv = "border-div-moving";
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
   }
 
   stopResizeWidth(): void {

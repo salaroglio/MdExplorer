@@ -76,6 +76,19 @@ namespace MdExplorer.Controllers
             var relativePathFile = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFile);
 
+            // Log di debug per rinominazioni
+            _logger.LogInformation($"🔍 [MdExplorer] Request processing:");
+            _logger.LogInformation($"🔍 [MdExplorer] rootPathSystem: {rootPathSystem}");
+            _logger.LogInformation($"🔍 [MdExplorer] relativePathFile: {relativePathFile}");
+            _logger.LogInformation($"🔍 [MdExplorer] relativePathExtension: {relativePathExtension}");
+
+            // Validazione: se il path relativo è vuoto o contiene solo slash/backslash, ritorna errore
+            if (string.IsNullOrWhiteSpace(relativePathFile) || 
+                relativePathFile.Trim('/', '\\').Length == 0)
+            {
+                _logger.LogWarning($"❌ [MdExplorer] Invalid or empty relative path: '{relativePathFile}'");
+                return BadRequest("Invalid file path");
+            }
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
@@ -89,12 +102,23 @@ namespace MdExplorer.Controllers
                     rootPathSystem, 
                     relativePathFile, 
                     relativePathExtension);
+            
+            _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
 
+            // Calculate relative path properly
+            var calculatedRelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty);
+            if (calculatedRelativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
+            {
+                calculatedRelativePath = calculatedRelativePath.Substring(1);
+            }
+            
+            _logger.LogInformation($"🔍 [MdExplorer] calculatedRelativePath: {calculatedRelativePath}");
+            
             var monitoredMd = new MonitoredMDModel
             {
                 Path = fullPathFile,
                 Name = Path.GetFileName(fullPathFile),
-                RelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                RelativePath = calculatedRelativePath,
                 FullPath = fullPathFile,
                 FullDirectoryPath = Path.GetDirectoryName(fullPathFile)
             };

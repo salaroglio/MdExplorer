@@ -116,21 +116,192 @@ namespace MdExplorer.Service.HostedServices
         {
             _logger.LogInformation($"monitored path: { _fileSystemWatcher.Path}");
             _fileSystemWatcher.NotifyFilter = NotifyFilters.Attributes
-                                 //| NotifyFilters.CreationTime
+                                 | NotifyFilters.CreationTime
                                  | NotifyFilters.DirectoryName
                                  | NotifyFilters.FileName
                                  //| NotifyFilters.LastAccess
-                                 //| NotifyFilters.LastWrite
+                                 | NotifyFilters.LastWrite
                                  //| NotifyFilters.Security
                                  | NotifyFilters.Size;
             //_fileSystemWatcher.Filter = "*.md";
             _fileSystemWatcher.IncludeSubdirectories = true;
             _fileSystemWatcher.EnableRaisingEvents = true;
             _fileSystemWatcher.Changed += _fileSystemWatcher_Changed;
-            //_fileSystemWatcher.Created += _fileSystemWatcher_Created;
-            //_fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
+            _fileSystemWatcher.Created += _fileSystemWatcher_Created;
+            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
             //_fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
             return Task.CompletedTask;
+        }
+
+        private async void _fileSystemWatcher_Created(object sender, FileSystemEventArgs e)
+        {
+            try
+            {
+                _logger.LogInformation($"🔍 FileSystemWatcher.Created triggered for: {e.FullPath}");
+                
+                // Controlla se è un file markdown
+                if (!Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation($"❌ File {e.FullPath} is not a markdown file. Extension: {Path.GetExtension(e.FullPath)}");
+                    return;
+                }
+
+                _logger.LogInformation($"✅ File {e.FullPath} is a markdown file");
+
+                // Per i file markdown appena creati, usiamo una logica di filtraggio specifica
+                if (ShouldIgnoreMarkdownFile(e.FullPath))
+                {
+                    _logger.LogInformation($"❌ Markdown file {e.FullPath} filtered out by markdown-specific rules");
+                    return;
+                }
+
+                _logger.LogInformation($"🎯 Processing new markdown file: {e.FullPath}");
+                
+                // Salva il file nel database
+                ParseNewFileIntoDB(e);
+
+                // Crea il nodo per l'invio tramite SignalR
+                var relativePath = GetRelativePath(e.FullPath);
+                var newFileNode = new
+                {
+                    Name = Path.GetFileName(e.FullPath),
+                    FullPath = e.FullPath,
+                    Path = relativePath,
+                    RelativePath = relativePath,
+                    Type = "mdFile",
+                    Level = CalculateFileLevel(relativePath),
+                    Expandable = false,
+                    IsIndexed = true, // Il file appena creato è considerato indicizzato
+                    IndexingStatus = "completed"
+                };
+
+                // Invia notifica tramite SignalR per la creazione del nuovo nodo
+                _logger.LogInformation($"📡 Sending SignalR event 'markdownFileCreated' for: {newFileNode.Name}");
+                await _hubContext.Clients.All.SendAsync("markdownFileCreated", newFileNode);
+                _logger.LogInformation($"✅ SignalR event sent successfully for: {newFileNode.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❗ ERROR in _fileSystemWatcher_Created for file: {e.FullPath}");
+                _logger.LogError($"❗ Exception Type: {ex.GetType().Name}");
+                _logger.LogError($"❗ Exception Message: {ex.Message}");
+                _logger.LogError($"❗ Stack Trace: {ex.StackTrace}");
+                
+                // Log inner exception if exists
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError($"❗ Inner Exception: {ex.InnerException.Message}");
+                }
+                
+                // Don't rethrow - keep the FileSystemWatcher alive
+            }
+        }
+
+        private async void _fileSystemWatcher_Renamed(object sender, RenamedEventArgs e)
+        {
+            try
+            {
+                _logger.LogInformation($"🔄 FileSystemWatcher.Renamed triggered:");
+                _logger.LogInformation($"🔄   Old: {e.OldFullPath} (ext: {Path.GetExtension(e.OldFullPath)})");
+                _logger.LogInformation($"🔄   New: {e.FullPath} (ext: {Path.GetExtension(e.FullPath)})");
+                
+                // Controlla se il file rinominato è un file markdown (sia prima che dopo)
+                bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
+                bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
+                
+                // Processa se:
+                // 1. Un file è stato rinominato DA qualsiasi estensione A .md
+                // 2. Un file .md è stato rinominato (cambio nome ma ancora .md)
+                bool shouldProcess = newIsMarkdown || oldIsMarkdown;
+                
+                if (!shouldProcess)
+                {
+                    _logger.LogInformation($"❌ Rename not relevant: neither old nor new file is markdown");
+                    return;
+                }
+                
+                // Log del tipo di rinominazione
+                if (oldIsMarkdown && newIsMarkdown)
+                {
+                    _logger.LogInformation($"✅ Markdown file renamed (name change): {e.OldFullPath} → {e.FullPath}");
+                }
+                else if (!oldIsMarkdown && newIsMarkdown)
+                {
+                    _logger.LogInformation($"✅ File renamed to markdown: {e.FullPath}");
+                }
+                else if (oldIsMarkdown && !newIsMarkdown)
+                {
+                    _logger.LogInformation($"⚠️ Markdown file renamed to non-markdown: {e.OldFullPath} → {e.FullPath}");
+                    // Potremmo voler gestire questo caso come una cancellazione
+                    return;
+                }
+
+                // Per i file markdown appena creati/rinominati, usiamo una logica di filtraggio specifica
+                if (ShouldIgnoreMarkdownFile(e.FullPath))
+                {
+                    _logger.LogInformation($"❌ Markdown file {e.FullPath} filtered out by markdown-specific rules");
+                    return;
+                }
+
+                _logger.LogInformation($"🎯 Processing renamed markdown file: {e.FullPath}");
+                
+                // Per rinominazioni di file .md -> .md, dobbiamo notificare anche la rimozione del vecchio file
+                if (oldIsMarkdown && newIsMarkdown)
+                {
+                    // Notifica la rimozione del vecchio file
+                    var oldRelativePath = GetRelativePath(e.OldFullPath);
+                    var fileDeletedData = new
+                    {
+                        FullPath = e.OldFullPath,
+                        RelativePath = oldRelativePath,
+                        Name = Path.GetFileName(e.OldFullPath)
+                    };
+                    
+                    _logger.LogInformation($"📡 Sending SignalR event 'markdownFileDeleted' for old file: {fileDeletedData.Name}");
+                    await _hubContext.Clients.All.SendAsync("markdownFileDeleted", fileDeletedData);
+                }
+                
+                // Crea un FileSystemEventArgs per il parsing del database
+                var fileEvent = new FileSystemEventArgs(WatcherChangeTypes.Created, Path.GetDirectoryName(e.FullPath), Path.GetFileName(e.FullPath));
+                
+                // Salva il file nel database
+                ParseNewFileIntoDB(fileEvent);
+
+                // Crea il nodo per l'invio tramite SignalR
+                var relativePath = GetRelativePath(e.FullPath);
+                var newFileNode = new
+                {
+                    Name = Path.GetFileName(e.FullPath),
+                    FullPath = e.FullPath,
+                    Path = relativePath,
+                    RelativePath = relativePath,
+                    Type = "mdFile",
+                    Level = CalculateFileLevel(relativePath),
+                    Expandable = false,
+                    IsIndexed = true, // Il file rinominato è considerato indicizzato
+                    IndexingStatus = "completed"
+                };
+
+                // Invia notifica tramite SignalR per la creazione del nuovo nodo
+                _logger.LogInformation($"📡 Sending SignalR event 'markdownFileCreated' for renamed file: {newFileNode.Name}");
+                await _hubContext.Clients.All.SendAsync("markdownFileCreated", newFileNode);
+                _logger.LogInformation($"✅ SignalR event sent successfully for renamed file: {newFileNode.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❗ ERROR in _fileSystemWatcher_Renamed for file: {e.FullPath}");
+                _logger.LogError($"❗ Exception Type: {ex.GetType().Name}");
+                _logger.LogError($"❗ Exception Message: {ex.Message}");
+                _logger.LogError($"❗ Stack Trace: {ex.StackTrace}");
+                
+                // Log inner exception if exists
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError($"❗ Inner Exception: {ex.InnerException.Message}");
+                }
+                
+                // Don't rethrow - keep the FileSystemWatcher alive
+            }
         }
 
         private void _fileSystemWatcher_Deleted(object sender, FileSystemEventArgs e)
@@ -154,7 +325,69 @@ namespace MdExplorer.Service.HostedServices
             return changeType;
         }
 
-        
+        private int CalculateFileLevel(string relativePath)
+        {
+            // Rimuovi il separatore iniziale se presente
+            var cleanPath = relativePath.TrimStart(Path.DirectorySeparatorChar);
+            
+            if (string.IsNullOrEmpty(cleanPath))
+            {
+                return 0; // File nella root
+            }
+            
+            // Conta il numero di separatori per determinare il livello
+            return cleanPath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).Length - 1;
+        }
+
+        private string GetRelativePath(string fullPath)
+        {
+            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
+            if (relativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
+            {
+                relativePath = relativePath.Substring(1);
+            }
+            return relativePath;
+        }
+
+        private bool ShouldIgnoreMarkdownFile(string fullPath)
+        {
+            // Logica di filtraggio specifica per file markdown
+            // NON filtriamo per estensione .md (è quello che vogliamo!)
+            
+            // Get relative path from project root
+            var relativePath = fullPath.Substring(_fileSystemWatcher.Path.Length).TrimStart(Path.DirectorySeparatorChar);
+            relativePath = relativePath.Replace(Path.DirectorySeparatorChar, '/');
+
+            // Controlla se è in una cartella .md (che sono cartelle di sistema/cache)
+            if (_ignoreConfiguration.IgnoredDirectories.Any(dir => 
+                relativePath.Contains($"/{dir}/") || relativePath.StartsWith($"{dir}/")))
+            {
+                return true;
+            }
+            
+            // Controlla per file Git-related ignored
+            if (_ignoreConfiguration.GitIgnoredFiles.Any(gitFile => 
+            {
+                if (gitFile.EndsWith("/"))
+                {
+                    // It's a directory pattern
+                    return relativePath.Contains($"/{gitFile.TrimEnd('/')}/");
+                }
+                else
+                {
+                    // It's a file pattern
+                    return relativePath.Contains($"/{gitFile}") || relativePath.Contains($".{gitFile}");
+                }
+            }))
+            {
+                return true;
+            }
+            
+            // Non ignoriamo per IgnoredPatterns che contengono ".md" dato che vogliamo i file .md
+            // Non ignoriamo per IgnoredExtensions dato che .md non dovrebbe essere in quella lista
+            
+            return false;
+        }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -165,31 +398,75 @@ namespace MdExplorer.Service.HostedServices
 
         private async void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
-            // If wrong files then don't alert to client
-            //bool isWrongDirectory = false, isWrongExtensionFile = false, isWrongGitFile =false;
-            (var isWrongDirectory, var isWrongExtensionFile,var  isWrongGitFile, var hasNoExtension) = ThereIsNoNeedToAlertClient(e) ;
-
-            if (isWrongDirectory || isWrongExtensionFile || isWrongGitFile || hasNoExtension)
+            try
             {
-                return;
-            }
-
-            var lastWriteTime = File.GetLastWriteTime(e.FullPath);
-            if (lastWriteTime > lastRead)
-            {
-                _logger.LogInformation($"Hey! {e.FullPath} has changed!");
-                ParseNewFileIntoDB(e);
-
-                var monitoredMd = new MonitoredMDModel
+                _logger.LogInformation($"📝 FileSystemWatcher.Changed triggered for: {e.FullPath}");
+                
+                // Check if it's a directory - skip directories
+                if (Directory.Exists(e.FullPath))
                 {
-                    Path = e.FullPath.Replace(_fileSystemWatcher.Path , string.Empty), //+ Path.DirectorySeparatorChar
-                    Name = e.Name,
-                    FullPath = e.FullPath,
-                    RelativePath = e.FullPath.Replace(_fileSystemWatcher.Path , string.Empty) //+ Path.DirectorySeparatorChar
+                    _logger.LogInformation($"❌ Path {e.FullPath} is a directory, skipping");
+                    return;
+                }
+                
+                // Check if it's a markdown file
+                if (!Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation($"❌ File {e.FullPath} is not a markdown file. Extension: {Path.GetExtension(e.FullPath)}");
+                    return;
+                }
 
-                };
-                await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
-                lastRead = lastWriteTime.AddSeconds(1);
+                // For markdown files, we want to process changes even if they're in .md directories
+                // So we use a special check that doesn't filter out .md files
+                if (ShouldIgnoreMarkdownFile(e.FullPath))
+                {
+                    _logger.LogInformation($"❌ Markdown file {e.FullPath} filtered out by markdown-specific rules");
+                    return;
+                }
+
+                var lastWriteTime = File.GetLastWriteTime(e.FullPath);
+                if (lastWriteTime > lastRead)
+                {
+                    _logger.LogInformation($"✅ Markdown file changed: {e.FullPath}");
+                    ParseNewFileIntoDB(e);
+
+                    // Calculate relative path and ensure it's correct (remove leading separator)
+                    var relativePath = GetRelativePath(e.FullPath);
+                    
+                    _logger.LogInformation($"🔍 [Changed] e.FullPath: {e.FullPath}");
+                    _logger.LogInformation($"🔍 [Changed] e.Name: {e.Name}");
+                    _logger.LogInformation($"🔍 [Changed] relativePath: {relativePath}");
+                    
+                    var monitoredMd = new MonitoredMDModel
+                    {
+                        Path = relativePath,
+                        Name = Path.GetFileName(e.FullPath), // Use Path.GetFileName to ensure consistency
+                        FullPath = e.FullPath,
+                        RelativePath = relativePath
+                    };
+                    
+                    _logger.LogInformation($"📡 Sending SignalR event 'markdownfileischanged' for: {monitoredMd.Name}");
+                    _logger.LogInformation($"📡 Event data: Path={monitoredMd.Path}, RelativePath={monitoredMd.RelativePath}, FullPath={monitoredMd.FullPath}");
+                    await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
+                    _logger.LogInformation($"✅ SignalR event sent successfully for changed file: {e.Name}");
+                    
+                    lastRead = lastWriteTime.AddSeconds(1);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❗ ERROR in _fileSystemWatcher_Changed for file: {e.FullPath}");
+                _logger.LogError($"❗ Exception Type: {ex.GetType().Name}");
+                _logger.LogError($"❗ Exception Message: {ex.Message}");
+                _logger.LogError($"❗ Stack Trace: {ex.StackTrace}");
+                
+                // Log inner exception if exists
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError($"❗ Inner Exception: {ex.InnerException.Message}");
+                }
+                
+                // Don't rethrow - keep the FileSystemWatcher alive
             }
         }
 

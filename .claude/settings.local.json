@@ -3,7 +3,31 @@
     "allow": [
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(cp:*)",
+      "Bash(sed:*)",
+      "mcp__browser-tools__getConsoleLogs",
+      "mcp__browser-tools__getConsoleErrors",
+      "mcp__browser-tools__takeScreenshot",
+      "Bash(pkill:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(ls:*)",
+      "mcp__browser-tools__getNetworkLogs",
+      "mcp__browser-tools__getSelectedElement",
+      "mcp__puppeteer__puppeteer_navigate",
+      "mcp__googleMCP__browser_navigate",
+      "mcp__googleMCP__browser_click",
+      "mcp__googleMCP__browser_wait",
+      "mcp__googleMCP__browser_screenshot",
+      "mcp__googleMCP__browser_press_key",
+      "mcp__googleMCP__browser_snapshot",
+      "mcp__googleMCP__browser_get_console_logs",
+      "mcp__puppeteer__puppeteer_evaluate",
+      "WebFetch(domain:127.0.0.1)",
+      "mcp__browser-tools__getNetworkErrors",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:stackoverflow.com)"
     ]
   },
   "enableAllProjectMcpServers": false
