@@ -1,3 +1,321 @@
+// Main container
+.file-explorer-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #ffffff;
+  overflow: hidden;
+  position: relative;
+}
+
+.explorer-header {
+  background: linear-gradient(135deg, #47b784, #2e7d32);
+  color: white;
+  padding: 16px 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.explorer-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+  flex: 1;
+}
+
+.filter-section {
+  min-width: 250px;
+}
+
+.filter-input {
+  width: 100%;
+  
+  ::ng-deep {
+    .mat-form-field-outline {
+      color: rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    .mat-form-field-outline-thick {
+      color: white !important;
+    }
+    
+    .mat-form-field-label {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+    
+    .mat-input-element {
+      color: white !important;
+      
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.6) !important;
+      }
+    }
+    
+    .mat-icon {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+  }
+}
+
+.explorer-content {
+  display: flex;
+  flex: 1;
+  min-height: 0; // Important for proper flex behavior
+}
+
+// Left panel - Navigation
+.left-panel {
+  width: 280px;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  margin: 16px 16px 8px 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-items {
+  padding: 0 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  margin: 2px 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  user-select: none;
+
+  &:hover {
+    background: #e3f2fd;
+    transform: translateX(2px);
+  }
+
+  &:focus {
+    outline: 2px solid #2196f3;
+    outline-offset: 2px;
+    background: #e3f2fd;
+  }
+
+  &.active {
+    background: #2196f3;
+    color: white;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+
+    .nav-icon {
+      color: white;
+    }
+
+    &:focus {
+      outline-color: white;
+    }
+  }
+}
+
+.nav-icon {
+  margin-right: 12px;
+  font-size: 20px;
+  color: #666;
+  transition: color 0.2s ease;
+}
+
+.nav-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Right panel - Content
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; // Important for proper flex behavior
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  min-height: 48px;
+
+  button {
+    margin-right: 12px;
+  }
+}
+
+.current-path {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #666;
+  
+  span {
+    margin-top: 12px;
+    font-size: 0.9rem;
+  }
+}
+
+.content-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.content-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  margin: 2px 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  user-select: none;
+
+  &:hover {
+    background: #f0f0f0;
+  }
+
+  &:focus {
+    outline: 2px solid #2196f3;
+    outline-offset: 2px;
+    background: #f0f0f0;
+  }
+
+  &.selected {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+
+    &:focus {
+      outline-color: #1976d2;
+    }
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &.not-selectable {
+    opacity: 0.6;
+    cursor: default;
+    
+    &:hover {
+      background: transparent;
+    }
+
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+.item-icon {
+  margin-right: 12px;
+  font-size: 20px;
+  color: #666;
+  
+  .content-item:hover & {
+    color: #2196f3;
+  }
+}
+
+.item-name {
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #999;
+  text-align: center;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  p {
+    font-size: 0.9rem;
+    margin: 0;
+  }
+}
+
+// Bottom panel
+.bottom-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+  min-height: 80px;
+}
+
+.selected-folder-info {
+  flex: 1;
+  
+  mat-card-title {
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: #333;
+  }
+  
+  mat-card-subtitle {
+    font-size: 0.85rem;
+    color: #666;
+    font-family: 'Courier New', monospace;
+  }
+}
+
+.action-buttons {
+  margin-left: 20px;
+  
+  button {
+    min-width: 140px;
+    font-weight: 500;
+  }
+}
+
+// Legacy compatibility styles
 .flex-container {
   display: flex;
   flex-direction: column;
@@ -23,4 +341,89 @@
 .flex-selected-folder {
   display: flex;
   flex-direction: row;
+}
+
+// Resizable dialog wrapper
+::ng-deep .resizable-dialog-container {
+  resize: both;
+  overflow: auto;
+  min-width: 400px;
+  min-height: 300px;
+  max-width: 90vw;
+  max-height: 90vh;
+  
+  .mat-dialog-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+  
+  .mat-dialog-content {
+    flex: 1;
+    max-height: unset;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+}
+
+// Resize handle styling
+::ng-deep .resizable-dialog-container {
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: nwse-resize;
+    background: 
+      linear-gradient(135deg, transparent 50%, #47b784 50%),
+      linear-gradient(135deg, transparent 50%, #47b784 50%);
+    background-size: 5px 5px, 5px 5px;
+    background-position: 100% 0, 0 100%;
+    background-repeat: no-repeat;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+  }
+  
+  &:hover::after {
+    opacity: 0.8;
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .file-explorer-container {
+    height: 500px;
+  }
+  
+  .explorer-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .filter-section {
+    min-width: unset;
+  }
+  
+  .left-panel {
+    width: 240px;
+  }
+  
+  .nav-label {
+    font-size: 0.9rem;
+  }
+  
+  .bottom-panel {
+    flex-direction: column;
+    align-items: stretch;
+    
+    .action-buttons {
+      margin-left: 0;
+      margin-top: 12px;
+    }
+  }
 }

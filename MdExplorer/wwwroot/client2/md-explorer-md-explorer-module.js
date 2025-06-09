@@ -2196,11 +2196,15 @@ class AddNewFileToMDEComponent {
     }
     openFileSystem() {
         let data = new _commons_components_show_file_system_show_file_metadata__WEBPACK_IMPORTED_MODULE_2__["ShowFileMetadata"]();
-        data.title = "Select File";
+        data.title = "Select file to add";
         data.typeOfSelection = "FoldersAndFiles";
+        data.buttonText = "Add to project";
+        data.fileExtensions = ['.md', '.txt', '.doc', '.docx', '.pdf']; // Solo questi file
+        data.showFileDetails = true; // Mostra dimensione e data
         const dialogRef = this.dialog.open(_commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_1__["ShowFileSystemComponent"], {
-            width: '600px',
+            width: '800px',
             height: '600px',
+            panelClass: 'resizable-dialog-container',
             data: data
         });
         dialogRef.afterClosed().subscribe(_ => {
@@ -19527,8 +19531,9 @@ class MoveMdFileComponent {
         data.title = "Project's folders";
         data.typeOfSelection = "Folders";
         const dialogRef = this.dialog.open(_commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_1__["ShowFileSystemComponent"], {
-            width: '600px',
+            width: '800px',
             height: '600px',
+            panelClass: 'resizable-dialog-container',
             data: data,
         });
         dialogRef.afterClosed().subscribe(_ => {

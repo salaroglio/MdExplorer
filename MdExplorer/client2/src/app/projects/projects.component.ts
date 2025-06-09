@@ -61,12 +61,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   openNewFolder(): void {
     let data = new ShowFileMetadata();
     data.start = null;
-    data.title = "Select folder";
+    data.title = "Select project folder";
     data.typeOfSelection = "Folders";
+    data.buttonText = "Create project here"; // Testo personalizzato
 
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
-      width: '600px',
-      maxHeight: '600px',
+      width: '800px',
+      height: '600px',
+      panelClass: 'resizable-dialog-container',
       data: data
     });
 

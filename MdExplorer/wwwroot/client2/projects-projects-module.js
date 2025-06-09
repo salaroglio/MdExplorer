@@ -108,8 +108,9 @@ class CloneProjectComponent {
         data.title = "C:\ Folder";
         data.typeOfSelection = "Folders";
         const dialogRef = this.dialog.open(_commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_0__["ShowFileSystemComponent"], {
-            width: '600px',
+            width: '800px',
             height: '600px',
+            panelClass: 'resizable-dialog-container',
             data: data
         });
         dialogRef.afterClosed().subscribe(_ => {
@@ -618,11 +619,13 @@ class ProjectsComponent {
     openNewFolder() {
         let data = new _commons_components_show_file_system_show_file_metadata__WEBPACK_IMPORTED_MODULE_3__["ShowFileMetadata"]();
         data.start = null;
-        data.title = "Select folder";
+        data.title = "Select project folder";
         data.typeOfSelection = "Folders";
+        data.buttonText = "Create project here"; // Testo personalizzato
         const dialogRef = this.dialog.open(_commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_0__["ShowFileSystemComponent"], {
-            width: '600px',
-            maxHeight: '600px',
+            width: '800px',
+            height: '600px',
+            panelClass: 'resizable-dialog-container',
             data: data
         });
         dialogRef.afterClosed().subscribe(folderPath => {

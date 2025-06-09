@@ -592,6 +592,100 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
 
         [HttpGet]
+        public IActionResult GetSpecialFolders()
+        {
+            try
+            {
+                var folders = new List<object>();
+
+                // Desktop
+                var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                if (Directory.Exists(desktopPath))
+                {
+                    folders.Add(new { 
+                        name = "Desktop", 
+                        path = desktopPath,
+                        icon = "desktop_windows"
+                    });
+                }
+
+                // Documents
+                var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                if (Directory.Exists(documentsPath))
+                {
+                    folders.Add(new { 
+                        name = "Documents", 
+                        path = documentsPath,
+                        icon = "folder_shared"
+                    });
+                }
+
+                // Downloads (try multiple common locations)
+                var downloadsPaths = new[]
+                {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Descargas"), // Spanish
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Téléchargements") // French
+                };
+
+                foreach (var downloadsPath in downloadsPaths)
+                {
+                    if (Directory.Exists(downloadsPath))
+                    {
+                        folders.Add(new { 
+                            name = "Downloads", 
+                            path = downloadsPath,
+                            icon = "cloud_download"
+                        });
+                        break;
+                    }
+                }
+
+                // Project folder
+                if (Directory.Exists(_fileSystemWatcher.Path))
+                {
+                    folders.Add(new { 
+                        name = "Project", 
+                        path = _fileSystemWatcher.Path,
+                        icon = "work"
+                    });
+                }
+
+                return Ok(folders);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting special folders");
+                return Ok(new object[0]); // Return empty array on error
+            }
+        }
+
+        [HttpGet]
+        public IActionResult GetDrives()
+        {
+            try
+            {
+                var drives = DriveInfo.GetDrives()
+                    .Where(d => d.IsReady && d.DriveType == DriveType.Fixed)
+                    .Select(d => new {
+                        name = d.Name.TrimEnd(Path.DirectorySeparatorChar),
+                        path = d.RootDirectory.FullName,
+                        icon = "storage",
+                        label = string.IsNullOrEmpty(d.VolumeLabel) ? d.Name : d.VolumeLabel,
+                        totalSize = d.TotalSize,
+                        freeSpace = d.AvailableFreeSpace,
+                        driveType = d.DriveType.ToString()
+                    });
+                return Ok(drives);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting drives");
+                return Ok(new object[0]); // Return empty array on error
+            }
+        }
+
+        [HttpGet]
         public IActionResult GetFoldersDocument()
         {
             var currentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); ;

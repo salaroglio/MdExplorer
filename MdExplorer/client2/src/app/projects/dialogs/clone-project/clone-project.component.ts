@@ -81,8 +81,9 @@ export class CloneProjectComponent implements OnInit {
     data.typeOfSelection = "Folders";
 
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
-      width: '600px',
+      width: '800px',
       height: '600px',
+      panelClass: 'resizable-dialog-container',
       data: data
     });
 

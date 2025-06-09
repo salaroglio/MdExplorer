@@ -603,6 +603,15 @@ body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
+.resizable-dialog-container .mat-dialog-container {
+  resize: both;
+  overflow: auto;
+  min-width: 400px;
+  min-height: 300px;
+  max-width: 90vw;
+  max-height: 90vh;
+  position: relative;
+}
 .subtle-dialog-panel .mat-dialog-container {
   padding: 0 !important;
   border-radius: 8px !important;

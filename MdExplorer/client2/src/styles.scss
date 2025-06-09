@@ -10,6 +10,19 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
+// Resizable dialog container styles
+.resizable-dialog-container {
+  .mat-dialog-container {
+    resize: both;
+    overflow: auto;
+    min-width: 400px;
+    min-height: 300px;
+    max-width: 90vw;
+    max-height: 90vh;
+    position: relative;
+  }
+}
+
 // Subtle dialog styles for Rule #1
 .subtle-dialog-panel {
   .mat-dialog-container {

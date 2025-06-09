@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
+import { SpecialFolder, Drive } from '../../commons/components/show-file-system/file-explorer.models';
 
 @Injectable({
   providedIn: 'root'
@@ -549,6 +550,17 @@ export class MdFileService {
       arrayFound.push(thatFile);
       return true;
     }
+  }
+
+  // New methods for file explorer functionality
+  getSpecialFolders(): Observable<SpecialFolder[]> {
+    const url = '../api/mdfiles/GetSpecialFolders';
+    return this.http.get<SpecialFolder[]>(url);
+  }
+
+  getDrives(): Observable<Drive[]> {
+    const url = '../api/mdfiles/GetDrives';
+    return this.http.get<Drive[]>(url);
   }
 
 
