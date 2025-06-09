@@ -13,13 +13,17 @@ namespace MdExplorer.Features.Configuration.Services
     public class ApplicationExtensionConfigurationService : IApplicationExtensionConfiguration
     {
         private readonly ILogger<ApplicationExtensionConfigurationService> _logger;
+        private readonly FileSystemWatcher _fileSystemWatcher;
         private ApplicationExtensionConfigurationModel _configuration;
         private readonly string _configFilePath;
 
-        public ApplicationExtensionConfigurationService(ILogger<ApplicationExtensionConfigurationService> logger)
+        public ApplicationExtensionConfigurationService(
+            ILogger<ApplicationExtensionConfigurationService> logger,
+            FileSystemWatcher fileSystemWatcher)
         {
             _logger = logger;
-            _configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".mdapplicationtoopen");
+            _fileSystemWatcher = fileSystemWatcher;
+            _configFilePath = Path.Combine(_fileSystemWatcher.Path, ".mdapplicationtoopen");
             LoadConfiguration();
         }
 
@@ -58,7 +62,7 @@ namespace MdExplorer.Features.Configuration.Services
                         .Build();
                     
                     _configuration = deserializer.Deserialize<ApplicationExtensionConfigurationModel>(yamlContent);
-                    _logger.LogInformation($"Loaded application extension configuration from .mdapplicationtoopen with {_configuration.SupportedExtensions?.Count ?? 0} extensions");
+                    _logger.LogInformation($"Loaded application extension configuration from {_configFilePath} with {_configuration.SupportedExtensions?.Count ?? 0} extensions");
                 }
                 catch (Exception ex)
                 {
@@ -68,7 +72,7 @@ namespace MdExplorer.Features.Configuration.Services
             }
             else
             {
-                _logger.LogWarning(".mdapplicationtoopen file not found. Using default values.");
+                _logger.LogWarning($".mdapplicationtoopen file not found at {_configFilePath}. Using default values.");
                 LoadDefaultConfiguration();
             }
         }

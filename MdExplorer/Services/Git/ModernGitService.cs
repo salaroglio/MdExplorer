@@ -652,5 +652,163 @@ namespace MdExplorer.Services.Git
         }
 
         #endregion
+
+        public async Task<GitPullPushData> GetPullPushDataAsync(string repositoryPath)
+        {
+            try
+            {
+                _logger.LogInformation("Getting pull/push data for repository: {RepositoryPath}", repositoryPath);
+
+                using var repo = new Repository(repositoryPath);
+                var currentBranch = repo.Head;
+
+                // Initialize the result
+                var result = new GitPullPushData
+                {
+                    HasDataToPull = false,
+                    CommitsBehind = 0,
+                    CommitsAhead = 0,
+                    FilesToPull = new List<GitFileChange>(),
+                    IsRemoteAvailable = false,
+                    RemoteConnectionError = null
+                };
+
+                // Check if we have a tracked branch
+                if (currentBranch.TrackedBranch == null)
+                {
+                    _logger.LogWarning("Current branch {Branch} has no tracked remote branch", currentBranch.FriendlyName);
+                    return result;
+                }
+
+                try
+                {
+                    // Fetch latest from remote to ensure accurate comparison
+                    var fetchOptions = new FetchOptions
+                    {
+                        CredentialsProvider = (url, userFromUrl, types) => 
+                        {
+                            var task = ResolveCredentials(url, userFromUrl, types);
+                            return task.GetAwaiter().GetResult();
+                        }
+                    };
+
+                    var remote = repo.Network.Remotes["origin"];
+                    if (remote != null)
+                    {
+                        _logger.LogDebug("Fetching from remote: {RemoteName}", remote.Name);
+                        var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
+                        Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, string.Empty);
+                        result.IsRemoteAvailable = true;
+                    }
+
+                    // Get tracking details after fetch
+                    var trackingDetails = currentBranch.TrackingDetails;
+                    if (trackingDetails != null)
+                    {
+                        result.CommitsBehind = trackingDetails.BehindBy ?? 0;
+                        result.CommitsAhead = trackingDetails.AheadBy ?? 0;
+                        result.HasDataToPull = result.CommitsBehind > 0;
+
+                        // Get incoming changes if there are commits behind
+                        if (result.CommitsBehind > 0)
+                        {
+                            var trackedBranch = currentBranch.TrackedBranch;
+                            var currentCommit = currentBranch.Tip;
+                            var remoteCommit = trackedBranch.Tip;
+
+                            // Get all commits between current and remote
+                            var filter = new CommitFilter
+                            {
+                                ExcludeReachableFrom = currentCommit,
+                                IncludeReachableFrom = remoteCommit,
+                                SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Time
+                            };
+
+                            var incomingCommits = repo.Commits.QueryBy(filter).ToList();
+                            _logger.LogDebug("Found {Count} incoming commits", incomingCommits.Count);
+
+                            // Analyze changes in incoming commits
+                            var changedFiles = new Dictionary<string, GitFileChange>();
+                            
+                            foreach (var commit in incomingCommits)
+                            {
+                                var parent = commit.Parents.FirstOrDefault();
+                                if (parent != null)
+                                {
+                                    var changes = repo.Diff.Compare<TreeChanges>(parent.Tree, commit.Tree);
+                                    
+                                    foreach (var change in changes)
+                                    {
+                                        var filePath = change.Path;
+                                        if (!changedFiles.ContainsKey(filePath))
+                                        {
+                                            changedFiles[filePath] = new GitFileChange
+                                            {
+                                                FilePath = filePath,
+                                                Author = commit.Author.Name,
+                                                ChangeType = ConvertChangeKind(change.Status),
+                                                CommitMessage = commit.MessageShort,
+                                                ChangeDate = commit.Author.When.DateTime
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+
+                            result.FilesToPull = changedFiles.Values.ToList();
+                        }
+                    }
+
+                    _logger.LogInformation("Pull/push data retrieved: Behind={Behind}, Ahead={Ahead}, Files={Files}",
+                        result.CommitsBehind, result.CommitsAhead, result.FilesToPull?.Count() ?? 0);
+
+                    return result;
+                }
+                catch (LibGit2SharpException ex)
+                {
+                    _logger.LogWarning(ex, "Error fetching from remote, returning local data only");
+                    result.RemoteConnectionError = ex.Message;
+                    
+                    // Return local data without remote info
+                    var trackingDetails = currentBranch.TrackingDetails;
+                    if (trackingDetails != null)
+                    {
+                        result.CommitsBehind = trackingDetails.BehindBy ?? 0;
+                        result.CommitsAhead = trackingDetails.AheadBy ?? 0;
+                        result.HasDataToPull = result.CommitsBehind > 0;
+                    }
+                    
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting pull/push data for repository: {RepositoryPath}", repositoryPath);
+                
+                return new GitPullPushData
+                {
+                    HasDataToPull = false,
+                    CommitsBehind = 0,
+                    CommitsAhead = 0,
+                    FilesToPull = new List<GitFileChange>(),
+                    IsRemoteAvailable = false,
+                    RemoteConnectionError = ex.Message
+                };
+            }
+        }
+
+        private string ConvertChangeKind(ChangeKind changeKind)
+        {
+            return changeKind switch
+            {
+                ChangeKind.Added => "Added",
+                ChangeKind.Deleted => "Deleted",
+                ChangeKind.Modified => "Modified",
+                ChangeKind.Renamed => "Renamed",
+                ChangeKind.Copied => "Copied",
+                ChangeKind.TypeChanged => "TypeChanged",
+                _ => "Unknown"
+            };
+        }
     }
 }

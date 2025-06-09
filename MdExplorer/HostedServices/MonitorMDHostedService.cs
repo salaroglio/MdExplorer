@@ -69,7 +69,7 @@ namespace MdExplorer.Service.HostedServices
 
         private FileChangeIgnoreConfiguration LoadIgnoreConfiguration()
         {
-            var configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".mdchangeignore");
+            var configFilePath = Path.Combine(_fileSystemWatcher.Path, ".mdchangeignore");
             
             if (File.Exists(configFilePath))
             {
@@ -81,7 +81,7 @@ namespace MdExplorer.Service.HostedServices
                         .Build();
                     
                     var config = deserializer.Deserialize<FileChangeIgnoreConfiguration>(yamlContent);
-                    _logger.LogInformation("Loaded file change ignore configuration from .mdchangeignore");
+                    _logger.LogInformation($"Loaded file change ignore configuration from {configFilePath}");
                     return config ?? new FileChangeIgnoreConfiguration();
                 }
                 catch (Exception ex)
@@ -91,7 +91,7 @@ namespace MdExplorer.Service.HostedServices
             }
             else
             {
-                _logger.LogWarning(".mdchangeignore file not found. Using default hardcoded values.");
+                _logger.LogWarning($".mdchangeignore file not found at {configFilePath}. Using default hardcoded values.");
             }
 
             // Return default configuration if file doesn't exist or parsing fails

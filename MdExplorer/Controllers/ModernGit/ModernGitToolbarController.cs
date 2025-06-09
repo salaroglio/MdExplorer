@@ -367,6 +367,72 @@ namespace MdExplorer.Controllers.ModernGit
         }
 
         /// <summary>
+        /// Gets data about commits to pull and push
+        /// </summary>
+        /// <param name="projectPath">Path to repository</param>
+        /// <returns>Pull/push data information</returns>
+        [HttpGet("get-data-to-pull")]
+        public async Task<IActionResult> GetDataToPull([FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(projectPath))
+                {
+                    return BadRequest("Project path is required");
+                }
+
+                _logger.LogInformation("GetDataToPull request for path: {Path}", projectPath);
+
+                // Get pull/push data from the modern Git service
+                var pullPushData = await _modernGitService.GetPullPushDataAsync(projectPath);
+
+                if (pullPushData == null)
+                {
+                    return Ok(new DataToPullResponse
+                    {
+                        SomethingIsToPull = false,
+                        HowManyFilesAreToPull = 0,
+                        HowManyCommitAreToPush = 0,
+                        ConnectionIsActive = false,
+                        WhatFilesWillBeChanged = new List<FileNameAndAuthor>()
+                    });
+                }
+
+                var response = new DataToPullResponse
+                {
+                    SomethingIsToPull = pullPushData.CommitsBehind > 0,
+                    HowManyFilesAreToPull = pullPushData.FilesToPull?.Count() ?? 0,
+                    HowManyCommitAreToPush = pullPushData.CommitsAhead,
+                    ConnectionIsActive = pullPushData.IsRemoteAvailable,
+                    WhatFilesWillBeChanged = pullPushData.FilesToPull?.Select(change => new FileNameAndAuthor
+                    {
+                        FileName = change.FilePath,
+                        Author = change.Author
+                    }).ToList() ?? new List<FileNameAndAuthor>()
+                };
+
+                _logger.LogInformation("GetDataToPull response: CommitsBehind={Behind}, CommitsAhead={Ahead}, Files={Files}",
+                    pullPushData.CommitsBehind, pullPushData.CommitsAhead, response.WhatFilesWillBeChanged.Count);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting pull/push data for path: {Path}", projectPath);
+                
+                // Return a response indicating connection failure
+                return Ok(new DataToPullResponse
+                {
+                    SomethingIsToPull = false,
+                    HowManyFilesAreToPull = 0,
+                    HowManyCommitAreToPush = 0,
+                    ConnectionIsActive = false,
+                    WhatFilesWillBeChanged = new List<FileNameAndAuthor>()
+                });
+            }
+        }
+
+        /// <summary>
         /// Gets Git author information from repository configuration
         /// </summary>
         private async Task<GitAuthor> GetGitAuthorAsync(string repositoryPath)

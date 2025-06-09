@@ -23,7 +23,7 @@ import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import _ from 'lodash';
 
@@ -105,6 +105,20 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.isCheckingConnection = false;
       this.filesAndAuthors = _.whatFilesWillBeChanged;
     });
+    
+    // Set initial project path if available
+    const currentProject = this.projectService.currentProjects$.value;
+    if (currentProject && currentProject.path) {
+      this.gitservice.setProjectPath(currentProject.path);
+    }
+    
+    // Subscribe to project changes to update Git service
+    this.projectService.currentProjects$.subscribe(project => {
+      if (project && project.path) {
+        this.gitservice.setProjectPath(project.path);
+      }
+    });
+    
     this.checkConnection();
 
     // manage resize fullscreen
@@ -211,10 +225,18 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         return;
       }
       
-      // Use modern Git service for branch status
-      this.gitservice.modernGetBranchStatus(projectPath).subscribe(
-        branch => {
+      // Update the Git service with current project path
+      this.gitservice.setProjectPath(projectPath);
+      
+      // Get both branch status and pull/push data using modern Git service
+      forkJoin([
+        this.gitservice.modernGetBranchStatus(projectPath),
+        this.gitservice.modernGetDataToPull(projectPath)
+      ]).subscribe(
+        ([branch, pullData]) => {
+          // Update observables with the received data
           this.gitservice.currentBranch$.next(branch);
+          this.gitservice.commmitsToPull$.next(pullData);
           this.isCheckingConnection = false;
         },
         error => {

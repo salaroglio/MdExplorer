@@ -704,6 +704,8 @@ class GITService {
         this.gitPollingInterval = null;
         this.ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
         this.INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
+        this.useModernGit = true; // Match toolbar component setting
+        this.currentProjectPath = null;
         this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
             id: "", name: "",
             somethingIsChangedInTheBranch: true,
@@ -722,11 +724,22 @@ class GITService {
         this.initializeSmartPolling();
     }
     /**
+     * Set the current project path for modern Git operations
+     */
+    setProjectPath(path) {
+        this.currentProjectPath = path;
+        console.log('Git service project path set to:', path);
+        // Trigger immediate poll with new path
+        if (path) {
+            this.performPoll();
+        }
+    }
+    /**
      * Inizializza il polling intelligente che si adatta alla visibilità della finestra
      */
     initializeSmartPolling() {
         // Polling iniziale immediato
-        this.getCurrentBranch();
+        this.performPoll();
         // Avvia polling con intervallo attivo
         this.startPolling(this.ACTIVE_POLLING_INTERVAL);
         // Listener per cambio visibilità finestra
@@ -741,6 +754,33 @@ class GITService {
             this.handleWindowBlur();
         });
         console.log('🔄 Smart Git polling initialized');
+    }
+    /**
+     * Perform polling based on current configuration
+     */
+    performPoll() {
+        if (this.useModernGit && this.currentProjectPath) {
+            // Use modern endpoints with SSH support
+            console.log('🔄 Performing modern Git poll for:', this.currentProjectPath);
+            // Get branch status
+            this.modernGetBranchStatus(this.currentProjectPath).subscribe(branch => {
+                this.currentBranch$.next(branch);
+            }, error => {
+                console.error('Error in modern branch status:', error);
+                // Fallback to legacy
+                this.getCurrentBranch();
+            });
+            // Get pull/push data
+            this.modernGetDataToPull(this.currentProjectPath).subscribe(pullData => {
+                this.commmitsToPull$.next(pullData);
+            }, error => {
+                console.error('Error in modern data to pull:', error);
+            });
+        }
+        else {
+            // Use legacy endpoints
+            this.getCurrentBranch();
+        }
     }
     /**
      * Gestisce il cambio di visibilità della finestra
@@ -760,7 +800,7 @@ class GITService {
         console.log('🟢 Window focused - activating frequent Git polling (60s)');
         this.startPolling(this.ACTIVE_POLLING_INTERVAL);
         // Polling immediato quando torna in focus
-        this.getCurrentBranch();
+        this.performPoll();
     }
     /**
      * Quando la finestra diventa inattiva: polling meno frequente
@@ -779,7 +819,7 @@ class GITService {
         }
         // Avvia nuovo polling
         this.gitPollingInterval = setInterval(() => {
-            this.getCurrentBranch();
+            this.performPoll();
         }, interval);
     }
     /**
@@ -900,6 +940,24 @@ class GITService {
             howManyCommitAreToPush: response.howManyCommitAreToPush,
             fullPath: response.fullPath
         })));
+    }
+    /**
+     * Get data to pull/push using modern Git service
+     */
+    modernGetDataToPull(projectPath) {
+        const url = `../api/ModernGitToolbar/get-data-to-pull?projectPath=${encodeURIComponent(projectPath)}`;
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error in modernGetDataToPull:', error);
+            // Return empty data on error
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                somethingIsToPull: false,
+                somethingIsToPush: false,
+                howManyFilesAreToPull: 0,
+                howManyCommitAreToPush: 0,
+                connectionIsActive: false,
+                whatFilesWillBeChanged: []
+            });
+        }));
     }
     /**
      * Adapts modern Git response to legacy format for backward compatibility

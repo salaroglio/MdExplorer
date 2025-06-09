@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { IBranch } from '../models/branch';
 import { DataToPull } from '../models/DataToPull'
 import { CloneInfo } from '../models/cloneRequest';
@@ -28,6 +28,8 @@ export class GITService implements OnDestroy {
   private gitPollingInterval: any = null;
   private readonly ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
   private readonly INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
+  private useModernGit: boolean = true; // Match toolbar component setting
+  private currentProjectPath: string = null;
   
   public currentBranch$: BehaviorSubject<IBranch> = new BehaviorSubject<IBranch>(
     {
@@ -52,11 +54,23 @@ export class GITService implements OnDestroy {
   }
 
   /**
+   * Set the current project path for modern Git operations
+   */
+  setProjectPath(path: string): void {
+    this.currentProjectPath = path;
+    console.log('Git service project path set to:', path);
+    // Trigger immediate poll with new path
+    if (path) {
+      this.performPoll();
+    }
+  }
+
+  /**
    * Inizializza il polling intelligente che si adatta alla visibilità della finestra
    */
   private initializeSmartPolling(): void {
     // Polling iniziale immediato
-    this.getCurrentBranch();
+    this.performPoll();
     
     // Avvia polling con intervallo attivo
     this.startPolling(this.ACTIVE_POLLING_INTERVAL);
@@ -79,6 +93,41 @@ export class GITService implements OnDestroy {
   }
 
   /**
+   * Perform polling based on current configuration
+   */
+  private performPoll(): void {
+    if (this.useModernGit && this.currentProjectPath) {
+      // Use modern endpoints with SSH support
+      console.log('🔄 Performing modern Git poll for:', this.currentProjectPath);
+      
+      // Get branch status
+      this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+        branch => {
+          this.currentBranch$.next(branch);
+        },
+        error => {
+          console.error('Error in modern branch status:', error);
+          // Fallback to legacy
+          this.getCurrentBranch();
+        }
+      );
+      
+      // Get pull/push data
+      this.modernGetDataToPull(this.currentProjectPath).subscribe(
+        pullData => {
+          this.commmitsToPull$.next(pullData);
+        },
+        error => {
+          console.error('Error in modern data to pull:', error);
+        }
+      );
+    } else {
+      // Use legacy endpoints
+      this.getCurrentBranch();
+    }
+  }
+
+  /**
    * Gestisce il cambio di visibilità della finestra
    */
   private handleVisibilityChange(): void {
@@ -96,7 +145,7 @@ export class GITService implements OnDestroy {
     console.log('🟢 Window focused - activating frequent Git polling (60s)');
     this.startPolling(this.ACTIVE_POLLING_INTERVAL);
     // Polling immediato quando torna in focus
-    this.getCurrentBranch();
+    this.performPoll();
   }
 
   /**
@@ -118,7 +167,7 @@ export class GITService implements OnDestroy {
     
     // Avvia nuovo polling
     this.gitPollingInterval = setInterval(() => {
-      this.getCurrentBranch();
+      this.performPoll();
     }, interval);
   }
 
@@ -274,6 +323,28 @@ export class GITService implements OnDestroy {
         howManyCommitAreToPush: response.howManyCommitAreToPush,
         fullPath: response.fullPath
       }))
+    );
+  }
+
+  /**
+   * Get data to pull/push using modern Git service
+   */
+  modernGetDataToPull(projectPath: string): Observable<DataToPull> {
+    const url = `../api/ModernGitToolbar/get-data-to-pull?projectPath=${encodeURIComponent(projectPath)}`;
+    
+    return this.http.get<DataToPull>(url).pipe(
+      catchError(error => {
+        console.error('Error in modernGetDataToPull:', error);
+        // Return empty data on error
+        return of({
+          somethingIsToPull: false,
+          somethingIsToPush: false,
+          howManyFilesAreToPull: 0,
+          howManyCommitAreToPush: 0,
+          connectionIsActive: false,
+          whatFilesWillBeChanged: []
+        });
+      })
     );
   }
 

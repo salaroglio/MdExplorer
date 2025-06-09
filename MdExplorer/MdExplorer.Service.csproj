@@ -149,6 +149,8 @@
     <EmbeddedResource Include="templates\word\project.docx" />
     <EmbeddedResource Include="templates\word\reference.docx" />
     <EmbeddedResource Include="EmojiForPandoc\ok.png" />
+    <EmbeddedResource Include=".mdapplicationtoopen" />
+    <EmbeddedResource Include=".mdchangeignore" />
     </ItemGroup>
 
   <ItemGroup>

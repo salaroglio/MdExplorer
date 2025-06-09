@@ -177,4 +177,52 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         public string FullPath { get; set; }
     }
+
+    /// <summary>
+    /// Response model for data to pull/push information
+    /// Matches legacy DataToPull model for compatibility
+    /// </summary>
+    public class DataToPullResponse
+    {
+        /// <summary>
+        /// Whether there are commits to pull from remote
+        /// </summary>
+        public bool SomethingIsToPull { get; set; }
+
+        /// <summary>
+        /// Number of files that will be changed when pulling
+        /// </summary>
+        public int HowManyFilesAreToPull { get; set; }
+
+        /// <summary>
+        /// Number of commits ahead of remote (to push)
+        /// </summary>
+        public int HowManyCommitAreToPush { get; set; }
+
+        /// <summary>
+        /// Whether connection to remote is active
+        /// </summary>
+        public bool ConnectionIsActive { get; set; }
+
+        /// <summary>
+        /// List of files that will be changed with author info
+        /// </summary>
+        public List<FileNameAndAuthor> WhatFilesWillBeChanged { get; set; } = new List<FileNameAndAuthor>();
+    }
+
+    /// <summary>
+    /// Information about a file and its author
+    /// </summary>
+    public class FileNameAndAuthor
+    {
+        /// <summary>
+        /// Name of the file
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
+        /// Author who made the change
+        /// </summary>
+        public string Author { get; set; }
+    }
 }

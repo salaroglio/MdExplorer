@@ -130,6 +130,13 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="remoteName">Name of the remote (default: origin)</param>
         /// <returns>Result of the fetch operation</returns>
         Task<GitOperationResult> FetchAsync(string repositoryPath, string remoteName = "origin");
+
+        /// <summary>
+        /// Gets information about data to pull from remote and commits to push
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <returns>Information about pull/push data including file changes and commit counts</returns>
+        Task<GitPullPushData> GetPullPushDataAsync(string repositoryPath);
     }
 
     /// <summary>
@@ -145,5 +152,72 @@ namespace MdExplorer.Services.Git.Interfaces
         public bool IsDirty => HasChanges || (Untracked?.Any() ?? false);
         public int CommitsAhead { get; set; }
         public int CommitsBehind { get; set; }
+    }
+
+    /// <summary>
+    /// Information about pull/push data for a repository
+    /// </summary>
+    public class GitPullPushData
+    {
+        /// <summary>
+        /// Whether there are commits to pull from remote
+        /// </summary>
+        public bool HasDataToPull { get; set; }
+
+        /// <summary>
+        /// Number of commits behind remote (to pull)
+        /// </summary>
+        public int CommitsBehind { get; set; }
+
+        /// <summary>
+        /// Number of commits ahead of remote (to push)
+        /// </summary>
+        public int CommitsAhead { get; set; }
+
+        /// <summary>
+        /// List of files that will be changed when pulling
+        /// </summary>
+        public IEnumerable<GitFileChange> FilesToPull { get; set; }
+
+        /// <summary>
+        /// Whether the remote connection is active
+        /// </summary>
+        public bool IsRemoteAvailable { get; set; }
+
+        /// <summary>
+        /// Error message if remote connection failed
+        /// </summary>
+        public string RemoteConnectionError { get; set; }
+    }
+
+    /// <summary>
+    /// Information about a file change in Git
+    /// </summary>
+    public class GitFileChange
+    {
+        /// <summary>
+        /// File path relative to repository root
+        /// </summary>
+        public string FilePath { get; set; }
+
+        /// <summary>
+        /// Author of the change
+        /// </summary>
+        public string Author { get; set; }
+
+        /// <summary>
+        /// Type of change (Added, Modified, Deleted)
+        /// </summary>
+        public string ChangeType { get; set; }
+
+        /// <summary>
+        /// Commit message associated with this change
+        /// </summary>
+        public string CommitMessage { get; set; }
+
+        /// <summary>
+        /// Date of the change
+        /// </summary>
+        public DateTime ChangeDate { get; set; }
     }
 }

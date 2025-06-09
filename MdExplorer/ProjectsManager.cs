@@ -14,6 +14,7 @@ using MdExplorer.Migrations.ProjectDb.Version202109;
 using MdExplorer.Migrations.ProjectDb.Version2022;
 using MDExplorer.DataAccess.Mapping;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -172,6 +173,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             Directory.CreateDirectory(directory);
             Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
             Directory.CreateDirectory(directoryEmoji);
+            
+            // Copy configuration files to project root if they don't exist
+            CopyConfigurationFilesToProject(mdPath);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -218,6 +222,35 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", projectPath);
             }
             
+        }
+        
+        private static void CopyConfigurationFilesToProject(string projectPath)
+        {
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                
+                // Copy .mdapplicationtoopen file
+                var mdApplicationToOpenPath = Path.Combine(projectPath, ".mdapplicationtoopen");
+                if (!File.Exists(mdApplicationToOpenPath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..mdapplicationtoopen", mdApplicationToOpenPath);
+                    Console.WriteLine($"Created configuration file: {mdApplicationToOpenPath}");
+                }
+                
+                // Copy .mdchangeignore file
+                var mdChangeIgnorePath = Path.Combine(projectPath, ".mdchangeignore");
+                if (!File.Exists(mdChangeIgnorePath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..mdchangeignore", mdChangeIgnorePath);
+                    Console.WriteLine($"Created configuration file: {mdChangeIgnorePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error copying configuration files: {ex.Message}");
+                // Non-critical error, continue without the files
+            }
         }
     }
 }
