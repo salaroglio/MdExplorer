@@ -69,3 +69,17 @@ body {
     color: #fff !important;
   }
 }
+
+// Warning snackbar (for YAML auto-generated)
+.warning-snackbar {
+  .mat-snack-bar-container {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffeaa7 !important;
+  }
+  
+  .mat-simple-snackbar-action {
+    color: #856404 !important;
+    font-weight: bold !important;
+  }
+}

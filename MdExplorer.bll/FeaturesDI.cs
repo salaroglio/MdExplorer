@@ -87,6 +87,7 @@ namespace MdExplorer.Features
             });            
 
             services.AddSingleton<IYamlParser<MdExplorerDocumentDescriptor>, YamlDocumentDescriptorParser>();
+            services.AddScoped<IYamlDefaultGenerator, YamlDefaultGenerator>();
             services.AddTransient<IGitService, GitService>();
             services.AddSingleton<ProjectBodyEngine>();
             services.AddScoped<RefactoringManager>();
