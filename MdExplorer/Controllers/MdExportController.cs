@@ -4,6 +4,7 @@ using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Features.Exports;
 using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
@@ -30,6 +31,7 @@ namespace MdExplorer.Service.Controllers
         private readonly IHelperPdf _helperPdf;
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
+        private readonly IWordTemplateService _wordTemplateService;
 
         /// <summary>
         /// Variabile di scambio dati con l'evento di chiusura del processo Pandoc
@@ -46,12 +48,14 @@ namespace MdExplorer.Service.Controllers
                 IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
                 IYamlDefaultGenerator yamlDefaultGenerator,
                 IWorkLink[] modifiers,
-                IHelper helper
+                IHelper helper,
+                IWordTemplateService wordTemplateService
             ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
         {
             _helperPdf = helperPdf;
             _yamlDocumentManager = yamlDocumentManager;
             _yamlDefaultGenerator = yamlDefaultGenerator;
+            _wordTemplateService = wordTemplateService;
         }
 
         [HttpGet]
@@ -126,6 +130,20 @@ namespace MdExplorer.Service.Controllers
                     
                     // Usa il contenuto aggiornato per l'export
                     readText = updatedContent;
+                    // Ricarica il descriptor con il nuovo contenuto
+                    docDesc = _yamlDocumentManager.GetDescriptor(readText);
+                }
+
+                // Inserisci pagine predefinite se configurate
+                if (docDesc?.WordSection?.PredefinedPages != null)
+                {
+                    readText = await _wordTemplateService.InsertPredefinedPagesAsync(
+                        readText, 
+                        docDesc, 
+                        _fileSystemWatcher.Path
+                    );
+                    
+                    _logger.LogInformation("Pagine predefinite inserite per il documento {0}", filePath);
                 }
 
                 Directory.SetCurrentDirectory(_fileSystemWatcher.Path);

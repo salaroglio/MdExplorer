@@ -413,7 +413,19 @@ export class ShowFileSystemComponent implements OnInit {
   }
 
   public closeDialog() {
-    this.dialogRef.close({ event: 'open', data: this.folder.path });
+    // Determina quale path usare in base al tipo di selezione
+    let selectedPath: string;
+    
+    if (this.baseStart.typeOfSelection === 'FoldersAndFiles') {
+      // Per file: usa sempre folder.path (che viene aggiornato quando si seleziona un file)
+      selectedPath = this.folder.path;
+    } else {
+      // Per cartelle: priorità a folder.path (cartella selezionata), 
+      // altrimenti usa currentPath (cartella in cui stiamo navigando)
+      selectedPath = this.folder.path || this.currentPath;
+    }
+    
+    this.dialogRef.close({ event: 'open', data: selectedPath });
   }
 
   // TrackBy functions for performance optimization
@@ -477,15 +489,20 @@ export class ShowFileSystemComponent implements OnInit {
 
   // Validation for selection
   public canSelectItem(): boolean {
-    if (!this.folder.path) return false;
-    
     if (this.baseStart.typeOfSelection === 'FoldersAndFiles') {
       // Solo file possono essere selezionati
-      return this.activeNode && this.activeNode.type !== 'folder';
+      return this.activeNode && this.activeNode.type !== 'folder' && !!this.folder.path;
     }
     
-    // Solo cartelle possono essere selezionate
-    return true;
+    // Per selezione cartelle: può selezionare la cartella corrente o una cartella selezionata
+    // Se c'è una cartella selezionata (activeNode), usa quella
+    // Altrimenti usa la cartella corrente in cui si sta navigando
+    if (this.activeNode && this.activeNode.type === 'folder') {
+      return true;
+    }
+    
+    // Se non c'è activeNode ma stiamo navigando in una cartella, possiamo selezionare la cartella corrente
+    return !!(this.currentPath && this.currentPath.length > 0);
   }
 
   // Check if item is selectable

@@ -36,16 +36,30 @@ export class MoveMdFileComponent implements OnInit {
       panelClass: 'resizable-dialog-container',
       data: data,
     });
-    dialogRef.afterClosed().subscribe(_ => {
-      this.directoryDestination = _.data;
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.data) {
+        this.directoryDestination = result.data;
+      }
     });
   }
   
   move(): void {
+    if (!this.directoryDestination || this.directoryDestination.trim() === '') {
+      // Mostra un messaggio di errore se non c'è una destinazione
+      alert('Please select a destination folder');
+      return;
+    }
+    
     this.mdFileService.moveMdFile(this.dataMdFile, this.directoryDestination)
-      .subscribe(_ => {
-        this.mdFileService.loadAll(null, null);
-        this.dialogRef.close();
+      .subscribe({
+        next: (_) => {
+          this.mdFileService.loadAll(null, null);
+          this.dialogRef.close();
+        },
+        error: (error) => {
+          console.error('Error moving file:', error);
+          alert('Error moving file: ' + (error.message || 'Unknown error'));
+        }
       });    
   }
   dismiss(): void {

@@ -222,6 +222,35 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", projectPath);
             }
             
+            // NUOVO: Crea directory per template pages
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages");
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}covers");
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}disclaimers");
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}appendices");
+
+            // NUOVO: Copia template pages da embedded resources
+            CopyPageTemplates(directory);
+            
+        }
+        
+        private static void CopyPageTemplates(string mdDirectory)
+        {
+            var pageTemplates = new[]
+            {
+                ("covers.standard.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}covers{Path.DirectorySeparatorChar}standard.md"),
+                ("covers.project.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}covers{Path.DirectorySeparatorChar}project.md"),
+                ("disclaimers.confidential.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}disclaimers{Path.DirectorySeparatorChar}confidential.md"),
+                ("appendices.signatures.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}appendices{Path.DirectorySeparatorChar}signatures.md")
+            };
+
+            foreach (var (resourceName, destinationPath) in pageTemplates)
+            {
+                var fullPath = $"{mdDirectory}{Path.DirectorySeparatorChar}{destinationPath}";
+                if (!File.Exists(fullPath))
+                {
+                    FileUtil.ExtractResFile($"MdExplorer.Service.templates.word.pages.{resourceName}", fullPath);
+                }
+            }
         }
         
         private static void CopyConfigurationFilesToProject(string projectPath)

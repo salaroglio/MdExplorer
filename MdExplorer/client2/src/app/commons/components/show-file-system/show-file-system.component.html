@@ -131,8 +131,13 @@
   <!-- Bottom section: Selected folder info and action button -->
   <div class="bottom-panel">
     <div class="selected-folder-info">
-      <mat-card-title>{{folder.name || 'No folder selected'}}</mat-card-title>
-      <mat-card-subtitle>{{folder.path}}</mat-card-subtitle>
+      <mat-card-title *ngIf="baseStart.typeOfSelection === 'Folders'">
+        {{folder.name || (currentPath ? 'Current folder' : 'No folder selected')}}
+      </mat-card-title>
+      <mat-card-title *ngIf="baseStart.typeOfSelection !== 'Folders'">
+        {{folder.name || 'No file selected'}}
+      </mat-card-title>
+      <mat-card-subtitle>{{folder.path || currentPath}}</mat-card-subtitle>
     </div>
     <div class="action-buttons">
       <button mat-stroked-button color="primary" 

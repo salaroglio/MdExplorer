@@ -28,6 +28,7 @@ using PlantUml.Net;
 using System;
 using System.Collections.Generic;
 using MdExplorer.Features.Refactoring;
+using MdExplorer.Features.Exports;
 
 namespace MdExplorer.Features
 {
@@ -91,6 +92,7 @@ namespace MdExplorer.Features
             services.AddTransient<IGitService, GitService>();
             services.AddSingleton<ProjectBodyEngine>();
             services.AddScoped<RefactoringManager>();
+            services.AddScoped<IWordTemplateService, WordTemplateService>();
             return services;
         }
     }

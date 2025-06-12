@@ -1,10 +1,15 @@
-# Evoluzione File System Selector - Piano di Implementazione
+﻿# Evoluzione File System Selector
+
+# Piano di Implementazione
 
 ## Panoramica
+
 Questo documento descrive l'evoluzione del componente `ShowFileSystemComponent` per gestire meglio i diversi contesti di selezione (solo cartelle vs file e cartelle) con un approccio graduale da Opzione 1 a Opzione 3.
 
 ## Contesto Attuale
+
 Il componente viene utilizzato in 4 punti diversi:
+
 1. **ProjectsComponent** - Selezione cartella per nuovo progetto (`typeOfSelection: "Folders"`)
 2. **CloneProjectComponent** - Selezione cartella per clone Git (`typeOfSelection: "Folders"`)
 3. **MoveMdFileComponent** - Selezione cartella destinazione (`typeOfSelection: "Folders"`)
@@ -13,9 +18,12 @@ Il componente viene utilizzato in 4 punti diversi:
 ## Step 1: Implementazione Base (Opzione 1)
 
 ### Task 1.1: Adattare il testo del pulsante
+
 **File**: `show-file-system.component.html`
-- Modificare il pulsante "Select directory" per mostrare testo dinamico
-```html
+
+* Modificare il pulsante "Select directory" per mostrare testo dinamico
+
+```HTML
 <!-- Da -->
 <button mat-stroked-button color="primary" 
         (click)="closeDialog()" 
@@ -32,10 +40,13 @@ Il componente viene utilizzato in 4 punti diversi:
 ```
 
 ### Task 1.2: Implementare logica selezione differenziata
+
 **File**: `show-file-system.component.ts`
-- Aggiungere metodo per testo pulsante dinamico
-- Modificare validazione selezione basata su tipo
-```typescript
+
+* Aggiungere metodo per testo pulsante dinamico
+* Modificare validazione selezione basata su tipo
+
+```TypeScript
 // Nuovo metodo
 public getSelectionButtonText(): string {
   return this.baseStart.typeOfSelection === 'FoldersAndFiles' 
@@ -70,8 +81,10 @@ public canSelectItem(): boolean {
 ```
 
 ### Task 1.3: Aggiornare template per validazione
+
 **File**: `show-file-system.component.html`
-```html
+
+```HTML
 <!-- Modificare il pulsante con nuova validazione -->
 <button mat-stroked-button color="primary" 
         (click)="closeDialog()" 
@@ -81,8 +94,10 @@ public canSelectItem(): boolean {
 ```
 
 ### Task 1.4: Migliorare feedback visivo
+
 **File**: `show-file-system.component.scss`
-```scss
+
+```SCSS
 // Aggiungere stili per evidenziare elementi non selezionabili
 .content-item {
   &.not-selectable {
@@ -97,7 +112,8 @@ public canSelectItem(): boolean {
 ```
 
 **File**: `show-file-system.component.html`
-```html
+
+```HTML
 <!-- Aggiungere classe condizionale -->
 <div class="content-item" 
      [class.not-selectable]="!isItemSelectable(item)"
@@ -105,7 +121,8 @@ public canSelectItem(): boolean {
 ```
 
 **File**: `show-file-system.component.ts`
-```typescript
+
+```TypeScript
 public isItemSelectable(item: MdFile): boolean {
   if (this.baseStart.typeOfSelection === 'FoldersAndFiles') {
     return item.type !== 'folder';
@@ -117,8 +134,10 @@ public isItemSelectable(item: MdFile): boolean {
 ## Step 2: Estensione ShowFileMetadata
 
 ### Task 2.1: Estendere l'interfaccia
+
 **File**: `show-file-metadata.ts`
-```typescript
+
+```TypeScript
 export class ShowFileMetadata {
   constructor() {}
   public start: string;
@@ -135,8 +154,10 @@ export class ShowFileMetadata {
 ```
 
 ### Task 2.2: Utilizzare buttonText personalizzato
+
 **File**: `show-file-system.component.ts`
-```typescript
+
+```TypeScript
 public getSelectionButtonText(): string {
   // Prima controlla se c'è un testo personalizzato
   if (this.baseStart.buttonText) {
@@ -151,8 +172,10 @@ public getSelectionButtonText(): string {
 ```
 
 ### Task 2.3: Implementare filtro per estensioni file
+
 **File**: `show-file-system.component.ts`
-```typescript
+
+```TypeScript
 private applyFilter(): void {
   let filtered = [...this.currentItems];
   
@@ -188,8 +211,10 @@ private getFileExtension(filename: string): string {
 ## Step 3: Dettagli file e selezione multipla
 
 ### Task 3.1: Mostrare dettagli file
+
 **File**: `show-file-system.component.html`
-```html
+
+```HTML
 <!-- Modificare content-item per mostrare dettagli -->
 <div class="content-item" ...>
   <mat-icon class="item-icon" aria-hidden="true">
@@ -206,7 +231,8 @@ private getFileExtension(filename: string): string {
 ```
 
 **File**: `show-file-system.component.scss`
-```scss
+
+```SCSS
 .item-details {
   margin-left: auto;
   display: flex;
@@ -222,8 +248,10 @@ private getFileExtension(filename: string): string {
 ```
 
 ### Task 3.2: Implementare selezione multipla
+
 **File**: `show-file-system.component.ts`
-```typescript
+
+```TypeScript
 // Nuove proprietà
 selectedItems: Set<string> = new Set();
 
@@ -261,8 +289,10 @@ public isItemSelected(item: MdFile): boolean {
 ## Step 4: Aggiornare i chiamanti
 
 ### Task 4.1: ProjectsComponent con testo personalizzato
+
 **File**: `projects.component.ts`
-```typescript
+
+```TypeScript
 openNewFolder(): void {
   let data = new ShowFileMetadata();
   data.start = null;
@@ -273,8 +303,10 @@ openNewFolder(): void {
 ```
 
 ### Task 4.2: AddNewFileToMDEComponent con filtro estensioni
+
 **File**: `add-new-file-to-mde.component.ts`
-```typescript
+
+```TypeScript
 openFileSystem() {
   let data = new ShowFileMetadata();
   data.title = "Select file to add";
@@ -288,14 +320,16 @@ openFileSystem() {
 ## Step 5: Testing e Validazione
 
 ### Task 5.1: Verificare tutti i contesti
+
 1. Testare selezione cartella per nuovo progetto
 2. Testare selezione cartella per clone
 3. Testare selezione cartella per spostamento
 4. Testare selezione file con filtri
 
 ### Task 5.2: Verificare retrocompatibilità
-- Assicurarsi che i dialog esistenti funzionino senza modifiche
-- Verificare che i parametri opzionali non causino errori
+
+* Assicurarsi che i dialog esistenti funzionino senza modifiche
+* Verificare che i parametri opzionali non causino errori
 
 ## Note Implementative
 
@@ -308,8 +342,11 @@ openFileSystem() {
 ## Risultato Atteso
 
 Al termine dell'implementazione, il componente sarà:
-- **Flessibile**: Adattabile a diversi contesti
-- **Intuitivo**: L'utente capisce cosa può selezionare
-- **Performante**: Filtri efficienti anche con molti file
-- **Retrocompatibile**: Non rompe il codice esistente
-- **Estendibile**: Facile aggiungere nuove funzionalità
+
+* **Flessibile**: Adattabile a diversi contesti
+* **Intuitivo**: L'utente capisce cosa può selezionare
+* **Performante**: Filtri efficienti anche con molti file
+* **Retrocompatibile**: Non rompe il codice esistente
+* **Estendibile**: Facile aggiungere nuove funzionalità
+
+<br />
