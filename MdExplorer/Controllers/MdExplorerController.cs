@@ -478,6 +478,10 @@ namespace MdExplorer.Controllers
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId)
         {
             var html = doc1.CreateElement("html");
+            // IFRAME SCROLLING FIX: Permetti scrolling naturale nell'iframe
+            var htmlStyle = doc1.CreateAttribute("style");
+            htmlStyle.Value = "overflow: auto; height: auto; min-height: 100%;";
+            html.Attributes.Append(htmlStyle);
 
             doc1.AppendChild(html);
             var head = doc1.CreateElement("head");
@@ -497,10 +501,14 @@ namespace MdExplorer.Controllers
             var body = doc1.CreateElement("body");
             var BodyId = doc1.CreateAttribute("Id");
             var ConnectionId = doc1.CreateAttribute("ConnectionId");
+            var bodyStyle = doc1.CreateAttribute("style");
+            // IFRAME SCROLLING FIX: Permetti scrolling naturale nel body
+            bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
             BodyId.Value = "MdBody";
             ConnectionId.Value = connectionId;
             body.Attributes.Append(BodyId);
             body.Attributes.Append(ConnectionId);
+            body.Attributes.Append(bodyStyle);
             html.AppendChild(body);
 
 

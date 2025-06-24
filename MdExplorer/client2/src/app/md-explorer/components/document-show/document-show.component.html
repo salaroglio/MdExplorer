@@ -1,0 +1,34 @@
+<div class="document-show-container">
+  <!-- Toolbar section -->
+  <div class="toolbar-container">
+    <app-toolbar [ngClass]="classForToolbar"
+                 (onGetTopOffsetContent)="onGetTopOffsetContent($event)">
+    </app-toolbar>
+  </div>
+  
+  <!-- Content section -->
+  <div class="content-container app-sidenav-content">
+    <!-- Wrapper div per router-outlet che caricherà MainContentComponent -->
+    <div class="inner-router-wrapper">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+  
+  <!-- Bookmark overlay (migrated from sidenav) -->
+  <div class="bookmark-overlay-container">
+    <div (mouseenter)="bookmark.show=true"
+         (mouseleave)="bookmark.show=false"
+         class="mdbookmark"
+         *ngFor="let bookmark of bookmarks; let indexOfElement=index;"
+         style="padding:2px;">
+      <div style="border-color:black" [attr.alt]="bookmark.fullPath">
+        <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
+        <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
+        <mat-icon (click)="toggleBookmark(bookmark)"
+                  *ngIf="bookmark.show"
+                  style="vertical-align:bottom;">cancel</mat-icon>
+        <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
+      </div>
+    </div>
+  </div>
+</div>

@@ -27,21 +27,30 @@ import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipb
 import { GitModule } from '../git/git.module';
 import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
 import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
-import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component'; // Added import
+import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
+import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
 
 
 
 const routes: Routes = [
   { path: '', component: SidenavComponent },
   {
-  path: 'navigation', component: SidenavComponent,
-  children: [
-    { path: 'document', component: MainContentComponent },
-    { path: 'gitlabsettings', component: GitlabSettingsComponent },
-    { path: 'documentsettings', component: DocumentSettingsComponent },
-    { path: 'react-editor', component: MilkdownReactHostComponent } // Added route
-  ]
-  }];
+    path: 'navigation', 
+    component: SidenavComponent,
+    children: [
+      {
+        path: '',
+        component: DocumentShowComponent,
+        children: [
+          { path: 'document', component: MainContentComponent },
+          { path: 'gitlabsettings', component: GitlabSettingsComponent },
+          { path: 'documentsettings', component: DocumentSettingsComponent },
+          { path: 'react-editor', component: MilkdownReactHostComponent }
+        ]
+      }
+    ]
+  }
+];
 
 
 @NgModule({
@@ -66,7 +75,8 @@ const routes: Routes = [
     DocumentSettingsComponent,
     CopyFromClipboardComponent,
     MoveMdFileComponent, AddNewFileToMDEComponent,
-    MilkdownReactHostComponent // Added to declarations
+    MilkdownReactHostComponent,
+    DocumentShowComponent // Added to declarations
   ],
   imports: [
     CommonModule,
