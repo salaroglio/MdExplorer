@@ -83,7 +83,8 @@
           [src]="htmlSource | safe"
           [attr.aria-label]="'Contenuto del documento: ' + ((currentState$ | async)?.currentPath || 'documento')"
           tabindex="0"
-          role="document">
+          role="document"
+          scrolling="yes">
   </iframe>
 
 </div>

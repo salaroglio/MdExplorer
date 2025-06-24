@@ -54,6 +54,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private maxRetries = 3;
   private retryDelay = 1000; // Start with 1 second delay
   private iframeListenersAdded = false;
+  
+  // Layout tracking - RIMOSSO, usiamo solo CSS
 
   constructor(
     private service: MdFileService,
@@ -157,6 +159,15 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         this.handleFileRenamed(event.oldPath, event.newPath);
       }
     });
+    
+    // Subscribe to layout changes - RIMOSSO per usare solo CSS
+    // this.layoutService.sidenavWidth$.pipe(
+    //   takeUntil(this.destroy$)
+    // ).subscribe(width => {
+    //   this.sidenavWidth = width;
+    //   console.log('📏 [MainContent] Sidenav width changed:', width);
+    //   this.adjustIframeWidth();
+    // });
   }
 
   ngAfterViewInit(): void {
@@ -165,6 +176,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.setupIframeEventListeners();
     }, 100);
+    
+    // Rimosso window resize listener - usiamo CSS flexbox invece
   }
 
   ngOnDestroy(): void {
@@ -292,6 +305,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         retryCount: 0,
         isIndexing: false
       });
+      
+      // Rimosso adjustIframeWidth - usiamo CSS flexbox invece
     };
 
     const errorHandler = (event: Event) => {
@@ -450,6 +465,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const indexingState = this.indexingStateService.isFileIndexed(currentPath);
     return !indexingState; // If not indexed, it might be indexing
   }
+  
+  // RIMOSSI i metodi adjustIframeWidth e setupWindowResizeListener - usiamo solo CSS
 
   /**
    * Enhanced loading with indexing awareness

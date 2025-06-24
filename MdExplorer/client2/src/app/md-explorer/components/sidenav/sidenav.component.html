@@ -1,10 +1,11 @@
 
 
-<mat-sidenav-container autosize class="app-sidenav-container">
+<mat-sidenav-container autosize fullscreen class="app-sidenav-container">
 
   <mat-sidenav #sidenav [style.width]="sideNavWidth" class=" mat-elevation-z10"
                [opened]="!isScreenSmall"
-               [mode]="!isScreenSmall ? 'side':'over'">
+               [mode]="!isScreenSmall ? 'side':'over'"
+               (openedChange)="onSidenavToggle($event)">
 
     <mat-toolbar color="primary">
       <div>
@@ -49,7 +50,7 @@
 
   </mat-sidenav>
 
-  <div class="flex-container">
+  <mat-sidenav-content class="flex-container">
     <!-- Overlay for capturing mouse events during drag -->
     <div class="drag-overlay" 
          [class.active]="hooked">
@@ -64,34 +65,11 @@
          aria-orientation="vertical"
          title="Trascina per ridimensionare">
     </div>
-    <div style="position:fixed;
-            display:flex;
-            flex-direction:column;
-             align-items:flex-start; background-color:transparent; top:66px">
-      <div (mouseenter)="bookmark.show=true"
-           (mouseleave)="bookmark.show=false"
-           class="mdbookmark"
-           *ngFor="let bookmark of bookmarks;let indexOfElement=index;"
-           style="padding:2px;">
-        <div style="border-color:black" [attr.alt]="bookmark.fullPath">
-
-          <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
-          <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
-          <mat-icon (click)="toggleBookmark(bookmark)"
-                    *ngIf="bookmark.show"
-                    style="vertical-align:bottom;">cancel</mat-icon>
-          <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
-        </div>
-      </div>
-
+    
+    <!-- Wrapper div per router-outlet che caricherà DocumentShowComponent -->
+    <div class="router-outlet-wrapper">
+      <router-outlet></router-outlet>
     </div>
-    <div style="width:100%; height:100%; display: flex; flex-direction: column;">
-      <app-toolbar [ngClass]="classForToolbar" style="flex-shrink: 0;"></app-toolbar>
-      <div class="app-sidenav-content" style="flex-grow: 1; overflow: auto; height: auto;">
-
-        <router-outlet></router-outlet>
-      </div>
-    </div>
-  </div>
+  </mat-sidenav-content>
 
 </mat-sidenav-container>

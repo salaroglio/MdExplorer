@@ -7,10 +7,9 @@ import { AppCurrentMetadataService } from '../../../services/app-current-metadat
 import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MdFile } from '../../models/md-file';
-import { BookmarksService } from '../../services/bookmarks.service';
 import { ProjectsService } from '../../services/projects.service';
-import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
+import { LayoutService } from '../../services/layout.service';
 
 
 
@@ -31,8 +30,6 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public hooked: boolean = false;
   public titleProject: string;
   public currentBranch: string = null;
-  public bookmarks: MdFile[];
-  public classForToolbar: string = "showToolbar"; // Added for toolbar CSS class
   @ViewChild('sidenav') sidenav: MatSidenav;
   
   // Memory leak prevention
@@ -49,11 +46,11 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private mdFileService: MdFileService,
     private router: Router,
     private currentFolder: AppCurrentMetadataService,
-    private bookmarksService:BookmarksService,
     private gitService: GITService,
     private projectService: ProjectsService,
     public navService:MdNavigationService,
-    private ref: ChangeDetectorRef // Injected ChangeDetectorRef
+    private ref: ChangeDetectorRef, // Injected ChangeDetectorRef
+    private layoutService: LayoutService
   ) {
     this.setupResizeListeners();
 
@@ -82,6 +79,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
       if (this.hooked) {
         const newWidth = this.validateWidth(event.clientX);
         this.sideNavWidth = newWidth + "px";
+        this.layoutService.setSidenavWidth(newWidth);
       }
     };
 
@@ -154,46 +152,20 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {
-        this.isScreenSmall = state.matches
+        this.isScreenSmall = state.matches;
+        console.log('📱 [Sidenav] Screen size changed. Is small:', state.matches);
       });
-    this.bookmarksService.bookmarks$.subscribe(_ => this.bookmarks = _);
 
     this.projectService.currentProjects$.subscribe(_ => {
       if (_ != null && _ != undefined) {
-
-        this.bookmarksService.initBookmark(_.id);
         if (_.sidenavWidth != null && _.sidenavWidth != 0) {
           this.sideNavWidth = _.sidenavWidth + "px";
+          this.layoutService.setSidenavWidth(_.sidenavWidth);
         }
-
       }
     });
 
-    this.mdFileService.whatDisplayForToolbar.subscribe(toolbarState => {
-      if ((toolbarState === 'showToolbar' && this.classForToolbar !== toolbarState) ||
-          (toolbarState === 'hideToolbar' && this.classForToolbar !== toolbarState + ' ' + 'hideToolbarNone')
-      ) {
-        this.classForToolbar = toolbarState;
-        if (toolbarState === 'hideToolbar') {
-          this.classForToolbar = toolbarState + ' ' + 'hideToolbarNone';
-        }
-        this.ref.detectChanges();
-      }
-    });
 
-  }
-
-  openDocument(bookmark: MdFile) {
-    let mdfile = this.mdFileService.getMdFileFromDataStore(bookmark);
-
-    this.router.navigate(['/main/navigation/document']);
-    this.mdFileService.setSelectedMdFileFromSideNav(mdfile);
-  }
-
-  toggleBookmark(mdFile: MdFile) {
-    let bookmark: Bookmark = new Bookmark(mdFile);
-    bookmark.projectId = this.projectService.currentProjects$.value.id;
-    this.bookmarksService.toggleBookmark(bookmark);
   }
 
   forward(): void {
@@ -210,6 +182,27 @@ export class SidenavComponent implements OnInit, OnDestroy {
     this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(navToMdFile);
 
+  }
+  
+  onSidenavToggle(isOpen: boolean): void {
+    console.log('🚪 [Sidenav] Sidenav toggled. Is open:', isOpen);
+    
+    // Log delle dimensioni dopo un breve delay per permettere l'animazione
+    setTimeout(() => {
+      const sidenavContent = document.querySelector('mat-sidenav-content') as HTMLElement;
+      const documentShow = document.querySelector('app-document-show') as HTMLElement;
+      
+      console.log('📏 [Sidenav] After toggle dimensions:', {
+        sidenavContent: {
+          width: sidenavContent?.offsetWidth || 0,
+          style: sidenavContent ? window.getComputedStyle(sidenavContent) : null
+        },
+        documentShow: {
+          width: documentShow?.offsetWidth || 0,
+          style: documentShow ? window.getComputedStyle(documentShow) : null
+        }
+      });
+    }, 300);
   }
 
 }

@@ -1,5 +1,13 @@
 $iconWidth: after 56px;
 
+// Assicuriamoci che mat-toolbar si adatti correttamente
+mat-toolbar {
+  width: 100%;
+  mat-toolbar-row {
+    width: 100%;
+  }
+}
+
 .branchGood {
   color: greenyellow;
 }

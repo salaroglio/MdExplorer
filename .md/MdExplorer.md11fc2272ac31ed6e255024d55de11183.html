@@ -1,6 +1,15 @@
-﻿<html><head>
+﻿<html style="overflow: hidden; height: 100%;"><head>
             <link rel="stylesheet" href="/common.css" />            
-            <script src="/common.js"></script></head><body Id="MdBody" ConnectionId="rTZP_4PUqjus4bR4XjD0CA">
+            <script src="/common.js"></script>
+            <style>
+                /* Compensazione per la rimozione della scrollbar */
+                .tocNavigation {
+                    left: calc(100% - var(--toc-width) - 15px + var(--toc-scroll)) !important;
+                }
+                .refsNavigation {
+                    left: calc(100% - var(--refs-width) - 15px + var(--refs-scroll)) !important;
+                }
+            </style></head><body Id="MdBody" ConnectionId="ghNYvjEb-zW6CPmfRvreHQ" style="overflow: hidden; height: 100%; margin: 0; padding: 0;">
                     <div class="edith1-popup-overlay">
                         <div class="popup-content">
                             <h4>Inline Editor</h4>

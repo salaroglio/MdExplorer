@@ -27,7 +27,8 @@
       "WebFetch(domain:127.0.0.1)",
       "mcp__browser-tools__getNetworkErrors",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:stackoverflow.com)"
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(git add:*)"
     ]
   },
   "enableAllProjectMcpServers": false

@@ -22,6 +22,7 @@ import { versionInfo } from '../../environments/version'; // Importa la versione
 export class ProjectsComponent implements OnInit, OnDestroy {
 
   public appVersion = versionInfo.version; // Rendi la versione disponibile nel template
+  public buildTime = versionInfo.buildTime; // Rendi il timestamp di build disponibile nel template
 
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,

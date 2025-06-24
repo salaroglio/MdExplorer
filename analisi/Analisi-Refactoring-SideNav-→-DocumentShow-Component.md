@@ -442,3 +442,185 @@ ng generate component md-explorer/components/document-show
 - [ ] Ambiente di test disponibile
 - [ ] Tempo allocato senza interruzioni
 - [ ] Documentazione di rollback pronta
+
+## Problemi Identificati Durante l'Implementazione
+
+### 1. Problema di Dimensionamento Layout
+**Descrizione**: Il componente DocumentShow non occupa correttamente tutto lo spazio disponibile nel browser.
+
+**Causa**: 
+- Mancanza di stili flex appropriati
+- Il router-outlet non propaga correttamente le dimensioni
+- mat-sidenav-content necessita stili aggiuntivi
+
+**Soluzioni Implementate**:
+- Aggiunto `:host { display: flex; width: 100%; height: 100%; }` a DocumentShow
+- Modificato mat-sidenav-content con wrapper div flex
+- Aggiornato stili per router-outlet + *
+
+### 2. Problema TOC/References Non Visibili
+**Descrizione**: I pannelli "Table of Content" e "References" non sono visibili dopo il refactoring.
+
+**Analisi Dettagliata**:
+- TOC e References sono implementati in MdExplorerController.cs come div HTML
+- Sono posizionati con `position: sticky` e `absolute` all'interno dell'iframe
+- Un menu verticale con pulsanti TOC/Refs attiva `toggleTOC()` e `toggleReferences()`
+- Gli stili CSS sono in `/wwwroot/MdCustomCSS.css`
+
+**Struttura HTML Generata**:
+```html
+<div class="mdeTocSticky-top">
+  <div id="TOC" class="tocNavigation">
+    <div class="mdeTocTitle">Table of content</div>
+    <!-- contenuto -->
+  </div>
+  <div id="Refs" class="refsNavigation">
+    <div class="mdeRefsTitle">References</div>
+    <!-- contenuto -->
+  </div>
+  <div class="mdeVerticalTab">
+    <div class="buttonTabToc">TOC</div>
+    <div class="buttonTabRefs">Refs</div>
+  </div>
+</div>
+```
+
+**CSS Chiave**:
+- `.mdeTocSticky-top`: position: sticky, top: 0, z-index: 1020
+- `.tocNavigation`: position: absolute, calcolata con var(--toc-width)
+- `.refsNavigation`: position: absolute, calcolata con var(--refs-width)
+- `.mdeVerticalTab`: menu verticale con rotazione 90deg
+
+**Problema Root Cause**:
+1. Il contenuto è caricato in un iframe nel MainContentComponent
+2. Gli stili position: sticky/absolute funzionano rispetto all'iframe, non al viewport principale
+3. Con il nuovo layout, l'iframe potrebbe avere dimensioni diverse causando il taglio degli elementi
+
+## Task di Soluzione per TOC/References
+
+### Task Immediati (Priority: HIGH)
+
+#### Task S1: Verifica Dimensioni Iframe
+- [ ] Ispezionare l'iframe in DevTools per verificare width/height effettivi
+- [ ] Controllare se l'iframe ha scroll interno che nasconde TOC/Refs
+- [ ] Verificare z-index conflicts tra iframe content e parent
+
+#### Task S2: Debug JavaScript Toggle Functions
+- [ ] Verificare che toggleTOC() e toggleReferences() vengano chiamate
+- [ ] Controllare console per errori JavaScript
+- [ ] Verificare che jQuery trovi correttamente $('#TOC') e $('#Refs')
+
+#### Task S3: Fix CSS Positioning
+- [ ] Testare cambiando position: sticky a position: fixed per `.mdeTocSticky-top`
+- [ ] Verificare calcoli CSS con var(--toc-width) e var(--refs-width)
+- [ ] Controllare se serve aggiungere `overflow: visible` all'iframe container
+
+### Task a Medio Termine (Priority: MEDIUM)
+
+#### Task S4: Refactoring Approccio TOC/Refs
+**Opzione A: Spostare TOC/Refs fuori dall'iframe**
+- [ ] Modificare MdExplorerController per non includere TOC/Refs nell'HTML
+- [ ] Implementare TOC/Refs come componenti Angular nel DocumentShow
+- [ ] Comunicare con iframe via postMessage per sincronizzazione
+
+**Opzione B: Mantenere nell'iframe ma fix positioning**
+- [ ] Aggiungere CSS specifici per iframe content
+- [ ] Modificare calcoli position per considerare iframe boundaries
+- [ ] Implementare resize observer per aggiustare posizioni dinamicamente
+
+#### Task S5: Migliorare Comunicazione Iframe
+- [ ] Implementare postMessage API per comunicazione bidirezionale
+- [ ] Aggiungere event listeners per resize/scroll
+- [ ] Sincronizzare stato TOC/Refs con componente parent
+
+### Task Testing (Priority: HIGH)
+
+#### Task S6: Test Cross-Browser
+- [ ] Testare su Chrome, Firefox, Edge
+- [ ] Verificare comportamento con diversi zoom levels
+- [ ] Testare resize finestra browser
+
+#### Task S7: Test Funzionalità
+- [ ] Verificare toggle TOC/Refs funziona
+- [ ] Testare scroll sincronizzato con TOC
+- [ ] Verificare che i link in References funzionino
+
+## Codice di Debug Consigliato
+
+### Debug CSS nell'iframe
+```javascript
+// Da eseguire nella console del browser
+const iframe = document.querySelector('#mdIframe');
+const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+// Verifica elementi
+console.log('TOC element:', iframeDoc.querySelector('#TOC'));
+console.log('Refs element:', iframeDoc.querySelector('#Refs'));
+
+// Verifica computed styles
+const toc = iframeDoc.querySelector('.tocNavigation');
+if (toc) {
+  const styles = window.getComputedStyle(toc);
+  console.log('TOC position:', styles.position);
+  console.log('TOC left:', styles.left);
+  console.log('TOC width:', styles.width);
+  console.log('TOC display:', styles.display);
+}
+```
+
+### Fix Temporaneo CSS
+```css
+/* Da aggiungere in MdCustomCSS.css per test */
+.mdeTocSticky-top {
+  position: fixed !important; /* invece di sticky */
+  right: 0 !important;
+  top: 50px !important;
+  z-index: 9999 !important;
+}
+
+.tocNavigation, .refsNavigation {
+  position: fixed !important; /* invece di absolute */
+  top: 50px !important;
+  max-height: calc(100vh - 100px) !important;
+}
+```
+
+## Note per il Prossimo Sprint
+
+1. **Considerare Alternative**: Valutare se mantenere TOC/Refs nell'iframe o spostarli come componenti Angular
+2. **Performance**: Monitorare performance con molti heading nel documento
+3. **Accessibilità**: Assicurarsi che TOC/Refs siano navigabili da tastiera
+4. **Mobile**: Pianificare comportamento responsive per schermi piccoli
+
+## Soluzioni Implementate per TOC/References (Aggiornamento)
+
+### Approccio Multi-livello
+
+#### 1. CSS Override (toc-fix.css)
+```css
+/* Reset overflow per permettere visualizzazione completa */
+.content-container {
+  overflow: visible !important;
+  padding-right: 50px !important; /* Spazio per menu verticale */
+}
+```
+
+#### 2. JavaScript Runtime Fix
+Aggiunto metodo `checkAndFixTocVisibility()` che:
+- Accede al DOM dell'iframe dopo il caricamento
+- Cerca elementi `.mdeTocSticky-top` e `.mdeVerticalTab`
+- Forza visibility e display via JavaScript
+- Cambia positioning da sticky a fixed per debug
+
+#### 3. Debug Logging
+Aggiunti console.log per tracciare:
+- Se gli elementi TOC/Refs esistono nell'iframe
+- Se il JavaScript riesce ad accedere al contenuto iframe
+- Eventuali errori CORS o di sicurezza
+
+### Stato Debug Corrente
+Il problema persiste nonostante i fix. Possibili cause:
+1. Gli elementi TOC/Refs non vengono generati server-side per alcuni documenti
+2. CSS conflicts tra iframe e parent document
+3. Il timing di caricamento impedisce la corretta inizializzazione
+4. Position: sticky non funziona correttamente nell'iframe con le nuove dimensioni

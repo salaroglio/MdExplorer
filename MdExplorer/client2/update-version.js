@@ -29,6 +29,12 @@ const month = String(today.getMonth() + 1).padStart(2, '0'); // Mesi da 0 a 11
 const day = String(today.getDate()).padStart(2, '0');
 const todayDateString = `${year}.${month}.${day}`;
 
+// Ottieni timestamp completo per build time
+const hours = String(today.getHours()).padStart(2, '0');
+const minutes = String(today.getMinutes()).padStart(2, '0');
+const seconds = String(today.getSeconds()).padStart(2, '0');
+const buildTimestamp = `${todayDateString} ${hours}:${minutes}:${seconds}`;
+
 let newVersion;
 let iteration = 1;
 
@@ -63,7 +69,8 @@ try {
 const versionFileContent = `// Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 export const versionInfo = {
-  version: '${newVersion}'
+  version: '${newVersion}',
+  buildTime: '${buildTimestamp}'
 };
 `;
 

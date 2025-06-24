@@ -26,15 +26,18 @@
       <HintPath>$(WixExtDir)\WixBalExtension.dll</HintPath>
       <Name>WixBalExtension</Name>
     </WixExtension>
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="assets" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="assets\aspnetcore-runtime-3.1.32-win-x64.exe" />
-    <Content Include="assets\jre-8u311-windows-i586-iftw.exe" />
+    <Content Include="assets\dotnet-sdk-3.1.426-win-x64.exe" />
+    <Content Include="assets\jre-8u441-windows-i586.exe" />
     <Content Include="assets\pandoc-2.18-windows-x86_64.msi" />
-    <Content Include="assets\VSCodeUserSetup-x64-1.63.2.exe" />
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" Condition=" '$(WixTargetsPath)' != '' " />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets" Condition=" '$(WixTargetsPath)' == '' AND Exists('$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets') " />
