@@ -28,7 +28,12 @@
       "mcp__browser-tools__getNetworkErrors",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:stackoverflow.com)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git config:*)",
+      "Bash(git rm:*)"
     ]
   },
   "enableAllProjectMcpServers": false

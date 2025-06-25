@@ -163,7 +163,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     return effectivePath; // Return the path that was actually used.
 }
 
-        private static void ConfigTemplates(string mdPath, IServiceCollection services = null)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null)
         {
             var publishFolder = $"{mdPath}{Path.DirectorySeparatorChar}mdPublish";
             Directory.CreateDirectory(publishFolder);
@@ -206,11 +206,13 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 Path.DirectorySeparatorChar}templates{
                 Path.DirectorySeparatorChar}pdf{
                 Path.DirectorySeparatorChar}eisvogel.tex");
-            //FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", $@"{
-            //        directory}{
-            //        Path.DirectorySeparatorChar}templates{
-            //        Path.DirectorySeparatorChar}word{
-            //        Path.DirectorySeparatorChar}reference.docx");
+            // Crea template reference.docx (template di default)
+            var referencePath = $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}reference.docx";
+            if (!File.Exists(referencePath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", referencePath);
+            }
+            
             var minutePath = $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}minute.docx";
             if (!File.Exists(minutePath))
             {

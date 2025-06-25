@@ -140,6 +140,30 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpPost]
+        public IActionResult InitializeProjectTemplates([FromBody] FolderPath folderPath)
+        {
+            try
+            {
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogInformation($"🔧 [TemplateInit] Initializing templates for: {folderPath.Path}");
+                
+                // Chiama ConfigTemplates per creare la struttura template
+                ProjectsManager.ConfigTemplates(folderPath.Path);
+                
+                logger?.LogInformation($"✅ [TemplateInit] Templates initialized successfully for: {folderPath.Path}");
+                
+                return Ok(new { message = "Templates initialized successfully", path = folderPath.Path });
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogError($"❌ [TemplateInit] Error initializing templates: {ex.Message}");
+                
+                return StatusCode(500, new { error = "Failed to initialize templates", details = ex.Message });
+            }
+        }
+
+        [HttpPost]
         public IActionResult SetFolderProjectQuickNotes([FromBody] FolderPath folderPath)
         {
             // Prima di cambiare il percorso, disabilita temporaneamente il FileSystemWatcher

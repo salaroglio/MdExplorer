@@ -98,8 +98,37 @@ namespace MdExplorer.Features.Commands
         /// <returns></returns>
         public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
+            _logger.LogInformation($"🚀 [PlantUML] TransformInNewMDFromMD called - Start processing");
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);
+
+            // DEBUG: Log completo per diagnostica
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] CurrentQueryRequest: '{requestInfo.CurrentQueryRequest}'");
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] Original backPath from GetBackPath: '{backPath}'");
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] CurrentRoot: '{requestInfo.CurrentRoot}'");
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] AbsolutePathFile: '{requestInfo.AbsolutePathFile}'");
+
+            // Correzione specifica per PlantUML: analizza la profondità del file
+            var pathSegments = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+            var fileDepth = pathSegments.Length - 1; // -1 perché l'ultimo è il filename
+
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] PathSegments: [{string.Join(", ", pathSegments)}]");
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] FileDepth calculated: {fileDepth}");
+            _logger.LogInformation($"🔍 [PlantUML DEBUG] BackPath starts with '.{Path.DirectorySeparatorChar}': {backPath.StartsWith($".{Path.DirectorySeparatorChar}")}");
+
+            // Se il file è in una sottodirectory, correggi il backPath
+            if (fileDepth > 0 && backPath.StartsWith($".{Path.DirectorySeparatorChar}"))
+            {
+                // Sostituisci ".\" con numero corretto di "../"
+                var upLevels = string.Join(Path.DirectorySeparatorChar.ToString(), Enumerable.Repeat("..", fileDepth));
+                var newBackPath = $"{upLevels}{Path.DirectorySeparatorChar}.md";
+                _logger.LogInformation($"🔧 [PlantUML] Correcting backPath from '{backPath}' to '{newBackPath}' (fileDepth: {fileDepth})");
+                backPath = newBackPath;
+            }
+            else
+            {
+                _logger.LogInformation($"🔍 [PlantUML DEBUG] No correction needed - keeping original backPath: '{backPath}'");
+            }
 
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 

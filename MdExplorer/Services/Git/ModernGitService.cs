@@ -33,6 +33,7 @@ namespace MdExplorer.Services.Git
         public async Task<GitOperationResult> PullAsync(string repositoryPath)
         {
             var stopwatch = Stopwatch.StartNew();
+            var credentialCallCount = 0;
             
             try
             {
@@ -55,7 +56,18 @@ namespace MdExplorer.Services.Git
                     FetchOptions = new FetchOptions
                     {
                         CredentialsProvider = (url, usernameFromUrl, types) =>
-                            ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult()
+                        {
+                            credentialCallCount++;
+                            _logger.LogInformation("PULL CREDENTIAL CALLBACK #{Count} - URL: {Url}, User: {User}, Types: {Types}", 
+                                credentialCallCount, url, usernameFromUrl, types);
+                            
+                            var result = ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult();
+                            
+                            _logger.LogInformation("PULL CREDENTIAL CALLBACK #{Count} - Resolved: {HasCredentials}, Method: {Method}", 
+                                credentialCallCount, result != null, _lastUsedAuthMethod);
+                            
+                            return result;
+                        }
                     }
                 };
 
@@ -82,8 +94,8 @@ namespace MdExplorer.Services.Git
                     _ => "Pull completed"
                 };
 
-                _logger.LogInformation("Pull operation completed: {Status}, HasChanges: {HasChanges}, Duration: {Duration}ms",
-                    pullResult.Status, hasChanges, stopwatch.ElapsedMilliseconds);
+                _logger.LogInformation("Pull operation completed: {Status}, HasChanges: {HasChanges}, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}",
+                    pullResult.Status, hasChanges, stopwatch.ElapsedMilliseconds, credentialCallCount);
 
                 return new GitOperationResult
                 {
@@ -111,6 +123,7 @@ namespace MdExplorer.Services.Git
         public async Task<GitOperationResult> PushAsync(string repositoryPath, string remoteName = "origin", string branchName = null)
         {
             var stopwatch = Stopwatch.StartNew();
+            var credentialCallCount = 0;
             
             try
             {
@@ -154,15 +167,37 @@ namespace MdExplorer.Services.Git
                 var pushOptions = new PushOptions
                 {
                     CredentialsProvider = (url, usernameFromUrl, types) =>
-                        ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult()
+                    {
+                        credentialCallCount++;
+                        _logger.LogInformation("PUSH CREDENTIAL CALLBACK #{Count} - URL: {Url}, User: {User}, Types: {Types}", 
+                            credentialCallCount, url, usernameFromUrl, types);
+                        
+                        var task = ResolveCredentials(url, usernameFromUrl, types);
+                        var result = task.GetAwaiter().GetResult();
+                        
+                        if (result == null)
+                        {
+                            _logger.LogError("PUSH CREDENTIAL CALLBACK #{Count} - No credentials resolved for URL: {Url}", 
+                                credentialCallCount, url);
+                            throw new InvalidOperationException($"No credentials available for {url} (Attempt #{credentialCallCount})");
+                        }
+                        
+                        _logger.LogInformation("PUSH CREDENTIAL CALLBACK #{Count} - Resolved: {HasCredentials}, Method: {Method}", 
+                            credentialCallCount, result != null, _lastUsedAuthMethod);
+                        
+                        return result;
+                    }
                 };
 
                 // Push the branch
+                _logger.LogInformation("Executing push to remote: {Remote}, Branch: {Branch}", remoteName, branch.FriendlyName);
                 repo.Network.Push(branch, pushOptions);
+                _logger.LogInformation("Push executed successfully");
 
                 stopwatch.Stop();
 
-                _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
+                _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}", 
+                    stopwatch.ElapsedMilliseconds, credentialCallCount);
 
                 return new GitOperationResult
                 {
@@ -569,35 +604,103 @@ namespace MdExplorer.Services.Git
         #region Private Helper Methods
 
         private AuthenticationMethod _lastUsedAuthMethod = AuthenticationMethod.UserPrompt;
+        private readonly Dictionary<string, object> _credentialCache = new Dictionary<string, object>();
+        private readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
 
         private async Task<Credentials> ResolveCredentials(string url, string usernameFromUrl, SupportedCredentialTypes types)
         {
-            _logger.LogDebug("Resolving credentials for URL: {Url}, Types: {Types}", url, types);
+            var resolverCallId = Guid.NewGuid().ToString("N")[..8];
+            var cacheKey = $"{url}:{usernameFromUrl}:{types}";
+            
+            // Track call history for this URL
+            if (_credentialCallHistory.ContainsKey(cacheKey))
+            {
+                _credentialCallHistory[cacheKey]++;
+            }
+            else
+            {
+                _credentialCallHistory[cacheKey] = 1;
+            }
+            
+            var callCount = _credentialCallHistory[cacheKey];
+            
+            _logger.LogInformation("CREDENTIAL RESOLUTION CALL [{CallId}] - URL: {Url}, User: {User}, Types: {Types}, CallCount: {CallCount}", 
+                resolverCallId, url, usernameFromUrl, types, callCount);
+                
+            // Log warning if this is a repeated call
+            if (callCount > 1)
+            {
+                _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - REPEATED CALL #{Count} for same URL/user/types combination", 
+                    resolverCallId, callCount);
+                    
+                // If we've been called too many times, this might be the "too many redirects" scenario
+                if (callCount > 5)
+                {
+                    _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - TOO MANY CALLS ({Count}) - This may be the source of 'too many redirects' error", 
+                        resolverCallId, callCount);
+                }
+            }
 
+            var resolverIndex = 0;
             foreach (var resolver in _credentialResolvers)
             {
+                resolverIndex++;
                 try
                 {
+                    _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Checking resolver #{Index}: {ResolverType}, Priority: {Priority}", 
+                        resolverCallId, resolverIndex, resolver.GetType().Name, resolver.GetPriority());
+
                     if (resolver.CanResolveCredentials(url, types))
                     {
-                        _logger.LogDebug("Trying credential resolver: {ResolverType}", resolver.GetType().Name);
+                        _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Trying resolver #{Index}: {ResolverType}", 
+                            resolverCallId, resolverIndex, resolver.GetType().Name);
                         
                         var credentials = await resolver.ResolveCredentialsAsync(url, usernameFromUrl, types);
                         if (credentials != null)
                         {
                             _lastUsedAuthMethod = resolver.GetAuthenticationMethod();
-                            _logger.LogInformation("Successfully resolved credentials using: {AuthMethod}", _lastUsedAuthMethod);
+                            
+                            // Log detailed credential type information
+                            var credType = credentials.GetType().Name;
+                            var isSSH = url.StartsWith("git@") || url.StartsWith("ssh://");
+                            var isHTTPS = url.StartsWith("https://");
+                            
+                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - SUCCESS using {ResolverType}: {AuthMethod}, CredType: {CredType}, SSH: {IsSSH}, HTTPS: {IsHTTPS}", 
+                                resolverCallId, resolver.GetType().Name, _lastUsedAuthMethod, credType, isSSH, isHTTPS);
+                                
+                            // Cache the successful credential for comparison
+                            _credentialCache[cacheKey] = new
+                            {
+                                AuthMethod = _lastUsedAuthMethod,
+                                CredentialType = credType,
+                                URL = url,
+                                Timestamp = DateTime.UtcNow,
+                                CallCount = callCount
+                            };
+                            
                             return credentials;
                         }
+                        else
+                        {
+                            _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - FAILED {ResolverType} returned null", 
+                                resolverCallId, resolver.GetType().Name);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - SKIPPED {ResolverType}: cannot handle URL/types", 
+                            resolverCallId, resolver.GetType().Name);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Credential resolver {ResolverType} failed", resolver.GetType().Name);
+                    _logger.LogError(ex, "CREDENTIAL RESOLUTION [{CallId}] - ERROR in {ResolverType}: {Error}", 
+                        resolverCallId, resolver.GetType().Name, ex.Message);
                 }
             }
 
-            _logger.LogWarning("No credential resolver could provide credentials for URL: {Url}", url);
+            _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - FAILED: No resolver could provide credentials for URL: {Url}", 
+                resolverCallId, url);
             return null;
         }
 
@@ -683,22 +786,43 @@ namespace MdExplorer.Services.Git
                 try
                 {
                     // Fetch latest from remote to ensure accurate comparison
+                    var fetchCredentialCallCount = 0;
                     var fetchOptions = new FetchOptions
                     {
                         CredentialsProvider = (url, userFromUrl, types) => 
                         {
+                            fetchCredentialCallCount++;
+                            _logger.LogInformation("FETCH CREDENTIAL CALLBACK (GetPullPushData) #{Count} - URL: {Url}, User: {User}, Types: {Types}", 
+                                fetchCredentialCallCount, url, userFromUrl, types);
+                            
                             var task = ResolveCredentials(url, userFromUrl, types);
-                            return task.GetAwaiter().GetResult();
+                            var result = task.GetAwaiter().GetResult();
+                            
+                            _logger.LogInformation("FETCH CREDENTIAL CALLBACK (GetPullPushData) #{Count} - Resolved: {HasCredentials}, Method: {Method}", 
+                                fetchCredentialCallCount, result != null, _lastUsedAuthMethod);
+                            
+                            return result;
                         }
                     };
 
                     var remote = repo.Network.Remotes["origin"];
                     if (remote != null)
                     {
-                        _logger.LogDebug("Fetching from remote: {RemoteName}", remote.Name);
-                        var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
-                        Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, string.Empty);
-                        result.IsRemoteAvailable = true;
+                        try
+                        {
+                            _logger.LogDebug("Fetching from remote: {RemoteName}", remote.Name);
+                            var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
+                            Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, string.Empty);
+                            result.IsRemoteAvailable = true;
+                            _logger.LogDebug("Fetch completed successfully");
+                        }
+                        catch (Exception fetchEx)
+                        {
+                            _logger.LogWarning(fetchEx, "Fetch failed, but continuing with cached tracking information. Error: {Error}", fetchEx.Message);
+                            // Don't fail the whole operation - use cached tracking information
+                            result.IsRemoteAvailable = false;
+                            result.RemoteConnectionError = $"Fetch failed: {fetchEx.Message}";
+                        }
                     }
 
                     // Get tracking details after fetch

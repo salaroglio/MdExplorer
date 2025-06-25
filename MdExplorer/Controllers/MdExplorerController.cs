@@ -264,6 +264,19 @@ namespace MdExplorer.Controllers
         private FileContentResult CreateAResponseForNotMdFile(string rootPathSystem, string relativePathFile, string relativePathExtension)
         {
             var filePathSystem = string.Concat(rootPathSystem, relativePathFile);
+            
+            // Se il percorso contiene .md directory (PlantUML images), cercare dalla root del progetto
+            if (relativePathFile.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}"))
+            {
+                var mdIndex = relativePathFile.IndexOf($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
+                var filenameAfterMd = relativePathFile.Substring(mdIndex + 1); // include .md/filename
+                filePathSystem = Path.Combine(rootPathSystem, filenameAfterMd);
+                
+                _logger.LogInformation($"🔍 [MdExplorer] PlantUML image path corrected:");
+                _logger.LogInformation($"🔍 [MdExplorer] Original: {string.Concat(rootPathSystem, relativePathFile)}");
+                _logger.LogInformation($"🔍 [MdExplorer] Corrected: {filePathSystem}");
+            }
+            
             var data = System.IO.File.ReadAllBytes(filePathSystem);
             var currentContetType = $"image/{relativePathExtension.Replace(".", string.Empty)}";
             if (relativePathExtension == ".pdf")
@@ -292,6 +305,7 @@ namespace MdExplorer.Controllers
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
                 ConnectionId = connectionId,
+                BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))

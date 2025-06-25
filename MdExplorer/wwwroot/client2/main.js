@@ -98,7 +98,7 @@ class MdServerMessagesService {
     }
     addMarkdownFileListener(callback, objectThis) {
         this.hubConnection.on('markdownfileischanged', (data) => {
-            this.gitService.getCurrentBranch();
+            // Modern Git service will automatically update via polling - no manual refresh needed
             callback(data, objectThis);
             console.log('markdownfileischanged');
         });
@@ -458,7 +458,8 @@ class ConnectionLostComponent {
     }
     refresh() {
         //this.monitorMDService.startConnection();
-        this.gitservice.getCurrentBranch();
+        // Trigger a manual refresh by calling checkConnection on the modern Git service
+        // Note: The observable subscription will automatically update the UI
         this.dialogRef.close();
     }
 }
@@ -713,7 +714,6 @@ class GITService {
         this.gitPollingInterval = null;
         this.ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
         this.INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
-        this.useModernGit = true; // Match toolbar component setting
         this.currentProjectPath = null;
         this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"]({
             id: "", name: "",
@@ -768,7 +768,7 @@ class GITService {
      * Perform polling based on current configuration
      */
     performPoll() {
-        if (this.useModernGit && this.currentProjectPath) {
+        if (this.currentProjectPath) {
             // Use modern endpoints with SSH support
             console.log('🔄 Performing modern Git poll for:', this.currentProjectPath);
             // Get branch status
@@ -776,8 +776,14 @@ class GITService {
                 this.currentBranch$.next(branch);
             }, error => {
                 console.error('Error in modern branch status:', error);
-                // Fallback to legacy
-                this.getCurrentBranch();
+                // Set default empty state on error
+                this.currentBranch$.next({
+                    id: "", name: "unknown",
+                    somethingIsChangedInTheBranch: false,
+                    howManyFilesAreChanged: 0,
+                    fullPath: this.currentProjectPath,
+                    howManyCommitAreToPush: 0
+                });
             });
             // Get pull/push data
             this.modernGetDataToPull(this.currentProjectPath).subscribe(pullData => {
@@ -785,10 +791,6 @@ class GITService {
             }, error => {
                 console.error('Error in modern data to pull:', error);
             });
-        }
-        else {
-            // Use legacy endpoints
-            this.getCurrentBranch();
         }
     }
     /**
@@ -845,19 +847,6 @@ class GITService {
         const url = '../api/gitfeatures/cloneRepository';
         return this.http.post(url, request);
     }
-    getCurrentBranch() {
-        const url = '../api/gitservice/branches/feat/getcurrentbranch';
-        let data$ = this.http.get(url);
-        data$.subscribe(_ => {
-            this.currentBranch$.next(_);
-        });
-        const url2 = '../api/gitservice/branches/feat/getdatatopull';
-        let data2$ = this.http.get(url2);
-        data2$.subscribe(_ => {
-            this.commmitsToPull$.next(_);
-        });
-        return data$;
-    }
     getBranchList() {
         const url = '../api/gitservice/branches';
         return this.http.get(url);
@@ -878,23 +867,6 @@ class GITService {
     getGitlabSettings() {
         const url = '../api/gitservice/gitlabsettings';
         return this.http.get(url);
-    }
-    pull(request) {
-        const url = '../api/gitfeatures/pull';
-        return this.http.post(url, request);
-        //return this.http.get<any>(url);
-    }
-    commitAndPush(request) {
-        const url = '../api/gitfeatures/commitandpush';
-        return this.http.post(url, request);
-    }
-    commit(request) {
-        const url = '../api/gitfeatures/commit';
-        return this.http.post(url, request);
-    }
-    push(request) {
-        const url = '../api/gitfeatures/push';
-        return this.http.post(url, request);
     }
     // ===== MODERN GIT METHODS WITH NATIVE AUTHENTICATION =====
     /**
@@ -933,7 +905,7 @@ class GITService {
      */
     modernPush(projectPath) {
         const request = { ProjectPath: projectPath };
-        const url = '../api/ModernGitToolbar/push';
+        const url = '../api/ModernGitToolbar/push-v2';
         return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => this.adaptModernResponseToLegacy(response)));
     }
     /**

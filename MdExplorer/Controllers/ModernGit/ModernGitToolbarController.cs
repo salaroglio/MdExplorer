@@ -236,10 +236,24 @@ namespace MdExplorer.Controllers.ModernGit
         /// <param name="request">Push request</param>
         /// <returns>Result of push operation</returns>
         [HttpPost("push")]
-        public async Task<IActionResult> Push([FromBody] ToolbarGitRequest request)
+        [HttpPost("push-v2")] // Add alternative route for testing
+        public async Task<IActionResult> Push([FromBody] PushOnlyRequest request)
         {
+            _logger.LogInformation("🚀 TOOLBAR CONTROLLER Push method entered - request is null: {IsNull}", request == null);
+            
             try
             {
+                if (request == null)
+                {
+                    _logger.LogError("Push request is null");
+                    return BadRequest("Request body is required");
+                }
+
+                if (string.IsNullOrEmpty(request.ProjectPath))
+                {
+                    _logger.LogError("ProjectPath is null or empty in push request");
+                    return BadRequest("ProjectPath is required");
+                }
 
                 _logger.LogInformation("Push request received for path: {Path}", request.ProjectPath);
 
@@ -323,6 +337,41 @@ namespace MdExplorer.Controllers.ModernGit
         {
             _logger.LogInformation("🎯 TestSimple method called successfully!");
             return Ok(new { message = "Simple POST test successful", timestamp = DateTime.Now });
+        }
+
+        /// <summary>
+        /// Test push request deserialization
+        /// </summary>
+        [HttpPost("test-push-request")]
+        public IActionResult TestPushRequest([FromBody] ToolbarGitRequest request)
+        {
+            _logger.LogInformation("TestPushRequest method entered - request is null: {IsNull}", request == null);
+            
+            if (request == null)
+            {
+                _logger.LogError("TestPushRequest - request is null");
+                return BadRequest("Request is null");
+            }
+            
+            _logger.LogInformation("TestPushRequest - ProjectPath: {ProjectPath}, CommitMessage: {CommitMessage}", 
+                request.ProjectPath, request.CommitMessage);
+            
+            return Ok(new { 
+                message = "Request deserialized successfully", 
+                projectPath = request.ProjectPath,
+                commitMessage = request.CommitMessage,
+                timestamp = DateTime.Now 
+            });
+        }
+
+        /// <summary>
+        /// Test push route - exact same signature as push
+        /// </summary>
+        [HttpPost("test-push")]
+        public IActionResult TestPush([FromBody] ToolbarGitRequest request)
+        {
+            _logger.LogInformation("🔥 TestPush method entered - request is null: {IsNull}", request == null);
+            return Ok(new { message = "TestPush method reached", timestamp = DateTime.Now });
         }
 
         /// <summary>
@@ -518,12 +567,23 @@ namespace MdExplorer.Controllers.ModernGit
         /// <summary>
         /// Path to the Git repository/project
         /// </summary>
-        [Required]
+        // [Required] - Temporarily disabled to debug 400 error
         public string ProjectPath { get; set; }
 
         /// <summary>
         /// Commit message (optional, will auto-generate if empty)
         /// </summary>
         public string CommitMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for push-only operations (no commit message required)
+    /// </summary>
+    public class PushOnlyRequest
+    {
+        /// <summary>
+        /// Path to the Git repository/project
+        /// </summary>
+        public string ProjectPath { get; set; }
     }
 }
