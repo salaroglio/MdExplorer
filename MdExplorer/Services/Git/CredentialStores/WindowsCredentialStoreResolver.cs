@@ -56,7 +56,7 @@ namespace MdExplorer.Services.Git.CredentialStores
                 
                 if (credential != null)
                 {
-                    _logger.LogInformation("Successfully retrieved credentials from Windows Credential Manager");
+                    _logger.LogInformation("Successfully retrieved credentials from Windows Credential Manager for: {TargetName}", targetName);
                     return new UsernamePasswordCredentials
                     {
                         Username = credential.Username,
@@ -64,8 +64,35 @@ namespace MdExplorer.Services.Git.CredentialStores
                     };
                 }
 
-                // Try generic Git credential
+                // Try without port as fallback (for backwards compatibility)
+                try 
+                {
+                    var uri = new Uri(url);
+                    var targetWithoutPort = $"{CredentialTargetPrefix}{uri.Scheme}://{uri.Host}";
+                    if (targetWithoutPort != targetName)
+                    {
+                        _logger.LogDebug("Trying fallback target without port: {TargetName}", targetWithoutPort);
+                        credential = await Task.Run(() => ReadCredential(targetWithoutPort));
+                        
+                        if (credential != null)
+                        {
+                            _logger.LogInformation("Successfully retrieved credentials from Windows Credential Manager for fallback target: {TargetName}", targetWithoutPort);
+                            return new UsernamePasswordCredentials
+                            {
+                                Username = credential.Username,
+                                Password = credential.Password
+                            };
+                        }
+                    }
+                }
+                catch 
+                {
+                    // Ignore fallback errors
+                }
+
+                // Try generic Git credential as last resort
                 var genericTarget = "git:https://github.com";
+                _logger.LogDebug("Trying generic Git credentials: {TargetName}", genericTarget);
                 credential = await Task.Run(() => ReadCredential(genericTarget));
                 
                 if (credential != null)
@@ -117,11 +144,14 @@ namespace MdExplorer.Services.Git.CredentialStores
         private string GetTargetName(string url)
         {
             // Convert URL to a credential target name
-            // Example: https://github.com/user/repo.git -> git:https://github.com
+            // Example: https://dbs-svn.dedagroup.it:8443/repo -> git:https://dbs-svn.dedagroup.it:8443
             try
             {
                 var uri = new Uri(url);
-                return $"{CredentialTargetPrefix}{uri.Scheme}://{uri.Host}";
+                var hostWithPort = uri.Port != -1 && uri.Port != 80 && uri.Port != 443 
+                    ? $"{uri.Host}:{uri.Port}" 
+                    : uri.Host;
+                return $"{CredentialTargetPrefix}{uri.Scheme}://{hostWithPort}";
             }
             catch
             {

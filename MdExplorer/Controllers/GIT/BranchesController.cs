@@ -29,6 +29,7 @@ namespace MdExplorer.Service.Controllers.GIT
             _fileSystemWatcher = fileSystemWatcher;
         }
         [HttpGet("feat/GetCurrentBranch")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/branch-status for SSH-based operations.")]
         public IActionResult GetCurrentBranch()
         {
             var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
@@ -42,6 +43,7 @@ namespace MdExplorer.Service.Controllers.GIT
             });//classe branch lato angular
         }
         [HttpGet("feat/getdatatopull")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/get-data-to-pull for SSH-based operations.")]
         public IActionResult GetDataToPull()
         {
             var howManyFilesAreToPull = 0;
@@ -69,6 +71,7 @@ namespace MdExplorer.Service.Controllers.GIT
         }
 
         [HttpPost("feat/checkoutBranch")]
+        [Obsolete("This endpoint uses legacy Git service. Consider using modern Git operations.")]
         public IActionResult CheckoutBranch([FromBody] GitBranch branch)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -94,6 +97,7 @@ namespace MdExplorer.Service.Controllers.GIT
 
 
         [HttpGet]
+        [Obsolete("This endpoint uses legacy Git service. Consider using modern Git operations.")]
         public IActionResult GetBranches()
         {
             var toReturn = _gitService.GetBranches(_fileSystemWatcher.Path);

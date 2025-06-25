@@ -16,8 +16,6 @@ import { ProjectsService } from '../../services/projects.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
-import { GitAuthComponent } from '../../../git/components/git-auth/git-auth.component';
-import { PullInfo } from '../../../git/models/pullInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
@@ -58,9 +56,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
   public showMenu: boolean = false;
-  
-  // Enable modern Git authentication (no more manual credentials)
-  private useModernGit: boolean = true;
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -219,38 +214,32 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   checkConnection(): void {
     this.isCheckingConnection = true;
     
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      if (!projectPath) {
-        this.isCheckingConnection = false;
-        return;
-      }
-      
-      // Update the Git service with current project path
-      this.gitservice.setProjectPath(projectPath);
-      
-      // Get both branch status and pull/push data using modern Git service
-      forkJoin([
-        this.gitservice.modernGetBranchStatus(projectPath),
-        this.gitservice.modernGetDataToPull(projectPath)
-      ]).subscribe(
-        ([branch, pullData]) => {
-          // Update observables with the received data
-          this.gitservice.currentBranch$.next(branch);
-          this.gitservice.commmitsToPull$.next(pullData);
-          this.isCheckingConnection = false;
-        },
-        error => {
-          console.error('Error checking modern Git connection:', error);
-          this.isCheckingConnection = false;
-          // Fallback to legacy method
-          this.gitservice.getCurrentBranch();
-        }
-      );
-    } else {
-      // Legacy Git service
-      this.gitservice.getCurrentBranch();
+    const projectPath = this.getProjectPath();
+    if (!projectPath) {
+      this.isCheckingConnection = false;
+      return;
     }
+    
+    // Update the Git service with current project path
+    this.gitservice.setProjectPath(projectPath);
+    
+    // Get both branch status and pull/push data using modern Git service
+    forkJoin([
+      this.gitservice.modernGetBranchStatus(projectPath),
+      this.gitservice.modernGetDataToPull(projectPath)
+    ]).subscribe(
+      ([branch, pullData]) => {
+        // Update observables with the received data
+        this.gitservice.currentBranch$.next(branch);
+        this.gitservice.commmitsToPull$.next(pullData);
+        this.isCheckingConnection = false;
+      },
+      error => {
+        console.error('Error checking Git connection:', error);
+        this.isCheckingConnection = false;
+        this.connectionIsActive = false;
+      }
+    );
   }
 
   private showRule1IsBroken(data: any, objectThis: ToolbarComponent) {
@@ -310,64 +299,39 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   pull(): void {
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      if (!projectPath) return;
-    }
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
     
     let info = new WaitingDialogInfo();
     info.message = "Please wait... Pulling branch"
     this.waitingDialogService.showMessageBox(info);
     
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      console.log('[DEBUG] Pull operation started with projectPath:', projectPath);
-      
-      // Use modern Git service with native authentication
-      this.gitservice.modernPull(projectPath).subscribe(
-        responseFromPull => {
-          console.log('[DEBUG] Pull response received:', responseFromPull);
-          this.handleGitResponse(responseFromPull, 'pull');
-          this.waitingDialogService.closeMessageBox();
-        },
-        error => {
-          console.error('[DEBUG] Pull error:', error);
-          console.error('[DEBUG] Error status:', error.status);
-          console.error('[DEBUG] Error message:', error.message);
-          console.error('[DEBUG] Error response body:', error.error);
-          
-          this.waitingDialogService.closeMessageBox();
-          
-          // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during pull';
-          this._snackBar.open(`Pull failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    } else {
-      // Legacy Git service with manual authentication
-      let pullInfo = new PullInfo();
-      this.gitservice.pull(pullInfo).subscribe(
-        responseFromPull => {
-          this.handleGitResponse(responseFromPull, 'pull');
-          this.waitingDialogService.closeMessageBox();
-        },
-        error => {
-          console.error('[DEBUG] Legacy pull error:', error);
-          this.waitingDialogService.closeMessageBox();
-          
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during pull';
-          this._snackBar.open(`Pull failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    }
+    console.log('[DEBUG] Pull operation started with projectPath:', projectPath);
+    
+    // Use modern Git service with native SSH authentication
+    this.gitservice.modernPull(projectPath).subscribe(
+      responseFromPull => {
+        console.log('[DEBUG] Pull response received:', responseFromPull);
+        this.handleGitResponse(responseFromPull, 'pull');
+        this.waitingDialogService.closeMessageBox();
+      },
+      error => {
+        console.error('[DEBUG] Pull error:', error);
+        console.error('[DEBUG] Error status:', error.status);
+        console.error('[DEBUG] Error message:', error.message);
+        console.error('[DEBUG] Error response body:', error.error);
+        
+        this.waitingDialogService.closeMessageBox();
+        
+        // Show error to user
+        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during pull';
+        this._snackBar.open(`Pull failed: ${errorMessage}`, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+      }
+    );
   }
 
   /**
@@ -386,13 +350,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Handle authentication issues (only for legacy)
-    if (responseFromPull.isAuthenticationMissing) {
-      const dialogRef = this.dialog.open(GitAuthComponent, {
-        width: '300px',
-      });
-      return;
-    }
+    // Note: Modern Git uses SSH authentication, no manual credentials needed
 
     // Handle conflicts
     if (responseFromPull.thereAreConflicts) {
@@ -455,224 +413,128 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   commit(): void {
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      if (!projectPath) return;
-      
-      // Ask user for commit message
-      const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
-      if (commitMessage === null) {
-        // User cancelled
-        return;
-      }
-      
-      let info = new WaitingDialogInfo();
-      info.message = "Please wait... committing changes";
-      this.waitingDialogService.showMessageBox(info);
-      
-      console.log('[DEBUG] Commit operation started with projectPath:', projectPath, 'and message:', commitMessage);
-      
-      // Use modern Git service with native authentication (commit only)
-      this.gitservice.modernCommit(projectPath, commitMessage).subscribe(
-        response => {
-          console.log('[DEBUG] Commit response received:', response);
-          this.handleGitResponse(response, 'commit');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Commit error:', error);
-          console.error('[DEBUG] Error status:', error.status);
-          console.error('[DEBUG] Error message:', error.message);
-          console.error('[DEBUG] Error response body:', error.error);
-          
-          this.waitingDialogService.closeMessageBox();
-          
-          // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit';
-          this._snackBar.open(`Commit failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    } else {
-      // Ask user for commit message for legacy Git too
-      const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
-      if (commitMessage === null) {
-        // User cancelled
-        return;
-      }
-      
-      let info = new WaitingDialogInfo();
-      info.message = "Please wait... committing changes";
-      this.waitingDialogService.showMessageBox(info);
-      
-      // Legacy Git service with manual authentication
-      let pullInfo = new PullInfo();
-      pullInfo.Message = commitMessage;
-      this.gitservice.commit(pullInfo).subscribe(
-        response => {
-          this.handleGitResponse(response, 'commit');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Legacy commit error:', error);
-          this.waitingDialogService.closeMessageBox();
-          
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit';
-          this._snackBar.open(`Commit failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    
+    // Ask user for commit message
+    const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
+    if (commitMessage === null) {
+      // User cancelled
+      return;
     }
+    
+    let info = new WaitingDialogInfo();
+    info.message = "Please wait... committing changes";
+    this.waitingDialogService.showMessageBox(info);
+    
+    console.log('[DEBUG] Commit operation started with projectPath:', projectPath, 'and message:', commitMessage);
+    
+    // Use modern Git service with native SSH authentication (commit only)
+    this.gitservice.modernCommit(projectPath, commitMessage).subscribe(
+      response => {
+        console.log('[DEBUG] Commit response received:', response);
+        this.handleGitResponse(response, 'commit');
+        this.waitingDialogService.closeMessageBox();
+        this.matMenuTrigger.closeMenu();
+      },
+      error => {
+        console.error('[DEBUG] Commit error:', error);
+        console.error('[DEBUG] Error status:', error.status);
+        console.error('[DEBUG] Error message:', error.message);
+        console.error('[DEBUG] Error response body:', error.error);
+        
+        this.waitingDialogService.closeMessageBox();
+        
+        // Show error to user
+        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit';
+        this._snackBar.open(`Commit failed: ${errorMessage}`, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+      }
+    );
   }
 
   push(): void {
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      if (!projectPath) return;
-    }
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
     
     let info = new WaitingDialogInfo();
     info.message = "Please wait... pushing changes";
     this.waitingDialogService.showMessageBox(info);
     
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      console.log('[DEBUG] Push operation started with projectPath:', projectPath);
-      
-      // Use modern Git service with native authentication
-      this.gitservice.modernPush(projectPath).subscribe(
-        response => {
-          console.log('[DEBUG] Push response received:', response);
-          this.handleGitResponse(response, 'push');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Push error:', error);
-          console.error('[DEBUG] Error status:', error.status);
-          console.error('[DEBUG] Error message:', error.message);
-          console.error('[DEBUG] Error response body:', error.error);
-          
-          this.waitingDialogService.closeMessageBox();
-          
-          // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during push';
-          this._snackBar.open(`Push failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    } else {
-      // Legacy Git service with manual authentication
-      let pullInfo = new PullInfo();
-      this.gitservice.push(pullInfo).subscribe(
-        response => {
-          this.handleGitResponse(response, 'push');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Legacy push error:', error);
-          this.waitingDialogService.closeMessageBox();
-          
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during push';
-          this._snackBar.open(`Push failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    }
+    console.log('[DEBUG] Push operation started with projectPath:', projectPath);
+    
+    // Use modern Git service with native SSH authentication
+    this.gitservice.modernPush(projectPath).subscribe(
+      response => {
+        console.log('[DEBUG] Push response received:', response);
+        this.handleGitResponse(response, 'push');
+        this.waitingDialogService.closeMessageBox();
+        this.matMenuTrigger.closeMenu();
+      },
+      error => {
+        console.error('[DEBUG] Push error:', error);
+        console.error('[DEBUG] Error status:', error.status);
+        console.error('[DEBUG] Error message:', error.message);
+        console.error('[DEBUG] Error response body:', error.error);
+        
+        this.waitingDialogService.closeMessageBox();
+        
+        // Show error to user
+        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during push';
+        this._snackBar.open(`Push failed: ${errorMessage}`, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+      }
+    );
   }
 
   commitAndPush(): void {
-    if (this.useModernGit) {
-      const projectPath = this.getProjectPath();
-      if (!projectPath) return;
-      
-      // Ask user for commit message
-      const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
-      if (commitMessage === null) {
-        // User cancelled
-        return;
-      }
-      
-      let info = new WaitingDialogInfo();
-      info.message = "Please wait... committing and pushing changes";
-      this.waitingDialogService.showMessageBox(info);
-      
-      console.log('[DEBUG] Commit and push operation started with projectPath:', projectPath, 'and message:', commitMessage);
-      
-      // Use modern Git service with native authentication (commit and push)
-      this.gitservice.modernCommitAndPush(projectPath, commitMessage).subscribe(
-        response => {
-          console.log('[DEBUG] Commit and push response received:', response);
-          this.handleGitResponse(response, 'commit and push');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Commit and push error:', error);
-          console.error('[DEBUG] Error status:', error.status);
-          console.error('[DEBUG] Error message:', error.message);
-          console.error('[DEBUG] Error response body:', error.error);
-          
-          this.waitingDialogService.closeMessageBox();
-          
-          // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit and push';
-          this._snackBar.open(`Commit and push failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    } else {
-      // Ask user for commit message for legacy Git too
-      const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
-      if (commitMessage === null) {
-        // User cancelled
-        return;
-      }
-      
-      let info = new WaitingDialogInfo();
-      info.message = "Please wait... committing and pushing changes";
-      this.waitingDialogService.showMessageBox(info);
-      
-      // Legacy Git service with manual authentication
-      let pullInfo = new PullInfo();
-      pullInfo.Message = commitMessage;
-      this.gitservice.commitAndPush(pullInfo).subscribe(
-        response => {
-          this.handleGitResponse(response, 'commit and push');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Legacy commit and push error:', error);
-          this.waitingDialogService.closeMessageBox();
-          
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit and push';
-          this._snackBar.open(`Commit and push failed: ${errorMessage}`, 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    
+    // Ask user for commit message
+    const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
+    if (commitMessage === null) {
+      // User cancelled
+      return;
     }
+    
+    let info = new WaitingDialogInfo();
+    info.message = "Please wait... committing and pushing changes";
+    this.waitingDialogService.showMessageBox(info);
+    
+    console.log('[DEBUG] Commit and push operation started with projectPath:', projectPath, 'and message:', commitMessage);
+    
+    // Use modern Git service with native SSH authentication (commit and push)
+    this.gitservice.modernCommitAndPush(projectPath, commitMessage).subscribe(
+      response => {
+        console.log('[DEBUG] Commit and push response received:', response);
+        this.handleGitResponse(response, 'commit and push');
+        this.waitingDialogService.closeMessageBox();
+        this.matMenuTrigger.closeMenu();
+      },
+      error => {
+        console.error('[DEBUG] Commit and push error:', error);
+        console.error('[DEBUG] Error status:', error.status);
+        console.error('[DEBUG] Error message:', error.message);
+        console.error('[DEBUG] Error response body:', error.error);
+        
+        this.waitingDialogService.closeMessageBox();
+        
+        // Show error to user
+        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit and push';
+        this._snackBar.open(`Commit and push failed: ${errorMessage}`, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+      }
+    );
   }
 
   openBranch(branch: IBranch): void {

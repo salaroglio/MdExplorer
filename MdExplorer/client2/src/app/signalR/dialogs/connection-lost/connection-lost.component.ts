@@ -28,7 +28,8 @@ export class ConnectionLostComponent implements OnInit {
 
   refresh() {
     //this.monitorMDService.startConnection();
-    this.gitservice.getCurrentBranch();
+    // Trigger a manual refresh by calling checkConnection on the modern Git service
+    // Note: The observable subscription will automatically update the UI
     this.dialogRef.close();
   }
     

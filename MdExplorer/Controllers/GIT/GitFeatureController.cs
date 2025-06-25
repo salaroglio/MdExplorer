@@ -5,6 +5,7 @@ using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models.GIT;
 using MdExplorer.Features.GIT;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.IO;
 using Ad.Tools.Dal.Extensions;
 using System.Linq;
@@ -48,6 +49,7 @@ namespace MdExplorer.Service.Controllers.GIT
         }
 
         [HttpPost("cloneRepository")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar for SSH-based operations.")]
         public IActionResult CloneRepository(CloneInfo request)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -57,6 +59,7 @@ namespace MdExplorer.Service.Controllers.GIT
         }
 
         [HttpPost("pull")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/pull for SSH-based operations.")]
         public IActionResult Pull(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -166,6 +169,7 @@ namespace MdExplorer.Service.Controllers.GIT
 
 
         [HttpPost("commitandpush")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/commit-and-push for SSH-based operations.")]
         public IActionResult CommitAndPush(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -185,6 +189,7 @@ namespace MdExplorer.Service.Controllers.GIT
         }
 
         [HttpPost("commit")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/commit for SSH-based operations.")]
         public IActionResult Commit(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -204,6 +209,7 @@ namespace MdExplorer.Service.Controllers.GIT
         }
 
         [HttpPost("push")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/push for SSH-based operations.")]
         public IActionResult Push(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;

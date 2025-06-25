@@ -6,8 +6,6 @@ import { IBranch } from '../models/branch';
 import { DataToPull } from '../models/DataToPull'
 import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
-import { PullInfo } from '../models/pullInfo';
-import { ResponsePull } from '../models/responsePull';
 import { ITag } from '../models/Tag';
 import { ResposneClone } from './responses/ResponseClone';
 import { 
@@ -28,7 +26,6 @@ export class GITService implements OnDestroy {
   private gitPollingInterval: any = null;
   private readonly ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
   private readonly INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
-  private useModernGit: boolean = true; // Match toolbar component setting
   private currentProjectPath: string = null;
   
   public currentBranch$: BehaviorSubject<IBranch> = new BehaviorSubject<IBranch>(
@@ -96,7 +93,7 @@ export class GITService implements OnDestroy {
    * Perform polling based on current configuration
    */
   private performPoll(): void {
-    if (this.useModernGit && this.currentProjectPath) {
+    if (this.currentProjectPath) {
       // Use modern endpoints with SSH support
       console.log('🔄 Performing modern Git poll for:', this.currentProjectPath);
       
@@ -107,8 +104,14 @@ export class GITService implements OnDestroy {
         },
         error => {
           console.error('Error in modern branch status:', error);
-          // Fallback to legacy
-          this.getCurrentBranch();
+          // Set default empty state on error
+          this.currentBranch$.next({
+            id: "", name: "unknown",
+            somethingIsChangedInTheBranch: false,
+            howManyFilesAreChanged: 0,
+            fullPath: this.currentProjectPath,
+            howManyCommitAreToPush: 0
+          });
         }
       );
       
@@ -121,9 +124,6 @@ export class GITService implements OnDestroy {
           console.error('Error in modern data to pull:', error);
         }
       );
-    } else {
-      // Use legacy endpoints
-      this.getCurrentBranch();
     }
   }
 
@@ -187,21 +187,6 @@ export class GITService implements OnDestroy {
     return this.http.post<ResposneClone>(url, request);
   }
 
-  getCurrentBranch():Observable<IBranch> {
-    const url = '../api/gitservice/branches/feat/getcurrentbranch';
-    let data$ = this.http.get<IBranch>(url);
-    data$.subscribe(_ => {      
-      this.currentBranch$.next(_);
-    });
-    
-    const url2 = '../api/gitservice/branches/feat/getdatatopull';
-    let data2$ = this.http.get<DataToPull>(url2);
-    data2$.subscribe(_ => {
-      this.commmitsToPull$.next(_);
-    });
-    return data$;
-
-  }
 
   getBranchList():Observable<IBranch[]> {
     const url = '../api/gitservice/branches';
@@ -229,26 +214,6 @@ export class GITService implements OnDestroy {
     return this.http.get<GitlabSetting[]>(url);
   }
 
-  pull(request:PullInfo): Observable<ResponsePull>  {
-    const url = '../api/gitfeatures/pull';
-    return this.http.post<ResponsePull>(url, request);
-    //return this.http.get<any>(url);
-  }
-
-  commitAndPush(request: PullInfo): Observable<ResponsePull> {
-    const url = '../api/gitfeatures/commitandpush';
-    return this.http.post<ResponsePull>(url, request);
-  }
-
-  commit(request: PullInfo): Observable<ResponsePull> {
-    const url = '../api/gitfeatures/commit';
-    return this.http.post<ResponsePull>(url, request);
-  }
-
-  push(request: PullInfo): Observable<ResponsePull> {
-    const url = '../api/gitfeatures/push';
-    return this.http.post<ResponsePull>(url, request);
-  }
 
   // ===== MODERN GIT METHODS WITH NATIVE AUTHENTICATION =====
 
@@ -301,7 +266,7 @@ export class GITService implements OnDestroy {
    */
   modernPush(projectPath: string): Observable<ModernResponsePull> {
     const request: ModernGitRequest = { ProjectPath: projectPath };
-    const url = '../api/ModernGitToolbar/push';
+    const url = '../api/ModernGitToolbar/push-v2';
     
     return this.http.post<ModernGitResponse>(url, request).pipe(
       map(response => this.adaptModernResponseToLegacy(response))

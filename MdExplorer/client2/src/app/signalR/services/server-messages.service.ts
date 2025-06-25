@@ -115,7 +115,7 @@ export class MdServerMessagesService {
 
   public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('markdownfileischanged', (data) => {
-      this.gitService.getCurrentBranch();
+      // Modern Git service will automatically update via polling - no manual refresh needed
       callback(data, objectThis);
       console.log('markdownfileischanged');
     });

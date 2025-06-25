@@ -58,7 +58,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
       this.titleProject = data.currentFolder;
     });
     this.currentFolder.loadFolderName();
-    this.gitService.getCurrentBranch().subscribe(_ => {
+    this.gitService.currentBranch$.subscribe(_ => {
       this.currentBranch = _.name;
     });
 
