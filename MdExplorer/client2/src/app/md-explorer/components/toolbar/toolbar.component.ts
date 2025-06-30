@@ -17,6 +17,7 @@ import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
+import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
@@ -416,44 +417,50 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
     
-    // Ask user for commit message
-    const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
-    if (commitMessage === null) {
-      // User cancelled
-      return;
-    }
-    
-    let info = new WaitingDialogInfo();
-    info.message = "Please wait... committing changes";
-    this.waitingDialogService.showMessageBox(info);
-    
-    console.log('[DEBUG] Commit operation started with projectPath:', projectPath, 'and message:', commitMessage);
-    
-    // Use modern Git service with native SSH authentication (commit only)
-    this.gitservice.modernCommit(projectPath, commitMessage).subscribe(
-      response => {
-        console.log('[DEBUG] Commit response received:', response);
-        this.handleGitResponse(response, 'commit');
-        this.waitingDialogService.closeMessageBox();
-        this.matMenuTrigger.closeMenu();
-      },
-      error => {
-        console.error('[DEBUG] Commit error:', error);
-        console.error('[DEBUG] Error status:', error.status);
-        console.error('[DEBUG] Error message:', error.message);
-        console.error('[DEBUG] Error response body:', error.error);
-        
-        this.waitingDialogService.closeMessageBox();
-        
-        // Show error to user
-        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit';
-        this._snackBar.open(`Commit failed: ${errorMessage}`, 'OK', {
-          duration: 5000,
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        });
+    // Ask user for commit message using Material Dialog
+    const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
+      width: '500px',
+      data: { defaultMessage: 'Update from MdExplorer' }
+    });
+
+    dialogRef.afterClosed().subscribe(commitMessage => {
+      if (commitMessage === null || commitMessage === undefined) {
+        // User cancelled
+        return;
       }
-    );
+      
+      let info = new WaitingDialogInfo();
+      info.message = "Please wait... committing changes";
+      this.waitingDialogService.showMessageBox(info);
+      
+      console.log('[DEBUG] Commit operation started with projectPath:', projectPath, 'and message:', commitMessage);
+      
+      // Use modern Git service with native SSH authentication (commit only)
+      this.gitservice.modernCommit(projectPath, commitMessage).subscribe(
+        response => {
+          console.log('[DEBUG] Commit response received:', response);
+          this.handleGitResponse(response, 'commit');
+          this.waitingDialogService.closeMessageBox();
+          this.matMenuTrigger.closeMenu();
+        },
+        error => {
+          console.error('[DEBUG] Commit error:', error);
+          console.error('[DEBUG] Error status:', error.status);
+          console.error('[DEBUG] Error message:', error.message);
+          console.error('[DEBUG] Error response body:', error.error);
+          
+          this.waitingDialogService.closeMessageBox();
+          
+          // Show error to user
+          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit';
+          this._snackBar.open(`Commit failed: ${errorMessage}`, 'OK', {
+            duration: 5000,
+            verticalPosition: 'top',
+            panelClass: ['error-snackbar']
+          });
+        }
+      );
+    });
   }
 
   push(): void {
@@ -497,44 +504,50 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
     
-    // Ask user for commit message
-    const commitMessage = prompt('Please enter a commit message:', 'Update from MdExplorer');
-    if (commitMessage === null) {
-      // User cancelled
-      return;
-    }
-    
-    let info = new WaitingDialogInfo();
-    info.message = "Please wait... committing and pushing changes";
-    this.waitingDialogService.showMessageBox(info);
-    
-    console.log('[DEBUG] Commit and push operation started with projectPath:', projectPath, 'and message:', commitMessage);
-    
-    // Use modern Git service with native SSH authentication (commit and push)
-    this.gitservice.modernCommitAndPush(projectPath, commitMessage).subscribe(
-      response => {
-        console.log('[DEBUG] Commit and push response received:', response);
-        this.handleGitResponse(response, 'commit and push');
-        this.waitingDialogService.closeMessageBox();
-        this.matMenuTrigger.closeMenu();
-      },
-      error => {
-        console.error('[DEBUG] Commit and push error:', error);
-        console.error('[DEBUG] Error status:', error.status);
-        console.error('[DEBUG] Error message:', error.message);
-        console.error('[DEBUG] Error response body:', error.error);
-        
-        this.waitingDialogService.closeMessageBox();
-        
-        // Show error to user
-        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit and push';
-        this._snackBar.open(`Commit and push failed: ${errorMessage}`, 'OK', {
-          duration: 5000,
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        });
+    // Ask user for commit message using Material Dialog
+    const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
+      width: '500px',
+      data: { defaultMessage: 'Update from MdExplorer' }
+    });
+
+    dialogRef.afterClosed().subscribe(commitMessage => {
+      if (commitMessage === null || commitMessage === undefined) {
+        // User cancelled
+        return;
       }
-    );
+      
+      let info = new WaitingDialogInfo();
+      info.message = "Please wait... committing and pushing changes";
+      this.waitingDialogService.showMessageBox(info);
+      
+      console.log('[DEBUG] Commit and push operation started with projectPath:', projectPath, 'and message:', commitMessage);
+      
+      // Use modern Git service with native SSH authentication (commit and push)
+      this.gitservice.modernCommitAndPush(projectPath, commitMessage).subscribe(
+        response => {
+          console.log('[DEBUG] Commit and push response received:', response);
+          this.handleGitResponse(response, 'commit and push');
+          this.waitingDialogService.closeMessageBox();
+          this.matMenuTrigger.closeMenu();
+        },
+        error => {
+          console.error('[DEBUG] Commit and push error:', error);
+          console.error('[DEBUG] Error status:', error.status);
+          console.error('[DEBUG] Error message:', error.message);
+          console.error('[DEBUG] Error response body:', error.error);
+          
+          this.waitingDialogService.closeMessageBox();
+          
+          // Show error to user
+          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit and push';
+          this._snackBar.open(`Commit and push failed: ${errorMessage}`, 'OK', {
+            duration: 5000,
+            verticalPosition: 'top',
+            panelClass: ['error-snackbar']
+          });
+        }
+      );
+    });
   }
 
   openBranch(branch: IBranch): void {

@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANTE: Confermare lettura di questo file
+All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le regole in questo file CLAUDE.md.
+
 ## Development Guidance
 
 * Always explain the reasoning behind code implementation before writing the actual code
@@ -9,6 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Discuss potential alternative solutions
   - Outline the specific steps that will be taken
 * Le compilazioni di Angular e dotnet, le faccio io
+* Prima di cancellare qualsiasi cosa, controlla se esisteva già. Non cancellare mai file che non hai creato tu in questa sessione
+* Sii veloce, ma non avere fretta. Lavora in modo tranquillo, rilassato e concentrato
+* Verifica sempre con log o altre evidenze tutte le ipotesi prima di agire. Non assumere, verifica
 
 ## Architecture Overview
 

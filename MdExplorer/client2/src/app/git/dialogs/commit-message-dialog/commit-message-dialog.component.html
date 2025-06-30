@@ -1,0 +1,25 @@
+<h2 mat-dialog-title>Commit Message</h2>
+<mat-dialog-content>
+  <mat-form-field appearance="outline" style="width: 100%; min-width: 400px;">
+    <mat-label>Enter commit message</mat-label>
+    <textarea 
+      matInput 
+      [(ngModel)]="commitMessage" 
+      rows="4"
+      placeholder="Describe your changes..."
+      cdkFocusInitial
+      (keydown.enter)="$event.ctrlKey && onConfirm()">
+    </textarea>
+    <mat-hint>Press Ctrl+Enter to commit</mat-hint>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button 
+    mat-raised-button 
+    color="primary" 
+    (click)="onConfirm()"
+    [disabled]="!commitMessage || !commitMessage.trim()">
+    Commit
+  </button>
+</mat-dialog-actions>

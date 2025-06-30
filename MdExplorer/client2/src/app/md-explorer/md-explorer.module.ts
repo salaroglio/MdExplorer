@@ -1,4 +1,4 @@
-import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core'; // Added CUSTOM_ELEMENTS_SCHEMA
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidenavComponent } from './components/sidenav/sidenav.component';
 import { ToolbarComponent } from './components/toolbar/toolbar.component';
@@ -90,7 +90,7 @@ const routes: Routes = [
     MdFileService,
 
   ],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA] // Added schemas array
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class MdExplorerModule {
   constructor() {
