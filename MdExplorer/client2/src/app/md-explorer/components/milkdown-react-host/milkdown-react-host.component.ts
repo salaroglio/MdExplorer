@@ -38,22 +38,28 @@ import { filter, switchMap, tap } from 'rxjs/operators';
     }
     .save-button {
       position: fixed;  /* Torniamo a fixed per mantenerlo fisso durante lo scroll */
-      bottom: 20px;
-      left: 280px;  /* Spostiamo a destra per evitare la sidebar (assumendo larghezza sidebar ~250px) */
-      z-index: 100;
+      bottom: 40px;     /* Aumentiamo la distanza dal fondo */
+      right: 40px;      /* Posizioniamo a destra invece che a sinistra */
+      z-index: 1000;    /* Aumentiamo lo z-index per assicurarci che sia sopra tutto */
       background-color: #3f51b5;
       color: white;
-      padding: 10px 24px;
+      padding: 12px 28px;  /* Padding leggermente più grande per migliore visibilità */
       border: none;
-      border-radius: 4px;
+      border-radius: 24px;  /* Bordi più arrotondati per un aspetto moderno */
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12);
+      box-shadow: 0 4px 8px -2px rgba(0,0,0,.3), 0 8px 16px 0 rgba(0,0,0,.2);
       text-transform: uppercase;
+      transition: all 0.2s ease;  /* Transizione smooth per hover */
     }
     .save-button:hover {
       background-color: #303f9f;
+      transform: translateY(-2px);  /* Solleva leggermente il pulsante */
+      box-shadow: 0 6px 12px -2px rgba(0,0,0,.4), 0 12px 24px 0 rgba(0,0,0,.3);
+    }
+    .save-button:active {
+      transform: translateY(0);  /* Ritorna alla posizione originale quando premuto */
     }
   `]
 })
