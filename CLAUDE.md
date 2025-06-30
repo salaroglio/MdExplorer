@@ -16,6 +16,11 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 * Sii veloce, ma non avere fretta. Lavora in modo tranquillo, rilassato e concentrato
 * Verifica sempre con log o altre evidenze tutte le ipotesi prima di agire. Non assumere, verifica
 
+## Git Commit Rules
+* NON inserire MAI riferimenti a Claude, Anthropic o AI nei messaggi di commit
+* NON usare "Co-Authored-By: Claude" o simili
+* I commit devono essere scritti come se fossero stati fatti da uno sviluppatore umano
+
 ## Architecture Overview
 
 MdExplorer is a multi-project .NET solution for Markdown file management and editing with the following architecture:
