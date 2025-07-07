@@ -1,4 +1,19 @@
-﻿# CLAUDE
+---
+author: Carlo Salaroglio
+document_type: Document
+email: salaroglio@hotmail.com
+title: 
+date: 03/07/2025
+word_section:
+  write_toc: false
+  document_header: ''
+  template_section:
+    inherit_from_template: ''
+    custom_template: ''
+    template_type: default
+  predefined_pages: 
+---
+# CLAUDE
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -15,6 +30,11 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 * Prima di cancellare qualsiasi cosa, controlla se esisteva già. Non cancellare mai file che non hai creato tu in questa sessione
 * Sii veloce, ma non avere fretta. Lavora in modo tranquillo, rilassato e concentrato
 * Verifica sempre con log o altre evidenze tutte le ipotesi prima di agire. Non assumere, verifica
+* **Quando lavori con dati persistenti**: Consulta sempre il documento [workflow-sviluppo-dati-persistenti.md](./workflow-sviluppo-dati-persistenti.md) per seguire il processo corretto di:
+  - Creazione migrations con FluentMigrator
+  - Mapping entità con NHibernate
+  - Implementazione API e servizi Angular
+  - Questo documento contiene esempi pratici e best practices specifiche del progetto
 
 ## Git Commit Rules
 * NON inserire MAI riferimenti a Claude, Anthropic o AI nei messaggi di commit
