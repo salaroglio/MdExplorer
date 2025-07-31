@@ -381,3 +381,9 @@ FodyWeavers.xsd
 
 /.md/
 /.claude
+
+# Large installer files
+MdExplorer.Bootstrapper/assets/*.exe
+MdExplorer.Bootstrapper/assets/*.msi
+# Backup original refs before filter-branch
+.git/refs/original/
