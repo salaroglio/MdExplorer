@@ -3,9 +3,9 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 30px;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+  height: 36px;
+  background-color: #1976d2;
+  border-bottom: 1px solid #1565c0;
   display: flex;
   align-items: center;
   z-index: 1000;
@@ -29,12 +29,12 @@
 .app-title {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: white;
 }
 
 .app-version {
   font-size: 12px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.7);
   margin-left: 8px;
 }
 
@@ -49,6 +49,7 @@
     min-width: 30px;
     padding: 0;
     line-height: 30px;
+    color: white;
     
     mat-icon {
       font-size: 18px;
@@ -76,13 +77,14 @@
 
 .window-control {
   width: 46px;
-  height: 30px;
+  height: 36px;
   border: none;
   background: transparent;
+  color: white;
   transition: background-color 0.2s;
   
   &:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
   }
   
   mat-icon {

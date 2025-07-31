@@ -17,6 +17,7 @@ namespace MdExplorer.Service
         {
             services.AddSingleton<ProcessUtil>();
             services.AddSingleton<IMdIgnoreService, MdIgnoreService>();
+            services.AddScoped<ISearchService, SearchService>();
             return services;
         }
     }

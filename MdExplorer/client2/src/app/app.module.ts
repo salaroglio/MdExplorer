@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { Routes, RouterModule } from '@angular/router';
 import { FlexLayoutModule } from '@angular/flex-layout';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
 
@@ -20,6 +20,7 @@ import { NewDirectoryComponent } from './commons/components/new-directory/new-di
 import { OpeningApplicationComponent } from './signalR/dialogs/opening-application/opening-application.component';
 import { OpeningApplicationProvider } from './signalR/dialogs/opening-application/opening-application.provider';
 import { TitleBarComponent } from './components/title-bar/title-bar.component';
+import { SearchBoxComponent } from './components/search-box/search-box.component';
 
 
 const routes: Routes = [
@@ -43,7 +44,8 @@ const routes: Routes = [
     WaitingDialogComponent,
     NewDirectoryComponent,
     OpeningApplicationComponent,
-    TitleBarComponent
+    TitleBarComponent,
+    SearchBoxComponent
   ],
   imports: [
     BrowserModule,
@@ -51,6 +53,7 @@ const routes: Routes = [
     FlexLayoutModule,
     MaterialModule,
     FormsModule,
+    ReactiveFormsModule,
     BrowserAnimationsModule,
     HttpClientModule,    
     
