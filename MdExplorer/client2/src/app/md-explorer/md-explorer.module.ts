@@ -87,8 +87,7 @@ const routes: Routes = [
     RouterModule.forChild(routes)
   ],
   providers: [
-    MdFileService,
-
+    // MdFileService è già providedIn: 'root', non va qui
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

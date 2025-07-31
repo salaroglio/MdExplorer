@@ -21,16 +21,6 @@
       </div>
       <span>{{titleProject}}</span>
       <span class="flexExpand"></span>
-      <button mat-icon-button
-              (click)="backward()"
-              [disabled]="navService.navigationGhost.length <= 1">
-        <mat-icon>arrow_back</mat-icon>
-      </button>
-      <button mat-icon-button
-              (click)="forward()"
-              [disabled]="navService.navigation.length == navService.navigationGhost.length">
-        <mat-icon>arrow_forward</mat-icon>
-      </button>
     </mat-toolbar>
     <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
       <mat-tab style="height:100%">

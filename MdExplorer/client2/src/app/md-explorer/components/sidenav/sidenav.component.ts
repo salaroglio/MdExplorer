@@ -186,6 +186,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   
   onSidenavToggle(isOpen: boolean): void {
     console.log('🚪 [Sidenav] Sidenav toggled. Is open:', isOpen);
+    this.layoutService.setSidenavOpen(isOpen);
     
     // Log delle dimensioni dopo un breve delay per permettere l'animazione
     setTimeout(() => {

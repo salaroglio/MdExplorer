@@ -59,6 +59,7 @@ const createWindow = async () => {
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
+    frame: false, // Remove native title bar
     icon: path.join(__dirname, 'assets/icons/IconReady.png'), // Ensure this icon exists in assets/icons/
     autoHideMenuBar: true,
     webPreferences: {
@@ -224,6 +225,29 @@ const createWindow = async () => {
       console.log('[DevTools] F12 pressed, toggling dev tools');
       mainWindow.webContents.toggleDevTools();
       event.preventDefault(); 
+    }
+  });
+
+  // Listen for window control events
+  ipcMain.on('minimize-window', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.minimize();
+    }
+  });
+
+  ipcMain.on('maximize-window', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      } else {
+        mainWindow.maximize();
+      }
+    }
+  });
+
+  ipcMain.on('close-window', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.close();
     }
   });
 

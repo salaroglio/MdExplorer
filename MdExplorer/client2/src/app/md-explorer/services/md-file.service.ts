@@ -497,7 +497,11 @@ export class MdFileService {
   }
 
   setSelectedMdFileFromSideNav(selectedFile: MdFile) {
+    console.log('[MdFileService] setSelectedMdFileFromSideNav called with:', selectedFile);
+    console.log('[MdFileService] _selectedMdFileFromSideNav value before:', this._selectedMdFileFromSideNav.value);
+    console.log('[MdFileService] _selectedMdFileFromSideNav has observers:', this._selectedMdFileFromSideNav.observers?.length || 0);
     this._selectedMdFileFromSideNav.next(selectedFile);
+    console.log('[MdFileService] _selectedMdFileFromSideNav value after:', this._selectedMdFileFromSideNav.value);
   }
 
   setSelectedDirectoryFromNewDirectory(selectedDirectory: MdFile) {

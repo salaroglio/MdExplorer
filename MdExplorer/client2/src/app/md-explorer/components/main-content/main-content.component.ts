@@ -107,6 +107,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$),
       debounceTime(100) // Prevent rapid-fire selections
     ).subscribe(file => {
+      console.log('[MainContent] selectedMdFileFromSideNav received:', file);
       if (file) {
         this.loadMarkdownFile(file);
       }

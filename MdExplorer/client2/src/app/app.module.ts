@@ -19,6 +19,7 @@ import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/w
 import { NewDirectoryComponent } from './commons/components/new-directory/new-directory.component';
 import { OpeningApplicationComponent } from './signalR/dialogs/opening-application/opening-application.component';
 import { OpeningApplicationProvider } from './signalR/dialogs/opening-application/opening-application.provider';
+import { TitleBarComponent } from './components/title-bar/title-bar.component';
 
 
 const routes: Routes = [
@@ -41,7 +42,8 @@ const routes: Routes = [
     ShowFileSystemComponent,
     WaitingDialogComponent,
     NewDirectoryComponent,
-    OpeningApplicationComponent
+    OpeningApplicationComponent,
+    TitleBarComponent
   ],
   imports: [
     BrowserModule,

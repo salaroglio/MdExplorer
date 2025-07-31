@@ -598,6 +598,7 @@ mat-row,mat-header-row,mat-footer-row,th.mat-header-cell,td.mat-cell,td.mat-foot
 .mat-simple-snackbar-action{color:#ff4081}
 html, body {
   height: 100%;
+  overflow: hidden;
 }
 body {
   margin: 0;

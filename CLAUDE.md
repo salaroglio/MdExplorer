@@ -31,6 +31,46 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 * Sii veloce, ma non avere fretta. Lavora in modo tranquillo, rilassato e concentrato
 * Verifica sempre con log o altre evidenze tutte le ipotesi prima di agire. Non assumere, verifica
 * **Prima di proporre soluzioni, è necessario comprendere completamente la causa del problema** attraverso un'analisi approfondita del codice e del flusso di esecuzione
+
+## Pattern di Debug tramite Log Strutturati
+
+**REGOLA FONDAMENTALE**: Quando si verifica un problema di comunicazione tra componenti o servizi, implementare SEMPRE log strutturati per verificare le ipotesi prima di proporre soluzioni.
+
+### Struttura dei Log di Debug
+
+1. **Identificare i punti critici del flusso**:
+   - Punto di origine (dove parte l'azione)
+   - Punto di transito (servizi/metodi intermedi)
+   - Punto di destinazione (dove dovrebbe arrivare l'azione)
+
+2. **Implementare log dettagliati in ogni punto**:
+   ```typescript
+   console.log('[ComponentName] methodName() called');
+   console.log('[ComponentName] state before:', relevantState);
+   console.log('[ComponentName] parameters:', parameters);
+   console.log('[ComponentName] result:', result);
+   console.log('[ComponentName] state after:', relevantState);
+   ```
+
+3. **Per i servizi con Observable/BehaviorSubject**:
+   ```typescript
+   console.log('[ServiceName] Observable value before:', this._subject.value);
+   console.log('[ServiceName] Observable has observers:', this._subject.observers?.length || 0);
+   console.log('[ServiceName] Observable value after:', this._subject.value);
+   ```
+
+4. **Analizzare i log per identificare**:
+   - Se il flusso si interrompe in qualche punto
+   - Se ci sono istanze multiple di servizi (observers count diversi)
+   - Se i valori cambiano correttamente
+   - Se gli eventi vengono emessi e ricevuti
+
+### Esempio Pratico
+
+Il caso dei pulsanti backward/forward ha dimostrato l'efficacia di questo approccio:
+- Log iniziali hanno mostrato che il servizio veniva chiamato correttamente
+- Log del servizio hanno rivelato 0 observers quando chiamato da TitleBar vs 3 observers quando chiamato da altri componenti
+- Questo ha portato alla scoperta di istanze multiple del servizio causate da provider duplicati
 * **Quando lavori con dati persistenti**: Consulta sempre il documento [workflow-sviluppo-dati-persistenti.md](./workflow-sviluppo-dati-persistenti.md) per seguire il processo corretto di:
   - Creazione migrations con FluentMigrator
   - Mapping entità con NHibernate

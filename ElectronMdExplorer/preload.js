@@ -6,7 +6,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   sendZoomEvent: (args) => ipcRenderer.send('zoom-mouse-wheel', args),
   onServiceOutput: (callback) => ipcRenderer.on('service-output', (event, ...args) => callback(...args)),
-  onServiceReady: (callback) => ipcRenderer.on('service-ready', (event, ...args) => callback(...args))
+  onServiceReady: (callback) => ipcRenderer.on('service-ready', (event, ...args) => callback(...args)),
+  // Window control functions
+  minimizeWindow: () => ipcRenderer.send('minimize-window'),
+  maximizeWindow: () => ipcRenderer.send('maximize-window'),
+  closeWindow: () => ipcRenderer.send('close-window')
 });
 
 window.addEventListener('wheel', (event) => {
