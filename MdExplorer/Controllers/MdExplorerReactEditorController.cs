@@ -448,9 +448,19 @@ namespace MdExplorer.Controllers
                     finalContentToWrite = platformSpecificContent;
                 }
 
-                await System.IO.File.WriteAllTextAsync(filePathToAccessOnServer, finalContentToWrite, Encoding.UTF8);
-                _logger.LogInformation($"UpdateMarkdownAsync: File aggiornato con successo: {filePathToAccessOnServer}");
-                return NoContent(); // O Ok() se si preferisce
+                // Disabilita temporaneamente il FileSystemWatcher per evitare doppi eventi
+                _fileSystemWatcher.EnableRaisingEvents = false;
+                try
+                {
+                    await System.IO.File.WriteAllTextAsync(filePathToAccessOnServer, finalContentToWrite, Encoding.UTF8);
+                    _logger.LogInformation($"UpdateMarkdownAsync: File aggiornato con successo: {filePathToAccessOnServer}");
+                    return NoContent(); // O Ok() se si preferisce
+                }
+                finally
+                {
+                    // Riabilita sempre il FileSystemWatcher
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
             }
             catch (Exception ex)
             {

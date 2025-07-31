@@ -58,6 +58,7 @@ using System.Web;
 using System.Windows.Forms;
 using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
+using MdExplorer.Abstractions.Services;
 
 namespace MdExplorer.Service.Controllers.MdFiles
 {
@@ -76,6 +77,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
         private readonly RefactoringManager _refactoringManager;
         private readonly ProcessUtil _visualStudioCode;
+        private readonly IMdIgnoreService _mdIgnoreService;
         
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
@@ -94,7 +96,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             ProjectBodyEngine projectBodyEngine,
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
         RefactoringManager refactoringManager,
-        ProcessUtil visualStudioCode
+        ProcessUtil visualStudioCode,
+        IMdIgnoreService mdIgnoreService
             ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper)
         {
                    
@@ -105,6 +108,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _yamlDocumentManager = yamlDocumentManager;
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
+            _mdIgnoreService = mdIgnoreService;
         }
 
         [HttpGet]
@@ -706,13 +710,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(list);
         }
         private string signalRConnectionId;
-        private List<string> mdIgnorePatterns;
 
         [HttpGet]
         public async Task<IActionResult> GetShallowStructure(string connectionId)
         {
             signalRConnectionId = connectionId;
-            LoadMdIgnorePatterns();
             
             var list = new List<IFileInfoNode>();
             var currentPath = _fileSystemWatcher.Path;
@@ -725,7 +727,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Carica solo primo livello di cartelle che contengono file markdown
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
-                if (ShouldIgnorePath(itemFolder))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
                 {
                     continue;
                 }
@@ -751,7 +753,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // File nella root
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
             {
-                if (ShouldIgnorePath(itemFile))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, _fileSystemWatcher.Path))
                 {
                     continue;
                 }
@@ -796,9 +798,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public async Task<IActionResult> GetAllMdFiles(string connectionId)
         {
             signalRConnectionId = connectionId;
-            
-            // Load .mdignore patterns
-            LoadMdIgnorePatterns();
 
             await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("parsingProjectStart", "process started");
 
@@ -827,7 +826,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
                 // Check if folder should be ignored
-                if (ShouldIgnorePath(itemFolder))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
                 {
                     continue;
                 }
@@ -1351,7 +1350,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
             {
                 // Check if folder should be ignored
-                if (ShouldIgnorePath(itemFolder))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
                 {
                     continue;
                 }
@@ -1379,6 +1378,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
             {
+                // Check if file should be ignored
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, _fileSystemWatcher.Path))
+                {
+                    continue;
+                }
+                
                 var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 fileInfoNode.Childrens.Add(node);
@@ -1398,7 +1403,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
-                if (ShouldIgnorePath(itemFolder))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
                     continue;
                 
                 // Notifica inizio indicizzazione cartella
@@ -1421,7 +1426,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // File nella root
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
             {
-                if (ShouldIgnorePath(itemFile))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, _fileSystemWatcher.Path))
                     continue;
                     
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, currentPath);
@@ -1470,78 +1475,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     MarkChildrenAsNotIndexed(child);
                 }
             }
-        }
-
-        private void LoadMdIgnorePatterns()
-        {
-            mdIgnorePatterns = new List<string>();
-            var mdIgnorePath = Path.Combine(_fileSystemWatcher.Path, ".mdignore");
-            
-            if (System.IO.File.Exists(mdIgnorePath))
-            {
-                var lines = System.IO.File.ReadAllLines(mdIgnorePath);
-                foreach (var line in lines)
-                {
-                    var trimmedLine = line.Trim();
-                    // Skip empty lines and comments
-                    if (!string.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith("#"))
-                    {
-                        mdIgnorePatterns.Add(trimmedLine);
-                    }
-                }
-            }
-        }
-
-        private bool ShouldIgnorePath(string path)
-        {
-            if (mdIgnorePatterns == null || mdIgnorePatterns.Count == 0)
-                return false;
-
-            // Get relative path from project root
-            var relativePath = path.Substring(_fileSystemWatcher.Path.Length).TrimStart(Path.DirectorySeparatorChar);
-            relativePath = relativePath.Replace(Path.DirectorySeparatorChar, '/');
-
-            foreach (var pattern in mdIgnorePatterns)
-            {
-                if (IsPatternMatch(relativePath, pattern))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool IsPatternMatch(string path, string pattern)
-        {
-            // Handle exact matches
-            if (pattern == path)
-                return true;
-
-            // Handle directory patterns (ending with /)
-            if (pattern.EndsWith("/"))
-            {
-                var dirPattern = pattern.TrimEnd('/');
-                if (path == dirPattern || path.StartsWith(dirPattern + "/"))
-                    return true;
-            }
-
-            // Handle wildcard patterns
-            if (pattern.Contains("*"))
-            {
-                var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
-                return Regex.IsMatch(path, regexPattern);
-            }
-
-            // Handle patterns that should match at any level
-            if (!pattern.Contains("/"))
-            {
-                var pathParts = path.Split('/');
-                return pathParts.Any(part => part == pattern);
-            }
-
-            // Handle patterns with path separators
-            return path == pattern || path.StartsWith(pattern + "/");
         }
     }
 }

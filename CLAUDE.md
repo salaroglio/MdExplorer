@@ -30,11 +30,23 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 * Prima di cancellare qualsiasi cosa, controlla se esisteva già. Non cancellare mai file che non hai creato tu in questa sessione
 * Sii veloce, ma non avere fretta. Lavora in modo tranquillo, rilassato e concentrato
 * Verifica sempre con log o altre evidenze tutte le ipotesi prima di agire. Non assumere, verifica
+* **Prima di proporre soluzioni, è necessario comprendere completamente la causa del problema** attraverso un'analisi approfondita del codice e del flusso di esecuzione
 * **Quando lavori con dati persistenti**: Consulta sempre il documento [workflow-sviluppo-dati-persistenti.md](./workflow-sviluppo-dati-persistenti.md) per seguire il processo corretto di:
   - Creazione migrations con FluentMigrator
   - Mapping entità con NHibernate
   - Implementazione API e servizi Angular
   - Questo documento contiene esempi pratici e best practices specifiche del progetto
+
+## Ambiente di Sviluppo - PowerShell su Windows
+
+* **IMPORTANTE**: L'ambiente di sviluppo è PowerShell su Windows, NON WSL
+* Quando si usa la modalità agentica (Task tool), utilizzare comandi PowerShell e non comandi bash/shell Unix
+* Esempi di comandi PowerShell da usare:
+  - `Get-ChildItem` o `dir` invece di `ls`
+  - `Select-String` invece di `grep`
+  - `Get-Content` invece di `cat`
+  - `Set-Location` o `cd` per cambiare directory
+  - `Test-Path` per verificare l'esistenza di file/directory
 
 ## Git Commit Rules
 * NON inserire MAI riferimenti a Claude, Anthropic o AI nei messaggi di commit

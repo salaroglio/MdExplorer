@@ -19,6 +19,15 @@ namespace MdExplorer.Features.Refactoring.Analysis
             var rx = new Regex("^# (.*)$",
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
             var matches = rx.Matches(toCheck.DataText);
+            
+            // Verifica se ci sono corrispondenze (documenti senza titolo)
+            if (matches.Count == 0)
+            {
+                // Nessun titolo trovato - il file non viola la regola
+                // (non possiamo verificare la corrispondenza se non c'è titolo)
+                return (false, null);
+            }
+            
             var firstTitle = matches[0].Groups[1].Value;
 
             firstTitle = GetTitle(firstTitle);
