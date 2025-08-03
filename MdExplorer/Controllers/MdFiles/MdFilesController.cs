@@ -710,6 +710,93 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(list);
         }
         private string signalRConnectionId;
+        
+        private void IndexAllMarkdownFiles()
+        {
+            try
+            {
+                _logger.LogInformation("[IndexAllMarkdownFiles] Starting initial indexing of all markdown files");
+                
+                var currentPath = _fileSystemWatcher.Path;
+                if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
+                {
+                    _logger.LogWarning("[IndexAllMarkdownFiles] Invalid path, skipping indexing");
+                    return;
+                }
+                
+                _engineDB.BeginTransaction();
+                var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
+                
+                // Trova tutti i file .md ricorsivamente
+                var allMdFiles = Directory.GetFiles(currentPath, "*.md", SearchOption.AllDirectories)
+                    .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar)) // Esclude la cartella .md
+                    .ToList();
+                
+                _logger.LogInformation($"[IndexAllMarkdownFiles] Found {allMdFiles.Count} markdown files to index");
+                
+                foreach (var filePath in allMdFiles)
+                {
+                    try
+                    {
+                        // Crea il record per ogni file markdown
+                        var markdownFile = new MarkdownFile
+                        {
+                            FileName = Path.GetFileName(filePath),
+                            Path = filePath,  // Usa il path completo assoluto
+                            FileType = "file"
+                        };
+                        
+                        markdownFileDal.Save(markdownFile);
+                        _logger.LogDebug($"[IndexAllMarkdownFiles] Indexed: {filePath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"[IndexAllMarkdownFiles] Error indexing file: {filePath}");
+                    }
+                }
+                
+                _engineDB.Commit();
+                _logger.LogInformation($"[IndexAllMarkdownFiles] Initial indexing completed - {allMdFiles.Count} files indexed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during initial indexing - rolling back");
+                _engineDB.Rollback();
+                throw;
+            }
+        }
+        
+        private void CleanupDatabaseDuplicates()
+        {
+            try
+            {
+                _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup - removing ALL records");
+                
+                _engineDB.BeginTransaction();
+                
+                // IMPORTANTE: Cancella TUTTO il contenuto delle due tabelle
+                // Prima i link (hanno foreign key verso MarkdownFile)
+                _logger.LogInformation("[CleanupDatabase] Step 1: Deleting all LinkInsideMarkdown records");
+                _engineDB.Delete("from LinkInsideMarkdown");
+                _engineDB.Flush();
+                
+                // Poi i file (dopo che i link sono stati eliminati)
+                _logger.LogInformation("[CleanupDatabase] Step 2: Deleting all MarkdownFile records");
+                _engineDB.Delete("from MarkdownFile");
+                _engineDB.Flush();
+                
+                _engineDB.Commit();
+                
+                _logger.LogInformation("[CleanupDatabase] Database cleanup completed - both tables are now empty");
+                _logger.LogInformation("[CleanupDatabase] Ready for fresh indexing from filesystem");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup - rolling back");
+                _engineDB.Rollback();
+                throw; // Rilancia l'eccezione per fermare il processo
+            }
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetShallowStructure(string connectionId)
@@ -723,6 +810,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 return Ok(list);
             }
+            
+            // PULIZIA E REINDICIZZAZIONE DEL DATABASE
+            // Prima pulisce completamente, poi reindicizza tutti i file
+            CleanupDatabaseDuplicates();
+            IndexAllMarkdownFiles();
             
             // Carica solo primo livello di cartelle che contengono file markdown
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
@@ -794,7 +886,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(list);
         }
 
+        /// <summary>
+        /// DEPRECATED: Questo metodo non è più utilizzato dai client attuali.
+        /// Usare GetShallowStructure invece.
+        /// Mantenuto per compatibilità con vecchie versioni.
+        /// </summary>
         [HttpGet]
+        [Obsolete("Use GetShallowStructure instead. This method is no longer maintained.")]
         public async Task<IActionResult> GetAllMdFiles(string connectionId)
         {
             signalRConnectionId = connectionId;
@@ -808,76 +906,99 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return Ok(list);
             }
 
-            _userSettingsDB.BeginTransaction();
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            if (_fileSystemWatcher.Path != string.Empty)
+            // IMPORTANTE: Disabilita il FileSystemWatcher per prevenire duplicati durante l'indicizzazione
+            bool wasWatcherEnabled = _fileSystemWatcher.EnableRaisingEvents;
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            _logger.LogInformation($"[GetAllMdFiles] FileSystemWatcher disabled for indexing. Was enabled: {wasWatcherEnabled}");
+
+            try
             {
-                var currentProject = projectDal.GetList().Where(_ => _.Path == _fileSystemWatcher.Path).FirstOrDefault();
-                if (currentProject == null)
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                if (_fileSystemWatcher.Path != string.Empty)
                 {
-                    var projectName = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1);
-                    currentProject = new Project { Name = projectName, Path = _fileSystemWatcher.Path };
-                    projectDal.Save(currentProject);
+                    var currentProject = projectDal.GetList().Where(_ => _.Path == _fileSystemWatcher.Path).FirstOrDefault();
+                    if (currentProject == null)
+                    {
+                        var projectName = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1);
+                        currentProject = new Project { Name = projectName, Path = _fileSystemWatcher.Path };
+                        projectDal.Save(currentProject);
+                    }
                 }
-            }
-            _userSettingsDB.Commit();
+                _userSettingsDB.Commit();
 
 
-            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
-            {
-                // Check if folder should be ignored
-                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
+                foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
                 {
-                    continue;
+                    // Check if folder should be ignored
+                    if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
+                    {
+                        continue;
+                    }
+                    
+                    await _hubContext.Clients.Client(connectionId: signalRConnectionId)
+                        .SendAsync("indexingFolder", itemFolder);
+                    var result = await CreateNodeFolder(itemFolder);
+                    var node = result.Item1;
+                    var isempty = result.Item2;
+                    if (!isempty)
+                    {
+                        list.Add(node);
+                    }
                 }
-                
-                await _hubContext.Clients.Client(connectionId: signalRConnectionId)
-                    .SendAsync("indexingFolder", itemFolder);
-                var result = await CreateNodeFolder(itemFolder);
-                var node = result.Item1;
-                var isempty = result.Item2;
-                if (!isempty)
+
+                foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
                 {
+                    var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+                    var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                     list.Add(node);
                 }
+
+                _hubContext.Clients.Client(connectionId: connectionId)
+                        .SendAsync("indexingFolder", "deleting database").Wait();
+                // nettificazione dei folder che non contengono md            
+                _engineDB.BeginTransaction();
+                _engineDB.Delete("from LinkInsideMarkdown");
+                _engineDB.Flush();
+                _engineDB.Delete("from MarkdownFile");
+                _engineDB.Flush();
+
+                _hubContext.Clients.Client(connectionId: connectionId)
+                        .SendAsync("indexingFolder", "creating database").Wait();
+                SaveRealationships(list);
+                _engineDB.Commit();
+
+                GC.Collect();
+                var nodeempty = new FileInfoNode
+                {
+                    Name = "root",
+                    FullPath = currentPath,
+                    Path = currentPath,
+                    //Level = currentLevel,
+                    Type = "emptyroot",
+                    Expandable = false
+                };
+
+                list.Add(nodeempty);
+                await _hubContext.Clients.Client(connectionId: connectionId)
+                        .SendAsync("parsingProjectStop", "process completed");
+                
+                return Ok(list);
             }
-
-            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
+            catch (Exception ex)
             {
-                var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
-                var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
-                list.Add(node);
+                _logger.LogError(ex, "[GetAllMdFiles] Error during indexing");
+                throw;
             }
-
-            _hubContext.Clients.Client(connectionId: connectionId)
-                    .SendAsync("indexingFolder", "deleting database").Wait();
-            // nettificazione dei folder che non contengono md            
-            _engineDB.BeginTransaction();
-            _engineDB.Delete("from LinkInsideMarkdown");
-            _engineDB.Flush();
-            _engineDB.Delete("from MarkdownFile");
-            _engineDB.Flush();
-
-            _hubContext.Clients.Client(connectionId: connectionId)
-                    .SendAsync("indexingFolder", "creating database").Wait();
-            SaveRealationships(list);
-            _engineDB.Commit();
-
-            GC.Collect();
-            var nodeempty = new FileInfoNode
+            finally
             {
-                Name = "root",
-                FullPath = currentPath,
-                Path = currentPath,
-                //Level = currentLevel,
-                Type = "emptyroot",
-                Expandable = false
-            };
-
-            list.Add(nodeempty);
-            await _hubContext.Clients.Client(connectionId: connectionId)
-                    .SendAsync("parsingProjectStop", "process completed");
-            return Ok(list);
+                // IMPORTANTE: Riabilita sempre il FileSystemWatcher alla fine
+                if (wasWatcherEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    _logger.LogInformation("[GetAllMdFiles] FileSystemWatcher re-enabled after indexing");
+                }
+            }
         }
 
         [HttpPost]

@@ -89,9 +89,26 @@ namespace MdExplorer.Features.Services
                     }
 
                     // Perform the search
-                    var results = allFiles
+                    var matchingFiles = allFiles
                         .Where(f => f.FileName.ToLower().Contains(searchLower) ||
                                    f.Path.ToLower().Contains(searchLower))
+                        .ToList();
+                    
+                    // LOG DETTAGLIATO per debug
+                    if (searchLower.Contains("claude"))
+                    {
+                        _logger.LogWarning($"[SearchService] 🔍 CLAUDE SEARCH DEBUG:");
+                        _logger.LogWarning($"  - Total files in DB: {allFiles.Count}");
+                        _logger.LogWarning($"  - Files matching 'claude': {matchingFiles.Count}");
+                        foreach (var file in matchingFiles)
+                        {
+                            _logger.LogWarning($"    ✓ ID: {file.Id}");
+                            _logger.LogWarning($"      FileName: '{file.FileName}'");
+                            _logger.LogWarning($"      Path: '{file.Path}'");
+                        }
+                    }
+                    
+                    var results = matchingFiles
                         .Take(maxResults)
                         .Select(f => new FileSearchResult
                         {

@@ -97,13 +97,14 @@ namespace MdExplorer
                                    path.EndsWith(".map") || path.Contains("/jquery") ||
                                    path.Contains("/bootstrap") || path.Contains("/fontawesome");
                 
-                if (!isStaticFile)
-                {
-                    logger.LogInformation("HTTP {Method} {Path} from {RemoteIP}", 
-                        context.Request.Method, 
-                        context.Request.Path, 
-                        context.Connection.RemoteIpAddress);
-                }
+                // Commentato per ridurre il rumore nei log durante debug
+                // if (!isStaticFile)
+                // {
+                //     logger.LogInformation("HTTP {Method} {Path} from {RemoteIP}", 
+                //         context.Request.Method, 
+                //         context.Request.Path, 
+                //         context.Connection.RemoteIpAddress);
+                // }
                 
                 if (context.Request.Path.StartsWithSegments("/api/ModernGitToolbar"))
                 {
@@ -122,14 +123,14 @@ namespace MdExplorer
                 
                 await next.Invoke();
                 
-                // Skip response logging for static files
-                if (!isStaticFile)
-                {
-                    logger.LogInformation("HTTP {Method} {Path} responded with {StatusCode}", 
-                        context.Request.Method, 
-                        context.Request.Path, 
-                        context.Response.StatusCode);
-                }
+                // Commentato per ridurre il rumore nei log durante debug
+                // if (!isStaticFile)
+                // {
+                //     logger.LogInformation("HTTP {Method} {Path} responded with {StatusCode}", 
+                //         context.Request.Method, 
+                //         context.Request.Path, 
+                //         context.Response.StatusCode);
+                // }
             });
 
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
