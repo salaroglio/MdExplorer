@@ -1484,10 +1484,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _services_search_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../services/search.service */ "l3hs");
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../md-explorer/services/md-file.service */ "xmhS");
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/common */ "ofXK");
-/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/tabs */ "wZkO");
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/progress-spinner */ "Xa2L");
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../md-explorer/services/projects.service */ "vUCT");
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/common */ "ofXK");
+/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/tabs */ "wZkO");
+/* harmony import */ var _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/tooltip */ "Qu3c");
+/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/progress-spinner */ "Xa2L");
+
+
 
 
 
@@ -1558,10 +1562,13 @@ function SearchBoxComponent_div_7_div_1_div_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
 } if (rf & 2) {
     const file_r14 = ctx.$implicit;
+    const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("innerHTML", file_r14.highlightedText || file_r14.fileName, _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵsanitizeHtml"]);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](file_r14.path);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("title", ctx_r10.getPathTooltip(file_r14.path))("matTooltip", ctx_r10.getRelativePath(file_r14.path))("matTooltipShowDelay", 500);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r10.getRelativePath(file_r14.path), " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](file_r14.matchedField);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
@@ -1599,6 +1606,8 @@ function SearchBoxComponent_div_7_div_1_div_11_span_9_Template(rf, ctx) { if (rf
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
 } if (rf & 2) {
     const link_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().$implicit;
+    const ctx_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matTooltip", ctx_r21.getRelativePath(link_r19.markdownFilePath))("matTooltipShowDelay", 500);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" in ", link_r19.markdownFileName, " ");
 } }
@@ -1616,7 +1625,7 @@ function SearchBoxComponent_div_7_div_1_div_11_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "span", 29);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, SearchBoxComponent_div_7_div_1_div_11_span_9_Template, 2, 1, "span", 34);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, SearchBoxComponent_div_7_div_1_div_11_span_9_Template, 2, 3, "span", 34);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -1640,7 +1649,7 @@ function SearchBoxComponent_div_7_div_1_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](3, SearchBoxComponent_div_7_div_1_ng_template_3_Template, 4, 1, "ng-template", 14);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "div", 15);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, SearchBoxComponent_div_7_div_1_div_5_Template, 2, 0, "div", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, SearchBoxComponent_div_7_div_1_div_6_Template, 11, 4, "div", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, SearchBoxComponent_div_7_div_1_div_6_Template, 11, 7, "div", 17);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "mat-tab");
@@ -1700,20 +1709,29 @@ function SearchBoxComponent_div_7_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r2.searchResults && !ctx_r2.isSearching);
 } }
 class SearchBoxComponent {
-    constructor(searchService, router, mdFileService) {
+    constructor(searchService, router, mdFileService, projectsService) {
         this.searchService = searchService;
         this.router = router;
         this.mdFileService = mdFileService;
+        this.projectsService = projectsService;
         this.searchControl = new _angular_forms__WEBPACK_IMPORTED_MODULE_0__["FormControl"]('');
         this.searchResults = null;
         this.isSearching = false;
         this.showResults = false;
         this.selectedTab = 'files';
         this.selectedTabIndex = 0;
+        this.currentProjectPath = '';
         this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
     }
     ngOnInit() {
-        console.log('[SearchBox] Component initialized');
+        console.log('[SearchBox] Component initialized - WITH DEBUG LOGS v2');
+        // Subscribe to current project changes
+        this.projectsService.currentProjects$.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["takeUntil"])(this.destroy$)).subscribe(project => {
+            if (project) {
+                this.currentProjectPath = project.path;
+                console.log('[SearchBox] Project path updated:', this.currentProjectPath);
+            }
+        });
         // Setup search with debounce
         this.searchControl.valueChanges.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["debounceTime"])(300), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["distinctUntilChanged"])(), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["switchMap"])(term => {
             if (!term || term.trim().length < 2) {
@@ -1727,6 +1745,39 @@ class SearchBoxComponent {
             return this.searchService.quickSearch(term);
         }), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["takeUntil"])(this.destroy$)).subscribe(results => {
             console.log('[SearchBox] Search results received:', results);
+            // Debug: Analizza i file ricevuti per trovare duplicati
+            if (results && results.files) {
+                console.log('[SearchBox] Total files received:', results.files.length);
+                // Raggruppa per path per trovare duplicati
+                const filesByPath = {};
+                results.files.forEach((file, index) => {
+                    console.log(`[SearchBox] File ${index + 1}:`, {
+                        id: file.id,
+                        fileName: file.fileName,
+                        path: file.path,
+                        fileType: file.fileType,
+                        matchedField: file.matchedField
+                    });
+                    const normalizedPath = file.path.toLowerCase();
+                    if (!filesByPath[normalizedPath]) {
+                        filesByPath[normalizedPath] = [];
+                    }
+                    filesByPath[normalizedPath].push(file);
+                });
+                // Log dei duplicati trovati
+                Object.keys(filesByPath).forEach(path => {
+                    if (filesByPath[path].length > 1) {
+                        console.warn('[SearchBox] ⚠️ DUPLICATE FILES FOUND!');
+                        console.warn('[SearchBox] Path:', path);
+                        console.warn('[SearchBox] Number of duplicates:', filesByPath[path].length);
+                        console.warn('[SearchBox] Duplicate entries with IDs:', filesByPath[path].map(f => ({
+                            id: f.id,
+                            fileName: f.fileName,
+                            path: f.path
+                        })));
+                    }
+                });
+            }
             this.searchResults = results;
             this.isSearching = false;
             // Auto-select tab with results
@@ -1752,31 +1803,123 @@ class SearchBoxComponent {
     onDocumentClick(event) {
         const clickedElement = event.target;
         const searchBox = document.querySelector('.search-box-container');
+        console.log('[SearchBox] Document click event:', {
+            target: clickedElement,
+            targetTagName: clickedElement.tagName,
+            targetClasses: clickedElement.className,
+            isInSearchBox: searchBox === null || searchBox === void 0 ? void 0 : searchBox.contains(clickedElement),
+            isCdkOverlay: !!clickedElement.closest('.cdk-overlay-container'),
+            isMatTabLabel: !!clickedElement.closest('.mat-tab-label'),
+            isMatTabGroup: !!clickedElement.closest('.mat-tab-group'),
+            isSearchResults: !!clickedElement.closest('.search-results'),
+            showResults: this.showResults
+        });
+        // Don't close if clicking on Material Design overlay or tab elements
+        if (clickedElement.closest('.cdk-overlay-container') ||
+            clickedElement.closest('.mat-tab-label') ||
+            clickedElement.closest('.mat-tab-group')) {
+            console.log('[SearchBox] Click on tab elements - keeping results open');
+            return;
+        }
         if (searchBox && !searchBox.contains(clickedElement)) {
+            console.log('[SearchBox] Click outside search box - closing results');
             this.showResults = false;
+        }
+        else {
+            console.log('[SearchBox] Click inside search box - keeping results open');
         }
     }
     onFocus() {
-        console.log('[SearchBox] Input focused');
+        console.log('[SearchBox] Input focused', {
+            currentValue: this.searchControl.value,
+            willShowResults: this.searchControl.value && this.searchControl.value.trim().length >= 2
+        });
         if (this.searchControl.value && this.searchControl.value.trim().length >= 2) {
             this.showResults = true;
         }
     }
-    onBlur() {
+    onBlur(event) {
+        console.log('[SearchBox] Blur event:', {
+            relatedTarget: event.relatedTarget,
+            relatedTargetElement: event.relatedTarget,
+            currentShowResults: this.showResults
+        });
         // Delay to allow click on results
         setTimeout(() => {
+            var _a;
+            const searchContainer = document.querySelector('.search-box-container');
+            const activeElement = document.activeElement;
+            console.log('[SearchBox] Blur timeout check:', {
+                activeElement: activeElement,
+                activeElementTagName: activeElement === null || activeElement === void 0 ? void 0 : activeElement.tagName,
+                activeElementClasses: (_a = activeElement) === null || _a === void 0 ? void 0 : _a.className,
+                isInSearchContainer: searchContainer === null || searchContainer === void 0 ? void 0 : searchContainer.contains(activeElement),
+                isMatTabLabel: !!(activeElement === null || activeElement === void 0 ? void 0 : activeElement.closest('.mat-tab-label')),
+                isMatTabGroup: !!(activeElement === null || activeElement === void 0 ? void 0 : activeElement.closest('.mat-tab-group')),
+                isSearchResults: !!(activeElement === null || activeElement === void 0 ? void 0 : activeElement.closest('.search-results')),
+                willCloseResults: !((searchContainer && searchContainer.contains(activeElement)) ||
+                    (activeElement && (activeElement.closest('.mat-tab-label') ||
+                        activeElement.closest('.mat-tab-group') ||
+                        activeElement.closest('.search-results'))))
+            });
+            // Keep results open if focus is still within the search container
+            if (searchContainer && searchContainer.contains(activeElement)) {
+                console.log('[SearchBox] Focus still in search container - keeping results open');
+                return;
+            }
+            // Also keep open if clicking on Material tabs or tab content
+            if (activeElement && (activeElement.closest('.mat-tab-label') ||
+                activeElement.closest('.mat-tab-group') ||
+                activeElement.closest('.search-results'))) {
+                console.log('[SearchBox] Focus on tab elements - keeping results open');
+                return;
+            }
+            console.log('[SearchBox] Blur timeout - closing results');
             this.showResults = false;
         }, 200);
     }
     selectFile(file) {
         console.log('[SearchBox] File selected:', file);
+        console.log('[SearchBox] File.path value:', file.path);
+        console.log('[SearchBox] File.fileName value:', file.fileName);
+        // Get current project path to calculate relative path
+        const currentProject = this.projectsService.currentProjects$.value;
+        console.log('[SearchBox] Current project:', currentProject);
+        let fullPath = file.path;
+        let relativePath = '';
+        // Calculate relative path from project root
+        if (currentProject && currentProject.path) {
+            const projectPath = currentProject.path.replace(/\\/g, '/');
+            const filePath = file.path.replace(/\\/g, '/');
+            console.log('[SearchBox] Project path:', projectPath);
+            console.log('[SearchBox] File path:', filePath);
+            // If file path starts with project path, extract relative part
+            if (filePath.startsWith(projectPath)) {
+                relativePath = filePath.substring(projectPath.length);
+                // Ensure relative path starts with backslash or forward slash
+                if (!relativePath.startsWith('/') && !relativePath.startsWith('\\')) {
+                    relativePath = '\\' + relativePath;
+                }
+            }
+            else {
+                // Fallback: use just the filename with backslash prefix
+                relativePath = '\\' + file.fileName;
+            }
+        }
+        else {
+            // No project context, use filename as relative path
+            relativePath = '\\' + file.fileName;
+        }
+        console.log('[SearchBox] Calculated relative path:', relativePath);
         // Create MdFile object from search result
         const mdFile = {
-            fullPath: file.path,
-            relativePath: file.path.replace(/\\\\/g, '/'),
+            fullPath: fullPath,
+            relativePath: relativePath,
+            path: relativePath,
             name: file.fileName,
             type: file.fileType || 'mdFile'
         };
+        console.log('[SearchBox] Created mdFile object:', mdFile);
         // Navigate to document
         this.router.navigate(['/main/navigation/document']);
         this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
@@ -1788,9 +1931,36 @@ class SearchBoxComponent {
         console.log('[SearchBox] Link selected:', link);
         // Navigate based on link type
         if (link.fullPath) {
+            // Get current project path to calculate relative path
+            const currentProject = this.projectsService.currentProjects$.value;
+            let relativePath = '';
+            // Calculate relative path from project root
+            if (currentProject && currentProject.path) {
+                const projectPath = currentProject.path.replace(/\\/g, '/');
+                const filePath = link.fullPath.replace(/\\/g, '/');
+                // If file path starts with project path, extract relative part
+                if (filePath.startsWith(projectPath)) {
+                    relativePath = filePath.substring(projectPath.length);
+                    // Ensure relative path starts with backslash or forward slash
+                    if (!relativePath.startsWith('/') && !relativePath.startsWith('\\')) {
+                        relativePath = '\\' + relativePath;
+                    }
+                }
+                else {
+                    // Fallback: use just the filename with backslash prefix
+                    const fileName = link.fullPath.split('\\').pop() || link.mdTitle || link.path;
+                    relativePath = '\\' + fileName;
+                }
+            }
+            else {
+                // No project context, use filename as relative path
+                const fileName = link.fullPath.split('\\').pop() || link.mdTitle || link.path;
+                relativePath = '\\' + fileName;
+            }
             const mdFile = {
                 fullPath: link.fullPath,
-                relativePath: link.fullPath.replace(/\\\\/g, '/'),
+                relativePath: relativePath,
+                path: relativePath,
                 name: link.mdTitle || link.path,
                 type: 'mdFile'
             };
@@ -1808,6 +1978,12 @@ class SearchBoxComponent {
         this.showResults = false;
     }
     onTabChange(index) {
+        console.log('[SearchBox] Tab change:', {
+            newIndex: index,
+            previousIndex: this.selectedTabIndex,
+            newTab: index === 0 ? 'files' : 'links',
+            showResults: this.showResults
+        });
         this.selectedTabIndex = index;
         this.selectedTab = index === 0 ? 'files' : 'links';
     }
@@ -1819,8 +1995,33 @@ class SearchBoxComponent {
         }
         // Add arrow key navigation if needed
     }
+    // Helper method to get relative path for display
+    getRelativePath(fullPath) {
+        if (!this.currentProjectPath || !fullPath) {
+            return fullPath;
+        }
+        const projectPath = this.currentProjectPath.replace(/\\/g, '/').toLowerCase();
+        const filePath = fullPath.replace(/\\/g, '/').toLowerCase();
+        // If file path starts with project path, extract relative part
+        if (filePath.startsWith(projectPath)) {
+            let relativePath = fullPath.substring(this.currentProjectPath.length);
+            // Remove leading slash/backslash if present
+            if (relativePath.startsWith('\\') || relativePath.startsWith('/')) {
+                relativePath = relativePath.substring(1);
+            }
+            return relativePath;
+        }
+        // Fallback: return the full path
+        return fullPath;
+    }
+    // Get tooltip text for long paths
+    getPathTooltip(fullPath) {
+        const relativePath = this.getRelativePath(fullPath);
+        // Show full path in tooltip if it's truncated
+        return relativePath;
+    }
 }
-SearchBoxComponent.ɵfac = function SearchBoxComponent_Factory(t) { return new (t || SearchBoxComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_search_service__WEBPACK_IMPORTED_MODULE_4__["SearchService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_5__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"])); };
+SearchBoxComponent.ɵfac = function SearchBoxComponent_Factory(t) { return new (t || SearchBoxComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_search_service__WEBPACK_IMPORTED_MODULE_4__["SearchService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_5__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_7__["ProjectsService"])); };
 SearchBoxComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: SearchBoxComponent, selectors: [["app-search-box"]], viewQuery: function SearchBoxComponent_Query(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵviewQuery"](_c0, 1);
     } if (rf & 2) {
@@ -1828,14 +2029,14 @@ SearchBoxComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefin
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵloadQuery"]()) && (ctx.searchInput = _t.first);
     } }, hostBindings: function SearchBoxComponent_HostBindings(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function SearchBoxComponent_click_HostBindingHandler($event) { return ctx.onDocumentClick($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresolveDocument"])("keydown", function SearchBoxComponent_keydown_HostBindingHandler($event) { return ctx.handleKeyboardEvent($event); });
-    } }, decls: 8, vars: 5, consts: [[1, "search-box-container"], [1, "search-input-wrapper"], [1, "search-icon"], ["type", "text", "placeholder", "Cerca documenti e link...", "autocomplete", "off", 1, "search-input", 3, "formControl", "focus", "blur"], ["searchInput", ""], ["class", "clear-button", "type", "button", 3, "click", 4, "ngIf"], ["class", "search-results", 4, "ngIf"], ["type", "button", 1, "clear-button", 3, "click"], [1, "search-results"], ["class", "search-header", 4, "ngIf"], ["class", "search-loading", 4, "ngIf"], ["class", "search-footer", 4, "ngIf"], [1, "search-header"], [3, "selectedIndex", "selectedIndexChange"], ["mat-tab-label", ""], [1, "results-list", "files-list"], ["class", "no-results", 4, "ngIf"], ["class", "result-item file-item", 3, "click", 4, "ngFor", "ngForOf"], [1, "results-list", "links-list"], ["class", "result-item link-item", 3, "click", 4, "ngFor", "ngForOf"], [1, "tab-label"], [1, "count"], [1, "no-results"], [1, "result-item", "file-item", 3, "click"], [1, "result-icon"], [1, "result-content"], [1, "result-title", 3, "innerHTML"], [1, "result-path"], [1, "result-meta"], [1, "matched-field"], ["class", "file-type", 4, "ngIf"], [1, "file-type"], [1, "result-item", "link-item", 3, "click"], ["class", "result-context", 4, "ngIf"], ["class", "source-file", 4, "ngIf"], [1, "result-context"], [1, "source-file"], [1, "search-loading"], ["diameter", "20"], [1, "search-footer"], [1, "search-time"]], template: function SearchBoxComponent_Template(rf, ctx) { if (rf & 1) {
+    } }, decls: 8, vars: 5, consts: [[1, "search-box-container"], [1, "search-input-wrapper"], [1, "search-icon"], ["type", "text", "placeholder", "Cerca documenti e link...", "autocomplete", "off", 1, "search-input", 3, "formControl", "focus", "blur"], ["searchInput", ""], ["class", "clear-button", "type", "button", 3, "click", 4, "ngIf"], ["class", "search-results", 4, "ngIf"], ["type", "button", 1, "clear-button", 3, "click"], [1, "search-results"], ["class", "search-header", 4, "ngIf"], ["class", "search-loading", 4, "ngIf"], ["class", "search-footer", 4, "ngIf"], [1, "search-header"], [3, "selectedIndex", "selectedIndexChange"], ["mat-tab-label", ""], [1, "results-list", "files-list"], ["class", "no-results", 4, "ngIf"], ["class", "result-item file-item", 3, "click", 4, "ngFor", "ngForOf"], [1, "results-list", "links-list"], ["class", "result-item link-item", 3, "click", 4, "ngFor", "ngForOf"], [1, "tab-label"], [1, "count"], [1, "no-results"], [1, "result-item", "file-item", 3, "click"], [1, "result-icon"], [1, "result-content"], [1, "result-title", 3, "innerHTML"], ["matTooltipPosition", "above", 1, "result-path", 3, "title", "matTooltip", "matTooltipShowDelay"], [1, "result-meta"], [1, "matched-field"], ["class", "file-type", 4, "ngIf"], [1, "file-type"], [1, "result-item", "link-item", 3, "click"], ["class", "result-context", 4, "ngIf"], ["class", "source-file", "matTooltipPosition", "above", 3, "matTooltip", "matTooltipShowDelay", 4, "ngIf"], [1, "result-context"], ["matTooltipPosition", "above", 1, "source-file", 3, "matTooltip", "matTooltipShowDelay"], [1, "search-loading"], ["diameter", "20"], [1, "search-footer"], [1, "search-time"]], template: function SearchBoxComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "div", 1);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "mat-icon", 2);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "search");
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "input", 3, 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("focus", function SearchBoxComponent_Template_input_focus_4_listener() { return ctx.onFocus(); })("blur", function SearchBoxComponent_Template_input_blur_4_listener() { return ctx.onBlur(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("focus", function SearchBoxComponent_Template_input_focus_4_listener() { return ctx.onFocus(); })("blur", function SearchBoxComponent_Template_input_blur_4_listener($event) { return ctx.onBlur($event); });
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, SearchBoxComponent_button_6_Template, 3, 0, "button", 5);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -1850,7 +2051,7 @@ SearchBoxComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefin
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.searchControl.value);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.showResults && (ctx.searchResults || ctx.isSearching));
-    } }, directives: [_angular_material_icon__WEBPACK_IMPORTED_MODULE_7__["MatIcon"], _angular_forms__WEBPACK_IMPORTED_MODULE_0__["DefaultValueAccessor"], _angular_forms__WEBPACK_IMPORTED_MODULE_0__["NgControlStatus"], _angular_forms__WEBPACK_IMPORTED_MODULE_0__["FormControlDirective"], _angular_common__WEBPACK_IMPORTED_MODULE_8__["NgIf"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_9__["MatTabGroup"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_9__["MatTab"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_9__["MatTabLabel"], _angular_common__WEBPACK_IMPORTED_MODULE_8__["NgForOf"], _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_10__["MatSpinner"]], styles: [".search-box-container[_ngcontent-%COMP%] {\n  position: relative;\n  flex: 1;\n  max-width: 600px;\n  margin: 0 20px;\n}\n\n.search-input-wrapper[_ngcontent-%COMP%] {\n  position: relative;\n  display: flex;\n  align-items: center;\n  background: rgba(255, 255, 255, 0.1);\n  border-radius: 4px;\n  transition: background-color 0.2s;\n}\n\n.search-input-wrapper[_ngcontent-%COMP%]:hover {\n  background: rgba(255, 255, 255, 0.15);\n}\n\n.search-input-wrapper[_ngcontent-%COMP%]:focus-within {\n  background: rgba(255, 255, 255, 0.2);\n  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);\n}\n\n.search-icon[_ngcontent-%COMP%] {\n  position: absolute;\n  left: 8px;\n  color: rgba(255, 255, 255, 0.5);\n  font-size: 20px;\n  transition: color 0.2s;\n}\n\n.search-icon.has-value[_ngcontent-%COMP%] {\n  color: rgba(255, 255, 255, 0.8);\n}\n\n.search-input[_ngcontent-%COMP%] {\n  flex: 1;\n  border: none;\n  background: transparent;\n  color: white;\n  padding: 6px 32px 6px 36px;\n  font-size: 14px;\n  outline: none;\n}\n\n.search-input[_ngcontent-%COMP%]::placeholder {\n  color: rgba(255, 255, 255, 0.5);\n}\n\n.clear-button[_ngcontent-%COMP%] {\n  position: absolute;\n  right: 4px;\n  background: none;\n  border: none;\n  color: rgba(255, 255, 255, 0.5);\n  cursor: pointer;\n  padding: 4px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.clear-button[_ngcontent-%COMP%]:hover {\n  color: rgba(255, 255, 255, 0.8);\n}\n\n.clear-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n}\n\n.search-results[_ngcontent-%COMP%] {\n  position: absolute;\n  top: calc(100% + 4px);\n  left: 0;\n  right: 0;\n  background: white;\n  border-radius: 4px;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);\n  max-height: 500px;\n  overflow: hidden;\n  z-index: 1000;\n  display: flex;\n  flex-direction: column;\n}\n\n.search-header[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.search-header[_ngcontent-%COMP%]     .mat-tab-group {\n  height: 100%;\n}\n\n.search-header[_ngcontent-%COMP%]     .mat-tab-body-wrapper {\n  flex: 1;\n}\n\n.tab-label[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n}\n\n.tab-label[_ngcontent-%COMP%]   .count[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #666;\n}\n\n.results-list[_ngcontent-%COMP%] {\n  max-height: 400px;\n  overflow-y: auto;\n}\n\n.result-item[_ngcontent-%COMP%] {\n  display: flex;\n  padding: 12px;\n  cursor: pointer;\n  border-bottom: 1px solid #f0f0f0;\n  transition: background-color 0.2s;\n}\n\n.result-item[_ngcontent-%COMP%]:hover {\n  background-color: #f5f5f5;\n}\n\n.result-item[_ngcontent-%COMP%]:last-child {\n  border-bottom: none;\n}\n\n.result-icon[_ngcontent-%COMP%] {\n  margin-right: 12px;\n  color: #666;\n  font-size: 20px;\n}\n\n.result-content[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow: hidden;\n}\n\n.result-title[_ngcontent-%COMP%] {\n  font-weight: 500;\n  color: #333;\n  margin-bottom: 4px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.result-title[_ngcontent-%COMP%]     mark {\n  background-color: #ffeb3b;\n  color: #333;\n  font-weight: 600;\n}\n\n.result-path[_ngcontent-%COMP%], .result-context[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #666;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.result-meta[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 12px;\n  margin-top: 4px;\n  font-size: 11px;\n  color: #999;\n}\n\n.matched-field[_ngcontent-%COMP%] {\n  background: #e3f2fd;\n  color: #1976d2;\n  padding: 2px 6px;\n  border-radius: 2px;\n}\n\n.file-type[_ngcontent-%COMP%], .source-file[_ngcontent-%COMP%] {\n  color: #999;\n}\n\n.no-results[_ngcontent-%COMP%] {\n  padding: 24px;\n  text-align: center;\n  color: #666;\n  font-style: italic;\n}\n\n.search-loading[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 24px;\n  gap: 12px;\n  color: #666;\n}\n\n.search-footer[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  border-top: 1px solid #f0f0f0;\n  background: #fafafa;\n  text-align: right;\n  font-size: 11px;\n  color: #999;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFxzZWFyY2gtYm94LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0Usa0JBQUE7RUFDQSxPQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG9DQUFBO0VBQ0Esa0JBQUE7RUFDQSxpQ0FBQTtBQUNGOztBQUNFO0VBQ0UscUNBQUE7QUFDSjs7QUFFRTtFQUNFLG9DQUFBO0VBQ0EsOENBQUE7QUFBSjs7QUFJQTtFQUNFLGtCQUFBO0VBQ0EsU0FBQTtFQUNBLCtCQUFBO0VBQ0EsZUFBQTtFQUNBLHNCQUFBO0FBREY7O0FBR0U7RUFDRSwrQkFBQTtBQURKOztBQUtBO0VBQ0UsT0FBQTtFQUNBLFlBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSwwQkFBQTtFQUNBLGVBQUE7RUFDQSxhQUFBO0FBRkY7O0FBSUU7RUFDRSwrQkFBQTtBQUZKOztBQU1BO0VBQ0Usa0JBQUE7RUFDQSxVQUFBO0VBQ0EsZ0JBQUE7RUFDQSxZQUFBO0VBQ0EsK0JBQUE7RUFDQSxlQUFBO0VBQ0EsWUFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0FBSEY7O0FBS0U7RUFDRSwrQkFBQTtBQUhKOztBQU1FO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBSko7O0FBUUE7RUFDRSxrQkFBQTtFQUNBLHFCQUFBO0VBQ0EsT0FBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0EsMENBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsYUFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUxGOztBQVFBO0VBQ0UsT0FBQTtFQUNBLGdCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0FBTEY7O0FBT0U7RUFDRSxZQUFBO0FBTEo7O0FBUUU7RUFDRSxPQUFBO0FBTko7O0FBVUE7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0FBUEY7O0FBU0U7RUFDRSxlQUFBO0VBQ0EsV0FBQTtBQVBKOztBQVdBO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtBQVJGOztBQVdBO0VBQ0UsYUFBQTtFQUNBLGFBQUE7RUFDQSxlQUFBO0VBQ0EsZ0NBQUE7RUFDQSxpQ0FBQTtBQVJGOztBQVVFO0VBQ0UseUJBQUE7QUFSSjs7QUFXRTtFQUNFLG1CQUFBO0FBVEo7O0FBYUE7RUFDRSxrQkFBQTtFQUNBLFdBQUE7RUFDQSxlQUFBO0FBVkY7O0FBYUE7RUFDRSxPQUFBO0VBQ0EsZ0JBQUE7QUFWRjs7QUFhQTtFQUNFLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSx1QkFBQTtFQUNBLG1CQUFBO0FBVkY7O0FBWUU7RUFDRSx5QkFBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtBQVZKOztBQWNBOztFQUVFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7RUFDQSx1QkFBQTtFQUNBLG1CQUFBO0FBWEY7O0FBY0E7RUFDRSxhQUFBO0VBQ0EsU0FBQTtFQUNBLGVBQUE7RUFDQSxlQUFBO0VBQ0EsV0FBQTtBQVhGOztBQWNBO0VBQ0UsbUJBQUE7RUFDQSxjQUFBO0VBQ0EsZ0JBQUE7RUFDQSxrQkFBQTtBQVhGOztBQWNBOztFQUVFLFdBQUE7QUFYRjs7QUFjQTtFQUNFLGFBQUE7RUFDQSxrQkFBQTtFQUNBLFdBQUE7RUFDQSxrQkFBQTtBQVhGOztBQWNBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBQ0EsU0FBQTtFQUNBLFdBQUE7QUFYRjs7QUFjQTtFQUNFLGlCQUFBO0VBQ0EsNkJBQUE7RUFDQSxtQkFBQTtFQUNBLGlCQUFBO0VBQ0EsZUFBQTtFQUNBLFdBQUE7QUFYRiIsImZpbGUiOiJzZWFyY2gtYm94LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLnNlYXJjaC1ib3gtY29udGFpbmVyIHtcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xuICBmbGV4OiAxO1xuICBtYXgtd2lkdGg6IDYwMHB4O1xuICBtYXJnaW46IDAgMjBweDtcbn1cblxuLnNlYXJjaC1pbnB1dC13cmFwcGVyIHtcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBiYWNrZ3JvdW5kOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMSk7XG4gIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjJzO1xuXG4gICY6aG92ZXIge1xuICAgIGJhY2tncm91bmQ6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC4xNSk7XG4gIH1cblxuICAmOmZvY3VzLXdpdGhpbiB7XG4gICAgYmFja2dyb3VuZDogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjIpO1xuICAgIGJveC1zaGFkb3c6IDAgMCAwIDFweCByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMyk7XG4gIH1cbn1cblxuLnNlYXJjaC1pY29uIHtcbiAgcG9zaXRpb246IGFic29sdXRlO1xuICBsZWZ0OiA4cHg7XG4gIGNvbG9yOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuNSk7XG4gIGZvbnQtc2l6ZTogMjBweDtcbiAgdHJhbnNpdGlvbjogY29sb3IgMC4ycztcblxuICAmLmhhcy12YWx1ZSB7XG4gICAgY29sb3I6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC44KTtcbiAgfVxufVxuXG4uc2VhcmNoLWlucHV0IHtcbiAgZmxleDogMTtcbiAgYm9yZGVyOiBub25lO1xuICBiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcbiAgY29sb3I6IHdoaXRlO1xuICBwYWRkaW5nOiA2cHggMzJweCA2cHggMzZweDtcbiAgZm9udC1zaXplOiAxNHB4O1xuICBvdXRsaW5lOiBub25lO1xuXG4gICY6OnBsYWNlaG9sZGVyIHtcbiAgICBjb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjUpO1xuICB9XG59XG5cbi5jbGVhci1idXR0b24ge1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIHJpZ2h0OiA0cHg7XG4gIGJhY2tncm91bmQ6IG5vbmU7XG4gIGJvcmRlcjogbm9uZTtcbiAgY29sb3I6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC41KTtcbiAgY3Vyc29yOiBwb2ludGVyO1xuICBwYWRkaW5nOiA0cHg7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xuXG4gICY6aG92ZXIge1xuICAgIGNvbG9yOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuOCk7XG4gIH1cblxuICBtYXQtaWNvbiB7XG4gICAgZm9udC1zaXplOiAxOHB4O1xuICAgIHdpZHRoOiAxOHB4O1xuICAgIGhlaWdodDogMThweDtcbiAgfVxufVxuXG4uc2VhcmNoLXJlc3VsdHMge1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIHRvcDogY2FsYygxMDAlICsgNHB4KTtcbiAgbGVmdDogMDtcbiAgcmlnaHQ6IDA7XG4gIGJhY2tncm91bmQ6IHdoaXRlO1xuICBib3JkZXItcmFkaXVzOiA0cHg7XG4gIGJveC1zaGFkb3c6IDAgNHB4IDEycHggcmdiYSgwLCAwLCAwLCAwLjE1KTtcbiAgbWF4LWhlaWdodDogNTAwcHg7XG4gIG92ZXJmbG93OiBoaWRkZW47XG4gIHotaW5kZXg6IDEwMDA7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XG59XG5cbi5zZWFyY2gtaGVhZGVyIHtcbiAgZmxleDogMTtcbiAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcblxuICA6Om5nLWRlZXAgLm1hdC10YWItZ3JvdXAge1xuICAgIGhlaWdodDogMTAwJTtcbiAgfVxuXG4gIDo6bmctZGVlcCAubWF0LXRhYi1ib2R5LXdyYXBwZXIge1xuICAgIGZsZXg6IDE7XG4gIH1cbn1cblxuLnRhYi1sYWJlbCB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogNHB4O1xuXG4gIC5jb3VudCB7XG4gICAgZm9udC1zaXplOiAxMnB4O1xuICAgIGNvbG9yOiAjNjY2O1xuICB9XG59XG5cbi5yZXN1bHRzLWxpc3Qge1xuICBtYXgtaGVpZ2h0OiA0MDBweDtcbiAgb3ZlcmZsb3cteTogYXV0bztcbn1cblxuLnJlc3VsdC1pdGVtIHtcbiAgZGlzcGxheTogZmxleDtcbiAgcGFkZGluZzogMTJweDtcbiAgY3Vyc29yOiBwb2ludGVyO1xuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2YwZjBmMDtcbiAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjJzO1xuXG4gICY6aG92ZXIge1xuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XG4gIH1cblxuICAmOmxhc3QtY2hpbGQge1xuICAgIGJvcmRlci1ib3R0b206IG5vbmU7XG4gIH1cbn1cblxuLnJlc3VsdC1pY29uIHtcbiAgbWFyZ2luLXJpZ2h0OiAxMnB4O1xuICBjb2xvcjogIzY2NjtcbiAgZm9udC1zaXplOiAyMHB4O1xufVxuXG4ucmVzdWx0LWNvbnRlbnQge1xuICBmbGV4OiAxO1xuICBvdmVyZmxvdzogaGlkZGVuO1xufVxuXG4ucmVzdWx0LXRpdGxlIHtcbiAgZm9udC13ZWlnaHQ6IDUwMDtcbiAgY29sb3I6ICMzMzM7XG4gIG1hcmdpbi1ib3R0b206IDRweDtcbiAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7XG4gIHdoaXRlLXNwYWNlOiBub3dyYXA7XG5cbiAgOjpuZy1kZWVwIG1hcmsge1xuICAgIGJhY2tncm91bmQtY29sb3I6ICNmZmViM2I7XG4gICAgY29sb3I6ICMzMzM7XG4gICAgZm9udC13ZWlnaHQ6IDYwMDtcbiAgfVxufVxuXG4ucmVzdWx0LXBhdGgsXG4ucmVzdWx0LWNvbnRleHQge1xuICBmb250LXNpemU6IDEycHg7XG4gIGNvbG9yOiAjNjY2O1xuICBvdmVyZmxvdzogaGlkZGVuO1xuICB0ZXh0LW92ZXJmbG93OiBlbGxpcHNpcztcbiAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcbn1cblxuLnJlc3VsdC1tZXRhIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZ2FwOiAxMnB4O1xuICBtYXJnaW4tdG9wOiA0cHg7XG4gIGZvbnQtc2l6ZTogMTFweDtcbiAgY29sb3I6ICM5OTk7XG59XG5cbi5tYXRjaGVkLWZpZWxkIHtcbiAgYmFja2dyb3VuZDogI2UzZjJmZDtcbiAgY29sb3I6ICMxOTc2ZDI7XG4gIHBhZGRpbmc6IDJweCA2cHg7XG4gIGJvcmRlci1yYWRpdXM6IDJweDtcbn1cblxuLmZpbGUtdHlwZSxcbi5zb3VyY2UtZmlsZSB7XG4gIGNvbG9yOiAjOTk5O1xufVxuXG4ubm8tcmVzdWx0cyB7XG4gIHBhZGRpbmc6IDI0cHg7XG4gIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgY29sb3I6ICM2NjY7XG4gIGZvbnQtc3R5bGU6IGl0YWxpYztcbn1cblxuLnNlYXJjaC1sb2FkaW5nIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG4gIHBhZGRpbmc6IDI0cHg7XG4gIGdhcDogMTJweDtcbiAgY29sb3I6ICM2NjY7XG59XG5cbi5zZWFyY2gtZm9vdGVyIHtcbiAgcGFkZGluZzogOHB4IDEycHg7XG4gIGJvcmRlci10b3A6IDFweCBzb2xpZCAjZjBmMGYwO1xuICBiYWNrZ3JvdW5kOiAjZmFmYWZhO1xuICB0ZXh0LWFsaWduOiByaWdodDtcbiAgZm9udC1zaXplOiAxMXB4O1xuICBjb2xvcjogIzk5OTtcbn0iXX0= */"] });
+    } }, directives: [_angular_material_icon__WEBPACK_IMPORTED_MODULE_8__["MatIcon"], _angular_forms__WEBPACK_IMPORTED_MODULE_0__["DefaultValueAccessor"], _angular_forms__WEBPACK_IMPORTED_MODULE_0__["NgControlStatus"], _angular_forms__WEBPACK_IMPORTED_MODULE_0__["FormControlDirective"], _angular_common__WEBPACK_IMPORTED_MODULE_9__["NgIf"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_10__["MatTabGroup"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_10__["MatTab"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_10__["MatTabLabel"], _angular_common__WEBPACK_IMPORTED_MODULE_9__["NgForOf"], _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_11__["MatTooltip"], _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_12__["MatSpinner"]], styles: [".search-box-container[_ngcontent-%COMP%] {\n  position: relative;\n  flex: 1;\n  max-width: 600px;\n  margin: 0 20px;\n}\n\n.search-input-wrapper[_ngcontent-%COMP%] {\n  position: relative;\n  display: flex;\n  align-items: center;\n  background: rgba(255, 255, 255, 0.1);\n  border-radius: 4px;\n  transition: background-color 0.2s;\n}\n\n.search-input-wrapper[_ngcontent-%COMP%]:hover {\n  background: rgba(255, 255, 255, 0.15);\n}\n\n.search-input-wrapper[_ngcontent-%COMP%]:focus-within {\n  background: rgba(255, 255, 255, 0.2);\n  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);\n}\n\n.search-icon[_ngcontent-%COMP%] {\n  position: absolute;\n  left: 8px;\n  color: rgba(255, 255, 255, 0.5);\n  font-size: 20px;\n  transition: color 0.2s;\n}\n\n.search-icon.has-value[_ngcontent-%COMP%] {\n  color: rgba(255, 255, 255, 0.8);\n}\n\n.search-input[_ngcontent-%COMP%] {\n  flex: 1;\n  border: none;\n  background: transparent;\n  color: white;\n  padding: 6px 32px 6px 36px;\n  font-size: 14px;\n  outline: none;\n}\n\n.search-input[_ngcontent-%COMP%]::placeholder {\n  color: rgba(255, 255, 255, 0.5);\n}\n\n.clear-button[_ngcontent-%COMP%] {\n  position: absolute;\n  right: 4px;\n  background: none;\n  border: none;\n  color: rgba(255, 255, 255, 0.5);\n  cursor: pointer;\n  padding: 4px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.clear-button[_ngcontent-%COMP%]:hover {\n  color: rgba(255, 255, 255, 0.8);\n}\n\n.clear-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n}\n\n.search-results[_ngcontent-%COMP%] {\n  position: absolute;\n  top: calc(100% + 4px);\n  left: 0;\n  right: 0;\n  background: white;\n  border-radius: 4px;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);\n  max-height: 500px;\n  overflow: hidden;\n  z-index: 1000;\n  display: flex;\n  flex-direction: column;\n}\n\n.search-header[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n.search-header[_ngcontent-%COMP%]     .mat-tab-group {\n  height: 100%;\n}\n\n.search-header[_ngcontent-%COMP%]     .mat-tab-body-wrapper {\n  flex: 1;\n}\n\n.tab-label[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n}\n\n.tab-label[_ngcontent-%COMP%]   .count[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #666;\n}\n\n.results-list[_ngcontent-%COMP%] {\n  max-height: 400px;\n  overflow-y: auto;\n}\n\n.result-item[_ngcontent-%COMP%] {\n  display: flex;\n  padding: 12px;\n  cursor: pointer;\n  border-bottom: 1px solid #f0f0f0;\n  transition: background-color 0.2s;\n}\n\n.result-item[_ngcontent-%COMP%]:hover {\n  background-color: #f5f5f5;\n}\n\n.result-item[_ngcontent-%COMP%]:last-child {\n  border-bottom: none;\n}\n\n.result-icon[_ngcontent-%COMP%] {\n  margin-right: 12px;\n  color: #666;\n  font-size: 20px;\n}\n\n.result-content[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow: hidden;\n}\n\n.result-title[_ngcontent-%COMP%] {\n  font-weight: 500;\n  color: #333;\n  margin-bottom: 4px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.result-title[_ngcontent-%COMP%]     mark {\n  background-color: #ffeb3b;\n  color: #333;\n  font-weight: 600;\n}\n\n.result-path[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #666;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  max-width: 100%;\n  cursor: default;\n}\n\n.result-path[_ngcontent-%COMP%]:hover {\n  color: #444;\n  -webkit-text-decoration: underline dotted;\n          text-decoration: underline dotted;\n}\n\n.result-context[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #666;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.result-meta[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 12px;\n  margin-top: 4px;\n  font-size: 11px;\n  color: #999;\n}\n\n.matched-field[_ngcontent-%COMP%] {\n  background: #e3f2fd;\n  color: #1976d2;\n  padding: 2px 6px;\n  border-radius: 2px;\n}\n\n.file-type[_ngcontent-%COMP%], .source-file[_ngcontent-%COMP%] {\n  color: #999;\n}\n\n.no-results[_ngcontent-%COMP%] {\n  padding: 24px;\n  text-align: center;\n  color: #666;\n  font-style: italic;\n}\n\n.search-loading[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 24px;\n  gap: 12px;\n  color: #666;\n}\n\n.search-footer[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  border-top: 1px solid #f0f0f0;\n  background: #fafafa;\n  text-align: right;\n  font-size: 11px;\n  color: #999;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFxzZWFyY2gtYm94LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0Usa0JBQUE7RUFDQSxPQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG9DQUFBO0VBQ0Esa0JBQUE7RUFDQSxpQ0FBQTtBQUNGOztBQUNFO0VBQ0UscUNBQUE7QUFDSjs7QUFFRTtFQUNFLG9DQUFBO0VBQ0EsOENBQUE7QUFBSjs7QUFJQTtFQUNFLGtCQUFBO0VBQ0EsU0FBQTtFQUNBLCtCQUFBO0VBQ0EsZUFBQTtFQUNBLHNCQUFBO0FBREY7O0FBR0U7RUFDRSwrQkFBQTtBQURKOztBQUtBO0VBQ0UsT0FBQTtFQUNBLFlBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSwwQkFBQTtFQUNBLGVBQUE7RUFDQSxhQUFBO0FBRkY7O0FBSUU7RUFDRSwrQkFBQTtBQUZKOztBQU1BO0VBQ0Usa0JBQUE7RUFDQSxVQUFBO0VBQ0EsZ0JBQUE7RUFDQSxZQUFBO0VBQ0EsK0JBQUE7RUFDQSxlQUFBO0VBQ0EsWUFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0FBSEY7O0FBS0U7RUFDRSwrQkFBQTtBQUhKOztBQU1FO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBSko7O0FBUUE7RUFDRSxrQkFBQTtFQUNBLHFCQUFBO0VBQ0EsT0FBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0EsMENBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsYUFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUxGOztBQVFBO0VBQ0UsT0FBQTtFQUNBLGdCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0FBTEY7O0FBT0U7RUFDRSxZQUFBO0FBTEo7O0FBUUU7RUFDRSxPQUFBO0FBTko7O0FBVUE7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0FBUEY7O0FBU0U7RUFDRSxlQUFBO0VBQ0EsV0FBQTtBQVBKOztBQVdBO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtBQVJGOztBQVdBO0VBQ0UsYUFBQTtFQUNBLGFBQUE7RUFDQSxlQUFBO0VBQ0EsZ0NBQUE7RUFDQSxpQ0FBQTtBQVJGOztBQVVFO0VBQ0UseUJBQUE7QUFSSjs7QUFXRTtFQUNFLG1CQUFBO0FBVEo7O0FBYUE7RUFDRSxrQkFBQTtFQUNBLFdBQUE7RUFDQSxlQUFBO0FBVkY7O0FBYUE7RUFDRSxPQUFBO0VBQ0EsZ0JBQUE7QUFWRjs7QUFhQTtFQUNFLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSx1QkFBQTtFQUNBLG1CQUFBO0FBVkY7O0FBWUU7RUFDRSx5QkFBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtBQVZKOztBQWNBO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtFQUNBLHVCQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0VBQ0EsZUFBQTtBQVhGOztBQWNFO0VBQ0UsV0FBQTtFQUNBLHlDQUFBO1VBQUEsaUNBQUE7QUFaSjs7QUFnQkE7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0VBQ0EsdUJBQUE7RUFDQSxtQkFBQTtBQWJGOztBQWdCQTtFQUNFLGFBQUE7RUFDQSxTQUFBO0VBQ0EsZUFBQTtFQUNBLGVBQUE7RUFDQSxXQUFBO0FBYkY7O0FBZ0JBO0VBQ0UsbUJBQUE7RUFDQSxjQUFBO0VBQ0EsZ0JBQUE7RUFDQSxrQkFBQTtBQWJGOztBQWdCQTs7RUFFRSxXQUFBO0FBYkY7O0FBZ0JBO0VBQ0UsYUFBQTtFQUNBLGtCQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0FBYkY7O0FBZ0JBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBQ0EsU0FBQTtFQUNBLFdBQUE7QUFiRjs7QUFnQkE7RUFDRSxpQkFBQTtFQUNBLDZCQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxXQUFBO0FBYkYiLCJmaWxlIjoic2VhcmNoLWJveC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5zZWFyY2gtYm94LWNvbnRhaW5lciB7XG4gIHBvc2l0aW9uOiByZWxhdGl2ZTtcbiAgZmxleDogMTtcbiAgbWF4LXdpZHRoOiA2MDBweDtcbiAgbWFyZ2luOiAwIDIwcHg7XG59XG5cbi5zZWFyY2gtaW5wdXQtd3JhcHBlciB7XG4gIHBvc2l0aW9uOiByZWxhdGl2ZTtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgYmFja2dyb3VuZDogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjEpO1xuICBib3JkZXItcmFkaXVzOiA0cHg7XG4gIHRyYW5zaXRpb246IGJhY2tncm91bmQtY29sb3IgMC4ycztcblxuICAmOmhvdmVyIHtcbiAgICBiYWNrZ3JvdW5kOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMTUpO1xuICB9XG5cbiAgJjpmb2N1cy13aXRoaW4ge1xuICAgIGJhY2tncm91bmQ6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC4yKTtcbiAgICBib3gtc2hhZG93OiAwIDAgMCAxcHggcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjMpO1xuICB9XG59XG5cbi5zZWFyY2gtaWNvbiB7XG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcbiAgbGVmdDogOHB4O1xuICBjb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjUpO1xuICBmb250LXNpemU6IDIwcHg7XG4gIHRyYW5zaXRpb246IGNvbG9yIDAuMnM7XG5cbiAgJi5oYXMtdmFsdWUge1xuICAgIGNvbG9yOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuOCk7XG4gIH1cbn1cblxuLnNlYXJjaC1pbnB1dCB7XG4gIGZsZXg6IDE7XG4gIGJvcmRlcjogbm9uZTtcbiAgYmFja2dyb3VuZDogdHJhbnNwYXJlbnQ7XG4gIGNvbG9yOiB3aGl0ZTtcbiAgcGFkZGluZzogNnB4IDMycHggNnB4IDM2cHg7XG4gIGZvbnQtc2l6ZTogMTRweDtcbiAgb3V0bGluZTogbm9uZTtcblxuICAmOjpwbGFjZWhvbGRlciB7XG4gICAgY29sb3I6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC41KTtcbiAgfVxufVxuXG4uY2xlYXItYnV0dG9uIHtcbiAgcG9zaXRpb246IGFic29sdXRlO1xuICByaWdodDogNHB4O1xuICBiYWNrZ3JvdW5kOiBub25lO1xuICBib3JkZXI6IG5vbmU7XG4gIGNvbG9yOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuNSk7XG4gIGN1cnNvcjogcG9pbnRlcjtcbiAgcGFkZGluZzogNHB4O1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcblxuICAmOmhvdmVyIHtcbiAgICBjb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjgpO1xuICB9XG5cbiAgbWF0LWljb24ge1xuICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICB3aWR0aDogMThweDtcbiAgICBoZWlnaHQ6IDE4cHg7XG4gIH1cbn1cblxuLnNlYXJjaC1yZXN1bHRzIHtcbiAgcG9zaXRpb246IGFic29sdXRlO1xuICB0b3A6IGNhbGMoMTAwJSArIDRweCk7XG4gIGxlZnQ6IDA7XG4gIHJpZ2h0OiAwO1xuICBiYWNrZ3JvdW5kOiB3aGl0ZTtcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xuICBib3gtc2hhZG93OiAwIDRweCAxMnB4IHJnYmEoMCwgMCwgMCwgMC4xNSk7XG4gIG1heC1oZWlnaHQ6IDUwMHB4O1xuICBvdmVyZmxvdzogaGlkZGVuO1xuICB6LWluZGV4OiAxMDAwO1xuICBkaXNwbGF5OiBmbGV4O1xuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xufVxuXG4uc2VhcmNoLWhlYWRlciB7XG4gIGZsZXg6IDE7XG4gIG92ZXJmbG93OiBoaWRkZW47XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XG5cbiAgOjpuZy1kZWVwIC5tYXQtdGFiLWdyb3VwIHtcbiAgICBoZWlnaHQ6IDEwMCU7XG4gIH1cblxuICA6Om5nLWRlZXAgLm1hdC10YWItYm9keS13cmFwcGVyIHtcbiAgICBmbGV4OiAxO1xuICB9XG59XG5cbi50YWItbGFiZWwge1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBnYXA6IDRweDtcblxuICAuY291bnQge1xuICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICBjb2xvcjogIzY2NjtcbiAgfVxufVxuXG4ucmVzdWx0cy1saXN0IHtcbiAgbWF4LWhlaWdodDogNDAwcHg7XG4gIG92ZXJmbG93LXk6IGF1dG87XG59XG5cbi5yZXN1bHQtaXRlbSB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIHBhZGRpbmc6IDEycHg7XG4gIGN1cnNvcjogcG9pbnRlcjtcbiAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNmMGYwZjA7XG4gIHRyYW5zaXRpb246IGJhY2tncm91bmQtY29sb3IgMC4ycztcblxuICAmOmhvdmVyIHtcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xuICB9XG5cbiAgJjpsYXN0LWNoaWxkIHtcbiAgICBib3JkZXItYm90dG9tOiBub25lO1xuICB9XG59XG5cbi5yZXN1bHQtaWNvbiB7XG4gIG1hcmdpbi1yaWdodDogMTJweDtcbiAgY29sb3I6ICM2NjY7XG4gIGZvbnQtc2l6ZTogMjBweDtcbn1cblxuLnJlc3VsdC1jb250ZW50IHtcbiAgZmxleDogMTtcbiAgb3ZlcmZsb3c6IGhpZGRlbjtcbn1cblxuLnJlc3VsdC10aXRsZSB7XG4gIGZvbnQtd2VpZ2h0OiA1MDA7XG4gIGNvbG9yOiAjMzMzO1xuICBtYXJnaW4tYm90dG9tOiA0cHg7XG4gIG92ZXJmbG93OiBoaWRkZW47XG4gIHRleHQtb3ZlcmZsb3c6IGVsbGlwc2lzO1xuICB3aGl0ZS1zcGFjZTogbm93cmFwO1xuXG4gIDo6bmctZGVlcCBtYXJrIHtcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZlYjNiO1xuICAgIGNvbG9yOiAjMzMzO1xuICAgIGZvbnQtd2VpZ2h0OiA2MDA7XG4gIH1cbn1cblxuLnJlc3VsdC1wYXRoIHtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBjb2xvcjogIzY2NjtcbiAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7XG4gIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gIG1heC13aWR0aDogMTAwJTtcbiAgY3Vyc29yOiBkZWZhdWx0O1xuICBcbiAgLy8gQWRkIHZpc3VhbCBmZWVkYmFjayBvbiBob3ZlclxuICAmOmhvdmVyIHtcbiAgICBjb2xvcjogIzQ0NDtcbiAgICB0ZXh0LWRlY29yYXRpb246IHVuZGVybGluZSBkb3R0ZWQ7XG4gIH1cbn1cblxuLnJlc3VsdC1jb250ZXh0IHtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBjb2xvcjogIzY2NjtcbiAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7XG4gIHdoaXRlLXNwYWNlOiBub3dyYXA7XG59XG5cbi5yZXN1bHQtbWV0YSB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGdhcDogMTJweDtcbiAgbWFyZ2luLXRvcDogNHB4O1xuICBmb250LXNpemU6IDExcHg7XG4gIGNvbG9yOiAjOTk5O1xufVxuXG4ubWF0Y2hlZC1maWVsZCB7XG4gIGJhY2tncm91bmQ6ICNlM2YyZmQ7XG4gIGNvbG9yOiAjMTk3NmQyO1xuICBwYWRkaW5nOiAycHggNnB4O1xuICBib3JkZXItcmFkaXVzOiAycHg7XG59XG5cbi5maWxlLXR5cGUsXG4uc291cmNlLWZpbGUge1xuICBjb2xvcjogIzk5OTtcbn1cblxuLm5vLXJlc3VsdHMge1xuICBwYWRkaW5nOiAyNHB4O1xuICB0ZXh0LWFsaWduOiBjZW50ZXI7XG4gIGNvbG9yOiAjNjY2O1xuICBmb250LXN0eWxlOiBpdGFsaWM7XG59XG5cbi5zZWFyY2gtbG9hZGluZyB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xuICBwYWRkaW5nOiAyNHB4O1xuICBnYXA6IDEycHg7XG4gIGNvbG9yOiAjNjY2O1xufVxuXG4uc2VhcmNoLWZvb3RlciB7XG4gIHBhZGRpbmc6IDhweCAxMnB4O1xuICBib3JkZXItdG9wOiAxcHggc29saWQgI2YwZjBmMDtcbiAgYmFja2dyb3VuZDogI2ZhZmFmYTtcbiAgdGV4dC1hbGlnbjogcmlnaHQ7XG4gIGZvbnQtc2l6ZTogMTFweDtcbiAgY29sb3I6ICM5OTk7XG59Il19 */"] });
 
 
 /***/ }),
@@ -2331,6 +2532,79 @@ const versionInfo = {
     version: '2025.07.31.1',
     buildTime: '2025.07.31 14:52:05'
 };
+
+
+/***/ }),
+
+/***/ "vUCT":
+/*!**********************************************************!*\
+  !*** ./src/app/md-explorer/services/projects.service.ts ***!
+  \**********************************************************/
+/*! exports provided: ProjectsService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ProjectsService", function() { return ProjectsService; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+
+
+
+
+class ProjectsService {
+    constructor(http) {
+        this.http = http;
+        this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
+        this.dataStore = { mdProjects: [] };
+        this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
+    }
+    get mdProjects() {
+        return this._mdProjects.asObservable();
+    }
+    fetchProjects() {
+        const url = '../api/MdProjects/GetProjects';
+        this.http.get(url)
+            .subscribe(data => {
+            this.dataStore.mdProjects = data;
+            this._mdProjects.next(Object.assign({}, this.dataStore).mdProjects);
+        }, error => {
+            console.log(error);
+        });
+    }
+    setNewFolderProjectQuickNotes(path) {
+        const url = '../api/MdProjects/SetFolderProjectQuickNotes';
+        return this.http.post(url, { path: path });
+    }
+    SetSideNavWidth(mdProject) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            const url = '../api/MdProjects/SetSideNavWidth';
+            yield this.http.post(url, mdProject).toPromise();
+        });
+    }
+    setNewFolderProject(path) {
+        const url = '../api/MdProjects/SetFolderProject';
+        this.http.post(url, { path: path }).subscribe(_ => {
+            this.currentProjects$.next(_);
+        });
+    }
+    //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {
+    //  const url = '../api/MdProjects/SetFolderProject';
+    //  this.http.post<any>(url, { path: path }).subscribe(data => {
+    //    callback(data, objectThis);
+    //  });
+    //}
+    deleteProject(project, callback, objectThis) {
+        const url = '../api/MdProjects/DeleteProject';
+        this.http.post(url, project).subscribe(data => {
+            callback(data, objectThis);
+        });
+    }
+}
+ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__["HttpClient"])); };
+ProjectsService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: ProjectsService, factory: ProjectsService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),

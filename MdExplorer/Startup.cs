@@ -81,13 +81,29 @@ namespace MdExplorer
                 app.UseDeveloperExceptionPage();
             }
 
-            // Add custom middleware to log all requests
+            // Add custom middleware to log only API requests (skip static files)
             app.Use(async (context, next) =>
             {
-                logger.LogInformation("HTTP {Method} {Path} from {RemoteIP}", 
-                    context.Request.Method, 
-                    context.Request.Path, 
-                    context.Connection.RemoteIpAddress);
+                var path = context.Request.Path.ToString().ToLower();
+                
+                // Skip logging for static files
+                bool isStaticFile = path.EndsWith(".js") || path.EndsWith(".css") || 
+                                   path.EndsWith(".html") || path.EndsWith(".htm") ||
+                                   path.EndsWith(".jpg") || path.EndsWith(".jpeg") || 
+                                   path.EndsWith(".png") || path.EndsWith(".gif") ||
+                                   path.EndsWith(".svg") || path.EndsWith(".ico") ||
+                                   path.EndsWith(".woff") || path.EndsWith(".woff2") ||
+                                   path.EndsWith(".ttf") || path.EndsWith(".eot") ||
+                                   path.EndsWith(".map") || path.Contains("/jquery") ||
+                                   path.Contains("/bootstrap") || path.Contains("/fontawesome");
+                
+                if (!isStaticFile)
+                {
+                    logger.LogInformation("HTTP {Method} {Path} from {RemoteIP}", 
+                        context.Request.Method, 
+                        context.Request.Path, 
+                        context.Connection.RemoteIpAddress);
+                }
                 
                 if (context.Request.Path.StartsWithSegments("/api/ModernGitToolbar"))
                 {
@@ -106,10 +122,14 @@ namespace MdExplorer
                 
                 await next.Invoke();
                 
-                logger.LogInformation("HTTP {Method} {Path} responded with {StatusCode}", 
-                    context.Request.Method, 
-                    context.Request.Path, 
-                    context.Response.StatusCode);
+                // Skip response logging for static files
+                if (!isStaticFile)
+                {
+                    logger.LogInformation("HTTP {Method} {Path} responded with {StatusCode}", 
+                        context.Request.Method, 
+                        context.Request.Path, 
+                        context.Response.StatusCode);
+                }
             });
 
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel

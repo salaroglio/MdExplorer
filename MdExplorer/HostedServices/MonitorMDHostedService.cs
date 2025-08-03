@@ -176,9 +176,8 @@ namespace MdExplorer.Service.HostedServices
                 };
 
                 // Invia notifica tramite SignalR per la creazione del nuovo nodo
-                _logger.LogInformation($"📡 Sending SignalR event 'markdownFileCreated' for: {newFileNode.Name}");
+                // Reduced logging - only log errors
                 await _hubContext.Clients.All.SendAsync("markdownFileCreated", newFileNode);
-                _logger.LogInformation($"✅ SignalR event sent successfully for: {newFileNode.Name}");
             }
             catch (Exception ex)
             {
@@ -201,13 +200,15 @@ namespace MdExplorer.Service.HostedServices
         {
             try
             {
-                _logger.LogInformation($"🔄 FileSystemWatcher.Renamed triggered:");
-                _logger.LogInformation($"🔄   Old: {e.OldFullPath} (ext: {Path.GetExtension(e.OldFullPath)})");
-                _logger.LogInformation($"🔄   New: {e.FullPath} (ext: {Path.GetExtension(e.FullPath)})");
-                
                 // Controlla se il file rinominato è un file markdown (sia prima che dopo)
                 bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
+                
+                // Log only if it's a markdown file rename
+                if (oldIsMarkdown || newIsMarkdown)
+                {
+                    _logger.LogInformation($"📝 MD file renamed: {Path.GetFileName(e.OldFullPath)} → {Path.GetFileName(e.FullPath)}");
+                }
                 
                 // Processa se:
                 // 1. Un file è stato rinominato DA qualsiasi estensione A .md
@@ -257,7 +258,7 @@ namespace MdExplorer.Service.HostedServices
                         Name = Path.GetFileName(e.OldFullPath)
                     };
                     
-                    _logger.LogInformation($"📡 Sending SignalR event 'markdownFileDeleted' for old file: {fileDeletedData.Name}");
+                    // Reduced logging
                     await _hubContext.Clients.All.SendAsync("markdownFileDeleted", fileDeletedData);
                 }
                 
@@ -283,9 +284,7 @@ namespace MdExplorer.Service.HostedServices
                 };
 
                 // Invia notifica tramite SignalR per la creazione del nuovo nodo
-                _logger.LogInformation($"📡 Sending SignalR event 'markdownFileCreated' for renamed file: {newFileNode.Name}");
                 await _hubContext.Clients.All.SendAsync("markdownFileCreated", newFileNode);
-                _logger.LogInformation($"✅ SignalR event sent successfully for renamed file: {newFileNode.Name}");
             }
             catch (Exception ex)
             {
@@ -433,9 +432,7 @@ namespace MdExplorer.Service.HostedServices
                     // Calculate relative path and ensure it's correct (remove leading separator)
                     var relativePath = GetRelativePath(e.FullPath);
                     
-                    _logger.LogInformation($"🔍 [Changed] e.FullPath: {e.FullPath}");
-                    _logger.LogInformation($"🔍 [Changed] e.Name: {e.Name}");
-                    _logger.LogInformation($"🔍 [Changed] relativePath: {relativePath}");
+                    // Removed verbose logging
                     
                     var monitoredMd = new MonitoredMDModel
                     {
@@ -445,10 +442,8 @@ namespace MdExplorer.Service.HostedServices
                         RelativePath = relativePath
                     };
                     
-                    _logger.LogInformation($"📡 Sending SignalR event 'markdownfileischanged' for: {monitoredMd.Name}");
-                    _logger.LogInformation($"📡 Event data: Path={monitoredMd.Path}, RelativePath={monitoredMd.RelativePath}, FullPath={monitoredMd.FullPath}");
+                    // Reduced logging
                     await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
-                    _logger.LogInformation($"✅ SignalR event sent successfully for changed file: {e.Name}");
                     
                     lastRead = lastWriteTime.AddSeconds(1);
                 }

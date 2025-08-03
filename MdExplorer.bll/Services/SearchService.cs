@@ -2,6 +2,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Services;
 using Ad.Tools.Dal.Extensions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,10 +14,12 @@ namespace MdExplorer.Features.Services
     public class SearchService : ISearchService
     {
         private readonly IEngineDB _engineDB;
+        private readonly ILogger<SearchService> _logger;
 
-        public SearchService(IEngineDB engineDB)
+        public SearchService(IEngineDB engineDB, ILogger<SearchService> logger)
         {
             _engineDB = engineDB;
+            _logger = logger;
         }
 
         public async Task<SearchResult> SearchAsync(string searchTerm, SearchType searchType = SearchType.All, int maxResults = 50)
@@ -63,7 +66,30 @@ namespace MdExplorer.Features.Services
                     var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
                     var searchLower = searchTerm.ToLower();
 
-                    var results = markdownFileDal.GetList()
+                    // Get all files from database
+                    var allFiles = markdownFileDal.GetList().ToList();
+                    
+                    // Check for duplicates in database - ONLY LOG IF DUPLICATES FOUND
+                    var duplicatePaths = allFiles
+                        .GroupBy(f => f.Path?.ToLower())
+                        .Where(g => g.Count() > 1)
+                        .ToList();
+                    
+                    if (duplicatePaths.Any())
+                    {
+                        _logger.LogWarning($"🔍 DUPLICATES in DB: Found {duplicatePaths.Count} paths with duplicates for search '{searchTerm}'");
+                        foreach (var group in duplicatePaths.Take(3)) // Only show first 3 duplicate groups
+                        {
+                            _logger.LogWarning($"  Duplicate: {group.Key} appears {group.Count()} times");
+                            foreach (var file in group)
+                            {
+                                _logger.LogWarning($"    ID: {file.Id}, File: {file.FileName}");
+                            }
+                        }
+                    }
+
+                    // Perform the search
+                    var results = allFiles
                         .Where(f => f.FileName.ToLower().Contains(searchLower) ||
                                    f.Path.ToLower().Contains(searchLower))
                         .Take(maxResults)
