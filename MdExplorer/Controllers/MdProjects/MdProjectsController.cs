@@ -95,7 +95,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     project = new Project
                     {
                         Path = folderPath.Path,
-                        Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
+                        Name = System.IO.Path.GetFileName(_fileSystemWatcher.Path)
                     };
                 }
                 project.LastUpdate = DateTime.Now;
@@ -190,7 +190,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     project = new Project
                     {
                         Path = folderPath.Path,
-                        Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
+                        Name = System.IO.Path.GetFileName(_fileSystemWatcher.Path)
                     };
                 }
 

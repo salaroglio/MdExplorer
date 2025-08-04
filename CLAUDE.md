@@ -77,16 +77,16 @@ Il caso dei pulsanti backward/forward ha dimostrato l'efficacia di questo approc
   - Implementazione API e servizi Angular
   - Questo documento contiene esempi pratici e best practices specifiche del progetto
 
-## Ambiente di Sviluppo - PowerShell su Windows
+## Ambiente di Sviluppo - Bash su Linux
 
-* **IMPORTANTE**: L'ambiente di sviluppo è PowerShell su Windows, NON WSL
-* Quando si usa la modalità agentica (Task tool), utilizzare comandi PowerShell e non comandi bash/shell Unix
-* Esempi di comandi PowerShell da usare:
-  - `Get-ChildItem` o `dir` invece di `ls`
-  - `Select-String` invece di `grep`
-  - `Get-Content` invece di `cat`
-  - `Set-Location` o `cd` per cambiare directory
-  - `Test-Path` per verificare l'esistenza di file/directory
+* **IMPORTANTE**: L'ambiente di sviluppo è Bash su Linux
+* Quando si usa la modalità agentica (Task tool), utilizzare comandi bash/shell Unix
+* Esempi di comandi da usare:
+  - `ls` per listare file e directory
+  - `grep` per cercare nei file
+  - `cat` per visualizzare contenuti
+  - `cd` per cambiare directory
+  - `test` o `[ -e file ]` per verificare l'esistenza di file/directory
 
 ## Git Commit Rules
 * NON inserire MAI riferimenti a Claude, Anthropic o AI nei messaggi di commit

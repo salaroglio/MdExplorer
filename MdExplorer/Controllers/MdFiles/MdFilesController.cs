@@ -51,11 +51,15 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+#if WINDOWS_FORMS_AVAILABLE
 using System.Windows.Forms;
+#endif
+using MdExplorer.Utilities;
 using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
 using MdExplorer.Abstractions.Services;
@@ -140,13 +144,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult OpenFileInApplication([FromBody] OpenFileInApplicationcs data)
         {
             var fullpath = HttpUtility.UrlDecode(data.FullPath).Replace('/', Path.DirectorySeparatorChar);
-            fullpath = fullpath.Replace("\\.\\", "\\");
+            fullpath = CrossPlatformPath.NormalizePath(fullpath);
 
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{fullpath}\"")
-            {
-                CreateNoWindow = false
-            };
-            Process.Start(processToStart);
+            // Open file with default application
+            CrossPlatformProcess.OpenFile(fullpath);
             _hubContext.Clients.Client(connectionId: data.ConnectionId).SendAsync("openingApplication", Path.GetFileName(fullpath)).Wait();            
             return Ok(new { message = "done" });
         }
@@ -205,26 +206,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult OpenInheritingTemplateWord([FromBody] RequestOpenInheritingTemplateWord request)
         {
-            var templatePath = _fileSystemWatcher.Path +
-                Path.DirectorySeparatorChar +
-                ".md" +
-                Path.DirectorySeparatorChar +
-                "templates" +
-                Path.DirectorySeparatorChar +
-                "word" +
-                Path.DirectorySeparatorChar +
-                $"{request.TemplateName}.docx";
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{templatePath}\"")
-            {
-                CreateNoWindow = false
-            };
-            Process.Start(processToStart);
+            var templatePath = Path.Combine(_fileSystemWatcher.Path, ".md", "templates", "word",
+                $"{request.TemplateName}.docx");
+            
+            // Open Word template with default application
+            CrossPlatformProcess.OpenFile(templatePath);
             return Ok(new { message = "done" });
         }
 
         [HttpGet]
         public IActionResult getTextFromClipboard()
         {
+#if WINDOWS_FORMS_AVAILABLE
             var textToGet = string.Empty;
 
             var myTask = ExtensionTask.CreateSTATask(async () =>
@@ -234,6 +227,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             myTask.Wait();
 
             textToGet = textToGet.Contains("http") && textToGet.Contains("git") ? textToGet : string.Empty;
+#else
+            // Clipboard functionality not available on Linux without GUI
+            var textToGet = string.Empty;
+#endif
 
             return Ok(new { url = textToGet });
         }
@@ -274,6 +271,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult PasteFromClipboard([FromBody] RequestPasteFromClipboard fileData)
         {
+#if WINDOWS_FORMS_AVAILABLE
             Thread t = new Thread(new ThreadStart(() =>
             {
                 if (Clipboard.ContainsImage())
@@ -302,6 +300,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }));
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
+#else
+            // Clipboard paste functionality not available on Linux without GUI
+            _logger.LogWarning("PasteFromClipboard called but clipboard support is not available on this platform");
+#endif
 
             return Ok(new { message = "done" });
         }
@@ -332,11 +334,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 System.IO.File.Copy(fromReference, toReference);
             }
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{toReference}\"")
-            {
-                CreateNoWindow = false
-            };
-            Process.Start(processToStart);
+            
+            // Open Word reference template with default application
+            CrossPlatformProcess.OpenFile(toReference);
 
             //var p = new Process();
             //p.StartInfo.FileName = toReference;
@@ -382,13 +382,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult OpenFolderOnFileExplorer([FromBody] FileInfoNode fileData)
         {
-            ProcessStartInfo startInfo = new ProcessStartInfo
-            {
-                Arguments = fileData.FullPath,
-                FileName = "explorer.exe"
-            };
-
-            Process.Start(startInfo);
+            // Open folder containing the file
+            var folderPath = Path.GetDirectoryName(fileData.FullPath);
+            CrossPlatformProcess.OpenFolder(folderPath);
             return Ok(new { message = "done" });
         }
 
@@ -457,10 +453,24 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(new { message = "Done" });
         }
 
+        private string GetSystemRootPath()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // On Windows, return C:\ or the drive where the app is running
+                return Path.GetPathRoot(Directory.GetCurrentDirectory()) ?? @"C:\";
+            }
+            else
+            {
+                // On Linux/Mac, return root /
+                return "/";
+            }
+        }
+
         [HttpGet]
         public IActionResult GetDynFoldersDocument([FromQuery] string path, string level)
         {
-            var currentPath = path == "root" ? @"C:\" : path;
+            var currentPath = path == "root" ? GetSystemRootPath() : path;
             currentPath = path == "project" ? _fileSystemWatcher.Path : currentPath;
             currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
 
@@ -503,7 +513,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpGet]
         public IActionResult GetDynFoldersAndFilesDocument([FromQuery] string path, string level)
         {
-            var currentPath = path == "root" ? @"C:\" : path;
+            var currentPath = path == "root" ? GetSystemRootPath() : path;
             currentPath = path == "project" ? _fileSystemWatcher.Path : currentPath;
             currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
 
@@ -920,7 +930,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var currentProject = projectDal.GetList().Where(_ => _.Path == _fileSystemWatcher.Path).FirstOrDefault();
                     if (currentProject == null)
                     {
-                        var projectName = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1);
+                        var projectName = System.IO.Path.GetFileName(_fileSystemWatcher.Path);
                         currentProject = new Project { Name = projectName, Path = _fileSystemWatcher.Path };
                         projectDal.Save(currentProject);
                     }

@@ -1,6 +1,5 @@
 
 using MdExplorer.Abstractions.Models;
-using System.Windows.Forms.Design;
 
 public class RequestPasteFromClipboard
 {

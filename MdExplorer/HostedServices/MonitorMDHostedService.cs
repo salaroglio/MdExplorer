@@ -53,8 +53,21 @@ namespace MdExplorer.Service.HostedServices
             _ignoreConfiguration = LoadIgnoreConfiguration();
             
             // console closing management, send back closing server to the angular client
+#if WINDOWS_FORMS_AVAILABLE
+            // Windows-specific console control handler
             handler = new ConsoleEventDelegate(SendExitToAngular);
             SetConsoleCtrlHandler(handler, true);
+#else
+            // On Linux/Mac, use AppDomain.ProcessExit or Console.CancelKeyPress
+            Console.CancelKeyPress += (sender, e) => 
+            {
+                _hubContext.Clients.All.SendAsync("consoleClosed");
+            };
+            AppDomain.CurrentDomain.ProcessExit += (sender, e) => 
+            {
+                _hubContext.Clients.All.SendAsync("consoleClosed");
+            };
+#endif
 
         }
 
@@ -105,11 +118,13 @@ namespace MdExplorer.Service.HostedServices
             };
         }
 
+#if WINDOWS_FORMS_AVAILABLE
         static ConsoleEventDelegate handler;   // Keeps it from getting garbage collected
                                                // Pinvoke
         private delegate bool ConsoleEventDelegate(int eventType);
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool SetConsoleCtrlHandler(ConsoleEventDelegate callback, bool add);
+#endif
 
 
         public Task StartAsync(CancellationToken cancellationToken)

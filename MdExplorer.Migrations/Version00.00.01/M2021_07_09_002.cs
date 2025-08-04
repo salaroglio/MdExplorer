@@ -16,13 +16,13 @@ namespace MdExplorer.Migrations.Version000001
             {
                 Id = Guid.NewGuid().ToByteArray(),
                 Name = @"JavaPath",
-                ValueString = @"C:\Program Files\Java\jre1.8.0_311\bin\javaw.exe"
+                ValueString = (string)null  // Will trigger auto-discovery
             });
             Insert.IntoTable("Setting").Row(new
             {
                 Id = Guid.NewGuid().ToByteArray(),
                 Name = @"LocalGraphvizDotPath",
-                ValueString = @"E:\Sviluppo\MdExplorer\InstallBinaries\Graphviz\bin\dot.exe"
+                ValueString = (string)null  // Should be configured or discovered as needed
             });
         }
 

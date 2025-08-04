@@ -5,11 +5,7 @@
   </Target>
   
   <PropertyGroup>
-    
-    
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
-    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
@@ -19,6 +15,25 @@
     <StartupObject />
     <FileVersion />
     <AssemblyVersion>2023.05.11.001</AssemblyVersion>
+  </PropertyGroup>
+  
+  <!-- Windows-specific configuration -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <UseWindowsForms>true</UseWindowsForms>
+    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <DefineConstants>$(DefineConstants);WINDOWS_FORMS_AVAILABLE</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Linux-specific configuration -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <UseWindowsForms>false</UseWindowsForms>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <!-- macOS-specific configuration -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <UseWindowsForms>false</UseWindowsForms>
+    <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -50,9 +65,6 @@
   
   
   <ItemGroup>
-    <Content Include="..\MdImageNumbering\bin\Debug\net6.0-windows\MdImageNumbering.exe">
-      <DestinationSubDirectory>bin</DestinationSubDirectory>
-    </Content>
     <Content Include="SpaceShip.ico" />
   </ItemGroup>
 
@@ -63,17 +75,11 @@
     </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Binaries\GraphWiz\binaries\cdt.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\cgraph.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\config6" />
-    <None Remove="Binaries\GraphWiz\binaries\expat.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\gvc.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\gvplugin_core.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\LICENSE.txt" />
-    <None Remove="Binaries\GraphWiz\binaries\pathplan.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\vcruntime140.dll" />
-    <None Remove="Binaries\GraphWiz\binaries\xdot.dll" />
+    <None Remove="Binaries\Graphviz\windows\*.dll" />
+    <None Remove="Binaries\Graphviz\windows\*.exe" />
+    <None Remove="Binaries\Graphviz\windows\config6" />
+    <None Remove="Binaries\Graphviz\windows\LICENSE.txt" />
+    <None Remove="Binaries\Graphviz\linux\*" />
     <None Remove="Binaries\plantuml.jar" />
     <None Remove="eisvogel.tex" />
     <None Remove="EmojiForPandoc\calendar.png" />
@@ -92,43 +98,24 @@
   </ItemGroup>
 
 
+  <!-- GraphViz binaries for Windows -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <None Include="Binaries\Graphviz\windows\**\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Link>Binaries\Graphviz\windows\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+  <!-- GraphViz binaries for Linux -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <None Include="Binaries\Graphviz\linux\**\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Link>Binaries\Graphviz\linux\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+  
+  <!-- Cross-platform resources -->
   <ItemGroup>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\cdt.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\cgraph.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\config6">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\dot.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\expat.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvc.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_core.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\gvplugin_dot_layout.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\LICENSE.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\pathplan.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\vcruntime140.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Binaries\GraphWiz\binaries\xdot.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
     <EmbeddedResource Include="Binaries\plantuml.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>

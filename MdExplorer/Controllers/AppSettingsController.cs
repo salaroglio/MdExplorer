@@ -14,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using MdExplorer.Utilities;
 
 namespace MdExplorer.Service.Controllers
 {
@@ -38,7 +39,13 @@ namespace MdExplorer.Service.Controllers
         public IActionResult GetCurrentFolder()
         {
             var currentFolder = _fileSystemWatcher.Path;
-            string lastFolder = currentFolder.Substring(currentFolder.LastIndexOf("\\") + 1);
+            // Use Path.GetFileName to get the last part of the path, cross-platform compatible
+            string lastFolder = Path.GetFileName(currentFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            // If Path.GetFileName returns empty (e.g. for root paths), use the full path
+            if (string.IsNullOrEmpty(lastFolder))
+            {
+                lastFolder = currentFolder;
+            }
             return Ok(new { currentFolder = lastFolder });
         }
 
@@ -73,7 +80,11 @@ namespace MdExplorer.Service.Controllers
         {
             var settingDal = _session.GetDal<Setting>();
             var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString;
-                //?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+
+            if (string.IsNullOrEmpty(editorPath))
+            {
+                return BadRequest(new { error = "VS Code not found. Please configure the editor path in settings." });
+            }
 
             _processUtil.OpenFileWithVisualStudioCode(path, editorPath);
             return Ok(new { message = "opened" });
@@ -85,17 +96,15 @@ namespace MdExplorer.Service.Controllers
         public IActionResult OpenFolder(string path)
         {
             var pathToOpen = Path.GetDirectoryName(path);
-            Process.Start("explorer.exe", pathToOpen);
+            CrossPlatformProcess.OpenFolder(pathToOpen);
             return Ok(new { message = "opened" });
         }
 
         [HttpGet]
         public IActionResult OpenChromePdf(string path)
         {
-            var processToStart = new ProcessStartInfo("cmd.exe", $"/c \"{path}\"") { 
-                
-                CreateNoWindow = false };
-            Process.Start(processToStart);
+            // Open PDF with default application
+            CrossPlatformProcess.OpenFile(path);
             
             return Ok(new { message = "opened" });
         }

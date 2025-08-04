@@ -23,6 +23,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using static Ad.Tools.FluentMigrator.FluentMigratorDI;
+using MdExplorer.Utilities;
 
 namespace MdExplorer.Service
 {
@@ -31,12 +32,12 @@ namespace MdExplorer.Service
         public static void SetNewProject(IServiceProvider serviceProvider, string pathFromParameter)
         {
             ConfigTemplates(pathFromParameter, null);
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdExplorer.db";
+            var appdata = CrossPlatformPath.GetAppDataPath();
+            var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = pathFromParameter;
             var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {currentDirectory + Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar}MdProject_{hash}.db";
+            var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
+            var databasePathProject = $"Data Source = {Path.Combine(currentDirectory, ".md", $"MdProject_{hash}.db")}";
 
             UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
 
@@ -62,13 +63,13 @@ namespace MdExplorer.Service
         public static void SetProjectInitialization(IServiceCollection services, string pathFromParameter)
         {            
             
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdExplorer.db";
+            var appdata = CrossPlatformPath.GetAppDataPath();
+            var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = ConfigFileSystemWatchers(services, pathFromParameter);
             ConfigTemplates(currentDirectory, services);
             var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdProject_{hash}.db";
+            var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
+            var databasePathProject = $"Data Source = {Path.Combine(appdata, $"MdProject_{hash}.db")}";
 
             UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
 

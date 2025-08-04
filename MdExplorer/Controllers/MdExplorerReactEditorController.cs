@@ -126,67 +126,64 @@ namespace MdExplorer.Controllers
 
                 string contentWithoutYaml = markdownTxt;
                 const string yamlSeparator = "---";
-                string[] newLines = { Environment.NewLine, "\n" };
+                // Su Linux, Environment.NewLine è "\n", quindi meglio usare un array distinto
+                string[] newLines = { "\r\n", "\n" };
+                
+                _logger.LogDebug($"[YAML Debug] File: {filePathToAccessOnServer}");
+                _logger.LogDebug($"[YAML Debug] Environment.NewLine: '{Environment.NewLine}' (length: {Environment.NewLine.Length})");
+                _logger.LogDebug($"[YAML Debug] First 50 chars: '{(markdownTxt.Length > 50 ? markdownTxt.Substring(0, 50).Replace("\r", "\\r").Replace("\n", "\\n") : markdownTxt.Replace("\r", "\\r").Replace("\n", "\\n"))}'");
+                _logger.LogDebug($"[YAML Debug] Starts with '---\\r\\n': {markdownTxt.StartsWith(yamlSeparator + "\r\n")}");
+                _logger.LogDebug($"[YAML Debug] Starts with '---\\n': {markdownTxt.StartsWith(yamlSeparator + "\n")}");
 
-                if (markdownTxt.StartsWith(yamlSeparator + newLines[0]) || markdownTxt.StartsWith(yamlSeparator + newLines[1]))
+                bool startsWithYaml = false;
+                string detectedNewLine = null;
+                foreach (var nl in newLines)
                 {
-                    var firstSeparatorEndIndex = markdownTxt.IndexOf(yamlSeparator, yamlSeparator.Length); // Trova la fine del primo "---"
-                    if (firstSeparatorEndIndex > 0) // Assicura che ci sia qualcosa dopo il primo "---"
+                    if (markdownTxt.StartsWith(yamlSeparator + nl))
                     {
-                        // Cerca l'inizio del secondo separatore "---" seguito da newline
-                        // partendo da dopo il primo blocco separatore completo (incluso il newline dopo il primo "---")
-                        int searchStartIndexForSecondSeparator = -1;
-                        if (markdownTxt.Substring(yamlSeparator.Length).StartsWith(newLines[0]))
-                        {
-                            searchStartIndexForSecondSeparator = yamlSeparator.Length + newLines[0].Length;
-                        }
-                        else if (markdownTxt.Substring(yamlSeparator.Length).StartsWith(newLines[1]))
-                        {
-                            searchStartIndexForSecondSeparator = yamlSeparator.Length + newLines[1].Length;
-                        }
+                        startsWithYaml = true;
+                        detectedNewLine = nl;
+                        break;
+                    }
+                }
 
-                        if (searchStartIndexForSecondSeparator > 0)
+                if (startsWithYaml)
+                {
+                    _logger.LogDebug($"[YAML Debug] YAML separator detected at start of file with newline: '{detectedNewLine.Replace("\r", "\\r").Replace("\n", "\\n")}'");
+                    
+                    // Cerca il secondo separatore YAML
+                    int searchStartIndexForSecondSeparator = yamlSeparator.Length + detectedNewLine.Length;
+                    int secondSeparatorActualStartIndex = -1;
+                    string secondNewLine = null;
+                    
+                    // Cerchiamo "---" seguito da newline
+                    foreach (var nl in newLines)
+                    {
+                        int idx = markdownTxt.IndexOf(yamlSeparator + nl, searchStartIndexForSecondSeparator);
+                        if (idx > 0)
                         {
-                            var secondSeparatorActualStartIndex = -1;
-                            // Cerchiamo "---" seguito da newline
-                            foreach (var nl in newLines)
-                            {
-                                secondSeparatorActualStartIndex = markdownTxt.IndexOf(yamlSeparator + nl, searchStartIndexForSecondSeparator);
-                                if (secondSeparatorActualStartIndex > 0) break;
-                            }
-
-                            if (secondSeparatorActualStartIndex > 0)
-                            {
-                                // Trovato un blocco YAML valido
-                                // Il contenuto inizia dopo il secondo separatore e il suo newline
-                                int contentActualStartIndex = secondSeparatorActualStartIndex + yamlSeparator.Length;
-                                // Aggiungiamo la lunghezza del newline specifico trovato
-                                if (markdownTxt.Substring(contentActualStartIndex).StartsWith(newLines[0]))
-                                {
-                                    contentActualStartIndex += newLines[0].Length;
-                                }
-                                else if (markdownTxt.Substring(contentActualStartIndex).StartsWith(newLines[1]))
-                                {
-                                    contentActualStartIndex += newLines[1].Length;
-                                }
-
-                                contentWithoutYaml = markdownTxt.Substring(contentActualStartIndex);
-                                // Non è necessario TrimStart perché partiamo esattamente dopo il newline
-                                _logger.LogInformation($"YAML front matter removed from file: {filePathToAccessOnServer}");
-                            }
-                            else
-                            {
-                                _logger.LogInformation($"YAML front matter started but not properly closed in file: {filePathToAccessOnServer}. Serving full content.");
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogInformation($"File starts with '---' but no content or closing YAML separator found. Serving full content for: {filePathToAccessOnServer}");
+                            secondSeparatorActualStartIndex = idx;
+                            secondNewLine = nl;
+                            _logger.LogDebug($"[YAML Debug] Found second separator at position {idx} with newline: '{nl.Replace("\r", "\\r").Replace("\n", "\\n")}'");
+                            break;
                         }
                     }
-                    else // Questo caso è improbabile se StartsWith ha avuto successo, ma per sicurezza
+
+                    if (secondSeparatorActualStartIndex > 0)
                     {
-                        _logger.LogInformation($"File starts with '---' but structure is unusual. Serving full content for: {filePathToAccessOnServer}");
+                        // Trovato un blocco YAML valido
+                        // Il contenuto inizia dopo il secondo separatore e il suo newline
+                        int contentActualStartIndex = secondSeparatorActualStartIndex + yamlSeparator.Length + secondNewLine.Length;
+                        
+                        contentWithoutYaml = markdownTxt.Substring(contentActualStartIndex);
+                        _logger.LogDebug($"[YAML Debug] YAML block found from 0 to {contentActualStartIndex}");
+                        _logger.LogDebug($"[YAML Debug] Content without YAML starts at position {contentActualStartIndex}");
+                        _logger.LogDebug($"[YAML Debug] First 50 chars of content: '{(contentWithoutYaml.Length > 50 ? contentWithoutYaml.Substring(0, 50).Replace("\r", "\\r").Replace("\n", "\\n") : contentWithoutYaml.Replace("\r", "\\r").Replace("\n", "\\n"))}'");
+                        _logger.LogInformation($"YAML front matter removed from file: {filePathToAccessOnServer}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"YAML front matter started but not properly closed in file: {filePathToAccessOnServer}. Serving full content.");
                     }
                 }
 
@@ -367,7 +364,7 @@ namespace MdExplorer.Controllers
                 var originalFullContent = await System.IO.File.ReadAllTextAsync(filePathToAccessOnServer, Encoding.UTF8);
                 string originalYamlBlock = "";
                 const string yamlSeparator = "---";
-                string[] newLines = { Environment.NewLine, "\n" }; // \r\n e \n
+                string[] newLines = { "\r\n", "\n" }; // Windows e Unix/Linux newlines
 
                 // Verifica se il contenuto inizia con il separatore YAML
                 bool startsWithYaml = false;
@@ -378,6 +375,7 @@ namespace MdExplorer.Controllers
                     {
                         startsWithYaml = true;
                         firstNewLine = nl;
+                        _logger.LogDebug($"[UpdateMarkdown YAML Debug] File starts with YAML, newline: '{nl.Replace("\r", "\\r").Replace("\n", "\\n")}'");
                         break;
                     }
                 }

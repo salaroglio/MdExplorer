@@ -1,6 +1,7 @@
 using MdExplorer.Features.Utilities;
 using MdExplorer.Service;
 using MdExplorer.Service.HostedServices;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
@@ -24,8 +25,34 @@ namespace MdExplorer
 
         
         public static void Main(string[] args)
-        {            
-            CreateHostBuilder(args).Build().Run();
+        {
+            try
+            {
+                // Setup file logging early to catch startup errors
+                var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+                Directory.CreateDirectory(logPath);
+                var logFile = Path.Combine(logPath, $"mdexplorer-startup-{DateTime.Now:yyyy-MM-dd}.log");
+                
+                using (var writer = new StreamWriter(logFile, append: true))
+                {
+                    writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Starting MdExplorer...");
+                    writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Arguments: {string.Join(" ", args ?? new string[0])}");
+                    writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Working Directory: {Directory.GetCurrentDirectory()}");
+                }
+                
+                CreateHostBuilder(args).Build().Run();
+            }
+            catch (Exception ex)
+            {
+                // Log startup failures
+                var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+                Directory.CreateDirectory(logPath);
+                var logFile = Path.Combine(logPath, $"mdexplorer-crash-{DateTime.Now:yyyy-MM-dd}.log");
+                
+                File.AppendAllText(logFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] FATAL ERROR:\n{ex}\n\n");
+                
+                throw;
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
@@ -45,6 +72,18 @@ namespace MdExplorer
             }
 
             var toReturn = Host.CreateDefaultBuilder(args)
+               .ConfigureLogging((hostingContext, logging) =>
+               {
+                   logging.ClearProviders();
+                   logging.AddConsole();
+                   logging.AddDebug();
+                   
+                   // Add file logging
+                   var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+                   Directory.CreateDirectory(logPath);
+                   var logFile = Path.Combine(logPath, $"mdexplorer-{DateTime.Now:yyyy-MM-dd}.log");
+                   logging.AddFile(logFile);
+               })
                .ConfigureWebHostDefaults(webBuilder =>
                {
                    webBuilder.UseUrls(url);
@@ -53,6 +92,7 @@ namespace MdExplorer
                .ConfigureServices(services =>
                {
                    services.AddHostedService<MonitorMDHostedService>();
+                   services.AddHostedService<ApplicationInitializationService>();
                });
             ;
             return toReturn;
