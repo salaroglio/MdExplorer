@@ -23,7 +23,7 @@ namespace MdExplorer.Service.Controllers
         public IActionResult GetCurrentFolder()
         {
             var currentFolder = _fileSystemWatcher.Path;
-            string lastFolder = currentFolder.Substring(currentFolder.LastIndexOf("\\") + 1);
+            string lastFolder = Path.GetFileName(currentFolder);
             return Ok(new { currentFolder = lastFolder });
         }
     }

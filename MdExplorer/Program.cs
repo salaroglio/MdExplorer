@@ -28,28 +28,44 @@ namespace MdExplorer
         {
             try
             {
-                // Setup file logging early to catch startup errors
-                var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
-                Directory.CreateDirectory(logPath);
-                var logFile = Path.Combine(logPath, $"mdexplorer-startup-{DateTime.Now:yyyy-MM-dd}.log");
+                // Check if running from Electron (AppImage or packaged app)
+                var isElectron = Directory.GetCurrentDirectory().Contains(".mount_") || 
+                                Directory.GetCurrentDirectory().Contains("app_service") ||
+                                Environment.GetEnvironmentVariable("ELECTRON_RUN_AS_NODE") != null;
                 
-                using (var writer = new StreamWriter(logFile, append: true))
+                if (!isElectron)
                 {
-                    writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Starting MdExplorer...");
-                    writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Arguments: {string.Join(" ", args ?? new string[0])}");
-                    writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Working Directory: {Directory.GetCurrentDirectory()}");
+                    // Setup file logging only when NOT running from Electron
+                    var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+                    Directory.CreateDirectory(logPath);
+                    var logFile = Path.Combine(logPath, $"mdexplorer-startup-{DateTime.Now:yyyy-MM-dd}.log");
+                    
+                    using (var writer = new StreamWriter(logFile, append: true))
+                    {
+                        writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Starting MdExplorer...");
+                        writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Arguments: {string.Join(" ", args ?? new string[0])}");
+                        writer.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Working Directory: {Directory.GetCurrentDirectory()}");
+                    }
                 }
                 
                 CreateHostBuilder(args).Build().Run();
             }
             catch (Exception ex)
             {
-                // Log startup failures
-                var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
-                Directory.CreateDirectory(logPath);
-                var logFile = Path.Combine(logPath, $"mdexplorer-crash-{DateTime.Now:yyyy-MM-dd}.log");
+                // Check if running from Electron before trying to write logs
+                var isElectron = Directory.GetCurrentDirectory().Contains(".mount_") || 
+                                Directory.GetCurrentDirectory().Contains("app_service") ||
+                                Environment.GetEnvironmentVariable("ELECTRON_RUN_AS_NODE") != null;
                 
-                File.AppendAllText(logFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] FATAL ERROR:\n{ex}\n\n");
+                if (!isElectron)
+                {
+                    // Log startup failures only when NOT running from Electron
+                    var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+                    Directory.CreateDirectory(logPath);
+                    var logFile = Path.Combine(logPath, $"mdexplorer-crash-{DateTime.Now:yyyy-MM-dd}.log");
+                    
+                    File.AppendAllText(logFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] FATAL ERROR:\n{ex}\n\n");
+                }
                 
                 throw;
             }
@@ -78,11 +94,19 @@ namespace MdExplorer
                    logging.AddConsole();
                    logging.AddDebug();
                    
-                   // Add file logging
-                   var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
-                   Directory.CreateDirectory(logPath);
-                   var logFile = Path.Combine(logPath, $"mdexplorer-{DateTime.Now:yyyy-MM-dd}.log");
-                   logging.AddFile(logFile);
+                   // Check if running from Electron
+                   var isElectron = Directory.GetCurrentDirectory().Contains(".mount_") || 
+                                   Directory.GetCurrentDirectory().Contains("app_service") ||
+                                   Environment.GetEnvironmentVariable("ELECTRON_RUN_AS_NODE") != null;
+                   
+                   if (!isElectron)
+                   {
+                       // Add file logging only when NOT running from Electron
+                       var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+                       Directory.CreateDirectory(logPath);
+                       var logFile = Path.Combine(logPath, $"mdexplorer-{DateTime.Now:yyyy-MM-dd}.log");
+                       logging.AddFile(logFile);
+                   }
                })
                .ConfigureWebHostDefaults(webBuilder =>
                {

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using NHibernate;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using SkiaSharp;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -137,10 +137,10 @@ namespace MdExplorer.Features.Commands.pdf
         {
             double inchHeight, inchWidth;
             var res1 = File.ReadAllBytes(filePath);
-            MemoryStream imageStream = new MemoryStream(res1);
-            Bitmap image = new Bitmap(imageStream);
-            var pixelWidth = image.Width;
-            var pixelHeight = image.Height;
+            using var imageStream = new MemoryStream(res1);
+            using var skBitmap = SKBitmap.Decode(imageStream);
+            var pixelWidth = skBitmap.Width;
+            var pixelHeight = skBitmap.Height;
             var ratio = Convert.ToDouble(pixelWidth) / Convert.ToDouble(pixelHeight);
             inchHeight = 0;
             inchWidth = 0;

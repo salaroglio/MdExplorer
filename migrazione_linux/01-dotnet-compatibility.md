@@ -1,5 +1,17 @@
 # Analisi Compatibilità .NET con Linux
 
+## 🚀 TL;DR
+
+MdExplorer è **quasi completamente compatibile con Linux**. Solo una migrazione è stata necessaria:
+- ✅ **System.Drawing.Common → SkiaSharp** per la gestione delle immagini nei PDF
+
+Tutte le altre librerie funzionano nativamente su Linux:
+- ✅ System.Data.SQLite (include librerie native Linux)
+- ✅ NHibernate, SignalR, Markdig (fully cross-platform)
+- ✅ LibGit2Sharp, PlantUML (con dipendenze native installate)
+
+**Risultato**: Build e esecuzione su Linux completamente funzionanti dopo la sola migrazione a SkiaSharp.
+
 ## 📊 Tabella Riassuntiva Stato Migrazione
 
 | Componente | Criticità | Azione Richiesta | Stato | Test | Note |
@@ -8,14 +20,14 @@
 | **MdImageNumbering** | 🔴 Blocco | Rimuovere Windows Forms | ✅ Completato | ✅ | Rimosso dalla soluzione |
 | **Ad.Tools.FluentMigrator.UnitTest** | 🔴 Blocco | Migrare a .NET 6+ | ✅ Completato | ✅ | Rimosso dalla soluzione |
 | **MdExplorer.Service** | ⚠️ Alto | Rimuovere UseWindowsForms | ✅ Completato | ✅ | Configurazioni OS-specific implementate |
-| **System.Drawing.Common** | ⚠️ Alto | Installare libgdiplus o migrare | ❌ Da fare | ❌ | Preferibile SkiaSharp |
-| **System.Data.SQLite** | ⚠️ Medio | Migrare a Microsoft.Data.Sqlite | ❌ Da fare | ❌ | Better cross-platform |
+| **System.Drawing.Common** | ⚠️ Alto | Installare libgdiplus o migrare | ✅ Completato | ✅ | Migrato a SkiaSharp |
+| **System.Data.SQLite** | ⚠️ Medio | Migrare a Microsoft.Data.Sqlite | ❌ Non necessario | ✅ | Funziona su Linux |
 | **Microsoft.Alm.Authentication** | ⚠️ Basso | Verificare compatibilità | ✅ Completato | ⚠️ | Warning ma funziona |
 | **LibGit2Sharp** | ✅ OK | Verificare native libs | ✅ Completato | ✅ | Funziona correttamente |
 | **PlantUML/GraphViz** | ⚠️ Medio | Installare nativi Linux | ✅ Completato | ✅ | GraphViz nativo installato (v2.43.0) |
-| **NHibernate** | ✅ OK | Nessuna | ✅ Compatibile | ❌ | Fully compatible |
-| **SignalR** | ✅ OK | Nessuna | ✅ Compatibile | ❌ | Fully compatible |
-| **Markdig** | ✅ OK | Nessuna | ✅ Compatibile | ❌ | Fully compatible |
+| **NHibernate** | ✅ OK | Nessuna | ✅ Compatibile | ✅ | Fully compatible |
+| **SignalR** | ✅ OK | Nessuna | ✅ Compatibile | ✅ | Fully compatible |
+| **Markdig** | ✅ OK | Nessuna | ✅ Compatibile | ✅ | Fully compatible |
 
 ### Legenda Stati
 - ❌ **Da fare**: Azione non ancora iniziata
@@ -158,11 +170,12 @@ curl http://localhost:5000/monitorMDHub/negotiate
 ### 🔴 Librerie Problematiche
 
 #### 1. System.Drawing.Common (v6.0.0)
-- **Usata in**: Multiple progetti
+- **Usata in**: ~~Multiple progetti~~ **MIGRATO**
 - **Problema**: Da .NET 6+ non supporta Linux nativamente
-- **Workaround**: Installare `libgdiplus` su Linux
-- **Soluzione migliore**: Migrare a `SkiaSharp` o `ImageSharp`
-- **Impatto**: Alto - usata per manipolazione immagini
+- **Workaround**: ~~Installare `libgdiplus` su Linux~~ **NON PIÙ NECESSARIO**
+- **Soluzione migliore**: ~~Migrare a `SkiaSharp` o `ImageSharp`~~ **✅ MIGRATO A SKIASHARP**
+- **Impatto**: ~~Alto - usata per manipolazione immagini~~ **RISOLTO**
+- **Data migrazione**: 2025-08-05
 
 **Test di Verifica**:
 ```bash
@@ -184,10 +197,11 @@ dotnet run --project Tests/ImageBenchmark.csproj
 ```
 
 #### 2. System.Data.SQLite (v1.0.114.4)
-- **Usata in**: Data access layer
+- **Usata in**: Data access layer via FluentNHibernate
 - **Problema**: Richiede librerie native SQLite
-- **Soluzione**: Migrare a `Microsoft.Data.Sqlite` (migliore supporto cross-platform)
-- **Impatto**: Medio - richiede refactoring DAL
+- **Soluzione**: **NESSUNA MIGRAZIONE NECESSARIA** - Funziona correttamente su Linux
+- **Impatto**: Nessuno - Il package include le librerie native per Linux
+- **Note**: La migrazione a Microsoft.Data.Sqlite causerebbe incompatibilità con NHibernate 5.3
 
 **Test di Verifica**:
 ```bash
@@ -228,6 +242,30 @@ dotnet run --project Tests/GitIntegration.Test.csproj -- clone https://github.co
 git config --global credential.helper
 # Risultato atteso: Helper configurato correttamente per Linux
 ```
+
+### ✅ Migrazioni Completate (2025-08-05)
+
+#### System.Drawing.Common → SkiaSharp
+- **File modificato**: `FromPlantumlToSvgPdf.cs`
+- **Package sostituito**: `System.Drawing.Common` → `SkiaSharp v2.88.6`
+- **Codice migrato**:
+  ```csharp
+  // Prima
+  using System.Drawing;
+  Bitmap image = new Bitmap(imageStream);
+  var pixelWidth = image.Width;
+  var pixelHeight = image.Height;
+  
+  // Dopo
+  using SkiaSharp;
+  using var skBitmap = SKBitmap.Decode(imageStream);
+  var pixelWidth = skBitmap.Width;
+  var pixelHeight = skBitmap.Height;
+  ```
+- **Import non utilizzati rimossi** da:
+  - `FromPlantumlToSvgHtml.cs`
+  - `IPresentationPlantuml.cs`
+- **Risultato**: Build completato con successo, piena compatibilità cross-platform
 
 ### ⚠️ Librerie da Verificare
 

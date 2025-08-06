@@ -176,6 +176,17 @@ namespace MdExplorer
 
         private void OpenUrl(string url, ILogger<Startup> logger)
         {
+            // Check if running from Electron - don't open browser if so
+            var isElectron = Directory.GetCurrentDirectory().Contains(".mount_") || 
+                            Directory.GetCurrentDirectory().Contains("app_service") ||
+                            Environment.GetEnvironmentVariable("ELECTRON_RUN_AS_NODE") != null;
+            
+            if (isElectron)
+            {
+                logger.LogInformation($"Running from Electron, skipping browser launch. URL: {url}");
+                return;
+            }
+            
             // hack because of this: https://github.com/dotnet/corefx/issues/10361
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {

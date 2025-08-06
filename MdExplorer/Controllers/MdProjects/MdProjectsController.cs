@@ -18,6 +18,7 @@ using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdProjects;
 using AutoMapper;
+using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
 
 namespace MdExplorer.Service.Controllers.MdProjects
@@ -210,7 +211,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 
                 var settingDal = _userSettingsDB.GetDal<Setting>();
                 var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
-                    ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+                    ?? CrossPlatformProcess.DiscoverVSCodePath()
+                    ?? throw new InvalidOperationException("VS Code not found. Please configure EditorPath in settings.");
                 _processUtil.OpenFileWithVisualStudioCode(currentIdNotes, editorPath);
                 
                 return Ok(new { message = "done", currentNote = currentIdNotes });

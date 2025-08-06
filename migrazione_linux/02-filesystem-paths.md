@@ -103,6 +103,17 @@ sqlite3 ~/.local/share/MdExplorer/MdExplorer.db ".tables"
 - `MdExplorer/Controllers/*` (15+ occorrenze)
 - `MdExplorer.bll/Commands/*` (10+ occorrenze)
 
+**NOTA IMPORTANTE (2025-01-05)**: Dopo analisi approfondita, questo problema richiede attenzione caso per caso perché:
+1. Alcuni backslash potrebbero riferirsi a path che arrivano da API/web con convenzioni specifiche
+2. Esiste già `CrossPlatformPath.NormalizePath` che gestisce correttamente la conversione
+3. Alcuni path potrebbero essere URL o riferimenti non-filesystem che usano convenzioni diverse
+4. Il rischio di regressioni è alto senza comprendere il contesto di ogni utilizzo
+
+**Raccomandazione**: Rimandare questo refactoring a una fase successiva con:
+- Analisi dettagliata di ogni caso d'uso
+- Test specifici per verificare il comportamento su diversi OS
+- Possibile centralizzazione in `CrossPlatformPath` esistente
+
 **Codice Problematico:**
 ```csharp
 // ❌ ERRATO - Backslash hardcoded

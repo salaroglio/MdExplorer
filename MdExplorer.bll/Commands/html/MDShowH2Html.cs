@@ -118,7 +118,7 @@ namespace MdExplorer.Features.Commands.html
                             var allContent = matchH1.Groups[0].Value;
                             // hash, and save
                             var textHash = _helper.GetHashString(matchH1.Groups[0].Value, Encoding.UTF8);
-                            fullPathFileMdToRender = rootPathSystem + Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar + textHash + ".md";
+                            fullPathFileMdToRender = Path.Combine(rootPathSystem, ".md", textHash + ".md");
                             File.WriteAllText(fullPathFileMdToRender, allContent);
                             break;
                         }

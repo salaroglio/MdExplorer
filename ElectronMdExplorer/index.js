@@ -103,7 +103,8 @@ const createWindow = async () => {
       console.log(`Found free port: ${freePort}`);
       targetUrl = `http://localhost:${freePort}/client2/index.html`; // Default URL to load
 
-      // Determine the path to MdExplorer.Service.exe
+      // Determine the path to MdExplorer.Service executable
+      const executableName = process.platform === 'win32' ? 'MdExplorer.Service.exe' : 'MdExplorer.Service';
       const isPackaged = app.isPackaged;
       let serviceExecutablePath = '';
       let serviceWorkingDirectory = '';
@@ -112,7 +113,7 @@ const createWindow = async () => {
       if (isPackaged) {
         // Packaged app: Service is in resources/app_service
         const baseResourcePath = process.resourcesPath; // Path to resources folder
-        serviceExecutablePath = path.join(baseResourcePath, 'app_service', 'MdExplorer.Service.exe');
+        serviceExecutablePath = path.join(baseResourcePath, 'app_service', executableName);
         serviceWorkingDirectory = path.join(baseResourcePath, 'app_service');
         console.log(`Packaged app: Attempting to find service at ${serviceExecutablePath}`);
         absoluteSearchedPaths.push(serviceExecutablePath);
@@ -120,7 +121,7 @@ const createWindow = async () => {
         // Development mode:
         // Option A: Expect service in ElectronMdExplorer/service_payload/
         const devServicePayloadPath = path.join(__dirname, 'service_payload');
-        serviceExecutablePath = path.join(devServicePayloadPath, 'MdExplorer.Service.exe');
+        serviceExecutablePath = path.join(devServicePayloadPath, executableName);
         serviceWorkingDirectory = devServicePayloadPath;
         console.log(`Development (using service_payload): Trying ${serviceExecutablePath}`);
         absoluteSearchedPaths.push(serviceExecutablePath);
@@ -128,7 +129,7 @@ const createWindow = async () => {
         // Option B: Fallback to a direct path to MdExplorer/dist_service
         if (!fs.existsSync(serviceExecutablePath)) {
             const devDistServicePath = path.join(__dirname, '..', 'MdExplorer', 'dist_service');
-            serviceExecutablePath = path.join(devDistServicePath, 'MdExplorer.Service.exe');
+            serviceExecutablePath = path.join(devDistServicePath, executableName);
             serviceWorkingDirectory = devDistServicePath;
             console.log(`Development (using MdExplorer/dist_service): Trying ${serviceExecutablePath}`);
             absoluteSearchedPaths.push(serviceExecutablePath);
@@ -139,9 +140,9 @@ const createWindow = async () => {
         const searchedPathsForDisplayHTML = absoluteSearchedPaths.filter(p => p).join('<br>');
         const searchedPathsForConsole = absoluteSearchedPaths.filter(p => p).join('\n');
         const modeMsg = isPackaged ? "packaged resources" : "development paths";
-        console.error(`MdExplorer.Service.exe not found in ${modeMsg}. Searched paths:\n${searchedPathsForConsole}`);
+        console.error(`${executableName} not found in ${modeMsg}. Searched paths:\n${searchedPathsForConsole}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.loadURL(`data:text/html,<h1>Service Error</h1><p>MdExplorer.Service.exe not found in ${modeMsg}.</p><pre>Searched paths:<br>${searchedPathsForDisplayHTML.replace(/\n/g, '<br>')}</pre>`);
+            mainWindow.loadURL(`data:text/html,<h1>Service Error</h1><p>${executableName} not found in ${modeMsg}.</p><pre>Searched paths:<br>${searchedPathsForDisplayHTML.replace(/\n/g, '<br>')}</pre>`);
         }
         return; // Stop further execution if executable not found
       }
