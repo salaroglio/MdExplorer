@@ -446,8 +446,8 @@ namespace MdExplorer.Controllers
 
 
             var btnDraw = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
-            var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack");
-            var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward");
+            var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack", "mdeLowerBarButton mdeNavButton");
+            var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
             var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
             var resultToParse = $@"    
@@ -571,14 +571,14 @@ namespace MdExplorer.Controllers
 
        
 
-        private string AddButtonOnLowerBar(string functionJs, string image, string Id)
+        private string AddButtonOnLowerBar(string functionJs, string image, string Id, string cssClass = "mdeLowerBarButton")
         {
             var doc1 = new XmlDocument();
             var body = doc1.CreateElement("div");
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
             var aAtt3 = doc1.CreateAttribute("class");
-            aAtt3.Value = "mdeLowerBarButton";
+            aAtt3.Value = cssClass;
             body.Attributes.Append(aAtt3);
             a.Attributes.Append(aAtt);            
             aAtt.Value = functionJs;
