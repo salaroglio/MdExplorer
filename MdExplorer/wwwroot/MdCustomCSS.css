@@ -541,3 +541,10 @@ s
 .mdeLowerBarButton.active img {
     filter: brightness(0) invert(1);
 }
+
+/* Pulsanti di navigazione per link interni - visibili ma disabilitati di default */
+.mdeNavButton {
+    display: block;
+    opacity: 0.3;
+    pointer-events: none;
+}
