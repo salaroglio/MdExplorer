@@ -41,193 +41,6 @@ $(function () {
 
 
 
-// EDITOR H1
-
-currenth1Id = 0;
-oldDataText = "";
-
-function editH1(h1Id) {
-    var test$ = $('div.hiddendataforeditorh1[md-h1Id=' + h1Id + ']');
-    currenth1Id = h1Id;
-    $(".edith1-popup-overlay, .popup-content").addClass("active");
-    editorH1CurrentIndex = test$.attr("md-itemmatchindex");
-
-    var pathFile = test$.attr("md-path-file");
-    $.get("/api/WriteMD/GetEditorH1?editorH1CurrentIndex=" + editorH1CurrentIndex + "&absolutePathFile=" + pathFile, function (data) {
-
-        oldDataText = data;
-        $('#editH1').val(data);
-        let canvas$ = $('#canvas');
-        let toc$ = $('#toc');
-        let editorH1$ = $('#editorH1');
-        canvas$.addClass("hideIcons");
-        toc$.addClass("hideIcons");
-        editorH1$.addClass("hideIcons");
-        $('#editH1').highlightWithinTextarea('update');
-        if ($('#TOC').is(":hidden")) {
-        } else {
-            tocWasShown = true;
-        }
-        hideTocForEditH1();
-    });
-
-}
-
-tocWasShown = false;
-function hideTocForEditH1() {
-    if ($('#TOC').is(":hidden")) {
-        if (tocWasShown) {
-
-        }
-    } else {
-        var $toc = $('#TOC');
-        $toc.hide();
-    }
-}
-
-// configuration of editH1
-$(function () {
-    var editorH1$ = $('#editH1');
-    editorH1$.highlightWithinTextarea({
-        highlight: [
-            {
-                highlight: '#',
-                className: 'red'
-            },
-            {
-                highlight: ':ok:',
-                className: 'blue'
-            },
-            {
-                highlight: ':exclamation:',
-                className: 'red'
-            },
-            {
-                highlight: '-',
-                className: 'yellow'
-            },
-            {
-                highlight: ':warning:',
-                className: 'yellow'
-            },
-            {
-                highlight: ':warning:',
-                className: 'goldH1'
-            },
-            {
-                highlight: ':heavy_check_mark:',
-                className: 'greenH1'
-            },
-            {
-                highlight: ':no_entry:',
-                className: 'red'
-            },
-            {
-                highlight: ':question:',
-                className: 'red'
-            },
-            {
-                highlight: '|',
-                className: 'purpleH1'
-            },
-
-            {
-                highlight: ':negative_squared_cross_mark:',
-                className: 'darkgreenH1'
-            },
-            {
-                highlight: '[',
-                className: 'darkgreenH1'
-            },
-            {
-                highlight: ']',
-                className: 'darkgreenH1'
-            },
-            {
-                highlight: '(',
-                className: 'darkgreenH1'
-            },
-            {
-                highlight: ')',
-                className: 'darkgreenH1'
-            },
-        ]
-    });
-
-
-
-    var closeButton$ = $(".close, .popup-overlay");
-
-    closeButton$.on("click", function () {
-        $(".edith1-popup-overlay, .popup-content").removeClass("active");
-        $('#canvas').removeClass("hideIcons");
-        $('#toc').removeClass("hideIcons");
-        $('#editorH1').removeClass("hideIcons");
-        hideTocForEditH1();
-    });
-
-    var operButton$ = $(".save, .popup-overlay");
-
-    operButton$.on("click", function () {
-
-        var oldData$ = $('div.hiddendataforeditorh1[md-h1Id=' + currenth1Id + ']');
-        var textArea$ = $('#editH1');
-        var oldMd = oldDataText; // oldData$[0].innerText;
-        var newMd = textArea$.val();
-        var pathFile = oldData$.attr("md-path-file");
-        var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
-        var indexEnd = parseInt(oldData$.attr("md-itemmatchindex-end"));
-        let MdBody = $("#MdBody");
-        let connectionId = MdBody.attr("connectionid");        
-        let toStringify = {
-            oldMd: oldMd,
-            newMd: newMd,
-            pathFile: pathFile,
-            indexStart: indexStart,
-            indexEnd: indexEnd,
-            connectionId: connectionId
-        };
-        $.ajax({
-            url: "/api/WriteMD/SetEditorH1",
-            type: "POST",
-            data: JSON.stringify(toStringify),
-            contentType: "application/json; charset=utf-8",
-            dataType: "json",
-            success: function (data) {
-                console.log(data);
-            }
-        });
-
-        $(".edith1-popup-overlay, .popup-content").removeClass("active");
-        $('#canvas').removeClass("hideIcons");
-        $('#toc').removeClass("hideIcons");
-        $('#editorH1').removeClass("hideIcons");
-        hideTocForEditH1();
-    });
-
-
-});
-
-editorIsShown = false;
-function toggleEditor() {
-    var arrayOfEditorH1$ = $(".editorH1");
-    if (!editorIsShown) {
-        //Set click for editorH1        
-        arrayOfEditorH1$.on("click", function () {
-            let currentTag$ = $(this);
-            let index = currentTag$.attr("md-itemmatchindex");
-            editH1(index);
-        });
-        arrayOfEditorH1$.addClass("showAreaH1");
-    } else {
-        var arrayOfEditorH1$ = $(".editorH1");
-        arrayOfEditorH1$.off("click");
-        arrayOfEditorH1$.removeClass("showAreaH1");
-    }
-    editorIsShown = !editorIsShown;
-}
-
-/////// end editH1
 
 const cyrb53 = function (str, seed = 0) {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
@@ -260,6 +73,131 @@ function openApplication(fullpath) {
 }
 
 currentDocumentSetting = {};
+
+// Navigation history for internal links
+let navigationHistory = [];
+let currentNavigationIndex = -1;
+
+function initializeInternalNavigation() {
+    // Check if there are internal links in the document
+    const internalLinks = document.querySelectorAll('a[href^="#"]');
+    const navBackBtn = document.getElementById('navBack');
+    const navForwardBtn = document.getElementById('navForward');
+    
+    if (internalLinks.length > 0) {
+        // Show navigation buttons only if internal links exist
+        if (navBackBtn && navBackBtn.parentElement) {
+            navBackBtn.parentElement.parentElement.style.display = 'block';
+        }
+        if (navForwardBtn && navForwardBtn.parentElement) {
+            navForwardBtn.parentElement.parentElement.style.display = 'block';
+        }
+        
+        // Add click listener to all internal links
+        internalLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                const targetId = this.getAttribute('href').substring(1);
+                
+                // Add to history
+                if (currentNavigationIndex < navigationHistory.length - 1) {
+                    // Remove forward history if we're navigating from middle of history
+                    navigationHistory = navigationHistory.slice(0, currentNavigationIndex + 1);
+                }
+                
+                navigationHistory.push({
+                    targetId: targetId,
+                    scrollPosition: window.scrollY
+                });
+                currentNavigationIndex++;
+                
+                updateNavigationButtons();
+            });
+        });
+    } else {
+        // Hide navigation buttons if no internal links
+        if (navBackBtn && navBackBtn.parentElement) {
+            navBackBtn.parentElement.parentElement.style.display = 'none';
+        }
+        if (navForwardBtn && navForwardBtn.parentElement) {
+            navForwardBtn.parentElement.parentElement.style.display = 'none';
+        }
+    }
+    
+    updateNavigationButtons();
+}
+
+function navigateBack() {
+    if (currentNavigationIndex > 0) {
+        // Save current position before going back
+        if (currentNavigationIndex === navigationHistory.length - 1) {
+            navigationHistory[currentNavigationIndex].scrollPosition = window.scrollY;
+        }
+        
+        currentNavigationIndex--;
+        const previousLocation = navigationHistory[currentNavigationIndex];
+        
+        if (previousLocation.targetId) {
+            const element = document.getElementById(previousLocation.targetId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            window.scrollTo({ top: previousLocation.scrollPosition, behavior: 'smooth' });
+        }
+        
+        updateNavigationButtons();
+    }
+}
+
+function navigateForward() {
+    if (currentNavigationIndex < navigationHistory.length - 1) {
+        currentNavigationIndex++;
+        const nextLocation = navigationHistory[currentNavigationIndex];
+        
+        if (nextLocation.targetId) {
+            const element = document.getElementById(nextLocation.targetId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            window.scrollTo({ top: nextLocation.scrollPosition, behavior: 'smooth' });
+        }
+        
+        updateNavigationButtons();
+    }
+}
+
+function updateNavigationButtons() {
+    const navBackBtn = document.getElementById('navBack');
+    const navForwardBtn = document.getElementById('navForward');
+    
+    if (navBackBtn && navBackBtn.parentElement) {
+        if (currentNavigationIndex <= 0) {
+            navBackBtn.parentElement.style.opacity = '0.3';
+            navBackBtn.parentElement.style.pointerEvents = 'none';
+        } else {
+            navBackBtn.parentElement.style.opacity = '1';
+            navBackBtn.parentElement.style.pointerEvents = 'auto';
+        }
+    }
+    
+    if (navForwardBtn && navForwardBtn.parentElement) {
+        if (currentNavigationIndex >= navigationHistory.length - 1) {
+            navForwardBtn.parentElement.style.opacity = '0.3';
+            navForwardBtn.parentElement.style.pointerEvents = 'none';
+        } else {
+            navForwardBtn.parentElement.style.opacity = '1';
+            navForwardBtn.parentElement.style.pointerEvents = 'auto';
+        }
+    }
+}
+
+// Initialize navigation when document is ready
+$(document).ready(function() {
+    setTimeout(function() {
+        initializeInternalNavigation();
+    }, 500); // Small delay to ensure DOM is fully loaded
+});
 
 // gestione tocbot
 $(function () {

@@ -445,19 +445,12 @@ namespace MdExplorer.Controllers
             //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
 
-            var btnDraw = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");            
+            var btnDraw = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
+            var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack");
+            var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward");
             var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
             var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
-            var btnEdit = AddButtonOnLowerBar($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
-            var resultToParse = $@"
-                    <div class=""edith1-popup-overlay"">
-                        <div class=""popup-content"">
-                            <h4 >Inline Editor</h4>
-                           <textarea rows=""10"" class=""edith1textarea "" id=""editH1"">if you see this, something wrong happened</textarea>
-                            <button class=""close"">Close</button>    
-                            <button class=""save"" >save</button>  
-                        </div>
-                    </div>    
+            var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
                         <div id=""TOC"" class=""tocNavigation"" mdeFullPathDocument=""{fullPathFile}"">
@@ -488,8 +481,9 @@ namespace MdExplorer.Controllers
                         </div>
                     </div>
                     <div class=""mdeLowerBar"">
-                             {btnDraw}                            
-                             {btnEdit}
+                             {btnDraw}
+                             {btnNavBack}
+                             {btnNavForward}
                     </div>
                     <div class=""mdeContainerIFrameApplciation"">
                         <div class=""mdeItemMainPageLeftMenu"" ></div>
