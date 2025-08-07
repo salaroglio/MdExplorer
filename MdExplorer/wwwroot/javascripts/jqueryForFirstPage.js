@@ -74,9 +74,9 @@ function openApplication(fullpath) {
 
 currentDocumentSetting = {};
 
-// Navigation history for internal links
-let navigationHistory = [];
-let currentNavigationIndex = -1;
+// Navigation history for internal links - stores only scroll positions
+let arrayPosition = [];
+let currentPositionIndex = -1;
 
 function initializeInternalNavigation() {
     // Check if there are internal links in the document
@@ -96,21 +96,21 @@ function initializeInternalNavigation() {
         // Add click listener to all internal links
         internalLinks.forEach(link => {
             link.addEventListener('click', function(e) {
-                const targetId = this.getAttribute('href').substring(1);
+                // Save current scroll position BEFORE jumping
+                const currentScrollY = window.scrollY;
                 
-                // Add to history
-                if (currentNavigationIndex < navigationHistory.length - 1) {
-                    // Remove forward history if we're navigating from middle of history
-                    navigationHistory = navigationHistory.slice(0, currentNavigationIndex + 1);
+                // If we're navigating from middle of history, remove future positions
+                if (currentPositionIndex < arrayPosition.length - 1) {
+                    arrayPosition = arrayPosition.slice(0, currentPositionIndex + 1);
                 }
                 
-                navigationHistory.push({
-                    targetId: targetId,
-                    scrollPosition: window.scrollY
-                });
-                currentNavigationIndex++;
+                // Add current position to array
+                arrayPosition.push(currentScrollY);
+                currentPositionIndex++;
                 
-                updateNavigationButtons();
+                // Let the browser handle the jump to the anchor
+                // Update buttons after a small delay to ensure jump completed
+                setTimeout(updateNavigationButtons, 100);
             });
         });
     } else {
@@ -127,41 +127,41 @@ function initializeInternalNavigation() {
 }
 
 function navigateBack() {
-    if (currentNavigationIndex > 0) {
+    if (currentPositionIndex > 0) {
         // Save current position before going back
-        if (currentNavigationIndex === navigationHistory.length - 1) {
-            navigationHistory[currentNavigationIndex].scrollPosition = window.scrollY;
-        }
+        const currentScrollY = window.scrollY;
         
-        currentNavigationIndex--;
-        const previousLocation = navigationHistory[currentNavigationIndex];
-        
-        if (previousLocation.targetId) {
-            const element = document.getElementById(previousLocation.targetId);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-            }
+        // Only add to array if we're at the end (not already navigating in history)
+        if (currentPositionIndex === arrayPosition.length - 1) {
+            arrayPosition.push(currentScrollY);
         } else {
-            window.scrollTo({ top: previousLocation.scrollPosition, behavior: 'smooth' });
+            // Replace the current position in array
+            arrayPosition[currentPositionIndex + 1] = currentScrollY;
         }
+        
+        // Move index back
+        currentPositionIndex--;
+        
+        // Scroll to previous position
+        window.scrollTo({ 
+            top: arrayPosition[currentPositionIndex], 
+            behavior: 'smooth' 
+        });
         
         updateNavigationButtons();
     }
 }
 
 function navigateForward() {
-    if (currentNavigationIndex < navigationHistory.length - 1) {
-        currentNavigationIndex++;
-        const nextLocation = navigationHistory[currentNavigationIndex];
+    if (currentPositionIndex < arrayPosition.length - 1) {
+        // Move index forward
+        currentPositionIndex++;
         
-        if (nextLocation.targetId) {
-            const element = document.getElementById(nextLocation.targetId);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-            }
-        } else {
-            window.scrollTo({ top: nextLocation.scrollPosition, behavior: 'smooth' });
-        }
+        // Scroll to next position
+        window.scrollTo({ 
+            top: arrayPosition[currentPositionIndex], 
+            behavior: 'smooth' 
+        });
         
         updateNavigationButtons();
     }
@@ -172,7 +172,7 @@ function updateNavigationButtons() {
     const navForwardBtn = document.getElementById('navForward');
     
     if (navBackBtn && navBackBtn.parentElement) {
-        if (currentNavigationIndex <= 0) {
+        if (currentPositionIndex <= 0) {
             navBackBtn.parentElement.style.opacity = '0.3';
             navBackBtn.parentElement.style.pointerEvents = 'none';
         } else {
@@ -182,7 +182,7 @@ function updateNavigationButtons() {
     }
     
     if (navForwardBtn && navForwardBtn.parentElement) {
-        if (currentNavigationIndex >= navigationHistory.length - 1) {
+        if (currentPositionIndex >= arrayPosition.length - 1) {
             navForwardBtn.parentElement.style.opacity = '0.3';
             navForwardBtn.parentElement.style.pointerEvents = 'none';
         } else {
