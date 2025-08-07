@@ -79,45 +79,25 @@ let navigationHistory = [];
 let currentHistoryIndex = -1;
 
 function initializeInternalNavigation() {
-    console.log('[initializeInternalNavigation] Starting initialization');
-    
-    // Test visibile per verificare che la funzione venga eseguita
-    $('body').append('<div id="nav-debug" style="position:fixed;top:10px;right:10px;background:yellow;padding:5px;z-index:9999">Navigation JS Loaded!</div>');
-    setTimeout(() => $('#nav-debug').fadeOut(), 3000);
-    
     // Usa jQuery per event delegation - cattura anche link aggiunti dinamicamente
     $(document).on('click', 'a[href^="#"]', function(e) {
-        // Feedback visivo per il click
-        $('body').append('<div class="click-debug" style="position:fixed;top:50px;right:10px;background:green;color:white;padding:5px;z-index:9999">Link clicked!</div>');
-        setTimeout(() => $('.click-debug').remove(), 1000);
-        
-        console.log('[Link Click] Internal link clicked:', this.href);
-        console.log('[Link Click] Before click - History:', [...navigationHistory]);
-        console.log('[Link Click] Before click - Current index:', currentHistoryIndex);
-        
         // Save current scroll position BEFORE jumping
         const currentScrollY = window.scrollY;
-        console.log('[Link Click] Current scroll position to save:', currentScrollY);
         
         // If navigating from middle of history, trim future entries
         if (currentHistoryIndex < navigationHistory.length - 1) {
             navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
-            console.log('[Link Click] Trimmed future history');
         }
         
         // Se lo stack è vuoto, questo è il primo click
         if (navigationHistory.length === 0) {
             navigationHistory.push(currentScrollY);
             currentHistoryIndex = 0;
-            console.log('[Link Click] First click - initialized stack with position:', currentScrollY);
         } else {
             // Aggiungi la posizione corrente (da dove parti) allo stack
             navigationHistory.push(currentScrollY);
             currentHistoryIndex = navigationHistory.length - 1;
         }
-        
-        console.log('[Link Click] After adding position - History:', [...navigationHistory]);
-        console.log('[Link Click] After adding position - Index:', currentHistoryIndex);
         
         // Non salvare la destinazione, lascia che il browser faccia il salto
         setTimeout(() => {
@@ -129,23 +109,16 @@ function initializeInternalNavigation() {
     const $internalLinks = $('a[href^="#"]');
     const $navButtons = $('.mdeNavButton');
     
-    console.log('[initializeInternalNavigation] Found internal links:', $internalLinks.length);
-    console.log('[initializeInternalNavigation] Found nav buttons:', $navButtons.length);
-    
     // I pulsanti sono già visibili dal CSS ma disabilitati
     // Non serve fare show() perché il CSS li mostra già
     
     // Lo stack parte vuoto, si popola solo con i click sui link
-    console.log('[initializeInternalNavigation] Stack starts empty');
     
     updateNavigationButtons();
 }
 
 function navigateBack() {
     if (navigationHistory.length > 0) {
-        console.log('[navigateBack] Before - History:', [...navigationHistory]);
-        console.log('[navigateBack] Before - Index:', currentHistoryIndex);
-        
         // Salva la posizione corrente prima di tornare indietro
         const currentScrollY = window.scrollY;
         
@@ -157,18 +130,11 @@ function navigateBack() {
             const lastPosition = navigationHistory[navigationHistory.length - 1];
             if (Math.abs(currentScrollY - lastPosition) > 5) { // Tolleranza di 5px
                 navigationHistory.push(currentScrollY);
-                console.log('[navigateBack] Added current position to stack:', currentScrollY);
-            } else {
-                console.log('[navigateBack] Not adding position - likely coming from forward');
             }
         }
         
         // Vai alla prima posizione (indice 0)
         currentHistoryIndex = 0;
-        
-        console.log('[navigateBack] After - History:', [...navigationHistory]);
-        console.log('[navigateBack] After - Index:', currentHistoryIndex);
-        console.log('[navigateBack] Scrolling to position:', navigationHistory[currentHistoryIndex]);
         
         // Scroll to first saved position
         window.scrollTo({ 
@@ -196,11 +162,6 @@ function navigateForward() {
 }
 
 function updateNavigationButtons() {
-    console.log('[updateNavigationButtons] Current index:', currentHistoryIndex);
-    console.log('[updateNavigationButtons] History length:', navigationHistory.length);
-    console.log('[updateNavigationButtons] Can go back:', navigationHistory.length > 0);
-    console.log('[updateNavigationButtons] Can go forward:', currentHistoryIndex < navigationHistory.length - 1);
-    
     // Trova i contenitori dei pulsanti (div.mdeNavButton)
     const navBackContainer = document.querySelector('#navBack')?.closest('.mdeNavButton');
     const navForwardContainer = document.querySelector('#navForward')?.closest('.mdeNavButton');
@@ -208,30 +169,22 @@ function updateNavigationButtons() {
     if (navBackContainer) {
         // Back si abilita se c'è almeno una posizione salvata nello stack
         if (navigationHistory.length === 0) {
-            console.log('[updateNavigationButtons] Disabling back button');
             navBackContainer.style.opacity = '0.3';
             navBackContainer.style.pointerEvents = 'none';
         } else {
-            console.log('[updateNavigationButtons] Enabling back button');
             navBackContainer.style.opacity = '1';
             navBackContainer.style.pointerEvents = 'auto';
         }
-    } else {
-        console.log('[updateNavigationButtons] Back button container not found!');
     }
     
     if (navForwardContainer) {
         if (currentHistoryIndex >= navigationHistory.length - 1) {
-            console.log('[updateNavigationButtons] Disabling forward button');
             navForwardContainer.style.opacity = '0.3';
             navForwardContainer.style.pointerEvents = 'none';
         } else {
-            console.log('[updateNavigationButtons] Enabling forward button');
             navForwardContainer.style.opacity = '1';
             navForwardContainer.style.pointerEvents = 'auto';
         }
-    } else {
-        console.log('[updateNavigationButtons] Forward button container not found!');
     }
 }
 
