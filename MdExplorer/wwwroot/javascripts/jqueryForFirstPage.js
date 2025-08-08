@@ -77,6 +77,7 @@ currentDocumentSetting = {};
 // Navigation history for internal links - stores scroll positions
 let navigationHistory = [];
 let currentHistoryIndex = -1;
+let hasNavigationStarted = 0; // -1 = mai cliccato, 0+ = almeno un click effettuato
 
 function initializeInternalNavigation() {
     // Usa jQuery per event delegation - cattura anche link aggiunti dinamicamente
@@ -93,16 +94,16 @@ function initializeInternalNavigation() {
         if (navigationHistory.length === 0) {
             navigationHistory.push(currentScrollY);
             currentHistoryIndex = 0;
+            hasNavigationStarted = 1; // Primo click effettuato
         } else {
             // Aggiungi la posizione corrente (da dove parti) allo stack
             navigationHistory.push(currentScrollY);
             currentHistoryIndex = navigationHistory.length - 1;
+            hasNavigationStarted = navigationHistory.length - 1;//++; // Incrementa il contatore dei click
         }
         
-        // Non salvare la destinazione, lascia che il browser faccia il salto
-        setTimeout(() => {
-            updateNavigationButtons();
-        }, 100);
+        // Aggiorna subito i pulsanti di navigazione
+        updateNavigationButtons();
     });
     
     // Inizializza subito la navigazione
@@ -131,10 +132,16 @@ function navigateBack() {
             if (Math.abs(currentScrollY - lastPosition) > 5) { // Tolleranza di 5px
                 navigationHistory.push(currentScrollY);
             }
+            currentHistoryIndex = navigationHistory.length - 1;
         }
         
         // Vai alla prima posizione (indice 0)
-        currentHistoryIndex = 0;
+        currentHistoryIndex--;// = 0;
+        
+        // Decrementa hasNavigationStarted quando torniamo indietro
+        if (hasNavigationStarted > 0) {
+            hasNavigationStarted--;
+        }
         
         // Scroll to first saved position
         window.scrollTo({ 
@@ -151,6 +158,9 @@ function navigateForward() {
         // Move index forward
         currentHistoryIndex++;
         
+        // Incrementa hasNavigationStarted quando andiamo avanti
+        hasNavigationStarted++;
+        
         // Scroll to next position
         window.scrollTo({ 
             top: navigationHistory[currentHistoryIndex], 
@@ -162,13 +172,16 @@ function navigateForward() {
 }
 
 function updateNavigationButtons() {
+    // Debug: mostra lo stato delle variabili
+    console.log('[Navigation] hasNavigationStarted:', hasNavigationStarted, 'currentHistoryIndex:', currentHistoryIndex, 'navigationHistory.length', navigationHistory.length);
+    
     // Trova i contenitori dei pulsanti (div.mdeNavButton)
     const navBackContainer = document.querySelector('#navBack')?.closest('.mdeNavButton');
     const navForwardContainer = document.querySelector('#navForward')?.closest('.mdeNavButton');
     
     if (navBackContainer) {
-        // Back si abilita se c'è almeno una posizione salvata nello stack
-        if (navigationHistory.length === 0) {
+        // Back si disabilita se: mai cliccato OR siamo alla posizione iniziale dopo il primo click
+        if ((hasNavigationStarted === 0 && navigationHistory.length>-1)) {
             navBackContainer.style.opacity = '0.3';
             navBackContainer.style.pointerEvents = 'none';
         } else {
@@ -178,7 +191,7 @@ function updateNavigationButtons() {
     }
     
     if (navForwardContainer) {
-        if (currentHistoryIndex >= navigationHistory.length - 1) {
+        if ((hasNavigationStarted = 0 && currentHistoryIndex===-1) || hasNavigationStarted >= navigationHistory.length - 1) {
             navForwardContainer.style.opacity = '0.3';
             navForwardContainer.style.pointerEvents = 'none';
         } else {
@@ -190,9 +203,7 @@ function updateNavigationButtons() {
 
 // Initialize navigation when document is ready
 $(document).ready(function() {
-    setTimeout(function() {
-        initializeInternalNavigation();
-    }, 500); // Small delay to ensure DOM is fully loaded
+    initializeInternalNavigation();
 });
 
 // gestione tocbot
