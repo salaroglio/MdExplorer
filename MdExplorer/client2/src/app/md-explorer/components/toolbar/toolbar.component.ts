@@ -33,6 +33,8 @@ import _ from 'lodash';
   styleUrls: ['./toolbar.component.scss'],
 })
 export class ToolbarComponent implements OnInit, OnDestroy {
+  // Esponiamo console per il template
+  public console = console;
 
   public currentBranch: string;
   @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;
@@ -74,11 +76,18 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private navService: MdNavigationService,
 
   ) {
+    console.log('[ToolBar] Component constructor called');
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
   }
 
   ngOnInit(): void {
+    console.log('[ToolBar] ngOnInit called - component is initialized');
+    
+    // Test immediato per verificare che il metodo sia accessibile
+    setTimeout(() => {
+      console.log('[ToolBar] Testing bookmark method accessibility:', typeof this.bookmarkToggle);
+    }, 2000);
 
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
@@ -563,8 +572,34 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   bookmarkToggle(): void {
+    console.log('[ToolBar] bookmarkToggle() called');
+    console.log('[ToolBar] currentMdFile:', this.currentMdFile);
+    
+    if (!this.currentMdFile) {
+      console.error('[ToolBar] No current file selected');
+      this._snackBar.open('Please select a file first', 'OK', {
+        duration: 2000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+    
+    const currentProject = this.projectService.currentProjects$.value;
+    console.log('[ToolBar] currentProject:', currentProject);
+    
+    if (!currentProject || !currentProject.id) {
+      console.error('[ToolBar] No project selected or project has no ID');
+      this._snackBar.open('Please select a project first', 'OK', {
+        duration: 2000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+    
     let bookmark: Bookmark = new Bookmark(this.currentMdFile);
-    bookmark.projectId = this.projectService.currentProjects$.value.id;
+    bookmark.projectId = currentProject.id;
+    console.log('[ToolBar] Bookmark to toggle:', bookmark);
+    
     this.bookmarksService.toggleBookmark(bookmark);
   }
 

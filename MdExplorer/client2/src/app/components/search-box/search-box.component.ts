@@ -3,7 +3,7 @@ import { FormControl } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { SearchService } from '../../services/search.service';
-import { SearchResult, FileSearchResult, LinkSearchResult } from '../../models/search.models';
+import { SearchResult, FileSearchResult, LinkSearchResult } from '../../Models/search.models';
 import { Router } from '@angular/router';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
@@ -147,11 +147,13 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       showResults: this.showResults
     });
     
-    // Don't close if clicking on Material Design overlay or tab elements
+    // Don't close if clicking on Material Design overlay, tab elements, or toolbar buttons
     if (clickedElement.closest('.cdk-overlay-container') ||
         clickedElement.closest('.mat-tab-label') ||
-        clickedElement.closest('.mat-tab-group')) {
-      console.log('[SearchBox] Click on tab elements - keeping results open');
+        clickedElement.closest('.mat-tab-group') ||
+        clickedElement.closest('mat-toolbar') ||
+        clickedElement.closest('.mat-toolbar')) {
+      console.log('[SearchBox] Click on toolbar/tab elements - ignoring');
       return;
     }
     

@@ -43,23 +43,40 @@ export class BookmarksService {
   }
 
   toggleBookmark(bookmark: Bookmark): void {
+    console.log('[BookmarksService] toggleBookmark() called');
+    console.log('[BookmarksService] Bookmark received:', bookmark);
+    console.log('[BookmarksService] Bookmark projectId:', bookmark.projectId);
+    console.log('[BookmarksService] Bookmark fullPath:', bookmark.fullPath);
     
     const url = '../api/mdFiles/ToggleBookmark';
+    console.log('[BookmarksService] Calling API:', url);
+    
     let post$ = this.http.post<any>(url, bookmark);    
-    post$.subscribe(_ => {
-      //this.bookmarks$.next(_);
-    });
+    post$.subscribe(
+      response => {
+        console.log('[BookmarksService] API response:', response);
+        //this.bookmarks$.next(_);
+      },
+      error => {
+        console.error('[BookmarksService] API error:', error);
+        console.error('[BookmarksService] Error status:', error.status);
+        console.error('[BookmarksService] Error message:', error.message);
+      }
+    );
 
     let currentBookmarks = this.bookmarks$.value;
+    console.log('[BookmarksService] Current bookmarks:', currentBookmarks);
+    
     let currentBookmark = currentBookmarks.find(_ => _.fullPath === bookmark.fullPath);
     if (currentBookmark == null || currentBookmark == undefined) {
-      // call api
+      console.log('[BookmarksService] Bookmark not found, adding it');
       currentBookmarks.push(bookmark);
       this.bookmarks$.next(currentBookmarks);
     } else {
-      // call api
+      console.log('[BookmarksService] Bookmark found, removing it');
       let currentBookmarkIndex = currentBookmarks.indexOf(currentBookmark);
       currentBookmarks.splice(currentBookmarkIndex, 1);
+      this.bookmarks$.next(currentBookmarks);
     }
   }
 }

@@ -53,37 +53,42 @@
   }
   
   .bookmark-overlay-container {
-    position: fixed;
+    position: absolute;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     background-color: transparent;
-    top: 66px;
-    left: 20px;
+    top: 80px;  // Più in basso, sotto la toolbar
+    left: 0;
     z-index: 100;
     
     .mdbookmark {
       cursor: pointer;  
       white-space: nowrap;
       text-align: right;   
-      background: yellow;
-      transition: all 0.5s ease;
-      margin-bottom: 5px;
+      background: rgba(255, 235, 59, 0.85);  // Giallo con trasparenza
+      transition: all 0.3s ease;
+      margin-bottom: 3px;
+      border-radius: 0 4px 4px 0;  // Arrotondato solo a destra
+      box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
       
       div {
-        padding: 5px 10px;
+        padding: 2px 4px;  // Ancora più corto
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 3px;
         
         span {
-          font-size: 14px;
+          font-size: 13px;
         }
         
         mat-icon {
-          font-size: 18px;
-          width: 18px;
-          height: 18px;
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          &:last-child {
+            margin-right: -2px;  // Riduce lo spazio a destra
+          }
         }
       }
       
