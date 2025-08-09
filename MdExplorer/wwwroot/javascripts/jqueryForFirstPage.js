@@ -1090,6 +1090,259 @@ function activateSaveCopy(el, path) {
     });
 }
 
+// Variabili globali per la ricerca
+let searchResults = [];
+let currentSearchIndex = -1;
+let originalContent = null;
+
+// Funzione per attivare/disattivare la ricerca
+function toggleSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    
+    if (searchContainer.style.display === 'none' || searchContainer.style.display === '') {
+        // Mostra la barra di ricerca con animazione
+        searchContainer.style.display = 'flex';
+        searchContainer.style.opacity = '0';
+        searchContainer.style.width = '0';
+        
+        setTimeout(() => {
+            searchContainer.style.transition = 'all 0.3s ease';
+            searchContainer.style.opacity = '1';
+            searchContainer.style.width = '400px';
+        }, 10);
+        
+        searchInput.focus();
+        
+        // Aggiungi classe attiva al pulsante
+        if (searchButton) {
+            searchButton.parentElement.classList.add('active');
+        }
+        
+        // Aggiungi event listener per la ricerca in tempo reale
+        searchInput.addEventListener('input', performSearch);
+        searchInput.addEventListener('keydown', handleSearchKeydown);
+    } else {
+        closeSearch();
+    }
+}
+
+// Funzione per chiudere la ricerca
+function closeSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    
+    // Animazione di chiusura
+    searchContainer.style.transition = 'all 0.3s ease';
+    searchContainer.style.opacity = '0';
+    searchContainer.style.width = '0';
+    
+    setTimeout(() => {
+        searchContainer.style.display = 'none';
+        searchInput.value = '';
+        clearSearch();
+    }, 300);
+    
+    // Rimuovi classe attiva dal pulsante
+    if (searchButton) {
+        searchButton.parentElement.classList.remove('active');
+    }
+}
+
+// Funzione per eseguire la ricerca
+function performSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput.value.trim();
+    
+    if (searchTerm.length === 0) {
+        clearSearch();
+        return;
+    }
+    
+    if (searchTerm.length < 2) {
+        return; // Non cercare per termini troppo brevi
+    }
+    
+    // Pulisci risultati precedenti
+    clearSearch();
+    
+    // Salva il contenuto originale se non già salvato
+    const contentElement = document.querySelector('.mdeItemMainPageCenter');
+    if (!originalContent) {
+        originalContent = contentElement.innerHTML;
+    }
+    
+    // Esegui la ricerca e evidenzia
+    searchResults = [];
+    highlightSearchTerm(contentElement, searchTerm);
+    
+    // Aggiorna il contatore dei risultati
+    updateSearchResultCount();
+    
+    // Se ci sono risultati, vai al primo
+    if (searchResults.length > 0) {
+        currentSearchIndex = 0;
+        scrollToSearchResult(currentSearchIndex);
+    }
+}
+
+// Funzione per evidenziare il termine di ricerca
+function highlightSearchTerm(element, searchTerm) {
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function(node) {
+                // Ignora nodi dentro script, style, e la barra di ricerca stessa
+                const parent = node.parentElement;
+                if (parent.tagName === 'SCRIPT' || 
+                    parent.tagName === 'STYLE' ||
+                    parent.closest('#searchContainer') ||
+                    parent.closest('.mdeSearchContainer')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        }
+    );
+    
+    const nodesToReplace = [];
+    let node;
+    
+    // Raccogli tutti i nodi di testo che contengono il termine di ricerca
+    while (node = walker.nextNode()) {
+        const text = node.textContent;
+        const regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+        if (regex.test(text)) {
+            nodesToReplace.push(node);
+        }
+    }
+    
+    // Sostituisci i nodi con versioni evidenziate
+    nodesToReplace.forEach(textNode => {
+        const text = textNode.textContent;
+        const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+        const parts = text.split(regex);
+        
+        if (parts.length > 1) {
+            const span = document.createElement('span');
+            
+            parts.forEach((part, index) => {
+                if (index % 2 === 1) { // Parte che corrisponde alla ricerca
+                    const highlight = document.createElement('mark');
+                    highlight.className = 'mdeSearchHighlight';
+                    highlight.style.backgroundColor = '#ffff00';
+                    highlight.style.padding = '2px';
+                    highlight.style.borderRadius = '2px';
+                    highlight.textContent = part;
+                    span.appendChild(highlight);
+                    searchResults.push(highlight);
+                } else if (part) { // Testo normale
+                    span.appendChild(document.createTextNode(part));
+                }
+            });
+            
+            textNode.parentNode.replaceChild(span, textNode);
+        }
+    });
+}
+
+// Funzione per navigare tra i risultati di ricerca
+function navigateSearchResult(direction) {
+    if (searchResults.length === 0) return;
+    
+    // Rimuovi evidenziazione corrente
+    if (currentSearchIndex >= 0 && currentSearchIndex < searchResults.length) {
+        searchResults[currentSearchIndex].style.backgroundColor = '#ffff00';
+    }
+    
+    // Calcola il nuovo indice
+    currentSearchIndex += direction;
+    
+    // Wrap around
+    if (currentSearchIndex < 0) {
+        currentSearchIndex = searchResults.length - 1;
+    } else if (currentSearchIndex >= searchResults.length) {
+        currentSearchIndex = 0;
+    }
+    
+    // Evidenzia e scrolla al risultato corrente
+    scrollToSearchResult(currentSearchIndex);
+}
+
+// Funzione per scrollare al risultato di ricerca
+function scrollToSearchResult(index) {
+    if (index < 0 || index >= searchResults.length) return;
+    
+    const result = searchResults[index];
+    
+    // Evidenzia il risultato corrente con un colore diverso
+    result.style.backgroundColor = '#ff9900';
+    
+    // Scrolla al risultato
+    result.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+    });
+    
+    // Aggiorna il contatore
+    updateSearchResultCount();
+}
+
+// Funzione per aggiornare il contatore dei risultati
+function updateSearchResultCount() {
+    const countElement = document.getElementById('searchResultCount');
+    
+    if (searchResults.length === 0) {
+        countElement.textContent = 'Nessun risultato';
+        countElement.style.color = '#999';
+    } else {
+        const currentDisplay = currentSearchIndex + 1;
+        countElement.textContent = `${currentDisplay} di ${searchResults.length}`;
+        countElement.style.color = '#333';
+    }
+}
+
+// Funzione per pulire la ricerca
+function clearSearch() {
+    // Ripristina il contenuto originale se disponibile
+    if (originalContent) {
+        const contentElement = document.querySelector('.mdeItemMainPageCenter');
+        contentElement.innerHTML = originalContent;
+        originalContent = null;
+    }
+    
+    searchResults = [];
+    currentSearchIndex = -1;
+    
+    const countElement = document.getElementById('searchResultCount');
+    if (countElement) {
+        countElement.textContent = '';
+    }
+}
+
+// Funzione per gestire i tasti nella barra di ricerca
+function handleSearchKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        if (event.shiftKey) {
+            navigateSearchResult(-1);
+        } else {
+            navigateSearchResult(1);
+        }
+    } else if (event.key === 'Escape') {
+        closeSearch();
+    }
+}
+
+// Funzione di utility per escape delle regex
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // gestione del sortable dentro le icone di priorità
 $(function () {
     $(".sortable").sortable();
