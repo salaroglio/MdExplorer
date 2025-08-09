@@ -92,14 +92,20 @@ function initializeInternalNavigation() {
         
         // Se lo stack è vuoto, questo è il primo click
         if (navigationHistory.length === 0) {
-            navigationHistory.push(currentScrollY);
+            navigationHistory.push({currentScrollY: currentScrollY,typePosition:'link'});
             currentHistoryIndex = 0;
             hasNavigationStarted = 1; // Primo click effettuato
-        } else {
+        } else {            
+            // Tolgo l'ultimo elemento se si tratta di un back.
+            lastPosition = navigationHistory.pop();
+            console.log(lastPosition);
+            if(lastPosition.typePosition === 'link'){
+                navigationHistory.push(lastPosition);
+            }
             // Aggiungi la posizione corrente (da dove parti) allo stack
-            navigationHistory.push(currentScrollY);
+            navigationHistory.push({currentScrollY: currentScrollY,typePosition:'link'});
             currentHistoryIndex = navigationHistory.length - 1;
-            hasNavigationStarted = navigationHistory.length - 1;//++; // Incrementa il contatore dei click
+            hasNavigationStarted++;// = navigationHistory.length - 1;//++; // Incrementa il contatore dei click
         }
         
         // Aggiorna subito i pulsanti di navigazione
@@ -129,15 +135,15 @@ function navigateBack() {
         if (currentHistoryIndex === navigationHistory.length - 1) {
             // Controlla se la posizione corrente è diversa dall'ultima nello stack
             const lastPosition = navigationHistory[navigationHistory.length - 1];
-            if (Math.abs(currentScrollY - lastPosition) > 5) { // Tolleranza di 5px
-                navigationHistory.push(currentScrollY);
+            if (Math.abs(currentScrollY - lastPosition.currentScrollY) > 5) { // Tolleranza di 5px
+                navigationHistory.push({currentScrollY: currentScrollY,typePosition:'back'});
             }
             currentHistoryIndex = navigationHistory.length - 1;
         }
         
         // Vai alla prima posizione (indice 0)
         currentHistoryIndex--;// = 0;
-        
+        console.log('navigate back before:' + hasNavigationStarted);
         // Decrementa hasNavigationStarted quando torniamo indietro
         if (hasNavigationStarted > 0) {
             hasNavigationStarted--;
@@ -145,7 +151,7 @@ function navigateBack() {
         
         // Scroll to first saved position
         window.scrollTo({ 
-            top: navigationHistory[currentHistoryIndex], 
+            top: navigationHistory[currentHistoryIndex].currentScrollY, 
             behavior: 'smooth' 
         });
         
@@ -163,7 +169,7 @@ function navigateForward() {
         
         // Scroll to next position
         window.scrollTo({ 
-            top: navigationHistory[currentHistoryIndex], 
+            top: navigationHistory[currentHistoryIndex].currentScrollY, 
             behavior: 'smooth' 
         });
         
@@ -191,14 +197,18 @@ function updateNavigationButtons() {
     }
     
     if (navForwardContainer) {
-        if ((hasNavigationStarted = 0 && currentHistoryIndex===-1) || hasNavigationStarted >= navigationHistory.length - 1) {
+        if ((hasNavigationStarted === 0 && currentHistoryIndex===-1) || hasNavigationStarted >= navigationHistory.length - 1) {
             navForwardContainer.style.opacity = '0.3';
             navForwardContainer.style.pointerEvents = 'none';
+            
         } else {
             navForwardContainer.style.opacity = '1';
             navForwardContainer.style.pointerEvents = 'auto';
+            
         }
     }
+    
+    console.log('updateNavigationButtons endfunction: hasNavigationStarted: ' + hasNavigationStarted);
 }
 
 // Initialize navigation when document is ready
