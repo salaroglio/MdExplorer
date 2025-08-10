@@ -1,6 +1,6 @@
 {
   "name": "client2",
-  "version": "2025.08.06.1",
+  "version": "2025.08.09.14",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "~0.1102.5",
+    "@angular/cli": "^11.1.2",
     "@angular/compiler-cli": "~11.2.6",
     "@types/jasmine": "~3.6.0",
     "@types/node": "^12.11.1",

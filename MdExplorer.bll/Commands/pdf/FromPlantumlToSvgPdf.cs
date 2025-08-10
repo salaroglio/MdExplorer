@@ -53,7 +53,20 @@ namespace MdExplorer.Features.Commands.pdf
 
 
                 (var cssInchHeight, var cssInchWidth) = GetDimensionsFromCSSInline(markdown, item);
-                (var normalizedInchHeight, var normalizedInchWidth) = NormalizeImagesDimension(filePath);
+                
+                // Try to normalize image dimensions, but if SkiaSharp fails, use default values
+                double normalizedInchHeight = 6.0; // Default height in inches
+                double normalizedInchWidth = 4.5;  // Default width in inches
+                
+                try 
+                {
+                    (normalizedInchHeight, normalizedInchWidth) = NormalizeImagesDimension(filePath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Failed to normalize image dimensions for {filePath}, using defaults: {ex.Message}");
+                    // Use default dimensions if normalization fails
+                }
 
                 var inchWidth = cssInchWidth ?? normalizedInchWidth;
                 var inchHeight = cssInchHeight ?? normalizedInchHeight;
@@ -61,8 +74,10 @@ namespace MdExplorer.Features.Commands.pdf
                 var inchWidthString = inchWidth.ToString(CultureInfo.InvariantCulture);
                 var inchHeightString = inchHeight.ToString(CultureInfo.InvariantCulture);
 
-                var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.png";
-                var referenceUrl = $@"![{docxCaption.Trim()}]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
+                // Costruisci il percorso relativo in modo cross-platform
+                // Usa sempre forward slash per il markdown/pandoc (funziona su tutti i sistemi)
+                var markdownFilePath = $".md/{textHash}.png";
+                var referenceUrl = $@"![{docxCaption.Trim()}]({markdownFilePath}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
                 _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdown);

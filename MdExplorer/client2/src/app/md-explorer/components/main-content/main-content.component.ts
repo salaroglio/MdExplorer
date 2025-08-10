@@ -66,14 +66,12 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private indexingStateService: IndexingStateService,
     private fileEventsService: FileEventsService
   ) {
-    console.log("🚀 [MainContent] Component initializing with enhanced UX");
     
     // Initialize observables from state
     this.currentState$ = this.contentState$.asObservable();
     this.isLoading$ = this.contentState$.pipe(
       map(state => {
         const isLoading = state.status === 'loading';
-        console.log(`🔄 [MainContent] isLoading$ mapped:`, isLoading, 'from state:', state.status);
         return isLoading;
       }),
       distinctUntilChanged(),
@@ -83,7 +81,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hasError$ = this.contentState$.pipe(
       map(state => {
         const hasError = state.status === 'error';
-        console.log(`❌ [MainContent] hasError$ mapped:`, hasError, 'from state:', state.status);
         return hasError;
       }),
       distinctUntilChanged(),
@@ -100,14 +97,12 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.log('🔧 [MainContent] Component initialized, setting up subscriptions');
 
     // Enhanced subscription with loading state management
     this.service.selectedMdFileFromSideNav.pipe(
       takeUntil(this.destroy$),
       debounceTime(100) // Prevent rapid-fire selections
     ).subscribe(file => {
-      console.log('[MainContent] selectedMdFileFromSideNav received:', file);
       if (file) {
         this.loadMarkdownFile(file);
       }
@@ -144,7 +139,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     ).subscribe(event => {
       const currentPath = this.contentState$.value.currentPath;
       if (event.fullPath === currentPath) {
-        console.log(`📄 [MainContent] Current file indexing completed: ${event.fullPath}`);
         // Refresh the view if the current file was just indexed
         this.handleFileIndexingComplete(event);
       }
@@ -156,7 +150,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     ).subscribe(event => {
       const currentPath = this.contentState$.value.currentPath;
       if (event.oldPath === currentPath) {
-        console.log(`🔄 [MainContent] Current file renamed: ${event.oldPath} -> ${event.newPath}`);
         this.handleFileRenamed(event.oldPath, event.newPath);
       }
     });
@@ -166,7 +159,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     //   takeUntil(this.destroy$)
     // ).subscribe(width => {
     //   this.sidenavWidth = width;
-    //   console.log('📏 [MainContent] Sidenav width changed:', width);
     //   this.adjustIframeWidth();
     // });
   }
@@ -182,7 +174,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    console.log('🧹 [MainContent] Component cleanup');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -200,7 +191,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    console.log(`📄 [MainContent] Loading file: ${file.relativePath}`);
     
     // Update state to loading
     this.loadingStartTime = new Date();
@@ -226,7 +216,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
         this.htmlSource = newHtmlSource;
-        console.log(`🔗 [MainContent] URL updated: ${newHtmlSource}`);
         
         // Force change detection to ensure iframe updates
         this.ref.detectChanges();
@@ -240,7 +229,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private markdownFileIsChanged(data: any, objectThis: MainContentComponent): void {
-    console.log('📡 [MainContent] File change event received:', data);
     
     try {
       // Extract relative path with multiple fallbacks
@@ -267,7 +255,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       };
 
       objectThis.loadMarkdownFile(fileData);
-      console.log('✅ [MainContent] File change processed successfully');
       
     } catch (error) {
       console.error('💥 [MainContent] Error processing file change:', error);
@@ -289,7 +276,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Avoid adding listeners multiple times
     if (this.iframeListenersAdded) {
-      console.log('🔧 [MainContent] Iframe listeners already added, skipping');
       return;
     }
 
@@ -298,7 +284,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Create bound functions to allow removal later
     const loadHandler = () => {
       const loadTime = this.loadingStartTime ? new Date().getTime() - this.loadingStartTime.getTime() : 0;
-      console.log(`✅ [MainContent] Iframe loaded successfully in ${loadTime}ms`);
       
       this.updateState({
         status: 'loaded',
@@ -325,7 +310,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     iframeElement.addEventListener('error', errorHandler);
 
     this.iframeListenersAdded = true;
-    console.log('🔧 [MainContent] Iframe event listeners configured');
 
     // Clean up on destroy
     this.destroy$.subscribe(() => {
@@ -343,7 +327,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const currentState = this.contentState$.value;
     const newState = { ...currentState, ...partialState };
     
-    console.log(`🔄 [MainContent] State transition: ${currentState.status} → ${newState.status}`);
     
     this.contentState$.next(newState);
     this.ref.detectChanges();
@@ -364,7 +347,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    console.log(`🔄 [MainContent] Retry attempt ${currentState.retryCount + 1}/${this.maxRetries}`);
     
     // Exponential backoff for retries
     const delay = this.retryDelay * Math.pow(2, currentState.retryCount);
@@ -388,7 +370,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle indexing state changes for the current file
    */
   private handleIndexingStateChange(filePath: string, indexingState: any): void {
-    console.log(`📊 [MainContent] Indexing state change for ${filePath}:`, indexingState);
     
     if (indexingState?.indexingStatus === 'indexing') {
       // Show indexing state if file is currently being indexed
@@ -400,7 +381,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // File indexing completed, refresh if currently showing loading
       const currentStatus = this.contentState$.value.status;
       if (currentStatus === 'indexing' || currentStatus === 'loading') {
-        console.log(`✅ [MainContent] File indexed, refreshing view for ${filePath}`);
         this.refreshCurrentFile();
       }
     }
@@ -410,7 +390,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle file indexing completion event
    */
   private handleFileIndexingComplete(event: any): void {
-    console.log(`🎉 [MainContent] File indexing completed:`, event);
     
     if (event.isIndexed) {
       // Mark file as indexed and refresh if needed
@@ -425,7 +404,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle file rename event for current file
    */
   private handleFileRenamed(oldPath: string, newPath: string): void {
-    console.log(`📝 [MainContent] File renamed: ${oldPath} -> ${newPath}`);
     
     // Update current path in state
     this.updateState({
@@ -443,7 +421,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private refreshCurrentFile(): void {
     const currentPath = this.contentState$.value.currentPath;
     if (currentPath) {
-      console.log(`🔄 [MainContent] Refreshing current file: ${currentPath}`);
       
       this.updateState({
         status: 'loading',
@@ -480,7 +457,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const isIndexed = this.indexingStateService.isFileIndexed(fullPath);
     const isWaiting = this.indexingStateService.isFileWaiting(fullPath, 'mdFile');
 
-    console.log(`📋 [MainContent] Loading file with indexing check:`, {
       path: fullPath,
       isIndexed,
       isWaiting
@@ -504,7 +480,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Debug method to manually test state transitions
    */
   public debugTestLoadingComplete(): void {
-    console.log('🧪 [MainContent] Debug: Manually triggering loaded state');
     this.updateState({
       status: 'loaded',
       errorMessage: undefined,
@@ -518,8 +493,6 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   public debugCurrentState(): void {
     const currentState = this.contentState$.value;
-    console.log('🔍 [MainContent] Current state:', currentState);
-    console.log('🔍 [MainContent] htmlSource:', this.htmlSource);
   }
 
 

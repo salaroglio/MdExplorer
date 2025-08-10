@@ -548,3 +548,101 @@ s
     opacity: 0.3;
     pointer-events: none;
 }
+
+/* Stili per la funzione di ricerca */
+.mdeSearchButton {
+    position: relative;
+}
+
+.mdeSearchButton.active {
+    background-color: #2196F3;
+}
+
+.mdeSearchButton.active img {
+    filter: brightness(0) invert(1);
+}
+
+.mdeSearchContainer {
+    display: none;
+    align-items: center;
+    background: white;
+    border-radius: 20px;
+    padding: 4px 8px;
+    margin-left: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.mdeSearchInput {
+    border: none;
+    outline: none;
+    padding: 6px 10px;
+    font-size: 14px;
+    background: transparent;
+    width: 200px;
+    margin-right: 10px;
+}
+
+.mdeSearchInput:focus {
+    outline: none;
+}
+
+.mdeSearchResultCount {
+    font-size: 12px;
+    color: #666;
+    margin: 0 8px;
+    white-space: nowrap;
+    min-width: 80px;
+    text-align: center;
+}
+
+.mdeSearchNavButton {
+    background: transparent;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 0 2px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.mdeSearchNavButton:hover {
+    background-color: #f0f0f0;
+    border-color: #999;
+}
+
+.mdeSearchNavButton:active {
+    background-color: #e0e0e0;
+}
+
+.mdeSearchCloseButton {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-left: 8px;
+    transition: all 0.2s ease;
+}
+
+.mdeSearchCloseButton:hover {
+    color: #ff4444;
+    transform: scale(1.2);
+}
+
+/* Stili per l'evidenziazione delle parole trovate */
+.mdeSearchHighlight {
+    background-color: #ffff00;
+    padding: 2px;
+    border-radius: 2px;
+    transition: background-color 0.3s ease;
+}
+
+.mdeSearchHighlight.current {
+    background-color: #ff9900;
+    font-weight: bold;
+}

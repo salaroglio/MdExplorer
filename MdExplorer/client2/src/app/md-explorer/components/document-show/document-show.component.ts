@@ -57,6 +57,15 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
       .subscribe(bookmarks => {
         this.bookmarks = bookmarks;
       });
+    
+    // Sottoscrizione al progetto corrente per inizializzare i bookmarks
+    this.projectService.currentProjects$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(project => {
+        if (project && project.id) {
+          this.bookmarksService.initBookmark(project.id);
+        }
+      });
       
     // Sottoscrizione allo stato della toolbar
     this.mdFileService.whatDisplayForToolbar
@@ -93,7 +102,12 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
   }
 
   toggleBookmark(bookmark: Bookmark): void {
-    this.bookmarksService.toggleBookmark(bookmark);
+    // Aggiungi il projectId al bookmark prima di inviarlo
+    const currentProject = this.projectService.currentProjects$.value;
+    if (currentProject && currentProject.id) {
+      bookmark.projectId = currentProject.id;
+      this.bookmarksService.toggleBookmark(bookmark);
+    }
   }
 
   onGetTopOffsetContent(topOffset: number): void {

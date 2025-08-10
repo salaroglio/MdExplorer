@@ -448,6 +448,7 @@ namespace MdExplorer.Controllers
             var btnDraw = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
             var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack", "mdeLowerBarButton mdeNavButton");
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
+            var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
             var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
             var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
             var resultToParse = $@"    
@@ -484,6 +485,14 @@ namespace MdExplorer.Controllers
                              {btnDraw}
                              {btnNavBack}
                              {btnNavForward}
+                             {btnSearch}
+                             <div id=""searchContainer"" class=""mdeSearchContainer"" style=""display: none;"">
+                                <input type=""text"" id=""searchInput"" class=""mdeSearchInput"" placeholder=""Cerca..."" />
+                                <span id=""searchResultCount"" class=""mdeSearchResultCount""></span>
+                                <button id=""searchPrev"" class=""mdeSearchNavButton"" onclick=""navigateSearchResult(-1)"">▲</button>
+                                <button id=""searchNext"" class=""mdeSearchNavButton"" onclick=""navigateSearchResult(1)"">▼</button>
+                                <button id=""searchClose"" class=""mdeSearchCloseButton"" onclick=""closeSearch()"">✕</button>
+                             </div>
                     </div>
                     <div class=""mdeContainerIFrameApplciation"">
                         <div class=""mdeItemMainPageLeftMenu"" ></div>

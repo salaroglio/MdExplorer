@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { SearchResult, SearchRequest, FileSearchResult, LinkSearchResult } from '../models/search.models';
+import { SearchResult, SearchRequest, FileSearchResult, LinkSearchResult } from '../Models/search.models';
 
 @Injectable({
   providedIn: 'root'

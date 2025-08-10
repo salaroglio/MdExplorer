@@ -33,6 +33,8 @@ import _ from 'lodash';
   styleUrls: ['./toolbar.component.scss'],
 })
 export class ToolbarComponent implements OnInit, OnDestroy {
+  // Esponiamo console per il template
+  public console = console;
 
   public currentBranch: string;
   @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;
@@ -79,7 +81,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
@@ -563,8 +564,25 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   bookmarkToggle(): void {
+    if (!this.currentMdFile) {
+      this._snackBar.open('Please select a file first', 'OK', {
+        duration: 2000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+    
+    const currentProject = this.projectService.currentProjects$.value;
+    if (!currentProject || !currentProject.id) {
+      this._snackBar.open('Please select a project first', 'OK', {
+        duration: 2000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+    
     let bookmark: Bookmark = new Bookmark(this.currentMdFile);
-    bookmark.projectId = this.projectService.currentProjects$.value.id;
+    bookmark.projectId = currentProject.id;
     this.bookmarksService.toggleBookmark(bookmark);
   }
 

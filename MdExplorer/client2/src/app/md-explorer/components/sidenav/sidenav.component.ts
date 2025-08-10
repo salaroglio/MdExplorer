@@ -84,7 +84,6 @@ export class SidenavComponent implements OnInit, OnDestroy {
     };
 
     this.mouseUpListener = (event: MouseEvent) => {
-      console.log(this.hooked);
       if (this.hooked) {
         this.hooked = false;
         // Restore normal cursor and text selection
@@ -120,7 +119,6 @@ export class SidenavComponent implements OnInit, OnDestroy {
     this.debounceTimer = setTimeout(() => {
       this.projectService.currentProjects$.value.sidenavWidth = width;
       this.projectService.SetSideNavWidth(this.projectService.currentProjects$.value);
-      console.log('💾 Sidenav width saved:', width);
     }, 500); // Save only after 500ms of inactivity
   }
 
@@ -153,7 +151,6 @@ export class SidenavComponent implements OnInit, OnDestroy {
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {
         this.isScreenSmall = state.matches;
-        console.log('📱 [Sidenav] Screen size changed. Is small:', state.matches);
       });
 
     this.projectService.currentProjects$.subscribe(_ => {
@@ -185,7 +182,6 @@ export class SidenavComponent implements OnInit, OnDestroy {
   }
   
   onSidenavToggle(isOpen: boolean): void {
-    console.log('🚪 [Sidenav] Sidenav toggled. Is open:', isOpen);
     this.layoutService.setSidenavOpen(isOpen);
     
     // Log delle dimensioni dopo un breve delay per permettere l'animazione
@@ -193,7 +189,6 @@ export class SidenavComponent implements OnInit, OnDestroy {
       const sidenavContent = document.querySelector('mat-sidenav-content') as HTMLElement;
       const documentShow = document.querySelector('app-document-show') as HTMLElement;
       
-      console.log('📏 [Sidenav] After toggle dimensions:', {
         sidenavContent: {
           width: sidenavContent?.offsetWidth || 0,
           style: sidenavContent ? window.getComputedStyle(sidenavContent) : null
