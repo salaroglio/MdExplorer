@@ -269,43 +269,92 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         [HttpPost]
-        public IActionResult PasteFromClipboard([FromBody] RequestPasteFromClipboard fileData)
+        public async Task<IActionResult> PasteFromClipboard([FromBody] RequestPasteFromClipboard fileData)
         {
-#if WINDOWS_FORMS_AVAILABLE
-            Thread t = new Thread(new ThreadStart(() =>
+            _logger.LogInformation("PasteFromClipboard called with fileName: {FileName}, filePath: {FilePath}", 
+                fileData?.FileName, fileData?.FileInfoNode?.FullPath);
+            
+            try
             {
-                if (Clipboard.ContainsImage())
+                // Use the new cross-platform clipboard utility
+                var clipboardResult = await MdExplorer.Utilities.CrossPlatformClipboard.GetImageAsync();
+                
+                if (!clipboardResult.Success)
                 {
-                    _fileSystemWatcher.EnableRaisingEvents = false;
-                    var ruleReg = new Regex("(^(PRN|AUX|NUL|CON|COM[1-9]|LPT[1-9]|(\\.+)$)(\\..*)?$)|(([\\x00-\\x1f\\\\?*:\";‌​|/<>])+)|([\\. ]+)");
-                    var title = ruleReg.Replace(fileData.FileName, "-").Replace(" ", "-") + ".png";
-
-                    var imageToSave = Clipboard.GetImage();
-
-                    var currentDirectory = string.Concat(Path.GetDirectoryName(fileData.FileInfoNode.FullPath),
-                                                            Path.DirectorySeparatorChar,
-                                                            "assets");
-                    Directory.CreateDirectory(currentDirectory);
-                    var currentImageToSave = currentDirectory + Path.DirectorySeparatorChar + title;
-                    imageToSave.Save(currentImageToSave);
-                    var allText = System.IO.File.ReadAllText(fileData.FileInfoNode.FullPath);
-                    //We have to set an absolute path
-                    var relativePathMDE = fileData.FileInfoNode.Path.Replace(fileData.FileInfoNode.Name,string.Empty).Replace("\\","/");
-                    var newLineTextToAdd = @$"![{fileData.FileName}]({relativePathMDE}assets/{title})";
-                    allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
-                    _fileSystemWatcher.EnableRaisingEvents = true;
-                    System.IO.File.WriteAllText(fileData.FileInfoNode.FullPath, allText);
+                    _logger.LogWarning($"PasteFromClipboard failed: {clipboardResult.ErrorMessage}");
+                    return BadRequest(new 
+                    { 
+                        message = clipboardResult.ErrorMessage,
+                        platformHint = clipboardResult.PlatformHint 
+                    });
                 }
-
-            }));
-            t.SetApartmentState(ApartmentState.STA);
-            t.Start();
-#else
-            // Clipboard paste functionality not available on Linux without GUI
-            _logger.LogWarning("PasteFromClipboard called but clipboard support is not available on this platform");
-#endif
-
-            return Ok(new { message = "done" });
+                
+                // Common code for all platforms to save the image
+                _fileSystemWatcher.EnableRaisingEvents = false;
+                
+                try
+                {
+                    // Sanitize filename
+                    var ruleReg = new Regex("(^(PRN|AUX|NUL|CON|COM[1-9]|LPT[1-9]|(\\.+)$)(\\..*)?$)|(([\\x00-\\x1f\\\\?*:\";‌​|/<>])+)|([\\. ]+)");
+                    var sanitizedTitle = ruleReg.Replace(fileData.FileName, "-").Replace(" ", "-") + ".png";
+                    
+                    // Create assets directory using Path.Combine for cross-platform compatibility
+                    var assetsDirectory = Path.Combine(
+                        Path.GetDirectoryName(fileData.FileInfoNode.FullPath),
+                        "assets"
+                    );
+                    Directory.CreateDirectory(assetsDirectory);
+                    
+                    // Save image to file system
+                    var imagePath = Path.Combine(assetsDirectory, sanitizedTitle);
+                    await System.IO.File.WriteAllBytesAsync(imagePath, clipboardResult.ImageData);
+                    
+                    // Update Markdown file
+                    var mdContent = await System.IO.File.ReadAllTextAsync(fileData.FileInfoNode.FullPath);
+                    
+                    // Use forward slashes for the markdown path (compatible with all platforms)
+                    var relativePath = fileData.FileInfoNode.Path
+                        .Replace(fileData.FileInfoNode.Name, string.Empty)
+                        .Replace("\\", "/");
+                    var imageMarkdown = $"![{fileData.FileName}]({relativePath}assets/{sanitizedTitle})";
+                    
+                    mdContent = string.Concat(mdContent, Environment.NewLine, imageMarkdown);
+                    await System.IO.File.WriteAllTextAsync(fileData.FileInfoNode.FullPath, mdContent);
+                    
+                    _logger.LogInformation($"Successfully pasted image from clipboard: {sanitizedTitle}");
+                    
+                    // Send SignalR notification to refresh the document
+                    try
+                    {
+                        var monitoredMd = new MonitoredMDModel
+                        {
+                            Path = fileData.FileInfoNode.Path.Replace("\\", "/"),
+                            Name = fileData.FileInfoNode.Name,
+                            RelativePath = fileData.FileInfoNode.Path,
+                            FullPath = fileData.FileInfoNode.FullPath,
+                            FullDirectoryPath = Path.GetDirectoryName(fileData.FileInfoNode.FullPath)
+                        };
+                        
+                        await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
+                        _logger.LogInformation($"SignalR notification 'markdownfileischanged' sent for: {fileData.FileInfoNode.Path}");
+                    }
+                    catch (Exception signalrEx)
+                    {
+                        _logger.LogWarning($"Failed to send SignalR notification: {signalrEx.Message}");
+                    }
+                    
+                    return Ok(new { message = "Image pasted successfully", fileName = sanitizedTitle });
+                }
+                finally
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in PasteFromClipboard");
+                return StatusCode(500, new { message = "Internal error while pasting image", error = ex.Message });
+            }
         }
 
 
