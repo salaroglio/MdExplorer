@@ -1,6 +1,6 @@
 {
   "name": "mdexplorer",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "description": "This app will kill JIRA",
   "main": "index.js",
   "homepage": "https://github.com/salaroglio/MdExplorer",
@@ -31,6 +31,12 @@
     ],
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "deleteAppDataOnUninstall": false
     },
     "linux": {
       "target": [
