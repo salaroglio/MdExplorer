@@ -28,40 +28,27 @@ namespace MdExplorer.Features.Commands.pdf
 
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
-            _logger.LogInformation($"[PlantUML Export] Starting PlantUML processing for export");
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
-            _logger.LogInformation($"[PlantUML Export] Working directory: {directoryInfo.FullName}");
             string backPath = _helper.GetBackPath(requestInfo);
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 
             var matches = GetMatches(markdown);
-            _logger.LogInformation($"[PlantUML Export] Found {matches.Count} PlantUML blocks to process");
-            
             foreach (Match item in matches.Cast<Match>())
             {
                 var text = item.Groups[1].Value;
-                _logger.LogInformation($"[PlantUML Export] Processing PlantUML block...");
                 // search for docxCaption:
                 var docxMatch = GetDocxCaption(markdown);
                 var docxCaption = docxMatch.Count() != 0 ? docxMatch[0].Groups[1].Value : string.Empty;
 
                 var textHash = _helper.GetHashString(text, Encoding.UTF8);
                 var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
-                _logger.LogInformation($"[PlantUML Export] Target image path: {filePath}");
-                
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogInformation($"[PlantUML Export] Image doesn't exist, generating from PlantUML...");
                     var taskSvg = _plantumlServer.GetPngFromJar(text);
                     taskSvg.Wait();
                     var res = taskSvg.Result;
-                    _logger.LogInformation($"[PlantUML Export] Generated PNG, size: {res.Length} bytes");
                     File.WriteAllBytes(filePath, res);
-                    _logger.LogInformation($"[PlantUML Export] Wrote PNG file: {filePath}");
-                }
-                else
-                {
-                    _logger.LogInformation($"[PlantUML Export] Image already exists: {filePath}");
+                    _logger.LogInformation($"write file: {filePath}");
                 }
 
 
@@ -74,7 +61,6 @@ namespace MdExplorer.Features.Commands.pdf
                 try 
                 {
                     (normalizedInchHeight, normalizedInchWidth) = NormalizeImagesDimension(filePath);
-                    _logger.LogInformation($"Successfully normalized image dimensions for {filePath}: {normalizedInchWidth}x{normalizedInchHeight}");
                 }
                 catch (Exception ex)
                 {
@@ -92,13 +78,10 @@ namespace MdExplorer.Features.Commands.pdf
                 // Usa sempre forward slash per il markdown/pandoc (funziona su tutti i sistemi)
                 var markdownFilePath = $".md/{textHash}.png";
                 var referenceUrl = $@"![{docxCaption.Trim()}]({markdownFilePath}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
-                _logger.LogInformation($"[PlantUML Export] Generated markdown reference: {referenceUrl}");
-                _logger.LogInformation($"[PlantUML Export] Replacing PlantUML block with image reference");
+                _logger.LogInformation(referenceUrl);
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 //File.WriteAllText(filePath + "test.md", markdown);
             }
-            
-            _logger.LogInformation($"[PlantUML Export] Completed processing all PlantUML blocks");
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;
         }
