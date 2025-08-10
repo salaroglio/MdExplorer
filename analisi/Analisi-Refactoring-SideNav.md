@@ -1,4 +1,19 @@
-﻿# Analisi Refactoring SideNav
+---
+author: Carlo Salaroglio
+document_type: Document
+email: salaroglio@hotmail.com
+title: 
+date: 10/08/2025
+word_section:
+  write_toc: false
+  document_header: ''
+  template_section:
+    inherit_from_template: ''
+    custom_template: ''
+    template_type: default
+  predefined_pages: 
+---
+# Analisi Refactoring SideNav
 
 # ->DocumentShow Component
 
