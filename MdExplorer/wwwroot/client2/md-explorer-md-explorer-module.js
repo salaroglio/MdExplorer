@@ -1518,16 +1518,10 @@ class ToolbarComponent {
         this.isCheckingConnection = false;
         this.showMenu = false;
         this.screenType = "fullscreen";
-        console.log('[ToolBar] Component constructor called');
         this.TitleToShow = "MdExplorer";
         this.connectionIsActive = true;
     }
     ngOnInit() {
-        console.log('[ToolBar] ngOnInit called - component is initialized');
-        // Test immediato per verificare che il metodo sia accessibile
-        setTimeout(() => {
-            console.log('[ToolBar] Testing bookmark method accessibility:', typeof this.bookmarkToggle);
-        }, 2000);
         this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
         this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
         this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this); //TODO: da spostare in SignalR
@@ -1930,10 +1924,7 @@ class ToolbarComponent {
         this.matMenuTrigger.closeMenu();
     }
     bookmarkToggle() {
-        console.log('[ToolBar] bookmarkToggle() called');
-        console.log('[ToolBar] currentMdFile:', this.currentMdFile);
         if (!this.currentMdFile) {
-            console.error('[ToolBar] No current file selected');
             this._snackBar.open('Please select a file first', 'OK', {
                 duration: 2000,
                 verticalPosition: 'top'
@@ -1941,9 +1932,7 @@ class ToolbarComponent {
             return;
         }
         const currentProject = this.projectService.currentProjects$.value;
-        console.log('[ToolBar] currentProject:', currentProject);
         if (!currentProject || !currentProject.id) {
-            console.error('[ToolBar] No project selected or project has no ID');
             this._snackBar.open('Please select a project first', 'OK', {
                 duration: 2000,
                 verticalPosition: 'top'
@@ -1952,7 +1941,6 @@ class ToolbarComponent {
         }
         let bookmark = new _services_Types_Bookmark__WEBPACK_IMPORTED_MODULE_7__["Bookmark"](this.currentMdFile);
         bookmark.projectId = currentProject.id;
-        console.log('[ToolBar] Bookmark to toggle:', bookmark);
         this.bookmarksService.toggleBookmark(bookmark);
     }
     openReactEditor() {
@@ -20238,31 +20226,18 @@ class BookmarksService {
         });
     }
     toggleBookmark(bookmark) {
-        console.log('[BookmarksService] toggleBookmark() called');
-        console.log('[BookmarksService] Bookmark received:', bookmark);
-        console.log('[BookmarksService] Bookmark projectId:', bookmark.projectId);
-        console.log('[BookmarksService] Bookmark fullPath:', bookmark.fullPath);
         const url = '../api/mdFiles/ToggleBookmark';
-        console.log('[BookmarksService] Calling API:', url);
         let post$ = this.http.post(url, bookmark);
-        post$.subscribe(response => {
-            console.log('[BookmarksService] API response:', response);
+        post$.subscribe(_ => {
             //this.bookmarks$.next(_);
-        }, error => {
-            console.error('[BookmarksService] API error:', error);
-            console.error('[BookmarksService] Error status:', error.status);
-            console.error('[BookmarksService] Error message:', error.message);
         });
         let currentBookmarks = this.bookmarks$.value;
-        console.log('[BookmarksService] Current bookmarks:', currentBookmarks);
         let currentBookmark = currentBookmarks.find(_ => _.fullPath === bookmark.fullPath);
         if (currentBookmark == null || currentBookmark == undefined) {
-            console.log('[BookmarksService] Bookmark not found, adding it');
             currentBookmarks.push(bookmark);
             this.bookmarks$.next(currentBookmarks);
         }
         else {
-            console.log('[BookmarksService] Bookmark found, removing it');
             let currentBookmarkIndex = currentBookmarks.indexOf(currentBookmark);
             currentBookmarks.splice(currentBookmarkIndex, 1);
             this.bookmarks$.next(currentBookmarks);
@@ -22698,7 +22673,6 @@ class DocumentShowComponent {
         this.bookmarksService.bookmarks$
             .pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["takeUntil"])(this.destroy$))
             .subscribe(bookmarks => {
-            console.log('[DocumentShow] Bookmarks updated:', bookmarks);
             this.bookmarks = bookmarks;
         });
         // Sottoscrizione al progetto corrente per inizializzare i bookmarks
@@ -22706,7 +22680,6 @@ class DocumentShowComponent {
             .pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["takeUntil"])(this.destroy$))
             .subscribe(project => {
             if (project && project.id) {
-                console.log('[DocumentShow] Loading bookmarks for project:', project.id);
                 this.bookmarksService.initBookmark(project.id);
             }
         });

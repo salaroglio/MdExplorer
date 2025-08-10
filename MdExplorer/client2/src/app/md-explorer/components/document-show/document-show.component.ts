@@ -55,7 +55,6 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
     this.bookmarksService.bookmarks$
       .pipe(takeUntil(this.destroy$))
       .subscribe(bookmarks => {
-        console.log('[DocumentShow] Bookmarks updated:', bookmarks);
         this.bookmarks = bookmarks;
       });
     
@@ -64,7 +63,6 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(project => {
         if (project && project.id) {
-          console.log('[DocumentShow] Loading bookmarks for project:', project.id);
           this.bookmarksService.initBookmark(project.id);
         }
       });

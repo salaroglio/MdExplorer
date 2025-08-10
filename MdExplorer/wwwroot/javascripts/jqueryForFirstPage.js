@@ -179,7 +179,6 @@ function navigateForward() {
 
 function updateNavigationButtons() {
     // Debug: mostra lo stato delle variabili
-    console.log('[Navigation] hasNavigationStarted:', hasNavigationStarted, 'currentHistoryIndex:', currentHistoryIndex, 'navigationHistory.length', navigationHistory.length);
     
     // Trova i contenitori dei pulsanti (div.mdeNavButton)
     const navBackContainer = document.querySelector('#navBack')?.closest('.mdeNavButton');
@@ -208,7 +207,6 @@ function updateNavigationButtons() {
         }
     }
     
-    console.log('updateNavigationButtons endfunction: hasNavigationStarted: ' + hasNavigationStarted);
 }
 
 // Initialize navigation when document is ready
@@ -1721,7 +1719,6 @@ function toggleReferences() {
 // inizializzazione, al caricamnto della pagina,
 // del canvas, tela per la matitina, fuori dal campo visivo dell'utente
 $(function () {
-    console.log("Create canvas");
     if (window.toggleCanvas == 'undefined') {
         window.toggleCanvas = false;
     }

@@ -34,7 +34,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   ) {}
   
   ngOnInit(): void {
-    console.log('[SearchBox] Component initialized - WITH DEBUG LOGS v2');
     
     // Subscribe to current project changes
     this.projectsService.currentProjects$.pipe(
@@ -42,7 +41,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     ).subscribe(project => {
       if (project) {
         this.currentProjectPath = project.path;
-        console.log('[SearchBox] Project path updated:', this.currentProjectPath);
       }
     });
     
@@ -57,7 +55,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
           return [];
         }
         
-        console.log(`[SearchBox] Searching for: ${term}`);
         this.isSearching = true;
         this.showResults = true;
         return this.searchService.quickSearch(term);
@@ -65,23 +62,13 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(
       results => {
-        console.log('[SearchBox] Search results received:', results);
         
         // Debug: Analizza i file ricevuti per trovare duplicati
         if (results && results.files) {
-          console.log('[SearchBox] Total files received:', results.files.length);
           
           // Raggruppa per path per trovare duplicati
           const filesByPath = {};
           results.files.forEach((file, index) => {
-            console.log(`[SearchBox] File ${index + 1}:`, {
-              id: file.id,
-              fileName: file.fileName,
-              path: file.path,
-              fileType: file.fileType,
-              matchedField: file.matchedField
-            });
-            
             const normalizedPath = file.path.toLowerCase();
             if (!filesByPath[normalizedPath]) {
               filesByPath[normalizedPath] = [];
@@ -117,7 +104,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
         }
       },
       error => {
-        console.error('[SearchBox] Search error:', error);
         this.isSearching = false;
         this.searchResults = null;
       }
@@ -125,7 +111,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
-    console.log('[SearchBox] Component destroyed');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -135,17 +120,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     const clickedElement = event.target as HTMLElement;
     const searchBox = document.querySelector('.search-box-container');
     
-    console.log('[SearchBox] Document click event:', {
-      target: clickedElement,
-      targetTagName: clickedElement.tagName,
-      targetClasses: clickedElement.className,
-      isInSearchBox: searchBox?.contains(clickedElement),
-      isCdkOverlay: !!clickedElement.closest('.cdk-overlay-container'),
-      isMatTabLabel: !!clickedElement.closest('.mat-tab-label'),
-      isMatTabGroup: !!clickedElement.closest('.mat-tab-group'),
-      isSearchResults: !!clickedElement.closest('.search-results'),
-      showResults: this.showResults
-    });
     
     // Don't close if clicking on Material Design overlay, tab elements, or toolbar buttons
     if (clickedElement.closest('.cdk-overlay-container') ||
@@ -153,49 +127,28 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
         clickedElement.closest('.mat-tab-group') ||
         clickedElement.closest('mat-toolbar') ||
         clickedElement.closest('.mat-toolbar')) {
-      console.log('[SearchBox] Click on toolbar/tab elements - ignoring');
       return;
     }
     
     if (searchBox && !searchBox.contains(clickedElement)) {
-      console.log('[SearchBox] Click outside search box - closing results');
       this.showResults = false;
-    } else {
-      console.log('[SearchBox] Click inside search box - keeping results open');
     }
   }
   
   onFocus(): void {
-    console.log('[SearchBox] Input focused', {
-      currentValue: this.searchControl.value,
-      willShowResults: this.searchControl.value && this.searchControl.value.trim().length >= 2
-    });
     if (this.searchControl.value && this.searchControl.value.trim().length >= 2) {
       this.showResults = true;
     }
   }
   
   onBlur(event: FocusEvent): void {
-    console.log('[SearchBox] Blur event:', {
-      relatedTarget: event.relatedTarget,
-      relatedTargetElement: event.relatedTarget as HTMLElement,
-      currentShowResults: this.showResults
-    });
     
     // Delay to allow click on results
     setTimeout(() => {
       const searchContainer = document.querySelector('.search-box-container');
       const activeElement = document.activeElement;
       
-      console.log('[SearchBox] Blur timeout check:', {
-        activeElement: activeElement,
-        activeElementTagName: activeElement?.tagName,
-        activeElementClasses: (activeElement as HTMLElement)?.className,
-        isInSearchContainer: searchContainer?.contains(activeElement),
-        isMatTabLabel: !!activeElement?.closest('.mat-tab-label'),
-        isMatTabGroup: !!activeElement?.closest('.mat-tab-group'),
-        isSearchResults: !!activeElement?.closest('.search-results'),
-        willCloseResults: !(
+      if (!(
           (searchContainer && searchContainer.contains(activeElement)) ||
           (activeElement && (
             activeElement.closest('.mat-tab-label') ||
@@ -207,7 +160,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       
       // Keep results open if focus is still within the search container
       if (searchContainer && searchContainer.contains(activeElement)) {
-        console.log('[SearchBox] Focus still in search container - keeping results open');
         return;
       }
       
@@ -217,23 +169,17 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
         activeElement.closest('.mat-tab-group') ||
         activeElement.closest('.search-results')
       )) {
-        console.log('[SearchBox] Focus on tab elements - keeping results open');
         return;
       }
       
-      console.log('[SearchBox] Blur timeout - closing results');
       this.showResults = false;
     }, 200);
   }
   
   selectFile(file: FileSearchResult): void {
-    console.log('[SearchBox] File selected:', file);
-    console.log('[SearchBox] File.path value:', file.path);
-    console.log('[SearchBox] File.fileName value:', file.fileName);
     
     // Get current project path to calculate relative path
     const currentProject = this.projectsService.currentProjects$.value;
-    console.log('[SearchBox] Current project:', currentProject);
     
     let fullPath = file.path;
     let relativePath = '';
@@ -243,8 +189,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       const projectPath = currentProject.path.replace(/\\/g, '/');
       const filePath = file.path.replace(/\\/g, '/');
       
-      console.log('[SearchBox] Project path:', projectPath);
-      console.log('[SearchBox] File path:', filePath);
       
       // If file path starts with project path, extract relative part
       if (filePath.startsWith(projectPath)) {
@@ -262,7 +206,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       relativePath = '\\' + file.fileName;
     }
     
-    console.log('[SearchBox] Calculated relative path:', relativePath);
     
     // Create MdFile object from search result
     const mdFile = {
@@ -273,7 +216,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       type: file.fileType || 'mdFile'
     };
     
-    console.log('[SearchBox] Created mdFile object:', mdFile);
     
     // Navigate to document
     this.router.navigate(['/main/navigation/document']);
@@ -285,7 +227,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   }
   
   selectLink(link: LinkSearchResult): void {
-    console.log('[SearchBox] Link selected:', link);
     
     // Navigate based on link type
     if (link.fullPath) {
@@ -334,14 +275,12 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   }
   
   clearSearch(): void {
-    console.log('[SearchBox] Clear search');
     this.searchControl.setValue('');
     this.searchResults = null;
     this.showResults = false;
   }
   
   onTabChange(index: number): void {
-    console.log('[SearchBox] Tab change:', {
       newIndex: index,
       previousIndex: this.selectedTabIndex,
       newTab: index === 0 ? 'files' : 'links',

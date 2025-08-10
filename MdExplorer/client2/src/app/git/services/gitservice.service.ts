@@ -55,7 +55,6 @@ export class GITService implements OnDestroy {
    */
   setProjectPath(path: string): void {
     this.currentProjectPath = path;
-    console.log('Git service project path set to:', path);
     // Trigger immediate poll with new path
     if (path) {
       this.performPoll();
@@ -86,7 +85,6 @@ export class GITService implements OnDestroy {
       this.handleWindowBlur();
     });
     
-    console.log('🔄 Smart Git polling initialized');
   }
 
   /**
@@ -95,7 +93,6 @@ export class GITService implements OnDestroy {
   private performPoll(): void {
     if (this.currentProjectPath) {
       // Use modern endpoints with SSH support
-      console.log('🔄 Performing modern Git poll for:', this.currentProjectPath);
       
       // Get branch status
       this.modernGetBranchStatus(this.currentProjectPath).subscribe(
@@ -142,7 +139,6 @@ export class GITService implements OnDestroy {
    * Quando la finestra diventa attiva: polling più frequente
    */
   private handleWindowFocus(): void {
-    console.log('🟢 Window focused - activating frequent Git polling (60s)');
     this.startPolling(this.ACTIVE_POLLING_INTERVAL);
     // Polling immediato quando torna in focus
     this.performPoll();
@@ -152,7 +148,6 @@ export class GITService implements OnDestroy {
    * Quando la finestra diventa inattiva: polling meno frequente
    */
   private handleWindowBlur(): void {
-    console.log('🟡 Window blurred - reducing Git polling frequency (5min)');
     this.startPolling(this.INACTIVE_POLLING_INTERVAL);
   }
 
@@ -178,7 +173,6 @@ export class GITService implements OnDestroy {
     if (this.gitPollingInterval) {
       clearInterval(this.gitPollingInterval);
       this.gitPollingInterval = null;
-      console.log('🔴 Git polling stopped');
     }
   }
 
@@ -337,7 +331,6 @@ export class GITService implements OnDestroy {
     window.removeEventListener('focus', this.handleWindowFocus);
     window.removeEventListener('blur', this.handleWindowBlur);
     
-    console.log('🧹 Git service cleanup completed');
   }
 
 }

@@ -1803,32 +1803,16 @@ class SearchBoxComponent {
     onDocumentClick(event) {
         const clickedElement = event.target;
         const searchBox = document.querySelector('.search-box-container');
-        console.log('[SearchBox] Document click event:', {
-            target: clickedElement,
-            targetTagName: clickedElement.tagName,
-            targetClasses: clickedElement.className,
-            isInSearchBox: searchBox === null || searchBox === void 0 ? void 0 : searchBox.contains(clickedElement),
-            isCdkOverlay: !!clickedElement.closest('.cdk-overlay-container'),
-            isMatTabLabel: !!clickedElement.closest('.mat-tab-label'),
-            isMatTabGroup: !!clickedElement.closest('.mat-tab-group'),
-            isSearchResults: !!clickedElement.closest('.search-results'),
-            showResults: this.showResults
-        });
         // Don't close if clicking on Material Design overlay, tab elements, or toolbar buttons
         if (clickedElement.closest('.cdk-overlay-container') ||
             clickedElement.closest('.mat-tab-label') ||
             clickedElement.closest('.mat-tab-group') ||
             clickedElement.closest('mat-toolbar') ||
             clickedElement.closest('.mat-toolbar')) {
-            console.log('[SearchBox] Click on toolbar/tab elements - ignoring');
             return;
         }
         if (searchBox && !searchBox.contains(clickedElement)) {
-            console.log('[SearchBox] Click outside search box - closing results');
             this.showResults = false;
-        }
-        else {
-            console.log('[SearchBox] Click inside search box - keeping results open');
         }
     }
     onFocus() {

@@ -61,11 +61,21 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync(string connectionId)
         {
+            _logger.LogInformation($"[EXPORT DEBUG] ========== START EXPORT REQUEST ==========");
+            _logger.LogInformation($"[EXPORT DEBUG] ConnectionId: {connectionId}");
+            _logger.LogInformation($"[EXPORT DEBUG] Request Path: {Request.Path}");
+            _logger.LogInformation($"[EXPORT DEBUG] Request QueryString: {Request.QueryString}");
+            
             try
             {
                 var filePath = _fileSystemWatcher.Path;
+                _logger.LogInformation($"[EXPORT DEBUG] FileSystemWatcher.Path: {filePath}");
+                
                 var relativePath = GetRelativePathFileSystem("mdexport");
+                _logger.LogInformation($"[EXPORT DEBUG] RelativePath from GetRelativePathFileSystem: {relativePath}");
+                
                 var relativePathExtension = Path.GetExtension(relativePath);
+                _logger.LogInformation($"[EXPORT DEBUG] File extension: {relativePathExtension}");
 
                 if (relativePathExtension != "" && relativePathExtension != ".md")
                 {
@@ -79,11 +89,15 @@ namespace MdExplorer.Service.Controllers
                 if (relativePathExtension == ".md")
                 {
                     filePath = string.Concat(filePath, relativePath);
+                    _logger.LogInformation($"[EXPORT DEBUG] File has .md extension, full path: {filePath}");
                 }
                 else
                 {
                     filePath = string.Concat(filePath, relativePath, ".md");
+                    _logger.LogInformation($"[EXPORT DEBUG] No .md extension, adding it. Full path: {filePath}");
                 }
+                
+                _logger.LogInformation($"[EXPORT DEBUG] Checking if file exists: {System.IO.File.Exists(filePath)}");
 
                 var readText = string.Empty;
                 using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -121,15 +135,27 @@ namespace MdExplorer.Service.Controllers
                     _logger.LogInformation("Pagine predefinite inserite per il documento {0}", filePath);
                 }
 
+                // Verifica che la directory .md esista prima di cambiare directory
+                var mdTempDir = Path.Combine(_fileSystemWatcher.Path, ".md");
+                _logger.LogInformation($"[EXPORT DEBUG] Checking .md directory: {mdTempDir}");
+                _logger.LogInformation($"[EXPORT DEBUG] .md directory exists: {Directory.Exists(mdTempDir)}");
+                
+                if (!Directory.Exists(mdTempDir))
+                {
+                    _logger.LogInformation($"[EXPORT DEBUG] Creating .md directory: {mdTempDir}");
+                    Directory.CreateDirectory(mdTempDir);
+                }
+                
                 Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
                 _logger.LogInformation($"🔍 [Export] Working directory set to: {_fileSystemWatcher.Path}");
+                _logger.LogInformation($"[EXPORT DEBUG] Current directory after change: {Directory.GetCurrentDirectory()}");
 
                 // TODO: Use Pandoc to create document
                 string currentFilePdfPath;
                 Process processStarted;
 
                 //StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
-                var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf, _yamlDocumentManager);
+                var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf, _yamlDocumentManager, _logger);
                 _logger.LogInformation($"🔍 [Export] Starting Pandoc process for file: {filePath}");
                 pandoc.StartNewPandoc(filePath,_fileSystemWatcher.Path , readText, out currentFilePdfPath, out processStarted);
 
@@ -212,13 +238,16 @@ namespace MdExplorer.Service.Controllers
             private readonly ICreatePandocCommand<string, CommandParameter> _createPandocCommand;
             private readonly IHelperPdf _helperPdf;
             private readonly IYamlParser<MdExplorerDocumentDescriptor> _docSettingManager;
+            private readonly ILogger<MdExportController> _logger;
 
             public StartPandoc(ICreatePandocCommand<string, CommandParameter> createPandocCommand,
-                IHelperPdf helperPdf, IYamlParser<MdExplorerDocumentDescriptor> docSettingManager)
+                IHelperPdf helperPdf, IYamlParser<MdExplorerDocumentDescriptor> docSettingManager,
+                ILogger<MdExportController> logger)
             {
                 _createPandocCommand = createPandocCommand;
                 _helperPdf = helperPdf;
                 _docSettingManager = docSettingManager;
+                _logger = logger;
             }
 
             public void StartNewPandoc(string filePath, string projectPath,
@@ -226,13 +255,35 @@ namespace MdExplorer.Service.Controllers
                     out string currentFilePdfPath, out Process processStarted)
             {
                 var currentGuid = _helperPdf.GetHashString(readText);
-                var currentFilePath = $".\\.md\\{currentGuid}.md";
+                // Usa Path.Combine per essere cross-platform
+                var currentFilePath = Path.Combine(".md", $"{currentGuid}.md");
                 currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{_createPandocCommand.Extension}");
                 
-                Console.WriteLine($"🔍 [Export] Writing final markdown to temp file: {currentFilePath}");
-                Console.WriteLine($"🔍 [Export] Final markdown content for Pandoc (first 500 chars): {readText.Substring(0, Math.Min(500, readText.Length))}...");
+                _logger.LogInformation($"[EXPORT DEBUG] Current working directory in StartNewPandoc: {Directory.GetCurrentDirectory()}");
+                _logger.LogInformation($"[EXPORT DEBUG] Temp file path: {currentFilePath}");
+                _logger.LogInformation($"[EXPORT DEBUG] Output file path: {currentFilePdfPath}");
                 
-                System.IO.File.WriteAllText(currentFilePath, readText);
+                // Verifica che la directory .md esista
+                var fullTempPath = Path.GetFullPath(currentFilePath);
+                var tempDir = Path.GetDirectoryName(fullTempPath);
+                _logger.LogInformation($"[EXPORT DEBUG] Full temp path: {fullTempPath}");
+                _logger.LogInformation($"[EXPORT DEBUG] Temp directory: {tempDir}");
+                _logger.LogInformation($"[EXPORT DEBUG] Temp directory exists: {Directory.Exists(tempDir)}");
+                
+                _logger.LogInformation($"🔍 [Export] Writing final markdown to temp file: {currentFilePath}");
+                _logger.LogDebug($"🔍 [Export] Final markdown content for Pandoc (first 500 chars): {readText.Substring(0, Math.Min(500, readText.Length))}...");
+                
+                try
+                {
+                    System.IO.File.WriteAllText(currentFilePath, readText);
+                    _logger.LogInformation($"[EXPORT DEBUG] Successfully wrote temp file");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[EXPORT DEBUG] ERROR writing temp file: {ex.Message}");
+                    _logger.LogError($"[EXPORT DEBUG] Stack trace: {ex.StackTrace}");
+                    throw;
+                }
                 
                 
                 var docDesc = _docSettingManager.GetDescriptor(readText);
@@ -251,19 +302,28 @@ namespace MdExplorer.Service.Controllers
                     MdFileName = filePath
                 }
                 );
-                var finalCommand = $"/c {processCommand}";
+                // Log command e directory
+                _logger.LogInformation($"🔍 [Export] Executing Pandoc command: {processCommand}");
+                _logger.LogInformation($"🔍 [Export] Working directory: {Directory.GetCurrentDirectory()}");
                 
-                // Log command e directory (verrà fatto nel controller principale)
-                Console.WriteLine($"🔍 [Export] Executing Pandoc command: {processCommand}");
-                Console.WriteLine($"🔍 [Export] Working directory: {Directory.GetCurrentDirectory()}");
+                // Parsing del comando pandoc per estrarre eseguibile e argomenti
+                // Il comando è nella forma: pandoc "input.md" -o "output.docx" --from markdown+implicit_figures ...
+                var commandParts = ParseCommand(processCommand);
                 
-                var processToStart = new ProcessStartInfo("cmd", finalCommand)
+                // Eseguiamo pandoc direttamente (cross-platform)
+                var processToStart = new ProcessStartInfo(commandParts.FileName)
                 {
+                    Arguments = commandParts.Arguments,
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    UseShellExecute = false
+                    UseShellExecute = false,
+                    WorkingDirectory = Directory.GetCurrentDirectory()
                 };
+                
+                _logger.LogInformation($"[EXPORT DEBUG] Starting process: {commandParts.FileName}");
+                _logger.LogInformation($"[EXPORT DEBUG] With arguments: {commandParts.Arguments}");
+                
                 processStarted = Process.Start(processToStart);
                 
                 if (processStarted != null)
@@ -271,12 +331,22 @@ namespace MdExplorer.Service.Controllers
                     var output = processStarted.StandardOutput.ReadToEnd();
                     var error = processStarted.StandardError.ReadToEnd();
                     
-                    Console.WriteLine($"🔍 [Export] Pandoc output: {output}");
+                    _logger.LogInformation($"🔍 [Export] Pandoc output: {output}");
                     if (!string.IsNullOrEmpty(error))
                     {
-                        Console.WriteLine($"❌ [Export] Pandoc error: {error}");
+                        _logger.LogError($"❌ [Export] Pandoc error: {error}");
                     }
                 }
+            }
+            
+            private (string FileName, string Arguments) ParseCommand(string command)
+            {
+                // Il comando inizia sempre con "pandoc", seguito dagli argomenti
+                if (command.StartsWith("pandoc "))
+                {
+                    return ("pandoc", command.Substring(7)); // Rimuove "pandoc " dall'inizio
+                }
+                throw new InvalidOperationException($"Invalid pandoc command: {command}");
             }
         }
 
@@ -327,24 +397,24 @@ namespace MdExplorer.Service.Controllers
                 {
                     createTocScriptCommand = "--toc";
                 }
-                var currentReferencePath = $@".{Path.DirectorySeparatorChar}.md{
-                                                Path.DirectorySeparatorChar}templates{
-                                                Path.DirectorySeparatorChar}word{
-                                                Path.DirectorySeparatorChar}reference.docx";
+                var currentReferencePath = Path.Combine(".", ".md", "templates", "word", "reference.docx");
                 if (commandParam.DocumentTemplateType == "inherits")
                 {
-                    currentReferencePath = $@".{Path.DirectorySeparatorChar}.md{
-                        Path.DirectorySeparatorChar}templates{
-                        Path.DirectorySeparatorChar}word{
-                        Path.DirectorySeparatorChar}{commandParam.InheritsDocumentTemplate}.docx";
+                    currentReferencePath = Path.Combine(".", ".md", "templates", "word", 
+                        $"{commandParam.InheritsDocumentTemplate}.docx");
                 }
                 if (commandParam.DocumentTemplateType == "custom")
                 {
-                    currentReferencePath = Path.GetDirectoryName(commandParam.MdFileName) +
-                        Path.DirectorySeparatorChar + "assets" +
-                        Path.DirectorySeparatorChar + Path.GetFileName(commandParam.MdFileName) +
-                        ".reference.docx";
-                    currentReferencePath = currentReferencePath.Replace(commandParam.ProjectPath, ".\\");
+                    var mdFileDir = Path.GetDirectoryName(commandParam.MdFileName);
+                    var mdFileName = Path.GetFileName(commandParam.MdFileName);
+                    currentReferencePath = Path.Combine(mdFileDir, "assets", $"{mdFileName}.reference.docx");
+                    
+                    // Converti in path relativo rispetto al ProjectPath
+                    if (currentReferencePath.StartsWith(commandParam.ProjectPath))
+                    {
+                        currentReferencePath = Path.Combine(".", 
+                            currentReferencePath.Substring(commandParam.ProjectPath.Length).TrimStart(Path.DirectorySeparatorChar));
+                    }
                 }
                 
                 // Validazione esistenza template

@@ -22,6 +22,14 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 
 ## Development Guidance
 
+### Compatibilità Multi-piattaforma
+* **IMPORTANTE: Il progetto è multipiattaforma e DEVE funzionare su Windows, Mac e Linux**
+  - Usare sempre `Path.Combine()` per costruire percorsi file system
+  - Usare `Path.DirectorySeparatorChar` quando necessario per il file system
+  - Per i percorsi in Markdown/HTML/Pandoc usare sempre forward slash `/`
+  - Verificare sempre che le modifiche siano cross-platform
+  - Evitare assunzioni specifiche del sistema operativo
+
 * Always explain the reasoning behind code implementation before writing the actual code
   - Provide a clear breakdown of the approach
   - Discuss potential alternative solutions
