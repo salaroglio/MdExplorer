@@ -30,6 +30,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git;
 using System.Text;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer
 {
@@ -59,6 +60,11 @@ namespace MdExplorer
             
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
+            
+            // Add AI services
+            services.AddHttpClient();
+            services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
+            services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
             
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>
@@ -153,6 +159,7 @@ namespace MdExplorer
                     }
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
+                endpoints.MapHub<AiChatHub>("/signalr/aichat");
             });
 
             //#if !DEBUG

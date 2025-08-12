@@ -1,0 +1,114 @@
+<div class="model-manager">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>AI Model Manager</mat-card-title>
+      <mat-card-subtitle>
+        <span *ngIf="isModelLoaded && currentModel">
+          Current Model: {{ currentModel }}
+        </span>
+        <span *ngIf="!isModelLoaded">
+          No model loaded
+        </span>
+      </mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="actions-bar">
+        <button mat-raised-button color="primary" (click)="loadModels()" [disabled]="loading">
+          <mat-icon>refresh</mat-icon>
+          Refresh
+        </button>
+      </div>
+
+      <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+      <div class="models-grid">
+        <mat-card *ngFor="let model of availableModels" class="model-card">
+          <mat-card-header>
+            <mat-card-title>{{ model.name }}</mat-card-title>
+            <mat-card-subtitle>
+              {{ model.parameters }} parameters | {{ model.contextLength }} context
+            </mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <p class="model-description">{{ model.description }}</p>
+            
+            <div class="model-info">
+              <span class="file-size">Size: {{ formatBytes(model.fileSize) }}</span>
+              <mat-chip-list>
+                <mat-chip *ngIf="model.isInstalled" color="primary" selected>
+                  <mat-icon>check_circle</mat-icon>
+                  Installed
+                </mat-chip>
+                <mat-chip *ngIf="isCurrentModel(model)" color="accent" selected>
+                  <mat-icon>memory</mat-icon>
+                  Loaded
+                </mat-chip>
+              </mat-chip-list>
+            </div>
+
+            <!-- Download Progress -->
+            <div *ngIf="isDownloading(model.id)" class="download-progress">
+              <div class="progress-info">
+                <span>{{ downloadProgress[model.id].status }}</span>
+                <span>{{ downloadProgress[model.id].percentComplete | number:'1.1-1' }}%</span>
+              </div>
+              <mat-progress-bar 
+                mode="determinate" 
+                [value]="downloadProgress[model.id].percentComplete">
+              </mat-progress-bar>
+              <div class="progress-bytes">
+                {{ formatBytes(downloadProgress[model.id].bytesDownloaded) }} / 
+                {{ formatBytes(downloadProgress[model.id].totalBytes) }}
+              </div>
+            </div>
+          </mat-card-content>
+          
+          <mat-card-actions>
+            <button 
+              mat-button 
+              color="primary"
+              *ngIf="!model.isInstalled && !isDownloading(model.id)"
+              (click)="downloadModel(model)">
+              <mat-icon>download</mat-icon>
+              Download
+            </button>
+            
+            <button 
+              mat-button 
+              color="accent"
+              *ngIf="model.isInstalled && !isCurrentModel(model)"
+              (click)="loadModel(model)"
+              [disabled]="loading">
+              <mat-icon>play_arrow</mat-icon>
+              Load
+            </button>
+            
+            <button 
+              mat-button 
+              color="warn"
+              *ngIf="model.isInstalled && !isCurrentModel(model)"
+              (click)="deleteModel(model)">
+              <mat-icon>delete</mat-icon>
+              Delete
+            </button>
+            
+            <button 
+              mat-button 
+              disabled
+              *ngIf="isCurrentModel(model)">
+              <mat-icon>check</mat-icon>
+              Currently Loaded
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+
+      <div *ngIf="availableModels.length === 0 && !loading" class="no-models">
+        <mat-icon>info</mat-icon>
+        <p>No models available</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

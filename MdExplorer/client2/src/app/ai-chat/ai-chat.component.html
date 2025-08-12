@@ -1,0 +1,92 @@
+<div class="ai-chat-container">
+  <!-- Header -->
+  <mat-toolbar color="primary" class="chat-header">
+    <mat-icon>smart_toy</mat-icon>
+    <span class="header-title">AI Assistant</span>
+    
+    <span class="spacer"></span>
+    
+    <div class="model-status">
+      <mat-chip-list>
+        <mat-chip *ngIf="isModelLoaded" color="accent" selected>
+          <mat-icon>check_circle</mat-icon>
+          {{ currentModel || 'Model Loaded' }}
+        </mat-chip>
+        <mat-chip *ngIf="!isModelLoaded" color="warn">
+          <mat-icon>warning</mat-icon>
+          No Model
+        </mat-chip>
+      </mat-chip-list>
+    </div>
+    
+    <button mat-icon-button (click)="toggleModelManager()" matTooltip="Model Manager">
+      <mat-icon>settings</mat-icon>
+    </button>
+    
+    <button mat-icon-button (click)="clearChat()" matTooltip="Clear Chat">
+      <mat-icon>clear_all</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <!-- Model Manager Panel -->
+  <div class="model-manager-panel" *ngIf="showModelManager">
+    <app-model-manager></app-model-manager>
+  </div>
+
+  <!-- Chat Messages -->
+  <div class="chat-messages" #scrollContainer>
+    <div *ngIf="messages.length === 0" class="no-messages">
+      <mat-icon>chat_bubble_outline</mat-icon>
+      <p>Start a conversation with the AI assistant</p>
+      <p class="hint" *ngIf="!isModelLoaded">
+        Please load a model first using the settings button above
+      </p>
+    </div>
+
+    <div *ngFor="let message of messages" [ngClass]="getMessageClass(message)">
+      <div class="message-avatar">
+        <mat-icon>{{ getAvatarIcon(message.role) }}</mat-icon>
+      </div>
+      
+      <div class="message-content">
+        <div class="message-header">
+          <span class="message-role">{{ message.role | titlecase }}</span>
+          <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+        </div>
+        
+        <div class="message-text" [innerHTML]="formatMessageContent(message.content)"></div>
+        
+        <mat-progress-spinner 
+          *ngIf="message.isStreaming" 
+          diameter="20" 
+          mode="indeterminate">
+        </mat-progress-spinner>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="chat-input-container">
+    <mat-form-field appearance="outline" class="chat-input">
+      <textarea
+        matInput
+        #messageInput
+        [(ngModel)]="inputMessage"
+        (keydown)="handleKeyDown($event)"
+        placeholder="Type your message... (Shift+Enter for new line)"
+        rows="3"
+        [disabled]="!isModelLoaded">
+      </textarea>
+      <mat-hint *ngIf="!isModelLoaded">Load a model to start chatting</mat-hint>
+    </mat-form-field>
+    
+    <button 
+      mat-fab 
+      color="primary" 
+      (click)="sendMessage()"
+      [disabled]="!inputMessage.trim() || !isModelLoaded"
+      class="send-button">
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>

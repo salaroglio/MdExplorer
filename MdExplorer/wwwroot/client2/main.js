@@ -946,7 +946,6 @@ class GITService {
      */
     setProjectPath(path) {
         this.currentProjectPath = path;
-        console.log('Git service project path set to:', path);
         // Trigger immediate poll with new path
         if (path) {
             this.performPoll();
@@ -971,7 +970,6 @@ class GITService {
         window.addEventListener('blur', () => {
             this.handleWindowBlur();
         });
-        console.log('🔄 Smart Git polling initialized');
     }
     /**
      * Perform polling based on current configuration
@@ -979,7 +977,6 @@ class GITService {
     performPoll() {
         if (this.currentProjectPath) {
             // Use modern endpoints with SSH support
-            console.log('🔄 Performing modern Git poll for:', this.currentProjectPath);
             // Get branch status
             this.modernGetBranchStatus(this.currentProjectPath).subscribe(branch => {
                 this.currentBranch$.next(branch);
@@ -1017,7 +1014,6 @@ class GITService {
      * Quando la finestra diventa attiva: polling più frequente
      */
     handleWindowFocus() {
-        console.log('🟢 Window focused - activating frequent Git polling (60s)');
         this.startPolling(this.ACTIVE_POLLING_INTERVAL);
         // Polling immediato quando torna in focus
         this.performPoll();
@@ -1026,7 +1022,6 @@ class GITService {
      * Quando la finestra diventa inattiva: polling meno frequente
      */
     handleWindowBlur() {
-        console.log('🟡 Window blurred - reducing Git polling frequency (5min)');
         this.startPolling(this.INACTIVE_POLLING_INTERVAL);
     }
     /**
@@ -1049,7 +1044,6 @@ class GITService {
         if (this.gitPollingInterval) {
             clearInterval(this.gitPollingInterval);
             this.gitPollingInterval = null;
-            console.log('🔴 Git polling stopped');
         }
     }
     clone(request) {
@@ -1170,7 +1164,6 @@ class GITService {
         document.removeEventListener('visibilitychange', this.handleVisibilityChange);
         window.removeEventListener('focus', this.handleWindowFocus);
         window.removeEventListener('blur', this.handleWindowBlur);
-        console.log('🧹 Git service cleanup completed');
     }
 }
 GITService.ɵfac = function GITService_Factory(t) { return new (t || GITService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"])); };
@@ -1350,7 +1343,7 @@ AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineCompo
         const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵreference"](3);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
-    } }, directives: [_components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_5__["TitleBarComponent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL2FwcC5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0Usa0JBQUE7QUFDRjs7QUFFQTtFQUNFLGdCQUFBO0FBQ0YiLCJmaWxlIjoiYXBwLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmZsZXgtY29udGFpbmVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1mbG93OiByb3cgd3JhcDtcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcbiAgZmxleC13cmFwOiB3cmFwOyAgXG59XG5cbi5mbGV4LWl0ZW0ge1xuICBiYWNrZ3JvdW5kOiB0b21hdG87XG59XG5cbi5hcHAtY29udGVudCB7XG4gIG1hcmdpbi10b3A6IDMwcHg7IC8vIFNwYWNlIGZvciB0aXRsZSBiYXJcbn1cblxuIl19 */"], data: { animation: [
+    } }, directives: [_components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_5__["TitleBarComponent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL2FwcC5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0Usa0JBQUE7QUFDRjs7QUFFQTtFQUNFLGdCQUFBO0VBQ0EsMEJBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7QUFDRiIsImZpbGUiOiJhcHAuY29tcG9uZW50LnNjc3MiLCJzb3VyY2VzQ29udGVudCI6WyIuZmxleC1jb250YWluZXIge1xuICBkaXNwbGF5OiBmbGV4O1xuICBmbGV4LWZsb3c6IHJvdyB3cmFwO1xuICBmbGV4LWRpcmVjdGlvbjogcm93O1xuICBmbGV4LXdyYXA6IHdyYXA7ICBcbn1cblxuLmZsZXgtaXRlbSB7XG4gIGJhY2tncm91bmQ6IHRvbWF0bztcbn1cblxuLmFwcC1jb250ZW50IHtcbiAgbWFyZ2luLXRvcDogMzBweDsgLy8gU3BhY2UgZm9yIHRpdGxlIGJhclxuICBoZWlnaHQ6IGNhbGMoMTAwdmggLSAzMHB4KTsgLy8gSW1wb3N0YSBsJ2FsdGV6emEgcGVyIG9jY3VwYXJlIHR1dHRvIGxvIHNwYXppbyBkaXNwb25pYmlsZVxuICBkaXNwbGF5OiBmbGV4O1xuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xufVxuXG4iXX0= */"], data: { animation: [
             _shared_animations__WEBPACK_IMPORTED_MODULE_0__["slideInAnimation"]
         ] } });
 
@@ -1724,12 +1717,10 @@ class SearchBoxComponent {
         this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
     }
     ngOnInit() {
-        console.log('[SearchBox] Component initialized - WITH DEBUG LOGS v2');
         // Subscribe to current project changes
         this.projectsService.currentProjects$.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["takeUntil"])(this.destroy$)).subscribe(project => {
             if (project) {
                 this.currentProjectPath = project.path;
-                console.log('[SearchBox] Project path updated:', this.currentProjectPath);
             }
         });
         // Setup search with debounce
@@ -1739,25 +1730,15 @@ class SearchBoxComponent {
                 this.showResults = false;
                 return [];
             }
-            console.log(`[SearchBox] Searching for: ${term}`);
             this.isSearching = true;
             this.showResults = true;
             return this.searchService.quickSearch(term);
         }), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["takeUntil"])(this.destroy$)).subscribe(results => {
-            console.log('[SearchBox] Search results received:', results);
             // Debug: Analizza i file ricevuti per trovare duplicati
             if (results && results.files) {
-                console.log('[SearchBox] Total files received:', results.files.length);
                 // Raggruppa per path per trovare duplicati
                 const filesByPath = {};
                 results.files.forEach((file, index) => {
-                    console.log(`[SearchBox] File ${index + 1}:`, {
-                        id: file.id,
-                        fileName: file.fileName,
-                        path: file.path,
-                        fileType: file.fileType,
-                        matchedField: file.matchedField
-                    });
                     const normalizedPath = file.path.toLowerCase();
                     if (!filesByPath[normalizedPath]) {
                         filesByPath[normalizedPath] = [];
@@ -1790,13 +1771,11 @@ class SearchBoxComponent {
                 this.selectedTabIndex = 1;
             }
         }, error => {
-            console.error('[SearchBox] Search error:', error);
             this.isSearching = false;
             this.searchResults = null;
         });
     }
     ngOnDestroy() {
-        console.log('[SearchBox] Component destroyed');
         this.destroy$.next();
         this.destroy$.complete();
     }
@@ -1816,69 +1795,37 @@ class SearchBoxComponent {
         }
     }
     onFocus() {
-        console.log('[SearchBox] Input focused', {
-            currentValue: this.searchControl.value,
-            willShowResults: this.searchControl.value && this.searchControl.value.trim().length >= 2
-        });
         if (this.searchControl.value && this.searchControl.value.trim().length >= 2) {
             this.showResults = true;
         }
     }
     onBlur(event) {
-        console.log('[SearchBox] Blur event:', {
-            relatedTarget: event.relatedTarget,
-            relatedTargetElement: event.relatedTarget,
-            currentShowResults: this.showResults
-        });
         // Delay to allow click on results
         setTimeout(() => {
-            var _a;
             const searchContainer = document.querySelector('.search-box-container');
             const activeElement = document.activeElement;
-            console.log('[SearchBox] Blur timeout check:', {
-                activeElement: activeElement,
-                activeElementTagName: activeElement === null || activeElement === void 0 ? void 0 : activeElement.tagName,
-                activeElementClasses: (_a = activeElement) === null || _a === void 0 ? void 0 : _a.className,
-                isInSearchContainer: searchContainer === null || searchContainer === void 0 ? void 0 : searchContainer.contains(activeElement),
-                isMatTabLabel: !!(activeElement === null || activeElement === void 0 ? void 0 : activeElement.closest('.mat-tab-label')),
-                isMatTabGroup: !!(activeElement === null || activeElement === void 0 ? void 0 : activeElement.closest('.mat-tab-group')),
-                isSearchResults: !!(activeElement === null || activeElement === void 0 ? void 0 : activeElement.closest('.search-results')),
-                willCloseResults: !((searchContainer && searchContainer.contains(activeElement)) ||
-                    (activeElement && (activeElement.closest('.mat-tab-label') ||
-                        activeElement.closest('.mat-tab-group') ||
-                        activeElement.closest('.search-results'))))
-            });
             // Keep results open if focus is still within the search container
             if (searchContainer && searchContainer.contains(activeElement)) {
-                console.log('[SearchBox] Focus still in search container - keeping results open');
                 return;
             }
             // Also keep open if clicking on Material tabs or tab content
             if (activeElement && (activeElement.closest('.mat-tab-label') ||
                 activeElement.closest('.mat-tab-group') ||
                 activeElement.closest('.search-results'))) {
-                console.log('[SearchBox] Focus on tab elements - keeping results open');
                 return;
             }
-            console.log('[SearchBox] Blur timeout - closing results');
             this.showResults = false;
         }, 200);
     }
     selectFile(file) {
-        console.log('[SearchBox] File selected:', file);
-        console.log('[SearchBox] File.path value:', file.path);
-        console.log('[SearchBox] File.fileName value:', file.fileName);
         // Get current project path to calculate relative path
         const currentProject = this.projectsService.currentProjects$.value;
-        console.log('[SearchBox] Current project:', currentProject);
         let fullPath = file.path;
         let relativePath = '';
         // Calculate relative path from project root
         if (currentProject && currentProject.path) {
             const projectPath = currentProject.path.replace(/\\/g, '/');
             const filePath = file.path.replace(/\\/g, '/');
-            console.log('[SearchBox] Project path:', projectPath);
-            console.log('[SearchBox] File path:', filePath);
             // If file path starts with project path, extract relative part
             if (filePath.startsWith(projectPath)) {
                 relativePath = filePath.substring(projectPath.length);
@@ -1896,7 +1843,6 @@ class SearchBoxComponent {
             // No project context, use filename as relative path
             relativePath = '\\' + file.fileName;
         }
-        console.log('[SearchBox] Calculated relative path:', relativePath);
         // Create MdFile object from search result
         const mdFile = {
             fullPath: fullPath,
@@ -1905,7 +1851,6 @@ class SearchBoxComponent {
             name: file.fileName,
             type: file.fileType || 'mdFile'
         };
-        console.log('[SearchBox] Created mdFile object:', mdFile);
         // Navigate to document
         this.router.navigate(['/main/navigation/document']);
         this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
@@ -1914,7 +1859,6 @@ class SearchBoxComponent {
         this.showResults = false;
     }
     selectLink(link) {
-        console.log('[SearchBox] Link selected:', link);
         // Navigate based on link type
         if (link.fullPath) {
             // Get current project path to calculate relative path
@@ -1958,13 +1902,12 @@ class SearchBoxComponent {
         this.showResults = false;
     }
     clearSearch() {
-        console.log('[SearchBox] Clear search');
         this.searchControl.setValue('');
         this.searchResults = null;
         this.showResults = false;
     }
     onTabChange(index) {
-        console.log('[SearchBox] Tab change:', {
+        console.log('Tab changed:', {
             newIndex: index,
             previousIndex: this.selectedTabIndex,
             newTab: index === 0 ? 'files' : 'links',
@@ -2515,8 +2458,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.08.09.14',
-    buildTime: '2025.08.09 10:21:05'
+    version: '2025.08.12.8',
+    buildTime: '2025.08.12 09:08:26'
 };
 
 

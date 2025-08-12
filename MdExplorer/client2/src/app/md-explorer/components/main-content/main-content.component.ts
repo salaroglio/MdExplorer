@@ -457,6 +457,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const isIndexed = this.indexingStateService.isFileIndexed(fullPath);
     const isWaiting = this.indexingStateService.isFileWaiting(fullPath, 'mdFile');
 
+    console.log('Indexing status check:', {
       path: fullPath,
       isIndexed,
       isWaiting

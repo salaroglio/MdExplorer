@@ -189,6 +189,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
       const sidenavContent = document.querySelector('mat-sidenav-content') as HTMLElement;
       const documentShow = document.querySelector('app-document-show') as HTMLElement;
       
+      console.log('Layout dimensions:', {
         sidenavContent: {
           width: sidenavContent?.offsetWidth || 0,
           style: sidenavContent ? window.getComputedStyle(sidenavContent) : null

@@ -34,7 +34,18 @@
       "Bash(npx tsc:*)",
       "Bash(git config:*)",
       "Bash(git rm:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(git checkout:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(cat:*)",
+      "Bash(wget:*)",
+      "Bash(chmod:*)",
+      "Bash(./dotnet-install.sh:*)",
+      "Bash(~/.dotnet/dotnet:*)",
+      "Bash(mv:*)",
+      "Bash(nvm use:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

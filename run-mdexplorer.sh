@@ -1,10 +1,9 @@
-#!/bin/bash
+#\!/bin/bash
 
-# Run MdExplorer on Linux
-cd "$(dirname "$0")/MdExplorer"
+# Script to run MdExplorer with proper native library configuration
 
-echo "Starting MdExplorer on http://localhost:5000"
-echo "Press Ctrl+C to stop"
-echo ""
+# Set the native library path for LLamaSharp
+export LD_LIBRARY_PATH="/home/carlo/Documents/sviluppo/MdExplorer/MdExplorer/bin/Debug/net8.0/linux-x64:$LD_LIBRARY_PATH"
 
-dotnet run --urls "http://localhost:5000"
+# Run the application
+dotnet run --project MdExplorer/MdExplorer.Service.csproj
