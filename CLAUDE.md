@@ -20,6 +20,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## IMPORTANTE: Confermare lettura di questo file
 All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le regole in questo file CLAUDE.md.
 
+## IMPORTANTE: Ambiente di Sviluppo
+* **All'inizio di ogni nuova sessione/contesto, SEMPRE chiedere all'utente se sta sviluppando in Windows con PowerShell oppure in Linux con Bash**
+* Questa informazione è essenziale per fornire i comandi corretti per l'ambiente specifico
+* Non assumere mai l'ambiente, chiedere sempre
+
 ## Development Guidance
 
 ### Compatibilità Multi-piattaforma
