@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -348,8 +349,22 @@ export class MdFileService {
     return this.http.post<MdFile>(url, file);
   }
   openFolderOnFileExplorer(file: MdFile) {
+    console.log('[MdFileService] openFolderOnFileExplorer() called');
+    console.log('[MdFileService] file:', file);
+    console.log('[MdFileService] file.fullPath:', file.fullPath);
+    
     const url = '../api/mdfiles/OpenFolderOnFileExplorer';
-    return this.http.post<MdFile>(url, file);
+    console.log('[MdFileService] POST to:', url);
+    
+    return this.http.post<MdFile>(url, file).pipe(
+      tap(response => {
+        console.log('[MdFileService] Response received:', response);
+      }),
+      catchError(error => {
+        console.error('[MdFileService] Error in openFolderOnFileExplorer:', error);
+        throw error;
+      })
+    );
   }
 
   deleteFile(file: MdFile) {

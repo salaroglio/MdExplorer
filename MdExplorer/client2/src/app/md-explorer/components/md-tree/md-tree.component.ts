@@ -346,9 +346,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openFolderOn(node: MdFile) {
-    this.mdFileService.openFolderOnFileExplorer(node).subscribe(_ => {
-      this.snackBar.open("file explorer open", "", { duration: 500 });
-    });
+    console.log('[MdTreeComponent] openFolderOn() called');
+    console.log('[MdTreeComponent] node:', node);
+    console.log('[MdTreeComponent] node.fullPath:', node.fullPath);
+    
+    this.mdFileService.openFolderOnFileExplorer(node).subscribe(
+      result => {
+        console.log('[MdTreeComponent] openFolderOnFileExplorer success:', result);
+        this.snackBar.open("file explorer open", "", { duration: 500 });
+      },
+      error => {
+        console.error('[MdTreeComponent] openFolderOnFileExplorer error:', error);
+        this.snackBar.open("Error opening file explorer: " + error.message, "", { duration: 3000 });
+      }
+    );
   }
 
   AddExistingFileOnMDEProject(node: MdFile) {

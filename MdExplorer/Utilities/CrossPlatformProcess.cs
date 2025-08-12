@@ -81,41 +81,75 @@ namespace MdExplorer.Utilities
         /// </summary>
         public static bool OpenFolder(string folderPath)
         {
-            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+            Console.WriteLine($"[CrossPlatformProcess] OpenFolder called with path: {folderPath}");
+            
+            if (string.IsNullOrEmpty(folderPath))
+            {
+                Console.WriteLine("[CrossPlatformProcess] ERROR: folderPath is null or empty");
                 return false;
+            }
+            
+            if (!Directory.Exists(folderPath))
+            {
+                Console.WriteLine($"[CrossPlatformProcess] ERROR: Directory does not exist: {folderPath}");
+                return false;
+            }
 
             try
             {
                 ProcessStartInfo psi;
+                string platform = "";
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
+                    platform = "Windows";
+                    Console.WriteLine($"[CrossPlatformProcess] Platform: {platform}");
+                    
+                    // Windows needs quotes around paths with spaces
                     psi = new ProcessStartInfo
                     {
                         FileName = "explorer.exe",
-                        Arguments = folderPath
+                        Arguments = $"\"{folderPath}\"",  // Added quotes
+                        UseShellExecute = true,  // Important for Windows
+                        CreateNoWindow = false
                     };
+                    Console.WriteLine($"[CrossPlatformProcess] Command: explorer.exe \"{folderPath}\"");
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
+                    platform = "Linux";
+                    Console.WriteLine($"[CrossPlatformProcess] Platform: {platform}");
+                    
                     // Use xdg-open on Linux
                     psi = new ProcessStartInfo
                     {
                         FileName = "xdg-open",
-                        Arguments = $"\"{folderPath}\""
+                        Arguments = $"\"{folderPath}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
                     };
+                    Console.WriteLine($"[CrossPlatformProcess] Command: xdg-open \"{folderPath}\"");
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
+                    platform = "macOS";
+                    Console.WriteLine($"[CrossPlatformProcess] Platform: {platform}");
+                    
                     // Use open on macOS
                     psi = new ProcessStartInfo
                     {
                         FileName = "open",
-                        Arguments = $"\"{folderPath}\""
+                        Arguments = $"\"{folderPath}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
                     };
+                    Console.WriteLine($"[CrossPlatformProcess] Command: open \"{folderPath}\"");
                 }
                 else
                 {
+                    platform = "Unknown";
+                    Console.WriteLine($"[CrossPlatformProcess] Platform: {platform} - using fallback");
+                    
                     // Fallback
                     psi = new ProcessStartInfo
                     {
@@ -124,14 +158,22 @@ namespace MdExplorer.Utilities
                     };
                 }
 
+                Console.WriteLine("[CrossPlatformProcess] Starting process...");
                 using (var process = Process.Start(psi))
                 {
-                    return process != null;
+                    bool success = process != null;
+                    Console.WriteLine($"[CrossPlatformProcess] Process started: {success}");
+                    if (success)
+                    {
+                        Console.WriteLine($"[CrossPlatformProcess] Process ID: {process.Id}");
+                    }
+                    return success;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error opening folder {folderPath}: {ex.Message}");
+                Console.WriteLine($"[CrossPlatformProcess] ERROR opening folder {folderPath}: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"[CrossPlatformProcess] Stack trace: {ex.StackTrace}");
                 return false;
             }
         }

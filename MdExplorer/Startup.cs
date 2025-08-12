@@ -92,6 +92,19 @@ namespace MdExplorer
             {
                 var path = context.Request.Path.ToString().ToLower();
                 
+                // Log specifico per OpenFolderOnFileExplorer
+                if (path.Contains("openfolder"))
+                {
+                    logger.LogInformation($"[MIDDLEWARE] OpenFolder request: {context.Request.Method} {context.Request.Path}");
+                    if (context.Request.Method == "POST")
+                    {
+                        context.Request.EnableBuffering();
+                        var body = await new System.IO.StreamReader(context.Request.Body).ReadToEndAsync();
+                        context.Request.Body.Position = 0;
+                        logger.LogInformation($"[MIDDLEWARE] OpenFolder body: {body}");
+                    }
+                }
+                
                 // Skip logging for static files
                 bool isStaticFile = path.EndsWith(".js") || path.EndsWith(".css") || 
                                    path.EndsWith(".html") || path.EndsWith(".htm") ||

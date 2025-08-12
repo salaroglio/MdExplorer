@@ -67,7 +67,7 @@ using MdExplorer.Abstractions.Services;
 namespace MdExplorer.Service.Controllers.MdFiles
 {
     [ApiController]
-    [Route("api/MdFiles/{action}")]
+    [Route("api/mdfiles/{action}")]
     public class MdFilesController : MdControllerBase<MdFilesController>
     {
         
@@ -429,26 +429,86 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
 
         [HttpPost]
-        public IActionResult OpenFolderOnFileExplorer([FromBody] FileInfoNode fileData)
+        public async Task<IActionResult> OpenFolderOnFileExplorer()
         {
-            // Open folder containing the file
-            var folderPath = Path.GetDirectoryName(fileData.FullPath);
-            CrossPlatformProcess.OpenFolder(folderPath);
-            return Ok(new { message = "done" });
-        }
-
-        [HttpPost]
-        public IActionResult DeleteFile([FromBody] FileInfoNode fileData)
-        {
+            Console.WriteLine("[MdFilesController] OpenFolderOnFileExplorer called - NO PARAMS VERSION");
+            
             try
             {
-                _fileSystemWatcher.EnableRaisingEvents = false;
-                System.IO.File.Delete(fileData.FullPath);
-                _fileSystemWatcher.EnableRaisingEvents = true;
-                return Ok(new { message = "done" });
+                // Leggi il body manualmente
+                using (var reader = new System.IO.StreamReader(Request.Body))
+                {
+                    var body = await reader.ReadToEndAsync();
+                    Console.WriteLine($"[MdFilesController] Raw body: {body}");
+                    
+                    // Deserializza manualmente
+                    var fileData = System.Text.Json.JsonSerializer.Deserialize<FileInfoNode>(body);
+                    Console.WriteLine($"[MdFilesController] Deserialized fileData.FullPath: {fileData?.FullPath}");
+                    
+                    if (fileData == null || string.IsNullOrEmpty(fileData.FullPath))
+                    {
+                        Console.WriteLine("[MdFilesController] ERROR: fileData or FullPath is null/empty");
+                        return BadRequest(new { error = "Invalid file data or path" });
+                    }
+            
+                    // Open folder containing the file
+                    var folderPath = Path.GetDirectoryName(fileData.FullPath);
+                    Console.WriteLine($"[MdFilesController] Extracted folderPath: {folderPath}");
+                    
+                    var result = CrossPlatformProcess.OpenFolder(folderPath);
+                    Console.WriteLine($"[MdFilesController] CrossPlatformProcess.OpenFolder returned: {result}");
+                    
+                    if (result)
+                    {
+                        return Ok(new { message = "done", success = true });
+                    }
+                    else
+                    {
+                        return StatusCode(500, new { error = "Failed to open folder", path = folderPath });
+                    }
+                }
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[MdFilesController] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"[MdFilesController] Stack: {ex.StackTrace}");
+                return StatusCode(500, new { error = "Exception occurred", message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteFile()
+        {
+            Console.WriteLine("[MdFilesController] DeleteFile called");
+            
+            try
+            {
+                // Leggi il body manualmente
+                using (var reader = new System.IO.StreamReader(Request.Body))
+                {
+                    var body = await reader.ReadToEndAsync();
+                    Console.WriteLine($"[MdFilesController] DeleteFile raw body: {body}");
+                    
+                    // Deserializza manualmente
+                    var fileData = System.Text.Json.JsonSerializer.Deserialize<FileInfoNode>(body);
+                    Console.WriteLine($"[MdFilesController] DeleteFile fileData.FullPath: {fileData?.FullPath}");
+                    
+                    if (fileData == null || string.IsNullOrEmpty(fileData.FullPath))
+                    {
+                        Console.WriteLine("[MdFilesController] DeleteFile ERROR: fileData or FullPath is null/empty");
+                        return BadRequest(new { error = "Invalid file data or path" });
+                    }
+                    
+                    _fileSystemWatcher.EnableRaisingEvents = false;
+                    System.IO.File.Delete(fileData.FullPath);
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    Console.WriteLine($"[MdFilesController] File deleted successfully: {fileData.FullPath}");
+                    return Ok(new { message = "done" });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MdFilesController] DeleteFile EXCEPTION: {ex.GetType().Name}: {ex.Message}");
                 // In caso di errore, assicurati di riabilitare il FileSystemWatcher
                 _fileSystemWatcher.EnableRaisingEvents = true;
                 return StatusCode(500, new { message = $"Error deleting file: {ex.Message}" });
@@ -456,50 +516,79 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         [HttpPost]
-        public IActionResult SetLandingPage([FromBody] FileInfoNode fileData)
+        public async Task<IActionResult> SetLandingPage()
         {
-            _projectDB.BeginTransaction();
-
-            var dal = _projectDB.GetDal<ProjectSetting>();
-            var landingPage = dal.GetList().Where(_ => _.Name == "LandingPageFilePath").First();
-            landingPage.ValueString = fileData.FullPath;
-            dal.Save(landingPage);
-            var dalDetails = _projectDB.GetDal<ProjectFileInfoNode>();
-            var landingPageDetails = dalDetails.GetList().Where(_ => _.ProjectSetting == landingPage)
-                .FirstOrDefault();
-            if (landingPageDetails == null)
+            Console.WriteLine("[MdFilesController] SetLandingPage called");
+            
+            try
             {
-                landingPageDetails = new ProjectFileInfoNode
+                // Leggi il body manualmente
+                using (var reader = new System.IO.StreamReader(Request.Body))
                 {
-                    ProjectSetting = landingPage,
-                    Level = fileData.Level,
-                    Expandable = fileData.Expandable,
-                    Name = fileData.Name,
-                    FullPath = fileData.FullPath,
-                    Path = fileData.Path,
-                    RelativePath = fileData.RelativePath,
-                    Type = fileData.Type,
-                    DataText = fileData.DataText,
-                };
+                    var body = await reader.ReadToEndAsync();
+                    Console.WriteLine($"[MdFilesController] SetLandingPage raw body: {body}");
+                    
+                    // Deserializza manualmente
+                    var fileData = System.Text.Json.JsonSerializer.Deserialize<FileInfoNode>(body);
+                    Console.WriteLine($"[MdFilesController] SetLandingPage fileData.FullPath: {fileData?.FullPath}");
+                    
+                    if (fileData == null || string.IsNullOrEmpty(fileData.FullPath))
+                    {
+                        Console.WriteLine("[MdFilesController] SetLandingPage ERROR: fileData or FullPath is null/empty");
+                        return BadRequest(new { error = "Invalid file data or path" });
+                    }
+                    
+                    _projectDB.BeginTransaction();
+
+                    var dal = _projectDB.GetDal<ProjectSetting>();
+                    var landingPage = dal.GetList().Where(_ => _.Name == "LandingPageFilePath").First();
+                    landingPage.ValueString = fileData.FullPath;
+                    dal.Save(landingPage);
+                    var dalDetails = _projectDB.GetDal<ProjectFileInfoNode>();
+                    var landingPageDetails = dalDetails.GetList().Where(_ => _.ProjectSetting == landingPage)
+                        .FirstOrDefault();
+                    if (landingPageDetails == null)
+                    {
+                        landingPageDetails = new ProjectFileInfoNode
+                        {
+                            ProjectSetting = landingPage,
+                            Level = fileData.Level,
+                            Expandable = fileData.Expandable,
+                            Name = fileData.Name,
+                            FullPath = fileData.FullPath,
+                            Path = fileData.Path,
+                            RelativePath = fileData.RelativePath,
+                            Type = fileData.Type,
+                            DataText = fileData.DataText,
+                        };
+                    }
+                    else
+                    {
+                        landingPageDetails.Level = fileData.Level;
+                        landingPageDetails.Expandable = fileData.Expandable;
+                        landingPageDetails.Name = fileData.Name;
+                        landingPageDetails.FullPath = fileData.FullPath;
+                        landingPageDetails.Path = fileData.Path;
+                        landingPageDetails.RelativePath = fileData.RelativePath;
+                        landingPageDetails.Type = fileData.Type;
+                        landingPageDetails.DataText = fileData.DataText;
+                    }
+
+
+
+                    dalDetails.Save(landingPageDetails);
+
+                    _projectDB.Commit();
+                    Console.WriteLine($"[MdFilesController] SetLandingPage completed successfully");
+                    return Ok(new { message = "Done" });
+                }
             }
-            else
+            catch (Exception ex)
             {
-                landingPageDetails.Level = fileData.Level;
-                landingPageDetails.Expandable = fileData.Expandable;
-                landingPageDetails.Name = fileData.Name;
-                landingPageDetails.FullPath = fileData.FullPath;
-                landingPageDetails.Path = fileData.Path;
-                landingPageDetails.RelativePath = fileData.RelativePath;
-                landingPageDetails.Type = fileData.Type;
-                landingPageDetails.DataText = fileData.DataText;
+                Console.WriteLine($"[MdFilesController] SetLandingPage EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+                _projectDB.Rollback();
+                return StatusCode(500, new { message = $"Error setting landing page: {ex.Message}" });
             }
-
-
-
-            dalDetails.Save(landingPageDetails);
-
-            _projectDB.Commit();
-            return Ok(new { message = "Done" });
         }
 
         private string GetSystemRootPath()
