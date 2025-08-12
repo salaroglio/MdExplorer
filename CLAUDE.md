@@ -22,6 +22,16 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 
 ## Development Guidance
 
+### Requisiti Node.js per Angular
+* **IMPORTANTE: Per compilare il frontend Angular è necessario usare Node.js versione 14.21.3**
+  - Il progetto Angular 11 richiede questa versione specifica
+  - Usare nvm per switchare alla versione corretta: `nvm use 14.21.3`
+  - NON tentare di compilare con versioni più recenti di Node.js
+  - **Comando completo per compilare Angular dalla directory client2**:
+    ```bash
+    source ~/.nvm/nvm.sh && nvm use 14.21.3 && npm run build
+    ```
+
 ### Compatibilità Multi-piattaforma
 * **IMPORTANTE: Il progetto è multipiattaforma e DEVE funzionare su Windows, Mac e Linux**
   - Usare sempre `Path.Combine()` per costruire percorsi file system

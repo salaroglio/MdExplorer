@@ -591,4 +591,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // Assumes MdExplorerModule is loaded under '/main' and 'navigation' is a parent route segment
     this.router.navigate(['/main/navigation/react-editor']);
   }
+
+  openAiChat(): void {
+    // Navigate to AI chat within the application
+    this.router.navigate(['/main/navigation/ai-chat']);
+  }
 }

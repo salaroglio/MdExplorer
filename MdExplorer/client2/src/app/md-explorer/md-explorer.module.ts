@@ -45,7 +45,8 @@ const routes: Routes = [
           { path: 'document', component: MainContentComponent },
           { path: 'gitlabsettings', component: GitlabSettingsComponent },
           { path: 'documentsettings', component: DocumentSettingsComponent },
-          { path: 'react-editor', component: MilkdownReactHostComponent }
+          { path: 'react-editor', component: MilkdownReactHostComponent },
+          { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
         ]
       }
     ]

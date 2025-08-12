@@ -148,16 +148,6 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
       const searchContainer = document.querySelector('.search-box-container');
       const activeElement = document.activeElement;
       
-      if (!(
-          (searchContainer && searchContainer.contains(activeElement)) ||
-          (activeElement && (
-            activeElement.closest('.mat-tab-label') ||
-            activeElement.closest('.mat-tab-group') ||
-            activeElement.closest('.search-results')
-          ))
-        )
-      });
-      
       // Keep results open if focus is still within the search container
       if (searchContainer && searchContainer.contains(activeElement)) {
         return;
@@ -281,6 +271,7 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   }
   
   onTabChange(index: number): void {
+    console.log('Tab changed:', {
       newIndex: index,
       previousIndex: this.selectedTabIndex,
       newTab: index === 0 ? 'files' : 'links',

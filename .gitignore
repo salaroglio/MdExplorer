@@ -387,3 +387,9 @@ MdExplorer.Bootstrapper/assets/*.exe
 MdExplorer.Bootstrapper/assets/*.msi
 # Backup original refs before filter-branch
 .git/refs/original/
+
+# AI Model files
+*.gguf
+*.ggml
+AI-Models/
+~/MdExplorer-Models/

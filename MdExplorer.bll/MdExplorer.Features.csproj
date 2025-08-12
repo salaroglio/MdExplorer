@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.9.1" />
+    <PackageReference Include="LLamaSharp" Version="0.9.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="GitLabApi\**" />
     <Compile Remove="snippets\workflow\assets\**" />
     <Compile Remove="snippets\workflow\plantuml\**" />
