@@ -29,6 +29,7 @@ import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-f
 import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
 import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
+import { AiChatModule } from '../ai-chat/ai-chat.module';
 
 
 
@@ -48,6 +49,10 @@ const routes: Routes = [
           { path: 'react-editor', component: MilkdownReactHostComponent },
           { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
         ]
+      },
+      { 
+        path: 'ai-model-manager', 
+        loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule)
       }
     ]
   }
@@ -85,6 +90,7 @@ const routes: Routes = [
     HttpClientModule,
     FormsModule,
     GitModule,
+    AiChatModule,
     RouterModule.forChild(routes)
   ],
   providers: [

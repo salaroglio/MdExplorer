@@ -1,7 +1,8 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, Input } from '@angular/core';
 import { AiChatService, ChatMessage } from '../services/ai-chat.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-ai-chat',
@@ -11,6 +12,7 @@ import { takeUntil } from 'rxjs/operators';
 export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('scrollContainer') private scrollContainer: ElementRef;
   @ViewChild('messageInput') private messageInput: ElementRef;
+  @Input() compactMode: boolean = false;
   
   messages: ChatMessage[] = [];
   inputMessage = '';
@@ -21,7 +23,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   private destroy$ = new Subject<void>();
   private shouldScrollToBottom = false;
 
-  constructor(private aiService: AiChatService) {}
+  constructor(
+    private aiService: AiChatService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     console.log('[AiChatComponent] Component initialized');
@@ -134,7 +139,13 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   toggleModelManager(): void {
-    this.showModelManager = !this.showModelManager;
+    if (this.compactMode) {
+      // In compact mode, navigate to the model manager in the main router outlet
+      this.router.navigate(['/main/navigation/ai-model-manager']);
+    } else {
+      // In full mode, toggle the embedded model manager
+      this.showModelManager = !this.showModelManager;
+    }
   }
 
   private scrollToBottom(): void {
@@ -166,7 +177,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   getAvatarIcon(role: string): string {
-    switch(role) {
+    switch (role) {
       case 'user':
         return 'person';
       case 'assistant':
@@ -174,7 +185,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       case 'system':
         return 'info';
       default:
-        return 'chat_bubble';
+        return 'chat';
     }
   }
 }

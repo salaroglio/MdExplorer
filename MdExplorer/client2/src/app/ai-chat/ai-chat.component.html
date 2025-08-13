@@ -1,18 +1,18 @@
-<div class="ai-chat-container">
+<div class="ai-chat-container" [ngClass]="{'compact-mode': compactMode}">
   <!-- Header -->
-  <mat-toolbar color="primary" class="chat-header">
-    <mat-icon>smart_toy</mat-icon>
-    <span class="header-title">AI Assistant</span>
+  <mat-toolbar [color]="compactMode ? 'accent' : 'primary'" class="chat-header">
+    <mat-icon *ngIf="!compactMode">smart_toy</mat-icon>
+    <span class="header-title" *ngIf="!compactMode">AI Assistant</span>
     
     <span class="spacer"></span>
     
-    <div class="model-status">
+    <div class="model-status" *ngIf="!compactMode || isModelLoaded">
       <mat-chip-list>
-        <mat-chip *ngIf="isModelLoaded" color="accent" selected>
-          <mat-icon>check_circle</mat-icon>
-          {{ currentModel || 'Model Loaded' }}
+        <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
+          <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
+          {{ compactMode ? (currentModel || 'Ready').substring(0, 15) : (currentModel || 'Model Loaded') }}
         </mat-chip>
-        <mat-chip *ngIf="!isModelLoaded" color="warn">
+        <mat-chip *ngIf="!isModelLoaded && !compactMode" color="warn">
           <mat-icon>warning</mat-icon>
           No Model
         </mat-chip>
@@ -23,7 +23,7 @@
       <mat-icon>settings</mat-icon>
     </button>
     
-    <button mat-icon-button (click)="clearChat()" matTooltip="Clear Chat">
+    <button mat-icon-button (click)="clearChat()" matTooltip="Clear Chat" *ngIf="!compactMode">
       <mat-icon>clear_all</mat-icon>
     </button>
   </mat-toolbar>
@@ -44,21 +44,21 @@
     </div>
 
     <div *ngFor="let message of messages" [ngClass]="getMessageClass(message)">
-      <div class="message-avatar">
+      <div class="message-avatar" *ngIf="!compactMode">
         <mat-icon>{{ getAvatarIcon(message.role) }}</mat-icon>
       </div>
       
       <div class="message-content">
         <div class="message-header">
-          <span class="message-role">{{ message.role | titlecase }}</span>
-          <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+          <span class="message-role">{{ compactMode ? (message.role === 'user' ? 'You' : 'AI') : (message.role | titlecase) }}</span>
+          <span class="message-time" *ngIf="!compactMode">{{ message.timestamp | date:'short' }}</span>
         </div>
         
         <div class="message-text" [innerHTML]="formatMessageContent(message.content)"></div>
         
         <mat-progress-spinner 
           *ngIf="message.isStreaming" 
-          diameter="20" 
+          [diameter]="compactMode ? 16 : 20" 
           mode="indeterminate">
         </mat-progress-spinner>
       </div>
@@ -67,21 +67,31 @@
 
   <!-- Input Area -->
   <div class="chat-input-container">
-    <mat-form-field appearance="outline" class="chat-input">
+    <mat-form-field [appearance]="compactMode ? 'fill' : 'outline'" class="chat-input">
       <textarea
         matInput
         #messageInput
         [(ngModel)]="inputMessage"
         (keydown)="handleKeyDown($event)"
-        placeholder="Type your message... (Shift+Enter for new line)"
-        rows="3"
+        [placeholder]="compactMode ? 'Ask Mark Agent...' : 'Type your message... (Shift+Enter for new line)'"
+        [rows]="compactMode ? 2 : 3"
         [disabled]="!isModelLoaded">
       </textarea>
-      <mat-hint *ngIf="!isModelLoaded">Load a model to start chatting</mat-hint>
+      <mat-hint *ngIf="!isModelLoaded && !compactMode">Load a model to start chatting</mat-hint>
     </mat-form-field>
     
     <button 
-      mat-fab 
+      *ngIf="!compactMode"
+      mat-fab
+      color="primary" 
+      (click)="sendMessage()"
+      [disabled]="!inputMessage.trim() || !isModelLoaded"
+      class="send-button">
+      <mat-icon>send</mat-icon>
+    </button>
+    <button 
+      *ngIf="compactMode"
+      mat-mini-fab
       color="primary" 
       (click)="sendMessage()"
       [disabled]="!inputMessage.trim() || !isModelLoaded"

@@ -15,6 +15,170 @@ word_section:
 ---
 # 🚀 Sprint 2025-08-10: Chat AI con Qwen3-8B e Download Manager
 
+## 🎯 EVOLUZIONE: Da Chat a AI Agent (Sprint Successivo)
+
+### Architettura Proposta - Approccio Ibrido Pragmatico
+
+**Decisione Architetturale Critica**: Iniziare con tools interni, aggiungere MCP Bridge quando maturo.
+
+#### Fase 1: Tool System Interno (1-2 giorni)
+**Obiettivo**: Creare infrastruttura base per tools senza overhead MCP
+
+1. **Interfaccia ITool base**:
+   - `ExecuteAsync(params)` con JSON schema per parametri
+   - Metadata (nome, descrizione, parametri)
+   - Risultati strutturati
+
+2. **ToolExecutor con function calling**:
+   - Parser per identificare tool calls nel testo LLM
+   - Esecuzione asincrona tools
+   - Formattazione risultati per context
+
+3. **Tools nativi prioritari per MdExplorer**:
+   - `SearchMarkdownTool` - cerca contenuti/metadata nei file MD
+   - `EditYamlHeaderTool` - modifica front matter YAML  
+   - `GeneratePlantUMLTool` - crea diagrammi dal contesto
+   - `GitAnalysisTool` - analizza history/diff per un file
+   - `RefactorLinksTool` - aggiorna link quando sposti file
+
+#### Fase 2: RAG con SQLite Vector Store (2-3 giorni)
+**Obiettivo**: Indicizzazione automatica markdown per context enhancement
+
+1. **Embedding Service con ONNX Runtime**:
+   - Modello: all-MiniLM-L6-v2 (384 dimensions, 22M parameters)
+   - Generazione embeddings per chunks di testo
+   - Batch processing per efficienza
+
+2. **SQLite con sqlite-vss extension**:
+   - Estensione vettoriale per SQLite esistente
+   - Indicizzazione automatica all'apertura progetto
+   - Search semantica con top-K retrieval
+   - Metadata filtering (per project, date, tags)
+
+3. **RAG Pipeline**:
+   - Chunking intelligente dei markdown (rispetta headers)
+   - Retrieval context per query
+   - Injection nel prompt con relevance scoring
+
+#### Fase 3: Agent Orchestrator (1 settimana)
+**Obiettivo**: Coordinamento intelligente tools e generazione risposte
+
+1. **Tool Selection Logic**:
+   - Analisi intent utente con pattern matching
+   - Selezione tools appropriati
+   - Chaining di tools multipli
+   - Fallback strategies
+
+2. **Context Management**:
+   - Window sliding per modelli piccoli (4K-8K context)
+   - Summarization conversazioni lunghe
+   - Caching risultati tools
+   - History tracking per undo/redo
+
+3. **UI Enhancement**:
+   - Visualizzazione real-time tool execution
+   - Progress indicators con ETA
+   - Error recovery graceful
+   - Tool approval mode (opzionale)
+
+#### Fase 4: MCP Bridge (futuro - quando appropriato)
+**Trigger**: Quando abbiamo 5+ tools stabili e testati
+
+- Wrapper per server MCP esterni come tools interni
+- Discovery dinamica capabilities
+- Unified interface per tools interni ed esterni
+- Supporto per filesystem, database, API servers MCP
+
+### Architettura Tecnica Proposta
+
+```
+AiAgentService
+├── ToolSystem/
+│   ├── ITool.cs
+│   ├── ToolExecutor.cs
+│   ├── ToolRegistry.cs
+│   └── NativeTools/
+│       ├── SearchMarkdownTool.cs
+│       ├── EditYamlHeaderTool.cs
+│       ├── GeneratePlantUMLTool.cs
+│       └── GitAnalysisTool.cs
+├── RAG/
+│   ├── EmbeddingService.cs (ONNX)
+│   ├── VectorStore.cs (SQLite-vss)
+│   ├── DocumentChunker.cs
+│   └── RetrievalPipeline.cs
+├── Orchestration/
+│   ├── AgentOrchestrator.cs
+│   ├── IntentAnalyzer.cs
+│   ├── ContextManager.cs
+│   └── ConversationHistory.cs
+└── MCP/ (futuro)
+    ├── McpBridge.cs
+    └── McpServerProxy.cs
+```
+
+### Database Schema per Vector Store
+
+```sql
+CREATE VIRTUAL TABLE markdown_embeddings USING vss0(
+    embedding(384),  -- all-MiniLM-L6-v2 dimension
+    chunk_id TEXT PRIMARY KEY,
+    file_path TEXT,
+    project_id TEXT,
+    chunk_text TEXT,
+    chunk_position INTEGER,
+    metadata JSON
+);
+
+CREATE TABLE tool_executions (
+    id INTEGER PRIMARY KEY,
+    tool_name TEXT,
+    parameters JSON,
+    result JSON,
+    execution_time_ms INTEGER,
+    timestamp DATETIME,
+    conversation_id TEXT
+);
+```
+
+### Decisioni Critiche
+
+1. **NO LangChain.NET** - Troppo overhead, meglio controllo diretto
+2. **Function Calling locale** - Parser JSON custom per tool calls
+3. **Streaming obbligatorio** - User experience real-time
+4. **Context window management** - Critico con modelli locali piccoli
+5. **SQLite per tutto** - Già presente, no dipendenze extra
+
+### Vantaggi dell'Approccio
+
+✅ **Velocità**: Implementazione incrementale funzionante
+✅ **Controllo**: Totale ownership del comportamento
+✅ **Debug**: Stack trace chiaro, no black boxes
+✅ **Performance**: Ottimizzabile per use case specifico
+✅ **Estensibilità**: MCP aggiungibile senza refactoring
+
+### Rischi Mitigati
+
+✅ Evita overhead MCP iniziale
+✅ Non dipende da librerie esterne instabili
+✅ Compatibile con modelli locali piccoli
+✅ Performance prevedibili e ottimizzabili
+✅ Fallback graceful se AI non disponibile
+
+### Success Metrics
+
+- Tool execution < 500ms per chiamata
+- RAG retrieval < 100ms
+- Context relevance > 80% precision
+- User task completion rate > 90%
+- Zero data loss su tool failures
+
+---
+
+## ✅ IMPLEMENTAZIONE COMPLETATA - SPRINT 1
+
+*Tutto quanto segue è stato completato con successo nel primo sprint (10/08/2025)*
+
 ## Obiettivo Sprint
 
 Implementare una chat AI completa in MdExplorer con:

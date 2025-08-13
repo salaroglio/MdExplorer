@@ -22,6 +22,10 @@ import { ModelManagerComponent } from './model-manager.component';
 const routes: Routes = [
   {
     path: '',
+    component: ModelManagerComponent
+  },
+  {
+    path: 'chat',
     component: AiChatComponent
   }
 ];
