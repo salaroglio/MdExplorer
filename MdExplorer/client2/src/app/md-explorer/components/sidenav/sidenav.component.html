@@ -32,9 +32,10 @@
       </mat-tab>
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>
-          <img src="/assets/cicd.png" style="height:24px" />CI/CD
+          <mat-icon>smart_toy</mat-icon>
+          Mark Agent
         </ng-template>
-        <app-publish-md-tree></app-publish-md-tree>
+        <app-ai-chat [compactMode]="true"></app-ai-chat>
       </mat-tab>
     </mat-tab-group>
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using LLama;
@@ -36,6 +37,21 @@ namespace MdExplorer.Features.Services
         {
             _logger = logger;
             _logger.LogInformation($"[AiChatService] Service initialized");
+            
+            // Log current environment for debugging
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var ldPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+                _logger.LogInformation($"[AiChatService] Running on Linux, LD_LIBRARY_PATH: {ldPath}");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                _logger.LogInformation($"[AiChatService] Running on Windows");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                _logger.LogInformation($"[AiChatService] Running on macOS");
+            }
         }
 
         public bool IsModelLoaded()
