@@ -50,7 +50,8 @@ export class SettingsComponent implements OnInit {
     this._settings.filter(_ => _.name === "JavaPath")[0].valueString = this.javaPath;
     this._settings.filter(_ => _.name === "LocalGraphvizDotPath")[0].valueString = this.localGraphvizDotPath;
 
-    this.appCurrentFolder.saveSettings().subscribe(data => {
+    // Pass the updated settings to the service
+    this.appCurrentFolder.saveSettings(this._settings).subscribe(data => {
       this._snackBar.open("settings saved","" ,{ duration: 1000 });
     });
     this.dialogRef.close(null);

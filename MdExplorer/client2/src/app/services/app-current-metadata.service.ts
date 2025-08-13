@@ -61,9 +61,13 @@ export class AppCurrentMetadataService {
         });
   }
 
-  saveSettings() {
-    const url = '../api/AppSettings/SetSettings';    
-    var test = { settings: this.dataStore.settings };
+  saveSettings(updatedSettings?: IMdSetting[]) {
+    const url = '../api/AppSettings/SetSettings';
+    // If updatedSettings are provided, update the dataStore first
+    if (updatedSettings) {
+      this.dataStore.settings = updatedSettings;
+      this._Settings.next(Object.assign({}, this.dataStore).settings);
+    }
     return this.http.post<IMdSetting[]>(url, this.dataStore.settings);
   }
 

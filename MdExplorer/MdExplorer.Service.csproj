@@ -5,7 +5,8 @@
   </Target>
   
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition="$([MSBuild]::IsOSPlatform('Windows'))">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="!$([MSBuild]::IsOSPlatform('Windows'))">net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
@@ -21,7 +22,7 @@
   <!-- Windows-specific configuration -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <UseWindowsForms>true</UseWindowsForms>
-    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <DefineConstants>$(DefineConstants);WINDOWS_FORMS_AVAILABLE</DefineConstants>
   </PropertyGroup>
 
@@ -150,12 +151,33 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="LibGit2Sharp" Version="0.27.2" />
     <PackageReference Include="LLamaSharp" Version="0.18.0" />
-    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.18.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.18.0">
+      <ExcludeAssets>native</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
+  </ItemGroup>
+  
+  <!-- LLamaSharp native libraries - include only the default version -->
+  <ItemGroup>
+    <None Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.18.0\runtimes\win-x64\native\ggml.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>ggml.dll</Link>
+    </None>
+    <None Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.18.0\runtimes\win-x64\native\llama.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>llama.dll</Link>
+    </None>
+    <None Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.18.0\runtimes\win-x64\native\llava_shared.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>llava_shared.dll</Link>
+    </None>
   </ItemGroup>
 
   
