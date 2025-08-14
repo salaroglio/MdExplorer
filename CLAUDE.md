@@ -55,6 +55,15 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 * Verifica sempre con log o altre evidenze tutte le ipotesi prima di agire. Non assumere, verifica
 * **Prima di proporre soluzioni, è necessario comprendere completamente la causa del problema** attraverso un'analisi approfondita del codice e del flusso di esecuzione
 
+## Scrittura Documentazione
+
+### REGOLA FONDAMENTALE PER LA DOCUMENTAZIONE
+**NON SCRIVERE MAI CODICE NEI DOCUMENTI** a meno che non sia esplicitamente richiesto dall'utente nel prompt. Quando si scrive documentazione:
+- Descrivere concetti, architetture e soluzioni in modo narrativo
+- Usare diagrammi, tabelle e liste per organizzare le informazioni
+- Spiegare il "cosa" e il "perché", non il "come" implementativo
+- Se è necessario fare riferimento a codice, indicare solo il nome del file e la posizione, senza includerlo
+
 ## Pattern di Debug tramite Log Strutturati
 
 **REGOLA FONDAMENTALE**: Quando si verifica un problema di comunicazione tra componenti o servizi, implementare SEMPRE log strutturati per verificare le ipotesi prima di proporre soluzioni.
@@ -66,21 +75,16 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
    - Punto di transito (servizi/metodi intermedi)
    - Punto di destinazione (dove dovrebbe arrivare l'azione)
 
-2. **Implementare log dettagliati in ogni punto**:
-   ```typescript
-   console.log('[ComponentName] methodName() called');
-   console.log('[ComponentName] state before:', relevantState);
-   console.log('[ComponentName] parameters:', parameters);
-   console.log('[ComponentName] result:', result);
-   console.log('[ComponentName] state after:', relevantState);
-   ```
+2. **Implementare log dettagliati in ogni punto** per tracciare:
+   - Chiamate ai metodi
+   - Stato prima e dopo le operazioni
+   - Parametri passati
+   - Risultati ottenuti
 
-3. **Per i servizi con Observable/BehaviorSubject**:
-   ```typescript
-   console.log('[ServiceName] Observable value before:', this._subject.value);
-   console.log('[ServiceName] Observable has observers:', this._subject.observers?.length || 0);
-   console.log('[ServiceName] Observable value after:', this._subject.value);
-   ```
+3. **Per i servizi con Observable/BehaviorSubject** verificare:
+   - Valore corrente dell'Observable
+   - Numero di observers registrati
+   - Cambiamenti di valore
 
 4. **Analizzare i log per identificare**:
    - Se il flusso si interrompe in qualche punto

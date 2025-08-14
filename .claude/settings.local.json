@@ -45,7 +45,8 @@
       "Bash(./dotnet-install.sh:*)",
       "Bash(~/.dotnet/dotnet:*)",
       "Bash(mv:*)",
-      "Bash(nvm use:*)"
+      "Bash(nvm use:*)",
+      "Bash(dotnet run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
