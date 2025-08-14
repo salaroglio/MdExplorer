@@ -91,7 +91,7 @@ namespace MdExplorer.Features.Services
                 {
                     ContextSize = 4096,
                     GpuLayerCount = 0 // CPU only for compatibility
-                    // Seed removed - not compatible with LLamaSharp 0.9.1
+                    // Seed removed - not available in LLamaSharp 0.18.0
                 };
 
                 _logger.LogInformation($"[AiChatService] Loading weights from file...");

@@ -15,7 +15,105 @@ word_section:
 ---
 # 🚀 Sprint 2025-08-10: Chat AI con Qwen3-8B e Download Manager
 
-## 🎯 EVOLUZIONE: Da Chat a AI Agent (Sprint Successivo)
+## 🐛 BUG FIXING - Problemi Critici da Risolvere
+
+### Tabella Riepilogo Bug
+
+| Bug ID | Nome | Problema | Soluzione Proposta | Status |
+|--------|------|----------|-------------------|--------|
+| BUG-001 | Model Loading Instability | Il pulsante Load nel download manager non carica il modello. Bug risolto 3 volte ma riappare ad ogni riavvio | ✅ RISOLTO: Conflitto versioni LLamaSharp (0.9.1 vs 0.18.0) e librerie native incompatibili | ✅ Risolto |
+
+### BUG-001: Model Loading Instability
+
+#### Sintomi
+- Premendo il pulsante "Load" nel download manager, il modello non viene caricato
+- Il problema è stato "risolto" 3 volte ma riappare sistematicamente al riavvio
+- Indica un problema strutturale nella soluzione implementata
+
+#### Analisi del Problema Ricorrente
+
+**Pattern osservato**: Il bug viene risolto temporaneamente ma ritorna al riavvio, suggerendo che:
+
+1. **Le modifiche non vengono salvate correttamente** 
+   - Possibile modifica di file temporanei invece che sorgenti
+   - Build cache che sovrascrive le modifiche
+
+2. **Race condition all'inizializzazione**
+   - Servizi che si inizializzano in ordine sbagliato
+   - SignalR hub che parte prima del servizio AI
+
+3. **Stato non persistente**
+   - Il modello caricato non viene salvato in configurazione
+   - Al riavvio si perde il riferimento al modello attivo
+
+4. **Problema di dependency injection**
+   - Istanze multiple del servizio AI
+   - Singleton vs Scoped lifecycle errato
+
+#### Investigazione Completata
+
+**Risultati dell'analisi del codice:**
+
+1. **Dependency Injection**: ✅ Corretto
+   - `AiChatService` registrato come Singleton in `Startup.cs:67`
+   - `ModelDownloadService` registrato come Singleton in `Startup.cs:66`
+
+2. **Flusso di caricamento modello**:
+   - Frontend: `model-manager.component.ts` → `ai-chat.service.ts`
+   - SignalR: `hubConnection.invoke('LoadModel', modelId)`
+   - Backend: `AiChatHub.LoadModel()` → `AiChatService.LoadModelAsync()`
+
+3. **Problemi identificati nel codice**:
+   - ❌ **Nessuna persistenza del modello attivo**: Al riavvio non c'è memoria di quale modello era caricato
+   - ❌ **Mancanza di retry logic**: Se il caricamento fallisce, non ci sono tentativi automatici
+   - ⚠️ **Possibile race condition**: Il servizio potrebbe essere chiamato prima che SignalR sia connesso
+   - ⚠️ **Lock con timeout infinito**: `_modelLock.WaitAsync()` senza timeout può bloccare indefinitamente
+
+#### Soluzione Definitiva: Allineamento Versioni Librerie
+
+**Causa del problema identificata (14/08/2025)**: 
+- Conflitto tra versioni LLamaSharp nei diversi progetti
+- MdExplorer.Features.csproj aveva LLamaSharp 0.9.1
+- MdExplorer.Service.csproj aveva LLamaSharp 0.18.0
+- Le librerie native (.so/.dll) della versione 0.9.1 non contenevano la funzione `llama_supports_mmap` richiesta dalla 0.18.0
+
+**Soluzione implementata con successo**:
+
+1. **Allineamento versioni** - Aggiornati tutti i progetti a LLamaSharp 0.18.0:
+   - MdExplorer.Features.csproj: LLamaSharp 0.18.0 + LLamaSharp.Backend.Cpu 0.18.0
+   - Aggiornate dipendenze Microsoft.Extensions a 8.0.2 per compatibilità
+
+2. **Rimozione proprietà incompatibili**:
+   - Rimossa proprietà `Seed` da ModelParams (non disponibile in 0.18.0)
+   - Mantenute solo le proprietà compatibili: ContextSize, GpuLayerCount
+
+3. **Pulizia e rebuild**:
+   - Pulite directory bin/obj di tutti i progetti
+   - Rebuild completo della soluzione
+   - Verificata presenza corretta librerie native 0.18.0
+
+**Verifica funzionamento**:
+- Backend avviato correttamente senza errori
+- Caricamento modello completato con successo
+- Chat AI funzionante con streaming responses
+
+## 🎯 EVOLUZIONE: Da Chat a AI Agent (Sprint 2 - IN CORSO)
+
+### 📊 STATO ATTUALE IMPLEMENTAZIONE
+
+#### ✅ Completato (Sprint 1)
+- **Backend AI Chat**: `AiChatService` con LLamaSharp funzionante
+- **Download Manager**: `ModelDownloadService` per modelli HuggingFace  
+- **SignalR Streaming**: `AiChatHub` per chat real-time
+- **Controller API**: `AiModelsController` per gestione modelli
+- **Frontend Angular**: Componente `ai-chat` con sidebar integrata
+- **Modelli supportati**: Qwen3-8B, Qwen2.5-7B, Phi3-mini
+
+#### 🚧 Da Implementare (Sprint 2)
+- **Tool System**: Interfaccia ITool e ToolExecutor
+- **Native Tools**: SearchMarkdown, EditYamlHeader, GeneratePlantUML, GitAnalysis
+- **RAG System**: Vector store con SQLite-vss
+- **Agent Orchestrator**: Coordinamento tools e context management
 
 ### Architettura Proposta - Approccio Ibrido Pragmatico
 
@@ -178,6 +276,18 @@ CREATE TABLE tool_executions (
 ## ✅ IMPLEMENTAZIONE COMPLETATA - SPRINT 1
 
 *Tutto quanto segue è stato completato con successo nel primo sprint (10/08/2025)*
+
+### File Implementati Sprint 1
+
+#### Backend
+- `MdExplorer.bll/Services/AiChatService.cs` - Servizio chat con LLamaSharp
+- `MdExplorer.bll/Services/ModelDownloadService.cs` - Download manager modelli
+- `MdExplorer/Controllers/AI/AiModelsController.cs` - API REST per gestione modelli
+- `MdExplorer/Hubs/AiChatHub.cs` - SignalR hub per streaming chat
+
+#### Frontend Angular
+- `client2/src/app/ai-chat/` - Componente chat completo
+- `client2/src/app/services/ai-chat.service.ts` - Servizio Angular per AI
 
 ## Obiettivo Sprint
 
