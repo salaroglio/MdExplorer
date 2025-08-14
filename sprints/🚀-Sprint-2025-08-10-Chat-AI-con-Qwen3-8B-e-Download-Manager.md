@@ -22,6 +22,8 @@ word_section:
 | Bug ID | Nome | Problema | Soluzione Proposta | Status |
 |--------|------|----------|-------------------|--------|
 | BUG-001 | Model Loading Instability | Il pulsante Load nel download manager non carica il modello. Bug risolto 3 volte ma riappare ad ogni riavvio | ✅ RISOLTO: Conflitto versioni LLamaSharp (0.9.1 vs 0.18.0) e librerie native incompatibili | ✅ Risolto |
+| BUG-002 | HTTP 416 Range Not Satisfiable | Errore 416 quando si tenta di riprendere download di file già completi o corrotti | ✅ RISOLTO: Aggiunta gestione file completi/corrotti prima del resume e gestione esplicita errore 416 | ✅ Risolto |
+| BUG-003 | File Lock on Windows | Errore "file in use" durante File.Move dopo download completato su Windows | ✅ RISOLTO: Chiusura esplicita stream, flush, delay e retry logic con 5 tentativi | ✅ Risolto |
 
 ### BUG-001: Model Loading Instability
 
@@ -96,6 +98,69 @@ word_section:
 - Backend avviato correttamente senza errori
 - Caricamento modello completato con successo
 - Chat AI funzionante con streaming responses
+
+### BUG-002: HTTP 416 Range Not Satisfiable (Windows)
+
+#### Sintomi
+- Errore "Response status code does not indicate success: 416 (Range Not Satisfiable)" durante il download
+- Si verifica quando si tenta di riprendere un download con file temporaneo già completo o corrotto
+- Specifico per Windows, non si manifestava su Linux
+
+#### Causa Identificata (14/08/2025)
+- Il file temporaneo `.download` aveva dimensione uguale o maggiore del file completo
+- Il server HTTP restituisce 416 quando riceve una richiesta Range con byte di partenza >= dimensione file
+- Mancava gestione del caso in cui il download era già completo ma non rinominato
+
+#### Soluzione Implementata
+**File modificato**: `MdExplorer.bll/Services/ModelDownloadService.cs`
+
+1. **Controllo pre-download**:
+   - Verifica se il modello è già installato prima di iniziare
+   - Controlla dimensione del file temporaneo vs dimensione attesa
+
+2. **Gestione file completi**:
+   - Se il file temp ha la stessa dimensione del file atteso, lo rinomina direttamente
+   - Se è più grande (corrotto), lo elimina e ricomincia
+
+3. **Gestione errore 416**:
+   - Intercetta specificamente l'errore 416
+   - Esegue richiesta HEAD per ottenere la dimensione reale dal server
+   - Se il file è completo, lo sposta nella posizione finale
+   - Altrimenti elimina e riprova da zero
+
+### BUG-003: File Lock su Windows
+
+#### Sintomi
+- Errore "The process cannot access the file because it is being used by another process" 
+- Si verifica durante `File.Move` dopo il completamento del download
+- I pulsanti "Load" non si attivano dopo il download
+- Specifico per Windows (gestione file handle diversa da Linux)
+
+#### Causa Identificata (14/08/2025)
+- Gli stream del file non venivano rilasciati immediatamente su Windows
+- Windows mantiene i file handle aperti per un breve periodo anche dopo il dispose
+- Il `File.Move` veniva eseguito troppo rapidamente dopo la chiusura degli stream
+
+#### Soluzione Implementata
+**File modificato**: `MdExplorer.bll/Services/ModelDownloadService.cs`
+
+1. **Chiusura esplicita stream**:
+   - Uso di blocchi `using` standard invece di `using var`
+   - Aggiunto `FlushAsync()` per garantire scrittura su disco
+   - Stream chiusi esplicitamente prima del move
+
+2. **Delay per Windows**:
+   - Aggiunto delay di 100ms dopo chiusura stream
+   - Permette a Windows di rilasciare completamente i file handle
+
+3. **Retry logic robusta**:
+   - Implementati 5 tentativi con delay progressivo (500ms, 1s, 1.5s, 2s, 2.5s)
+   - Log dei tentativi falliti per debugging
+   - Gestione graceful degli errori IOException
+
+4. **Notifica completamento**:
+   - Aggiunto report finale con status "Complete"
+   - Garantisce aggiornamento UI e attivazione pulsanti
 
 ## 🎯 EVOLUZIONE: Da Chat a AI Agent (Sprint 2 - IN CORSO)
 

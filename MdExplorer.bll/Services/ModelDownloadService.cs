@@ -168,13 +168,58 @@ namespace MdExplorer.Features.Services
             {
                 _logger.LogInformation($"Starting download of {modelInfo.Name} from {modelInfo.Url}");
                 
+                // Check if model already exists
+                if (File.Exists(modelPath))
+                {
+                    _logger.LogInformation($"Model {modelInfo.Name} already exists at {modelPath}");
+                    progress?.Report(new DownloadProgress
+                    {
+                        ModelId = modelId,
+                        BytesDownloaded = modelInfo.FileSize,
+                        TotalBytes = modelInfo.FileSize,
+                        Status = "Already installed"
+                    });
+                    return true;
+                }
+                
                 // Check if we can resume a partial download
                 long startByte = 0;
                 if (File.Exists(tempPath))
                 {
                     var fileInfo = new FileInfo(tempPath);
                     startByte = fileInfo.Length;
-                    _logger.LogInformation($"Resuming download from byte {startByte}");
+                    
+                    // Check if temp file is already complete or larger than expected
+                    if (startByte >= modelInfo.FileSize)
+                    {
+                        _logger.LogInformation($"Temp file appears complete or corrupted (size: {startByte}, expected: {modelInfo.FileSize})");
+                        
+                        // If size matches, just rename it
+                        if (startByte == modelInfo.FileSize)
+                        {
+                            _logger.LogInformation($"Temp file is complete, moving to final location");
+                            File.Move(tempPath, modelPath);
+                            progress?.Report(new DownloadProgress
+                            {
+                                ModelId = modelId,
+                                BytesDownloaded = modelInfo.FileSize,
+                                TotalBytes = modelInfo.FileSize,
+                                Status = "Complete"
+                            });
+                            return true;
+                        }
+                        else
+                        {
+                            // File is larger than expected, delete and start fresh
+                            _logger.LogWarning($"Temp file is larger than expected, deleting and starting fresh");
+                            File.Delete(tempPath);
+                            startByte = 0;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Resuming download from byte {startByte} of {modelInfo.FileSize}");
+                    }
                 }
 
                 // Create HTTP request with range header for resume support
@@ -182,9 +227,50 @@ namespace MdExplorer.Features.Services
                 if (startByte > 0)
                 {
                     request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(startByte, null);
+                    _logger.LogInformation($"Setting Range header: bytes={startByte}-");
                 }
 
                 using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                
+                // Check for 416 Range Not Satisfiable
+                if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+                {
+                    _logger.LogWarning($"Server returned 416 - file might be complete or range invalid. Checking file integrity.");
+                    
+                    // Try to get the actual file size from server
+                    var headRequest = new HttpRequestMessage(HttpMethod.Head, modelInfo.Url);
+                    using var headResponse = await _httpClient.SendAsync(headRequest, ct);
+                    var actualSize = headResponse.Content.Headers.ContentLength ?? modelInfo.FileSize;
+                    
+                    _logger.LogInformation($"Server reports file size: {actualSize}, temp file size: {startByte}");
+                    
+                    if (startByte >= actualSize)
+                    {
+                        // File is complete or over-downloaded
+                        if (File.Exists(tempPath))
+                        {
+                            File.Move(tempPath, modelPath);
+                            _logger.LogInformation($"Download complete (file was already fully downloaded)");
+                            progress?.Report(new DownloadProgress
+                            {
+                                ModelId = modelId,
+                                BytesDownloaded = actualSize,
+                                TotalBytes = actualSize,
+                                Status = "Complete"
+                            });
+                            return true;
+                        }
+                    }
+                    
+                    // Otherwise, delete temp and retry from scratch
+                    if (File.Exists(tempPath))
+                    {
+                        _logger.LogInformation($"Deleting incomplete temp file and retrying from scratch");
+                        File.Delete(tempPath);
+                        return await DownloadModelAsync(modelId, progress, ct);
+                    }
+                }
+                
                 response.EnsureSuccessStatusCode();
 
                 var totalBytes = response.Content.Headers.ContentLength ?? modelInfo.FileSize;
@@ -193,32 +279,38 @@ namespace MdExplorer.Features.Services
                     totalBytes += startByte;
                 }
 
-                using var contentStream = await response.Content.ReadAsStreamAsync();
-                using var fileStream = new FileStream(tempPath, startByte > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-                var buffer = new byte[8192];
+                // Download the file
                 long totalBytesRead = startByte;
-                int bytesRead;
-                var lastProgressUpdate = DateTime.UtcNow;
-
-                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                using (var contentStream = await response.Content.ReadAsStreamAsync())
+                using (var fileStream = new FileStream(tempPath, startByte > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead, ct);
-                    totalBytesRead += bytesRead;
+                    var buffer = new byte[8192];
+                    int bytesRead;
+                    var lastProgressUpdate = DateTime.UtcNow;
 
-                    // Update progress every 100ms to avoid overwhelming the UI
-                    if ((DateTime.UtcNow - lastProgressUpdate).TotalMilliseconds >= 100)
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
                     {
-                        progress?.Report(new DownloadProgress
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, ct);
+                        totalBytesRead += bytesRead;
+
+                        // Update progress every 100ms to avoid overwhelming the UI
+                        if ((DateTime.UtcNow - lastProgressUpdate).TotalMilliseconds >= 100)
                         {
-                            ModelId = modelId,
-                            BytesDownloaded = totalBytesRead,
-                            TotalBytes = totalBytes,
-                            Status = "Downloading"
-                        });
-                        lastProgressUpdate = DateTime.UtcNow;
+                            progress?.Report(new DownloadProgress
+                            {
+                                ModelId = modelId,
+                                BytesDownloaded = totalBytesRead,
+                                TotalBytes = totalBytes,
+                                Status = "Downloading"
+                            });
+                            lastProgressUpdate = DateTime.UtcNow;
+                        }
                     }
+                    
+                    // Ensure all data is written to disk
+                    await fileStream.FlushAsync();
                 }
+                // Streams are now closed
 
                 // Final progress update
                 progress?.Report(new DownloadProgress
@@ -229,14 +321,42 @@ namespace MdExplorer.Features.Services
                     Status = "Finalizing"
                 });
 
-                // Move temp file to final location
-                if (File.Exists(modelPath))
+                // Add a small delay to ensure file handles are released on Windows
+                await Task.Delay(100);
+
+                // Move temp file to final location with retry logic
+                int retryCount = 0;
+                const int maxRetries = 5;
+                while (retryCount < maxRetries)
                 {
-                    File.Delete(modelPath);
+                    try
+                    {
+                        if (File.Exists(modelPath))
+                        {
+                            File.Delete(modelPath);
+                        }
+                        File.Move(tempPath, modelPath);
+                        break; // Success, exit the retry loop
+                    }
+                    catch (IOException ioEx) when (retryCount < maxRetries - 1)
+                    {
+                        _logger.LogWarning($"File move attempt {retryCount + 1} failed: {ioEx.Message}. Retrying...");
+                        await Task.Delay(500 * (retryCount + 1)); // Progressive delay
+                        retryCount++;
+                    }
                 }
-                File.Move(tempPath, modelPath);
 
                 _logger.LogInformation($"Successfully downloaded {modelInfo.Name}");
+                
+                // Report completion
+                progress?.Report(new DownloadProgress
+                {
+                    ModelId = modelId,
+                    BytesDownloaded = totalBytesRead,
+                    TotalBytes = totalBytesRead,
+                    Status = "Complete"
+                });
+                
                 return true;
             }
             catch (OperationCanceledException)
