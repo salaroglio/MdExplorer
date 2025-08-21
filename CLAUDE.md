@@ -64,6 +64,17 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 - Spiegare il "cosa" e il "perché", non il "come" implementativo
 - Se è necessario fare riferimento a codice, indicare solo il nome del file e la posizione, senza includerlo
 
+### Naming Convention per Sprint e Documenti
+**IMPORTANTE: Seguire sempre queste regole per i file markdown nella cartella `/sprints` e simili**:
+- **Formato nome file**: `Anno-mese-giorno-NomeDescrittivo.md` (es: `2025-08-21-Sprint-AI-RAG-Implementation.md`)
+- **Prefisso data sempre**: Utilizzare formato `YYYY-MM-DD` come prefisso per ordinamento cronologico
+- **Niente emoji nei nomi file**: Rimuovere emoji come 🚀, 🔄, etc. dai nomi dei file
+- **Titolo documento = nome file**: Il titolo H1 nel documento deve corrispondere al nome del file (senza il prefisso data)
+- **Esempi corretti**:
+  - `2025-06-01-Sprint.md` con titolo `# Sprint`
+  - `2025-08-10-Sprint-Chat-AI.md` con titolo `# Sprint Chat AI`
+  - `2025-12-06-Git-Authentication-Refactoring.md` con titolo `# Git Authentication Refactoring`
+
 ## Pattern di Debug tramite Log Strutturati
 
 **REGOLA FONDAMENTALE**: Quando si verifica un problema di comunicazione tra componenti o servizi, implementare SEMPRE log strutturati per verificare le ipotesi prima di proporre soluzioni.

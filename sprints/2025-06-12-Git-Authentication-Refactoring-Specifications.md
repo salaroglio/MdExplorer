@@ -1,4 +1,19 @@
-﻿# 🔄 Git Authentication Refactoring Specifications
+﻿---
+author: Carlo Salaroglio
+document_type: Document
+email: salaroglio@hotmail.com
+title: 
+date: 21/08/2025
+word_section:
+  write_toc: false
+  document_header: ''
+  template_section:
+    inherit_from_template: ''
+    custom_template: ''
+    template_type: default
+  predefined_pages: 
+---
+# 2025-06-12 Git Authentication Refactoring Specifications
 
 ## 📋 **Document Information**
 

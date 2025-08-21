@@ -1,4 +1,4 @@
-# 🚀 Sprint 2025-06-10: Aggiunta Automatica Metadati YAML
+# Sprint YAML Auto Generation
 
 ## 📋 Obiettivo
 Implementare l'aggiunta automatica dei metadati YAML quando vengono rilevati mancanti durante l'export in Word, utilizzando lo stesso formato generato durante la creazione di nuovi documenti.

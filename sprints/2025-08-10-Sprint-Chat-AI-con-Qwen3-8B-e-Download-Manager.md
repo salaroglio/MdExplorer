@@ -13,7 +13,7 @@ word_section:
     template_type: default
   predefined_pages: 
 ---
-# 🚀 Sprint 2025-08-10: Chat AI con Qwen3-8B e Download Manager
+# Sprint Chat AI con Qwen3-8B e Download Manager
 
 ## 🐛 BUG FIXING - Problemi Critici da Risolvere
 

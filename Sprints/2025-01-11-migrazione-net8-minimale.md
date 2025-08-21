@@ -1,3 +1,18 @@
+---
+author: Carlo Salaroglio
+document_type: Document
+email: salaroglio@hotmail.com
+title: 
+date: 21/08/2025
+word_section:
+  write_toc: false
+  document_header: ''
+  template_section:
+    inherit_from_template: ''
+    custom_template: ''
+    template_type: default
+  predefined_pages: 
+---
 # Sprint: Migrazione Minimale a .NET 8.0
 **Data**: 2025-01-11  
 **Obiettivo**: Migrare MdExplorer da .NET 3.1 a .NET 8.0 con modifiche minime

@@ -1,4 +1,4 @@
-﻿# 🚀2025-06-10 Sprint: Word Template Pages
+﻿# Sprint Word Template Pages
 
 # Sistema di Pagine Predefinite per Export Word
 
