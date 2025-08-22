@@ -93,7 +93,7 @@ namespace MdExplorer.Controllers
                 return BadRequest("Invalid file path");
             }
 
-            if (relativePathExtension != "" && relativePathExtension != ".md")
+            if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
             {
                 var responseForNotMdFile = CreateAResponseForNotMdFile(rootPathSystem,
                                                         relativePathFile,
@@ -125,6 +125,32 @@ namespace MdExplorer.Controllers
                 FullPath = fullPathFile,
                 FullDirectoryPath = Path.GetDirectoryName(fullPathFile)
             };
+
+            // Se è un file .md.directory e non esiste, crealo
+            if (fullPathFile.EndsWith(".md.directory") && !System.IO.File.Exists(fullPathFile))
+            {
+                _logger.LogInformation($"🔍 [MdExplorer] Creating new .md.directory file: {fullPathFile}");
+                
+                // Estrai il nome della directory dal nome del file
+                // Es: "Documentation.md.directory" -> "Documentation"
+                var directoryName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(fullPathFile));
+                
+                // Genera il contenuto iniziale con YAML front matter e titolo
+                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                var initialContent = $"{defaultYaml}# {directoryName}\n\n";
+                
+                try
+                {
+                    // Crea il file con contenuto iniziale
+                    System.IO.File.WriteAllText(fullPathFile, initialContent, Encoding.UTF8);
+                    _logger.LogInformation($"✅ [MdExplorer] Created .md.directory file: {fullPathFile}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"❌ [MdExplorer] Error creating .md.directory file {fullPathFile}: {ex.Message}");
+                    return StatusCode(500, $"Error creating TOC file: {ex.Message}");
+                }
+            }
 
             var markdownTxt = string.Empty;
             using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -294,6 +320,12 @@ namespace MdExplorer.Controllers
 
         private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)
         {
+            // Se il file finisce con .md.directory, non aggiungere .md
+            if (relativePathFile.EndsWith(".md.directory"))
+            {
+                return string.Concat(rootPathSystem, relativePathFile);
+            }
+            
             var fullPathFile = string.Concat(rootPathSystem, relativePathFile, ".md");
             if (relativePathExtension == ".md")
             {
@@ -358,27 +390,39 @@ namespace MdExplorer.Controllers
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
-            var goodMdRuleFileNameShouldBeSameAsTitle =
-                    _goodRules.First(_ => _.GetType() ==
-                        typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
+            // Escludi i file .md.directory dal controllo della Rule #1
+            _logger.LogInformation($"🔍 [MdExplorer] Checking Rule #1 for file: {fullPathFile}");
+            _logger.LogInformation($"🔍 [MdExplorer] Is .md.directory file: {fullPathFile.EndsWith(".md.directory")}");
+            
+            if (!fullPathFile.EndsWith(".md.directory"))
+            {
+                _logger.LogInformation($"✅ [MdExplorer] Applying Rule #1 check to: {fullPathFile}");
+                var goodMdRuleFileNameShouldBeSameAsTitle =
+                        _goodRules.First(_ => _.GetType() ==
+                            typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
 
-            var fileNode = new FileInfoNode
+                var fileNode = new FileInfoNode
+                {
+                    FullPath = fullPathFile,
+                    Name = Path.GetFileName(fullPathFile),
+                    DataText = readText
+                };
+                //bool isBroken;
+                //string theNameShouldBe;
+                (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
+                if (isBroken)
+                {
+                    monitoredMd.Message = "It breaks Rule # 1";
+                    monitoredMd.Action = "Rename the File!";
+                    monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
+                    monitoredMd.ToFileName = theNameShouldBe;
+                    monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd);
+                }
+            }
+            else
             {
-                FullPath = fullPathFile,
-                Name = Path.GetFileName(fullPathFile),
-                DataText = readText
-            };
-            //bool isBroken;
-            //string theNameShouldBe;
-            (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
-            if (isBroken)
-            {
-                monitoredMd.Message = "It breaks Rule # 1";
-                monitoredMd.Action = "Rename the File!";
-                monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
-                monitoredMd.ToFileName = theNameShouldBe;
-                monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
-                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd);
+                _logger.LogInformation($"⏭️ [MdExplorer] Skipping Rule #1 check for .md.directory file: {fullPathFile}");
             }
 
             var settingDal = _userSettingsDB.GetDal<Setting>();

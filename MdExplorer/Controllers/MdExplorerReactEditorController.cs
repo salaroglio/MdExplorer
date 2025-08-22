@@ -102,8 +102,10 @@ namespace MdExplorer.Controllers
                 }
             }
 
-            // Handle non-markdown files
-            if (!string.IsNullOrEmpty(fileExtension) && fileExtension.ToLowerInvariant() != ".md")
+            // Handle non-markdown files (but treat .md.directory as markdown)
+            if (!string.IsNullOrEmpty(fileExtension) && 
+                fileExtension.ToLowerInvariant() != ".md" && 
+                !requestedPathFromClient.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {

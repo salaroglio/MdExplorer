@@ -362,6 +362,52 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
+  async openTocDirectory(node: MdFile) {
+    console.log('[MdTreeComponent] openTocDirectory() called');
+    console.log('[MdTreeComponent] node:', node);
+    
+    // Costruisci il percorso del file .md.directory
+    // Il percorso relativo dovrebbe essere: percorso_directory/nome_directory.md.directory
+    const directoryName = node.name;
+    const relativePath = node.relativePath ? 
+      `${node.relativePath}/${directoryName}.md.directory` : 
+      `${directoryName}.md.directory`;
+    
+    // Crea un oggetto MdFile per il file .md.directory
+    const tocFile: MdFile = {
+      name: `${directoryName}.md.directory`,
+      relativePath: relativePath,
+      fullPath: node.fullPath ? `${node.fullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
+      path: node.path,
+      type: 'mdFile',
+      index: 0,
+      childrens: [],
+      level: node.level,
+      expandable: false,
+      isLoading: false,
+      fullDirectoryPath: node.fullPath || ''
+    };
+    
+    console.log('[MdTreeComponent] tocFile created:', tocFile);
+    
+    try {
+      // Naviga alla route del documento
+      await this.router.navigate(['/main/navigation/document']);
+      
+      // Imposta il file selezionato
+      this.mdFileService.setSelectedMdFileFromSideNav(tocFile);
+      this.navService.setNewNavigation(tocFile);
+      this.activeNode = tocFile;
+      this.selectedNode = tocFile;
+      this.changeDetectorRef.markForCheck();
+      
+      console.log('[MdTreeComponent] Navigation to TOC directory completed');
+    } catch (error) {
+      console.error('[MdTreeComponent] Error navigating to TOC directory:', error);
+      this.snackBar.open('Errore apertura TOC directory', 'OK', { duration: 3000 });
+    }
+  }
+
   AddExistingFileOnMDEProject(node: MdFile) {
     this.dialog.open(AddNewFileToMDEComponent, {
       width: '600px',
