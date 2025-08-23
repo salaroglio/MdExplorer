@@ -245,6 +245,14 @@ export class AiChatService {
   clearMessages(): void {
     this._messages$.next([]);
   }
+  
+  getSystemPrompt(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/system-prompt`);
+  }
+  
+  setSystemPrompt(systemPrompt: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/system-prompt`, { systemPrompt });
+  }
 
   private generateMessageId(): string {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

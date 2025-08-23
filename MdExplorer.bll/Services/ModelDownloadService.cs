@@ -30,6 +30,7 @@ namespace MdExplorer.Features.Services
         public string LocalPath { get; set; }
         public int ContextLength { get; set; }
         public string Parameters { get; set; }
+        public string SystemPrompt { get; set; }
     }
 
     public interface IModelDownloadService
@@ -63,38 +64,38 @@ namespace MdExplorer.Features.Services
             // Initialize available models catalog
             _availableModels = new Dictionary<string, ModelInfo>
             {
-                ["qwen3-8b"] = new ModelInfo
+                ["llama3.2-1b"] = new ModelInfo
                 {
-                    Id = "qwen3-8b",
-                    Name = "Qwen3 8B Q4_K_M",
-                    Description = "Powerful 8B parameter model with excellent reasoning capabilities",
-                    Url = "https://huggingface.co/bartowski/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf",
-                    FileName = "Qwen3-8B-Q4_K_M.gguf",
-                    FileSize = 5_100_000_000, // ~5.1GB
-                    ContextLength = 8192,
-                    Parameters = "8B"
+                    Id = "llama3.2-1b",
+                    Name = "Llama 3.2 1B Instruct Q4_K_M",
+                    Description = "Ultra-compact Meta model for edge devices with 128K context",
+                    Url = "https://huggingface.co/QuantFactory/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct.Q4_K_M.gguf",
+                    FileName = "Llama-3.2-1B-Instruct.Q4_K_M.gguf",
+                    FileSize = 808_000_000, // ~808MB
+                    ContextLength = 128000,
+                    Parameters = "1B"
                 },
-                ["qwen2.5-7b"] = new ModelInfo
+                ["llama3.2-1b-q5"] = new ModelInfo
                 {
-                    Id = "qwen2.5-7b",
-                    Name = "Qwen2.5 7B Instruct Q4_K_M",
-                    Description = "Latest Qwen 2.5 model optimized for instruction following",
-                    Url = "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf",
-                    FileName = "qwen2.5-7b-instruct-q4_k_m.gguf",
-                    FileSize = 4_700_000_000, // ~4.7GB
-                    ContextLength = 32768,
-                    Parameters = "7B"
+                    Id = "llama3.2-1b-q5",
+                    Name = "Llama 3.2 1B Instruct Q5_K_M",
+                    Description = "Higher quality 1B Meta model with excellent summarization",
+                    Url = "https://huggingface.co/QuantFactory/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct.Q5_K_M.gguf",
+                    FileName = "Llama-3.2-1B-Instruct.Q5_K_M.gguf",
+                    FileSize = 912_000_000, // ~912MB
+                    ContextLength = 128000,
+                    Parameters = "1B"
                 },
-                ["phi3-mini"] = new ModelInfo
+                ["llama3.2-3b"] = new ModelInfo
                 {
-                    Id = "phi3-mini",
-                    Name = "Phi-3 Mini 4K Instruct",
-                    Description = "Compact 3.8B model from Microsoft with strong performance",
-                    Url = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf",
-                    FileName = "Phi-3-mini-4k-instruct-q4.gguf",
-                    FileSize = 2_200_000_000, // ~2.2GB
-                    ContextLength = 4096,
-                    Parameters = "3.8B"
+                    Id = "llama3.2-3b",
+                    Name = "Llama 3.2 3B Instruct Q4_K_M",
+                    Description = "Powerful 3B Meta model for complex tasks with massive context",
+                    Url = "https://huggingface.co/QuantFactory/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct.Q4_K_M.gguf",
+                    FileName = "Llama-3.2-3B-Instruct.Q4_K_M.gguf",
+                    FileSize = 2_020_000_000, // ~2.02GB
+                    ContextLength = 128000,
+                    Parameters = "3B"
                 }
             };
         }

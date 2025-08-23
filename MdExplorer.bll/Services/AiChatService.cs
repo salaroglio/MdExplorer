@@ -19,23 +19,30 @@ namespace MdExplorer.Features.Services
         Task<string> ChatAsync(string prompt);
         IAsyncEnumerable<string> StreamChatAsync(string prompt, CancellationToken ct = default);
         bool IsModelLoaded();
-        Task<bool> LoadModelAsync(string modelPath);
+        Task<bool> LoadModelAsync(string modelPath, string modelId = null);
         string GetCurrentModelName();
+        string GetCurrentModelId();
+        Task SetSystemPromptAsync(string systemPrompt);
+        string GetSystemPrompt();
     }
 
     public class AiChatService : IAiChatService, IDisposable
     {
         private readonly ILogger<AiChatService> _logger;
+        private readonly IAiConfigurationService _configService;
         private LLamaWeights _model;
         private LLamaContext _context;
         private InteractiveExecutor _executor;
         private string _currentModelPath;
         private string _currentModelName;
+        private string _currentModelId;
+        private string _systemPrompt;
         private readonly SemaphoreSlim _modelLock = new SemaphoreSlim(1, 1);
 
-        public AiChatService(ILogger<AiChatService> logger)
+        public AiChatService(ILogger<AiChatService> logger, IAiConfigurationService configService = null)
         {
             _logger = logger;
+            _configService = configService;
             _logger.LogInformation($"[AiChatService] Service initialized");
             
             // Log current environment for debugging
@@ -64,7 +71,26 @@ namespace MdExplorer.Features.Services
             return _currentModelName ?? "None";
         }
 
-        public async Task<bool> LoadModelAsync(string modelPath)
+        public string GetCurrentModelId()
+        {
+            return _currentModelId ?? "None";
+        }
+
+        public async Task SetSystemPromptAsync(string systemPrompt)
+        {
+            _systemPrompt = systemPrompt;
+            if (_configService != null && !string.IsNullOrEmpty(_currentModelId))
+            {
+                await _configService.SaveSystemPromptAsync(_currentModelId, systemPrompt);
+            }
+        }
+
+        public string GetSystemPrompt()
+        {
+            return _systemPrompt;
+        }
+
+        public async Task<bool> LoadModelAsync(string modelPath, string modelId = null)
         {
             await _modelLock.WaitAsync();
             try
@@ -117,6 +143,18 @@ namespace MdExplorer.Features.Services
 
                 _currentModelPath = modelPath;
                 _currentModelName = System.IO.Path.GetFileNameWithoutExtension(modelPath);
+                _currentModelId = modelId ?? _currentModelName;
+                
+                // Load system prompt from configuration
+                if (_configService != null)
+                {
+                    _systemPrompt = await _configService.GetSystemPromptAsync(_currentModelId);
+                    _logger.LogInformation($"[AiChatService] Loaded system prompt for model {_currentModelId}");
+                }
+                else
+                {
+                    _systemPrompt = "You are a helpful AI assistant.";
+                }
                 
                 _logger.LogInformation($"[AiChatService] Model loaded successfully: {_currentModelName}");
                 _logger.LogInformation($"[AiChatService] IsModelLoaded: {IsModelLoaded()}");
@@ -150,6 +188,11 @@ namespace MdExplorer.Features.Services
             await _modelLock.WaitAsync();
             try
             {
+                // Prepend system prompt if configured
+                var fullPrompt = string.IsNullOrEmpty(_systemPrompt) 
+                    ? prompt 
+                    : $"System: {_systemPrompt}\n\nUser: {prompt}\n\nAssistant:";
+
                 var inferenceParams = new InferenceParams()
                 {
                     Temperature = 0.7f,
@@ -161,7 +204,7 @@ namespace MdExplorer.Features.Services
                 };
 
                 var response = string.Empty;
-                await foreach (var text in _executor.InferAsync(prompt, inferenceParams))
+                await foreach (var text in _executor.InferAsync(fullPrompt, inferenceParams))
                 {
                     response += text;
                 }
@@ -198,6 +241,11 @@ namespace MdExplorer.Features.Services
             await _modelLock.WaitAsync(ct);
             try
             {
+                // Prepend system prompt if configured
+                var fullPrompt = string.IsNullOrEmpty(_systemPrompt) 
+                    ? prompt 
+                    : $"System: {_systemPrompt}\n\nUser: {prompt}\n\nAssistant:";
+
                 var inferenceParams = new InferenceParams()
                 {
                     Temperature = 0.7f,
@@ -209,7 +257,7 @@ namespace MdExplorer.Features.Services
                 };
 
                 _logger.LogInformation($"[AiChatService] Starting inference with executor...");
-                await foreach (var text in _executor.InferAsync(prompt, inferenceParams, ct))
+                await foreach (var text in _executor.InferAsync(fullPrompt, inferenceParams, ct))
                 {
                     if (ct.IsCancellationRequested)
                         break;
@@ -238,6 +286,8 @@ namespace MdExplorer.Features.Services
                 
                 _currentModelPath = null;
                 _currentModelName = null;
+                _currentModelId = null;
+                _systemPrompt = null;
             }
             catch (Exception ex)
             {

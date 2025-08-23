@@ -12,6 +12,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   availableModels: ModelInfo[] = [];
   downloadProgress: { [modelId: string]: DownloadProgress } = {};
   currentModel: string | null = null;
+  currentModelId: string | null = null;
+  systemPrompt: string = '';
+  editingSystemPrompt = false;
   isModelLoaded = false;
   loading = false;
   
@@ -21,6 +24,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadModels();
+    this.loadSystemPrompt();
     
     // Subscribe to download progress
     this.aiService.downloadProgress$
@@ -41,6 +45,10 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(loaded => {
         this.isModelLoaded = loaded;
+        // When a model is loaded, reload the system prompt
+        if (loaded) {
+          this.loadSystemPrompt();
+        }
       });
   }
 
@@ -108,9 +116,14 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     console.log('[ModelManager] Starting to load model:', model.id);
     this.loading = true;
     this.aiService.loadModel(model.id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         console.log(`[ModelManager] Model ${model.name} loaded successfully, response:`, response);
         this.loading = false;
+        this.currentModelId = model.id;
+        // Load system prompt if provided in response
+        if (response && response.systemPrompt) {
+          this.systemPrompt = response.systemPrompt;
+        }
         // Refresh models list to update status
         this.loadModels();
       },
@@ -118,6 +131,48 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         console.error(`[ModelManager] Error loading ${model.name}:`, err);
         console.error('[ModelManager] Error details:', err.error || err);
         this.loading = false;
+      }
+    });
+  }
+  
+  editSystemPrompt(): void {
+    this.editingSystemPrompt = true;
+  }
+  
+  saveSystemPrompt(): void {
+    if (!this.systemPrompt.trim()) {
+      alert('System prompt cannot be empty');
+      return;
+    }
+    
+    this.aiService.setSystemPrompt(this.systemPrompt).subscribe({
+      next: () => {
+        console.log('System prompt saved successfully');
+        this.editingSystemPrompt = false;
+      },
+      error: (err) => {
+        console.error('Error saving system prompt:', err);
+        alert('Failed to save system prompt');
+      }
+    });
+  }
+  
+  cancelEditSystemPrompt(): void {
+    this.editingSystemPrompt = false;
+    // Reload current system prompt
+    this.loadSystemPrompt();
+  }
+  
+  loadSystemPrompt(): void {
+    this.aiService.getSystemPrompt().subscribe({
+      next: (response: any) => {
+        if (response && response.systemPrompt) {
+          this.systemPrompt = response.systemPrompt;
+          this.currentModelId = response.modelId;
+        }
+      },
+      error: (err) => {
+        console.error('Error loading system prompt:', err);
       }
     });
   }

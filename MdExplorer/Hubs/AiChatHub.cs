@@ -94,15 +94,16 @@ namespace MdExplorer.Hubs
 
                 await Clients.Caller.SendAsync("ModelLoading", model.Name);
                 
-                _logger.LogInformation($"[AiChatHub] Calling _aiChatService.LoadModelAsync with path: {model.LocalPath}");
-                var success = await _aiChatService.LoadModelAsync(model.LocalPath);
+                _logger.LogInformation($"[AiChatHub] Calling _aiChatService.LoadModelAsync with path: {model.LocalPath} and id: {modelId}");
+                var success = await _aiChatService.LoadModelAsync(model.LocalPath, modelId);
                 
                 _logger.LogInformation($"[AiChatHub] LoadModelAsync returned: {success}");
                 
                 if (success)
                 {
-                    await Clients.Caller.SendAsync("ModelLoaded", model.Name);
-                    _logger.LogInformation($"[AiChatHub] Model {model.Name} loaded successfully");
+                    var systemPrompt = _aiChatService.GetSystemPrompt();
+                    await Clients.Caller.SendAsync("ModelLoaded", model.Name, systemPrompt);
+                    _logger.LogInformation($"[AiChatHub] Model {model.Name} loaded successfully with system prompt");
                 }
                 else
                 {

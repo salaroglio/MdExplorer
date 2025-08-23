@@ -64,6 +64,7 @@ namespace MdExplorer
             // Add AI services
             services.AddHttpClient();
             services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
+            services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
             services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
             
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));

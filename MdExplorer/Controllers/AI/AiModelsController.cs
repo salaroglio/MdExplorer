@@ -143,12 +143,16 @@ namespace MdExplorer.Controllers.AI
                     return BadRequest(new { error = $"Model {model.Name} is not installed" });
                 }
 
-                var success = await _aiChatService.LoadModelAsync(model.LocalPath);
+                var success = await _aiChatService.LoadModelAsync(model.LocalPath, modelId);
                 
                 if (success)
                 {
                     await _hubContext.Clients.All.SendAsync("ModelLoaded", model.Name);
-                    return Ok(new { success = true, message = $"Model {model.Name} loaded successfully" });
+                    return Ok(new { 
+                        success = true, 
+                        message = $"Model {model.Name} loaded successfully",
+                        systemPrompt = _aiChatService.GetSystemPrompt()
+                    });
                 }
                 else
                 {
@@ -169,12 +173,16 @@ namespace MdExplorer.Controllers.AI
             {
                 var isLoaded = _aiChatService.IsModelLoaded();
                 var currentModel = _aiChatService.GetCurrentModelName();
+                var currentModelId = _aiChatService.GetCurrentModelId();
+                var systemPrompt = _aiChatService.GetSystemPrompt();
                 var availableModels = await _downloadService.GetAvailableModelsAsync();
                 
                 return Ok(new
                 {
                     isModelLoaded = isLoaded,
                     currentModel = currentModel,
+                    currentModelId = currentModelId,
+                    systemPrompt = systemPrompt,
                     availableModels = availableModels
                 });
             }
@@ -184,5 +192,57 @@ namespace MdExplorer.Controllers.AI
                 return StatusCode(500, new { error = ex.Message });
             }
         }
+
+        [HttpGet("system-prompt")]
+        public IActionResult GetSystemPrompt()
+        {
+            try
+            {
+                var systemPrompt = _aiChatService.GetSystemPrompt();
+                var modelId = _aiChatService.GetCurrentModelId();
+                
+                return Ok(new
+                {
+                    modelId = modelId,
+                    systemPrompt = systemPrompt
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting system prompt");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("system-prompt")]
+        public async Task<IActionResult> SetSystemPrompt([FromBody] SystemPromptRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request?.SystemPrompt))
+                {
+                    return BadRequest(new { error = "System prompt cannot be empty" });
+                }
+
+                await _aiChatService.SetSystemPromptAsync(request.SystemPrompt);
+                await _hubContext.Clients.All.SendAsync("SystemPromptUpdated", request.SystemPrompt);
+                
+                return Ok(new { 
+                    success = true, 
+                    message = "System prompt updated successfully",
+                    systemPrompt = request.SystemPrompt
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting system prompt");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+    }
+
+    public class SystemPromptRequest
+    {
+        public string SystemPrompt { get; set; }
     }
 }
