@@ -5,6 +5,10 @@
       <mat-card-subtitle>
         <span *ngIf="isModelLoaded && currentModel">
           Current Model: {{ currentModel }}
+          <span *ngIf="gpuEnabled" class="gpu-indicator">
+            <mat-icon inline="true">memory</mat-icon>
+            GPU Enabled ({{ gpuLayerCount }} layers)
+          </span>
         </span>
         <span *ngIf="!isModelLoaded">
           No model loaded
@@ -13,6 +17,45 @@
     </mat-card-header>
     
     <mat-card-content>
+      <!-- GPU Information Card -->
+      <mat-card *ngIf="gpuInfo" class="gpu-info-card" style="margin-bottom: 20px;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>memory</mat-icon>
+            GPU Status
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="gpu-details">
+            <div *ngIf="gpuInfo.isNvidiaGpu">
+              <strong>{{ gpuInfo.name }}</strong>
+              <mat-chip-list style="display: inline-flex; margin-left: 10px;">
+                <mat-chip *ngIf="gpuInfo.isRtxCard" color="accent" selected>
+                  <mat-icon>check_circle</mat-icon>
+                  RTX
+                </mat-chip>
+                <mat-chip *ngIf="gpuInfo.isCudaAvailable" color="primary" selected>
+                  <mat-icon>check_circle</mat-icon>
+                  CUDA {{ gpuInfo.cudaVersion }}
+                </mat-chip>
+                <mat-chip *ngIf="!gpuInfo.isCudaAvailable" color="warn" selected>
+                  <mat-icon>warning</mat-icon>
+                  CUDA Not Available
+                </mat-chip>
+              </mat-chip-list>
+              <div style="margin-top: 10px;">
+                <span>Memory: {{ gpuInfo.formattedMemory || formatBytes(gpuInfo.memoryBytes) }}</span>
+                <span style="margin-left: 20px;">Driver: {{ gpuInfo.driverVersion }}</span>
+              </div>
+            </div>
+            <div *ngIf="!gpuInfo.isNvidiaGpu">
+              <mat-icon color="warn">warning</mat-icon>
+              No NVIDIA GPU detected - Models will run on CPU
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <div class="actions-bar">
         <button mat-raised-button color="primary" (click)="loadModels()" [disabled]="loading">
           <mat-icon>refresh</mat-icon>

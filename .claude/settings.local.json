@@ -46,7 +46,8 @@
       "Bash(~/.dotnet/dotnet:*)",
       "Bash(mv:*)",
       "Bash(nvm use:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "WebSearch"
     ]
   },
   "enableAllProjectMcpServers": true,

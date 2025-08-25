@@ -8,6 +8,7 @@ using LLama;
 using LLama.Common;
 using LLama.Native;
 using LLama.Sampling;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using System.IO;
@@ -24,12 +25,17 @@ namespace MdExplorer.Features.Services
         string GetCurrentModelId();
         Task SetSystemPromptAsync(string systemPrompt);
         string GetSystemPrompt();
+        GpuInfo GetGpuInfo();
+        bool IsGpuEnabled();
+        int GetGpuLayerCount();
     }
 
     public class AiChatService : IAiChatService, IDisposable
     {
         private readonly ILogger<AiChatService> _logger;
         private readonly IAiConfigurationService _configService;
+        private readonly IGpuDetectionService _gpuService;
+        private readonly AiChatConfiguration _aiConfig;
         private LLamaWeights _model;
         private LLamaContext _context;
         private InteractiveExecutor _executor;
@@ -37,13 +43,45 @@ namespace MdExplorer.Features.Services
         private string _currentModelName;
         private string _currentModelId;
         private string _systemPrompt;
+        private GpuInfo _currentGpuInfo;
+        private int _currentGpuLayerCount;
+        private bool _gpuEnabled;
         private readonly SemaphoreSlim _modelLock = new SemaphoreSlim(1, 1);
 
-        public AiChatService(ILogger<AiChatService> logger, IAiConfigurationService configService = null)
+        public AiChatService(
+            ILogger<AiChatService> logger, 
+            IGpuDetectionService gpuService = null, 
+            IAiConfigurationService configService = null,
+            IConfiguration configuration = null)
         {
             _logger = logger;
             _configService = configService;
-            _logger.LogInformation($"[AiChatService] Service initialized");
+            _gpuService = gpuService;
+            
+            // Load configuration
+            _aiConfig = new AiChatConfiguration();
+            if (configuration != null)
+            {
+                configuration.GetSection("AiChat").Bind(_aiConfig);
+            }
+            
+            _logger.LogInformation($"[AiChatService] Service initialized with GPU auto-detection: {_aiConfig.Gpu.EnableAutoDetection}");
+            
+            // Detect GPU if service is available and auto-detection is enabled
+            if (_gpuService != null && _aiConfig.Gpu.EnableAutoDetection)
+            {
+                _currentGpuInfo = _gpuService.DetectGpu();
+                if (_currentGpuInfo.IsNvidiaGpu && _currentGpuInfo.IsCudaAvailable)
+                {
+                    _logger.LogInformation($"[AiChatService] GPU acceleration available: {_currentGpuInfo.Name}");
+                    if (_aiConfig.Gpu.LogGpuDetails)
+                    {
+                        _logger.LogInformation($"[AiChatService] GPU Memory: {_currentGpuInfo.FormattedMemory}");
+                        _logger.LogInformation($"[AiChatService] CUDA Version: {_currentGpuInfo.CudaVersion}");
+                        _logger.LogInformation($"[AiChatService] Driver Version: {_currentGpuInfo.DriverVersion}");
+                    }
+                }
+            }
             
             // Log current environment for debugging
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -111,12 +149,47 @@ namespace MdExplorer.Features.Services
                 _logger.LogInformation($"[AiChatService] Disposing existing model...");
                 DisposeModel();
 
-                // Load new model
-                _logger.LogInformation($"[AiChatService] Creating ModelParams...");
+                // Detect GPU and determine layer count
+                int gpuLayerCount = 0;
+                if (_gpuService != null && _aiConfig.Gpu.EnableAutoDetection && _aiConfig.Gpu.PreferGpuAcceleration)
+                {
+                    _currentGpuInfo = _gpuService.DetectGpu();
+                    if (_currentGpuInfo.IsNvidiaGpu && _currentGpuInfo.IsCudaAvailable)
+                    {
+                        // Use configured layer count or auto-detect
+                        if (_aiConfig.Gpu.DefaultGpuLayerCount > 0)
+                        {
+                            gpuLayerCount = _aiConfig.Gpu.DefaultGpuLayerCount;
+                            _logger.LogInformation($"[AiChatService] Using configured GPU layer count: {gpuLayerCount}");
+                        }
+                        else
+                        {
+                            gpuLayerCount = _gpuService.GetOptimalGpuLayerCount(fileInfo.Length);
+                            _logger.LogInformation($"[AiChatService] Auto-detected optimal GPU layer count: {gpuLayerCount}");
+                        }
+                        
+                        _logger.LogInformation($"[AiChatService] GPU acceleration enabled with {gpuLayerCount} layers on {_currentGpuInfo.Name}");
+                        _gpuEnabled = true;
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"[AiChatService] GPU not available or not NVIDIA/CUDA, using CPU");
+                        _gpuEnabled = false;
+                    }
+                }
+                else if (!_aiConfig.Gpu.EnableAutoDetection)
+                {
+                    _logger.LogInformation($"[AiChatService] GPU auto-detection disabled, using CPU");
+                    _gpuEnabled = false;
+                }
+                _currentGpuLayerCount = gpuLayerCount;
+
+                // Load new model with configuration
+                _logger.LogInformation($"[AiChatService] Creating ModelParams with GpuLayerCount={gpuLayerCount}...");
                 var parameters = new ModelParams(modelPath)
                 {
-                    ContextSize = 4096,
-                    GpuLayerCount = 0 // CPU only for compatibility
+                    ContextSize = (uint)_aiConfig.Models.DefaultContextSize,
+                    GpuLayerCount = gpuLayerCount
                     // Seed removed - not available in LLamaSharp 0.18.0
                 };
 
@@ -158,6 +231,7 @@ namespace MdExplorer.Features.Services
                 
                 _logger.LogInformation($"[AiChatService] Model loaded successfully: {_currentModelName}");
                 _logger.LogInformation($"[AiChatService] IsModelLoaded: {IsModelLoaded()}");
+                _logger.LogInformation($"[AiChatService] GPU Enabled: {_gpuEnabled}, Layers: {_currentGpuLayerCount}");
                 return true;
             }
             catch (Exception ex)
@@ -195,10 +269,10 @@ namespace MdExplorer.Features.Services
 
                 var inferenceParams = new InferenceParams()
                 {
-                    Temperature = 0.7f,
+                    Temperature = _aiConfig.Models.Temperature,
                     TopK = 40,
                     TopP = 0.95f,
-                    MaxTokens = 512,
+                    MaxTokens = _aiConfig.Models.MaxTokens,
                     AntiPrompts = new List<string> { "User:", "\nUser:", "\n\nUser:" },
                     SamplingPipeline = new DefaultSamplingPipeline() // Required to avoid NullReferenceException
                 };
@@ -248,10 +322,10 @@ namespace MdExplorer.Features.Services
 
                 var inferenceParams = new InferenceParams()
                 {
-                    Temperature = 0.7f,
+                    Temperature = _aiConfig.Models.Temperature,
                     TopK = 40,
                     TopP = 0.95f,
-                    MaxTokens = 512,
+                    MaxTokens = _aiConfig.Models.MaxTokens,
                     AntiPrompts = new List<string> { "User:", "\nUser:", "\n\nUser:" },
                     SamplingPipeline = new DefaultSamplingPipeline() // Required to avoid NullReferenceException
                 };
@@ -288,6 +362,8 @@ namespace MdExplorer.Features.Services
                 _currentModelName = null;
                 _currentModelId = null;
                 _systemPrompt = null;
+                _currentGpuLayerCount = 0;
+                _gpuEnabled = false;
             }
             catch (Exception ex)
             {
@@ -299,6 +375,21 @@ namespace MdExplorer.Features.Services
         {
             DisposeModel();
             _modelLock?.Dispose();
+        }
+
+        public GpuInfo GetGpuInfo()
+        {
+            return _currentGpuInfo ?? new GpuInfo { Status = "No GPU information available" };
+        }
+
+        public bool IsGpuEnabled()
+        {
+            return _gpuEnabled;
+        }
+
+        public int GetGpuLayerCount()
+        {
+            return _currentGpuLayerCount;
         }
     }
 }

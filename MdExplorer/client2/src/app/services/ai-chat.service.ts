@@ -16,6 +16,19 @@ export interface ModelInfo {
   parameters: string;
 }
 
+export interface GpuInfo {
+  isNvidiaGpu: boolean;
+  isRtxCard: boolean;
+  name: string;
+  deviceId: string;
+  memoryBytes: number;
+  driverVersion: string;
+  cudaVersion: number;
+  isCudaAvailable: boolean;
+  status: string;
+  formattedMemory?: string;
+}
+
 export interface DownloadProgress {
   modelId: string;
   bytesDownloaded: number;
@@ -53,6 +66,12 @@ export class AiChatService {
   
   private _streamingMessage$ = new Subject<string>();
   public streamingMessage$ = this._streamingMessage$.asObservable();
+  
+  private _gpuInfo$ = new BehaviorSubject<GpuInfo | null>(null);
+  public gpuInfo$ = this._gpuInfo$.asObservable();
+  
+  private _gpuEnabled$ = new BehaviorSubject<boolean>(false);
+  public gpuEnabled$ = this._gpuEnabled$.asObservable();
   
   private currentStreamingMessageId: string | null = null;
 
@@ -252,6 +271,10 @@ export class AiChatService {
   
   setSystemPrompt(systemPrompt: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/system-prompt`, { systemPrompt });
+  }
+  
+  getGpuInfo(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/gpu-info`);
   }
 
   private generateMessageId(): string {

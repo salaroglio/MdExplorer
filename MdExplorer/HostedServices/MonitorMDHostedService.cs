@@ -152,12 +152,20 @@ namespace MdExplorer.Service.HostedServices
         {
             try
             {
-                _logger.LogInformation($"🔍 FileSystemWatcher.Created triggered for: {e.FullPath}");
+                // Check extension first to reduce logging
+                var fileExtension = Path.GetExtension(e.FullPath);
+                var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
+                
+                if (isMarkdown)
+                {
+                    _logger.LogInformation($"🔍 FileSystemWatcher.Created triggered for: {e.FullPath}");
+                }
                 
                 // Controlla se è un file markdown
-                if (!Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                if (!isMarkdown)
                 {
-                    _logger.LogInformation($"❌ File {e.FullPath} is not a markdown file. Extension: {Path.GetExtension(e.FullPath)}");
+                    // Use Debug level for non-markdown files
+                    _logger.LogDebug($"File {e.FullPath} is not a markdown file. Extension: {fileExtension}");
                     return;
                 }
 
@@ -414,19 +422,28 @@ namespace MdExplorer.Service.HostedServices
         {
             try
             {
-                _logger.LogInformation($"📝 FileSystemWatcher.Changed triggered for: {e.FullPath}");
+                // Log only for markdown files to reduce noise
+                var fileExtension = Path.GetExtension(e.FullPath);
+                var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
+                
+                if (isMarkdown)
+                {
+                    _logger.LogInformation($"📝 FileSystemWatcher.Changed triggered for: {e.FullPath}");
+                }
                 
                 // Check if it's a directory - skip directories
                 if (Directory.Exists(e.FullPath))
                 {
-                    _logger.LogInformation($"❌ Path {e.FullPath} is a directory, skipping");
+                    // Use Debug level for non-markdown files
+                    _logger.LogDebug($"Path {e.FullPath} is a directory, skipping");
                     return;
                 }
                 
                 // Check if it's a markdown file
-                if (!Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                if (!isMarkdown)
                 {
-                    _logger.LogInformation($"❌ File {e.FullPath} is not a markdown file. Extension: {Path.GetExtension(e.FullPath)}");
+                    // Use Debug level instead of Information to reduce log noise
+                    _logger.LogDebug($"File {e.FullPath} is not a markdown file. Extension: {fileExtension}");
                     return;
                 }
 

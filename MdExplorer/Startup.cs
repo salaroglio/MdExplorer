@@ -65,7 +65,12 @@ namespace MdExplorer
             services.AddHttpClient();
             services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
             services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
+            services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
             services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
+            
+            // Register both TocGenerationService and TocGenerationHubService
+            services.AddScoped<Features.Services.TocGenerationService>();
+            services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
             
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>

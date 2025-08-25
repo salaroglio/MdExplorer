@@ -20,6 +20,8 @@ import { fadeInOnEnterAnimation } from 'angular-animations';
 import { CopyFromClipboardComponent } from '../dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { MoveMdFileComponent } from '../dialogs/move-md-file/move-md-file.component';
 import { AddNewFileToMDEComponent } from '../dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
+import { TocGenerationService } from '../../services/toc-generation.service';
+import { TocProgressService } from '../../services/toc-progress.service';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -91,7 +93,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private snackBar: MatSnackBar,
     private clipboard: Clipboard,
     private changeDetectorRef: ChangeDetectorRef,
-    private mdServerMessages: MdServerMessagesService
+    private mdServerMessages: MdServerMessagesService,
+    private tocService: TocGenerationService,
+    private tocProgressService: TocProgressService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -365,9 +369,127 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   async openTocDirectory(node: MdFile) {
     console.log('[MdTreeComponent] openTocDirectory() called');
     console.log('[MdTreeComponent] node:', node);
+    console.log('[MdTreeComponent] node.name:', node.name);
+    console.log('[MdTreeComponent] node.relativePath:', node.relativePath);
+    console.log('[MdTreeComponent] node.fullPath:', node.fullPath);
+    console.log('[MdTreeComponent] node.path:', node.path);
     
-    // Costruisci il percorso del file .md.directory
-    // Il percorso relativo dovrebbe essere: percorso_directory/nome_directory.md.directory
+    // Start TOC generation with AI
+    this.generateTocWithAI(node, true);
+  }
+  
+  async refreshTocDirectory(node: MdFile) {
+    console.log('[MdTreeComponent] refreshTocDirectory() called');
+    
+    const directoryName = node.name;
+    let relativePath = node.relativePath || '';
+    // Remove leading backslash if present
+    if (relativePath.startsWith('\\')) {
+      relativePath = relativePath.substring(1);
+    }
+    const tocPath = relativePath ? 
+      `${relativePath}/${directoryName}.md.directory` : 
+      `${directoryName}.md.directory`;
+    
+    this.tocService.refreshToc(tocPath).subscribe({
+      next: (result) => {
+        if (result.success) {
+          this.snackBar.open('TOC aggiornato con successo', 'OK', { duration: 3000 });
+          // Navigate to the updated TOC
+          this.navigateToTocFile(node);
+        } else {
+          this.snackBar.open('Aggiornamento TOC fallito', 'OK', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        console.error('Error refreshing TOC:', err);
+        this.snackBar.open('Errore durante aggiornamento TOC', 'OK', { duration: 3000 });
+      }
+    });
+  }
+  
+  async quickTocDirectory(node: MdFile) {
+    console.log('[MdTreeComponent] quickTocDirectory() called');
+    
+    let directoryPath = node.relativePath || node.name;
+    // Remove leading backslash if present
+    if (directoryPath.startsWith('\\')) {
+      directoryPath = directoryPath.substring(1);
+    }
+    
+    this.tocService.generateQuickToc(directoryPath).subscribe({
+      next: (result) => {
+        if (result.success) {
+          this.snackBar.open('TOC rapida generata', 'OK', { duration: 3000 });
+          // Navigate to the TOC file
+          this.navigateToTocFile(node);
+        } else {
+          this.snackBar.open('Generazione TOC rapida fallita', 'OK', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        console.error('Error generating quick TOC:', err);
+        this.snackBar.open('Errore durante generazione TOC rapida', 'OK', { duration: 3000 });
+      }
+    });
+  }
+  
+  tocFileExists(node: MdFile): boolean {
+    // Check if the TOC file exists in the tree
+    const directoryName = node.name;
+    const tocFileName = `${directoryName}.md.directory`;
+    
+    if (node.childrens && node.childrens.length > 0) {
+      return node.childrens.some(child => child.name === tocFileName);
+    }
+    
+    return false;
+  }
+  
+  private generateTocWithAI(node: MdFile, navigateAfter: boolean) {
+    // Remove leading backslash if present
+    let directoryPath = node.relativePath || node.name;
+    if (directoryPath.startsWith('\\')) {
+      directoryPath = directoryPath.substring(1);
+    }
+    console.log('[MdTreeComponent] generateTocWithAI - directoryPath:', directoryPath);
+    
+    // Mostra il progress dialog
+    this.tocProgressService.showProgress(directoryPath);
+    
+    this.tocService.generateToc(directoryPath).subscribe({
+      next: (result) => {
+        // Il progress dialog verrà chiuso dall'evento SignalR TocGenerationComplete
+        if (result.success) {
+          // Il messaggio di successo viene già mostrato dal listener SignalR
+          if (navigateAfter) {
+            // Aspetta un attimo per permettere al dialog di chiudersi
+            setTimeout(() => {
+              this.navigateToTocFile(node);
+            }, 500);
+          }
+        } else {
+          this.tocProgressService.hideProgress();
+          this.snackBar.open(
+            'TOC generato senza AI (modello non caricato)', 
+            'OK', 
+            { duration: 5000 }
+          );
+          
+          if (navigateAfter) {
+            this.navigateToTocFile(node);
+          }
+        }
+      },
+      error: (err) => {
+        console.error('Error generating TOC:', err);
+        this.tocProgressService.hideProgress();
+        this.snackBar.open('Errore durante generazione TOC', 'OK', { duration: 3000 });
+      }
+    });
+  }
+  
+  private async navigateToTocFile(node: MdFile) {
     const directoryName = node.name;
     const relativePath = node.relativePath ? 
       `${node.relativePath}/${directoryName}.md.directory` : 
@@ -467,6 +589,16 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       // Forza il re-rendering del template
       this.changeDetectorRef.detectChanges();
     });
+
+    // Registra i listener per TOC Generation progress
+    this.mdServerMessages.addTocGenerationProgressListener((data, objectThis) => {
+      objectThis.tocProgressService.updateProgress(data);
+    }, this);
+
+    this.mdServerMessages.addTocGenerationCompleteListener((data, objectThis) => {
+      objectThis.tocProgressService.hideProgress();
+      objectThis.snackBar.open('TOC generato con successo!', 'OK', { duration: 3000 });
+    }, this);
   }
 
 

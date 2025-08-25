@@ -252,4 +252,19 @@ export class MdServerMessagesService {
       });
   }
 
+  // TOC Generation listeners
+  public addTocGenerationProgressListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('TocGenerationProgress', (data) => {
+      console.log('[SignalR] TOC Generation Progress:', data);
+      callback(data, objectThis);
+    });
+  }
+
+  public addTocGenerationCompleteListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('TocGenerationComplete', (data) => {
+      console.log('[SignalR] TOC Generation Complete:', data);
+      callback(data, objectThis);
+    });
+  }
+
 }

@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { AiChatService, ModelInfo, DownloadProgress } from '../services/ai-chat.service';
+import { AiChatService, ModelInfo, DownloadProgress, GpuInfo } from '../services/ai-chat.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -17,6 +17,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   editingSystemPrompt = false;
   isModelLoaded = false;
   loading = false;
+  gpuInfo: GpuInfo | null = null;
+  gpuEnabled = false;
+  gpuLayerCount = 0;
   
   private destroy$ = new Subject<void>();
 
@@ -25,6 +28,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadModels();
     this.loadSystemPrompt();
+    this.loadGpuInfo();
     
     // Subscribe to download progress
     this.aiService.downloadProgress$
@@ -45,9 +49,10 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(loaded => {
         this.isModelLoaded = loaded;
-        // When a model is loaded, reload the system prompt
+        // When a model is loaded, reload the system prompt and GPU info
         if (loaded) {
           this.loadSystemPrompt();
+          this.loadGpuInfo();
         }
       });
   }
@@ -124,8 +129,14 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         if (response && response.systemPrompt) {
           this.systemPrompt = response.systemPrompt;
         }
+        // Update GPU status
+        if (response && response.gpuEnabled !== undefined) {
+          this.gpuEnabled = response.gpuEnabled;
+          this.gpuLayerCount = response.gpuLayerCount || 0;
+        }
         // Refresh models list to update status
         this.loadModels();
+        this.loadGpuInfo();
       },
       error: (err) => {
         console.error(`[ModelManager] Error loading ${model.name}:`, err);
@@ -192,5 +203,20 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   isCurrentModel(model: ModelInfo): boolean {
     return this.currentModel === model.fileName?.replace('.gguf', '');
+  }
+  
+  loadGpuInfo(): void {
+    this.aiService.getGpuInfo().subscribe({
+      next: (response: any) => {
+        if (response && response.gpu) {
+          this.gpuInfo = response.gpu;
+          this.gpuEnabled = response.modelGpuEnabled || false;
+          this.gpuLayerCount = response.modelGpuLayerCount || 0;
+        }
+      },
+      error: (err) => {
+        console.error('Error loading GPU info:', err);
+      }
+    });
   }
 }

@@ -115,6 +115,32 @@ Il caso dei pulsanti backward/forward ha dimostrato l'efficacia di questo approc
   - Implementazione API e servizi Angular
   - Questo documento contiene esempi pratici e best practices specifiche del progetto
 
+## IMPORTANTE: Pattern Obbligatori per Dati Persistenti
+
+**SEMPRE seguire questi pattern quando si lavora con database o configurazioni:**
+
+1. **Migrations Database**: SEMPRE usare FluentMigrator
+   - MAI script SQL diretti
+   - Percorsi: `MdExplorer.Migrations/` (User DB), `MdExplorer.Migrations.EngineDb/`, `MdExplorer.Migrations.ProjectDb/`
+   - Naming: `M{Anno}_{Mese}_{Giorno}_{Numero}` es: `M2024_08_24_001`
+
+2. **ORM e Mapping**: SEMPRE usare NHibernate con FluentNHibernate
+   - Mappings in: `MdExplorer.Abstractions/Mappings/`
+   - Entità in: `MdExplorer.Abstractions/Entities/UserDB/` o `EngineDB/`
+   - Pattern ClassMap\<T> per i mapping
+
+3. **Configurazioni Applicazione**: SEMPRE usare tabella Setting esistente
+   - Per configurazioni utente modificabili
+   - Struttura: Name (string), ValueString, ValueInt, ValueBool, etc.
+   - Accesso via: `IUserSettingsDB.GetDal<Setting>()`
+
+4. **Data Access Layer**: 
+   - Codice esistente: usa `Ad.Tools.Dal` con pattern DAL
+   - Nuovo codice: preferire `Ad.Tools.Dal.Evo` con `IRepository<T>` e `IUnitOfWork`
+   - Entrambi coesistono durante la migrazione (Strangler Fig Pattern)
+
+5. **Per dettagli completi**: vedere sempre [workflow-sviluppo-dati-persistenti.md](./workflow-sviluppo-dati-persistenti.md)
+
 ## Ambiente di Sviluppo - Bash su Linux
 
 * **IMPORTANTE**: L'ambiente di sviluppo è Bash su Linux

@@ -97,6 +97,9 @@ namespace MdExplorer.Services.Git
                 _logger.LogInformation("Pull operation completed: {Status}, HasChanges: {HasChanges}, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}",
                     pullResult.Status, hasChanges, stopwatch.ElapsedMilliseconds, credentialCallCount);
 
+                // Clear credential call history after successful operation
+                ClearCredentialCallHistory();
+
                 return new GitOperationResult
                 {
                     Success = true,
@@ -198,6 +201,9 @@ namespace MdExplorer.Services.Git
 
                 _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}", 
                     stopwatch.ElapsedMilliseconds, credentialCallCount);
+
+                // Clear credential call history after successful operation
+                ClearCredentialCallHistory();
 
                 return new GitOperationResult
                 {
@@ -604,13 +610,43 @@ namespace MdExplorer.Services.Git
         #region Private Helper Methods
 
         private AuthenticationMethod _lastUsedAuthMethod = AuthenticationMethod.UserPrompt;
-        private readonly Dictionary<string, object> _credentialCache = new Dictionary<string, object>();
+        private readonly Dictionary<string, CachedCredential> _credentialCache = new Dictionary<string, CachedCredential>();
         private readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
+        private readonly TimeSpan _cacheTimeout = TimeSpan.FromMinutes(5);
+        private const int MaxAuthenticationAttempts = 3;
+
+        private class CachedCredential
+        {
+            public Credentials Credentials { get; set; }
+            public DateTime CachedAt { get; set; }
+            public AuthenticationMethod AuthMethod { get; set; }
+        }
 
         private async Task<Credentials> ResolveCredentials(string url, string usernameFromUrl, SupportedCredentialTypes types)
         {
             var resolverCallId = Guid.NewGuid().ToString("N")[..8];
             var cacheKey = $"{url}:{usernameFromUrl}:{types}";
+            
+            // IMPORTANT: Check cache FIRST before doing anything else
+            if (_credentialCache.ContainsKey(cacheKey))
+            {
+                var cached = _credentialCache[cacheKey];
+                var age = DateTime.UtcNow - cached.CachedAt;
+                
+                if (age < _cacheTimeout)
+                {
+                    _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials for {Url} (age: {Age:F1} seconds)", 
+                        resolverCallId, url, age.TotalSeconds);
+                    _lastUsedAuthMethod = cached.AuthMethod;
+                    return cached.Credentials;
+                }
+                else
+                {
+                    _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Cache expired for {Url} (age: {Age:F1} minutes)", 
+                        resolverCallId, url, age.TotalMinutes);
+                    _credentialCache.Remove(cacheKey);
+                }
+            }
             
             // Track call history for this URL
             if (_credentialCallHistory.ContainsKey(cacheKey))
@@ -633,11 +669,12 @@ namespace MdExplorer.Services.Git
                 _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - REPEATED CALL #{Count} for same URL/user/types combination", 
                     resolverCallId, callCount);
                     
-                // If we've been called too many times, this might be the "too many redirects" scenario
-                if (callCount > 5)
+                // If we've been called too many times, fail fast to prevent infinite loops
+                if (callCount > MaxAuthenticationAttempts)
                 {
-                    _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - TOO MANY CALLS ({Count}) - This may be the source of 'too many redirects' error", 
-                        resolverCallId, callCount);
+                    _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - EXCEEDED MAX ATTEMPTS ({Count}/{Max}) - Failing to prevent infinite loop", 
+                        resolverCallId, callCount, MaxAuthenticationAttempts);
+                    return null;
                 }
             }
 
@@ -668,15 +705,19 @@ namespace MdExplorer.Services.Git
                             _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - SUCCESS using {ResolverType}: {AuthMethod}, CredType: {CredType}, SSH: {IsSSH}, HTTPS: {IsHTTPS}", 
                                 resolverCallId, resolver.GetType().Name, _lastUsedAuthMethod, credType, isSSH, isHTTPS);
                                 
-                            // Cache the successful credential for comparison
-                            _credentialCache[cacheKey] = new
+                            // Cache the successful credential for future use
+                            _credentialCache[cacheKey] = new CachedCredential
                             {
-                                AuthMethod = _lastUsedAuthMethod,
-                                CredentialType = credType,
-                                URL = url,
-                                Timestamp = DateTime.UtcNow,
-                                CallCount = callCount
+                                Credentials = credentials,
+                                CachedAt = DateTime.UtcNow,
+                                AuthMethod = _lastUsedAuthMethod
                             };
+                            
+                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Credentials CACHED for {Url} (timeout: {Timeout} minutes)", 
+                                resolverCallId, url, _cacheTimeout.TotalMinutes);
+                            
+                            // Reset call history on success
+                            _credentialCallHistory[cacheKey] = 0;
                             
                             return credentials;
                         }
@@ -751,6 +792,31 @@ namespace MdExplorer.Services.Git
             catch
             {
                 return new string[0];
+            }
+        }
+
+        private void ClearCredentialCallHistory()
+        {
+            // Clear the call history to prevent false positives on next operation
+            _credentialCallHistory.Clear();
+            _logger.LogDebug("Credential call history cleared after successful operation");
+        }
+
+        private void CleanExpiredCache()
+        {
+            var expiredKeys = _credentialCache
+                .Where(kvp => DateTime.UtcNow - kvp.Value.CachedAt > _cacheTimeout)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in expiredKeys)
+            {
+                _credentialCache.Remove(key);
+            }
+
+            if (expiredKeys.Any())
+            {
+                _logger.LogDebug("Removed {Count} expired credentials from cache", expiredKeys.Count);
             }
         }
 

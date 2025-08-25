@@ -212,6 +212,19 @@ class MdServerMessagesService {
             objectThis.connectionId = connectionId;
         });
     }
+    // TOC Generation listeners
+    addTocGenerationProgressListener(callback, objectThis) {
+        this.hubConnection.on('TocGenerationProgress', (data) => {
+            console.log('[SignalR] TOC Generation Progress:', data);
+            callback(data, objectThis);
+        });
+    }
+    addTocGenerationCompleteListener(callback, objectThis) {
+        this.hubConnection.on('TocGenerationComplete', (data) => {
+            console.log('[SignalR] TOC Generation Complete:', data);
+            callback(data, objectThis);
+        });
+    }
 }
 MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_5__["OpeningApplicationProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__["GITService"])); };
 MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: MdServerMessagesService, factory: MdServerMessagesService.ɵfac, providedIn: 'root' });
@@ -2462,8 +2475,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.08.22.4',
-    buildTime: '2025.08.22 10:17:23'
+    version: '2025.08.25.2',
+    buildTime: '2025.08.25 06:45:58'
 };
 
 

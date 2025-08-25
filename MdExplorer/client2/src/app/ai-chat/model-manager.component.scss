@@ -96,4 +96,52 @@
       border-top: 1px solid rgba(0, 0, 0, 0.12);
     }
   }
+  
+  .gpu-info-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    
+    mat-card-header {
+      mat-card-title {
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        mat-icon {
+          color: white;
+        }
+      }
+    }
+    
+    .gpu-details {
+      padding: 10px 0;
+      
+      mat-chip {
+        margin: 0 4px;
+      }
+      
+      strong {
+        font-size: 1.1em;
+      }
+    }
+  }
+  
+  .gpu-indicator {
+    margin-left: 15px;
+    padding: 4px 8px;
+    background: #4caf50;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.9em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
 }

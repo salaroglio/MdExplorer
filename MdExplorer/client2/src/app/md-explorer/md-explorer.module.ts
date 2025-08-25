@@ -30,6 +30,8 @@ import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-m
 import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
 import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
 import { AiChatModule } from '../ai-chat/ai-chat.module';
+import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
+import { TocProgressService } from './services/toc-progress.service';
 
 
 
@@ -82,7 +84,8 @@ const routes: Routes = [
     CopyFromClipboardComponent,
     MoveMdFileComponent, AddNewFileToMDEComponent,
     MilkdownReactHostComponent,
-    DocumentShowComponent // Added to declarations
+    DocumentShowComponent, // Added to declarations
+    TocProgressDialogComponent
   ],
   imports: [
     CommonModule,
@@ -95,6 +98,10 @@ const routes: Routes = [
   ],
   providers: [
     // MdFileService è già providedIn: 'root', non va qui
+    TocProgressService
+  ],
+  entryComponents: [
+    TocProgressDialogComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

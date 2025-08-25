@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>🤖 Generazione TOC con AI</h2>
+
+<mat-dialog-content>
+  <div class="progress-container">
+    
+    <div class="directory-info">
+      <mat-icon>folder</mat-icon>
+      <span class="directory-path">{{ data.directory }}</span>
+    </div>
+
+    <div class="status-container">
+      <div class="status-text">
+        <mat-icon class="rotating" *ngIf="data.percentComplete < 100">autorenew</mat-icon>
+        <mat-icon *ngIf="data.percentComplete >= 100" color="primary">check_circle</mat-icon>
+        <span>{{ data.status }}</span>
+      </div>
+    </div>
+
+    <div class="progress-info">
+      <div class="progress-numbers">
+        <span>File processati: {{ data.processed }} / {{ data.total }}</span>
+        <span class="percentage">{{ data.percentComplete }}%</span>
+      </div>
+      
+      <mat-progress-bar 
+        mode="determinate" 
+        [value]="data.percentComplete"
+        color="primary">
+      </mat-progress-bar>
+    </div>
+
+    <div class="current-file" *ngIf="data.currentFile">
+      <mat-icon>description</mat-icon>
+      <span class="file-name">{{ data.currentFile }}</span>
+    </div>
+
+    <div class="ai-info">
+      <mat-icon>psychology</mat-icon>
+      <span>L'AI sta analizzando i documenti per generare descrizioni intelligenti...</span>
+    </div>
+
+  </div>
+</mat-dialog-content>

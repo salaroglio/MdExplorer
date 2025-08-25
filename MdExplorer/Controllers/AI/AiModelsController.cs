@@ -15,17 +15,20 @@ namespace MdExplorer.Controllers.AI
     {
         private readonly Features.Services.IModelDownloadService _downloadService;
         private readonly Features.Services.IAiChatService _aiChatService;
+        private readonly Features.Services.IGpuDetectionService _gpuService;
         private readonly IHubContext<AiChatHub> _hubContext;
         private readonly ILogger<AiModelsController> _logger;
 
         public AiModelsController(
             Features.Services.IModelDownloadService downloadService,
             Features.Services.IAiChatService aiChatService,
+            Features.Services.IGpuDetectionService gpuService,
             IHubContext<AiChatHub> hubContext,
             ILogger<AiModelsController> logger)
         {
             _downloadService = downloadService;
             _aiChatService = aiChatService;
+            _gpuService = gpuService;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -151,7 +154,9 @@ namespace MdExplorer.Controllers.AI
                     return Ok(new { 
                         success = true, 
                         message = $"Model {model.Name} loaded successfully",
-                        systemPrompt = _aiChatService.GetSystemPrompt()
+                        systemPrompt = _aiChatService.GetSystemPrompt(),
+                        gpuEnabled = _aiChatService.IsGpuEnabled(),
+                        gpuLayerCount = _aiChatService.GetGpuLayerCount()
                     });
                 }
                 else
@@ -176,6 +181,7 @@ namespace MdExplorer.Controllers.AI
                 var currentModelId = _aiChatService.GetCurrentModelId();
                 var systemPrompt = _aiChatService.GetSystemPrompt();
                 var availableModels = await _downloadService.GetAvailableModelsAsync();
+                var gpuInfo = _aiChatService.GetGpuInfo();
                 
                 return Ok(new
                 {
@@ -183,7 +189,10 @@ namespace MdExplorer.Controllers.AI
                     currentModel = currentModel,
                     currentModelId = currentModelId,
                     systemPrompt = systemPrompt,
-                    availableModels = availableModels
+                    availableModels = availableModels,
+                    gpuEnabled = _aiChatService.IsGpuEnabled(),
+                    gpuLayerCount = _aiChatService.GetGpuLayerCount(),
+                    gpuInfo = gpuInfo
                 });
             }
             catch (Exception ex)
@@ -236,6 +245,29 @@ namespace MdExplorer.Controllers.AI
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error setting system prompt");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("gpu-info")]
+        public IActionResult GetGpuInfo()
+        {
+            try
+            {
+                var gpuInfo = _gpuService.DetectGpu();
+                var isGpuEnabled = _aiChatService.IsGpuEnabled();
+                var gpuLayerCount = _aiChatService.GetGpuLayerCount();
+                
+                return Ok(new
+                {
+                    gpu = gpuInfo,
+                    modelGpuEnabled = isGpuEnabled,
+                    modelGpuLayerCount = gpuLayerCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting GPU info");
                 return StatusCode(500, new { error = ex.Message });
             }
         }
