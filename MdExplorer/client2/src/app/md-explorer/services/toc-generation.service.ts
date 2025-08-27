@@ -45,4 +45,11 @@ export class TocGenerationService {
   getTocStatus(directoryPath: string): Observable<TocStatusResult> {
     return this.http.get<TocStatusResult>(`${this.baseUrl}/status/${encodeURIComponent(directoryPath)}`);
   }
+
+  setAiMode(useGemini: boolean, geminiModel?: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/set-ai-mode`, {
+      useGemini: useGemini,
+      geminiModel: geminiModel || 'gemini-1.5-flash'
+    });
+  }
 }

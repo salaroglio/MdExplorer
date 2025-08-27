@@ -39,10 +39,13 @@ namespace MdExplorer.Features.Services
         private readonly ILogger<TocGenerationService> _logger;
         private readonly IUserSettingsDB _userSettingsDB;
         private readonly IAiChatService _aiChatService;
+        private readonly IGeminiApiService _geminiService;
         private readonly IConfiguration _configuration;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
         private const int DEFAULT_BATCH_SIZE = 10;
         private const int DEFAULT_CACHE_DAYS = 30;
+        private bool _useGemini = false;
+        private string _geminiModel = "gemini-1.5-flash";
 
         public event EventHandler<TocGenerationProgress> ProgressChanged;
         public event EventHandler<string> GenerationCompleted;
@@ -51,12 +54,14 @@ namespace MdExplorer.Features.Services
             ILogger<TocGenerationService> logger,
             IUserSettingsDB userSettingsDB,
             IAiChatService aiChatService,
+            IGeminiApiService geminiService,
             IConfiguration configuration,
             IYamlDefaultGenerator yamlDefaultGenerator)
         {
             _logger = logger;
             _userSettingsDB = userSettingsDB;
             _aiChatService = aiChatService;
+            _geminiService = geminiService;
             _configuration = configuration;
             _yamlDefaultGenerator = yamlDefaultGenerator;
         }
@@ -67,10 +72,11 @@ namespace MdExplorer.Features.Services
             {
                 _logger.LogInformation($"[TocGeneration] Starting AI TOC generation for: {directoryPath}");
 
-                // Check if AI is available
-                if (!_aiChatService.IsModelLoaded())
+                // Check if AI is available (either local model or Gemini)
+                var isAiAvailable = await IsAiAvailableAsync();
+                if (!isAiAvailable)
                 {
-                    _logger.LogWarning("[TocGeneration] AI model not loaded, falling back to simple TOC");
+                    _logger.LogWarning("[TocGeneration] No AI model available (neither local nor Gemini), falling back to simple TOC");
                     await GenerateSimpleTocWithWarning(directoryPath, tocFilePath);
                     return false;
                 }
@@ -119,11 +125,16 @@ namespace MdExplorer.Features.Services
                         var fileName = Path.GetFileName(filePath);
                         var relativePath = GetRelativePath(directoryPath, filePath);
                         
+                        _logger.LogInformation($"[TocGeneration] Processing file: {fileName}");
+                        
                         // Get description (from cache or AI)
                         var description = await GetFileDescriptionAsync(filePath, prompt, enableCache);
                         
-                        // Add to table
-                        tableContent.AppendLine($"| [{fileName}]({relativePath}) | {description} |");
+                        _logger.LogInformation($"[TocGeneration] Got description for {fileName}: {description?.Substring(0, Math.Min(description?.Length ?? 0, 100))}...");
+                        
+                        // Add to table (ensure description is single-line for table format)
+                        var tableDescription = description?.Replace("\n", " ")?.Replace("\r", " ")?.Replace("|", "\\|");
+                        tableContent.AppendLine($"| [{fileName}]({relativePath}) | {tableDescription} |");
                         
                         // Add to cards
                         cardsContent.AppendLine(GenerateFileCard(filePath, relativePath, description));
@@ -225,11 +236,12 @@ namespace MdExplorer.Features.Services
                 // Read file content
                 var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8);
                 
-                // Truncate if too long
-                const int maxContentLength = 2000;
+                // Use a reasonable limit for AI context (10000 chars should be enough for most docs)
+                const int maxContentLength = 10000;
                 if (content.Length > maxContentLength)
                 {
-                    content = content.Substring(0, maxContentLength) + "...";
+                    // Take first part of document for context
+                    content = content.Substring(0, maxContentLength) + "\n\n[... documento troncato per lunghezza ...]";
                 }
 
                 // Prepare prompt
@@ -242,14 +254,14 @@ namespace MdExplorer.Features.Services
                     aiPrompt = $"{prompt}\n\nFile: {fileName}\nContenuto:\n{content}";
                 }
 
-                // Get AI description
-                var description = await _aiChatService.ChatAsync(aiPrompt);
+                _logger.LogDebug($"[TocGeneration] Sending to AI - prompt length: {aiPrompt.Length} chars");
                 
-                // Ensure description is not too long
-                if (description.Length > 200)
-                {
-                    description = description.Substring(0, 197) + "...";
-                }
+                // Get AI description
+                var description = await GetAiDescriptionAsync(aiPrompt);
+                
+                _logger.LogDebug($"[TocGeneration] Received from AI - description length: {description?.Length ?? 0} chars");
+                
+                // No truncation - return full description from AI
 
                 // Save to cache if enabled
                 if (useCache && !string.IsNullOrEmpty(fileHash))
@@ -313,7 +325,7 @@ namespace MdExplorer.Features.Services
                     existing.FileHash = fileHash;
                     existing.Description = description;
                     existing.GeneratedAt = DateTime.Now;
-                    existing.ModelUsed = _aiChatService.GetCurrentModelName();
+                    existing.ModelUsed = GetCurrentAiModelName();
                     cacheDal.Save(existing);
                 }
                 else
@@ -325,7 +337,7 @@ namespace MdExplorer.Features.Services
                         FileHash = fileHash,
                         Description = description,
                         GeneratedAt = DateTime.Now,
-                        ModelUsed = _aiChatService.GetCurrentModelName()
+                        ModelUsed = GetCurrentAiModelName()
                     };
                     cacheDal.Save(newCache);
                 }
@@ -361,7 +373,7 @@ namespace MdExplorer.Features.Services
             content.AppendLine($"> 📊 **Stato**: ✅ Generato con AI");
             content.AppendLine($"> 📁 **File analizzati**: 0/{fileCount}");
             content.AppendLine($"> 📅 **Ultimo aggiornamento**: {DateTime.Now:yyyy-MM-dd HH:mm}");
-            content.AppendLine($"> 🤖 **Modello AI**: {_aiChatService.GetCurrentModelName()}");
+            content.AppendLine($"> 🤖 **Modello AI**: {GetCurrentAiModelName()}");
             content.AppendLine();
             content.AppendLine("## 📑 Indice Rapido");
             content.AppendLine();
@@ -385,7 +397,7 @@ namespace MdExplorer.Features.Services
             content.AppendLine($"> 📊 **Stato**: ✅ Generato con AI");
             content.AppendLine($"> 📁 **File analizzati**: {fileCount}/{fileCount}");
             content.AppendLine($"> 📅 **Ultimo aggiornamento**: {DateTime.Now:yyyy-MM-dd HH:mm}");
-            content.AppendLine($"> 🤖 **Modello AI**: {_aiChatService.GetCurrentModelName()}");
+            content.AppendLine($"> 🤖 **Modello AI**: {GetCurrentAiModelName()}");
             content.AppendLine();
             content.AppendLine("## 📑 Indice Rapido");
             content.AppendLine();
@@ -492,7 +504,7 @@ namespace MdExplorer.Features.Services
             
             // Fallback to configuration
             return _configuration["TocGeneration:DefaultPrompt"] ?? 
-                "Analizza questo documento markdown e genera una descrizione concisa di massimo 50 parole. Focus su: scopo principale, contenuti chiave, target audience.";
+                "Analizza questo documento markdown e genera una descrizione dettagliata (100-200 parole). Focus su: scopo principale, contenuti chiave, target audience, informazioni rilevanti.";
         }
 
         private int GetBatchSize()
@@ -586,6 +598,139 @@ namespace MdExplorer.Features.Services
             }
 
             return $"{len:0.##} {sizes[order]}";
+        }
+        
+        private async Task<bool> IsAiAvailableAsync()
+        {
+            // Check which AI system is currently active
+            var settings = GetAiModeSettings();
+            
+            if (settings.useGemini)
+            {
+                _useGemini = true;
+                _geminiModel = settings.geminiModel;
+                var isConfigured = _geminiService.IsConfigured();
+                _logger.LogInformation($"[TocGeneration] Using Gemini API: {isConfigured}, Model: {_geminiModel}");
+                return isConfigured;
+            }
+            else
+            {
+                _useGemini = false;
+                var isLoaded = _aiChatService.IsModelLoaded();
+                _logger.LogInformation($"[TocGeneration] Using local AI model: {isLoaded}");
+                return isLoaded;
+            }
+        }
+        
+        private async Task<string> GetAiDescriptionAsync(string prompt)
+        {
+            if (_useGemini)
+            {
+                _logger.LogDebug($"[TocGeneration] Getting description from Gemini model: {_geminiModel}");
+                return await _geminiService.ChatAsync(prompt, _geminiModel);
+            }
+            else
+            {
+                _logger.LogDebug("[TocGeneration] Getting description from local AI model");
+                return await _aiChatService.ChatAsync(prompt);
+            }
+        }
+        
+        private string GetCurrentAiModelName()
+        {
+            if (_useGemini)
+            {
+                return $"Gemini: {_geminiModel}";
+            }
+            else
+            {
+                return _aiChatService.GetCurrentModelName();
+            }
+        }
+        
+        private (bool useGemini, string geminiModel) GetAiModeSettings()
+        {
+            // Check for settings in the database
+            try
+            {
+                _logger.LogInformation("[TocGeneration] Reading AI mode settings from database");
+                var settingsDal = _userSettingsDB.GetDal<Setting>();
+                var useGeminiSetting = settingsDal.GetList()
+                    .FirstOrDefault(s => s.Name == "TocGeneration_UseGemini");
+                var geminiModelSetting = settingsDal.GetList()
+                    .FirstOrDefault(s => s.Name == "TocGeneration_GeminiModel");
+                
+                _logger.LogInformation($"[TocGeneration] Found settings - UseGemini: {useGeminiSetting?.ValueInt}, Model: {geminiModelSetting?.ValueString}");
+                
+                var useGemini = (useGeminiSetting?.ValueInt ?? 0) == 1;
+                var geminiModel = geminiModelSetting?.ValueString ?? "gemini-1.5-flash";
+                
+                _logger.LogInformation($"[TocGeneration] AI Mode - UseGemini: {useGemini}, Model: {geminiModel}");
+                return (useGemini, geminiModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[TocGeneration] Error reading AI mode settings, defaulting to local");
+                return (false, "gemini-1.5-flash");
+            }
+        }
+        
+        public void SetAiMode(bool useGemini, string geminiModel = null)
+        {
+            _logger.LogInformation($"[TocGeneration] SetAiMode called - UseGemini: {useGemini}, Model: {geminiModel}");
+            
+            _useGemini = useGemini;
+            if (!string.IsNullOrEmpty(geminiModel))
+            {
+                _geminiModel = geminiModel;
+            }
+            
+            // Save to database for persistence
+            try
+            {
+                _logger.LogInformation("[TocGeneration] Saving AI mode to database");
+                var settingsDal = _userSettingsDB.GetDal<Setting>();
+                _userSettingsDB.BeginTransaction();
+                
+                // Save UseGemini setting
+                var useGeminiSetting = settingsDal.GetList()
+                    .FirstOrDefault(s => s.Name == "TocGeneration_UseGemini");
+                if (useGeminiSetting == null)
+                {
+                    useGeminiSetting = new Setting
+                    {
+                        Name = "TocGeneration_UseGemini",
+                        Description = "Use Gemini API for TOC generation"
+                    };
+                }
+                useGeminiSetting.ValueInt = useGemini ? 1 : 0;
+                settingsDal.Save(useGeminiSetting);
+                
+                // Save GeminiModel setting
+                if (!string.IsNullOrEmpty(geminiModel))
+                {
+                    var geminiModelSetting = settingsDal.GetList()
+                        .FirstOrDefault(s => s.Name == "TocGeneration_GeminiModel");
+                    if (geminiModelSetting == null)
+                    {
+                        geminiModelSetting = new Setting
+                        {
+                            Name = "TocGeneration_GeminiModel",
+                            Description = "Gemini model for TOC generation"
+                        };
+                    }
+                    geminiModelSetting.ValueString = geminiModel;
+                    settingsDal.Save(geminiModelSetting);
+                }
+                
+                _userSettingsDB.Commit();
+                _logger.LogInformation($"[TocGeneration] AI mode set to: {(useGemini ? $"Gemini ({geminiModel})" : "Local")}");
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "[TocGeneration] Error saving AI mode settings");
+            }
         }
     }
 }

@@ -27,11 +27,37 @@
   }
 
   .model-manager-panel {
-    flex-shrink: 0;
-    max-height: 50vh;
-    overflow-y: auto;
+    position: relative;
+    flex: 0 0 auto;
+    height: 70vh !important; // ALTEZZA FISSA con !important
+    overflow-y: auto !important; // Scroll sempre attivo
+    overflow-x: hidden;
     border-bottom: 1px solid #e0e0e0;
     background: white;
+    box-sizing: border-box; // Include padding e border nell'altezza
+    
+    &::-webkit-scrollbar {
+      width: 8px;
+      display: block !important; // Forza visualizzazione
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    app-model-manager {
+      display: block;
+      min-height: min-content; // Lascia che il contenuto determini l'altezza
+    }
   }
 
   .chat-messages {

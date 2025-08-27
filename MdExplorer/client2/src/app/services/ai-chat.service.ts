@@ -74,6 +74,13 @@ export class AiChatService {
   public gpuEnabled$ = this._gpuEnabled$.asObservable();
   
   private currentStreamingMessageId: string | null = null;
+  
+  // Gemini API state
+  private _useGemini$ = new BehaviorSubject<boolean>(false);
+  public useGemini$ = this._useGemini$.asObservable();
+  
+  private _geminiModel$ = new BehaviorSubject<string>('gemini-1.5-flash');
+  public geminiModel$ = this._geminiModel$.asObservable();
 
   constructor(private http: HttpClient) {
     this.initializeSignalR();
@@ -279,6 +286,58 @@ export class AiChatService {
 
   private generateMessageId(): string {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  
+  // Gemini API methods
+  checkGeminiConfiguration(): Observable<any> {
+    return this.http.get('/api/gemini/configured');
+  }
+  
+  getGeminiModels(): Observable<any[]> {
+    return this.http.get<any[]>('/api/gemini/models');
+  }
+  
+  testGeminiApiKey(apiKey: string): Observable<any> {
+    return this.http.post('/api/gemini/test-api-key', { apiKey });
+  }
+  
+  saveGeminiApiKey(apiKey: string): Observable<any> {
+    return this.http.post('/api/gemini/api-key', { apiKey });
+  }
+  
+  getGeminiSystemPrompt(): Observable<any> {
+    return this.http.get('/api/gemini/system-prompt');
+  }
+  
+  setGeminiSystemPrompt(systemPrompt: string): Observable<any> {
+    return this.http.post('/api/gemini/system-prompt', { systemPrompt });
+  }
+  
+  setUseGemini(useGemini: boolean, modelId: string | null): void {
+    this._useGemini$.next(useGemini);
+    if (modelId) {
+      this._geminiModel$.next(modelId);
+    }
+    
+    // Notify via SignalR
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SetChatMode', useGemini ? 'gemini' : 'local', modelId);
+    }
+  }
+  
+  notifyGeminiConnected(modelId: string): void {
+    // When Gemini is connected, we treat it as a "loaded" model
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`Gemini: ${modelId}`);
+    console.log('[AiChatService] Gemini connected:', modelId);
+  }
+  
+  notifyGeminiDisconnected(): void {
+    // When Gemini is disconnected, check if we have a local model loaded
+    // For now, we'll set to false assuming no local model
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] Gemini disconnected');
   }
 
   ngOnDestroy(): void {

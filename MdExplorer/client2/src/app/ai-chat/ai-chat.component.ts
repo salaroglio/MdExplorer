@@ -12,6 +12,7 @@ import { Router } from '@angular/router';
 export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('scrollContainer') private scrollContainer: ElementRef;
   @ViewChild('messageInput') private messageInput: ElementRef;
+  @ViewChild('modelManagerPanel') private modelManagerPanel: ElementRef;
   @Input() compactMode: boolean = false;
   
   messages: ChatMessage[] = [];
@@ -29,56 +30,6 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   ) {}
 
   ngOnInit(): void {
-    console.log('[AiChatComponent] Component initialized');
-    
-    // Log container dimensions after view is rendered
-    setTimeout(() => {
-      const container = document.querySelector('.ai-chat-container') as HTMLElement;
-      if (container) {
-        console.log('[AiChatComponent] Container dimensions:', {
-          height: container.offsetHeight,
-          width: container.offsetWidth,
-          clientHeight: container.clientHeight,
-          scrollHeight: container.scrollHeight,
-          computedStyle: window.getComputedStyle(container).height,
-          parentElement: container.parentElement?.tagName,
-          parentHeight: container.parentElement?.offsetHeight
-        });
-      }
-      
-      const inputContainer = document.querySelector('.chat-input-container') as HTMLElement;
-      if (inputContainer) {
-        console.log('[AiChatComponent] Input container:', {
-          height: inputContainer.offsetHeight,
-          offsetTop: inputContainer.offsetTop,
-          bottomPosition: inputContainer.offsetTop + inputContainer.offsetHeight,
-          visible: (inputContainer.offsetTop + inputContainer.offsetHeight) <= window.innerHeight,
-          windowHeight: window.innerHeight
-        });
-      }
-      
-      const messageInput = document.querySelector('textarea[matInput]') as HTMLElement;
-      if (messageInput) {
-        console.log('[AiChatComponent] Textarea found:', {
-          height: messageInput.offsetHeight,
-          offsetTop: messageInput.offsetTop,
-          disabled: (messageInput as HTMLTextAreaElement).disabled,
-          placeholder: (messageInput as HTMLTextAreaElement).placeholder
-        });
-      } else {
-        console.log('[AiChatComponent] WARNING: Textarea NOT found!');
-      }
-      
-      // Check parent container
-      const routerOutlet = document.querySelector('router-outlet');
-      if (routerOutlet && routerOutlet.parentElement) {
-        console.log('[AiChatComponent] Router outlet parent:', {
-          tagName: routerOutlet.parentElement.tagName,
-          className: routerOutlet.parentElement.className,
-          height: (routerOutlet.parentElement as HTMLElement).offsetHeight
-        });
-      }
-    }, 1000);
     
     // Subscribe to messages
     this.aiService.messages$
@@ -92,7 +43,6 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.aiService.isModelLoaded$
       .pipe(takeUntil(this.destroy$))
       .subscribe(loaded => {
-        console.log('[AiChatComponent] Model loaded status:', loaded);
         this.isModelLoaded = loaded;
       });
     
@@ -100,7 +50,6 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.aiService.currentModel$
       .pipe(takeUntil(this.destroy$))
       .subscribe(model => {
-        console.log('[AiChatComponent] Current model:', model);
         this.currentModel = model;
       });
   }
@@ -146,6 +95,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       // In full mode, toggle the embedded model manager
       this.showModelManager = !this.showModelManager;
     }
+  }
+  
+  onModelManagerContentChanged(): void {
+    // Event listener for content changes - currently no action needed
   }
 
   private scrollToBottom(): void {

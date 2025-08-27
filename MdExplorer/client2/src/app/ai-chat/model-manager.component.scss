@@ -1,7 +1,44 @@
+// Stile per l'host component stesso
+:host {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+}
+
+// Override quando è nel router-outlet principale (modalità standalone)
+:host-context(.router-outlet-wrapper) {
+  height: calc(100vh - 100px); // Altezza viewport meno toolbar e margini
+}
+
 .model-manager {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 0;
+  
+  .model-manager-card {
+    margin: 20px;
+    max-width: 1200px;
+    
+    mat-card-content {
+      padding: 16px;
+    }
+  }
 
   .actions-bar {
     margin-bottom: 20px;
@@ -142,6 +179,90 @@
       font-size: 18px;
       width: 18px;
       height: 18px;
+    }
+  }
+  
+  .gemini-config-card {
+    background: linear-gradient(135deg, #4285f4 0%, #ea4335 100%);
+    color: white;
+    border: 2px solid #4285f4;
+    
+    mat-card-header {
+      mat-card-title {
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        mat-icon {
+          color: white;
+        }
+      }
+      
+      mat-card-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+      }
+    }
+    
+    mat-card-content {
+      background: white;
+      color: #333;
+      padding: 20px;
+      margin: -16px -16px 0 -16px;
+      
+      h4 {
+        color: #4285f4;
+        margin: 20px 0 10px 0;
+        font-size: 1.2em;
+        font-weight: 500;
+      }
+      
+      // Ensure nested model cards display properly
+      .models-grid {
+        .model-card {
+          mat-card-header {
+            mat-card-title {
+              color: #333;
+              font-size: 1.1em;
+              font-weight: 500;
+              display: block;
+            }
+            
+            mat-card-subtitle {
+              color: #666;
+              font-size: 0.9em;
+            }
+          }
+          
+          mat-card-content {
+            padding: 16px;
+            margin: 0;
+            background: transparent;
+            
+            .model-description {
+              color: #666;
+            }
+          }
+        }
+      }
+      
+      mat-radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      mat-radio-button {
+        margin-bottom: 12px;
+      }
+      
+      a {
+        color: #4285f4;
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
     }
   }
 }

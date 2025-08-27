@@ -59,6 +59,12 @@ namespace MdExplorer.Services
         {
             return _innerService.GenerateQuickTocAsync(directoryPath, tocFilePath);
         }
+        
+        public void SetAiMode(bool useGemini, string geminiModel = null)
+        {
+            _logger.LogInformation($"[TocGenerationHubService] SetAiMode called - forwarding to inner service");
+            _innerService.SetAiMode(useGemini, geminiModel);
+        }
 
         private async void OnProgressChanged(object sender, TocGenerationProgress e)
         {

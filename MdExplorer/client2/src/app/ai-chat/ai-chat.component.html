@@ -29,8 +29,8 @@
   </mat-toolbar>
 
   <!-- Model Manager Panel -->
-  <div class="model-manager-panel" *ngIf="showModelManager">
-    <app-model-manager></app-model-manager>
+  <div class="model-manager-panel" *ngIf="showModelManager" #modelManagerPanel>
+    <app-model-manager (contentChanged)="onModelManagerContentChanged()"></app-model-manager>
   </div>
 
   <!-- Chat Messages -->

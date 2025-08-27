@@ -203,6 +203,40 @@ namespace MdExplorer.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
+        
+        [HttpPost("set-ai-mode")]
+        public IActionResult SetAiMode([FromBody] SetAiModeRequest request)
+        {
+            try
+            {
+                _logger.LogInformation($"[TocController] Setting AI mode - UseGemini: {request.UseGemini}, Model: {request.GeminiModel}");
+                
+                // Try to cast to TocGenerationHubService first (which is what's actually injected)
+                if (_tocGenerationService is Services.TocGenerationHubService hubService)
+                {
+                    _logger.LogInformation("[TocController] Calling SetAiMode on TocGenerationHubService");
+                    hubService.SetAiMode(request.UseGemini, request.GeminiModel);
+                    return Ok(new { success = true, message = $"AI mode set to {(request.UseGemini ? $"Gemini ({request.GeminiModel})" : "Local")}" });
+                }
+                // Fallback to direct TocGenerationService
+                else if (_tocGenerationService is Features.Services.TocGenerationService tocService)
+                {
+                    _logger.LogInformation("[TocController] Calling SetAiMode on TocGenerationService");
+                    tocService.SetAiMode(request.UseGemini, request.GeminiModel);
+                    return Ok(new { success = true, message = $"AI mode set to {(request.UseGemini ? $"Gemini ({request.GeminiModel})" : "Local")}" });
+                }
+                else
+                {
+                    _logger.LogWarning($"[TocController] Unable to cast service. Type is: {_tocGenerationService?.GetType()?.FullName}");
+                    return BadRequest(new { error = "Unable to set AI mode" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[TocController] Error setting AI mode: {ex.Message}", ex);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
     }
 
     public class TocGenerationRequest
@@ -213,5 +247,11 @@ namespace MdExplorer.Controllers
     public class TocRefreshRequest
     {
         public string TocFilePath { get; set; }
+    }
+    
+    public class SetAiModeRequest
+    {
+        public bool UseGemini { get; set; }
+        public string GeminiModel { get; set; }
     }
 }

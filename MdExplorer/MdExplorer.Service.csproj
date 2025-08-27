@@ -226,6 +226,7 @@
   <ItemGroup>
     <Folder Include="client2\src\app\md-explorer\services\models\" />
     <Folder Include="ElectronMdExplorer\" />
+    <Folder Include="Logs\" />
     <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 

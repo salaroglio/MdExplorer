@@ -67,6 +67,7 @@ namespace MdExplorer
             services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
             services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
             services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
+            services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
             
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();

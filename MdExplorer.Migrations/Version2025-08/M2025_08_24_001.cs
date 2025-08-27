@@ -27,7 +27,7 @@ namespace MdExplorer.Migrations.Version202508
             { 
                 Id = Guid.NewGuid(),
                 Name = "TOC_Generation_Prompt", 
-                ValueString = "Analizza questo documento markdown e genera una descrizione concisa di massimo 50 parole. Focus su: scopo principale, contenuti chiave, target audience.",
+                ValueString = "Analizza questo documento markdown e genera una descrizione dettagliata. Focus su: scopo principale, contenuti chiave, target audience, informazioni rilevanti.",
                 ValueInt = 0
             });
             

@@ -1,5 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, Output, EventEmitter } from '@angular/core';
 import { AiChatService, ModelInfo, DownloadProgress, GpuInfo } from '../services/ai-chat.service';
+import { TocGenerationService } from '../md-explorer/services/toc-generation.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -9,6 +10,8 @@ import { takeUntil } from 'rxjs/operators';
   styleUrls: ['./model-manager.component.scss']
 })
 export class ModelManagerComponent implements OnInit, OnDestroy {
+  @Output() contentChanged = new EventEmitter<void>();
+  
   availableModels: ModelInfo[] = [];
   downloadProgress: { [modelId: string]: DownloadProgress } = {};
   currentModel: string | null = null;
@@ -21,14 +24,30 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   gpuEnabled = false;
   gpuLayerCount = 0;
   
+  // Gemini API properties
+  useGemini = false;
+  geminiApiKey = '';
+  geminiModels: any[] = [];
+  selectedGeminiModel = 'gemini-1.5-flash';
+  geminiConfigured = false;
+  showGeminiConfig = false;
+  testingApiKey = false;
+  geminiSystemPrompt = '';
+  editingGeminiSystemPrompt = false;
+  
   private destroy$ = new Subject<void>();
 
-  constructor(private aiService: AiChatService) {}
+  constructor(
+    private aiService: AiChatService,
+    private tocService: TocGenerationService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadModels();
     this.loadSystemPrompt();
     this.loadGpuInfo();
+    this.checkGeminiConfiguration();
     
     // Subscribe to download progress
     this.aiService.downloadProgress$
@@ -55,11 +74,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
           this.loadGpuInfo();
         }
       });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   loadModels(): void {
@@ -125,6 +139,13 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         console.log(`[ModelManager] Model ${model.name} loaded successfully, response:`, response);
         this.loading = false;
         this.currentModelId = model.id;
+        
+        // Sync TOC generation service to use local model
+        this.tocService.setAiMode(false).subscribe({
+          next: () => console.log('[ModelManager] TOC service synced to use local model'),
+          error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
+        });
+        
         // Load system prompt if provided in response
         if (response && response.systemPrompt) {
           this.systemPrompt = response.systemPrompt;
@@ -148,7 +169,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   
   editSystemPrompt(): void {
     this.editingSystemPrompt = true;
+    this.contentChanged.emit();
   }
+  
   
   saveSystemPrompt(): void {
     if (!this.systemPrompt.trim()) {
@@ -205,6 +228,173 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     return this.currentModel === model.fileName?.replace('.gguf', '');
   }
   
+  // Gemini API methods
+  checkGeminiConfiguration(): void {
+    this.aiService.checkGeminiConfiguration().subscribe({
+      next: (response: any) => {
+        this.geminiConfigured = response.configured;
+        if (this.geminiConfigured) {
+          this.loadGeminiModels();
+          this.loadGeminiSystemPrompt();
+        }
+      },
+      error: (err) => {
+        console.error('Error checking Gemini configuration:', err);
+      }
+    });
+  }
+  
+  loadGeminiModels(): void {
+    this.aiService.getGeminiModels().subscribe({
+      next: (models) => {
+        this.geminiModels = models;
+      },
+      error: (err) => {
+        console.error('Error loading Gemini models:', err);
+      }
+    });
+  }
+  
+  loadGeminiSystemPrompt(): void {
+    this.aiService.getGeminiSystemPrompt().subscribe({
+      next: (response: any) => {
+        this.geminiSystemPrompt = response.systemPrompt;
+      },
+      error: (err) => {
+        console.error('Error loading Gemini system prompt:', err);
+      }
+    });
+  }
+  
+  toggleGeminiConfig(): void {
+    this.showGeminiConfig = !this.showGeminiConfig;
+    if (this.showGeminiConfig && this.geminiConfigured) {
+      this.loadGeminiModels();
+    }
+    this.contentChanged.emit();
+  }
+  
+  
+  testGeminiApiKey(): void {
+    if (!this.geminiApiKey.trim()) {
+      alert('Please enter an API key');
+      return;
+    }
+    
+    this.testingApiKey = true;
+    this.aiService.testGeminiApiKey(this.geminiApiKey).subscribe({
+      next: (response: any) => {
+        if (response.valid) {
+          alert('API key is valid!');
+        } else {
+          alert('Invalid API key');
+        }
+        this.testingApiKey = false;
+      },
+      error: (err) => {
+        console.error('Error testing API key:', err);
+        alert('Error testing API key');
+        this.testingApiKey = false;
+      }
+    });
+  }
+  
+  saveGeminiApiKey(): void {
+    if (!this.geminiApiKey.trim()) {
+      alert('Please enter an API key');
+      return;
+    }
+    
+    this.loading = true;
+    this.aiService.saveGeminiApiKey(this.geminiApiKey).subscribe({
+      next: () => {
+        this.geminiConfigured = true;
+        this.showGeminiConfig = false;
+        this.geminiApiKey = '';
+        this.loadGeminiModels();
+        this.loading = false;
+        alert('Gemini API key saved successfully');
+      },
+      error: (err) => {
+        console.error('Error saving API key:', err);
+        alert('Error saving API key. Please check if it is valid.');
+        this.loading = false;
+      }
+    });
+  }
+  
+  connectGeminiModel(modelId: string): void {
+    console.log('[ModelManager] Connecting to Gemini model:', modelId);
+    this.selectedGeminiModel = modelId;
+    this.useGemini = true;
+    this.aiService.setUseGemini(true, modelId);
+    
+    // Sync TOC generation service to use Gemini
+    this.tocService.setAiMode(true, modelId).subscribe({
+      next: () => console.log('[ModelManager] TOC service synced to use Gemini'),
+      error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
+    });
+    
+    // Notify that a model is now "loaded" (connected)
+    this.aiService.notifyGeminiConnected(modelId);
+    
+    alert(`Connected to Gemini model: ${this.geminiModels.find(m => m.id === modelId)?.name}`);
+  }
+  
+  disconnectGemini(): void {
+    console.log('[ModelManager] Disconnecting from Gemini');
+    this.useGemini = false;
+    this.selectedGeminiModel = null;
+    this.aiService.setUseGemini(false, null);
+    
+    // Sync TOC generation service to use local model
+    this.tocService.setAiMode(false).subscribe({
+      next: () => console.log('[ModelManager] TOC service synced to use local model'),
+      error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
+    });
+    
+    // Notify that Gemini is disconnected
+    this.aiService.notifyGeminiDisconnected();
+  }
+  
+  selectGeminiModel(modelId: string): void {
+    // This method is now replaced by connectGeminiModel
+    this.connectGeminiModel(modelId);
+  }
+  
+  disableGemini(): void {
+    // This method is now replaced by disconnectGemini
+    this.disconnectGemini();
+  }
+  
+  editGeminiSystemPrompt(): void {
+    this.editingGeminiSystemPrompt = true;
+    this.contentChanged.emit();
+  }
+  
+  saveGeminiSystemPrompt(): void {
+    if (!this.geminiSystemPrompt.trim()) {
+      alert('System prompt cannot be empty');
+      return;
+    }
+    
+    this.aiService.setGeminiSystemPrompt(this.geminiSystemPrompt).subscribe({
+      next: () => {
+        console.log('Gemini system prompt saved successfully');
+        this.editingGeminiSystemPrompt = false;
+      },
+      error: (err) => {
+        console.error('Error saving Gemini system prompt:', err);
+        alert('Failed to save system prompt');
+      }
+    });
+  }
+  
+  cancelEditGeminiSystemPrompt(): void {
+    this.editingGeminiSystemPrompt = false;
+    this.loadGeminiSystemPrompt();
+  }
+  
   loadGpuInfo(): void {
     this.aiService.getGpuInfo().subscribe({
       next: (response: any) => {
@@ -218,5 +408,10 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         console.error('Error loading GPU info:', err);
       }
     });
+  }
+  
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

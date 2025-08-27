@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Features.Services;
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,15 +12,28 @@ namespace MdExplorer.Hubs
     {
         private readonly Features.Services.IAiChatService _aiChatService;
         private readonly Features.Services.IModelDownloadService _downloadService;
+        private readonly Features.Services.IGeminiApiService _geminiService;
         private readonly ILogger<AiChatHub> _logger;
+        
+        // Static dictionary to store chat mode per connection
+        private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes = 
+            new ConcurrentDictionary<string, ChatModeInfo>();
+        
+        private class ChatModeInfo
+        {
+            public bool UseGemini { get; set; }
+            public string GeminiModel { get; set; } = "gemini-1.5-flash";
+        }
 
         public AiChatHub(
             Features.Services.IAiChatService aiChatService,
             Features.Services.IModelDownloadService downloadService,
+            Features.Services.IGeminiApiService geminiService,
             ILogger<AiChatHub> logger)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
+            _geminiService = geminiService;
             _logger = logger;
         }
 
@@ -29,18 +43,53 @@ namespace MdExplorer.Hubs
             {
                 _logger.LogInformation($"Received chat message: {message?.Substring(0, Math.Min(message?.Length ?? 0, 50))}...");
                 
-                if (!_aiChatService.IsModelLoaded())
+                // Get chat mode for this connection
+                var chatMode = GetChatMode();
+                
+                // Check if using Gemini API
+                if (chatMode.UseGemini)
                 {
-                    await Clients.Caller.SendAsync("ReceiveMessage", 
-                        "system", 
-                        "⚠️ No AI model loaded. Please download and select a model from Settings.");
-                    return;
+                    _logger.LogInformation($"[SendMessage] Using Gemini API with model: {chatMode.GeminiModel}");
+                    _logger.LogInformation($"[SendMessage] Message to send: {message}");
+                    
+                    if (!_geminiService.IsConfigured())
+                    {
+                        _logger.LogWarning("[SendMessage] Gemini API is not configured!");
+                        await Clients.Caller.SendAsync("ReceiveMessage", 
+                            "system", 
+                            "⚠️ Gemini API is not configured. Please configure it in Settings.");
+                        return;
+                    }
+                    
+                    _logger.LogInformation("[SendMessage] Starting to stream response from Gemini...");
+                    int chunkCount = 0;
+                    
+                    // Stream response from Gemini
+                    await foreach (var chunk in _geminiService.StreamChatAsync(message, chatMode.GeminiModel))
+                    {
+                        chunkCount++;
+                        _logger.LogDebug($"[SendMessage] Sending chunk #{chunkCount}: {chunk?.Substring(0, Math.Min(chunk?.Length ?? 0, 50))}...");
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                    }
+                    
+                    _logger.LogInformation($"[SendMessage] Finished streaming {chunkCount} chunks from Gemini");
                 }
-
-                // Stream the response back to the client
-                await foreach (var chunk in _aiChatService.StreamChatAsync(message))
+                else
                 {
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                    // Use local model
+                    if (!_aiChatService.IsModelLoaded())
+                    {
+                        await Clients.Caller.SendAsync("ReceiveMessage", 
+                            "system", 
+                            "⚠️ No AI model loaded. Please download and select a model from Settings.");
+                        return;
+                    }
+
+                    // Stream the response back to the client
+                    await foreach (var chunk in _aiChatService.StreamChatAsync(message))
+                    {
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                    }
                 }
                 
                 await Clients.Caller.SendAsync("StreamComplete");
@@ -54,15 +103,30 @@ namespace MdExplorer.Hubs
 
         public async Task<object> GetModelStatus()
         {
+            var chatMode = GetChatMode();
+            
+            // If using Gemini, report it as loaded
+            if (chatMode.UseGemini)
+            {
+                var availableModels = await _downloadService.GetAvailableModelsAsync();
+                return new
+                {
+                    isModelLoaded = true,
+                    currentModel = $"Gemini: {chatMode.GeminiModel}",
+                    availableModels = availableModels
+                };
+            }
+            
+            // Otherwise check local model status
             var isLoaded = _aiChatService.IsModelLoaded();
             var modelName = _aiChatService.GetCurrentModelName();
-            var availableModels = await _downloadService.GetAvailableModelsAsync();
+            var availableModels2 = await _downloadService.GetAvailableModelsAsync();
             
             return new
             {
                 isModelLoaded = isLoaded,
                 currentModel = modelName,
-                availableModels = availableModels
+                availableModels = availableModels2
             };
         }
 
@@ -127,7 +191,35 @@ namespace MdExplorer.Hubs
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             _logger.LogInformation($"Client disconnected: {Context.ConnectionId}");
+            // Clean up connection state
+            _connectionChatModes.TryRemove(Context.ConnectionId, out _);
             await base.OnDisconnectedAsync(exception);
+        }
+        
+        public Task SetChatMode(string mode, string modelId)
+        {
+            _logger.LogInformation($"[SetChatMode] Called with mode: {mode}, modelId: {modelId}, ConnectionId: {Context.ConnectionId}");
+            
+            var chatMode = GetChatMode();
+            chatMode.UseGemini = mode == "gemini";
+            if (chatMode.UseGemini && !string.IsNullOrEmpty(modelId))
+            {
+                chatMode.GeminiModel = modelId;
+            }
+            
+            _logger.LogInformation($"[SetChatMode] Connection {Context.ConnectionId} - UseGemini: {chatMode.UseGemini}, Model: {chatMode.GeminiModel}");
+            
+            // Update the stored mode
+            _connectionChatModes[Context.ConnectionId] = chatMode;
+            
+            _logger.LogInformation($"[SetChatMode] Total connections tracked: {_connectionChatModes.Count}");
+            
+            return Task.CompletedTask;
+        }
+        
+        private ChatModeInfo GetChatMode()
+        {
+            return _connectionChatModes.GetOrAdd(Context.ConnectionId, _ => new ChatModeInfo());
         }
     }
 }

@@ -1,22 +1,28 @@
-<div class="model-manager">
-  <mat-card>
+<div class="model-manager" #scrollContainer>
+  <mat-card class="model-manager-card">
     <mat-card-header>
       <mat-card-title>AI Model Manager</mat-card-title>
       <mat-card-subtitle>
         <span *ngIf="isModelLoaded && currentModel">
-          Current Model: {{ currentModel }}
-          <span *ngIf="gpuEnabled" class="gpu-indicator">
-            <mat-icon inline="true">memory</mat-icon>
-            GPU Enabled ({{ gpuLayerCount }} layers)
+          <span *ngIf="currentModel.startsWith('Gemini')">
+            <mat-icon inline="true" style="vertical-align: middle;">cloud</mat-icon>
+            Connected to: {{ currentModel }}
+          </span>
+          <span *ngIf="!currentModel.startsWith('Gemini')">
+            Local Model: {{ currentModel }}
+            <span *ngIf="gpuEnabled" class="gpu-indicator">
+              <mat-icon inline="true">memory</mat-icon>
+              GPU Enabled ({{ gpuLayerCount }} layers)
+            </span>
           </span>
         </span>
         <span *ngIf="!isModelLoaded">
-          No model loaded
+          No model connected (Local or Cloud)
         </span>
       </mat-card-subtitle>
     </mat-card-header>
     
-    <mat-card-content>
+    <mat-card-content style="overflow: visible !important;">
       <!-- GPU Information Card -->
       <mat-card *ngIf="gpuInfo" class="gpu-info-card" style="margin-bottom: 20px;">
         <mat-card-header>
@@ -66,6 +72,10 @@
           <mat-icon>edit</mat-icon>
           Configure System Prompt
         </button>
+        <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
+          <mat-icon>cloud</mat-icon>
+          {{ showGeminiConfig ? 'Hide' : 'Configure' }} Gemini API
+        </button>
       </div>
 
       <!-- System Prompt Editor -->
@@ -90,6 +100,125 @@
           <button mat-raised-button color="primary" (click)="saveSystemPrompt()">
             <mat-icon>save</mat-icon>
             Save System Prompt
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- Gemini API Configuration Card -->
+      <mat-card *ngIf="showGeminiConfig" class="gemini-config-card" style="margin: 20px 0;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>cloud</mat-icon>
+            Gemini API Configuration
+          </mat-card-title>
+          <mat-card-subtitle>
+            Configure Google Gemini API for cloud-based AI models
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!geminiConfigured">
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Gemini API Key</mat-label>
+              <input matInput type="password" [(ngModel)]="geminiApiKey" 
+                     placeholder="Enter your Gemini API key">
+              <mat-hint>Get your API key from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a></mat-hint>
+            </mat-form-field>
+            <div style="margin-top: 16px;">
+              <button mat-raised-button color="primary" (click)="saveGeminiApiKey()" 
+                      [disabled]="loading || !geminiApiKey.trim()">
+                <mat-icon>save</mat-icon>
+                Save API Key
+              </button>
+              <button mat-button (click)="testGeminiApiKey()" 
+                      [disabled]="testingApiKey || !geminiApiKey.trim()" 
+                      style="margin-left: 8px;">
+                <mat-icon>check</mat-icon>
+                Test Key
+              </button>
+            </div>
+          </div>
+          
+          <div *ngIf="geminiConfigured">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip color="primary" selected>
+                <mat-icon>check_circle</mat-icon>
+                API Key Configured
+              </mat-chip>
+            </mat-chip-list>
+            
+            <h4>Available Gemini Models:</h4>
+            <div class="models-grid">
+              <mat-card *ngFor="let model of geminiModels" class="model-card">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                  <mat-card-subtitle>
+                    Cloud Model | {{ model.inputTokenLimit / 1000 }}K input / {{ model.outputTokenLimit / 1000 }}K output
+                  </mat-card-subtitle>
+                </mat-card-header>
+                
+                <mat-card-content>
+                  <p class="model-description">{{ model.description }}</p>
+                  
+                  <mat-chip-list *ngIf="useGemini && selectedGeminiModel === model.id">
+                    <mat-chip color="accent" selected>
+                      <mat-icon>check_circle</mat-icon>
+                      Connected
+                    </mat-chip>
+                  </mat-chip-list>
+                </mat-card-content>
+                
+                <mat-card-actions>
+                  <button mat-raised-button color="primary"
+                          *ngIf="!useGemini || selectedGeminiModel !== model.id"
+                          (click)="connectGeminiModel(model.id)">
+                    <mat-icon>cloud_queue</mat-icon>
+                    Connect
+                  </button>
+                  
+                  <button mat-button
+                          *ngIf="useGemini && selectedGeminiModel === model.id"
+                          (click)="disconnectGemini()">
+                    <mat-icon>cloud_off</mat-icon>
+                    Disconnect
+                  </button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+            
+            <div style="margin-top: 16px;">
+              <button mat-raised-button color="accent" (click)="editGeminiSystemPrompt()" 
+                      [disabled]="editingGeminiSystemPrompt || !useGemini">
+                <mat-icon>edit</mat-icon>
+                Configure Gemini System Prompt
+              </button>
+            </div>
+            
+          </div>
+        </mat-card-content>
+      </mat-card>
+      
+      <!-- Gemini System Prompt Editor -->
+      <mat-card *ngIf="editingGeminiSystemPrompt && geminiConfigured" class="system-prompt-editor">
+        <mat-card-header>
+          <mat-card-title>Gemini System Prompt Configuration</mat-card-title>
+          <mat-card-subtitle>Define how Gemini AI should behave</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>System Prompt</mat-label>
+            <textarea matInput 
+                      [(ngModel)]="geminiSystemPrompt" 
+                      rows="8"
+                      placeholder="Enter the system prompt that defines Gemini's behavior...">
+            </textarea>
+            <mat-hint>This prompt will guide Gemini's responses in all conversations</mat-hint>
+          </mat-form-field>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-button (click)="cancelEditGeminiSystemPrompt()">Cancel</button>
+          <button mat-raised-button color="primary" (click)="saveGeminiSystemPrompt()">
+            <mat-icon>save</mat-icon>
+            Save Gemini System Prompt
           </button>
         </mat-card-actions>
       </mat-card>
