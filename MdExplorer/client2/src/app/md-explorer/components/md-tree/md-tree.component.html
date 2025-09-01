@@ -22,6 +22,10 @@
       <mat-icon>refresh</mat-icon>
       <span>Aggiorna Toc con AI</span>
     </button>
+    <button *ngIf="item.type==='folder' && tocFileExists(item)" mat-menu-item (click)="forceRegenerateTocDirectory(item)">
+      <mat-icon>autorenew</mat-icon>
+      <span>Rigenera Toc (sovrascrive)</span>
+    </button>
     <button *ngIf="item.type==='folder'" mat-menu-item (click)="quickTocDirectory(item)">
       <mat-icon>list</mat-icon>
       <span>Toc Rapida (senza AI)</span>

@@ -18,6 +18,9 @@
     <button mat-icon-button matTooltip="AI Assistant" (click)="openAiChat()">
       <mat-icon>smart_toy</mat-icon>
     </button>
+    <button *ngIf="isTocDirectoryFile()" mat-icon-button matTooltip="Aggiorna TOC con AI" (click)="refreshTocDirectory()">
+      <mat-icon>refresh</mat-icon>
+    </button>
     <span>{{currentMdFile?.name}}</span>
 
 

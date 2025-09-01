@@ -47,7 +47,8 @@
       "Bash(mv:*)",
       "Bash(nvm use:*)",
       "Bash(dotnet run:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(curl:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

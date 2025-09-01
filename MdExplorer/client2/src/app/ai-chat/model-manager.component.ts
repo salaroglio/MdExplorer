@@ -336,7 +336,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     });
     
     // Notify that a model is now "loaded" (connected)
+    console.log('[ModelManager] Calling notifyGeminiConnected for model:', modelId);
     this.aiService.notifyGeminiConnected(modelId);
+    console.log('[ModelManager] notifyGeminiConnected called successfully');
     
     alert(`Connected to Gemini model: ${this.geminiModels.find(m => m.id === modelId)?.name}`);
   }

@@ -24,6 +24,8 @@ import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { Subscription, forkJoin } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
+import { TocGenerationService } from '../../services/toc-generation.service';
+import { TocProgressService } from '../../services/toc-progress.service';
 import _ from 'lodash';
 
 
@@ -74,6 +76,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private waitingDialogService: WaitingDialogService,
     private bookmarksService: BookmarksService,
     private navService: MdNavigationService,
+    private tocService: TocGenerationService,
+    private tocProgressService: TocProgressService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -595,5 +599,58 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   openAiChat(): void {
     // Navigate to AI chat within the application
     this.router.navigate(['/main/navigation/ai-chat']);
+  }
+
+  isTocDirectoryFile(): boolean {
+    return this.currentMdFile?.name?.endsWith('.md.directory') || false;
+  }
+
+  refreshTocDirectory(): void {
+    if (!this.currentMdFile || !this.isTocDirectoryFile()) {
+      return;
+    }
+
+    // Get the relative path of the TOC file
+    let tocPath = this.currentMdFile.relativePath || '';
+    
+    // Remove leading backslash if present
+    if (tocPath.startsWith('\\')) {
+      tocPath = tocPath.substring(1);
+    }
+
+    // Show progress dialog
+    const directoryPath = tocPath.substring(0, tocPath.lastIndexOf('/')) || tocPath.substring(0, tocPath.lastIndexOf('\\'));
+    this.tocProgressService.showProgress(directoryPath);
+
+    this.tocService.refreshToc(tocPath).subscribe({
+      next: (result) => {
+        // Progress dialog will be closed by SignalR event
+        if (result.success) {
+          this._snackBar.open('TOC aggiornato con successo', 'OK', { 
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'bottom' 
+          });
+          // Reload the current file to show updated content
+          this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
+        } else {
+          this.tocProgressService.hideProgress();
+          this._snackBar.open('Aggiornamento TOC fallito', 'OK', { 
+            duration: 5000,
+            horizontalPosition: 'right',
+            verticalPosition: 'bottom'
+          });
+        }
+      },
+      error: (err) => {
+        console.error('Error refreshing TOC:', err);
+        this.tocProgressService.hideProgress();
+        this._snackBar.open('Errore durante aggiornamento TOC', 'OK', { 
+          duration: 5000,
+          horizontalPosition: 'right',
+          verticalPosition: 'bottom'
+        });
+      }
+    });
   }
 }

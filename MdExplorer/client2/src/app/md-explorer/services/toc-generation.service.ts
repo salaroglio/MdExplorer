@@ -30,6 +30,12 @@ export class TocGenerationService {
     });
   }
 
+  forceRegenerateToc(directoryPath: string): Observable<TocGenerationResult> {
+    return this.http.post<TocGenerationResult>(`${this.baseUrl}/force-regenerate`, {
+      directoryPath: directoryPath
+    });
+  }
+
   refreshToc(tocFilePath: string): Observable<TocGenerationResult> {
     return this.http.post<TocGenerationResult>(`${this.baseUrl}/refresh`, {
       tocFilePath: tocFilePath

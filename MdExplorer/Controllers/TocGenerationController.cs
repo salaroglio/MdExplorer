@@ -59,13 +59,17 @@ namespace MdExplorer.Controllers
                     tocFilePath, 
                     cts.Token);
 
+                // Check if file already existed (quick return from service)
+                var fileExisted = System.IO.File.Exists(tocFilePath);
+                
                 if (success)
                 {
                     return Ok(new
                     {
                         success = true,
                         tocPath = Path.Combine(request.DirectoryPath, tocFileName),
-                        message = "TOC generated successfully"
+                        message = fileExisted ? "TOC file already exists" : "TOC generated successfully",
+                        alreadyExisted = fileExisted
                     });
                 }
                 else
@@ -74,7 +78,8 @@ namespace MdExplorer.Controllers
                     {
                         success = false,
                         tocPath = Path.Combine(request.DirectoryPath, tocFileName),
-                        message = "TOC generated without AI (model not loaded or error occurred)"
+                        message = "TOC generated without AI (model not loaded or error occurred)",
+                        alreadyExisted = false
                     });
                 }
             }
@@ -200,6 +205,65 @@ namespace MdExplorer.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"[TocController] Error checking TOC status: {ex.Message}", ex);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+        
+        [HttpPost("force-regenerate")]
+        public async Task<IActionResult> ForceRegenerateToc([FromBody] TocGenerationRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.DirectoryPath))
+                {
+                    return BadRequest("Directory path is required");
+                }
+
+                // Convert relative path to absolute
+                var rootPath = _fileSystemWatcher.Path;
+                var absoluteDirectoryPath = Path.Combine(rootPath, request.DirectoryPath);
+                
+                if (!Directory.Exists(absoluteDirectoryPath))
+                {
+                    return NotFound($"Directory not found: {request.DirectoryPath}");
+                }
+
+                // Construct TOC file path
+                var directoryName = Path.GetFileName(absoluteDirectoryPath);
+                var tocFileName = $"{directoryName}.md.directory";
+                var tocFilePath = Path.Combine(absoluteDirectoryPath, tocFileName);
+
+                _logger.LogInformation($"[TocController] Force regenerating TOC for: {absoluteDirectoryPath}");
+
+                // Force regenerate TOC with AI
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                var success = await _tocGenerationService.ForceRegenerateTocAsync(
+                    absoluteDirectoryPath, 
+                    tocFilePath, 
+                    cts.Token);
+
+                if (success)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        tocPath = Path.Combine(request.DirectoryPath, tocFileName),
+                        message = "TOC force regenerated successfully"
+                    });
+                }
+                else
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        tocPath = Path.Combine(request.DirectoryPath, tocFileName),
+                        message = "TOC force regeneration failed"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[TocController] Error force regenerating TOC: {ex.Message}", ex);
                 return StatusCode(500, new { error = ex.Message });
             }
         }

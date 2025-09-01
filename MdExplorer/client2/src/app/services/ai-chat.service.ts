@@ -326,10 +326,16 @@ export class AiChatService {
   }
   
   notifyGeminiConnected(modelId: string): void {
+    console.log('[AiChatService] notifyGeminiConnected called with modelId:', modelId);
+    console.log('[AiChatService] Current isModelLoaded value before update:', this._isModelLoaded$.getValue());
+    
     // When Gemini is connected, we treat it as a "loaded" model
     this._isModelLoaded$.next(true);
     this._currentModel$.next(`Gemini: ${modelId}`);
+    
     console.log('[AiChatService] Gemini connected:', modelId);
+    console.log('[AiChatService] isModelLoaded value after update:', this._isModelLoaded$.getValue());
+    console.log('[AiChatService] currentModel value after update:', this._currentModel$.getValue());
   }
   
   notifyGeminiDisconnected(): void {

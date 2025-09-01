@@ -43,13 +43,19 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.aiService.isModelLoaded$
       .pipe(takeUntil(this.destroy$))
       .subscribe(loaded => {
+        console.log('[AiChatComponent] Model loaded status changed:', loaded);
         this.isModelLoaded = loaded;
+        // Focus input when model is loaded
+        if (loaded) {
+          this.focusInput();
+        }
       });
     
     // Subscribe to current model
     this.aiService.currentModel$
       .pipe(takeUntil(this.destroy$))
       .subscribe(model => {
+        console.log('[AiChatComponent] Current model changed:', model);
         this.currentModel = model;
       });
   }

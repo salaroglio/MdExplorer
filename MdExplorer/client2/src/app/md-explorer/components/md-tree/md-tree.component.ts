@@ -374,8 +374,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log('[MdTreeComponent] node.fullPath:', node.fullPath);
     console.log('[MdTreeComponent] node.path:', node.path);
     
-    // Start TOC generation with AI
-    this.generateTocWithAI(node, true);
+    // Check if TOC file already exists
+    if (this.tocFileExists(node)) {
+      console.log('[MdTreeComponent] TOC file exists, navigating directly');
+      this.navigateToTocFile(node);
+    } else {
+      console.log('[MdTreeComponent] TOC file does not exist, generating with AI');
+      // Start TOC generation with AI
+      this.generateTocWithAI(node, true);
+    }
   }
   
   async refreshTocDirectory(node: MdFile) {
@@ -433,6 +440,61 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
   }
+
+  async forceRegenerateTocDirectory(node: MdFile) {
+    console.log('[MdTreeComponent] forceRegenerateTocDirectory() called');
+    
+    // Show confirmation dialog
+    const confirmMessage = 'Questo sovrascriverà completamente il file TOC esistente, perdendo eventuali modifiche manuali. Continuare?';
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
+    let directoryPath = node.relativePath || node.name;
+    // Remove leading backslash if present
+    if (directoryPath.startsWith('\\')) {
+      directoryPath = directoryPath.substring(1);
+    }
+    
+    // Show progress dialog
+    this.tocProgressService.showProgress(directoryPath);
+    
+    this.tocService.forceRegenerateToc(directoryPath).subscribe({
+      next: (result) => {
+        console.log('[MdTreeComponent] Force regeneration result:', result);
+        
+        // SEMPRE chiudi il progress dialog
+        this.tocProgressService.hideProgress();
+        
+        if (result.success) {
+          this.snackBar.open('TOC rigenerato con successo', 'OK', { duration: 3000 });
+          setTimeout(() => {
+            this.navigateToTocFile(node);
+          }, 500);
+        } else {
+          this.snackBar.open(
+            result.message || 'Rigenerazione TOC fallita', 
+            'OK', 
+            { duration: 5000 }
+          );
+        }
+      },
+      error: (err) => {
+        console.error('[MdTreeComponent] Error force regenerating TOC:', err);
+        
+        // SEMPRE chiudi il progress dialog
+        this.tocProgressService.hideProgress();
+        
+        let errorMessage = 'Errore durante rigenerazione TOC';
+        if (err.error?.error) {
+          errorMessage += ': ' + err.error.error;
+        } else if (err.error?.message) {
+          errorMessage += ': ' + err.error.message;
+        }
+        this.snackBar.open(errorMessage, 'OK', { duration: 10000 });
+      }
+    });
+  }
   
   tocFileExists(node: MdFile): boolean {
     // Check if the TOC file exists in the tree
@@ -459,32 +521,49 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     
     this.tocService.generateToc(directoryPath).subscribe({
       next: (result) => {
-        // Il progress dialog verrà chiuso dall'evento SignalR TocGenerationComplete
+        console.log('[MdTreeComponent] TOC generation result:', result);
+        
+        // SEMPRE chiudi il progress dialog quando riceviamo una risposta
+        this.tocProgressService.hideProgress();
+        
         if (result.success) {
-          // Il messaggio di successo viene già mostrato dal listener SignalR
+          this.snackBar.open('TOC generato con successo', 'OK', { duration: 3000 });
+          
           if (navigateAfter) {
-            // Aspetta un attimo per permettere al dialog di chiudersi
+            // Naviga al file TOC generato
             setTimeout(() => {
               this.navigateToTocFile(node);
             }, 500);
           }
         } else {
-          this.tocProgressService.hideProgress();
           this.snackBar.open(
-            'TOC generato senza AI (modello non caricato)', 
+            result.message || 'TOC generato senza AI (modello non disponibile)', 
             'OK', 
             { duration: 5000 }
           );
           
-          if (navigateAfter) {
+          if (navigateAfter && result.tocPath) {
             this.navigateToTocFile(node);
           }
         }
       },
       error: (err) => {
-        console.error('Error generating TOC:', err);
+        console.error('[MdTreeComponent] Error generating TOC:', err);
+        
+        // SEMPRE chiudi il progress dialog in caso di errore
         this.tocProgressService.hideProgress();
-        this.snackBar.open('Errore durante generazione TOC', 'OK', { duration: 3000 });
+        
+        // Messaggio di errore dettagliato
+        let errorMessage = 'Errore durante generazione TOC';
+        if (err.error?.error) {
+          errorMessage += ': ' + err.error.error;
+        } else if (err.error?.message) {
+          errorMessage += ': ' + err.error.message;
+        } else if (err.message) {
+          errorMessage += ': ' + err.message;
+        }
+        
+        this.snackBar.open(errorMessage, 'OK', { duration: 10000 });
       }
     });
   }

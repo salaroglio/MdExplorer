@@ -28,6 +28,7 @@ namespace MdExplorer.Features.Services
     public interface ITocGenerationService
     {
         Task<bool> GenerateTocWithAIAsync(string directoryPath, string tocFilePath, CancellationToken ct = default);
+        Task<bool> ForceRegenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default);
         Task<bool> RefreshTocAsync(string tocFilePath, CancellationToken ct = default);
         Task<string> GenerateQuickTocAsync(string directoryPath, string tocFilePath);
         event EventHandler<TocGenerationProgress> ProgressChanged;
@@ -71,6 +72,17 @@ namespace MdExplorer.Features.Services
             try
             {
                 _logger.LogInformation($"[TocGeneration] Starting AI TOC generation for: {directoryPath}");
+
+                // Check if TOC file already exists
+                if (File.Exists(tocFilePath))
+                {
+                    _logger.LogInformation($"[TocGeneration] TOC file already exists at: {tocFilePath}, skipping generation");
+                    
+                    // Notify completion even when skipping generation
+                    NotifyCompletion(directoryPath);
+                    
+                    return true; // Return true since the file exists
+                }
 
                 // Check if AI is available (either local model or Gemini)
                 var isAiAvailable = await IsAiAvailableAsync();
@@ -153,6 +165,34 @@ namespace MdExplorer.Features.Services
             catch (Exception ex)
             {
                 _logger.LogError($"[TocGeneration] Error generating TOC: {ex.Message}", ex);
+                
+                // Send completion notification even on error to close the progress dialog
+                NotifyCompletion(directoryPath);
+                
+                await GenerateErrorToc(tocFilePath, ex.Message);
+                return false;
+            }
+        }
+
+        public async Task<bool> ForceRegenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
+        {
+            try
+            {
+                _logger.LogInformation($"[TocGeneration] Force regenerating TOC for: {directoryPath}");
+
+                // Delete existing file if present
+                if (File.Exists(tocFilePath))
+                {
+                    _logger.LogInformation($"[TocGeneration] Deleting existing TOC file: {tocFilePath}");
+                    File.Delete(tocFilePath);
+                }
+
+                // Now regenerate from scratch
+                return await GenerateTocWithAIInternalAsync(directoryPath, tocFilePath, ct, forceNoCache: false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[TocGeneration] Error force regenerating TOC: {ex.Message}", ex);
                 await GenerateErrorToc(tocFilePath, ex.Message);
                 return false;
             }
@@ -167,7 +207,148 @@ namespace MdExplorer.Features.Services
             }
 
             var directoryPath = Path.GetDirectoryName(tocFilePath);
-            return await GenerateTocWithAIAsync(directoryPath, tocFilePath, ct);
+            
+            // For now, still regenerate completely but preserve custom content in future
+            // TODO: Implement logic to preserve user modifications
+            _logger.LogInformation($"[TocGeneration] Refreshing TOC with AI (bypassing cache): {tocFilePath}");
+            
+            // Delete and regenerate, but force bypass cache for refresh
+            File.Delete(tocFilePath);
+            
+            // Temporarily disable cache for refresh operation
+            var originalCacheState = IsCacheEnabled();
+            if (originalCacheState)
+            {
+                _logger.LogInformation("[TocGeneration] Temporarily disabling cache for refresh operation");
+                // We need a way to disable cache temporarily
+                // For now, we'll modify the internal method to accept a cache override
+            }
+            
+            return await GenerateTocWithAIInternalAsync(directoryPath, tocFilePath, ct, forceNoCache: true);
+        }
+
+        private async Task<bool> GenerateTocWithAIInternalAsync(string directoryPath, string tocFilePath, CancellationToken ct = default, bool forceNoCache = false)
+        {
+            try
+            {
+                // Check if AI is available (either local model or Gemini)
+                var isAiAvailable = await IsAiAvailableAsync();
+                if (!isAiAvailable)
+                {
+                    _logger.LogWarning("[TocGeneration] No AI model available (neither local nor Gemini), falling back to simple TOC");
+                    await GenerateSimpleTocWithWarning(directoryPath, tocFilePath);
+                    return false;
+                }
+
+                // Get configuration - now with fresh session
+                var batchSize = GetBatchSize();
+                var enableCache = IsCacheEnabled() && !forceNoCache; // Respect forceNoCache flag
+                var prompt = GetTocPrompt();
+                
+                if (forceNoCache)
+                {
+                    _logger.LogInformation("[TocGeneration] Cache disabled for this operation (forced refresh)");
+                }
+
+                // Get all .md files (excluding .md.directory files)
+                var mdFiles = Directory.GetFiles(directoryPath, "*.md", SearchOption.TopDirectoryOnly)
+                    .Where(f => !f.EndsWith(".md.directory"))
+                    .ToList();
+
+                _logger.LogInformation($"[TocGeneration] Found {mdFiles.Count} markdown files to process");
+
+                // Initialize TOC file with header
+                await InitializeTocFile(tocFilePath, directoryPath, mdFiles.Count);
+
+                // Process files in batches
+                var tableContent = new StringBuilder();
+                tableContent.AppendLine("| Titolo | Descrizione | Link |");
+                tableContent.AppendLine("|--------|-------------|------|");
+
+                var cardsContent = new StringBuilder();
+                cardsContent.AppendLine();
+                cardsContent.AppendLine("## 📚 Dettagli Documenti");
+                cardsContent.AppendLine();
+
+                int processedCount = 0;
+                for (int i = 0; i < mdFiles.Count; i += batchSize)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        _logger.LogWarning("[TocGeneration] Cancellation requested, stopping TOC generation");
+                        break;
+                    }
+
+                    var batch = mdFiles.Skip(i).Take(batchSize).ToList();
+                    _logger.LogDebug($"[TocGeneration] Processing batch {i / batchSize + 1}: {batch.Count} files");
+
+                    foreach (var file in batch)
+                    {
+                        try
+                        {
+                            var fileName = Path.GetFileName(file);
+                            var title = GetFileTitle(file);
+                            var relativePath = GetRelativePath(directoryPath, file);
+
+                            // Get AI description
+                            var fileContent = await GetFileContentForAI(file);
+                            var filePrompt = string.Format(prompt, title, fileContent);
+                            
+                            _logger.LogInformation($"[TocGeneration] Processing file: {fileName}, cache enabled: {enableCache}, forceNoCache: {forceNoCache}");
+                            var description = await GetCachedOrGenerateDescription(file, filePrompt, enableCache);
+
+                            // Add to table
+                            tableContent.AppendLine($"| {title} | {description} | [{fileName}]({relativePath}) |");
+
+                            // Add card
+                            cardsContent.Append(GenerateFileCard(file, relativePath, description));
+
+                            processedCount++;
+
+                            // Update progress
+                            var progress = new TocGenerationProgress
+                            {
+                                Directory = directoryPath,
+                                Processed = processedCount,
+                                Total = mdFiles.Count,
+                                Status = $"Processing: {fileName}",
+                                PercentComplete = (processedCount * 100) / mdFiles.Count
+                            };
+
+                            NotifyProgress(progress);
+                        }
+                        catch (Exception fileEx)
+                        {
+                            _logger.LogError($"[TocGeneration] Error processing file {file}: {fileEx.Message}");
+                        }
+                    }
+
+                    // Small delay between batches to avoid overwhelming the AI
+                    if (i + batchSize < mdFiles.Count)
+                    {
+                        await Task.Delay(500, ct);
+                    }
+                }
+
+                // Write complete TOC file
+                await FinalizeTocFile(tocFilePath, tableContent.ToString(), cardsContent.ToString());
+
+                // Send completion notification
+                NotifyCompletion(directoryPath);
+
+                _logger.LogInformation($"[TocGeneration] TOC generation completed successfully for: {directoryPath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[TocGeneration] Error generating TOC: {ex.Message}", ex);
+                
+                // Send completion notification even on error to close the progress dialog
+                NotifyCompletion(directoryPath);
+                
+                await GenerateErrorToc(tocFilePath, ex.Message);
+                return false;
+            }
         }
 
         public async Task<string> GenerateQuickTocAsync(string directoryPath, string tocFilePath)
@@ -585,6 +766,109 @@ namespace MdExplorer.Features.Services
             return $"./{fileName}";
         }
 
+        private string GetFileTitle(string filePath)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(filePath);
+                // Look for the first H1 heading
+                foreach (var line in lines.Take(20)) // Check first 20 lines
+                {
+                    if (line.TrimStart().StartsWith("# "))
+                    {
+                        return line.TrimStart().Substring(2).Trim();
+                    }
+                }
+                // Fallback to filename without extension
+                return Path.GetFileNameWithoutExtension(filePath);
+            }
+            catch
+            {
+                return Path.GetFileNameWithoutExtension(filePath);
+            }
+        }
+
+        private async Task<string> GetFileContentForAI(string filePath)
+        {
+            try
+            {
+                var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8);
+                
+                // Use a reasonable limit for AI context (10000 chars should be enough for most docs)
+                const int maxContentLength = 10000;
+                if (content.Length > maxContentLength)
+                {
+                    // Take first part of document for context
+                    content = content.Substring(0, maxContentLength) + "\n\n[... documento troncato per lunghezza ...]";
+                }
+                
+                return content;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[TocGeneration] Error reading file {filePath}: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private async Task<string> GetCachedOrGenerateDescription(string filePath, string prompt, bool useCache)
+        {
+            try
+            {
+                string fileHash = null;
+                var fileName = Path.GetFileName(filePath);
+                
+                if (useCache)
+                {
+                    fileHash = ComputeFileHash(filePath);
+                    var cached = GetCachedDescription(filePath, fileHash);
+                    if (!string.IsNullOrEmpty(cached))
+                    {
+                        _logger.LogInformation($"[TocGeneration] Using cached description for: {fileName}");
+                        return cached;
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"[TocGeneration] No valid cache found for: {fileName}, will generate new description");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation($"[TocGeneration] Cache disabled, generating fresh description for: {fileName}");
+                }
+
+                _logger.LogInformation($"[TocGeneration] Calling AI for: {fileName}, prompt length: {prompt.Length} chars");
+                
+                // Get AI description
+                var description = await GetAiDescriptionAsync(prompt);
+                
+                _logger.LogInformation($"[TocGeneration] Received AI description for {fileName} - length: {description?.Length ?? 0} chars");
+
+                // Save to cache if enabled and description is not empty
+                if (useCache && !string.IsNullOrEmpty(fileHash) && !string.IsNullOrEmpty(description))
+                {
+                    _logger.LogInformation($"[TocGeneration] Saving description to cache for: {fileName}");
+                    SaveToCache(filePath, fileHash, description);
+                }
+                else if (string.IsNullOrEmpty(description))
+                {
+                    _logger.LogWarning($"[TocGeneration] Empty description received for {fileName}, not caching");
+                }
+
+                return description;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[TocGeneration] Error getting description for {filePath}: {ex.Message}");
+                return $"*Errore nell'analisi del file: {ex.Message}*";
+            }
+        }
+
+        private void NotifyProgress(TocGenerationProgress progress)
+        {
+            ProgressChanged?.Invoke(this, progress);
+        }
+
         private string FormatFileSize(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB" };
@@ -626,13 +910,33 @@ namespace MdExplorer.Features.Services
         {
             if (_useGemini)
             {
-                _logger.LogDebug($"[TocGeneration] Getting description from Gemini model: {_geminiModel}");
-                return await _geminiService.ChatAsync(prompt, _geminiModel);
+                _logger.LogInformation($"[TocGeneration] Getting description from Gemini model: {_geminiModel}");
+                try
+                {
+                    var result = await _geminiService.ChatAsync(prompt, _geminiModel);
+                    _logger.LogInformation($"[TocGeneration] Gemini response received, length: {result?.Length ?? 0}");
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[TocGeneration] Error calling Gemini API: {ex.Message}", ex);
+                    throw;
+                }
             }
             else
             {
-                _logger.LogDebug("[TocGeneration] Getting description from local AI model");
-                return await _aiChatService.ChatAsync(prompt);
+                _logger.LogInformation("[TocGeneration] Getting description from local AI model");
+                try
+                {
+                    var result = await _aiChatService.ChatAsync(prompt);
+                    _logger.LogInformation($"[TocGeneration] Local AI response received, length: {result?.Length ?? 0}");
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[TocGeneration] Error calling local AI: {ex.Message}", ex);
+                    throw;
+                }
             }
         }
         

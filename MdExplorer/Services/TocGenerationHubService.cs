@@ -50,6 +50,11 @@ namespace MdExplorer.Services
             return _innerService.GenerateTocWithAIAsync(directoryPath, tocFilePath, ct);
         }
 
+        public Task<bool> ForceRegenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
+        {
+            return _innerService.ForceRegenerateTocAsync(directoryPath, tocFilePath, ct);
+        }
+
         public Task<bool> RefreshTocAsync(string tocFilePath, CancellationToken ct = default)
         {
             return _innerService.RefreshTocAsync(tocFilePath, ct);
