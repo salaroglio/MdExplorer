@@ -582,6 +582,11 @@ export class MdFileService {
     return this.http.get<Drive[]>(url);
   }
 
+  getNetworkShares(): Observable<any[]> {
+    const url = '../api/mdfiles/GetNetworkShares';
+    return this.http.get<any[]>(url);
+  }
+
 
 }
 

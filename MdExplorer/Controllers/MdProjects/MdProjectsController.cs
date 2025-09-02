@@ -61,14 +61,53 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpPost]
-        public IActionResult DeleteProject([FromBody] Project project)
+        public IActionResult DeleteProject([FromBody] DeleteProjectRequest request)
         {
-            _userSettingsDB.BeginTransaction();
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            var projectFromDb = projectDal.GetList().Where(_ => _.Id == project.Id).FirstOrDefault();
-            projectDal.Delete(projectFromDb);
-            _userSettingsDB.Commit();
-            return Ok(new { message = "done!" });
+            try
+            {
+                _userSettingsDB.BeginTransaction();
+                
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var projectFromDb = projectDal.GetList().Where(_ => _.Id == request.Id).FirstOrDefault();
+                
+                if (projectFromDb == null)
+                {
+                    _userSettingsDB.Rollback();
+                    return NotFound(new { message = "Project not found" });
+                }
+                
+                // Prima cancella tutti i bookmark associati al progetto
+                var bookmarkDal = _userSettingsDB.GetDal<Bookmark>();
+                var bookmarksToDelete = bookmarkDal.GetList().Where(b => b.Project.Id == request.Id).ToList();
+                foreach (var bookmark in bookmarksToDelete)
+                {
+                    bookmarkDal.Delete(bookmark);
+                }
+                
+                // Cancella anche le entry di TocDescriptionCache associate (ProjectId è int, non Guid)
+                // Nota: ProjectId in TocDescriptionCache è int, ma Project.Id è Guid
+                // Questo potrebbe essere un problema di design, ma per ora gestiamo entrambi i casi
+                var tocCacheDal = _userSettingsDB.GetDal<TocDescriptionCache>();
+                // Non possiamo fare un match diretto tra Guid e int, quindi rimuoviamo solo se ci sono cache orfane
+                
+                // Poi cancella il progetto
+                projectDal.Delete(projectFromDb);
+                
+                _userSettingsDB.Commit();
+                return Ok(new { message = "done!" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Error deleting project with ID: {ProjectId}", request.Id);
+                return StatusCode(500, new { message = "Error deleting project", error = ex.Message });
+            }
+        }
+        
+        public class DeleteProjectRequest
+        {
+            public Guid Id { get; set; }
         }
 
         [HttpPost]

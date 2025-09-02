@@ -180,6 +180,7 @@ export class ShowFileSystemComponent implements OnInit {
   // New properties for file explorer
   specialFolders: SpecialFolder[] = [];
   drives: Drive[] = [];
+  networkShares: any[] = [];
   currentPath: string = '';
   displayPath: string = '';
   currentItems: MdFile[] = [];
@@ -258,14 +259,16 @@ export class ShowFileSystemComponent implements OnInit {
   private loadInitialData(): void {
     this.isLoading = true;
 
-    // Carica special folders e drives
+    // Carica special folders, drives e network shares
     forkJoin({
       folders: this.mdFileService.getSpecialFolders(),
-      drives: this.mdFileService.getDrives()
+      drives: this.mdFileService.getDrives(),
+      networkShares: this.mdFileService.getNetworkShares()
     }).subscribe({
-      next: ({folders, drives}) => {
+      next: ({folders, drives, networkShares}) => {
         this.specialFolders = folders;
         this.drives = drives;
+        this.networkShares = networkShares;
 
         // Naviga alla cartella iniziale
         const initialPath = this.baseStart.start === 'root' ? 'project' : this.baseStart.start;

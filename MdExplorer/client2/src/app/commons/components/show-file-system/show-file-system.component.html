@@ -74,6 +74,25 @@
           </div>
         </div>
       </div>
+      
+      <!-- Network shares section -->
+      <div class="network-section" *ngIf="networkShares && networkShares.length > 0">
+        <h3 class="section-title">Network</h3>
+        <div class="nav-items" role="navigation" aria-label="Network shares">
+          <div class="nav-item" 
+               *ngFor="let share of networkShares; trackBy: trackByPath"
+               (click)="navigateToFolder(share.path)"
+               (keydown.enter)="navigateToFolder(share.path)"
+               (keydown.space)="navigateToFolder(share.path)"
+               [class.active]="currentPath === share.path"
+               tabindex="0"
+               role="button"
+               [attr.aria-label]="'Navigate to network share ' + share.name">
+            <mat-icon class="nav-icon" aria-hidden="true">{{share.icon}}</mat-icon>
+            <span class="nav-label">{{share.name}}</span>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Colonna destra: Contenuto -->

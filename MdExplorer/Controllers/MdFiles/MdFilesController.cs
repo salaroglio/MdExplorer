@@ -818,11 +818,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             try
             {
                 var drives = DriveInfo.GetDrives()
-                    .Where(d => d.IsReady && d.DriveType == DriveType.Fixed)
+                    .Where(d => d.IsReady && (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Network))
                     .Select(d => new {
                         name = d.Name.TrimEnd(Path.DirectorySeparatorChar),
                         path = d.RootDirectory.FullName,
-                        icon = "storage",
+                        icon = d.DriveType == DriveType.Network ? "lan" : "storage",
                         label = string.IsNullOrEmpty(d.VolumeLabel) ? d.Name : d.VolumeLabel,
                         totalSize = d.TotalSize,
                         freeSpace = d.AvailableFreeSpace,
@@ -833,6 +833,114 @@ namespace MdExplorer.Service.Controllers.MdFiles
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting drives");
+                return Ok(new object[0]); // Return empty array on error
+            }
+        }
+
+        [HttpGet]
+        public IActionResult GetNetworkShares()
+        {
+            try
+            {
+                var networkShares = new List<object>();
+                
+                // Get all network drives (mapped drives on Windows)
+                var networkDrives = DriveInfo.GetDrives()
+                    .Where(d => d.DriveType == DriveType.Network && d.IsReady);
+                
+                foreach (var drive in networkDrives)
+                {
+                    try
+                    {
+                        // Get the UNC path for mapped drives if possible
+                        var driveLetter = drive.Name.TrimEnd(Path.DirectorySeparatorChar);
+                        
+                        networkShares.Add(new
+                        {
+                            name = string.IsNullOrEmpty(drive.VolumeLabel) ? driveLetter : $"{drive.VolumeLabel} ({driveLetter})",
+                            path = drive.RootDirectory.FullName,
+                            icon = "folder_shared",
+                            isNetworkDrive = true,
+                            driveLetter = driveLetter
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Could not access network drive {drive.Name}");
+                    }
+                }
+                
+                // Check for Linux mount points (typically in /mnt or /media)
+                if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux) ||
+                    System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
+                {
+                    // Check common mount directories
+                    var mountDirs = new[] { "/mnt", "/media", "/Volumes" }; // /Volumes for macOS
+                    
+                    foreach (var mountDir in mountDirs)
+                    {
+                        if (Directory.Exists(mountDir))
+                        {
+                            try
+                            {
+                                var subdirs = Directory.GetDirectories(mountDir);
+                                foreach (var dir in subdirs)
+                                {
+                                    var dirInfo = new DirectoryInfo(dir);
+                                    // Add mounted directories as network shares
+                                    // Typically network mounts on Linux are in /mnt or /media
+                                    networkShares.Add(new
+                                    {
+                                        name = $"{dirInfo.Name} (mount)",
+                                        path = dir,
+                                        icon = "folder_shared",
+                                        isNetworkDrive = true,
+                                        mountPoint = mountDir
+                                    });
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, $"Could not access mount directory {mountDir}");
+                            }
+                        }
+                    }
+                }
+                // Also check for /mnt on Windows (WSL scenarios)
+                else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+                {
+                    // Check if /mnt exists (could be WSL)
+                    var wslMountPath = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory), "mnt");
+                    if (Directory.Exists(wslMountPath))
+                    {
+                        try
+                        {
+                            var subdirs = Directory.GetDirectories(wslMountPath);
+                            foreach (var dir in subdirs)
+                            {
+                                var dirInfo = new DirectoryInfo(dir);
+                                networkShares.Add(new
+                                {
+                                    name = $"{dirInfo.Name} (WSL mount)",
+                                    path = dir,
+                                    icon = "folder_shared",
+                                    isNetworkDrive = true,
+                                    isWslMount = true
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Could not access WSL mount directory");
+                        }
+                    }
+                }
+                
+                return Ok(networkShares);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting network shares");
                 return Ok(new object[0]); // Return empty array on error
             }
         }
