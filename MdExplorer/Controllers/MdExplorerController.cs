@@ -33,6 +33,7 @@ using Microsoft.AspNetCore.Http;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Entities.EngineDB;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MdExplorer.Controllers
 {
@@ -390,11 +391,34 @@ namespace MdExplorer.Controllers
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
-            // Escludi i file .md.directory dal controllo della Rule #1
-            _logger.LogInformation($"🔍 [MdExplorer] Checking Rule #1 for file: {fullPathFile}");
-            _logger.LogInformation($"🔍 [MdExplorer] Is .md.directory file: {fullPathFile.EndsWith(".md.directory")}");
-            
-            if (!fullPathFile.EndsWith(".md.directory"))
+            // Check if Rule #1 is enabled for current project
+            var isRule1Enabled = false;
+            try
+            {
+                // Check if Rule #1 is enabled in project settings (stored in ProjectDB)
+                // Get IProjectDB from services
+                var projectDB = HttpContext.RequestServices.GetService<IProjectDB>();
+                if (projectDB != null)
+                {
+                    var projectSettingsDal = projectDB.GetDal<MdExplorer.Abstractions.Entities.ProjectDB.ProjectSetting>();
+                    var rule1Setting = projectSettingsDal.GetList()
+                        .FirstOrDefault(s => s.Name == "Rule1_CheckH1MatchesFilename");
+                    
+                    isRule1Enabled = rule1Setting?.ValueBool ?? false;
+                    _logger.LogInformation($"🔍 [MdExplorer] Rule #1 enabled: {isRule1Enabled}");
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ [MdExplorer] ProjectDB not available");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking Rule #1 setting");
+            }
+
+            // Apply Rule #1 only if enabled and not a .md.directory file
+            if (isRule1Enabled && !fullPathFile.EndsWith(".md.directory"))
             {
                 _logger.LogInformation($"✅ [MdExplorer] Applying Rule #1 check to: {fullPathFile}");
                 var goodMdRuleFileNameShouldBeSameAsTitle =
@@ -407,8 +431,7 @@ namespace MdExplorer.Controllers
                     Name = Path.GetFileName(fullPathFile),
                     DataText = readText
                 };
-                //bool isBroken;
-                //string theNameShouldBe;
+                
                 (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
                 if (isBroken)
                 {
@@ -420,7 +443,11 @@ namespace MdExplorer.Controllers
                     await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd);
                 }
             }
-            else
+            else if (!isRule1Enabled)
+            {
+                _logger.LogInformation($"⏭️ [MdExplorer] Rule #1 is disabled for this project");
+            }
+            else if (fullPathFile.EndsWith(".md.directory"))
             {
                 _logger.LogInformation($"⏭️ [MdExplorer] Skipping Rule #1 check for .md.directory file: {fullPathFile}");
             }

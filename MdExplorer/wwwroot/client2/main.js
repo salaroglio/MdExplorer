@@ -2475,8 +2475,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.09.02.1',
-    buildTime: '2025.09.02 08:26:23'
+    version: '2025.09.02.3',
+    buildTime: '2025.09.02 09:36:19'
 };
 
 
@@ -2519,10 +2519,6 @@ class ProjectsService {
         }, error => {
             console.log(error);
         });
-    }
-    setNewFolderProjectQuickNotes(path) {
-        const url = '../api/MdProjects/SetFolderProjectQuickNotes';
-        return this.http.post(url, { path: path });
     }
     SetSideNavWidth(mdProject) {
         return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {

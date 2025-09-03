@@ -48,7 +48,8 @@
       "Bash(nvm use:*)",
       "Bash(dotnet run:*)",
       "WebSearch",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(del \"C:\\sviluppo\\mdExplorer\\MdExplorer.Abstractions\\Entities\\UserDB\\ProjectSetting.cs\")"
     ]
   },
   "enableAllProjectMcpServers": true,

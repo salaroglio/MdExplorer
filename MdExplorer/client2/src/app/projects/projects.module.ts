@@ -4,10 +4,12 @@ import { OpenRecentComponent } from './open-recent/open-recent.component';
 import { ProjectsComponent } from './projects.component';
 import { NewProjectComponent } from './new-project/new-project.component';
 import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
+import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms'
 import { GitModule } from '../git/git.module';
+import { ProjectSettingsService } from './services/project-settings.service';
 
 const routes: Routes = [
   {
@@ -26,7 +28,7 @@ const routes: Routes = [
     ProjectsComponent,
     NewProjectComponent,
     CloneProjectComponent,
-   
+    ProjectSettingsComponent
   ],
   imports: [
     RouterModule.forChild(routes),
@@ -34,6 +36,9 @@ const routes: Routes = [
     MaterialModule,
     FormsModule,
     GitModule,
+  ],
+  providers: [
+    ProjectSettingsService
   ]
 })
 export class ProjectsModule {

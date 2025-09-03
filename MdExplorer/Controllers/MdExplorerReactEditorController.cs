@@ -31,6 +31,7 @@ using MdExplorer.Features.Yaml.Interfaces;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.AspNetCore.Http;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using System.Collections.Generic;
@@ -287,28 +288,68 @@ namespace MdExplorer.Controllers
             // by preserving them as code blocks, not converting them to images/links.
             //readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo); // Decommentare se necessario
 
-            var goodMdRuleFileNameShouldBeSameAsTitle =
-                    _goodRules.First(_ => _.GetType() ==
-                        typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
-
-            var fileNode = new FileInfoNode
+            // Check if Rule #1 is enabled for current project
+            var isRule1Enabled = false;
+            try
             {
-                FullPath = fullPathFile,
-                Name = Path.GetFileName(fullPathFile),
-                DataText = readText
-            };
-
-            (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
-            if (isBroken)
+                // Check if Rule #1 is enabled in project settings (stored in ProjectDB)
+                // Get IProjectDB from services
+                var projectDB = HttpContext.RequestServices.GetService<IProjectDB>();
+                if (projectDB != null)
+                {
+                    var projectSettingsDal = projectDB.GetDal<MdExplorer.Abstractions.Entities.ProjectDB.ProjectSetting>();
+                    var rule1Setting = projectSettingsDal.GetList()
+                        .FirstOrDefault(s => s.Name == "Rule1_CheckH1MatchesFilename");
+                    
+                    isRule1Enabled = rule1Setting?.ValueBool ?? false;
+                    _logger.LogInformation($"🔍 [ReactEditor] Rule #1 enabled: {isRule1Enabled}");
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ [ReactEditor] ProjectDB not available");
+                }
+            }
+            catch (Exception ex)
             {
-                // SignalR notification removed. Log or handle internally if needed.
-                // monitoredMd.Message = "It breaks Rule # 1";
-                // monitoredMd.Action = "Rename the File!";
-                // monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
-                // monitoredMd.ToFileName = theNameShouldBe;
-                // monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
-                // await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd); // Removed
-                _logger.LogWarning($"File '{fullPathFile}' breaks rule 'FileNameShouldBeSameAsTitle'. Suggested name: '{theNameShouldBe}'");
+                _logger.LogError(ex, "Error checking Rule #1 setting");
+            }
+
+            // Apply Rule #1 only if enabled and not a .md.directory file
+            if (isRule1Enabled && !fullPathFile.EndsWith(".md.directory"))
+            {
+                _logger.LogInformation($"✅ [ReactEditor] Applying Rule #1 check to: {fullPathFile}");
+                
+                var goodMdRuleFileNameShouldBeSameAsTitle =
+                        _goodRules.First(_ => _.GetType() ==
+                            typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
+
+                var fileNode = new FileInfoNode
+                {
+                    FullPath = fullPathFile,
+                    Name = Path.GetFileName(fullPathFile),
+                    DataText = readText
+                };
+
+                (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
+                if (isBroken)
+                {
+                    // SignalR notification removed. Log or handle internally if needed.
+                    // monitoredMd.Message = "It breaks Rule # 1";
+                    // monitoredMd.Action = "Rename the File!";
+                    // monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
+                    // monitoredMd.ToFileName = theNameShouldBe;
+                    // monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
+                    // await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd); // Removed
+                    _logger.LogWarning($"File '{fullPathFile}' breaks rule 'FileNameShouldBeSameAsTitle'. Suggested name: '{theNameShouldBe}'");
+                }
+            }
+            else if (!isRule1Enabled)
+            {
+                _logger.LogInformation($"⏭️ [ReactEditor] Rule #1 is disabled for this project");
+            }
+            else if (fullPathFile.EndsWith(".md.directory"))
+            {
+                _logger.LogInformation($"⏭️ [ReactEditor] Skipping Rule #1 check for .md.directory file: {fullPathFile}");
             }
 
             // HTML Pipeline, HTML Conversion, Post-HTML Conversion, and UI Element creation removed.

@@ -1,0 +1,52 @@
+<h2 mat-dialog-title>Project Settings - {{projectName}}</h2>
+
+<mat-dialog-content>
+  <div class="settings-container">
+    
+    <mat-card class="settings-section">
+      <mat-card-header>
+        <mat-card-title>Validation Rules</mat-card-title>
+      </mat-card-header>
+      
+      <mat-card-content>
+        <div class="setting-item" *ngIf="!loading">
+          <mat-checkbox 
+            [(ngModel)]="rule1Enabled" 
+            (change)="onRule1Change()"
+            [disabled]="saving">
+            <span class="setting-label">Rule #1: Check H1 matches filename</span>
+          </mat-checkbox>
+          <p class="setting-description">
+            When enabled, verifies that the H1 heading in each Markdown file matches the filename.
+            This helps maintain consistency between file names and document titles.
+          </p>
+        </div>
+
+        <div *ngIf="loading" class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Loading settings...</span>
+        </div>
+
+        <div *ngIf="saving" class="saving-indicator">
+          <mat-spinner diameter="20"></mat-spinner>
+          <span>Saving...</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="settings-section info-card">
+      <mat-card-content>
+        <mat-icon>info</mat-icon>
+        <p>
+          These settings are specific to this project and will be saved in the database.
+          Changes take effect immediately.
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Close</button>
+</mat-dialog-actions>

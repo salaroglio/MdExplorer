@@ -16,10 +16,12 @@ namespace MdExplorer.DataAccess.Project.Mapping
             Table("ProjectSetting");
             Id(_ => _.Id).GeneratedBy.GuidComb();
             Map(_ => _.Name).Not.Nullable();
+            Map(_ => _.Description).Nullable();
+            Map(_ => _.ValueString).Nullable();
+            Map(_ => _.ValueBool).Nullable();
+            Map(_ => _.ValueInt).Nullable();
             Map(_ => _.ValueDateTime).Nullable();
             Map(_ => _.ValueDecimal).Nullable();
-            Map(_ => _.ValueInt).Nullable();
-            Map(_ => _.ValueString).Nullable();
             HasMany(_ => _.LandingPages).Cascade.All();
         }
     }

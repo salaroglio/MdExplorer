@@ -36,11 +36,6 @@ export class ProjectsService {
       });
   }
 
-  setNewFolderProjectQuickNotes(path: string):Observable<any> {
-    const url = '../api/MdProjects/SetFolderProjectQuickNotes';
-    return this.http.post<any>(url, { path: path });    
-  }
-
   async SetSideNavWidth(mdProject: MdProject) {
     const url = '../api/MdProjects/SetSideNavWidth';
     await this.http.post<any>(url, mdProject).toPromise();
