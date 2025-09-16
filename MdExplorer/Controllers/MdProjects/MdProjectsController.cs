@@ -142,8 +142,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 projectDal.Save(project);
                 _userSettingsDB.Commit();
                 
-                // Configura i database per il nuovo progetto
-                ProjectsManager.SetNewProject(_services, folderPath.Path);
+                // Configura i database per il nuovo progetto e inizializza Git
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, folderPath.Path);
                 
                 // Riabilita il FileSystemWatcher se era abilitato prima
                 if (wasEnabled)
@@ -152,7 +152,19 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {folderPath.Path}");
                 }
                 
-                return Ok(new { id = project.Id, name = project.Name, path = project.Path, sidenavWidth= project.SidenavWidth });
+                // Log Git initialization status
+                if (gitInitialized)
+                {
+                    logger?.LogInformation($"✅ Git repository initialized for project: {folderPath.Path}");
+                }
+                
+                return Ok(new { 
+                    id = project.Id, 
+                    name = project.Name, 
+                    path = project.Path, 
+                    sidenavWidth = project.SidenavWidth,
+                    gitInitialized = gitInitialized
+                });
             }
             catch (Exception ex)
             {

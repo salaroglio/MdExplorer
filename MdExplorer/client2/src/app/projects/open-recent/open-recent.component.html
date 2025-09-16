@@ -5,9 +5,9 @@
   <mat-card-subtitle>{{element.path}}</mat-card-subtitle>
   <mat-card-actions>
     <button mat-stroked-button color="primary" (click)="openNewProject(element.path)">Open</button>
+    <button mat-raised-button color="warn" (click)="deleteProject(element)"><mat-icon>delete</mat-icon></button>
     <button mat-icon-button matTooltip="Project Settings" (click)="openProjectSettings(element)">
       <mat-icon>settings</mat-icon>
     </button>
-    <button mat-raised-button color="warn" (click)="deleteProject(element)"><mat-icon>delete</mat-icon></button>
   </mat-card-actions>
 </mat-card>

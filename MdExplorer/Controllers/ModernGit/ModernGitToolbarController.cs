@@ -401,8 +401,8 @@ namespace MdExplorer.Controllers.ModernGit
                 {
                     Name = branchInfo.Name,
                     FullPath = projectPath,
-                    SomethingIsChangedInTheBranch = status?.HasChanges ?? false,
-                    HowManyFilesAreChanged = (status?.Modified?.Count() ?? 0) + (status?.Added?.Count() ?? 0) + (status?.Removed?.Count() ?? 0),
+                    SomethingIsChangedInTheBranch = status?.IsDirty ?? false,
+                    HowManyFilesAreChanged = (status?.Modified?.Count() ?? 0) + (status?.Added?.Count() ?? 0) + (status?.Removed?.Count() ?? 0) + (status?.Untracked?.Count() ?? 0),
                     HowManyCommitAreToPush = status?.CommitsAhead ?? 0
                 };
 

@@ -2,6 +2,7 @@
 using Ad.Tools.Dal.Concrete;
 using Ad.Tools.FluentMigrator.Interfaces;
 using FluentMigrator.Runner;
+using LibGit2Sharp;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
@@ -29,9 +30,13 @@ namespace MdExplorer.Service
 {
     public class ProjectsManager
     {
-        public static void SetNewProject(IServiceProvider serviceProvider, string pathFromParameter)
+        public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter)
         {
             ConfigTemplates(pathFromParameter, null);
+            
+            // Initialize Git repository if not already present
+            bool gitInitialized = InitializeGitRepository(pathFromParameter);
+            
             var appdata = CrossPlatformPath.GetAppDataPath();
             var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = pathFromParameter;
@@ -52,6 +57,7 @@ namespace MdExplorer.Service
                                    databasePathProject);
 
             // Migration complete
+            return gitInitialized;
         }
 
         /// <summary>
@@ -282,6 +288,69 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 Console.WriteLine($"Error copying configuration files: {ex.Message}");
                 // Non-critical error, continue without the files
+            }
+        }
+
+        /// <summary>
+        /// Initializes a Git repository in the project folder if not already present
+        /// </summary>
+        /// <param name="projectPath">Path to the project folder</param>
+        /// <returns>True if Git was initialized, false if it already existed</returns>
+        public static bool InitializeGitRepository(string projectPath)
+        {
+            try
+            {
+                var gitPath = Path.Combine(projectPath, ".git");
+                
+                // Check if Git repository already exists
+                if (Directory.Exists(gitPath))
+                {
+                    Console.WriteLine($"Git repository already exists at: {projectPath}");
+                    return false;
+                }
+
+                // Initialize Git repository
+                Repository.Init(projectPath);
+                Console.WriteLine($"Git repository initialized at: {projectPath}");
+
+                // Create .gitignore file with MdExplorer specific patterns
+                var gitignorePath = Path.Combine(projectPath, ".gitignore");
+                if (!File.Exists(gitignorePath))
+                {
+                    var gitignoreContent = new StringBuilder();
+                    gitignoreContent.AppendLine("# MdExplorer specific files and folders");
+                    gitignoreContent.AppendLine(".md/");
+                    gitignoreContent.AppendLine("mdPublish/");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# Database files");
+                    gitignoreContent.AppendLine("*.db");
+                    gitignoreContent.AppendLine("*.db-shm");
+                    gitignoreContent.AppendLine("*.db-wal");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# Temporary files");
+                    gitignoreContent.AppendLine("*.tmp");
+                    gitignoreContent.AppendLine("*.temp");
+                    gitignoreContent.AppendLine("~*");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# Log files");
+                    gitignoreContent.AppendLine("*.log");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# OS specific files");
+                    gitignoreContent.AppendLine(".DS_Store");
+                    gitignoreContent.AppendLine("Thumbs.db");
+                    gitignoreContent.AppendLine("desktop.ini");
+
+                    File.WriteAllText(gitignorePath, gitignoreContent.ToString());
+                    Console.WriteLine($"Created .gitignore file at: {gitignorePath}");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing Git repository: {ex.Message}");
+                // Non-critical error, project can continue without Git
+                return false;
             }
         }
     }

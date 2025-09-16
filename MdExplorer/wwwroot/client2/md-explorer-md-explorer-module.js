@@ -3101,7 +3101,10 @@ class ToolbarComponent {
         // Ask user for commit message using Material Dialog
         const dialogRef = this.dialog.open(_git_dialogs_commit_message_dialog_commit_message_dialog_component__WEBPACK_IMPORTED_MODULE_6__["CommitMessageDialogComponent"], {
             width: '500px',
-            data: { defaultMessage: 'Update from MdExplorer' }
+            data: {
+                defaultMessage: 'Update from MdExplorer',
+                projectPath: projectPath
+            }
         });
         dialogRef.afterClosed().subscribe(commitMessage => {
             if (commitMessage === null || commitMessage === undefined) {
@@ -23257,6 +23260,12 @@ class AiChatService {
         this._isModelLoaded$.next(false);
         this._currentModel$.next(null);
         console.log('[AiChatService] Gemini disconnected');
+    }
+    generateCommitMessage(projectPath) {
+        return this.http.post('/api/GitAi/generate-commit-message', { projectPath });
+    }
+    getGitAiStatus() {
+        return this.http.get('/api/GitAi/ai-status');
     }
     ngOnDestroy() {
         if (this.hubConnection) {

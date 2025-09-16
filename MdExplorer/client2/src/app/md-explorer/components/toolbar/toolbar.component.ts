@@ -425,7 +425,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // Ask user for commit message using Material Dialog
     const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
       width: '500px',
-      data: { defaultMessage: 'Update from MdExplorer' }
+      data: { 
+        defaultMessage: 'Update from MdExplorer',
+        projectPath: projectPath
+      }
     });
 
     dialogRef.afterClosed().subscribe(commitMessage => {

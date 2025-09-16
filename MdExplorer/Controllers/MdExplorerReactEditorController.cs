@@ -216,6 +216,9 @@ namespace MdExplorer.Controllers
                     filePathToAccessOnServer,  // Pass the absolute path
                     monitoredMd);
 
+                // Sanitizza il markdown per rimuovere tag HTML problematici per Milkdown
+                processedMarkdownText = SanitizeMarkdownForMilkdown(processedMarkdownText);
+
                 _logger.LogInformation($"Serving markdown file: {filePathToAccessOnServer}");
                 return Content(processedMarkdownText, "text/plain; charset=utf-8");
             }
@@ -370,6 +373,28 @@ namespace MdExplorer.Controllers
         {
             public string FilePath { get; set; }
             public string MarkdownContent { get; set; }
+        }
+
+        /// <summary>
+        /// Sanitizza il markdown per rimuovere tag HTML che causano problemi con Milkdown editor
+        /// </summary>
+        private string SanitizeMarkdownForMilkdown(string markdown)
+        {
+            if (string.IsNullOrEmpty(markdown))
+                return markdown;
+
+            // Pattern 1: Rimuove <br /> isolati su una riga vuota
+            markdown = Regex.Replace(markdown, @"^\s*<br\s*/?\s*>\s*$", "", RegexOptions.Multiline);
+            
+            // Pattern 2: Rimuove <br /> alla fine di list items
+            markdown = Regex.Replace(markdown, @"^(\s*[-*+]\s+.*?)<br\s*/?\s*>$", "$1", RegexOptions.Multiline);
+            
+            // Pattern 3: Sostituisce <br /> nel mezzo del testo con doppio spazio + newline (markdown break)
+            markdown = Regex.Replace(markdown, @"<br\s*/?\s*>", "  \n", RegexOptions.IgnoreCase);
+
+            _logger.LogDebug("Markdown sanitizzato per compatibilità con Milkdown editor");
+            
+            return markdown;
         }
 
         [HttpPost("UpdateMarkdown")]

@@ -346,6 +346,14 @@ export class AiChatService {
     console.log('[AiChatService] Gemini disconnected');
   }
 
+  generateCommitMessage(projectPath: string): Observable<any> {
+    return this.http.post('/api/GitAi/generate-commit-message', { projectPath });
+  }
+  
+  getGitAiStatus(): Observable<any> {
+    return this.http.get('/api/GitAi/ai-status');
+  }
+
   ngOnDestroy(): void {
     if (this.hubConnection) {
       this.hubConnection.stop();

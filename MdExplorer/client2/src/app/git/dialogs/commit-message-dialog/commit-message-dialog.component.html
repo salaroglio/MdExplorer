@@ -8,10 +8,32 @@
       rows="4"
       placeholder="Describe your changes..."
       cdkFocusInitial
+      [disabled]="isGeneratingMessage"
       (keydown.enter)="$event.ctrlKey && onConfirm()">
     </textarea>
     <mat-hint>Press Ctrl+Enter to commit</mat-hint>
   </mat-form-field>
+  
+  <div style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
+    <button 
+      mat-stroked-button 
+      color="accent"
+      (click)="generateWithAi()"
+      [disabled]="isGeneratingMessage">
+      <mat-icon style="margin-right: 4px;">smart_toy</mat-icon>
+      {{ isGeneratingMessage ? 'Generazione in corso...' : 'Genera con AI' }}
+    </button>
+    <mat-spinner 
+      *ngIf="isGeneratingMessage" 
+      diameter="20" 
+      strokeWidth="2">
+    </mat-spinner>
+  </div>
+  
+  <div *ngIf="aiError" style="margin-top: 8px; color: #f44336; font-size: 12px;">
+    <mat-icon style="font-size: 16px; vertical-align: middle;">warning</mat-icon>
+    {{ aiError }}
+  </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button (click)="onCancel()">Cancel</button>
@@ -19,7 +41,7 @@
     mat-raised-button 
     color="primary" 
     (click)="onConfirm()"
-    [disabled]="!commitMessage || !commitMessage.trim()">
+    [disabled]="!commitMessage || !commitMessage.trim() || isGeneratingMessage">
     Commit
   </button>
 </mat-dialog-actions>
