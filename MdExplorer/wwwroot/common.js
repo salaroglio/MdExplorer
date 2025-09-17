@@ -10,6 +10,7 @@ document.write("<script src='/prismjs/prism-csharp.min.js'></script>");
 document.write("<script src='/prismjs/prism-javascript.min.js'></script>");
 document.write("<script src='/prismjs/prism-python.min.js'></script>");
 document.write("<script src='/prismjs/prism-sql.min.js'></script>");
+document.write("<script src='/mermaid/mermaid.min.js'></script>");
 document.write("<script src='/javascripts/jqueryForFirstPage.js'></script>");
 document.write("<script src='/TocBot/tocbot.min.js'></script>");
 document.write("<script src='/jspreadsheet_ce/jsuites.js'></script>");
