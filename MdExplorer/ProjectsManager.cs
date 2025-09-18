@@ -172,8 +172,6 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
         public static void ConfigTemplates(string mdPath, IServiceCollection services = null)
         {
-            var publishFolder = $"{mdPath}{Path.DirectorySeparatorChar}mdPublish";
-            Directory.CreateDirectory(publishFolder);
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
             var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
@@ -320,7 +318,6 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     var gitignoreContent = new StringBuilder();
                     gitignoreContent.AppendLine("# MdExplorer specific files and folders");
                     gitignoreContent.AppendLine(".md/");
-                    gitignoreContent.AppendLine("mdPublish/");
                     gitignoreContent.AppendLine("");
                     gitignoreContent.AppendLine("# Database files");
                     gitignoreContent.AppendLine("*.db");

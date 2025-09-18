@@ -60,7 +60,7 @@ const createWindow = async () => {
     width: 1024,
     height: 768,
     frame: false, // Remove native title bar
-    icon: path.join(__dirname, 'assets/icons/IconReady.png'), // Ensure this icon exists in assets/icons/
+    icon: path.join(__dirname, 'mdExplorer.png'), // MdExplorer custom icon
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false, // Security best practice
