@@ -18,6 +18,8 @@ import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dia
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
+import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
+import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
@@ -567,6 +569,53 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.projectService.setNewFolderProject(_.fullPath);
 
     });
+    this.matMenuTrigger.closeMenu();
+  }
+
+  openHistory(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const currentProject = this.projectService.currentProjects$.value;
+    const projectName = currentProject?.name || 'Current Project';
+
+    const dialogRef = this.dialog.open(GitHistoryDialogComponent, {
+      width: '900px',
+      height: '700px',
+      data: {
+        projectPath: projectPath,
+        projectName: projectName
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      // Handle any result if needed
+      console.log('History dialog closed');
+    });
+
+    this.matMenuTrigger.closeMenu();
+  }
+
+  openBranchDialog(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const currentProject = this.projectService.currentProjects$.value;
+    const projectName = currentProject?.name || 'Current Project';
+
+    const dialogRef = this.dialog.open(GitBranchDialogComponent, {
+      width: '600px',
+      data: {
+        projectPath: projectPath,
+        projectName: projectName
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      // Handle any result if needed
+      console.log('Branch dialog closed');
+    });
+
     this.matMenuTrigger.closeMenu();
   }
 

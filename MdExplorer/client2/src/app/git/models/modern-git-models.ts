@@ -51,6 +51,31 @@ export interface ModernBranchStatusResponse {
   fullPath: string;
 }
 
+// Git History Models
+export interface GitCommitInfo {
+  hash: string;
+  shortHash?: string;
+  author: string;
+  email: string;
+  message: string;
+  date: Date | string;
+  branch: string;
+  parents: string[];
+  isMerge?: boolean;
+}
+
+export interface GitHistoryRequest {
+  repositoryPath: string;
+  maxCommits?: number;
+}
+
+export interface GitHistoryResponse {
+  success: boolean;
+  commits: GitCommitInfo[];
+  count: number;
+  error?: string;
+}
+
 // Legacy response compatibility adapter
 export interface ModernResponsePull {
   isConnectionMissing: boolean;

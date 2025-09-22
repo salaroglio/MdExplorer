@@ -87,4 +87,16 @@ namespace MdExplorer.Controllers.ModernGit
         [StringLength(100, ErrorMessage = "Remote name cannot exceed 100 characters")]
         public string RemoteName { get; set; } = "origin";
     }
+
+    /// <summary>
+    /// Request model for commit history operations
+    /// </summary>
+    public class HistoryRequest : GitOperationRequest
+    {
+        /// <summary>
+        /// Maximum number of commits to retrieve (default: 50)
+        /// </summary>
+        [Range(1, 500, ErrorMessage = "Max commits must be between 1 and 500")]
+        public int? MaxCommits { get; set; } = 50;
+    }
 }

@@ -8,13 +8,16 @@ import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
 import { ITag } from '../models/Tag';
 import { ResposneClone } from './responses/ResponseClone';
-import { 
-  ModernGitRequest, 
-  ModernGitResponse, 
-  ModernPullResponse, 
-  ModernCommitResponse, 
+import {
+  ModernGitRequest,
+  ModernGitResponse,
+  ModernPullResponse,
+  ModernCommitResponse,
   ModernBranchStatusResponse,
-  ModernResponsePull 
+  ModernResponsePull,
+  GitCommitInfo,
+  GitHistoryRequest,
+  GitHistoryResponse
 } from '../models/modern-git-models';
 
 
@@ -303,6 +306,36 @@ export class GITService implements OnDestroy {
           connectionIsActive: false,
           whatFilesWillBeChanged: []
         });
+      })
+    );
+  }
+
+  /**
+   * Get commit history for a repository
+   */
+  getCommitHistory(projectPath: string, maxCommits?: number): Observable<GitCommitInfo[]> {
+    const request: GitHistoryRequest = {
+      repositoryPath: projectPath,
+      maxCommits: maxCommits || 50
+    };
+    const url = '../api/ModernGit/history';
+
+    return this.http.post<GitHistoryResponse>(url, request).pipe(
+      map(response => {
+        if (response.success && response.commits) {
+          // Convert date strings to Date objects if needed
+          return response.commits.map(commit => ({
+            ...commit,
+            date: typeof commit.date === 'string' ? new Date(commit.date) : commit.date,
+            shortHash: commit.hash ? commit.hash.substring(0, 7) : '',
+            isMerge: commit.parents && commit.parents.length > 1
+          }));
+        }
+        return [];
+      }),
+      catchError(error => {
+        console.error('Error getting commit history:', error);
+        return of([]);
       })
     );
   }

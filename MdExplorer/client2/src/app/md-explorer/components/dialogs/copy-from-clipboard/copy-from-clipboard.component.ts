@@ -27,10 +27,30 @@ export class CopyFromClipboardComponent implements OnInit {
     this.dialogRef.close();
   }
   save() {
-    let dataToSend = { fileName: this.imageName, fileInfoNode:this.data }
-    this.mdFileService.pasteFromClipboard(dataToSend).subscribe(data => {
-      this.snackBar.open("Copied", null, { duration: 5000 })
-    });    
-    this.dialogRef.close();
+    console.log('[CopyFromClipboardComponent] save() called');
+    console.log('[CopyFromClipboardComponent] imageName:', this.imageName);
+    console.log('[CopyFromClipboardComponent] data:', this.data);
+
+    if (!this.imageName || this.imageName.trim() === '') {
+      console.log('[CopyFromClipboardComponent] Image name is empty, showing error');
+      this.snackBar.open("Please enter an image name", null, { duration: 3000 });
+      return;
+    }
+
+    let dataToSend = { fileName: this.imageName, fileInfoNode: this.data };
+    console.log('[CopyFromClipboardComponent] Sending data to server:', dataToSend);
+
+    this.mdFileService.pasteFromClipboard(dataToSend).subscribe({
+      next: (response) => {
+        console.log('[CopyFromClipboardComponent] Server response:', response);
+        this.snackBar.open("Image pasted successfully", null, { duration: 5000 });
+        this.dialogRef.close();
+      },
+      error: (error) => {
+        console.error('[CopyFromClipboardComponent] Error from server:', error);
+        const errorMessage = error?.error?.message || error?.message || 'Failed to paste image';
+        this.snackBar.open(errorMessage, null, { duration: 5000 });
+      }
+    });
   }
 }

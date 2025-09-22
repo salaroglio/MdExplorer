@@ -137,6 +137,14 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="repositoryPath">Path to the local repository</param>
         /// <returns>Information about pull/push data including file changes and commit counts</returns>
         Task<GitPullPushData> GetPullPushDataAsync(string repositoryPath);
+
+        /// <summary>
+        /// Gets the commit history for a repository
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="maxCommits">Maximum number of commits to retrieve</param>
+        /// <returns>List of commits with author, message, and other details</returns>
+        Task<IList<GitCommitInfo>> GetCommitHistoryAsync(string repositoryPath, int maxCommits = 50);
     }
 
     /// <summary>
@@ -219,5 +227,56 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Date of the change
         /// </summary>
         public DateTime ChangeDate { get; set; }
+    }
+
+    /// <summary>
+    /// Information about a Git commit
+    /// </summary>
+    public class GitCommitInfo
+    {
+        /// <summary>
+        /// SHA hash of the commit
+        /// </summary>
+        public string Hash { get; set; }
+
+        /// <summary>
+        /// Short version of the commit hash (first 7 characters)
+        /// </summary>
+        public string ShortHash => Hash?.Length >= 7 ? Hash.Substring(0, 7) : Hash;
+
+        /// <summary>
+        /// Author name
+        /// </summary>
+        public string Author { get; set; }
+
+        /// <summary>
+        /// Author email
+        /// </summary>
+        public string Email { get; set; }
+
+        /// <summary>
+        /// Commit message
+        /// </summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        /// Commit date
+        /// </summary>
+        public DateTime Date { get; set; }
+
+        /// <summary>
+        /// Branch name where this commit exists
+        /// </summary>
+        public string Branch { get; set; }
+
+        /// <summary>
+        /// Parent commit hashes
+        /// </summary>
+        public IList<string> Parents { get; set; }
+
+        /// <summary>
+        /// Indicates if this is a merge commit
+        /// </summary>
+        public bool IsMerge => Parents?.Count > 1;
     }
 }

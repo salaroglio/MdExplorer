@@ -61,30 +61,19 @@
 
 <mat-menu #tagsAndBranches="matMenu">
   <div>
-    <div (click)="pull()" class="container" color="warn"
+    <div (click)="openHistory()" class="container"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Pull</span><span class="flexExpand"></span>
+      <span>History</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right"
-                  color="warn">arrow_downward</mat-icon>
+        <mat-icon style="text-align:right">history</mat-icon>
       </button>
     </div>
-    <div (click)="commit()"
-         class="container" color="warn"
+    <div (click)="openBranchDialog()"
+         class="container"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Commit</span><span class="flexExpand"></span>
+      <span>Branch</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right"
-                  color="warn">arrow_upward</mat-icon>
-      </button>
-    </div>
-    <div (click)="push()"
-         class="container" color="warn"
-         mat-menu-item (click)="$event.stopPropagation()">
-      <span>Push</span><span class="flexExpand"></span>
-      <button mat-icon-button>
-        <mat-icon style="text-align:right"
-                  color="warn">arrow_upward</mat-icon>
+        <mat-icon style="text-align:right">account_tree</mat-icon>
       </button>
     </div>
   </div>

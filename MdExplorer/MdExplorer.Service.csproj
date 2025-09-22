@@ -23,7 +23,7 @@
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <UseWindowsForms>true</UseWindowsForms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <DefineConstants>$(DefineConstants);WINDOWS_FORMS_AVAILABLE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;WINDOWS_CLIPBOARD_SUPPORT</DefineConstants>
   </PropertyGroup>
 
   <!-- Linux-specific configuration -->
@@ -43,6 +43,7 @@
     <FileAlignment>512</FileAlignment>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Windows'))">TRACE;WINDOWS_CLIPBOARD_SUPPORT</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -50,7 +51,8 @@
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Windows'))">TRACE;DEBUG;WINDOWS_CLIPBOARD_SUPPORT</DefineConstants>
+    <DefineConstants Condition="!$([MSBuild]::IsOSPlatform('Windows'))">TRACE;DEBUG</DefineConstants>
     <WarningLevel>0</WarningLevel>
   </PropertyGroup>
 

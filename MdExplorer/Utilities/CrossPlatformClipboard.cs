@@ -6,7 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-#if WINDOWS_FORMS_AVAILABLE
+#if WINDOWS_CLIPBOARD_SUPPORT
 using System.Windows.Forms;
 #endif
 
@@ -22,8 +22,11 @@ namespace MdExplorer.Utilities
         /// </summary>
         public static async Task<ClipboardResult> GetImageAsync()
         {
+            Console.WriteLine($"[CrossPlatformClipboard] GetImageAsync called - OS: {RuntimeInformation.OSDescription}");
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
+                Console.WriteLine("[CrossPlatformClipboard] Detected Windows platform, calling GetImageWindows()");
                 return await GetImageWindows();
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -50,26 +53,33 @@ namespace MdExplorer.Utilities
         /// </summary>
         private static Task<ClipboardResult> GetImageWindows()
         {
+            Console.WriteLine("[CrossPlatformClipboard] GetImageWindows() started");
             var tcs = new TaskCompletionSource<ClipboardResult>();
 
-#if WINDOWS_FORMS_AVAILABLE
+#if WINDOWS_CLIPBOARD_SUPPORT
+            Console.WriteLine("[CrossPlatformClipboard] WINDOWS_CLIPBOARD_SUPPORT is defined - creating STA thread for clipboard access");
             Thread thread = new Thread(() =>
             {
                 try
                 {
+                    Console.WriteLine("[CrossPlatformClipboard] STA Thread started - checking if clipboard contains image");
                     if (Clipboard.ContainsImage())
                     {
+                        Console.WriteLine("[CrossPlatformClipboard] Clipboard contains an image - attempting to retrieve it");
                         using (var image = Clipboard.GetImage())
                         {
                             if (image != null)
                             {
+                                Console.WriteLine($"[CrossPlatformClipboard] Image retrieved - Size: {image.Width}x{image.Height}");
                                 using (var ms = new MemoryStream())
                                 {
                                     image.Save(ms, ImageFormat.Png);
+                                    var imageBytes = ms.ToArray();
+                                    Console.WriteLine($"[CrossPlatformClipboard] Image converted to PNG - Size: {imageBytes.Length} bytes");
                                     tcs.SetResult(new ClipboardResult
                                     {
                                         Success = true,
-                                        ImageData = ms.ToArray()
+                                        ImageData = imageBytes
                                     });
                                 }
                             }
@@ -86,6 +96,24 @@ namespace MdExplorer.Utilities
                     }
                     else
                     {
+                        Console.WriteLine("[CrossPlatformClipboard] Clipboard does NOT contain an image");
+                        // Check what's in the clipboard
+                        try
+                        {
+                            if (Clipboard.ContainsText())
+                            {
+                                Console.WriteLine("[CrossPlatformClipboard] Clipboard contains TEXT instead");
+                            }
+                            if (Clipboard.ContainsFileDropList())
+                            {
+                                Console.WriteLine("[CrossPlatformClipboard] Clipboard contains FILE DROP LIST instead");
+                            }
+                        }
+                        catch (Exception debugEx)
+                        {
+                            Console.WriteLine($"[CrossPlatformClipboard] Debug check failed: {debugEx.Message}");
+                        }
+
                         tcs.SetResult(new ClipboardResult
                         {
                             Success = false,
@@ -108,12 +136,14 @@ namespace MdExplorer.Utilities
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
             thread.Join();
+            Console.WriteLine("[CrossPlatformClipboard] STA Thread completed");
 #else
+            Console.WriteLine("[CrossPlatformClipboard] WINDOWS_CLIPBOARD_SUPPORT is NOT defined - Windows clipboard support not available");
             tcs.SetResult(new ClipboardResult
             {
                 Success = false,
-                ErrorMessage = "Windows Forms support not available",
-                PlatformHint = "This build does not include Windows Forms support"
+                ErrorMessage = "Windows clipboard support not available",
+                PlatformHint = "The application needs to be built with WINDOWS_CLIPBOARD_SUPPORT flag enabled"
             });
 #endif
 

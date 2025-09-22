@@ -452,5 +452,42 @@ namespace MdExplorer.Controllers.ModernGit
                 });
             }
         }
+
+        /// <summary>
+        /// Gets the commit history for a repository
+        /// </summary>
+        /// <param name="request">History request parameters</param>
+        /// <returns>List of commits with author and message</returns>
+        [HttpPost("history")]
+        public async Task<IActionResult> GetCommitHistory([FromBody] HistoryRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("History request received for repository: {RepositoryPath}", request.RepositoryPath);
+
+                var commits = await _gitService.GetCommitHistoryAsync(request.RepositoryPath, request.MaxCommits ?? 50);
+
+                return Ok(new
+                {
+                    success = true,
+                    commits = commits,
+                    count = commits.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during getting commit history");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error getting commit history"
+                });
+            }
+        }
     }
 }

@@ -441,6 +441,8 @@ export class MdFileService {
   }
   pasteFromClipboard(node: any) {
     const url = '../api/mdfiles/pasteFromClipboard';
+    console.log('[MdFileService] pasteFromClipboard called with:', node);
+    console.log('[MdFileService] Making POST request to:', url);
     return this.http.post<any>(url, node);
   }
 

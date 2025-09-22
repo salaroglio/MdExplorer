@@ -1157,6 +1157,26 @@ class GITService {
         }));
     }
     /**
+     * Get commit history for a repository
+     */
+    getCommitHistory(projectPath, maxCommits) {
+        const request = {
+            repositoryPath: projectPath,
+            maxCommits: maxCommits || 50
+        };
+        const url = '../api/ModernGit/history';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => {
+            if (response.success && response.commits) {
+                // Convert date strings to Date objects if needed
+                return response.commits.map(commit => (Object.assign(Object.assign({}, commit), { date: typeof commit.date === 'string' ? new Date(commit.date) : commit.date, shortHash: commit.hash ? commit.hash.substring(0, 7) : '', isMerge: commit.parents && commit.parents.length > 1 })));
+            }
+            return [];
+        }), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error getting commit history:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])([]);
+        }));
+    }
+    /**
      * Adapts modern Git response to legacy format for backward compatibility
      */
     adaptModernResponseToLegacy(response) {
@@ -2914,6 +2934,8 @@ class MdFileService {
     }
     pasteFromClipboard(node) {
         const url = '../api/mdfiles/pasteFromClipboard';
+        console.log('[MdFileService] pasteFromClipboard called with:', node);
+        console.log('[MdFileService] Making POST request to:', url);
         return this.http.post(url, node);
     }
     addExistingFileToMDEProject(node, path) {

@@ -1000,5 +1000,68 @@ namespace MdExplorer.Services.Git
                 _ => "Unknown"
             };
         }
+
+        /// <summary>
+        /// Gets the commit history for a repository
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="maxCommits">Maximum number of commits to retrieve</param>
+        /// <returns>List of commits with author, message, and other details</returns>
+        public async Task<IList<GitCommitInfo>> GetCommitHistoryAsync(string repositoryPath, int maxCommits = 50)
+        {
+            return await Task.Run(() =>
+            {
+                var commits = new List<GitCommitInfo>();
+
+                try
+                {
+                    _logger.LogInformation("Getting commit history for repository: {RepositoryPath}, MaxCommits: {MaxCommits}",
+                        repositoryPath, maxCommits);
+
+                    if (!Directory.Exists(repositoryPath))
+                    {
+                        _logger.LogWarning("Repository directory does not exist: {RepositoryPath}", repositoryPath);
+                        return commits;
+                    }
+
+                    using (var repo = new Repository(repositoryPath))
+                    {
+                        // Get the current branch name
+                        var currentBranch = repo.Head?.FriendlyName ?? "unknown";
+
+                        // Get commits from the current branch
+                        var commitLog = repo.Commits.Take(maxCommits);
+
+                        foreach (var commit in commitLog)
+                        {
+                            var commitInfo = new GitCommitInfo
+                            {
+                                Hash = commit.Sha,
+                                Author = commit.Author.Name,
+                                Email = commit.Author.Email,
+                                Message = commit.Message?.Trim(),
+                                Date = commit.Author.When.DateTime,
+                                Branch = currentBranch,
+                                Parents = commit.Parents?.Select(p => p.Sha).ToList() ?? new List<string>()
+                            };
+
+                            commits.Add(commitInfo);
+                        }
+
+                        _logger.LogInformation("Retrieved {CommitCount} commits from repository", commits.Count);
+                    }
+                }
+                catch (RepositoryNotFoundException ex)
+                {
+                    _logger.LogWarning(ex, "Repository not found at path: {RepositoryPath}", repositoryPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting commit history for repository: {RepositoryPath}", repositoryPath);
+                }
+
+                return commits;
+            });
+        }
     }
 }
