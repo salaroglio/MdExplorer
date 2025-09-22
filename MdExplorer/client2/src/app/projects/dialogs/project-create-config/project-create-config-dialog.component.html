@@ -1,0 +1,41 @@
+<h2 mat-dialog-title>Configure New Project</h2>
+
+<mat-dialog-content>
+  <div class="config-container">
+    <div class="project-path">
+      <mat-icon>folder</mat-icon>
+      <strong>Project Path:</strong>
+      <span class="path-text">{{ config.projectPath }}</span>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <div class="config-options">
+      <div class="option-item">
+        <mat-checkbox [(ngModel)]="config.addCopilotInstructions" color="primary">
+          <strong>Add GitHub Copilot instructions</strong>
+          <div class="option-description">
+            Creates .github/copilot-instructions.md file with project-specific AI guidelines
+          </div>
+        </mat-checkbox>
+      </div>
+
+      <div class="option-item">
+        <mat-checkbox [(ngModel)]="config.initializeGit" color="primary">
+          <strong>Initialize Git repository</strong>
+          <div class="option-description">
+            Creates a new Git repository with .gitignore configured for MdExplorer
+          </div>
+        </mat-checkbox>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="onCreateProject()">
+    <mat-icon>add</mat-icon>
+    Create Project
+  </button>
+</mat-dialog-actions>

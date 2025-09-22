@@ -2475,8 +2475,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.09.18.1',
-    buildTime: '2025.09.18 11:02:33'
+    version: '2025.09.18.3',
+    buildTime: '2025.09.18 15:26:52'
 };
 
 
@@ -2530,6 +2530,19 @@ class ProjectsService {
         const url = '../api/MdProjects/SetFolderProject';
         this.http.post(url, { path: path }).subscribe(_ => {
             this.currentProjects$.next(_);
+        });
+    }
+    createProjectWithConfig(config) {
+        const url = '../api/MdProjects/SetFolderProject';
+        const request = {
+            path: config.projectPath,
+            initializeGit: config.initializeGit,
+            addCopilotInstructions: config.addCopilotInstructions
+        };
+        this.http.post(url, request).subscribe(_ => {
+            this.currentProjects$.next(_);
+        }, error => {
+            console.error('Error creating project with config:', error);
         });
     }
     //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {

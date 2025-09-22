@@ -1,6 +1,6 @@
 {
   "name": "mdexplorer",
-  "version": "2.0.41",
+  "version": "2.1.3",
   "description": "This app will kill JIRA",
   "main": "index.js",
   "homepage": "https://github.com/salaroglio/MdExplorer",

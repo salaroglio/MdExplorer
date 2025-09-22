@@ -30,13 +30,17 @@ namespace MdExplorer.Service
 {
     public class ProjectsManager
     {
-        public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter)
+        public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, bool addCopilotInstructions = true)
         {
-            ConfigTemplates(pathFromParameter, null);
-            
-            // Initialize Git repository if not already present
-            bool gitInitialized = InitializeGitRepository(pathFromParameter);
-            
+            ConfigTemplates(pathFromParameter, null, addCopilotInstructions);
+
+            // Initialize Git repository only if requested
+            bool gitInitialized = false;
+            if (initializeGit)
+            {
+                gitInitialized = InitializeGitRepository(pathFromParameter);
+            }
+
             var appdata = CrossPlatformPath.GetAppDataPath();
             var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = pathFromParameter;
@@ -170,7 +174,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     return effectivePath; // Return the path that was actually used.
 }
 
-        public static void ConfigTemplates(string mdPath, IServiceCollection services = null)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true)
         {
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
@@ -178,9 +182,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             Directory.CreateDirectory(directory);
             Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
             Directory.CreateDirectory(directoryEmoji);
-            
+
             // Copy configuration files to project root if they don't exist
-            CopyConfigurationFilesToProject(mdPath);
+            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -260,12 +264,12 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
         
-        private static void CopyConfigurationFilesToProject(string projectPath)
+        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true)
         {
             try
             {
                 var assembly = Assembly.GetExecutingAssembly();
-                
+
                 // Copy .mdapplicationtoopen file
                 var mdApplicationToOpenPath = Path.Combine(projectPath, ".mdapplicationtoopen");
                 if (!File.Exists(mdApplicationToOpenPath))
@@ -273,13 +277,35 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     FileUtil.ExtractResFile("MdExplorer.Service..mdapplicationtoopen", mdApplicationToOpenPath);
                     Console.WriteLine($"Created configuration file: {mdApplicationToOpenPath}");
                 }
-                
+
                 // Copy .mdchangeignore file
                 var mdChangeIgnorePath = Path.Combine(projectPath, ".mdchangeignore");
                 if (!File.Exists(mdChangeIgnorePath))
                 {
                     FileUtil.ExtractResFile("MdExplorer.Service..mdchangeignore", mdChangeIgnorePath);
                     Console.WriteLine($"Created configuration file: {mdChangeIgnorePath}");
+                }
+
+                // Copy .mdFoldersIgnore file
+                var mdFoldersIgnorePath = Path.Combine(projectPath, ".mdFoldersIgnore");
+                if (!File.Exists(mdFoldersIgnorePath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..mdFoldersIgnore", mdFoldersIgnorePath);
+                    Console.WriteLine($"Created folders ignore configuration file: {mdFoldersIgnorePath}");
+                }
+
+                // Create .github folder and copy copilot-instructions.md only if requested
+                if (addCopilotInstructions)
+                {
+                    var githubPath = Path.Combine(projectPath, ".github");
+                    Directory.CreateDirectory(githubPath);
+
+                    var copilotInstructionsPath = Path.Combine(githubPath, "copilot-instructions.md");
+                    if (!File.Exists(copilotInstructionsPath))
+                    {
+                        FileUtil.ExtractResFile("MdExplorer.Service.copilot-instructions.md", copilotInstructionsPath);
+                        Console.WriteLine($"Created GitHub Copilot instructions file: {copilotInstructionsPath}");
+                    }
                 }
             }
             catch (Exception ex)

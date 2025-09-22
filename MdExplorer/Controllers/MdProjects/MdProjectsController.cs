@@ -111,7 +111,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpPost]
-        public IActionResult SetFolderProject([FromBody] FolderPath folderPath)
+        public IActionResult SetFolderProject([FromBody] ProjectCreationRequest request)
         {
             // Prima di cambiare il percorso, disabilita temporaneamente il FileSystemWatcher
             bool wasEnabled = _fileSystemWatcher.EnableRaisingEvents;
@@ -120,21 +120,21 @@ namespace MdExplorer.Service.Controllers.MdProjects
             try
             {
                 // Aggiorna il percorso del FileSystemWatcher
-                _fileSystemWatcher.Path = folderPath.Path;
+                _fileSystemWatcher.Path = request.Path;
                 
                 // Log del cambio percorso
                 var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
-                logger?.LogInformation($"🔄 FileSystemWatcher path changed to: {folderPath.Path}");
+                logger?.LogInformation($"🔄 FileSystemWatcher path changed to: {request.Path}");
                 
                 // renew project data
                 _userSettingsDB.BeginTransaction();
                 var projectDal = _userSettingsDB.GetDal<Project>();
-                var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
+                var project = projectDal.GetList().Where(_ => _.Path == request.Path).FirstOrDefault();
                 if (project == null)
                 {
                     project = new Project
                     {
-                        Path = folderPath.Path,
+                        Path = request.Path,
                         Name = System.IO.Path.GetFileName(_fileSystemWatcher.Path)
                     };
                 }
@@ -143,19 +143,19 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 _userSettingsDB.Commit();
                 
                 // Configura i database per il nuovo progetto e inizializza Git
-                bool gitInitialized = ProjectsManager.SetNewProject(_services, folderPath.Path);
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
                 
                 // Riabilita il FileSystemWatcher se era abilitato prima
                 if (wasEnabled)
                 {
                     _fileSystemWatcher.EnableRaisingEvents = true;
-                    logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {folderPath.Path}");
+                    logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {request.Path}");
                 }
                 
                 // Log Git initialization status
                 if (gitInitialized)
                 {
-                    logger?.LogInformation($"✅ Git repository initialized for project: {folderPath.Path}");
+                    logger?.LogInformation($"✅ Git repository initialized for project: {request.Path}");
                 }
                 
                 return Ok(new { 
@@ -219,6 +219,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
     public class FolderPath
     {
         public string Path { get; set; }
+    }
+
+    public class ProjectCreationRequest
+    {
+        public string Path { get; set; }
+        public bool? InitializeGit { get; set; }
+        public bool? AddCopilotInstructions { get; set; }
     }
 }
 

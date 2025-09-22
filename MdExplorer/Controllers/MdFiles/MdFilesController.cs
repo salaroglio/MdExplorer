@@ -63,6 +63,7 @@ using MdExplorer.Utilities;
 using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
 using MdExplorer.Abstractions.Services;
+using MdExplorer.Service.Services;
 
 namespace MdExplorer.Service.Controllers.MdFiles
 {
@@ -72,8 +73,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
     {
         
         
-        private readonly IHelper _helper;        
-        
+        private readonly IHelper _helper;
+
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IProjectDB _projectDB;
         private readonly ISnippet<DictionarySnippetParam>[] _snippets;
@@ -82,6 +83,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly RefactoringManager _refactoringManager;
         private readonly ProcessUtil _visualStudioCode;
         private readonly IMdIgnoreService _mdIgnoreService;
+        private readonly FoldersIgnoreService _foldersIgnoreService;
         
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
@@ -101,10 +103,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
         RefactoringManager refactoringManager,
         ProcessUtil visualStudioCode,
-        IMdIgnoreService mdIgnoreService
+        IMdIgnoreService mdIgnoreService,
+        FoldersIgnoreService foldersIgnoreService
             ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper)
         {
-                   
+
             _goodRules = GoodRules;
             _projectDB = projectDB;
             _snippets = snippets;
@@ -113,6 +116,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
             _mdIgnoreService = mdIgnoreService;
+            _foldersIgnoreService = foldersIgnoreService;
         }
 
         [HttpGet]
@@ -617,6 +621,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_=>!Path.GetFileName(_).StartsWith(".")))
             {
+                // Check if folder should be ignored based on .mdFoldersIgnore configuration
+                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                {
+                    continue;
+                }
+
                 if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
                 {
                     try
@@ -660,6 +670,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !Path.GetFileName(_).StartsWith(".")))
             {
+                // Check if folder should be ignored based on .mdFoldersIgnore configuration
+                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                {
+                    continue;
+                }
+
                 if (!IsSymbolic(itemFolder) && !IsHidden(itemFolder))
                 {
                     try
@@ -703,11 +719,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     Type = "file"
                 };
 
-                
+
                 list.Add(node);
             }
 
-
+            _logger.LogWarning($"[MdFilesController.GetDynFoldersAndFilesDocument] 🏁 END - Returning {list.Count} items");
             return Ok(list);
         }
 
@@ -1075,8 +1091,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Carica solo primo livello di cartelle che contengono file markdown
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
-                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
+                // Usa FoldersIgnoreService per filtrare le cartelle da nascondere nell'UI
+                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
                 {
+                    _logger.LogWarning($"[GetShallowStructure] ❌ IGNORING folder: '{itemFolder}'");
                     continue;
                 }
                 
@@ -1726,9 +1744,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
             {
-                // Check if folder should be ignored
-                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
+                // Check if folder should be ignored using FoldersIgnoreService
+                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
                 {
+                    _logger.LogWarning($"[ExploreNodes] ❌ IGNORING subfolder: '{itemFolder}'");
                     continue;
                 }
                 

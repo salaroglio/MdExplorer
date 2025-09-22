@@ -144,6 +144,8 @@
     <EmbeddedResource Include="EmojiForPandoc\ok.png" />
     <EmbeddedResource Include=".mdapplicationtoopen" />
     <EmbeddedResource Include=".mdchangeignore" />
+    <EmbeddedResource Include=".mdFoldersIgnore" />
+    <EmbeddedResource Include="copilot-instructions.md" />
     </ItemGroup>
 
   <ItemGroup>

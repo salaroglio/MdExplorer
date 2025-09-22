@@ -1,5 +1,5 @@
 // MdExplorer/ElectronMdExplorer/index.js
-const { app, BrowserWindow, ipcMain } = require('electron'); // Added ipcMain
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron'); // Added ipcMain, Tray, Menu, nativeImage
 const path = require('path');
 const net = require('net');
 const { spawn } = require('child_process');
@@ -28,6 +28,137 @@ console.error = (...args) => {
 console.log("Hello from Electron - Modified");
 
 // Function to find a free port
+// Function to create system tray
+const createTray = () => {
+  // Use the same icon as the app
+  const iconPath = path.join(__dirname, 'mdExplorer.png');
+  const trayIcon = nativeImage.createFromPath(iconPath);
+
+  // Resize icon for tray (16x16 or 32x32 is typical for tray icons)
+  const resizedIcon = trayIcon.resize({ width: 16, height: 16 });
+
+  tray = new Tray(resizedIcon);
+  tray.setToolTip('MdExplorer');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Apri nuova finestra MdExplorer',
+      click: () => {
+        createNewWindow();
+      }
+    },
+    {
+      label: mainWindow && mainWindow.isVisible() ? 'Nascondi finestra principale' : 'Mostra finestra principale',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isVisible()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+          // Update menu
+          updateTrayMenu();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Informazioni',
+      click: () => {
+        const { dialog } = require('electron');
+        const packageJson = require('./package.json');
+        const serviceStatus = mdServiceProcess && !mdServiceProcess.killed ? 'Attivo' : 'Non attivo';
+        const activeWindows = windows.filter(w => !w.isDestroyed()).length;
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'MdExplorer',
+          message: `MdExplorer v${packageJson.version}`,
+          detail: `Stato servizio: ${serviceStatus}\nFinestre attive: ${activeWindows}\nURL: ${targetUrl || 'Non disponibile'}`,
+          buttons: ['OK']
+        });
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Chiudi tutto e esci',
+      click: () => {
+        forceQuit = true;
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Double click on tray icon shows/hides main window
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+};
+
+// Function to update tray menu (to update show/hide label)
+const updateTrayMenu = () => {
+  if (!tray) return;
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Apri nuova finestra MdExplorer',
+      click: () => {
+        createNewWindow();
+      }
+    },
+    {
+      label: mainWindow && mainWindow.isVisible() ? 'Nascondi finestra principale' : 'Mostra finestra principale',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isVisible()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+          updateTrayMenu();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Informazioni',
+      click: () => {
+        const { dialog } = require('electron');
+        const packageJson = require('./package.json');
+        const serviceStatus = mdServiceProcess && !mdServiceProcess.killed ? 'Attivo' : 'Non attivo';
+        const activeWindows = windows.filter(w => !w.isDestroyed()).length;
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'MdExplorer',
+          message: `MdExplorer v${packageJson.version}`,
+          detail: `Stato servizio: ${serviceStatus}\nFinestre attive: ${activeWindows}\nURL: ${targetUrl || 'Non disponibile'}`,
+          buttons: ['OK']
+        });
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Chiudi tutto e esci',
+      click: () => {
+        forceQuit = true;
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setContextMenu(contextMenu);
+};
+
 const findFreePort = () => {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -46,9 +177,63 @@ const findFreePort = () => {
 };
 
 let mainWindow; // Keep a reference to the main window
+let windows = []; // Keep track of all windows
+let tray = null; // System tray instance
 let mdServiceProcess; // Keep a reference to the spawned service process
 let isAppQuitting = false; // Flag to track if the app is quitting
+let forceQuit = false; // Flag to track if we should really quit
 let targetUrl; // Moved targetUrl to global scope
+
+// Function to set up window-specific handlers
+const setupWindowHandlers = (window) => {
+  // Listen for F12 to toggle DevTools
+  window.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' && !input.alt && !input.control && !input.meta && !input.shift) {
+      console.log('[DevTools] F12 pressed, toggling dev tools');
+      window.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+};
+
+// Function to create a new window (for multi-window support)
+const createNewWindow = async () => {
+  if (!targetUrl) {
+    console.warn('Cannot create new window: targetUrl not set');
+    return;
+  }
+
+  const newWindow = new BrowserWindow({
+    width: 1024,
+    height: 768,
+    frame: false,
+    icon: path.join(__dirname, 'mdExplorer.png'),
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  windows.push(newWindow);
+
+  await newWindow.loadURL(targetUrl);
+
+  // Set up window-specific event handlers
+  setupWindowHandlers(newWindow);
+
+  newWindow.on('closed', () => {
+    // Remove from windows array
+    const index = windows.indexOf(newWindow);
+    if (index > -1) {
+      windows.splice(index, 1);
+    }
+    updateTrayMenu();
+  });
+
+  return newWindow;
+};
 
 const createWindow = async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -69,6 +254,9 @@ const createWindow = async () => {
       preload: path.join(__dirname, 'preload.js') // Use the preload script
     }
   });
+
+  // Add main window to windows array
+  windows.push(mainWindow);
 
   console.log('Command line arguments:', process.argv);
   const cliArgs = process.argv.slice(2); // First two are executable and script path
@@ -230,25 +418,36 @@ const createWindow = async () => {
   });
 
   // Listen for window control events
-  ipcMain.on('minimize-window', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.minimize();
+  ipcMain.on('minimize-window', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window && !window.isDestroyed()) {
+      window.minimize();
     }
   });
 
-  ipcMain.on('maximize-window', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMaximized()) {
-        mainWindow.unmaximize();
+  ipcMain.on('maximize-window', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window && !window.isDestroyed()) {
+      if (window.isMaximized()) {
+        window.unmaximize();
       } else {
-        mainWindow.maximize();
+        window.maximize();
       }
     }
   });
 
-  ipcMain.on('close-window', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.close();
+  ipcMain.on('close-window', (event) => {
+    // Find which window sent this event
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window) {
+      // If it's the main window and we have tray, just hide it
+      if (window === mainWindow && tray && !forceQuit) {
+        window.hide();
+        updateTrayMenu();
+      } else {
+        // For other windows or when forceQuit is true, actually close
+        window.close();
+      }
     }
   });
 
@@ -278,13 +477,66 @@ const createWindow = async () => {
     }
   });
 
+  // Handle close event - minimize to tray instead of closing
+  mainWindow.on('close', (event) => {
+    if (!forceQuit && !isAppQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      updateTrayMenu();
+
+      // Show notification that app is in tray (first time only)
+      if (tray && !mainWindow.wasMinimizedToTrayBefore) {
+        const { Notification } = require('electron');
+        if (Notification.isSupported()) {
+          const notification = new Notification({
+            title: 'MdExplorer',
+            body: 'L\'applicazione è stata minimizzata nella system tray',
+            icon: path.join(__dirname, 'mdExplorer.png')
+          });
+          notification.show();
+          mainWindow.wasMinimizedToTrayBefore = true;
+        }
+      }
+    }
+  });
+
   mainWindow.on('closed', () => {
-    mainWindow = null; 
+    // Remove from windows array
+    const index = windows.indexOf(mainWindow);
+    if (index > -1) {
+      windows.splice(index, 1);
+    }
+    mainWindow = null;
+    updateTrayMenu();
   });
 };
 
-app.whenReady().then(async () => {
-  await createWindow();
+// Request single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  app.quit();
+} else {
+  // Handle second instance attempt
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized() || !mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.focus();
+    } else {
+      // If no main window exists, create one
+      createWindow();
+    }
+  });
+
+  app.whenReady().then(async () => {
+    // Create system tray
+    createTray();
+
+    await createWindow();
 
   // Listen for the 'service-ready' event from the main process (triggered by .NET service output)
   ipcMain.on('service-ready', async () => {
@@ -314,12 +566,16 @@ app.whenReady().then(async () => {
       mainWindow.focus();
     }
   });
-});
+  });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+  app.on('window-all-closed', () => {
+  // Don't quit when all windows are closed if we have a tray
+  if (!tray || forceQuit) {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
   }
+  // If we have a tray, the app keeps running
 });
 
 app.on('will-quit', () => {
@@ -330,7 +586,8 @@ app.on('will-quit', () => {
   }
 });
 
-process.on('SIGINT', () => {
-  console.log('Received SIGINT. Quitting Electron app...');
-  app.quit(); 
-});
+  process.on('SIGINT', () => {
+    console.log('Received SIGINT. Quitting Electron app...');
+    app.quit();
+  });
+} // End of single instance lock else block

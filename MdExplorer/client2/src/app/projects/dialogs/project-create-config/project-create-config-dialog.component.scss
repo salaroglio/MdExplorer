@@ -1,0 +1,61 @@
+.config-container {
+  min-width: 400px;
+  padding: 20px 0;
+}
+
+.project-path {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+  margin-bottom: 20px;
+
+  mat-icon {
+    color: #666;
+  }
+
+  .path-text {
+    font-family: monospace;
+    color: #444;
+    word-break: break-all;
+  }
+}
+
+.config-options {
+  padding: 20px 0;
+}
+
+.option-item {
+  margin-bottom: 20px;
+
+  mat-checkbox {
+    display: block;
+  }
+
+  .option-description {
+    margin-top: 5px;
+    margin-left: 28px;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+  }
+}
+
+mat-divider {
+  margin: 20px 0;
+}
+
+mat-dialog-actions {
+  padding: 16px 24px;
+
+  button {
+    mat-icon {
+      margin-right: 4px;
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
+    }
+  }
+}

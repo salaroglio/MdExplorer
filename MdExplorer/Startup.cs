@@ -31,6 +31,7 @@ using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git;
 using System.Text;
 using MdExplorer.Features.Services;
+using MdExplorer.Service.Services;
 
 namespace MdExplorer
 {
@@ -57,7 +58,10 @@ namespace MdExplorer
 
             services.AddAutoMapper(typeof(ProjectProfile).Assembly);
             services.AddMDExplorerCommands();
-            
+
+            // Add FoldersIgnoreService
+            services.AddSingleton<FoldersIgnoreService>();
+
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
             
