@@ -22,8 +22,6 @@ namespace MdExplorer.Service.Services
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
 
-            _logger.LogWarning($"[FoldersIgnoreService] 🚀 SERVICE INITIALIZED - FileSystemWatcher.Path: '{_fileSystemWatcher.Path}'");
-
             LoadConfiguration();
 
             // Reload configuration when project changes
@@ -31,7 +29,6 @@ namespace MdExplorer.Service.Services
             {
                 if (e.FullPath.EndsWith(".mdFoldersIgnore"))
                 {
-                    _logger.LogWarning($"[FoldersIgnoreService] 📝 .mdFoldersIgnore file changed, reloading configuration");
                     LoadConfiguration();
                 }
             };
@@ -41,17 +38,11 @@ namespace MdExplorer.Service.Services
         {
             try
             {
-                _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] 🔍 STARTING - FileSystemWatcher.Path: '{_fileSystemWatcher.Path}'");
-
                 var configFilePath = Path.Combine(_fileSystemWatcher.Path, ".mdFoldersIgnore");
-                _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] 📂 Looking for file at: '{configFilePath}'");
 
                 if (File.Exists(configFilePath))
                 {
-                    _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] ✅ FILE EXISTS at '{configFilePath}'");
-
                     var yamlContent = File.ReadAllText(configFilePath);
-                    _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] 📄 File content length: {yamlContent.Length} characters");
 
                     var deserializer = new DeserializerBuilder()
                         .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -62,33 +53,11 @@ namespace MdExplorer.Service.Services
 
                     if (_configuration == null)
                     {
-                        _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] ⚠️ Configuration deserialized as NULL, using empty config");
                         _configuration = new FoldersIgnoreConfiguration();
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] ✅ LOADED CONFIG:");
-                        _logger.LogWarning($"  - IgnoredFolders count: {_configuration.IgnoredFolders?.Count ?? 0}");
-                        if (_configuration.IgnoredFolders != null)
-                        {
-                            foreach (var folder in _configuration.IgnoredFolders)
-                            {
-                                _logger.LogWarning($"    -> Ignoring folder: '{folder}'");
-                            }
-                        }
-                        _logger.LogWarning($"  - IgnoredPatterns count: {_configuration.IgnoredPatterns?.Count ?? 0}");
-                        if (_configuration.IgnoredPatterns != null)
-                        {
-                            foreach (var pattern in _configuration.IgnoredPatterns)
-                            {
-                                _logger.LogWarning($"    -> Ignoring pattern: '{pattern}'");
-                            }
-                        }
                     }
                 }
                 else
                 {
-                    _logger.LogWarning($"[FoldersIgnoreService.LoadConfiguration] ❌ FILE NOT FOUND at '{configFilePath}'");
                     _configuration = new FoldersIgnoreConfiguration();
                 }
             }
@@ -101,70 +70,43 @@ namespace MdExplorer.Service.Services
 
         public bool ShouldIgnoreFolder(string folderPath)
         {
-            _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] 🔍 Checking folder: '{folderPath}'");
-            _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] Current project path: '{_currentProjectPath}' vs FileSystemWatcher.Path: '{_fileSystemWatcher.Path}'");
-
             // Reload configuration if project path has changed
             if (_currentProjectPath != _fileSystemWatcher.Path)
             {
-                _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] ⚠️ Path changed, reloading configuration");
                 LoadConfiguration();
             }
 
             if (_configuration == null)
             {
-                _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] ❌ Configuration is NULL, returning false");
                 return false;
             }
 
             var folderName = Path.GetFileName(folderPath);
-            _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] 📁 Folder name extracted: '{folderName}'");
 
             // Check exact folder name matches
             if (_configuration.IgnoredFolders != null)
             {
-                _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] Checking against {_configuration.IgnoredFolders.Count} ignored folders");
-
                 foreach (var ignored in _configuration.IgnoredFolders)
                 {
-                    var matches = string.Equals(folderName, ignored, StringComparison.OrdinalIgnoreCase);
-                    _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder]   Comparing '{folderName}' with '{ignored}': {matches}");
-
-                    if (matches)
+                    if (string.Equals(folderName, ignored, StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] ✅ FOLDER IGNORED by exact match: '{folderName}' matches '{ignored}'");
                         return true;
                     }
                 }
-            }
-            else
-            {
-                _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] IgnoredFolders is NULL");
             }
 
             // Check pattern matches
             if (_configuration.IgnoredPatterns != null)
             {
-                _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] Checking against {_configuration.IgnoredPatterns.Count} patterns");
-
                 foreach (var pattern in _configuration.IgnoredPatterns)
                 {
-                    var matches = MatchesPattern(folderName, pattern);
-                    _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder]   Pattern '{pattern}' vs '{folderName}': {matches}");
-
-                    if (matches)
+                    if (MatchesPattern(folderName, pattern))
                     {
-                        _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] ✅ FOLDER IGNORED by pattern: '{folderName}' matches pattern '{pattern}'");
                         return true;
                     }
                 }
             }
-            else
-            {
-                _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] IgnoredPatterns is NULL");
-            }
 
-            _logger.LogWarning($"[FoldersIgnoreService.ShouldIgnoreFolder] ❌ Folder NOT ignored: '{folderName}'");
             return false;
         }
 

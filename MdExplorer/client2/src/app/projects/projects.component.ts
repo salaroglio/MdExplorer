@@ -8,7 +8,7 @@ import { MdServerMessagesService } from '../signalR/services/server-messages.ser
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { NewProjectComponent } from './new-project/new-project.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
-import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
+import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
 import { SettingsComponent } from '../md-explorer/components/dialogs/settings/settings.component';
@@ -53,7 +53,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   prepareToClone(): void {
-    const dialogRef = this.dialog.open(CloneProjectComponent, {
+    const dialogRef = this.dialog.open(ModernCloneProjectComponent, {
       width: '600px',
       maxHeight: '600px',
       data: null

@@ -34,15 +34,6 @@ namespace MdExplorer.Services.Git
             _userSettingsDB = userSettingsDB;
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
-
-            // Log the credential resolvers in order
-            _logger.LogInformation("[ModernGitService] Credential resolvers initialized in priority order:");
-            int index = 1;
-            foreach (var resolver in _credentialResolvers)
-            {
-                _logger.LogInformation("[ModernGitService] #{Index}: {ResolverType} (Priority: {Priority})",
-                    index++, resolver.GetType().Name, resolver.GetPriority());
-            }
         }
 
         public async Task<GitOperationResult> PullAsync(string repositoryPath)
@@ -210,28 +201,8 @@ namespace MdExplorer.Services.Git
                 // Push the branch
                 _logger.LogInformation("Executing push to remote: {Remote}, Branch: {Branch}", remoteName, branch.FriendlyName);
 
-                try
-                {
-                    repo.Network.Push(branch, pushOptions);
-                    _logger.LogInformation("Push executed successfully");
-                }
-                catch (LibGit2SharpException libEx) when (
-                    libEx.Message.Contains("failed to parse supported auth schemes", StringComparison.OrdinalIgnoreCase) ||
-                    libEx.Message.Contains("operation identifier is not valid", StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("Detected Windows LibGit2Sharp auth bug during push, attempting workaround");
-
-                    // Use the same workaround as for fetch - use git CLI directly
-                    var pushWorkaroundTask = TryWindowsPushWorkaroundAsync(repo, remoteName, branch.FriendlyName);
-                    var workaroundSucceeded = pushWorkaroundTask.GetAwaiter().GetResult();
-
-                    if (!workaroundSucceeded)
-                    {
-                        throw; // Re-throw if workaround failed
-                    }
-
-                    _logger.LogInformation("Push workaround succeeded");
-                }
+                repo.Network.Push(branch, pushOptions);
+                _logger.LogInformation("Push executed successfully");
 
                 stopwatch.Stop();
 
@@ -423,10 +394,11 @@ namespace MdExplorer.Services.Git
 
                 var cloneOptions = new CloneOptions
                 {
-                    CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
-                        ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult(),
                     BranchName = branchName
                 };
+
+                cloneOptions.FetchOptions.CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
+                    ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
 
                 var clonedRepoPath = Repository.Clone(url, localPath, cloneOptions);
 
@@ -785,23 +757,38 @@ namespace MdExplorer.Services.Git
         {
             try
             {
-                // Try to get from Git config
+                // Try to get from local repository config first
                 var config = repo.Config;
                 var name = config.Get<string>("user.name")?.Value;
                 var email = config.Get<string>("user.email")?.Value;
 
                 if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(email))
                 {
+                    _logger.LogDebug("Using Git signature from local config: {Name} <{Email}>", name, email);
                     return new Signature(name, email, DateTimeOffset.Now);
                 }
+
+                // Try global Git config
+                var globalName = config.Get<string>("user.name", ConfigurationLevel.Global)?.Value;
+                var globalEmail = config.Get<string>("user.email", ConfigurationLevel.Global)?.Value;
+
+                if (!string.IsNullOrEmpty(globalName) && !string.IsNullOrEmpty(globalEmail))
+                {
+                    _logger.LogDebug("Using Git signature from global config: {Name} <{Email}>", globalName, globalEmail);
+                    return new Signature(globalName, globalEmail, DateTimeOffset.Now);
+                }
+
+                // Log warning but still return a fallback for pull operations
+                _logger.LogWarning("Git user.name and user.email not configured in repository at {Path}. Using fallback signature.", repo.Info.Path);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Could not get Git signature from config");
             }
 
-            // Fallback to default
-            return new Signature("MdExplorer User", "user@mdexplorer.local", DateTimeOffset.Now);
+            // Fallback for pull operations (which need a signature for merge commits)
+            // This should rarely be used as commits should use the GitAuthor passed from the controller
+            return new Signature("Unknown User", "user@example.com", DateTimeOffset.Now);
         }
 
         private IEnumerable<string> GetChangedFiles(Repository repo)
@@ -919,14 +906,6 @@ namespace MdExplorer.Services.Git
                         {
                             _logger.LogWarning("[FETCH DEBUG] Remote found: {RemoteName}, URL: {RemoteUrl}", remote.Name, remote.Url);
 
-                            // Check if this is a Windows-specific auth issue with GitHub
-                            bool isWindowsAuthIssue = false;
-                            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows) &&
-                                remote.Url.Contains("github.com", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger.LogWarning("[FETCH DEBUG] Running on Windows with GitHub URL - checking for known auth issues");
-                                isWindowsAuthIssue = true;
-                            }
                             var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
                             _logger.LogWarning("[FETCH DEBUG] About to call Commands.Fetch with {RefSpecCount} refspecs", refSpecs.Count());
 
@@ -944,31 +923,8 @@ namespace MdExplorer.Services.Git
                                 _logger.LogWarning("[FETCH DEBUG] Exception Message: {Message}", libEx.Message);
                                 _logger.LogWarning("[FETCH DEBUG] Exception StackTrace: {StackTrace}", libEx.StackTrace);
 
-                                // Check for Windows-specific auth parsing error
-                                if (isWindowsAuthIssue &&
-                                    (libEx.Message.Contains("failed to parse supported auth schemes", StringComparison.OrdinalIgnoreCase) ||
-                                     libEx.Message.Contains("operation identifier is not valid", StringComparison.OrdinalIgnoreCase)))
-                                {
-                                    _logger.LogWarning("[FETCH DEBUG] Detected Windows LibGit2Sharp auth parsing bug - attempting workaround");
-
-                                    // Try to use PAT token workaround
-                                    var workaroundTask = TryWindowsAuthWorkaroundAsync(repo, remote.Name, result);
-                                    var workaroundSucceeded = workaroundTask.GetAwaiter().GetResult();
-                                    if (workaroundSucceeded)
-                                    {
-                                        _logger.LogWarning("[FETCH DEBUG] Windows auth workaround succeeded");
-                                        result.IsRemoteAvailable = true;
-                                    }
-                                    else
-                                    {
-                                        _logger.LogWarning("[FETCH DEBUG] Windows auth workaround failed");
-                                        throw; // Re-throw original exception
-                                    }
-                                }
-                                else
-                                {
-                                    throw; // Re-throw to be caught by outer catch
-                                }
+                                // Re-throw to be caught by outer catch
+                                throw;
                             }
 
                             _logger.LogWarning("[FETCH DEBUG] Commands.Fetch completed successfully");
@@ -1416,275 +1372,5 @@ namespace MdExplorer.Services.Git
             }
         }
 
-        /// <summary>
-        /// Workaround for Windows LibGit2Sharp authentication parsing bug
-        /// Uses git CLI as fallback when LibGit2Sharp fails with auth parsing error
-        /// </summary>
-        private async Task<bool> TryWindowsPushWorkaroundAsync(Repository repo, string remoteName, string branchName)
-        {
-            try
-            {
-                _logger.LogInformation("[PUSH WORKAROUND] Attempting Windows push workaround using git CLI");
-
-                // Get the repository path
-                var repoPath = repo.Info.WorkingDirectory ?? repo.Info.Path;
-
-                // Try to get the GitHub PAT from settings
-                using var tx = _userSettingsDB.BeginTransaction();
-                var dal = _userSettingsDB.GetDal<Setting>();
-                var settings = dal.GetList().Where(s => s.Name == "GitHubPersonalAccessToken").ToList();
-                var tokenSetting = settings.FirstOrDefault();
-
-                if (tokenSetting == null || string.IsNullOrEmpty(tokenSetting.ValueString))
-                {
-                    _logger.LogWarning("[PUSH WORKAROUND] No GitHub PAT found in settings, cannot use workaround");
-                    return false;
-                }
-
-                _logger.LogInformation("[PUSH WORKAROUND] Found GitHub PAT in settings");
-
-                // Get the remote URL
-                var remote = repo.Network.Remotes[remoteName];
-                if (remote == null)
-                {
-                    _logger.LogWarning("[PUSH WORKAROUND] Remote '{RemoteName}' not found", remoteName);
-                    return false;
-                }
-
-                var originalUrl = remote.Url;
-                var token = tokenSetting.ValueString;
-
-                // Build authenticated URL (similar to fetch workaround)
-                var authenticatedUrl = originalUrl.Replace("https://", $"https://{token}@");
-
-                _logger.LogInformation("[PUSH WORKAROUND] Using git CLI with one-time authenticated URL for push");
-
-                // Create a process to run git push with authenticated URL
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "git",
-                    Arguments = $"push {authenticatedUrl} {branchName}:{branchName}",
-                    WorkingDirectory = repoPath,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = new Process { StartInfo = startInfo };
-                process.Start();
-
-                var output = await process.StandardOutput.ReadToEndAsync();
-                var error = await process.StandardError.ReadToEndAsync();
-
-                await process.WaitForExitAsync();
-
-                if (process.ExitCode == 0)
-                {
-                    _logger.LogInformation("[PUSH WORKAROUND] Git CLI push succeeded");
-                    _logger.LogDebug("[PUSH WORKAROUND] Output: {Output}", output);
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        _logger.LogDebug("[PUSH WORKAROUND] Stderr (informational): {Error}", error);
-                    }
-                    return true;
-                }
-                else
-                {
-                    _logger.LogWarning("[PUSH WORKAROUND] Git CLI push failed with exit code {ExitCode}", process.ExitCode);
-                    _logger.LogWarning("[PUSH WORKAROUND] Error: {Error}", error);
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[PUSH WORKAROUND] Exception during Windows push workaround");
-                return false;
-            }
-        }
-
-        private async Task<bool> TryWindowsAuthWorkaroundAsync(Repository repo, string remoteName, GitPullPushData result = null)
-        {
-            try
-            {
-                _logger.LogInformation("[WORKAROUND] Attempting Windows auth workaround using git CLI");
-
-                // Get the repository path
-                var repoPath = repo.Info.WorkingDirectory ?? repo.Info.Path;
-
-                // Try to get the GitHub PAT from settings
-                using var tx = _userSettingsDB.BeginTransaction();
-                var dal = _userSettingsDB.GetDal<Setting>();
-                var settings = dal.GetList().Where(s => s.Name == "GitHubPersonalAccessToken").ToList();
-                var tokenSetting = settings.FirstOrDefault();
-
-                if (tokenSetting == null || string.IsNullOrEmpty(tokenSetting.ValueString))
-                {
-                    _logger.LogWarning("[WORKAROUND] No GitHub PAT found in settings, cannot use workaround");
-                    return false;
-                }
-
-                var token = tokenSetting.ValueString;
-                _logger.LogInformation("[WORKAROUND] Found GitHub PAT in settings");
-
-                // Build the authenticated URL for Git CLI
-                var remote = repo.Network.Remotes[remoteName];
-                if (remote == null || !remote.Url.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("[WORKAROUND] Remote not found or not GitHub HTTPS");
-                    return false;
-                }
-
-                // Create authenticated URL
-                var authenticatedUrl = remote.Url.Replace("https://github.com/", $"https://x-access-token:{token}@github.com/");
-
-                _logger.LogInformation("[WORKAROUND] Using git CLI with one-time authenticated URL");
-
-                // Use git CLI with the authenticated URL directly (never saved to config)
-                var processStartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "git",
-                    Arguments = $"fetch {authenticatedUrl}",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    WorkingDirectory = repoPath
-                };
-
-                using var process = System.Diagnostics.Process.Start(processStartInfo);
-                if (process != null)
-                {
-                    // WaitForExitAsync may not be available in older .NET versions
-                    await Task.Run(() => process.WaitForExit());
-
-                    if (process.ExitCode == 0)
-                    {
-                        _logger.LogInformation("[WORKAROUND] Git CLI fetch succeeded");
-                        return true;
-                    }
-                    else
-                    {
-                        var error = await process.StandardError.ReadToEndAsync();
-                        _logger.LogWarning("[WORKAROUND] Git CLI fetch failed: {Error}", error);
-
-                        // Check if this is an empty repository (no HEAD)
-                        if (error.Contains("couldn't find remote ref HEAD", StringComparison.OrdinalIgnoreCase))
-                        {
-                            _logger.LogInformation("[WORKAROUND] Remote repository appears to be empty (no HEAD). This is OK - push will create it.");
-                            // Mark the remote as empty so we can handle commit counting properly
-                            if (result != null)
-                            {
-                                result.IsRemoteEmpty = true;
-                            }
-                            // Return true because the authentication worked, just the repo is empty
-                            // This allows push operations to proceed
-                            return true;
-                        }
-
-                        // Try alternative method: temporarily modify the remote URL
-                        var urlWorkaroundTask = TryUrlBasedWorkaroundAsync(repo, remoteName, token, result);
-                        return urlWorkaroundTask.GetAwaiter().GetResult();
-                    }
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[WORKAROUND] Error in Windows auth workaround");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Alternative workaround: use git CLI with authenticated URL directly without modifying config
-        /// </summary>
-        private async Task<bool> TryUrlBasedWorkaroundAsync(Repository repo, string remoteName, string token, GitPullPushData result = null)
-        {
-            try
-            {
-                _logger.LogInformation("[WORKAROUND] Attempting URL-based workaround WITHOUT modifying saved remote");
-
-                var remote = repo.Network.Remotes[remoteName];
-                if (remote == null)
-                {
-                    return false;
-                }
-
-                var originalUrl = remote.Url;
-
-                // Parse the URL and add authentication
-                if (originalUrl.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
-                {
-                    // For GitHub, we can use the token as the password with any username
-                    var authenticatedUrl = originalUrl.Replace("https://github.com/", $"https://x-access-token:{token}@github.com/");
-
-                    _logger.LogInformation("[WORKAROUND] Using git CLI with authenticated URL (NOT saving to config)");
-
-                    // Use git CLI directly with the authenticated URL WITHOUT modifying the saved remote
-                    // This way the token is never persisted
-                    var gitProcess = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "git",
-                        Arguments = $"fetch {authenticatedUrl}",  // Pass the authenticated URL directly
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true,
-                        WorkingDirectory = repo.Info.WorkingDirectory ?? repo.Info.Path
-                    };
-
-                    using var proc = System.Diagnostics.Process.Start(gitProcess);
-                    if (proc != null)
-                    {
-                        // Wait for completion with timeout
-                        if (proc.WaitForExit(30000)) // 30 second timeout
-                        {
-                            if (proc.ExitCode == 0)
-                            {
-                                _logger.LogInformation("[WORKAROUND] Git CLI fetch with authenticated URL succeeded (remote URL unchanged)");
-                                return true;
-                            }
-                            else
-                            {
-                                var error = proc.StandardError.ReadToEnd();
-                                _logger.LogWarning("[WORKAROUND] Git CLI fetch failed: {Error}", error);
-
-                                // Check if this is an empty repository (no HEAD)
-                                if (error.Contains("couldn't find remote ref HEAD", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    _logger.LogInformation("[WORKAROUND] Remote repository appears to be empty (no HEAD). This is OK - push will create it.");
-                                    // Mark the remote as empty so we can handle commit counting properly
-                                    if (result != null)
-                                    {
-                                        result.IsRemoteEmpty = true;
-                                    }
-                                    // Return true because the authentication worked, just the repo is empty
-                                    return true;
-                                }
-
-                                return false;
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("[WORKAROUND] Git CLI fetch timed out");
-                            proc.Kill();
-                            return false;
-                        }
-                    }
-
-                    return false;
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[WORKAROUND] Error in URL-based workaround");
-                return false;
-            }
-        }
     }
 }

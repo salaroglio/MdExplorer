@@ -267,11 +267,50 @@ export class GITService implements OnDestroy {
   modernPush(projectPath: string): Observable<ModernResponsePull> {
     const request: ModernGitRequest = { ProjectPath: projectPath };
     const url = '../api/ModernGitToolbar/push-v2';
-    
+
     return this.http.post<ModernGitResponse>(url, request).pipe(
       map(response => this.adaptModernResponseToLegacy(response))
     );
   }
+
+  /**
+   * Clone repository using modern Git service with native authentication
+   */
+  modernClone(request: { url: string; localPath: string; branchName?: string }): Observable<{ success: boolean; error?: string }> {
+    const url = '../api/ModernGit/clone';
+    // Convert to PascalCase for C# backend
+    const requestBody = {
+      Url: request.url,
+      LocalPath: request.localPath,
+      BranchName: request.branchName || null
+    };
+    console.log('[GITService.modernClone] Sending to backend:', requestBody);
+    return this.http.post<{ success: boolean; error?: string }>(url, requestBody).pipe(
+      catchError(error => {
+        console.error('[modernClone] Full error:', error);
+        // Try to extract validation errors if present
+        let errorMessage = 'Clone failed';
+        if (error.error) {
+          if (typeof error.error === 'string') {
+            errorMessage = error.error;
+          } else if (error.error.errors) {
+            // Validation errors from ModelState
+            const validationErrors = [];
+            for (const field in error.error.errors) {
+              validationErrors.push(`${field}: ${error.error.errors[field].join(', ')}`);
+            }
+            errorMessage = validationErrors.join('; ');
+          } else if (error.error.message) {
+            errorMessage = error.error.message;
+          } else if (error.error.error) {
+            errorMessage = error.error.error;
+          }
+        }
+        return of({ success: false, error: errorMessage });
+      })
+    );
+  }
+
 
   /**
    * Get branch status using modern Git service

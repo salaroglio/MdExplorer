@@ -1125,6 +1125,44 @@ class GITService {
         return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => this.adaptModernResponseToLegacy(response)));
     }
     /**
+     * Clone repository using modern Git service with native authentication
+     */
+    modernClone(request) {
+        const url = '../api/ModernGit/clone';
+        // Convert to PascalCase for C# backend
+        const requestBody = {
+            Url: request.url,
+            LocalPath: request.localPath,
+            BranchName: request.branchName || null
+        };
+        console.log('[GITService.modernClone] Sending to backend:', requestBody);
+        return this.http.post(url, requestBody).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('[modernClone] Full error:', error);
+            // Try to extract validation errors if present
+            let errorMessage = 'Clone failed';
+            if (error.error) {
+                if (typeof error.error === 'string') {
+                    errorMessage = error.error;
+                }
+                else if (error.error.errors) {
+                    // Validation errors from ModelState
+                    const validationErrors = [];
+                    for (const field in error.error.errors) {
+                        validationErrors.push(`${field}: ${error.error.errors[field].join(', ')}`);
+                    }
+                    errorMessage = validationErrors.join('; ');
+                }
+                else if (error.error.message) {
+                    errorMessage = error.error.message;
+                }
+                else if (error.error.error) {
+                    errorMessage = error.error.error;
+                }
+            }
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({ success: false, error: errorMessage });
+        }));
+    }
+    /**
      * Get branch status using modern Git service
      */
     modernGetBranchStatus(projectPath) {
@@ -2596,8 +2634,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.09.23.1',
-    buildTime: '2025.09.23 09:39:04'
+    version: '2025.09.23.2',
+    buildTime: '2025.09.23 17:22:38'
 };
 
 

@@ -488,20 +488,51 @@ namespace MdExplorer.Controllers.ModernGit
         {
             try
             {
-                // TODO: Implement actual Git config reading
-                // For now, return a default author
+                // Read from Git configuration
+                using var repo = new LibGit2Sharp.Repository(repositoryPath);
+                var config = repo.Config;
+
+                var name = config.Get<string>("user.name")?.Value;
+                var email = config.Get<string>("user.email")?.Value;
+
+                // If we have valid Git config, use it
+                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(email))
+                {
+                    return new GitAuthor
+                    {
+                        Name = name,
+                        Email = email
+                    };
+                }
+
+                // Try to get from global Git config
+                var globalConfig = config.Get<string>("user.name", LibGit2Sharp.ConfigurationLevel.Global)?.Value;
+                var globalEmail = config.Get<string>("user.email", LibGit2Sharp.ConfigurationLevel.Global)?.Value;
+
+                if (!string.IsNullOrEmpty(globalConfig) && !string.IsNullOrEmpty(globalEmail))
+                {
+                    return new GitAuthor
+                    {
+                        Name = globalConfig,
+                        Email = globalEmail
+                    };
+                }
+
+                // Fallback if no Git config found
+                _logger.LogWarning("Git user.name and user.email not configured for repository: {RepositoryPath}", repositoryPath);
                 return new GitAuthor
                 {
-                    Name = "MdExplorer User",
-                    Email = "user@mdexplorer.local"
+                    Name = "Unknown User",
+                    Email = "user@example.com"
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error reading Git author from repository: {RepositoryPath}", repositoryPath);
                 return new GitAuthor
                 {
-                    Name = "MdExplorer User", 
-                    Email = "user@mdexplorer.local"
+                    Name = "Unknown User",
+                    Email = "user@example.com"
                 };
             }
         }

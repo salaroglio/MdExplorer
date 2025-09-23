@@ -4,6 +4,7 @@ import { OpenRecentComponent } from './open-recent/open-recent.component';
 import { ProjectsComponent } from './projects.component';
 import { NewProjectComponent } from './new-project/new-project.component';
 import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
+import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { RouterModule, Routes } from '@angular/router';
@@ -29,6 +30,7 @@ const routes: Routes = [
     ProjectsComponent,
     NewProjectComponent,
     CloneProjectComponent,
+    ModernCloneProjectComponent,
     ProjectCreateConfigDialogComponent,
     ProjectSettingsComponent
   ],

@@ -65,8 +65,11 @@ namespace MdExplorer.Controllers.ModernGit
         [StringLength(500, MinimumLength = 1, ErrorMessage = "Local path must be between 1 and 500 characters")]
         public string LocalPath { get; set; }
 
+        /// <summary>
+        /// Optional branch name to clone. If not specified, clones the default branch.
+        /// </summary>
         [StringLength(100, ErrorMessage = "Branch name cannot exceed 100 characters")]
-        public string BranchName { get; set; }
+        public string? BranchName { get; set; }
     }
 
     /// <summary>
