@@ -86,23 +86,21 @@ namespace MdExplorer.Services.Git
             if (string.IsNullOrEmpty(url))
                 return false;
 
-            // SSH keys work with SSH URLs (git@) and some HTTPS configurations
-            var isSSHUrl = url.StartsWith("git@", StringComparison.OrdinalIgnoreCase) || 
+            // SSH keys work ONLY with SSH URLs (git@) - not HTTPS
+            var isSSHUrl = url.StartsWith("git@", StringComparison.OrdinalIgnoreCase) ||
                           url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase);
-            
-            var isHTTPSUrl = url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-            // SSH keys can work with HTTPS URLs in some Git configurations (like GitHub with SSH key authentication)
-            var canUseSSH = isSSHUrl || isHTTPSUrl;
+            // SSH keys should NOT be used for HTTPS URLs - that causes authentication errors
+            var canUseSSH = isSSHUrl;
 
             // Check if the credential types support what we can provide
             var supportsRequiredTypes = types.HasFlag(SupportedCredentialTypes.UsernamePassword) || 
                                        types.HasFlag(SupportedCredentialTypes.Default);
 
             var result = canUseSSH && supportsRequiredTypes;
-            
-            _logger.LogDebug("SSH resolver can handle URL: {Url} = {CanHandle} (SSH: {IsSSH}, HTTPS: {IsHTTPS}, Types: {Types})", 
-                url, result, isSSHUrl, isHTTPSUrl, types);
+
+            _logger.LogDebug("SSH resolver can handle URL: {Url} = {CanHandle} (SSH: {IsSSH}, Types: {Types})",
+                url, result, isSSHUrl, types);
             
             return result;
         }

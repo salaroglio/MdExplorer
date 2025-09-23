@@ -17,7 +17,10 @@ import {
   ModernResponsePull,
   GitCommitInfo,
   GitHistoryRequest,
-  GitHistoryResponse
+  GitHistoryResponse,
+  RemoteStatus,
+  SetupRemoteRequest,
+  SetupRemoteResponse
 } from '../models/modern-git-models';
 
 
@@ -336,6 +339,143 @@ export class GITService implements OnDestroy {
       catchError(error => {
         console.error('Error getting commit history:', error);
         return of([]);
+      })
+    );
+  }
+
+  /**
+   * Check if repository has remote configured
+   */
+  checkRemoteStatus(projectPath: string): Observable<RemoteStatus> {
+    const url = `../api/ModernGit/remote-status?repositoryPath=${encodeURIComponent(projectPath)}`;
+
+    return this.http.get<RemoteStatus>(url).pipe(
+      catchError(error => {
+        console.error('Error checking remote status:', error);
+        return of({
+          hasRemote: false,
+          isGitRepository: false,
+          errorMessage: error.message || 'Failed to check remote status'
+        });
+      })
+    );
+  }
+
+  /**
+   * Remove a remote from the repository
+   */
+  removeRemote(projectPath: string, remoteName: string = 'origin'): Observable<any> {
+    const url = `../api/ModernGit/remove-remote?repositoryPath=${encodeURIComponent(projectPath)}&remoteName=${encodeURIComponent(remoteName)}`;
+
+    return this.http.delete<any>(url).pipe(
+      catchError(error => {
+        console.error('Error removing remote:', error);
+        return of({
+          success: false,
+          error: error.error?.error || error.message || 'Failed to remove remote'
+        });
+      })
+    );
+  }
+
+  /**
+   * Setup GitHub remote for repository
+   */
+  setupGitHubRemote(projectPath: string, organization: string, repositoryName: string,
+                    saveOrganization: boolean = true, pushAfterAdd: boolean = true,
+                    repositoryDescription?: string, isPrivate?: boolean): Observable<SetupRemoteResponse> {
+    const request: SetupRemoteRequest = {
+      repositoryPath: projectPath,
+      organization: organization,
+      repositoryName: repositoryName,
+      repositoryDescription: repositoryDescription,
+      isPrivate: isPrivate !== undefined ? isPrivate : true,
+      saveOrganization: saveOrganization,
+      pushAfterAdd: pushAfterAdd
+    };
+    const url = '../api/ModernGit/setup-remote';
+
+    return this.http.post<SetupRemoteResponse>(url, request).pipe(
+      catchError(error => {
+        console.error('Error setting up remote:', error);
+        return of({
+          success: false,
+          error: error.error?.error || error.message || 'Failed to setup remote'
+        });
+      })
+    );
+  }
+
+  /**
+   * Get saved GitHub organization
+   */
+  getGitHubOrganization(): Observable<string> {
+    const url = '../api/ModernGit/github-organization';
+
+    return this.http.get<{ organization: string }>(url).pipe(
+      map(response => response.organization || ''),
+      catchError(error => {
+        console.error('Error getting GitHub organization:', error);
+        return of('');
+      })
+    );
+  }
+
+  /**
+   * Sets the GitHub personal access token
+   */
+  setGitHubToken(token: string): Observable<any> {
+    const url = '../api/ModernGit/github-token';
+
+    return this.http.post<any>(url, { token: token }).pipe(
+      map(response => response),
+      catchError(error => {
+        console.error('Error setting GitHub token:', error);
+        return of({ success: false });
+      })
+    );
+  }
+
+  /**
+   * Gets the GitHub token status (masked)
+   */
+  getGitHubToken(): Observable<any> {
+    const url = '../api/ModernGit/github-token';
+
+    return this.http.get<any>(url).pipe(
+      catchError(error => {
+        console.error('Error getting GitHub token:', error);
+        return of({ hasToken: false, maskedToken: '', tokenValid: false });
+      })
+    );
+  }
+
+  /**
+   * Tests the GitHub token validity
+   */
+  testGitHubToken(): Observable<any> {
+    const url = '../api/ModernGit/test-github-token';
+
+    return this.http.post<any>(url, {}).pipe(
+      map(response => response),
+      catchError(error => {
+        console.error('Error testing GitHub token:', error);
+        return of({ success: false, tokenValid: false });
+      })
+    );
+  }
+
+  /**
+   * Save GitHub organization for future use
+   */
+  saveGitHubOrganization(organization: string): Observable<boolean> {
+    const url = '../api/ModernGit/github-organization';
+
+    return this.http.post<{ success: boolean }>(url, { organization: organization }).pipe(
+      map(response => response.success),
+      catchError(error => {
+        console.error('Error saving GitHub organization:', error);
+        return of(false);
       })
     );
   }

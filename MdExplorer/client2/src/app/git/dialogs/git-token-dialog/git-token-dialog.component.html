@@ -1,0 +1,96 @@
+<h2 mat-dialog-title>Configura GitHub Personal Access Token</h2>
+
+<mat-dialog-content>
+  <!-- Loading existing token status -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Controllo token esistente...</span>
+  </div>
+
+  <div *ngIf="!isLoading">
+    <!-- Instructions -->
+    <div class="instructions">
+      <mat-icon>info</mat-icon>
+      <div>
+        <p>
+          Per creare automaticamente repository su GitHub, è necessario un Personal Access Token.
+        </p>
+        <p class="small-text">
+          Il token verrà salvato in modo sicuro nel database locale.
+        </p>
+      </div>
+    </div>
+
+    <!-- Show existing token if present -->
+    <div *ngIf="hasExistingToken && !token" class="existing-token">
+      <mat-icon [class.valid]="tokenValid" [class.invalid]="!tokenValid">
+        {{ tokenValid ? 'check_circle' : 'error' }}
+      </mat-icon>
+      <div>
+        <strong>Token esistente:</strong> {{ existingMaskedToken }}
+        <br>
+        <span class="status">Stato: {{ tokenValid ? 'Valido' : 'Non valido o scaduto' }}</span>
+      </div>
+    </div>
+
+    <!-- Token input -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>GitHub Personal Access Token</mat-label>
+      <input matInput
+             [(ngModel)]="token"
+             [type]="hideToken ? 'password' : 'text'"
+             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+             [disabled]="isSaving">
+      <button mat-icon-button matSuffix
+              (click)="hideToken = !hideToken"
+              [disabled]="isSaving">
+        <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
+      </button>
+      <mat-hint>Inserisci un token con permessi 'repo'</mat-hint>
+    </mat-form-field>
+
+    <!-- How to create token -->
+    <mat-expansion-panel class="instructions-panel">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>help_outline</mat-icon>
+          Come creare un Personal Access Token
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <ol>
+        <li>Vai su GitHub Settings → Developer settings → Personal access tokens</li>
+        <li>Clicca su "Generate new token (classic)"</li>
+        <li>Dai un nome descrittivo (es. "MdExplorer")</li>
+        <li>Seleziona l'ambito <strong>repo</strong> (accesso completo ai repository privati)</li>
+        <li>Clicca su "Generate token"</li>
+        <li>Copia il token e incollalo qui sopra</li>
+      </ol>
+
+      <button mat-stroked-button color="primary" (click)="openGitHubTokenPage()">
+        <mat-icon>open_in_new</mat-icon>
+        Apri pagina GitHub Token
+      </button>
+    </mat-expansion-panel>
+
+    <!-- Warning -->
+    <div class="warning-message">
+      <mat-icon>warning</mat-icon>
+      <p>
+        <strong>Importante:</strong> Non condividere mai il tuo token con altri.
+        Trattalo come una password.
+      </p>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()" [disabled]="isSaving">Annulla</button>
+  <button mat-raised-button
+          color="primary"
+          (click)="testToken()"
+          [disabled]="!token || isSaving">
+    <mat-spinner *ngIf="isSaving" diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
+    {{ isSaving ? 'Validazione...' : 'Salva e Testa Token' }}
+  </button>
+</mat-dialog-actions>

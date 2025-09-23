@@ -20,12 +20,16 @@ namespace MdExplorer.Services.Git
         {
             // Register core Git service
             services.AddScoped<IModernGitService, ModernGitService>();
-            
+
+            // Register GitHub service for repository management
+            services.AddScoped<IGitHubService, GitHubService>();
+
             // Register SSH key manager
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
             
             // Register credential resolvers in priority order
             services.AddScoped<ICredentialResolver, SSHKeyCredentialResolver>();
+            services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
             
             // Add platform-specific credential stores
@@ -49,10 +53,12 @@ namespace MdExplorer.Services.Git
         {
             // Register core services
             services.AddScoped<IModernGitService, ModernGitService>();
+            services.AddScoped<IGitHubService, GitHubService>();
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
             
             // Register credential resolvers
             services.AddScoped<ICredentialResolver, SSHKeyCredentialResolver>();
+            services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
             
             // Add platform-specific services

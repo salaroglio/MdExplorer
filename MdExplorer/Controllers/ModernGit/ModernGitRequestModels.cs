@@ -99,4 +99,57 @@ namespace MdExplorer.Controllers.ModernGit
         [Range(1, 500, ErrorMessage = "Max commits must be between 1 and 500")]
         public int? MaxCommits { get; set; } = 50;
     }
+
+    /// <summary>
+    /// Request model for saving organization
+    /// </summary>
+    public class OrganizationRequest
+    {
+        public string Organization { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for setting GitHub token
+    /// </summary>
+    public class TokenRequest
+    {
+        [Required]
+        [StringLength(500, MinimumLength = 1, ErrorMessage = "Token must be between 1 and 500 characters")]
+        public string Token { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for setting up a remote repository
+    /// </summary>
+    public class SetupRemoteRequest : GitOperationRequest
+    {
+        [Required]
+        [StringLength(100, MinimumLength = 1, ErrorMessage = "Organization must be between 1 and 100 characters")]
+        public string Organization { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 1, ErrorMessage = "Repository name must be between 1 and 100 characters")]
+        public string RepositoryName { get; set; }
+
+        /// <summary>
+        /// Description for the GitHub repository (optional)
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Repository description cannot exceed 500 characters")]
+        public string RepositoryDescription { get; set; }
+
+        /// <summary>
+        /// Whether the repository should be private (default: true)
+        /// </summary>
+        public bool? IsPrivate { get; set; } = true;
+
+        /// <summary>
+        /// Whether to save the organization for future use
+        /// </summary>
+        public bool SaveOrganization { get; set; } = true;
+
+        /// <summary>
+        /// Whether to push existing commits after adding the remote
+        /// </summary>
+        public bool PushAfterAdd { get; set; } = true;
+    }
 }

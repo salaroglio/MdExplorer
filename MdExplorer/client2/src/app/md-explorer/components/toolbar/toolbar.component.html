@@ -61,6 +61,22 @@
 
 <mat-menu #tagsAndBranches="matMenu">
   <div>
+    <div *ngIf="!hasRemoteConfigured" (click)="openSetupRemote()"
+         class="container setup-remote"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Setup GitHub Remote</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right" color="warn">cloud_upload</mat-icon>
+      </button>
+    </div>
+    <div *ngIf="hasRemoteConfigured" (click)="openManageRemote()"
+         class="container manage-remote"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Manage Remote</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right">settings</mat-icon>
+      </button>
+    </div>
     <div (click)="openHistory()" class="container"
          mat-menu-item (click)="$event.stopPropagation()">
       <span>History</span><span class="flexExpand"></span>

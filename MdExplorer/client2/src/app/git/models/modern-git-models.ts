@@ -76,6 +76,33 @@ export interface GitHistoryResponse {
   error?: string;
 }
 
+// Remote Status Models
+export interface RemoteStatus {
+  hasRemote: boolean;
+  remoteName?: string;
+  remoteUrl?: string;
+  isGitRepository: boolean;
+  errorMessage?: string;
+}
+
+export interface SetupRemoteRequest {
+  repositoryPath: string;
+  organization: string;
+  repositoryName: string;
+  repositoryDescription?: string;
+  isPrivate?: boolean;
+  saveOrganization: boolean;
+  pushAfterAdd: boolean;
+}
+
+export interface SetupRemoteResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  needsToken?: boolean;
+  durationMs?: number;
+}
+
 // Legacy response compatibility adapter
 export interface ModernResponsePull {
   isConnectionMissing: boolean;

@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
+using MdExplorer.Services.Git;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using System.Linq;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
+using Ad.Tools.Dal.Extensions;
 
 namespace MdExplorer.Controllers.ModernGit
 {
@@ -15,12 +20,20 @@ namespace MdExplorer.Controllers.ModernGit
     public class ModernGitController : ControllerBase
     {
         private readonly IModernGitService _gitService;
+        private readonly IGitHubService _gitHubService;
         private readonly ILogger<ModernGitController> _logger;
+        private readonly IUserSettingsDB _userSettingsDb;
 
-        public ModernGitController(IModernGitService gitService, ILogger<ModernGitController> logger)
+        public ModernGitController(
+            IModernGitService gitService,
+            IGitHubService gitHubService,
+            ILogger<ModernGitController> logger,
+            IUserSettingsDB userSettingsDb)
         {
             _gitService = gitService;
+            _gitHubService = gitHubService;
             _logger = logger;
+            _userSettingsDb = userSettingsDb;
         }
 
         /// <summary>
@@ -488,6 +501,320 @@ namespace MdExplorer.Controllers.ModernGit
                     error = "Internal server error getting commit history"
                 });
             }
+        }
+
+        /// <summary>
+        /// Checks if the repository has a remote configured
+        /// </summary>
+        /// <param name="repositoryPath">Path to the repository</param>
+        /// <returns>Remote status information</returns>
+        [HttpGet("remote-status")]
+        public async Task<IActionResult> CheckRemoteStatus([FromQuery] [Required] string repositoryPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(repositoryPath))
+                {
+                    return BadRequest(new { error = "Repository path is required" });
+                }
+
+                var status = await _gitService.CheckRemoteStatusAsync(repositoryPath);
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking remote status for repository: {RepositoryPath}", repositoryPath);
+                return StatusCode(500, new { error = "Internal server error checking remote status" });
+            }
+        }
+
+        /// <summary>
+        /// Sets up a GitHub remote for the repository
+        /// </summary>
+        /// <param name="request">Remote setup parameters</param>
+        /// <returns>Result of the setup operation</returns>
+        [HttpPost("setup-remote")]
+        public async Task<IActionResult> SetupRemote([FromBody] SetupRemoteRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("Setting up remote for repository: {RepositoryPath}", request.RepositoryPath);
+
+                // Save organization if requested
+                if (request.SaveOrganization)
+                {
+                    await SaveGitHubOrganization(request.Organization);
+                }
+
+                // First, try to create the repository on GitHub if it doesn't exist
+                var gitHubResult = await _gitHubService.CreateRepositoryAsync(
+                    request.Organization,
+                    request.RepositoryName,
+                    request.RepositoryDescription,
+                    request.IsPrivate ?? true);
+
+                if (!gitHubResult.Success)
+                {
+                    _logger.LogWarning("Failed to create GitHub repository: {Error}", gitHubResult.ErrorMessage);
+                    // If it's not an "already exists" error, return the error
+                    if (!gitHubResult.AlreadyExists)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            error = gitHubResult.ErrorMessage,
+                            needsToken = gitHubResult.ErrorMessage.Contains("token")
+                        });
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("GitHub repository {Status}: {Url}",
+                        gitHubResult.AlreadyExists ? "already exists" : "created",
+                        gitHubResult.RepositoryUrl);
+                }
+
+                // Add the remote
+                var result = await _gitService.AddRemoteAsync(
+                    request.RepositoryPath,
+                    request.Organization,
+                    request.RepositoryName,
+                    request.PushAfterAdd);
+
+                if (result.Success)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = result.Message,
+                        durationMs = result.Duration.TotalMilliseconds
+                    });
+                }
+
+                return BadRequest(new
+                {
+                    success = false,
+                    error = result.ErrorMessage,
+                    durationMs = result.Duration.TotalMilliseconds
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during remote setup");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error during remote setup"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Remove a remote from the repository
+        /// </summary>
+        [HttpDelete("remove-remote")]
+        public async Task<IActionResult> RemoveRemote([FromQuery] string repositoryPath, [FromQuery] string remoteName = "origin")
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(repositoryPath))
+                {
+                    return BadRequest(new { success = false, error = "Repository path is required" });
+                }
+
+                var result = await _gitService.RemoveRemoteAsync(repositoryPath, remoteName);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Remote removed successfully for repository: {RepositoryPath}", repositoryPath);
+                    return Ok(new
+                    {
+                        success = true,
+                        message = result.Message
+                    });
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to remove remote: {Error}", result.ErrorMessage);
+                    return Ok(new
+                    {
+                        success = false,
+                        error = result.ErrorMessage
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing remote");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error while removing remote"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets the saved GitHub organization
+        /// </summary>
+        /// <returns>The saved organization name or empty string</returns>
+        [HttpGet("github-organization")]
+        public IActionResult GetGitHubOrganization()
+        {
+            try
+            {
+                var dal = _userSettingsDb.GetDal<Setting>();
+                var setting = dal.GetList().Where(s => s.Name == "GitHubOrganization").FirstOrDefault();
+
+                return Ok(new
+                {
+                    organization = setting?.ValueString ?? string.Empty
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting GitHub organization");
+                return Ok(new { organization = string.Empty });
+            }
+        }
+
+        /// <summary>
+        /// Saves the GitHub organization for future use
+        /// </summary>
+        /// <param name="request">Organization to save</param>
+        /// <returns>Success status</returns>
+        [HttpPost("github-organization")]
+        public async Task<IActionResult> SaveGitHubOrganizationEndpoint([FromBody] OrganizationRequest request)
+        {
+            try
+            {
+                await SaveGitHubOrganization(request?.Organization);
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving GitHub organization");
+                return StatusCode(500, new { success = false, error = "Failed to save organization" });
+            }
+        }
+
+        /// <summary>
+        /// Sets the GitHub personal access token
+        /// </summary>
+        [HttpPost("github-token")]
+        public async Task<IActionResult> SetGitHubToken([FromBody] TokenRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request?.Token))
+                {
+                    return BadRequest(new { success = false, error = "Token is required" });
+                }
+
+                await _gitHubService.SetTokenAsync(request.Token);
+
+                // Test the token to make sure it's valid
+                var isValid = await _gitHubService.TestTokenAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    tokenValid = isValid
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting GitHub token");
+                return StatusCode(500, new { success = false, error = "Failed to set token" });
+            }
+        }
+
+        /// <summary>
+        /// Gets the masked GitHub token (for display)
+        /// </summary>
+        [HttpGet("github-token")]
+        public async Task<IActionResult> GetGitHubToken()
+        {
+            try
+            {
+                var maskedToken = await _gitHubService.GetMaskedTokenAsync();
+                var isValid = !string.IsNullOrEmpty(maskedToken) ? await _gitHubService.TestTokenAsync() : false;
+
+                return Ok(new
+                {
+                    hasToken = !string.IsNullOrEmpty(maskedToken),
+                    maskedToken = maskedToken,
+                    tokenValid = isValid
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting GitHub token");
+                return Ok(new { hasToken = false, maskedToken = "", tokenValid = false });
+            }
+        }
+
+        /// <summary>
+        /// Tests the GitHub token validity
+        /// </summary>
+        [HttpPost("test-github-token")]
+        public async Task<IActionResult> TestGitHubToken()
+        {
+            try
+            {
+                var isValid = await _gitHubService.TestTokenAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    tokenValid = isValid
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing GitHub token");
+                return Ok(new { success = false, tokenValid = false });
+            }
+        }
+
+        private async Task SaveGitHubOrganization(string organization)
+        {
+            await Task.Run(() =>
+            {
+                _userSettingsDb.BeginTransaction();
+                try
+                {
+                    var dal = _userSettingsDb.GetDal<Setting>();
+                    var setting = dal.GetList().Where(s => s.Name == "GitHubOrganization").FirstOrDefault();
+
+                    if (setting != null)
+                    {
+                        setting.ValueString = organization;
+                    }
+                    else
+                    {
+                        setting = new Setting
+                        {
+                            Name = "GitHubOrganization",
+                            ValueString = organization
+                        };
+                    }
+
+                    dal.Save(setting);
+                    _userSettingsDb.Commit();
+                    _logger.LogInformation("GitHub organization saved: {Organization}", organization);
+                }
+                catch (Exception ex)
+                {
+                    _userSettingsDb.Rollback();
+                    throw;
+                }
+            });
         }
     }
 }

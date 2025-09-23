@@ -145,6 +145,31 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="maxCommits">Maximum number of commits to retrieve</param>
         /// <returns>List of commits with author, message, and other details</returns>
         Task<IList<GitCommitInfo>> GetCommitHistoryAsync(string repositoryPath, int maxCommits = 50);
+
+        /// <summary>
+        /// Checks if a remote repository is configured
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <returns>Remote status information</returns>
+        Task<RemoteStatus> CheckRemoteStatusAsync(string repositoryPath);
+
+        /// <summary>
+        /// Adds a GitHub remote repository to the local repository
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="organization">GitHub organization or username</param>
+        /// <param name="repositoryName">Name of the repository</param>
+        /// <param name="pushAfterAdd">Whether to push existing commits after adding the remote</param>
+        /// <returns>Result of the add remote operation</returns>
+        Task<GitOperationResult> AddRemoteAsync(string repositoryPath, string organization, string repositoryName, bool pushAfterAdd = true);
+
+        /// <summary>
+        /// Removes a remote from the repository
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="remoteName">Name of the remote to remove (default: origin)</param>
+        /// <returns>Result of the remove remote operation</returns>
+        Task<GitOperationResult> RemoveRemoteAsync(string repositoryPath, string remoteName = "origin");
     }
 
     /// <summary>
@@ -196,6 +221,11 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Error message if remote connection failed
         /// </summary>
         public string RemoteConnectionError { get; set; }
+
+        /// <summary>
+        /// Whether the remote repository is empty (has no commits)
+        /// </summary>
+        public bool IsRemoteEmpty { get; set; }
     }
 
     /// <summary>
@@ -227,6 +257,63 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Date of the change
         /// </summary>
         public DateTime ChangeDate { get; set; }
+    }
+
+    /// <summary>
+    /// Remote repository status information
+    /// </summary>
+    public class RemoteStatus
+    {
+        /// <summary>
+        /// Whether a remote is configured
+        /// </summary>
+        public bool HasRemote { get; set; }
+
+        /// <summary>
+        /// The remote name (e.g., "origin")
+        /// </summary>
+        public string RemoteName { get; set; }
+
+        /// <summary>
+        /// The remote URL
+        /// </summary>
+        public string RemoteUrl { get; set; }
+
+        /// <summary>
+        /// Whether the repository is initialized
+        /// </summary>
+        public bool IsGitRepository { get; set; }
+
+        /// <summary>
+        /// Error message if any
+        /// </summary>
+        public string ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// Request for adding a remote repository
+    /// </summary>
+    public class AddRemoteRequest
+    {
+        /// <summary>
+        /// GitHub organization or username
+        /// </summary>
+        public string Organization { get; set; }
+
+        /// <summary>
+        /// Repository name
+        /// </summary>
+        public string RepositoryName { get; set; }
+
+        /// <summary>
+        /// Whether to save the organization for future use
+        /// </summary>
+        public bool SaveOrganization { get; set; }
+
+        /// <summary>
+        /// Whether to push existing commits after adding remote
+        /// </summary>
+        public bool PushAfterAdd { get; set; } = true;
     }
 
     /// <summary>

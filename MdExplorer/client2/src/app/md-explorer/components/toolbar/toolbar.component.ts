@@ -20,6 +20,7 @@ import { GitMessagesComponent } from '../../../git/components/git-messages/git-m
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
+import { GitSetupRemoteDialogComponent } from '../../../git/dialogs/git-setup-remote-dialog/git-setup-remote-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
@@ -63,6 +64,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
   public showMenu: boolean = false;
+  public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
+  public currentRemoteUrl: string = '';
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -221,31 +224,54 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   checkConnection(): void {
     this.isCheckingConnection = true;
-    
+
     const projectPath = this.getProjectPath();
     if (!projectPath) {
       this.isCheckingConnection = false;
       return;
     }
-    
+
     // Update the Git service with current project path
     this.gitservice.setProjectPath(projectPath);
-    
-    // Get both branch status and pull/push data using modern Git service
-    forkJoin([
-      this.gitservice.modernGetBranchStatus(projectPath),
-      this.gitservice.modernGetDataToPull(projectPath)
-    ]).subscribe(
-      ([branch, pullData]) => {
-        // Update observables with the received data
-        this.gitservice.currentBranch$.next(branch);
-        this.gitservice.commmitsToPull$.next(pullData);
-        this.isCheckingConnection = false;
+
+    // Check remote status first
+    this.gitservice.checkRemoteStatus(projectPath).subscribe(
+      remoteStatus => {
+        console.log('Remote status:', remoteStatus);
+        this.hasRemoteConfigured = remoteStatus.hasRemote;
+        this.currentRemoteUrl = remoteStatus.remoteUrl || '';
+
+        // If Git repository exists, proceed with normal checks
+        if (remoteStatus.isGitRepository) {
+          // Get both branch status and pull/push data using modern Git service
+          forkJoin([
+            this.gitservice.modernGetBranchStatus(projectPath),
+            this.gitservice.modernGetDataToPull(projectPath)
+          ]).subscribe(
+            ([branch, pullData]) => {
+              // Update observables with the received data
+              this.gitservice.currentBranch$.next(branch);
+              this.gitservice.commmitsToPull$.next(pullData);
+              this.isCheckingConnection = false;
+            },
+            error => {
+              console.error('Error checking Git connection:', error);
+              this.isCheckingConnection = false;
+              this.connectionIsActive = false;
+            }
+          );
+        } else {
+          // Not a Git repository, hide all Git-related UI
+          this.isCheckingConnection = false;
+          this.connectionIsActive = false;
+          this.hasRemoteConfigured = true; // Hide setup menu if not Git repo
+        }
       },
       error => {
-        console.error('Error checking Git connection:', error);
+        console.error('Error checking remote status:', error);
         this.isCheckingConnection = false;
-        this.connectionIsActive = false;
+        // On error, assume remote is configured to hide the menu
+        this.hasRemoteConfigured = true;
       }
     );
   }
@@ -614,6 +640,80 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(result => {
       // Handle any result if needed
       console.log('Branch dialog closed');
+    });
+
+    this.matMenuTrigger.closeMenu();
+  }
+
+  openSetupRemote(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const currentProject = this.projectService.currentProjects$.value;
+    const projectName = projectPath.split(/[/\\]/).pop() || 'repository';
+
+    const dialogRef = this.dialog.open(GitSetupRemoteDialogComponent, {
+      width: '600px',
+      data: {
+        projectPath: projectPath,
+        projectName: projectName
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        // Remote was successfully configured, update status
+        this.checkConnection();
+      }
+      console.log('Setup remote dialog closed');
+    });
+
+    this.matMenuTrigger.closeMenu();
+  }
+
+  openManageRemote(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    // Show confirmation using snackbar with action
+    const snackBarRef = this._snackBar.open(
+      'Vuoi rimuovere il remote Git configurato?',
+      'RIMUOVI',
+      {
+        duration: 10000,
+        verticalPosition: 'top',
+        horizontalPosition: 'center'
+      }
+    );
+
+    snackBarRef.onAction().subscribe(() => {
+      // User confirmed, remove the remote
+      this.gitservice.removeRemote(projectPath).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this._snackBar.open('Remote rimosso con successo', 'OK', {
+              duration: 3000,
+              verticalPosition: 'top'
+            });
+            // Refresh the remote status
+            this.checkConnection();
+          } else {
+            this._snackBar.open(`Errore: ${response.error}`, 'OK', {
+              duration: 5000,
+              verticalPosition: 'top',
+              panelClass: ['error-snackbar']
+            });
+          }
+        },
+        error: (err) => {
+          console.error('Error removing remote:', err);
+          this._snackBar.open('Errore nella rimozione del remote', 'OK', {
+            duration: 5000,
+            verticalPosition: 'top',
+            panelClass: ['error-snackbar']
+          });
+        }
+      });
     });
 
     this.matMenuTrigger.closeMenu();

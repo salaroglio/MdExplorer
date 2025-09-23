@@ -8,6 +8,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Abstractions.DB;
 
 namespace MdExplorer.Services.Git
 {
@@ -17,17 +20,29 @@ namespace MdExplorer.Services.Git
         private readonly ILogger<ModernGitService> _logger;
         private readonly GitAuthenticationOptions _authOptions;
         private readonly GitOperationOptions _operationOptions;
+        private readonly IUserSettingsDB _userSettingsDB;
 
         public ModernGitService(
-            IEnumerable<ICredentialResolver> credentialResolvers, 
+            IEnumerable<ICredentialResolver> credentialResolvers,
             ILogger<ModernGitService> logger,
+            IUserSettingsDB userSettingsDB,
             IOptions<GitAuthenticationOptions> authOptions = null,
             IOptions<GitOperationOptions> operationOptions = null)
         {
             _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
             _logger = logger;
+            _userSettingsDB = userSettingsDB;
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
+
+            // Log the credential resolvers in order
+            _logger.LogInformation("[ModernGitService] Credential resolvers initialized in priority order:");
+            int index = 1;
+            foreach (var resolver in _credentialResolvers)
+            {
+                _logger.LogInformation("[ModernGitService] #{Index}: {ResolverType} (Priority: {Priority})",
+                    index++, resolver.GetType().Name, resolver.GetPriority());
+            }
         }
 
         public async Task<GitOperationResult> PullAsync(string repositoryPath)
@@ -194,12 +209,33 @@ namespace MdExplorer.Services.Git
 
                 // Push the branch
                 _logger.LogInformation("Executing push to remote: {Remote}, Branch: {Branch}", remoteName, branch.FriendlyName);
-                repo.Network.Push(branch, pushOptions);
-                _logger.LogInformation("Push executed successfully");
+
+                try
+                {
+                    repo.Network.Push(branch, pushOptions);
+                    _logger.LogInformation("Push executed successfully");
+                }
+                catch (LibGit2SharpException libEx) when (
+                    libEx.Message.Contains("failed to parse supported auth schemes", StringComparison.OrdinalIgnoreCase) ||
+                    libEx.Message.Contains("operation identifier is not valid", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Detected Windows LibGit2Sharp auth bug during push, attempting workaround");
+
+                    // Use the same workaround as for fetch - use git CLI directly
+                    var pushWorkaroundTask = TryWindowsPushWorkaroundAsync(repo, remoteName, branch.FriendlyName);
+                    var workaroundSucceeded = pushWorkaroundTask.GetAwaiter().GetResult();
+
+                    if (!workaroundSucceeded)
+                    {
+                        throw; // Re-throw if workaround failed
+                    }
+
+                    _logger.LogInformation("Push workaround succeeded");
+                }
 
                 stopwatch.Stop();
 
-                _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}", 
+                _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}",
                     stopwatch.ElapsedMilliseconds, credentialCallCount);
 
                 // Clear credential call history after successful operation
@@ -853,32 +889,89 @@ namespace MdExplorer.Services.Git
                 {
                     // Fetch latest from remote to ensure accurate comparison
                     var fetchCredentialCallCount = 0;
+
+                    _logger.LogWarning("[FETCH DEBUG] About to create FetchOptions with CredentialsProvider");
+
                     var fetchOptions = new FetchOptions
                     {
-                        CredentialsProvider = (url, userFromUrl, types) => 
+                        CredentialsProvider = (url, userFromUrl, types) =>
                         {
                             fetchCredentialCallCount++;
-                            _logger.LogInformation("FETCH CREDENTIAL CALLBACK (GetPullPushData) #{Count} - URL: {Url}, User: {User}, Types: {Types}", 
+                            _logger.LogWarning("[FETCH DEBUG] *** CREDENTIALS PROVIDER CALLED! *** Count: {Count}, URL: {Url}, User: {User}, Types: {Types}",
                                 fetchCredentialCallCount, url, userFromUrl, types);
-                            
+
                             var task = ResolveCredentials(url, userFromUrl, types);
                             var result = task.GetAwaiter().GetResult();
-                            
-                            _logger.LogInformation("FETCH CREDENTIAL CALLBACK (GetPullPushData) #{Count} - Resolved: {HasCredentials}, Method: {Method}", 
-                                fetchCredentialCallCount, result != null, _lastUsedAuthMethod);
-                            
+
+                            _logger.LogWarning("[FETCH DEBUG] *** CREDENTIALS PROVIDER RETURNING *** HasCredentials: {HasCredentials}, Method: {Method}",
+                                result != null, _lastUsedAuthMethod);
+
                             return result;
                         }
                     };
+
+                    _logger.LogWarning("[FETCH DEBUG] FetchOptions created, looking for remote 'origin'");
 
                     var remote = repo.Network.Remotes["origin"];
                     if (remote != null)
                     {
                         try
                         {
-                            _logger.LogDebug("Fetching from remote: {RemoteName}", remote.Name);
+                            _logger.LogWarning("[FETCH DEBUG] Remote found: {RemoteName}, URL: {RemoteUrl}", remote.Name, remote.Url);
+
+                            // Check if this is a Windows-specific auth issue with GitHub
+                            bool isWindowsAuthIssue = false;
+                            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows) &&
+                                remote.Url.Contains("github.com", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logger.LogWarning("[FETCH DEBUG] Running on Windows with GitHub URL - checking for known auth issues");
+                                isWindowsAuthIssue = true;
+                            }
                             var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
-                            Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, string.Empty);
+                            _logger.LogWarning("[FETCH DEBUG] About to call Commands.Fetch with {RefSpecCount} refspecs", refSpecs.Count());
+
+                            // Log exact moment before fetch
+                            _logger.LogWarning("[FETCH DEBUG] === CALLING Commands.Fetch NOW ===");
+                            try
+                            {
+                                Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, string.Empty);
+                                _logger.LogWarning("[FETCH DEBUG] === Commands.Fetch RETURNED NORMALLY ===");
+                            }
+                            catch (LibGit2SharpException libEx)
+                            {
+                                _logger.LogWarning("[FETCH DEBUG] === LibGit2SharpException in Commands.Fetch ===");
+                                _logger.LogWarning("[FETCH DEBUG] Exception Type: {Type}", libEx.GetType().FullName);
+                                _logger.LogWarning("[FETCH DEBUG] Exception Message: {Message}", libEx.Message);
+                                _logger.LogWarning("[FETCH DEBUG] Exception StackTrace: {StackTrace}", libEx.StackTrace);
+
+                                // Check for Windows-specific auth parsing error
+                                if (isWindowsAuthIssue &&
+                                    (libEx.Message.Contains("failed to parse supported auth schemes", StringComparison.OrdinalIgnoreCase) ||
+                                     libEx.Message.Contains("operation identifier is not valid", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    _logger.LogWarning("[FETCH DEBUG] Detected Windows LibGit2Sharp auth parsing bug - attempting workaround");
+
+                                    // Try to use PAT token workaround
+                                    var workaroundTask = TryWindowsAuthWorkaroundAsync(repo, remote.Name, result);
+                                    var workaroundSucceeded = workaroundTask.GetAwaiter().GetResult();
+                                    if (workaroundSucceeded)
+                                    {
+                                        _logger.LogWarning("[FETCH DEBUG] Windows auth workaround succeeded");
+                                        result.IsRemoteAvailable = true;
+                                    }
+                                    else
+                                    {
+                                        _logger.LogWarning("[FETCH DEBUG] Windows auth workaround failed");
+                                        throw; // Re-throw original exception
+                                    }
+                                }
+                                else
+                                {
+                                    throw; // Re-throw to be caught by outer catch
+                                }
+                            }
+
+                            _logger.LogWarning("[FETCH DEBUG] Commands.Fetch completed successfully");
                             result.IsRemoteAvailable = true;
                             _logger.LogDebug("Fetch completed successfully");
                         }
@@ -893,7 +986,20 @@ namespace MdExplorer.Services.Git
 
                     // Get tracking details after fetch
                     var trackingDetails = currentBranch.TrackingDetails;
-                    if (trackingDetails != null)
+
+                    // Special case: check if we're dealing with an empty remote repository
+                    // In this case, TrackingDetails might be null or incorrect
+                    // The IsRemoteEmpty flag is set by the workaround when it detects an empty repository
+                    if (result.IsRemoteEmpty && currentBranch.Tip != null)
+                    {
+                        // For empty remote, count all commits in the current branch as "ahead"
+                        var allCommits = currentBranch.Commits.Count();
+                        result.CommitsAhead = allCommits;
+                        result.CommitsBehind = 0;
+                        result.HasDataToPull = false;
+                        _logger.LogInformation("[EMPTY REMOTE] Found {Count} commits to push to empty repository", allCommits);
+                    }
+                    else if (trackingDetails != null)
                     {
                         result.CommitsBehind = trackingDetails.BehindBy ?? 0;
                         result.CommitsAhead = trackingDetails.AheadBy ?? 0;
@@ -919,14 +1025,14 @@ namespace MdExplorer.Services.Git
 
                             // Analyze changes in incoming commits
                             var changedFiles = new Dictionary<string, GitFileChange>();
-                            
+
                             foreach (var commit in incomingCommits)
                             {
                                 var parent = commit.Parents.FirstOrDefault();
                                 if (parent != null)
                                 {
                                     var changes = repo.Diff.Compare<TreeChanges>(parent.Tree, commit.Tree);
-                                    
+
                                     foreach (var change in changes)
                                     {
                                         var filePath = change.Path;
@@ -947,6 +1053,15 @@ namespace MdExplorer.Services.Git
 
                             result.FilesToPull = changedFiles.Values.ToList();
                         }
+                    }
+                    else if (currentBranch.Tip != null)
+                    {
+                        // No tracking details but we have commits - likely all need to be pushed
+                        _logger.LogInformation("[NO TRACKING] No tracking details found, counting all commits as 'ahead'");
+                        var allCommits = currentBranch.Commits.Count();
+                        result.CommitsAhead = allCommits;
+                        result.CommitsBehind = 0;
+                        result.HasDataToPull = false;
                     }
 
                     _logger.LogInformation("Pull/push data retrieved: Behind={Behind}, Ahead={Ahead}, Files={Files}",
@@ -1062,6 +1177,514 @@ namespace MdExplorer.Services.Git
 
                 return commits;
             });
+        }
+
+        /// <summary>
+        /// Checks if a remote repository is configured
+        /// </summary>
+        public async Task<RemoteStatus> CheckRemoteStatusAsync(string repositoryPath)
+        {
+            return await Task.Run(() =>
+            {
+                var status = new RemoteStatus();
+
+                try
+                {
+                    _logger.LogInformation("Checking remote status for repository: {RepositoryPath}", repositoryPath);
+
+                    if (!Directory.Exists(repositoryPath))
+                    {
+                        status.IsGitRepository = false;
+                        status.ErrorMessage = "Directory does not exist";
+                        return status;
+                    }
+
+                    var gitPath = Path.Combine(repositoryPath, ".git");
+                    if (!Directory.Exists(gitPath))
+                    {
+                        status.IsGitRepository = false;
+                        status.ErrorMessage = "Not a Git repository";
+                        return status;
+                    }
+
+                    status.IsGitRepository = true;
+
+                    using (var repo = new Repository(repositoryPath))
+                    {
+                        // Check for origin remote
+                        var origin = repo.Network.Remotes["origin"];
+                        if (origin != null)
+                        {
+                            status.HasRemote = true;
+                            status.RemoteName = origin.Name;
+                            status.RemoteUrl = origin.Url;
+                            _logger.LogInformation("Remote found: {RemoteName} -> {RemoteUrl}", origin.Name, origin.Url);
+                        }
+                        else
+                        {
+                            status.HasRemote = false;
+                            _logger.LogInformation("No remote configured for repository");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error checking remote status for repository: {RepositoryPath}", repositoryPath);
+                    status.ErrorMessage = ex.Message;
+                }
+
+                return status;
+            });
+        }
+
+        /// <summary>
+        /// Removes a remote from the repository
+        /// </summary>
+        public async Task<GitOperationResult> RemoveRemoteAsync(string repositoryPath, string remoteName = "origin")
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("Removing remote from repository: {RepositoryPath}, Remote: {RemoteName}",
+                    repositoryPath, remoteName);
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                using (var repo = new Repository(repositoryPath))
+                {
+                    // Check if remote exists
+                    var existingRemote = repo.Network.Remotes[remoteName];
+                    if (existingRemote == null)
+                    {
+                        return new GitOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Remote '{remoteName}' does not exist",
+                            Duration = stopwatch.Elapsed
+                        };
+                    }
+
+                    // Remove the remote
+                    repo.Network.Remotes.Remove(remoteName);
+                    _logger.LogInformation("Remote removed successfully: {RemoteName}", remoteName);
+
+                    return new GitOperationResult
+                    {
+                        Success = true,
+                        Message = $"Remote '{remoteName}' removed successfully",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing remote from repository: {RepositoryPath}", repositoryPath);
+
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to remove remote: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Adds a GitHub remote repository to the local repository
+        /// </summary>
+        public async Task<GitOperationResult> AddRemoteAsync(string repositoryPath, string organization, string repositoryName, bool pushAfterAdd = true)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("Adding remote to repository: {RepositoryPath}, Org: {Org}, Repo: {Repo}",
+                    repositoryPath, organization, repositoryName);
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                using (var repo = new Repository(repositoryPath))
+                {
+                    // Check if origin already exists
+                    var existingRemote = repo.Network.Remotes["origin"];
+                    if (existingRemote != null)
+                    {
+                        return new GitOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Remote 'origin' already exists: {existingRemote.Url}",
+                            Duration = stopwatch.Elapsed
+                        };
+                    }
+
+                    // Construct GitHub URL
+                    var remoteUrl = $"https://github.com/{organization}/{repositoryName}.git";
+
+                    // Add the remote
+                    repo.Network.Remotes.Add("origin", remoteUrl);
+                    _logger.LogInformation("Remote added successfully: origin -> {RemoteUrl}", remoteUrl);
+
+                    // Configure the branch to track the remote branch
+                    var currentBranch = repo.Head;
+                    if (currentBranch != null && !currentBranch.IsRemote)
+                    {
+                        var remoteBranchName = $"refs/remotes/origin/{currentBranch.FriendlyName}";
+                        _logger.LogInformation("Setting up tracking branch: {LocalBranch} -> {RemoteBranch}",
+                            currentBranch.FriendlyName, remoteBranchName);
+
+                        try
+                        {
+                            // Set the upstream branch
+                            repo.Branches.Update(currentBranch,
+                                b => b.TrackedBranch = remoteBranchName);
+
+                            // Also set the config directly to ensure it's properly configured
+                            repo.Config.Set($"branch.{currentBranch.FriendlyName}.remote", "origin");
+                            repo.Config.Set($"branch.{currentBranch.FriendlyName}.merge", $"refs/heads/{currentBranch.FriendlyName}");
+
+                            _logger.LogInformation("Tracking branch configured successfully");
+                        }
+                        catch (Exception trackEx)
+                        {
+                            _logger.LogWarning(trackEx, "Failed to set up tracking branch, continuing anyway");
+                        }
+                    }
+
+                    // If requested and there are commits, push to the remote
+                    if (pushAfterAdd && repo.Head?.Tip != null)
+                    {
+                        _logger.LogInformation("Attempting initial push to remote");
+
+                        // Create a simple push with the current branch
+                        var currentBranchName = repo.Head.FriendlyName;
+                        var pushResult = await PushAsync(repositoryPath, "origin", currentBranchName);
+
+                        if (!pushResult.Success)
+                        {
+                            _logger.LogWarning("Initial push failed: {Error}. Remote was added but not pushed.", pushResult.ErrorMessage);
+                            return new GitOperationResult
+                            {
+                                Success = true,
+                                Message = $"Remote added successfully but initial push failed: {pushResult.ErrorMessage}",
+                                Duration = stopwatch.Elapsed
+                            };
+                        }
+
+                        return new GitOperationResult
+                        {
+                            Success = true,
+                            Message = $"Remote added and initial push completed successfully",
+                            Duration = stopwatch.Elapsed
+                        };
+                    }
+
+                    return new GitOperationResult
+                    {
+                        Success = true,
+                        Message = "Remote added successfully",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding remote to repository: {RepositoryPath}", repositoryPath);
+
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to add remote: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Workaround for Windows LibGit2Sharp authentication parsing bug
+        /// Uses git CLI as fallback when LibGit2Sharp fails with auth parsing error
+        /// </summary>
+        private async Task<bool> TryWindowsPushWorkaroundAsync(Repository repo, string remoteName, string branchName)
+        {
+            try
+            {
+                _logger.LogInformation("[PUSH WORKAROUND] Attempting Windows push workaround using git CLI");
+
+                // Get the repository path
+                var repoPath = repo.Info.WorkingDirectory ?? repo.Info.Path;
+
+                // Try to get the GitHub PAT from settings
+                using var tx = _userSettingsDB.BeginTransaction();
+                var dal = _userSettingsDB.GetDal<Setting>();
+                var settings = dal.GetList().Where(s => s.Name == "GitHubPersonalAccessToken").ToList();
+                var tokenSetting = settings.FirstOrDefault();
+
+                if (tokenSetting == null || string.IsNullOrEmpty(tokenSetting.ValueString))
+                {
+                    _logger.LogWarning("[PUSH WORKAROUND] No GitHub PAT found in settings, cannot use workaround");
+                    return false;
+                }
+
+                _logger.LogInformation("[PUSH WORKAROUND] Found GitHub PAT in settings");
+
+                // Get the remote URL
+                var remote = repo.Network.Remotes[remoteName];
+                if (remote == null)
+                {
+                    _logger.LogWarning("[PUSH WORKAROUND] Remote '{RemoteName}' not found", remoteName);
+                    return false;
+                }
+
+                var originalUrl = remote.Url;
+                var token = tokenSetting.ValueString;
+
+                // Build authenticated URL (similar to fetch workaround)
+                var authenticatedUrl = originalUrl.Replace("https://", $"https://{token}@");
+
+                _logger.LogInformation("[PUSH WORKAROUND] Using git CLI with one-time authenticated URL for push");
+
+                // Create a process to run git push with authenticated URL
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = $"push {authenticatedUrl} {branchName}:{branchName}",
+                    WorkingDirectory = repoPath,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var process = new Process { StartInfo = startInfo };
+                process.Start();
+
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
+
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode == 0)
+                {
+                    _logger.LogInformation("[PUSH WORKAROUND] Git CLI push succeeded");
+                    _logger.LogDebug("[PUSH WORKAROUND] Output: {Output}", output);
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        _logger.LogDebug("[PUSH WORKAROUND] Stderr (informational): {Error}", error);
+                    }
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("[PUSH WORKAROUND] Git CLI push failed with exit code {ExitCode}", process.ExitCode);
+                    _logger.LogWarning("[PUSH WORKAROUND] Error: {Error}", error);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[PUSH WORKAROUND] Exception during Windows push workaround");
+                return false;
+            }
+        }
+
+        private async Task<bool> TryWindowsAuthWorkaroundAsync(Repository repo, string remoteName, GitPullPushData result = null)
+        {
+            try
+            {
+                _logger.LogInformation("[WORKAROUND] Attempting Windows auth workaround using git CLI");
+
+                // Get the repository path
+                var repoPath = repo.Info.WorkingDirectory ?? repo.Info.Path;
+
+                // Try to get the GitHub PAT from settings
+                using var tx = _userSettingsDB.BeginTransaction();
+                var dal = _userSettingsDB.GetDal<Setting>();
+                var settings = dal.GetList().Where(s => s.Name == "GitHubPersonalAccessToken").ToList();
+                var tokenSetting = settings.FirstOrDefault();
+
+                if (tokenSetting == null || string.IsNullOrEmpty(tokenSetting.ValueString))
+                {
+                    _logger.LogWarning("[WORKAROUND] No GitHub PAT found in settings, cannot use workaround");
+                    return false;
+                }
+
+                var token = tokenSetting.ValueString;
+                _logger.LogInformation("[WORKAROUND] Found GitHub PAT in settings");
+
+                // Build the authenticated URL for Git CLI
+                var remote = repo.Network.Remotes[remoteName];
+                if (remote == null || !remote.Url.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("[WORKAROUND] Remote not found or not GitHub HTTPS");
+                    return false;
+                }
+
+                // Create authenticated URL
+                var authenticatedUrl = remote.Url.Replace("https://github.com/", $"https://x-access-token:{token}@github.com/");
+
+                _logger.LogInformation("[WORKAROUND] Using git CLI with one-time authenticated URL");
+
+                // Use git CLI with the authenticated URL directly (never saved to config)
+                var processStartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = $"fetch {authenticatedUrl}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WorkingDirectory = repoPath
+                };
+
+                using var process = System.Diagnostics.Process.Start(processStartInfo);
+                if (process != null)
+                {
+                    // WaitForExitAsync may not be available in older .NET versions
+                    await Task.Run(() => process.WaitForExit());
+
+                    if (process.ExitCode == 0)
+                    {
+                        _logger.LogInformation("[WORKAROUND] Git CLI fetch succeeded");
+                        return true;
+                    }
+                    else
+                    {
+                        var error = await process.StandardError.ReadToEndAsync();
+                        _logger.LogWarning("[WORKAROUND] Git CLI fetch failed: {Error}", error);
+
+                        // Check if this is an empty repository (no HEAD)
+                        if (error.Contains("couldn't find remote ref HEAD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger.LogInformation("[WORKAROUND] Remote repository appears to be empty (no HEAD). This is OK - push will create it.");
+                            // Mark the remote as empty so we can handle commit counting properly
+                            if (result != null)
+                            {
+                                result.IsRemoteEmpty = true;
+                            }
+                            // Return true because the authentication worked, just the repo is empty
+                            // This allows push operations to proceed
+                            return true;
+                        }
+
+                        // Try alternative method: temporarily modify the remote URL
+                        var urlWorkaroundTask = TryUrlBasedWorkaroundAsync(repo, remoteName, token, result);
+                        return urlWorkaroundTask.GetAwaiter().GetResult();
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[WORKAROUND] Error in Windows auth workaround");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Alternative workaround: use git CLI with authenticated URL directly without modifying config
+        /// </summary>
+        private async Task<bool> TryUrlBasedWorkaroundAsync(Repository repo, string remoteName, string token, GitPullPushData result = null)
+        {
+            try
+            {
+                _logger.LogInformation("[WORKAROUND] Attempting URL-based workaround WITHOUT modifying saved remote");
+
+                var remote = repo.Network.Remotes[remoteName];
+                if (remote == null)
+                {
+                    return false;
+                }
+
+                var originalUrl = remote.Url;
+
+                // Parse the URL and add authentication
+                if (originalUrl.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase))
+                {
+                    // For GitHub, we can use the token as the password with any username
+                    var authenticatedUrl = originalUrl.Replace("https://github.com/", $"https://x-access-token:{token}@github.com/");
+
+                    _logger.LogInformation("[WORKAROUND] Using git CLI with authenticated URL (NOT saving to config)");
+
+                    // Use git CLI directly with the authenticated URL WITHOUT modifying the saved remote
+                    // This way the token is never persisted
+                    var gitProcess = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"fetch {authenticatedUrl}",  // Pass the authenticated URL directly
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        WorkingDirectory = repo.Info.WorkingDirectory ?? repo.Info.Path
+                    };
+
+                    using var proc = System.Diagnostics.Process.Start(gitProcess);
+                    if (proc != null)
+                    {
+                        // Wait for completion with timeout
+                        if (proc.WaitForExit(30000)) // 30 second timeout
+                        {
+                            if (proc.ExitCode == 0)
+                            {
+                                _logger.LogInformation("[WORKAROUND] Git CLI fetch with authenticated URL succeeded (remote URL unchanged)");
+                                return true;
+                            }
+                            else
+                            {
+                                var error = proc.StandardError.ReadToEnd();
+                                _logger.LogWarning("[WORKAROUND] Git CLI fetch failed: {Error}", error);
+
+                                // Check if this is an empty repository (no HEAD)
+                                if (error.Contains("couldn't find remote ref HEAD", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _logger.LogInformation("[WORKAROUND] Remote repository appears to be empty (no HEAD). This is OK - push will create it.");
+                                    // Mark the remote as empty so we can handle commit counting properly
+                                    if (result != null)
+                                    {
+                                        result.IsRemoteEmpty = true;
+                                    }
+                                    // Return true because the authentication worked, just the repo is empty
+                                    return true;
+                                }
+
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[WORKAROUND] Git CLI fetch timed out");
+                            proc.Kill();
+                            return false;
+                        }
+                    }
+
+                    return false;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[WORKAROUND] Error in URL-based workaround");
+                return false;
+            }
         }
     }
 }

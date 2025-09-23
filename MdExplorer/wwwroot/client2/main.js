@@ -1177,6 +1177,107 @@ class GITService {
         }));
     }
     /**
+     * Check if repository has remote configured
+     */
+    checkRemoteStatus(projectPath) {
+        const url = `../api/ModernGit/remote-status?repositoryPath=${encodeURIComponent(projectPath)}`;
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error checking remote status:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                hasRemote: false,
+                isGitRepository: false,
+                errorMessage: error.message || 'Failed to check remote status'
+            });
+        }));
+    }
+    /**
+     * Remove a remote from the repository
+     */
+    removeRemote(projectPath, remoteName = 'origin') {
+        const url = `../api/ModernGit/remove-remote?repositoryPath=${encodeURIComponent(projectPath)}&remoteName=${encodeURIComponent(remoteName)}`;
+        return this.http.delete(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error removing remote:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                success: false,
+                error: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || error.message || 'Failed to remove remote'
+            });
+        }));
+    }
+    /**
+     * Setup GitHub remote for repository
+     */
+    setupGitHubRemote(projectPath, organization, repositoryName, saveOrganization = true, pushAfterAdd = true, repositoryDescription, isPrivate) {
+        const request = {
+            repositoryPath: projectPath,
+            organization: organization,
+            repositoryName: repositoryName,
+            repositoryDescription: repositoryDescription,
+            isPrivate: isPrivate !== undefined ? isPrivate : true,
+            saveOrganization: saveOrganization,
+            pushAfterAdd: pushAfterAdd
+        };
+        const url = '../api/ModernGit/setup-remote';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error setting up remote:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                success: false,
+                error: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || error.message || 'Failed to setup remote'
+            });
+        }));
+    }
+    /**
+     * Get saved GitHub organization
+     */
+    getGitHubOrganization() {
+        const url = '../api/ModernGit/github-organization';
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => response.organization || ''), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error getting GitHub organization:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])('');
+        }));
+    }
+    /**
+     * Sets the GitHub personal access token
+     */
+    setGitHubToken(token) {
+        const url = '../api/ModernGit/github-token';
+        return this.http.post(url, { token: token }).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => response), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error setting GitHub token:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({ success: false });
+        }));
+    }
+    /**
+     * Gets the GitHub token status (masked)
+     */
+    getGitHubToken() {
+        const url = '../api/ModernGit/github-token';
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error getting GitHub token:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({ hasToken: false, maskedToken: '', tokenValid: false });
+        }));
+    }
+    /**
+     * Tests the GitHub token validity
+     */
+    testGitHubToken() {
+        const url = '../api/ModernGit/test-github-token';
+        return this.http.post(url, {}).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => response), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error testing GitHub token:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({ success: false, tokenValid: false });
+        }));
+    }
+    /**
+     * Save GitHub organization for future use
+     */
+    saveGitHubOrganization(organization) {
+        const url = '../api/ModernGit/github-organization';
+        return this.http.post(url, { organization: organization }).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["map"])(response => response.success), Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error saving GitHub organization:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])(false);
+        }));
+    }
+    /**
      * Adapts modern Git response to legacy format for backward compatibility
      */
     adaptModernResponseToLegacy(response) {
@@ -2495,8 +2596,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.09.18.3',
-    buildTime: '2025.09.18 15:26:52'
+    version: '2025.09.23.1',
+    buildTime: '2025.09.23 09:39:04'
 };
 
 

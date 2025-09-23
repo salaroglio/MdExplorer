@@ -1,0 +1,132 @@
+<h2 mat-dialog-title>Setup GitHub Remote</h2>
+
+<mat-dialog-content>
+  <!-- Loading saved organization -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Caricamento configurazione...</span>
+  </div>
+
+  <!-- Setup form -->
+  <div *ngIf="!isLoading" class="setup-form">
+    <!-- Instructions -->
+    <div class="instructions">
+      <mat-icon>info</mat-icon>
+      <p>
+        Configura il repository remoto GitHub per sincronizzare il tuo progetto.
+        Il repository verrà creato automaticamente su GitHub se non esiste già.
+      </p>
+    </div>
+
+    <!-- Token warning if not configured -->
+    <div *ngIf="!hasToken" class="warning-message">
+      <mat-icon>warning</mat-icon>
+      <p>
+        <strong>Token GitHub non configurato!</strong><br>
+        Per creare automaticamente il repository, è necessario configurare un Personal Access Token GitHub.
+        <a (click)="openTokenSettings()" style="cursor: pointer; text-decoration: underline;">Configura token</a>
+      </p>
+    </div>
+
+    <!-- Organization input -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Organizzazione GitHub / Username</mat-label>
+      <input matInput
+             [(ngModel)]="organization"
+             placeholder="es. mia-azienda o mio-username"
+             [disabled]="isSetting">
+      <mat-icon matSuffix>business</mat-icon>
+      <mat-hint>Il nome della tua organizzazione GitHub o il tuo username</mat-hint>
+    </mat-form-field>
+
+    <!-- Repository name input -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Nome Repository</mat-label>
+      <input matInput
+             [(ngModel)]="repositoryName"
+             placeholder="es. {{ data.projectName }}"
+             [disabled]="isSetting">
+      <mat-icon matSuffix>folder_open</mat-icon>
+      <mat-hint>Il nome del repository su GitHub (default: nome del progetto)</mat-hint>
+    </mat-form-field>
+
+    <!-- Repository description input -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Descrizione Repository (opzionale)</mat-label>
+      <textarea matInput
+                [(ngModel)]="repositoryDescription"
+                placeholder="Una breve descrizione del progetto"
+                rows="2"
+                [disabled]="isSetting">
+      </textarea>
+      <mat-icon matSuffix>description</mat-icon>
+    </mat-form-field>
+
+    <!-- Repository visibility -->
+    <div class="visibility-option">
+      <mat-label style="display: block; margin-bottom: 8px;">Visibilità Repository:</mat-label>
+      <mat-radio-group [(ngModel)]="isPrivate" [disabled]="isSetting">
+        <mat-radio-button [value]="true">
+          <mat-icon style="vertical-align: middle;">lock</mat-icon>
+          Privato - Solo tu e i collaboratori
+        </mat-radio-button>
+        <mat-radio-button [value]="false" style="margin-left: 20px;">
+          <mat-icon style="vertical-align: middle;">public</mat-icon>
+          Pubblico - Visibile a tutti
+        </mat-radio-button>
+      </mat-radio-group>
+    </div>
+
+    <!-- GitHub URL preview -->
+    <div class="url-preview" *ngIf="getGitHubUrl()">
+      <strong>URL Repository:</strong>
+      <code>{{ getGitHubUrl() }}</code>
+    </div>
+
+    <!-- Options -->
+    <div class="options">
+      <mat-checkbox [(ngModel)]="saveOrganization" [disabled]="isSetting">
+        Ricorda organizzazione per progetti futuri
+      </mat-checkbox>
+
+      <mat-checkbox [(ngModel)]="pushAfterAdd" [disabled]="isSetting">
+        Push automatico dei commit esistenti
+      </mat-checkbox>
+    </div>
+
+    <!-- Error message -->
+    <div *ngIf="error" class="error-message">
+      <mat-icon>error</mat-icon>
+      <span>{{ error }}</span>
+    </div>
+
+    <!-- GitHub instructions -->
+    <mat-expansion-panel class="github-instructions">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>help_outline</mat-icon>
+          Come creare un repository su GitHub
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <ol>
+        <li>Vai su <a href="https://github.com/new" target="_blank">github.com/new</a></li>
+        <li>Inserisci <strong>{{ repositoryName || 'nome-repository' }}</strong> come nome</li>
+        <li>Seleziona se vuoi che sia pubblico o privato</li>
+        <li><strong>NON</strong> inizializzare con README, .gitignore o licenza</li>
+        <li>Clicca su "Create repository"</li>
+        <li>Torna qui e clicca su "Configura"</li>
+      </ol>
+    </mat-expansion-panel>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()" [disabled]="isSetting">Annulla</button>
+  <button mat-raised-button
+          color="primary"
+          (click)="onSetup()"
+          [disabled]="isSetting || !organization || !repositoryName">
+    <mat-spinner *ngIf="isSetting" diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
+    {{ isSetting ? 'Configurazione...' : 'Configura' }}
+  </button>
+</mat-dialog-actions>

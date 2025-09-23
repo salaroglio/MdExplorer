@@ -10,9 +10,10 @@ namespace MdExplorer.Services.Git.Interfaces
     {
         Default = 0,                // Default LibGit2Sharp credentials
         SSHKey = 1,                 // Highest priority - SSH key authentication
-        SystemCredentialStore = 2,  // System credential store (Windows, macOS, Linux)
-        GitCredentialHelper = 3,    // Git credential helpers
-        UserPrompt = 4             // Lowest priority - fallback user prompt
+        GitHubToken = 2,            // GitHub Personal Access Token
+        SystemCredentialStore = 3,  // System credential store (Windows, macOS, Linux)
+        GitCredentialHelper = 4,    // Git credential helpers
+        UserPrompt = 5             // Lowest priority - fallback user prompt
     }
 
     /// <summary>
