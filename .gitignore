@@ -238,8 +238,17 @@ ClientBin/
 *.dbproj.schemaview
 *.jfm
 *.pfx
+*.p12
+*.cer
+cert.*
+certificate.*
 *.publishsettings
 orleans.codegen.cs
+
+# Environment variables with secrets
+.env
+.env.local
+.env.*.local
 
 # Including strong name files can present a security risk
 # (https://github.com/github/gitignore/pull/2483#issue-259490424)
@@ -393,3 +402,6 @@ MdExplorer.Bootstrapper/assets/*.msi
 *.ggml
 AI-Models/
 ~/MdExplorer-Models/
+
+# Website managed as submodule
+# /mdExplorerWebSite/
