@@ -1,52 +1,169 @@
+<!-- Context menu (manteniamo quello esistente) -->
 <div style="visibility: hidden; position: fixed;"
      [style.left.px]="menuTopLeftPosition.x"
      [style.top.px]="menuTopLeftPosition.y"
      [matMenuTriggerFor]="rightMenu"></div>
 
-
 <mat-menu #rightMenu="matMenu">
   <ng-template matMenuContent let-item="item">
     <div>
-      <button  mat-icon-button matTooltip="create new folder" color="primary" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
+      <button mat-icon-button matTooltip="create new folder" color="primary" (click)="createDirectoryOn(item)">
+        <mat-icon>create_new_folder</mat-icon>
+      </button>
     </div>
-    <button  mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
+    <button mat-menu-item (click)="openFolderOn(item)">
+      <mat-icon>folder_open</mat-icon>
+      <span><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></span>
+    </button>
   </ng-template>
 </mat-menu>
 
-
-<div class="flex-container">
-  <h1>Document's Folder</h1>
-  <div class="flex-items-overflow">
-    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" (contextmenu)="onRightClick($event, null)" >
-      <!-- This is the tree node template for leaf nodes -->
-      <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
-        <!-- use a disabled button to provide padding for tree leaf -->
-        <button mat-icon-button>
-          <mat-icon class="mat-icon-rtl-mirror">folder</mat-icon>
+<!-- Main container a due colonne -->
+<div class="file-explorer-container">
+  <div class="explorer-header">
+    <h1 class="explorer-title">{{title}}</h1>
+    <div class="filter-section">
+      <mat-form-field appearance="outline" class="filter-input">
+        <mat-label>Filter files</mat-label>
+        <input matInput 
+               placeholder="Type to filter..." 
+               [(ngModel)]="searchFilter" 
+               (input)="onFilterChange($event)">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+    </div>
+  </div>
+  
+  <div class="explorer-content">
+    <!-- Colonna sinistra: Navigazione rapida -->
+    <div class="left-panel">
+      <!-- Quick access section -->
+      <div class="quick-access-section">
+        <h3 class="section-title">Quick Access</h3>
+        <div class="nav-items" role="navigation" aria-label="Quick access folders">
+          <div class="nav-item" 
+               *ngFor="let folder of specialFolders; trackBy: trackByPath" 
+               (click)="navigateToFolder(folder.path)"
+               (keydown.enter)="navigateToFolder(folder.path)"
+               (keydown.space)="navigateToFolder(folder.path)"
+               [class.active]="currentPath === folder.path"
+               tabindex="0"
+               role="button"
+               [attr.aria-label]="'Navigate to ' + folder.name">
+            <mat-icon class="nav-icon" aria-hidden="true">{{folder.icon}}</mat-icon>
+            <span class="nav-label">{{folder.name}}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Drives section -->
+      <div class="drives-section">
+        <h3 class="section-title">This PC</h3>
+        <div class="nav-items" role="navigation" aria-label="Available drives">
+          <div class="nav-item" 
+               *ngFor="let drive of drives; trackBy: trackByPath"
+               (click)="navigateToFolder(drive.path)"
+               (keydown.enter)="navigateToFolder(drive.path)"
+               (keydown.space)="navigateToFolder(drive.path)"
+               [class.active]="currentPath === drive.path"
+               tabindex="0"
+               role="button"
+               [attr.aria-label]="'Navigate to drive ' + drive.label">
+            <mat-icon class="nav-icon" aria-hidden="true">{{drive.icon}}</mat-icon>
+            <span class="nav-label">{{drive.label}} ({{drive.name}})</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Network shares section -->
+      <div class="network-section" *ngIf="networkShares && networkShares.length > 0">
+        <h3 class="section-title">Network</h3>
+        <div class="nav-items" role="navigation" aria-label="Network shares">
+          <div class="nav-item" 
+               *ngFor="let share of networkShares; trackBy: trackByPath"
+               (click)="navigateToFolder(share.path)"
+               (keydown.enter)="navigateToFolder(share.path)"
+               (keydown.space)="navigateToFolder(share.path)"
+               [class.active]="currentPath === share.path"
+               tabindex="0"
+               role="button"
+               [attr.aria-label]="'Navigate to network share ' + share.name">
+            <mat-icon class="nav-icon" aria-hidden="true">{{share.icon}}</mat-icon>
+            <span class="nav-label">{{share.name}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Colonna destra: Contenuto -->
+    <div class="right-panel">
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <button mat-icon-button 
+                (click)="navigateUp()" 
+                [disabled]="navigationHistory.length === 0"
+                matTooltip="Go back">
+          <mat-icon>arrow_back</mat-icon>
         </button>
-        <a style="cursor:pointer" (click)="getFolder(node);activeNode = node;">{{node.name}}</a>
-      </mat-tree-node>
-      <!-- This is the tree node template for expandable nodes -->
-      <mat-tree-node *matTreeNodeDef="let node;when: hasChild" (click)="activeNode = node" (contextmenu)="onRightClick($event, node)" matTreeNodePadding>
-        <button mat-icon-button matTreeNodeToggle
-                [attr.aria-label]="'Toggle ' + node.name">
-          <mat-icon class="mat-icon-rtl-mirror">
-            {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
+        <span class="current-path">{{displayPath}}</span>
+      </div>
+      
+      <!-- Loading indicator -->
+      <div class="loading-indicator" *ngIf="isLoading">
+        <mat-spinner diameter="30"></mat-spinner>
+        <span>Loading...</span>
+      </div>
+      
+      <!-- File/Folder list -->
+      <div class="content-list" 
+           *ngIf="!isLoading" 
+           (contextmenu)="onRightClick($event, null)"
+           role="grid"
+           aria-label="Folder contents">
+        <div class="content-item" 
+             *ngFor="let item of filteredItems; trackBy: trackByItem"
+             (click)="onItemClick(item)"
+             (dblclick)="onItemDoubleClick(item)"
+             (keydown.enter)="onItemDoubleClick(item)"
+             (keydown.space)="onItemClick(item)"
+             (contextmenu)="onRightClick($event, item)"
+             [class.selected]="activeNode === item"
+             [class.not-selectable]="!isItemSelectable(item)"
+             tabindex="0"
+             role="gridcell"
+             [attr.aria-label]="getItemAriaLabel(item)">
+          <mat-icon class="item-icon" aria-hidden="true">
+            {{item.type === 'folder' ? 'folder' : (item.type === 'file' ? 'insert_drive_file' : 'text_snippet')}}
           </mat-icon>
-        </button>
-        <a style="cursor:pointer" (click)="getFolder(node)">{{node.name}}</a>
-      </mat-tree-node>
-    </mat-tree>
-  </div>
-
-  <div class="flex-selected-folder">
-    <div class="flex-items">
-      <mat-card-title>{{folder.name}}</mat-card-title>
-      <mat-card-subtitle>{{folder.path}}</mat-card-subtitle>
-    </div>
-    <div>
-      <button mat-stroked-button color="primary" (click)="closeDialog()">Select directory</button>
+          <span class="item-name">{{item.name}}</span>
+        </div>
+        
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="filteredItems.length === 0 && !isLoading">
+          <mat-icon>{{searchFilter ? 'search_off' : 'folder_open'}}</mat-icon>
+          <p>{{searchFilter ? 'No files match your filter' : 'This folder is empty'}}</p>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- Bottom section: Selected folder info and action button -->
+  <div class="bottom-panel">
+    <div class="selected-folder-info">
+      <mat-card-title *ngIf="baseStart.typeOfSelection === 'Folders'">
+        {{folder.name || (currentPath ? 'Current folder' : 'No folder selected')}}
+      </mat-card-title>
+      <mat-card-title *ngIf="baseStart.typeOfSelection !== 'Folders'">
+        {{folder.name || 'No file selected'}}
+      </mat-card-title>
+      <mat-card-subtitle>{{folder.path || currentPath}}</mat-card-subtitle>
+    </div>
+    <div class="action-buttons">
+      <button mat-stroked-button color="primary" 
+              (click)="closeDialog()" 
+              [disabled]="!canSelectItem()">
+        {{getSelectionButtonText()}}
+      </button>
+    </div>
+  </div>
 </div>

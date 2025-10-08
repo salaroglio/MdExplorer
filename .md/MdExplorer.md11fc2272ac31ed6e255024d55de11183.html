@@ -1,0 +1,63 @@
+﻿<html style="overflow: hidden; height: 100%;"><head>
+            <link rel="stylesheet" href="/common.css" />            
+            <script src="/common.js"></script>
+            <style>
+                /* Compensazione per la rimozione della scrollbar */
+                .tocNavigation {
+                    left: calc(100% - var(--toc-width) - 15px + var(--toc-scroll)) !important;
+                }
+                .refsNavigation {
+                    left: calc(100% - var(--refs-width) - 15px + var(--refs-scroll)) !important;
+                }
+            </style></head><body Id="MdBody" ConnectionId="ghNYvjEb-zW6CPmfRvreHQ" style="overflow: hidden; height: 100%; margin: 0; padding: 0;">
+                    <div class="edith1-popup-overlay">
+                        <div class="popup-content">
+                            <h4>Inline Editor</h4>
+                           <textarea rows="10" class="edith1textarea " id="editH1">if you see this, something wrong happened</textarea>
+                            <button class="close">Close</button>    
+                            <button class="save">save</button>  
+                        </div>
+                    </div>    
+                   
+                    <div class="mdeTocSticky-top">                        
+                        <div id="TOC" class="tocNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\\MdExplorer.md">
+                            <div class="mdeTocTitle">Table of content</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeToc()"></div>
+                                <nav class="tocNavNavigation">
+                                    <div class="toc js-toc"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div id="Refs" class="refsNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\\MdExplorer.md">
+                            <div class="mdeRefsTitle">References</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeRefs()"></div>
+                                <nav class="refsNavNavigation">
+                                    <div id="references" class="refsMain"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="mdeVerticalTab">
+                            <div class="buttonTabToc">
+                                <div><div onClick="toggleTOC('C%3a%5csviluppo%5cmdExplorer%5c%5cMdExplorer.md')" style="cursor: pointer">TOC</div></div>                             
+                            </div>
+                            <div class="buttonTabRefs">
+                                <div><div onClick="toggleReferences('C%3a%5csviluppo%5cmdExplorer%5c%5cMdExplorer.md')" style="cursor: pointer">Refs</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mdeLowerBar">
+                             <div class="mdeLowerBarButton"><a onClick="toggleMdCanvas(this)" class="mdExplorerLink"><img src="/assets/drawStatic.png" id="canvas" /></a></div>                            
+                             <div class="mdeLowerBarButton"><a onClick="toggleEditor()" class="mdExplorerLink"><img src="/assets/editorInLine.png" id="editorH1" /></a></div>
+                    </div>
+                    <div class="mdeContainerIFrameApplciation">
+                        <div class="mdeItemMainPageLeftMenu"></div>
+                        
+                        <div class="mdeItemMainPageCenter md-tocbot-content js-toc-content">
+                            <div md-itemmatchindex="0" md-h1Id="0" class="editorH1"><h1 id="mdexplorer" md-itemmatchindex="0" md-h1Id="0">MdExplorer</h1></div><div md-itemmatchindex="14" md-h1Id="14" class="editorH1"><h2 id="on-gnulinux-tested-on-linux-mint" md-itemmatchindex="14" md-h1Id="14">On GNU/Linux (tested on Linux Mint)</h2><ul><li><p>install dotnet SDK (currently available as snap package)</p><p><code>sudo snap install dotnet-sdk --classic</code></p></li><li><p>cd into project folder and build</p><p><code>dotnet build</code></p></li></ul><div style="display:none" md-h1Id="0" md-itemmatchindex="0" md-itemmatchindex-end="14" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer.md">todo</div></div><div style="display:none" md-h1Id="14" md-itemmatchindex="14" md-itemmatchindex-end="0" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer.md">todo</div>
+                        </div>
+                        
+                    </div>
+                     
+                    </body></html>

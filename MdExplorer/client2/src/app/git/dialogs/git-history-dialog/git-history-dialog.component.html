@@ -1,0 +1,94 @@
+<h2 mat-dialog-title>Git History {{ data.projectName ? '- ' + data.projectName : '' }}</h2>
+
+<mat-dialog-content>
+  <!-- Loading spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Caricamento cronologia commit...</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error && !isLoading" class="error-container">
+    <mat-icon color="warn">error</mat-icon>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Content when loaded -->
+  <div *ngIf="!isLoading && !error" class="history-content">
+    <!-- View toggle buttons -->
+    <div class="view-toggle">
+      <button mat-button
+              [color]="selectedView === 'table' ? 'primary' : ''"
+              (click)="switchView('table')">
+        <mat-icon>table_chart</mat-icon>
+        Tabella
+      </button>
+      <button mat-button
+              [color]="selectedView === 'graph' ? 'primary' : ''"
+              (click)="switchView('graph')">
+        <mat-icon>account_tree</mat-icon>
+        Grafico
+      </button>
+    </div>
+
+    <!-- Table View -->
+    <div *ngIf="selectedView === 'table'" class="table-container">
+      <table mat-table [dataSource]="dataSource" matSort class="commit-table">
+
+        <!-- Hash Column -->
+        <ng-container matColumnDef="hash">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Hash </th>
+          <td mat-cell *matCellDef="let commit" class="hash-cell">
+            <span class="hash-text" (click)="copyHash(commit.hash)" title="Click to copy">
+              {{ commit.shortHash || commit.hash.substring(0, 7) }}
+            </span>
+            <mat-icon *ngIf="commit.isMerge" class="merge-icon" title="Merge commit">merge_type</mat-icon>
+          </td>
+        </ng-container>
+
+        <!-- Date Column -->
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Data </th>
+          <td mat-cell *matCellDef="let commit" class="date-cell">
+            {{ formatDate(commit.date) }}
+          </td>
+        </ng-container>
+
+        <!-- Author Column -->
+        <ng-container matColumnDef="author">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Autore </th>
+          <td mat-cell *matCellDef="let commit" class="author-cell">
+            {{ commit.author }}
+          </td>
+        </ng-container>
+
+        <!-- Message Column -->
+        <ng-container matColumnDef="message">
+          <th mat-header-cell *matHeaderCellDef> Messaggio </th>
+          <td mat-cell *matCellDef="let commit" class="message-cell">
+            {{ commit.message }}
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+
+      <div *ngIf="commits.length === 0" class="no-commits">
+        Nessun commit trovato
+      </div>
+    </div>
+
+    <!-- Graph View -->
+    <div *ngIf="selectedView === 'graph'" class="graph-container">
+      <canvas #graphCanvas class="graph-canvas"></canvas>
+      <div *ngIf="commits.length === 0" class="no-commits">
+        Nessun commit trovato
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onClose()">Chiudi</button>
+</mat-dialog-actions>

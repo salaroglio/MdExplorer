@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/MdExplorer/MdExplorer.Service.csproj",
+                // Argomenti aggiuntivi per specificare la configurazione e il framework, se necessario
+                // "/property:GenerateFullPaths=true", 
+                // "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true // Rende questo il task di build predefinito
+            },
+            "presentation": {
+                "reveal": "silent" // Non mostrare il terminale se non ci sono errori
+            }
+        }
+    ]
+}

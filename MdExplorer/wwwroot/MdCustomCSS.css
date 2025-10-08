@@ -1,4 +1,14 @@
-﻿/*change color to folders in treeview*/
+﻿:root{
+    --toc-width:300px;
+    --toc-scroll:0px;
+    --refs-width:400px;
+    --refs-scroll:0px;
+}
+/*impostazione generica*/
+
+
+/*change color to folders in treeview*/
+
 
 .gold-icon {
     color: gold;
@@ -123,6 +133,7 @@ img.overrideImgFluid {
 /* set canvas on top of html elements*/
 .canvasForWriting {
     z-index: 100;
+    width:100%;
 }
 
 /*tippy colors*/
@@ -237,7 +248,7 @@ img.overrideImgFluid {
     position: fixed;
     left: 30px;
     background: #ffffff;
-    width:100%;
+    width: 100%;
 }
 
 .showAreaH1 {
@@ -252,11 +263,12 @@ img.overrideImgFluid {
     height: calc(100% - 70px);
     /*text-align: center;*/
 }
+
 .edith1textarea {
-    width: calc(100% - 70px);    
+    width: calc(100% - 70px);
     height: calc(100% - 70px);
     border: none !important;
-    outline:none !important;
+    outline: none !important;
 }
 
 .popup-content {
@@ -265,11 +277,11 @@ img.overrideImgFluid {
     display: none;
 }
 
-.popup-content.active {
-    /*Shows pop-up content when "active" class is present */
-    visibility: visible;
-    display: inline;
-}
+    .popup-content.active {
+        /*Shows pop-up content when "active" class is present */
+        visibility: visible;
+        display: inline;
+    }
 
 button {
     display: inline-block;
@@ -282,35 +294,355 @@ button {
     border: 1px solid #666666;
 }
 
-button:hover {
-    border: 1px solid #666666;
-    background: #666666;
-    color: #ffffff;
+    button:hover {
+        border: 1px solid #666666;
+        background: #666666;
+        color: #ffffff;
+    }
+
+.hideIcons {
+    visibility: hidden;
 }
 
-.hideIcons{
-    visibility:hidden;
+
+
+.red {
+    background-color: palevioletred;
+    color: white;
 }
 
-
-
-.red{
-    background-color:palevioletred;
-    color:white;
+.blue {
+    background-color: deepskyblue;
 }
 
-.blue{
-    background-color:deepskyblue;
+.greenH1 {
+    background-color: greenyellow;
 }
-.green{
-    background-color:greenyellow;
-}s
-.yellow{
+
+s
+.yellow {
     background-color:yellow;
 }
-.gold{
-    background-color:gold;
+
+.purpleH1 {
+    background-color:#f5c7f4;
 }
-.darkgreen{
-    background-color:limegreen
+
+.goldH1 {
+    background-color: gold;
+}
+
+.darkgreenH1 {
+    background-color: limegreen
+}
+
+/*main page MDE*/
+
+.mdeContainerIFrameApplciation {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width:100%;    
+}
+
+.mdeItemMainPageLeftMenu {    
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    flex: 0 0 45px;
+    
+}
+
+.mdeItemMainPageCenter {
+    flex: 1;
+}
+
+.mdeVerticalTab {
+   display:flex;
+   flex-direction:column;
+}
+
+
+.buttonTabToc {
+    left: calc(100% - 30px + var(--toc-scroll));
+    transform: rotate(90deg);
+    position: relative;
+    border-color: grey;
+    border-style: solid;
+    top: 20px;
+    cursor: pointer;
+    font: bold;
+    padding: 0px 8px;
+    border-width: 5 0 0 0;
+    user-select: none;
+    height: 10px;
+    width: 50px;
+}
+
+    .buttonTabToc:hover {
+        font: bold;
+        border-color: #1823d3;
+        border-style: solid;
+        border-width: 5 0 0 0;
+        padding: 0px 8px;
+    }
+
+.buttonTabRefs {
+    
+    left: calc(100% - 30px + var(--refs-scroll));
+    transform: rotate(90deg);
+    position: relative;
+    border-color: grey;
+    border-style: solid;
+    top: 60px;
+    cursor: pointer;
+    font: bold;
+    padding: 0px 8px;
+    border-width: 5 0 0 0;
+    user-select: none;
+    height: 10px;
+    width: 50px;
+}
+
+    .buttonTabRefs:hover {
+        
+        font: bold;
+        border-color: red;
+        border-style: solid;
+        border-width: 5 0 0 0;
+        padding: 0px 8px;
+    }
+.mdeTocTitle {
+    color: white;
+    background-color: #1823d3;
+}
+
+.mdeRefsTitle {
+    color: white;
+    background-color: red;
+}
+
+.mdeNavigationMain {
+    display: flex;
+    flex-direction: row;
+}
+
+.tocNavigation {
+    position: absolute;
+    left: calc(100% - var(--toc-width) - 30px + var(--toc-scroll));
+    width: calc(var(--toc-width));
+    display: flex;
+    flex-direction: column;
+    background-color:white;
+}
+
+.refsNavigation {
+    position: absolute;
+    left: calc(100% - var(--refs-width) - 30px + var(--refs-scroll));
+    width: calc(var(--refs-width));
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+}
+
+.tocNavNavigation {
+    max-height: 100vh;    
+    overflow-y: auto;
+    width:-webkit-fill-available;
+}
+.refsNavNavigation {
+    max-height: 100vh;
+    overflow-y: auto;
+    width: -webkit-fill-available;
+}
+.tocSeparator {
+    width: 5px;
+    background-color: grey;    
+    max-height: 100vh;
+}
+.tocSeparator:hover {
+    cursor:e-resize
+}
+
+
+.mdeTocSticky-top {    
+    direction: ltr;
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.mdeTabSticky-top {    
+    direction: ltr;
+    position: -webkit-sticky;
+    position: sticky;
+    width:30px;
+    top: 0;    
+}
+
+.mdeLowerBar {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;  /* Posizionata in basso a sinistra invece che al centro */
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1020;
+    transition: all 0.3s ease;
+}
+
+.mdeLowerBar:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.mdeLowerBarButton {
+    cursor: pointer;
+    border-radius: 16px;
+    background-color: transparent;
+    padding: 8px;
+    margin: 0 4px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.mdeLowerBarButton:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.mdeLowerBarButton:active {
+    transform: translateY(0);
+}
+
+.mdeLowerBarButton img {
+    width: 24px;
+    height: 24px;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+.mdeLowerBarButton:hover img {
+    transform: scale(1.1);
+}
+
+/* Stile speciale per il pulsante attivo del canvas */
+.mdeLowerBarButton.active {
+    background-color: #4CAF50;
+}
+
+.mdeLowerBarButton.active img {
+    filter: brightness(0) invert(1);
+}
+
+/* Pulsanti di navigazione per link interni - visibili ma disabilitati di default */
+.mdeNavButton {
+    display: block;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Stili per la funzione di ricerca */
+.mdeSearchButton {
+    position: relative;
+}
+
+.mdeSearchButton.active {
+    background-color: #2196F3;
+}
+
+.mdeSearchButton.active img {
+    filter: brightness(0) invert(1);
+}
+
+.mdeSearchContainer {
+    display: none;
+    align-items: center;
+    background: white;
+    border-radius: 20px;
+    padding: 4px 8px;
+    margin-left: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.mdeSearchInput {
+    border: none;
+    outline: none;
+    padding: 6px 10px;
+    font-size: 14px;
+    background: transparent;
+    width: 200px;
+    margin-right: 10px;
+}
+
+.mdeSearchInput:focus {
+    outline: none;
+}
+
+.mdeSearchResultCount {
+    font-size: 12px;
+    color: #666;
+    margin: 0 8px;
+    white-space: nowrap;
+    min-width: 80px;
+    text-align: center;
+}
+
+.mdeSearchNavButton {
+    background: transparent;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 0 2px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.mdeSearchNavButton:hover {
+    background-color: #f0f0f0;
+    border-color: #999;
+}
+
+.mdeSearchNavButton:active {
+    background-color: #e0e0e0;
+}
+
+.mdeSearchCloseButton {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-left: 8px;
+    transition: all 0.2s ease;
+}
+
+.mdeSearchCloseButton:hover {
+    color: #ff4444;
+    transform: scale(1.2);
+}
+
+/* Stili per l'evidenziazione delle parole trovate */
+.mdeSearchHighlight {
+    background-color: #ffff00;
+    padding: 2px;
+    border-radius: 2px;
+    transition: background-color 0.3s ease;
+}
+
+.mdeSearchHighlight.current {
+    background-color: #ff9900;
+    font-weight: bold;
 }

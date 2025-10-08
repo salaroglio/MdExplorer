@@ -3,6 +3,8 @@ import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dial
 import { ShowFileSystemComponent } from '../../../../commons/components/show-file-system/show-file-system.component';
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
+import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
+import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
 
 @Component({
   selector: 'app-move-md-file',
@@ -16,27 +18,48 @@ export class MoveMdFileComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) private dataMdFile: MdFile,
     private dialog: MatDialog,
     private dialogRef: MatDialogRef<MoveMdFileComponent>,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private mdServerMessages: MdServerMessagesService
   ) { }
   
   ngOnInit(): void { }
 
   openFileSystem() {
+    let data = new ShowFileMetadata();
+    data.start = 'project';
+    data.title = "Project's folders";
+    data.typeOfSelection = "Folders";
+
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
-      width: '600px',
+      width: '800px',
       height: '600px',
-      data: 'project'
+      panelClass: 'resizable-dialog-container',
+      data: data,
     });
-    dialogRef.afterClosed().subscribe(_ => {
-      this.directoryDestination = _.data;
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.data) {
+        this.directoryDestination = result.data;
+      }
     });
   }
   
   move(): void {
+    if (!this.directoryDestination || this.directoryDestination.trim() === '') {
+      // Mostra un messaggio di errore se non c'è una destinazione
+      alert('Please select a destination folder');
+      return;
+    }
+    
     this.mdFileService.moveMdFile(this.dataMdFile, this.directoryDestination)
-      .subscribe(_ => {
-        this.mdFileService.loadAll(null, null);
-        this.dialogRef.close();
+      .subscribe({
+        next: (_) => {
+          this.mdFileService.loadAll(null, null);
+          this.dialogRef.close();
+        },
+        error: (error) => {
+          console.error('Error moving file:', error);
+          alert('Error moving file: ' + (error.message || 'Unknown error'));
+        }
       });    
   }
   dismiss(): void {

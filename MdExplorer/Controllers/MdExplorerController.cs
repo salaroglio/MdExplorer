@@ -29,6 +29,11 @@ using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Features.Yaml.Interfaces;
 using MdExplorer.Abstractions.Entities.UserDB;
+using Microsoft.AspNetCore.Http;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using DocumentFormat.OpenXml.Wordprocessing;
+using MdExplorer.Abstractions.Entities.EngineDB;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MdExplorer.Controllers
 {
@@ -36,9 +41,9 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
-        private readonly IHelper _helper;
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;        
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
+        private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -49,12 +54,15 @@ namespace MdExplorer.Controllers
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IHelper helper,
-            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
+            IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor,
+            IYamlDefaultGenerator yamlDefaultGenerator,
+            IWorkLink[] modifiers            
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper)
         {
             _goodRules = GoodRules;
-            _helper = helper;
+            
             _yamlDocumentDescriptor = yamlDocumentDescriptor;
+            _yamlDefaultGenerator = yamlDefaultGenerator;
         }
 
         /// <summary>
@@ -67,32 +75,83 @@ namespace MdExplorer.Controllers
         {
             var currentCultureInfo = CultureInfo.CurrentCulture;
             var test = Encoding.Default;
+            
             var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
             var relativePathFile = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFile);
 
+            // Log di debug per rinominazioni
+            _logger.LogInformation($"🔍 [MdExplorer] Request processing:");
+            _logger.LogInformation($"🔍 [MdExplorer] rootPathSystem: {rootPathSystem}");
+            _logger.LogInformation($"🔍 [MdExplorer] relativePathFile: {relativePathFile}");
+            _logger.LogInformation($"🔍 [MdExplorer] relativePathExtension: {relativePathExtension}");
 
-            if (relativePathExtension != "" && relativePathExtension != ".md")
+            // Validazione: se il path relativo è vuoto o contiene solo slash/backslash, ritorna errore
+            if (string.IsNullOrWhiteSpace(relativePathFile) || 
+                relativePathFile.Trim('/', '\\').Length == 0)
+            {
+                _logger.LogWarning($"❌ [MdExplorer] Invalid or empty relative path: '{relativePathFile}'");
+                return BadRequest("Invalid file path");
+            }
+
+            if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
             {
                 var responseForNotMdFile = CreateAResponseForNotMdFile(rootPathSystem,
                                                         relativePathFile,
                                                         relativePathExtension);
                 return responseForNotMdFile;
             }
-
+            var connectionId = Request.Query["ConnectionId"];
             string fullPathFile = ManageIfThePathContainsExtensionMdOrNot(
                     rootPathSystem, 
                     relativePathFile, 
                     relativePathExtension);
+            
+            _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
 
+            // Calculate relative path properly
+            var calculatedRelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty);
+            if (calculatedRelativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
+            {
+                calculatedRelativePath = calculatedRelativePath.Substring(1);
+            }
+            
+            _logger.LogInformation($"🔍 [MdExplorer] calculatedRelativePath: {calculatedRelativePath}");
+            
             var monitoredMd = new MonitoredMDModel
             {
                 Path = fullPathFile,
                 Name = Path.GetFileName(fullPathFile),
-                RelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                RelativePath = calculatedRelativePath,
                 FullPath = fullPathFile,
                 FullDirectoryPath = Path.GetDirectoryName(fullPathFile)
             };
+
+            // Se è un file .md.directory e non esiste, crealo
+            if (fullPathFile.EndsWith(".md.directory") && !System.IO.File.Exists(fullPathFile))
+            {
+                _logger.LogInformation($"🔍 [MdExplorer] Creating new .md.directory file: {fullPathFile}");
+                
+                // Estrai il nome della directory dal nome del file
+                // Es: "Documentation.md.directory" -> "Documentation"
+                var directoryName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(fullPathFile));
+                
+                // Genera il contenuto iniziale con YAML front matter e titolo
+                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                var initialContent = $"{defaultYaml}# {directoryName}\n\n";
+                
+                try
+                {
+                    // Crea il file con contenuto iniziale
+                    System.IO.File.WriteAllText(fullPathFile, initialContent, Encoding.UTF8);
+                    _logger.LogInformation($"✅ [MdExplorer] Created .md.directory file: {fullPathFile}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"❌ [MdExplorer] Error creating .md.directory file {fullPathFile}: {ex.Message}");
+                    return StatusCode(500, $"Error creating TOC file: {ex.Message}");
+                }
+            }
 
             var markdownTxt = string.Empty;
             using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -101,11 +160,50 @@ namespace MdExplorer.Controllers
                 markdownTxt = sr.ReadToEnd();
             }
 
+            // Verifica se il documento ha YAML front matter e aggiungilo se mancante
+            var descriptor = _yamlDocumentDescriptor.GetDescriptor(markdownTxt);
+            if (descriptor == null || descriptor.WordSection == null)
+            {
+                _logger.LogInformation($"🔍 [MdExplorer] YAML front matter mancante per {fullPathFile}, aggiunta automatica...");
+                
+                // YAML mancante o invalido - aggiungiamolo automaticamente
+                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                var updatedContent = defaultYaml + markdownTxt;
+                
+                // Salva il file evitando il trigger del FileSystemWatcher
+                _fileSystemWatcher.EnableRaisingEvents = false;
+                try
+                {
+                    System.IO.File.WriteAllText(fullPathFile, updatedContent);
+                    
+                    // Notifica l'utente via SignalR
+                    await _hubContext.Clients.Client(connectionId: connectionId)
+                        .SendAsync("yamlAutoGenerated", new {
+                            message = "Metadati YAML aggiunti automaticamente al documento",
+                            filePath = fullPathFile
+                        });
+                    
+                    _logger.LogInformation($"✅ [MdExplorer] YAML front matter aggiunto con successo a {fullPathFile}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"❌ [MdExplorer] Errore durante l'aggiunta dello YAML a {fullPathFile}: {ex.Message}");
+                }
+                finally
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+                
+                // Usa il contenuto aggiornato per il processing
+                markdownTxt = updatedContent;
+                // Ricarica il descriptor con il nuovo contenuto
+                descriptor = _yamlDocumentDescriptor.GetDescriptor(markdownTxt);
+            }
+
             var textHash = _helper.GetHashString(markdownTxt, Encoding.UTF8);
             var cacheName = Path.GetFileName(fullPathFile) + textHash + ".html";
-            XmlDocument doc1 = null; 
+            XmlDocument doc1 = null;
             // parse type of document. Choose between MarkdownType: slides, MarkdownType: document
-            var descriptor = _yamlDocumentDescriptor.GetDescriptor(markdownTxt);
             if (descriptor!= null &&  descriptor.DocumentType == "slides")
             {
                 doc1 = await ProcessAsSlideTypeDocument(
@@ -120,13 +218,14 @@ namespace MdExplorer.Controllers
                     markdownTxt,
                     relativePathFile,
                     fullPathFile,
+                    connectionId,
                     monitoredMd);
             }
 
             
 
             //.Replace(@"\",@"\\");
-            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
+            await _hubContext.Clients.Client(connectionId:connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
 
             try
             {
@@ -138,8 +237,23 @@ namespace MdExplorer.Controllers
                 var msg = ex.Message;
 
             }
-
-
+            // Refresh database
+            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
+            _engineDB.BeginTransaction();
+            if (mdFile == null)
+            {
+                var markdownFile = new MarkdownFile
+                {
+                    FileName = Path.GetFileName(fullPathFile),
+                    Path = fullPathFile,                    
+                    FileType = "File"
+                };
+                relDal.Save(markdownFile);
+            }
+            
+            SaveLinksFromMarkdown(mdFile);
+            _engineDB.Commit();
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
@@ -207,6 +321,12 @@ namespace MdExplorer.Controllers
 
         private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)
         {
+            // Se il file finisce con .md.directory, non aggiungere .md
+            if (relativePathFile.EndsWith(".md.directory"))
+            {
+                return string.Concat(rootPathSystem, relativePathFile);
+            }
+            
             var fullPathFile = string.Concat(rootPathSystem, relativePathFile, ".md");
             if (relativePathExtension == ".md")
             {
@@ -219,6 +339,19 @@ namespace MdExplorer.Controllers
         private FileContentResult CreateAResponseForNotMdFile(string rootPathSystem, string relativePathFile, string relativePathExtension)
         {
             var filePathSystem = string.Concat(rootPathSystem, relativePathFile);
+            
+            // Se il percorso contiene .md directory (PlantUML images), cercare dalla root del progetto
+            if (relativePathFile.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}"))
+            {
+                var mdIndex = relativePathFile.IndexOf($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
+                var filenameAfterMd = relativePathFile.Substring(mdIndex + 1); // include .md/filename
+                filePathSystem = Path.Combine(rootPathSystem, filenameAfterMd);
+                
+                _logger.LogInformation($"🔍 [MdExplorer] PlantUML image path corrected:");
+                _logger.LogInformation($"🔍 [MdExplorer] Original: {string.Concat(rootPathSystem, relativePathFile)}");
+                _logger.LogInformation($"🔍 [MdExplorer] Corrected: {filePathSystem}");
+            }
+            
             var data = System.IO.File.ReadAllBytes(filePathSystem);
             var currentContetType = $"image/{relativePathExtension.Replace(".", string.Empty)}";
             if (relativePathExtension == ".pdf")
@@ -237,6 +370,7 @@ namespace MdExplorer.Controllers
                 string readText,
                 string relativePathFileSystem,
                 string fullPathFile,
+                string connectionId,
                 MonitoredMDModel monitoredMd)
         {
             var requestInfo = new RequestInfo()
@@ -245,51 +379,92 @@ namespace MdExplorer.Controllers
                 CurrentRoot = _fileSystemWatcher.Path,
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
+                ConnectionId = connectionId,
+                BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))
             {
                 isPlantuml = true;
-                await _hubContext.Clients.All.SendAsync("plantumlWorkStart", monitoredMd);
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
             }
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
-            var goodMdRuleFileNameShouldBeSameAsTitle =
-                    _goodRules.First(_ => _.GetType() ==
-                        typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
-
-            var fileNode = new FileInfoNode
+            // Check if Rule #1 is enabled for current project
+            var isRule1Enabled = false;
+            try
             {
-                FullPath = fullPathFile,
-                Name = Path.GetFileName(fullPathFile),
-                DataText = readText
-            };
-            //bool isBroken;
-            //string theNameShouldBe;
-            (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
-            if (isBroken)
+                // Check if Rule #1 is enabled in project settings (stored in ProjectDB)
+                // Get IProjectDB from services
+                var projectDB = HttpContext.RequestServices.GetService<IProjectDB>();
+                if (projectDB != null)
+                {
+                    var projectSettingsDal = projectDB.GetDal<MdExplorer.Abstractions.Entities.ProjectDB.ProjectSetting>();
+                    var rule1Setting = projectSettingsDal.GetList()
+                        .FirstOrDefault(s => s.Name == "Rule1_CheckH1MatchesFilename");
+                    
+                    isRule1Enabled = rule1Setting?.ValueBool ?? false;
+                    _logger.LogInformation($"🔍 [MdExplorer] Rule #1 enabled: {isRule1Enabled}");
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ [MdExplorer] ProjectDB not available");
+                }
+            }
+            catch (Exception ex)
             {
-                monitoredMd.Message = "It breaks Rule # 1";
-                monitoredMd.Action = "Rename the File!";
-                monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
-                monitoredMd.ToFileName = theNameShouldBe;
-                monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
-                await _hubContext.Clients.All.SendAsync("markdownbreakrule1", monitoredMd);
+                _logger.LogError(ex, "Error checking Rule #1 setting");
             }
 
-            var settingDal = _session.GetDal<Setting>();
+            // Apply Rule #1 only if enabled and not a .md.directory file
+            if (isRule1Enabled && !fullPathFile.EndsWith(".md.directory"))
+            {
+                _logger.LogInformation($"✅ [MdExplorer] Applying Rule #1 check to: {fullPathFile}");
+                var goodMdRuleFileNameShouldBeSameAsTitle =
+                        _goodRules.First(_ => _.GetType() ==
+                            typeof(GoodMdRuleFileNameShouldBeSameAsTitle));
+
+                var fileNode = new FileInfoNode
+                {
+                    FullPath = fullPathFile,
+                    Name = Path.GetFileName(fullPathFile),
+                    DataText = readText
+                };
+                
+                (var isBroken, var theNameShouldBe) = goodMdRuleFileNameShouldBeSameAsTitle.ItBreakTheRule(fileNode);
+                if (isBroken)
+                {
+                    monitoredMd.Message = "It breaks Rule # 1";
+                    monitoredMd.Action = "Rename the File!";
+                    monitoredMd.FromFileName = Path.GetFileName(fullPathFile);
+                    monitoredMd.ToFileName = theNameShouldBe;
+                    monitoredMd.FullPath = Path.GetDirectoryName(fullPathFile);
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownbreakrule1", monitoredMd);
+                }
+            }
+            else if (!isRule1Enabled)
+            {
+                _logger.LogInformation($"⏭️ [MdExplorer] Rule #1 is disabled for this project");
+            }
+            else if (fullPathFile.EndsWith(".md.directory"))
+            {
+                _logger.LogInformation($"⏭️ [MdExplorer] Skipping Rule #1 check for .md.directory file: {fullPathFile}");
+            }
+
+            var settingDal = _userSettingsDB.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
-
+                .UseDiagrams()
                 .UsePipeTables()
                 .UseBootstrap()
                 .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
                 .UseEmojiAndSmiley()
                 .UseYamlFrontMatter()
                 .UseGenericAttributes()
+                
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
@@ -337,54 +512,71 @@ namespace MdExplorer.Controllers
             //Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
-            var docSettingDal = _session.GetDal<DocumentSetting>();
-            var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
+            var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();
+            //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
 
-            var styleForToc = currentDocSetting?.ShowTOC ?? true ? @"class=""col-3""" : @"style=""display:none""";
-            var classForMain = currentDocSetting?.ShowTOC ?? true ? @"class=""col-9""" : @"class=""col-12""";
 
-            var button1 = AddButtonOnTopPage("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
-            var button2 = AddButtonOnTopPage($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "/assets/TOC.png","toc");
-            var button3 = AddButtonOnTopPage($"toggleEditor()", "/assets/editorInLine.png", "editorH1");
-            var resultToParse = $@"
-                    <div class=""edith1-popup-overlay"">
-                        <div class=""popup-content"">
-                            <h4 >Inline Editor</h4>
-                           <textarea rows=""10"" class=""edith1textarea "" id=""editH1"">if you see this, something wrong happened</textarea>
-                            <button class=""close"">Close</button>    
-                            <button class=""save"" onclick=""saveInlineData()"">save</button>  
-                        </div>
-                    </div>
-                    <div class=""container-fluid"">
-                        <div class=""row"">                            
-                            <div id=""page"" {classForMain}>
-                        <div class=""container "">
-                            <div class=""row"">
-                                <div  class=""col-1"">
-                                    <div class=""sticky-top"">
-                                    {button1}
-                                    {button2}
-                                    {button3}
-                                    </div>
-                                </div>
-                                <div class=""col-11 md-tocbot-content js-toc-content"">
-                    {result}
-                                </div>
+            var btnDraw = AddButtonOnLowerBar("toggleMdCanvas(this)", "/assets/drawStatic.png","canvas");
+            var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack", "mdeLowerBarButton mdeNavButton");
+            var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
+            var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
+            var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
+            var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
+            var resultToParse = $@"    
+                   
+                    <div  class=""mdeTocSticky-top"">                        
+                        <div id=""TOC"" class=""tocNavigation"" mdeFullPathDocument=""{fullPathFile}"">
+                            <div class=""mdeTocTitle"">Table of content</div>
+                            <div class=""mdeNavigationMain"">
+                                <div class=""tocSeparator"" onmousedown=""resizeToc()""></div>
+                                <nav class=""tocNavNavigation"">
+                                    <div class=""toc js-toc""></div>                                    
+                                </nav>
                             </div>
                         </div>
-                            </div>  
-                            <nav id=""TOC"" {styleForToc} >
-                                <div class=""sticky-top"">
-                                    <div class=""toc js-toc is-position-fixed""></div>                                    
-                                </div>
-                            </nav>
+                        <div id=""Refs"" class=""refsNavigation"" mdeFullPathDocument=""{fullPathFile}"">
+                            <div class=""mdeRefsTitle"">References</div>
+                            <div class=""mdeNavigationMain"">
+                                <div class=""tocSeparator"" onmousedown=""resizeRefs()""></div>
+                                <nav class=""refsNavNavigation"">
+                                    <div id=""references"" class=""refsMain""></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div class=""mdeVerticalTab"">
+                            <div class=""buttonTabToc"">
+                                {btnTOC}                             
+                            </div>
+                            <div class=""buttonTabRefs"">
+                                {btnRefs}
+                            </div>
                         </div>
                     </div>
-                    
-                    
+                    <div class=""mdeLowerBar"">
+                             {btnDraw}
+                             {btnNavBack}
+                             {btnNavForward}
+                             {btnSearch}
+                             <div id=""searchContainer"" class=""mdeSearchContainer"" style=""display: none;"">
+                                <input type=""text"" id=""searchInput"" class=""mdeSearchInput"" placeholder=""Cerca..."" />
+                                <span id=""searchResultCount"" class=""mdeSearchResultCount""></span>
+                                <button id=""searchPrev"" class=""mdeSearchNavButton"" onclick=""navigateSearchResult(-1)"">▲</button>
+                                <button id=""searchNext"" class=""mdeSearchNavButton"" onclick=""navigateSearchResult(1)"">▼</button>
+                                <button id=""searchClose"" class=""mdeSearchCloseButton"" onclick=""closeSearch()"">✕</button>
+                             </div>
+                    </div>
+                    <div class=""mdeContainerIFrameApplciation"">
+                        <div class=""mdeItemMainPageLeftMenu"" ></div>
+                        
+                        <div class=""mdeItemMainPageCenter md-tocbot-content js-toc-content"">
+                            {result}
+                        </div>
+                        
+                    </div>
+                     
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId);
 
             var elementsA = doc1.FirstChild.SelectNodes("//a");
             foreach (XmlNode itemElement in elementsA)
@@ -408,14 +600,18 @@ namespace MdExplorer.Controllers
 
             if (isPlantuml)
             {                 
-                await _hubContext.Clients.All.SendAsync("plantumlWorkStop", monitoredMd);
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
             }
             return doc1;
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1)
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId)
         {
             var html = doc1.CreateElement("html");
+            // IFRAME SCROLLING FIX: Permetti scrolling naturale nell'iframe
+            var htmlStyle = doc1.CreateAttribute("style");
+            htmlStyle.Value = "overflow: auto; height: auto; min-height: 100%;";
+            html.Attributes.Append(htmlStyle);
 
             doc1.AppendChild(html);
             var head = doc1.CreateElement("head");
@@ -433,7 +629,18 @@ namespace MdExplorer.Controllers
 
             html.AppendChild(head);
             var body = doc1.CreateElement("body");
+            var BodyId = doc1.CreateAttribute("Id");
+            var ConnectionId = doc1.CreateAttribute("ConnectionId");
+            var bodyStyle = doc1.CreateAttribute("style");
+            // IFRAME SCROLLING FIX: Permetti scrolling naturale nel body
+            bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
+            BodyId.Value = "MdBody";
+            ConnectionId.Value = connectionId;
+            body.Attributes.Append(BodyId);
+            body.Attributes.Append(ConnectionId);
+            body.Attributes.Append(bodyStyle);
             html.AppendChild(body);
+
 
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />            
@@ -442,20 +649,20 @@ namespace MdExplorer.Controllers
             body.InnerXml += resultToParse;
         }
 
-        private string AddButtonOnTopPage(string functionJs, string image, string Id)
+       
+
+        private string AddButtonOnLowerBar(string functionJs, string image, string Id, string cssClass = "mdeLowerBarButton")
         {
             var doc1 = new XmlDocument();
             var body = doc1.CreateElement("div");
-
             var a = doc1.CreateElement("a");
             var aAtt = doc1.CreateAttribute("onClick");
-            var att2 = doc1.CreateAttribute("style");
-            att2.Value = "cursor: pointer";
-            a.Attributes.Append(aAtt);
-            a.Attributes.Append(att2);
+            var aAtt3 = doc1.CreateAttribute("class");
+            aAtt3.Value = cssClass;
+            body.Attributes.Append(aAtt3);
+            a.Attributes.Append(aAtt);            
             aAtt.Value = functionJs;
             var imgEl = doc1.CreateElement("img");
-            //imgEl.SetAttribute("style", "z-index:50;");
             a.AppendChild(imgEl);
             var srcImg = doc1.CreateAttribute("src");
             var id = doc1.CreateAttribute("id");
@@ -463,6 +670,26 @@ namespace MdExplorer.Controllers
             id.Value = Id;
             imgEl.Attributes.Append(srcImg);
             imgEl.Attributes.Append(id);
+            body.AppendChild(a);
+            return body.OuterXml;
+        }
+
+        private string AddButtonTextOnVerticalBar(string functionJs, string text, string Id)
+        {
+            var doc1 = new XmlDocument();
+            var body = doc1.CreateElement("div");
+            var a = doc1.CreateElement("div");
+            a.InnerText = text;
+            var aAtt = doc1.CreateAttribute("onClick");
+            var att2 = doc1.CreateAttribute("style");
+            att2.Value = "cursor: pointer";
+            a.Attributes.Append(aAtt);
+            a.Attributes.Append(att2);
+            aAtt.Value = functionJs;
+            var id = doc1.CreateAttribute("id");
+            id.Value = Id;
+            body.AppendChild(a);
+            return body.OuterXml;
             body.AppendChild(a);
             return body.OuterXml;
         }

@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +13,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
 {
     public class WorkLinkFromPlantuml : IWorkLink
     {
-        public LinkDetail[] GetLinks(string markdown)
+        public LinkDetail[] GetLinksFromMarkdown(string markdown)
         {
             var toReturn = new List<LinkDetail>();
             // Devo prima isolare la quota parte di plantuml
@@ -23,21 +24,22 @@ namespace MdExplorer.Features.ActionLinkModifiers
             var counter = 0;
             foreach (Match item in matches)
             {
-                Regex rx1 = new Regex(@"\[\[[^#]([^\]]*)\]\]");
+                Regex rx1 = new Regex(@"\[\[([^\]]*)\]\]");
                 var matches1 = rx1.Matches(item.Groups[1].Value);
                 foreach (Match match in matches1)
                 {
                     // i have to parse the filename from the link
-                    var toParse = match.Groups[0].Value;
-                    Regex rx2 = new Regex(@"\[\[([^\.]*\.md)");
-                    var matches2 = rx2.Matches(toParse);
+                    var toParse = match.Groups[1].Value;
+                    Regex rx2 = new Regex(@"(.*\.md)(?:(#.*?))?");
+                    var matches2 = rx2.Matches(toParse.ToLower());
 
                     foreach (Match match2 in matches2)
                     {
                         var linkDetail = new LinkDetail
                         {
                             LinkedCommand = match.Groups[0].Value,
-                            LinkPath = match2.Groups[1].Value,
+                            FullPath = match2.Groups[1].Value,
+                            HTMLTitle = match2.Groups[2]?.Value,
                             SectionIndex = counter
                         };
                         toReturn.Add(linkDetail);
@@ -55,14 +57,24 @@ namespace MdExplorer.Features.ActionLinkModifiers
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
             var markdown = string.Empty;
-            using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            try
             {
-                using (var reader = new StreamReader(stream))
+                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    markdown = reader.ReadToEnd();
+                    using (var reader = new StreamReader(stream))
+                    {
+                        markdown = reader.ReadToEnd();
+                    }
                 }
+
             }
-            return GetLinks(markdown);
+            catch (Exception)
+            {
+
+               return new LinkDetail[] { }; 
+            }
+            
+            return GetLinksFromMarkdown(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
@@ -70,6 +82,20 @@ namespace MdExplorer.Features.ActionLinkModifiers
             var markdown = File.ReadAllText(filepath);
             markdown = markdown.Replace(oldLink, newLink);
             File.WriteAllText(filepath, markdown);
+        }
+
+        public string Relink(RelinkInfo relinkInfo)
+        {
+            var oldPathFile = relinkInfo.OldRelativePath;
+            var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            newPathFile ="/" +  newPathFile.Replace(Path.DirectorySeparatorChar, '/');
+
+            Regex rx = new Regex(oldPathFile, //([^:^ ]*) //replace all emoji from markdown
+                             RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            var commandToReplace = rx.Replace(relinkInfo.LinkedCommand, newPathFile);
+
+            var newCommand = commandToReplace;// relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
+            return newCommand;
         }
     }
 }

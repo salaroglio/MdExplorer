@@ -78,40 +78,56 @@ namespace MdExplorer.Service.Controllers
         [HttpPost]
         public IActionResult RenameFileName([FromBody] FileToRename fileData)
         {
-
-            var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
-            var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
-            RenameFileOnFilesystem(fileData);
-
-            _engineDB.BeginTransaction();
-            _refactoringManager.RenameTheMdFileIntoEngineDB(fileData.FullPath,
-                fileData.FromFileName, fileData.ToFileName);
-            var refSourceAct = _refactoringManager
-                .SaveRefactoringActionForRenameFile(fileData.FullPath,
-                fileData.FromFileName, fileData.ToFileName); // Save the concept of change
-            _refactoringManager.SetRefactoringInvolvedFilesActionsForRenameFile(
-                fileData.FromFileName, fileData.ToFileName, oldFullPath, refSourceAct);
-            // After save, get back the list of links inside involved files
-            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct);//newFullPath
-
-            _engineDB.Commit();
-
-
-            var toReturn = new ChangeFileData
+            try
             {
-                RefactoringSourceActionId = refSourceAct.Id,
-                OldName = fileData.FromFileName,
-                OldPath = oldFullPath,
-                OldLevel = fileData.Level,
-                NewName = fileData.ToFileName,
-                NewPath = newFullPath,
-                NewLevel = fileData.Level,
-                RelativePath = Path.GetDirectoryName(fileData.RelativePath)
-            };
+                var oldFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.FromFileName;
+                var newFullPath = fileData.FullPath + Path.DirectorySeparatorChar + fileData.ToFileName;
+                
+                // Step 1: Rinomina il file nel filesystem
+                RenameFileOnFilesystem(fileData);
 
+                _engineDB.BeginTransaction();            
+                var refSourceAct = _refactoringManager
+                    .SaveRefactoringActionForRenameFile(fileData.FullPath,
+                    fileData.FromFileName, fileData.ToFileName); // Save the concept of change
+                _refactoringManager
+                    .SetRefactoringInvolvedFilesActionsForRenameFile(
+                    fileData.FromFileName, fileData.ToFileName, oldFullPath, refSourceAct);
+                // After save, get back the list of links inside involved files
+                _refactoringManager
+                    .UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct);//newFullPath
+                _refactoringManager
+                    .RenameTheMdFileIntoEngineDB(fileData.FullPath,
+                    fileData.FromFileName, fileData.ToFileName);
 
-            return Ok(toReturn);
+                _engineDB.Commit();
 
+                var toReturn = new ChangeFileData
+                {
+                    RefactoringSourceActionId = refSourceAct.Id,
+                    OldName = fileData.FromFileName,
+                    OldPath = oldFullPath,
+                    OldLevel = fileData.Level,
+                    NewName = fileData.ToFileName,
+                    NewPath = newFullPath,
+                    NewLevel = fileData.Level,
+                    RelativePath = Path.GetDirectoryName(fileData.RelativePath)
+                };
+
+                return Ok(toReturn);
+            }
+            catch (Exception ex)
+            {
+                // Log the error and rollback transaction
+                try { _engineDB.Rollback(); } catch { }
+                
+                // Return detailed error for debugging
+                return StatusCode(500, new { 
+                    error = ex.Message, 
+                    stackTrace = ex.StackTrace,
+                    data = fileData 
+                });
+            }
         }
 
         private void RenameFileOnFilesystem(FileToRename fileData)

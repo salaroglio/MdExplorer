@@ -1,5 +1,13 @@
 $iconWidth: after 56px;
 
+// Assicuriamoci che mat-toolbar si adatti correttamente
+mat-toolbar {
+  width: 100%;
+  mat-toolbar-row {
+    width: 100%;
+  }
+}
+
 .branchGood {
   color: greenyellow;
 }
@@ -68,4 +76,34 @@ $iconWidth: after 56px;
   height: 20px;  
   background-color: white;
   color: black;
+}
+.smallMessagesToPush {
+  cursor: pointer;
+  font-size: 12px;
+  height: 20px;
+  background-color: lawngreen;
+  color: black;
+}
+
+.menu-container {  
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.menu {
+  display: none;
+  color: black;
+  font-size: 12px;
+  position: absolute;
+  top:20px;
+  float:right;
+  background-color: #f9f9f9;
+  min-width: 300px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.menu-container:hover .menu {
+  display: block;
 }

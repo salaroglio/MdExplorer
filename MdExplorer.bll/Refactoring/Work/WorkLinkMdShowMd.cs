@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +13,7 @@ namespace MdExplorer.Features.Refactoring.Work
 {
     public class WorkLinkMdShowMd : IWorkLink
     {
-        public LinkDetail[] GetLinks(string markdown)
+        public LinkDetail[] GetLinksFromMarkdown(string markdown)
         {
         
             var rx = new Regex(@"mdShowMd\(([^\)]*)\)",
@@ -24,7 +25,7 @@ namespace MdExplorer.Features.Refactoring.Work
                 var toStore = new LinkDetail
                 {
                     LinkedCommand = item.Groups[0].Value,
-                    LinkPath = item.Groups[1].Value,
+                    FullPath = item.Groups[1].Value,
                 };
                 listToReturn.Add(toStore);
             }
@@ -34,15 +35,24 @@ namespace MdExplorer.Features.Refactoring.Work
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
             var markdown = string.Empty;
-            using (var stream = File.Open(filepath,FileMode.Open, FileAccess.Read,FileShare.ReadWrite))
+            try
             {
-                using (var reader = new StreamReader(stream))
+                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    markdown = reader.ReadToEnd();
-                }                
+                    using (var reader = new StreamReader(stream))
+                    {
+                        markdown = reader.ReadToEnd();
+                    }
+                }
             }
+            catch (Exception)
+            {
+
+                return  new LinkDetail[] { };
+            }
+            
             //var markdown = File.ReadAllText(filepath);
-            return GetLinks(markdown);
+            return GetLinksFromMarkdown(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
@@ -50,6 +60,15 @@ namespace MdExplorer.Features.Refactoring.Work
             var markdown = File.ReadAllText(filepath);
             markdown = markdown.Replace(oldLink, newLink);
             File.WriteAllText(filepath, markdown);
+        }
+
+        public string Relink(RelinkInfo relinkInfo)
+        {
+            var oldPathFile = relinkInfo.OldRelativePath;
+            var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            newPathFile = "/" + newPathFile.Replace(Path.DirectorySeparatorChar, '/');
+            var newCommand = relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
+            return newCommand;
         }
     }
 }

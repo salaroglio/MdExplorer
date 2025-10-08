@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -237,8 +238,17 @@ ClientBin/
 *.dbproj.schemaview
 *.jfm
 *.pfx
+*.p12
+*.cer
+cert.*
+certificate.*
 *.publishsettings
 orleans.codegen.cs
+
+# Environment variables with secrets
+.env
+.env.local
+.env.*.local
 
 # Including strong name files can present a security risk
 # (https://github.com/github/gitignore/pull/2483#issue-259490424)
@@ -366,3 +376,43 @@ FodyWeavers.xsd
 /MdExplorer/Documents/.md
 /MdExplorer/Documents/Tests/CarloSalaroglio/.md
 /MdExplorer/Documents/Tests/AssetMonitor/StateDiagrams/.md
+
+
+/ElectronMdExplorer/release-builds/
+/MdExplorer/Binaries/ElectronMdExplorer
+/ElectronMdExplorer/dist/
+/ElectronMdExplorer/react_app/
+/ElectronMdExplorer/Binaries/
+/ElectronMdExplorer/node_modules/
+/ElectronMdExplorer/service_payload/
+/release-builds/
+/MdEditor.React/dist
+
+/.md/
+/.claude
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# VS Copilot indices
+.vs/**/CopilotIndices/
+
+# Large installer files
+MdExplorer.Bootstrapper/assets/*.exe
+MdExplorer.Bootstrapper/assets/*.msi
+# Backup original refs before filter-branch
+.git/refs/original/
+
+# AI Model files
+*.gguf
+*.ggml
+AI-Models/
+~/MdExplorer-Models/
+
+# Website managed as submodule
+# /mdExplorerWebSite/

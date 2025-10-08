@@ -1,0 +1,65 @@
+<h2 mat-dialog-title>Branch Info {{ data.projectName ? '- ' + data.projectName : '' }}</h2>
+
+<mat-dialog-content>
+  <!-- Loading spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Caricamento informazioni branch...</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error && !isLoading" class="error-container">
+    <mat-icon color="warn">error</mat-icon>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Branch information -->
+  <div *ngIf="!isLoading && !error && currentBranch" class="branch-info">
+    <div class="info-row">
+      <mat-icon>branch</mat-icon>
+      <div class="info-content">
+        <label>Branch corrente:</label>
+        <span class="branch-name">{{ currentBranch.name }}</span>
+      </div>
+    </div>
+
+    <div class="info-row" *ngIf="currentBranch.somethingIsChangedInTheBranch">
+      <mat-icon color="warn">edit</mat-icon>
+      <div class="info-content">
+        <label>File modificati:</label>
+        <span>{{ currentBranch.howManyFilesAreChanged }}</span>
+      </div>
+    </div>
+
+    <div class="info-row" *ngIf="currentBranch.howManyCommitAreToPush > 0">
+      <mat-icon color="primary">upload</mat-icon>
+      <div class="info-content">
+        <label>Commit da pushare:</label>
+        <span>{{ currentBranch.howManyCommitAreToPush }}</span>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <mat-icon>folder</mat-icon>
+      <div class="info-content">
+        <label>Percorso:</label>
+        <span class="path">{{ currentBranch.fullPath }}</span>
+      </div>
+    </div>
+
+    <div class="status-summary">
+      <mat-chip-list>
+        <mat-chip [color]="currentBranch.somethingIsChangedInTheBranch ? 'warn' : 'primary'" selected>
+          {{ currentBranch.somethingIsChangedInTheBranch ? 'Modifiche locali presenti' : 'Nessuna modifica locale' }}
+        </mat-chip>
+        <mat-chip *ngIf="currentBranch.howManyCommitAreToPush > 0" color="accent" selected>
+          {{ currentBranch.howManyCommitAreToPush }} commit da pushare
+        </mat-chip>
+      </mat-chip-list>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onClose()">Chiudi</button>
+</mat-dialog-actions>

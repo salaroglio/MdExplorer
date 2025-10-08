@@ -1,37 +1,59 @@
-﻿using MdExplorer;
+﻿using Ad.Tools.Dal.Extensions;
+using DocumentFormat.OpenXml.EMMA;
+using MdExplorer;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Commands.FunctionParameters;
+using MdExplorer.Features.Commands.html;
 using MdExplorer.Features.Commands.Markdown;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
+using MdExplorer.Features.Utilities;
+using MdExplorer.Hubs;
+using MdExplorer.Models;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Controllers.WriteMD.dto;
 using MdExplorer.Service.Controllers.WriteMDDto;
+using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace MdExplorer.Service.Controllers.WriteMDDto
 {
     [ApiController]
     [Route("/api/WriteMD/{action}")]
-    public class WriteMDController : ControllerBase
+    public class WriteMDController : MdControllerBase<WriteMDController>
     {
         private static object lockAccessToFileMD = new object();
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly ICommandRunnerMD _commandRunner;
 
-        public WriteMDController(FileSystemWatcher fileSystemWatcher, ICommandRunnerMD commandRunner)
+        public WriteMDController(FileSystemWatcher fileSystemWatcher,
+            ILogger<WriteMDController> logger,
+            IUserSettingsDB session,
+            IEngineDB engineDB,
+            IOptions<MdExplorerAppSettings> options,
+            ICommandRunnerMD commandRunner,
+            IHubContext<MonitorMDHub> hubContext,
+            IWorkLink[] modifiers,
+            IHelper helper
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
         {
-            _fileSystemWatcher = fileSystemWatcher;
 
-            _commandRunner = commandRunner;
+
         }
 
         /// <summary>
@@ -68,7 +90,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     Position = dto.Position
                 };
                 // transform
-                var replaceSingleItem = (IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>)_commandRunner.Commands
+                var replaceSingleItem = (IReplaceSingleItemMD<CSSSavedOnPageInfo, CSSSavedOnPageInfo>)_commandRunner.GetAllCommands()
                         .Where(_ => _.Name == "CSSSavedOnPage").FirstOrDefault();
 
                 (markdown, cssInfo) = replaceSingleItem
@@ -85,7 +107,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         {
             var systemPathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             var markdown = System.IO.File.ReadAllText(systemPathFile);
-            var commandSave = (ICommandSaveMD<string, string>)_commandRunner.Commands
+            var commandSave = (ICommandSaveMD<string, string>)_commandRunner.GetAllCommands()
                         .Where(_ => _.Name == "FromEmojiFloppyDiskToSaveFile").FirstOrDefault();
             var folder = Path.GetDirectoryName(systemPathFile);
             var fileName = string.Empty;
@@ -107,6 +129,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             EmojiPriorityOrderInfo info = null;
 
+
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
                 // load Md
@@ -126,7 +149,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     TableGameIndex = tableGameIndex
                 };
                 // transform
-                var replaceSingleItem = (IReplaceSingleItemMD<EmojiPriorityOrderInfo, EmojiPriorityOrderInfo>)_commandRunner.Commands
+                var replaceSingleItem = (IReplaceSingleItemMD<EmojiPriorityOrderInfo, EmojiPriorityOrderInfo>)_commandRunner.GetAllCommands()
                         .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault();
                 (markdown, info) = replaceSingleItem
                         .ReplaceSingleItem(markdown, requestInfo, param);
@@ -155,7 +178,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     CurrentRoot = _fileSystemWatcher.Path,
                 };
                 // transform
-                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
+                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.GetAllCommands()
                         .Where(_ => _.Name == "FromEmojiToDynamicPriority").FirstOrDefault();
                 markdown = replace.ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index });
                 System.IO.File.WriteAllText(systePathFile, markdown);
@@ -163,8 +186,13 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 // write
             }
 
+
+            var editorH1 = (IEditorH1Context)_commandRunner.GetAllCommands()
+                    .Where(_ => _.Name == "EditH1").FirstOrDefault();
+            var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
+
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok("done");
+            return Ok(indexItemMatchArray);
         }
 
         [HttpGet]
@@ -185,7 +213,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     CurrentQueryRequest = ""
                 };
                 // transform
-                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
+                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.GetAllCommands()
                         .Where(_ => _.Name == "FromEmojiToDynamicProcess").FirstOrDefault();
                 markdown = replace
                         .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { Index = index, ToReplace = toReplace }); //toReplace, index
@@ -193,9 +221,12 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
 
                 // write
             }
+            var editorH1 = (IEditorH1Context)_commandRunner.GetAllCommands()
+                   .Where(_ => _.Name == "EditH1").FirstOrDefault();
+            var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
 
             _fileSystemWatcher.EnableRaisingEvents = true;
-            return Ok("done");
+            return Ok(indexItemMatchArray);
         }
 
         [HttpGet]
@@ -215,7 +246,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     CurrentQueryRequest = ""
                 };
                 // transform
-                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.Commands
+                var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.GetAllCommands()
                         .Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
                 markdown = replace
                         .ReplaceSingleItem(markdown, requestInfo, new Features.Commands.Markdown.EmojiReplaceInfo { ToReplace = toReplace, Index = index }); //toReplace, index
@@ -228,18 +259,118 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             return Ok("done");
         }
 
+        [HttpGet]
+        public IActionResult GetEditorH1(string editorH1CurrentIndex, string absolutePathFile)
+        {
+            var getData = (IEditorH1Context)_commandRunner.GetAllCommands()
+                       .Where(_ => _.Name == "EditH1").FirstOrDefault();
+            var toReturn = getData.GetDataBy(editorH1CurrentIndex, absolutePathFile);
+            return Ok(toReturn);
+        }
+
 
         [HttpPost]
-        public IActionResult SetEditorH1([FromBody] SetEditorH1Request dto)
+        async public Task<IActionResult> SetEditorH1([FromBody] SetEditorH1Request dto)
         {
-            var systePathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
-            var markdown = System.IO.File.ReadAllText(systePathFile);
-            var replace = (IEditorH1Context)_commandRunner.Commands
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            // Sign ont RefactoringSourceAction 
+            // read from LinkInsideMarkdown the list of links affected from this changes
+            // then get the mdFiles you have to change in order to re-link the MdShowH2 command
+            // change all links 
+            Regex rxGetTitles = new Regex(@"## ([^\n])*((?!\n## )(?!\n# ).)*",
+                           RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var rxGetEmoji = new Regex(":.*?:");
+
+            var systemPathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
+            var markdown = System.IO.File.ReadAllText(systemPathFile);
+
+
+            var editorH1Engine = (IEditorH1Context)_commandRunner.GetAllCommands()
                        .Where(_ => _.Name == "EditH1").FirstOrDefault();
 
-            markdown = replace.SaveNewMarkdown(markdown, dto.IndexStart, dto.IndexEnd, dto.NewMd, dto.OldMd);
-            System.IO.File.WriteAllText(systePathFile, markdown);
+            var limDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var listOfLinksTochangeFromDB = limDal.GetList()
+                .Where(_ => _.FullPath == dto.PathFile && _.Source == "WorkLinkMdShowH2")                
+                .Select(_=> new LinkInsideMarkdownDto { 
+                    FullPath = _.FullPath,
+                    HTMLTitle = _.HTMLTitle,
+                    Id = _.Id,
+                    LinkedCommand = _.LinkedCommand,
+                    MarkdownFile = _.MarkdownFile,
+                    MdContext = _.MdContext,
+                    MdTitle = _.MdTitle,
+                    Path = _.Path,
+                    SectionIndex = _.SectionIndex,  
+                    Source = _.Source,
+                })
+                .ToArray();
 
+            markdown = editorH1Engine.ApplyChangesToMarkdown(markdown, dto.IndexStart, dto.IndexEnd, dto.NewMd, dto.OldMd);
+            if (listOfLinksTochangeFromDB.Length > 0)// at least one link COULD be refactored
+            {
+                var matchesMdTitle = rxGetTitles.Matches(markdown);
+
+                foreach (var linkDB in listOfLinksTochangeFromDB)
+                {
+                    // First, apply changes and calc link and isolate the broken links                  
+                    foreach (Match potentialMdTitle in matchesMdTitle)
+                    {
+                        var calcMdtitle = string.Join(string.Empty, potentialMdTitle.Groups[1].Captures)
+                                        .Replace("\r", string.Empty);
+                        
+                        calcMdtitle = rxGetEmoji.Replace(calcMdtitle, string.Empty).Trim();
+
+                        if (linkDB.MdTitle == calcMdtitle)
+                        {
+                            linkDB.Found = true;                            
+                        }
+                    }
+                }
+
+                var listOfBrokenLink = listOfLinksTochangeFromDB.Where(_ => !_.Found).ToArray();
+                if (listOfBrokenLink.Count() > 0)
+                {
+                   
+                    var titleH2Matches = rxGetTitles.Matches(dto.NewMd);
+                    var mdTilteNew = string.Join(string.Empty, titleH2Matches[0].Groups[1].Captures)
+                                        .Replace("\r", string.Empty).Trim();
+                    mdTilteNew = rxGetEmoji.Replace(mdTilteNew, string.Empty).Trim();
+
+                    var calcMdTitleNew = rxGetEmoji.Replace(mdTilteNew, string.Empty);
+                    var titleH2OldMatches = rxGetTitles.Matches(dto.OldMd);
+
+                    foreach (var brokenLink in listOfBrokenLink)
+                    {
+                        
+                        // Go to change the link in the files
+                        var markDownOfLink = System.IO.File.ReadAllText(brokenLink.MarkdownFile.Path);
+                        var newLinkedCommand = brokenLink.LinkedCommand;
+                        newLinkedCommand = newLinkedCommand.Replace("," + brokenLink.MdTitle + ",",
+                                        "," + mdTilteNew.Trim() + ",");
+                        newLinkedCommand = newLinkedCommand.Replace("," + brokenLink.HTMLTitle ,
+                            ",#" + mdTilteNew.ToLower().Replace(" ", "-") );
+
+                        markDownOfLink = markDownOfLink.Replace(brokenLink.LinkedCommand, newLinkedCommand);
+
+                        System.IO.File.WriteAllText(brokenLink.MarkdownFile.Path,markDownOfLink);
+                    }
+                }
+            }
+            // Get back to client eventually broken link
+            // 
+
+            System.IO.File.WriteAllText(systemPathFile, markdown);
+            var relativePath = dto.PathFile.Replace(_fileSystemWatcher.Path, string.Empty).Replace(Path.DirectorySeparatorChar, '/');
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = relativePath,
+                Name = Path.GetFileName(systemPathFile),
+                RelativePath = systemPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                FullPath = systemPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(systemPathFile)
+            };
+            await _hubContext.Clients.Client(connectionId: dto.connectionId).SendAsync("markdownfileischanged", monitoredMd);
+            _fileSystemWatcher.EnableRaisingEvents = true;
             return Ok();
         }
     }

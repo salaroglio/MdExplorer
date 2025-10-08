@@ -1,0 +1,31 @@
+# MdExplorer ignore file
+# This file tells MdExplorer which folders to exclude from markdown file exploration
+
+# Ignore common build and dependency directories
+node_modules/
+bin/
+obj/
+.git/
+.vs/
+packages/
+TestResults/
+
+# Ignore specific folders
+ElectronMdExplorer/node_modules/
+MdExplorer/client2/node_modules/
+MdEditor.React/node_modules/
+
+# Ignore any folder named 'temp' or 'tmp' at any level
+temp
+tmp
+
+# Ignore folders starting with underscore
+_*
+
+# Ignore backup folders
+backup/
+*.backup/
+
+# Project-specific ignores
+MdExplorer/Binaries/
+WebViewControl*/

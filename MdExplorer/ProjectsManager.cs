@@ -2,6 +2,7 @@
 using Ad.Tools.Dal.Concrete;
 using Ad.Tools.FluentMigrator.Interfaces;
 using FluentMigrator.Runner;
+using LibGit2Sharp;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
@@ -14,6 +15,7 @@ using MdExplorer.Migrations.ProjectDb.Version202109;
 using MdExplorer.Migrations.ProjectDb.Version2022;
 using MDExplorer.DataAccess.Mapping;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,20 +24,29 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using static Ad.Tools.FluentMigrator.FluentMigratorDI;
+using MdExplorer.Utilities;
 
 namespace MdExplorer.Service
 {
     public class ProjectsManager
     {
-        public static void SetNewProject(IServiceProvider serviceProvider, string pathFromParameter)
+        public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, bool addCopilotInstructions = true)
         {
-            ConfigTemplates(pathFromParameter, null);
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdExplorer.db";
+            ConfigTemplates(pathFromParameter, null, addCopilotInstructions);
+
+            // Initialize Git repository only if requested
+            bool gitInitialized = false;
+            if (initializeGit)
+            {
+                gitInitialized = InitializeGitRepository(pathFromParameter);
+            }
+
+            var appdata = CrossPlatformPath.GetAppDataPath();
+            var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = pathFromParameter;
             var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {currentDirectory + Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar}MdProject_{hash}.db";
+            var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
+            var databasePathProject = $"Data Source = {Path.Combine(currentDirectory, ".md", $"MdProject_{hash}.db")}";
 
             UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
 
@@ -50,6 +61,7 @@ namespace MdExplorer.Service
                                    databasePathProject);
 
             // Migration complete
+            return gitInitialized;
         }
 
         /// <summary>
@@ -61,13 +73,13 @@ namespace MdExplorer.Service
         public static void SetProjectInitialization(IServiceCollection services, string pathFromParameter)
         {            
             
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdExplorer.db";
+            var appdata = CrossPlatformPath.GetAppDataPath();
+            var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = ConfigFileSystemWatchers(services, pathFromParameter);
             ConfigTemplates(currentDirectory, services);
             var hash = Helper.HGetHashString(currentDirectory);
-            var databasePathEngine = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdEngine_{hash}.db";
-            var databasePathProject = $@"Data Source = {appdata + Path.DirectorySeparatorChar}MdProject_{hash}.db";
+            var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
+            var databasePathProject = $"Data Source = {Path.Combine(appdata, $"MdProject_{hash}.db")}";
 
             UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
 
@@ -142,26 +154,37 @@ namespace MdExplorer.Service
             builder.Dispose();
         }
 
-        private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
-        {
-            var defaultPath = pathFromParameter ?? AppDomain.CurrentDomain.BaseDirectory; // @".\Documents";
+private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
+{
+    string effectivePath = pathFromParameter;
 
-            services.AddSingleton(new FileSystemWatcher { Path = defaultPath });
-            var _fileSystemWatcher = new FileSystemWatcher { Path = defaultPath };
-            services.AddSingleton(_fileSystemWatcher);
-            return defaultPath;
-        }
+    // Check if pathFromParameter is null, empty, or not a valid directory path.
+    // Path.GetDirectoryName on a simple string like "5000" returns an empty string.
+    if (string.IsNullOrEmpty(effectivePath) || !Directory.Exists(effectivePath))
+    {
+        // If pathFromParameter is not a valid directory, default to the application's base directory.
+        // This ensures FileSystemWatcher always gets a valid directory.
+        effectivePath = AppDomain.CurrentDomain.BaseDirectory;
+    }
+    
+    // It's generally better to register a factory or a configured instance once.
+    // Registering FileSystemWatcher as a singleton that gets configured here.
+    services.AddSingleton<FileSystemWatcher>(sp => new FileSystemWatcher(effectivePath));
+    
+    return effectivePath; // Return the path that was actually used.
+}
 
-        private static void ConfigTemplates(string mdPath, IServiceCollection services = null)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true)
         {
-            var publishFolder = $"{mdPath}{Path.DirectorySeparatorChar}mdPublish";
-            Directory.CreateDirectory(publishFolder);
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
             var directoryEmoji = $"{directory}{Path.DirectorySeparatorChar}EmojiForPandoc";
             Directory.CreateDirectory(directory);
             Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates");
             Directory.CreateDirectory(directoryEmoji);
+
+            // Copy configuration files to project root if they don't exist
+            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -192,11 +215,13 @@ namespace MdExplorer.Service
                 Path.DirectorySeparatorChar}templates{
                 Path.DirectorySeparatorChar}pdf{
                 Path.DirectorySeparatorChar}eisvogel.tex");
-            //FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", $@"{
-            //        directory}{
-            //        Path.DirectorySeparatorChar}templates{
-            //        Path.DirectorySeparatorChar}word{
-            //        Path.DirectorySeparatorChar}reference.docx");
+            // Crea template reference.docx (template di default)
+            var referencePath = $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}reference.docx";
+            if (!File.Exists(referencePath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", referencePath);
+            }
+            
             var minutePath = $@"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}minute.docx";
             if (!File.Exists(minutePath))
             {
@@ -208,6 +233,148 @@ namespace MdExplorer.Service
                 FileUtil.ExtractResFile("MdExplorer.Service.templates.word.reference.docx", projectPath);
             }
             
+            // NUOVO: Crea directory per template pages
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages");
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}covers");
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}disclaimers");
+            Directory.CreateDirectory($"{directory}{Path.DirectorySeparatorChar}templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}appendices");
+
+            // NUOVO: Copia template pages da embedded resources
+            CopyPageTemplates(directory);
+            
+        }
+        
+        private static void CopyPageTemplates(string mdDirectory)
+        {
+            var pageTemplates = new[]
+            {
+                ("covers.standard.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}covers{Path.DirectorySeparatorChar}standard.md"),
+                ("covers.project.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}covers{Path.DirectorySeparatorChar}project.md"),
+                ("disclaimers.confidential.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}disclaimers{Path.DirectorySeparatorChar}confidential.md"),
+                ("appendices.signatures.md", $@"templates{Path.DirectorySeparatorChar}word{Path.DirectorySeparatorChar}pages{Path.DirectorySeparatorChar}appendices{Path.DirectorySeparatorChar}signatures.md")
+            };
+
+            foreach (var (resourceName, destinationPath) in pageTemplates)
+            {
+                var fullPath = $"{mdDirectory}{Path.DirectorySeparatorChar}{destinationPath}";
+                if (!File.Exists(fullPath))
+                {
+                    FileUtil.ExtractResFile($"MdExplorer.Service.templates.word.pages.{resourceName}", fullPath);
+                }
+            }
+        }
+        
+        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true)
+        {
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+
+                // Copy .mdapplicationtoopen file
+                var mdApplicationToOpenPath = Path.Combine(projectPath, ".mdapplicationtoopen");
+                if (!File.Exists(mdApplicationToOpenPath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..mdapplicationtoopen", mdApplicationToOpenPath);
+                    Console.WriteLine($"Created configuration file: {mdApplicationToOpenPath}");
+                }
+
+                // Copy .mdchangeignore file
+                var mdChangeIgnorePath = Path.Combine(projectPath, ".mdchangeignore");
+                if (!File.Exists(mdChangeIgnorePath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..mdchangeignore", mdChangeIgnorePath);
+                    Console.WriteLine($"Created configuration file: {mdChangeIgnorePath}");
+                }
+
+                // Copy .mdFoldersIgnore file
+                var mdFoldersIgnorePath = Path.Combine(projectPath, ".mdFoldersIgnore");
+                if (!File.Exists(mdFoldersIgnorePath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..mdFoldersIgnore", mdFoldersIgnorePath);
+                    Console.WriteLine($"Created folders ignore configuration file: {mdFoldersIgnorePath}");
+                }
+
+                // Create .github folder and copy copilot-instructions.md only if requested
+                if (addCopilotInstructions)
+                {
+                    var githubPath = Path.Combine(projectPath, ".github");
+                    Directory.CreateDirectory(githubPath);
+
+                    var copilotInstructionsPath = Path.Combine(githubPath, "copilot-instructions.md");
+                    if (!File.Exists(copilotInstructionsPath))
+                    {
+                        FileUtil.ExtractResFile("MdExplorer.Service.copilot-instructions.md", copilotInstructionsPath);
+                        Console.WriteLine($"Created GitHub Copilot instructions file: {copilotInstructionsPath}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error copying configuration files: {ex.Message}");
+                // Non-critical error, continue without the files
+            }
+        }
+
+        /// <summary>
+        /// Initializes a Git repository in the project folder if not already present
+        /// </summary>
+        /// <param name="projectPath">Path to the project folder</param>
+        /// <returns>True if Git was initialized, false if it already existed</returns>
+        public static bool InitializeGitRepository(string projectPath)
+        {
+            try
+            {
+                var gitPath = Path.Combine(projectPath, ".git");
+                
+                // Check if Git repository already exists
+                if (Directory.Exists(gitPath))
+                {
+                    Console.WriteLine($"Git repository already exists at: {projectPath}");
+                    return false;
+                }
+
+                // Initialize Git repository
+                Repository.Init(projectPath);
+                Console.WriteLine($"Git repository initialized at: {projectPath}");
+
+                // Create .gitignore file with MdExplorer specific patterns
+                var gitignorePath = Path.Combine(projectPath, ".gitignore");
+                if (!File.Exists(gitignorePath))
+                {
+                    var gitignoreContent = new StringBuilder();
+                    gitignoreContent.AppendLine("# MdExplorer specific files and folders");
+                    gitignoreContent.AppendLine(".md/");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# Database files");
+                    gitignoreContent.AppendLine("*.db");
+                    gitignoreContent.AppendLine("*.db-shm");
+                    gitignoreContent.AppendLine("*.db-wal");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# Temporary files");
+                    gitignoreContent.AppendLine("*.tmp");
+                    gitignoreContent.AppendLine("*.temp");
+                    gitignoreContent.AppendLine("~*");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# Log files");
+                    gitignoreContent.AppendLine("*.log");
+                    gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# OS specific files");
+                    gitignoreContent.AppendLine(".DS_Store");
+                    gitignoreContent.AppendLine("Thumbs.db");
+                    gitignoreContent.AppendLine("desktop.ini");
+
+                    File.WriteAllText(gitignorePath, gitignoreContent.ToString());
+                    Console.WriteLine($"Created .gitignore file at: {gitignorePath}");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing Git repository: {ex.Message}");
+                // Non-critical error, project can continue without Git
+                return false;
+            }
         }
     }
 }

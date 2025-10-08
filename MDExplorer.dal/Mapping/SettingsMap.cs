@@ -10,6 +10,7 @@ namespace MDExplorer.DataAccess.Mapping
             Table("Setting");
             Id(_ => _.Id).GeneratedBy.GuidComb();
             Map(_ => _.Name).Not.Nullable();
+            Map(_ => _.Description).Nullable();
             Map(_ => _.ValueDateTime).Nullable();
             Map(_ => _.ValueDecimal).Nullable();
             Map(_ => _.ValueInt).Nullable();

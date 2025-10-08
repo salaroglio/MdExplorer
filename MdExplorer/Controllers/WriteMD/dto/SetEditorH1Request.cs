@@ -7,5 +7,6 @@
         public string NewMd { get; set; }
         public int IndexStart { get; set; }
         public int IndexEnd { get; set; }
+        public string connectionId { get; set; }
     }
 }

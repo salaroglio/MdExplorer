@@ -47,3 +47,6 @@
 	padding: 0 !important;
 	color: inherit;
 }
+	.hwt-content mark.yellow {
+		background-color: yellow;
+	}

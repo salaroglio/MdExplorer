@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { Routes, RouterModule } from '@angular/router';
 import { FlexLayoutModule } from '@angular/flex-layout';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
 
@@ -17,6 +17,10 @@ import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plan
 import { ShowFileSystemComponent } from './commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/waiting-dialog.component';
 import { NewDirectoryComponent } from './commons/components/new-directory/new-directory.component';
+import { OpeningApplicationComponent } from './signalR/dialogs/opening-application/opening-application.component';
+import { OpeningApplicationProvider } from './signalR/dialogs/opening-application/opening-application.provider';
+import { TitleBarComponent } from './components/title-bar/title-bar.component';
+import { SearchBoxComponent } from './components/search-box/search-box.component';
 
 
 const routes: Routes = [
@@ -38,7 +42,10 @@ const routes: Routes = [
     PlantumlWorkingComponent,
     ShowFileSystemComponent,
     WaitingDialogComponent,
-    NewDirectoryComponent
+    NewDirectoryComponent,
+    OpeningApplicationComponent,
+    TitleBarComponent,
+    SearchBoxComponent
   ],
   imports: [
     BrowserModule,
@@ -46,12 +53,15 @@ const routes: Routes = [
     FlexLayoutModule,
     MaterialModule,
     FormsModule,
+    ReactiveFormsModule,
     BrowserAnimationsModule,
     HttpClientModule,    
     
   ],
   providers: [ParsingProjectProvider,
-               ConnectionLostProvider, PlantumlWorkingProvider],
+    ConnectionLostProvider,
+    PlantumlWorkingProvider,
+    OpeningApplicationProvider],
   bootstrap: [AppComponent]
 })
 export class AppModule {

@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidenavComponent } from './components/sidenav/sidenav.component';
 import { ToolbarComponent } from './components/toolbar/toolbar.component';
@@ -26,19 +26,39 @@ import { DocumentSettingsComponent } from './components/document-settings/docume
 import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { GitModule } from '../git/git.module';
 import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
+import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
+import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
+import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
+import { AiChatModule } from '../ai-chat/ai-chat.module';
+import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
+import { TocProgressService } from './services/toc-progress.service';
 
 
 
 const routes: Routes = [
   { path: '', component: SidenavComponent },
   {
-  path: 'navigation', component: SidenavComponent,
-  children: [
-    { path: 'document', component: MainContentComponent },
-    { path: 'gitlabsettings', component: GitlabSettingsComponent },
-    { path: 'documentsettings', component: DocumentSettingsComponent },
-  ]
-  }];
+    path: 'navigation', 
+    component: SidenavComponent,
+    children: [
+      {
+        path: '',
+        component: DocumentShowComponent,
+        children: [
+          { path: 'document', component: MainContentComponent },
+          { path: 'gitlabsettings', component: GitlabSettingsComponent },
+          { path: 'documentsettings', component: DocumentSettingsComponent },
+          { path: 'react-editor', component: MilkdownReactHostComponent },
+          { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
+        ]
+      },
+      { 
+        path: 'ai-model-manager', 
+        loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule)
+      }
+    ]
+  }
+];
 
 
 @NgModule({
@@ -61,8 +81,11 @@ const routes: Routes = [
     PublishMdTreeComponent,
     GitlabSettingsComponent,
     DocumentSettingsComponent,
-    CopyFromClipboardComponent,    
-    MoveMdFileComponent
+    CopyFromClipboardComponent,
+    MoveMdFileComponent, AddNewFileToMDEComponent,
+    MilkdownReactHostComponent,
+    DocumentShowComponent, // Added to declarations
+    TocProgressDialogComponent
   ],
   imports: [
     CommonModule,
@@ -70,12 +93,17 @@ const routes: Routes = [
     HttpClientModule,
     FormsModule,
     GitModule,
+    AiChatModule,
     RouterModule.forChild(routes)
   ],
   providers: [
-    MdFileService,
-    
-  ]
+    // MdFileService è già providedIn: 'root', non va qui
+    TocProgressService
+  ],
+  entryComponents: [
+    TocProgressDialogComponent
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class MdExplorerModule {
   constructor() {

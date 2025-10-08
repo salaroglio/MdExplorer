@@ -65,8 +65,7 @@ export class DocumentSettingsComponent implements OnInit {
       });
   }
 
-  openCustomWord() {
-    debugger;
+  openCustomWord() {    
     this.mdFileService.opencustomwordtemplate(this.selectedMdFile)
       .subscribe(_=>
         {

@@ -31,16 +31,38 @@ namespace MdExplorer.Service.Utilities
         {
             _editorPath = editorPath;
             _lastDocumentOpened = path;
-            var currentPath = path.Replace(@"\\", @"\"); // pulitura da mettere a posto            
-            var dosCommand = $@"""{editorPath}"" -a ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
-            var dosCommandFirstRun = $@"""{editorPath}""  -a  ""{_fileSystemWatcher.Path}"" """ + currentPath + "\"";
-            if (_currentVisualStudio == null || _currentVisualStudio.HasExited)
+            
+            // Clean up the path
+            var currentPath = path.Replace(@"\\", System.IO.Path.DirectorySeparatorChar.ToString())
+                                  .Replace(@"\", System.IO.Path.DirectorySeparatorChar.ToString());
+            
+            // Create ProcessStartInfo for cross-platform compatibility
+            var startInfo = new ProcessStartInfo
             {
-                _currentVisualStudio = Process.Start(dosCommandFirstRun);
+                FileName = editorPath,
+                Arguments = $"-a \"{_fileSystemWatcher.Path}\" \"{currentPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            
+            try
+            {
+                if (_currentVisualStudio == null || _currentVisualStudio.HasExited)
+                {
+                    _currentVisualStudio = Process.Start(startInfo);
+                }
+                else
+                {
+                    Process.Start(startInfo);
+                }
             }
-            else {
-                Process.Start(dosCommand);
-            }            
+            catch (Exception ex)
+            {
+                // Log the error but don't crash the application
+                Console.WriteLine($"Error opening file with VS Code: {ex.Message}");
+                Console.WriteLine($"Editor path: {editorPath}");
+                Console.WriteLine($"File path: {currentPath}");
+            }
         }
 
         public void KillVisualStudioCode()

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 
 @Injectable({
   providedIn: 'root'
@@ -36,9 +37,9 @@ export class ProjectsService {
       });
   }
 
-  setNewFolderProjectQuickNotes(path: string):Observable<any> {
-    const url = '../api/MdProjects/SetFolderProjectQuickNotes';
-    return this.http.post<any>(url, { path: path });    
+  async SetSideNavWidth(mdProject: MdProject) {
+    const url = '../api/MdProjects/SetSideNavWidth';
+    await this.http.post<any>(url, mdProject).toPromise();
   }
 
   setNewFolderProject(path: string):void {
@@ -46,7 +47,22 @@ export class ProjectsService {
     this.http.post<MdProject>(url, { path: path }).subscribe(_ => {
       this.currentProjects$.next(_);
     });
-    
+
+  }
+
+  createProjectWithConfig(config: ProjectCreateConfigOptions): void {
+    const url = '../api/MdProjects/SetFolderProject';
+    const request = {
+      path: config.projectPath,
+      initializeGit: config.initializeGit,
+      addCopilotInstructions: config.addCopilotInstructions
+    };
+
+    this.http.post<MdProject>(url, request).subscribe(_ => {
+      this.currentProjects$.next(_);
+    }, error => {
+      console.error('Error creating project with config:', error);
+    });
   }
 
   //setNewFolderProject(path: string, callback: (data: any, objectThis: any) => any, objectThis: any) {

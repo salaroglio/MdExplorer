@@ -16,7 +16,7 @@ namespace MdExplorer.Migrations.Version000001
             {
                 Id = Guid.NewGuid().ToByteArray(),
                 Name = @"EditorPath",
-                ValueString = @"C:\Users\Carlo Salaroglio\AppData\Local\Programs\Microsoft VS Code\Code.exe"
+                ValueString = string.Empty
             });
         }
 

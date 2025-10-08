@@ -1,0 +1,107 @@
+<div class="search-box-container">
+  <div class="search-input-wrapper">
+    <mat-icon class="search-icon" [class.has-value]="searchControl.value">search</mat-icon>
+    <input 
+      #searchInput
+      type="text" 
+      class="search-input"
+      placeholder="Cerca documenti e link..."
+      [formControl]="searchControl"
+      (focus)="onFocus()"
+      (blur)="onBlur($event)"
+      autocomplete="off">
+    <button 
+      *ngIf="searchControl.value" 
+      class="clear-button"
+      (click)="clearSearch()"
+      type="button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+  
+  <div class="search-results" *ngIf="showResults && (searchResults || isSearching)">
+    <div class="search-header" *ngIf="searchResults">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabChange($event)">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              Files 
+              <span class="count">({{ searchResults.totalFiles }})</span>
+            </span>
+          </ng-template>
+          
+          <div class="results-list files-list">
+            <div *ngIf="searchResults.files.length === 0" class="no-results">
+              Nessun file trovato
+            </div>
+            
+            <div 
+              *ngFor="let file of searchResults.files" 
+              class="result-item file-item"
+              (click)="selectFile(file)">
+              <mat-icon class="result-icon">description</mat-icon>
+              <div class="result-content">
+                <div class="result-title" [innerHTML]="file.highlightedText || file.fileName"></div>
+                <div class="result-path" 
+                     [title]="getPathTooltip(file.path)"
+                     [matTooltip]="getRelativePath(file.path)"
+                     matTooltipPosition="above"
+                     [matTooltipShowDelay]="500">
+                  {{ getRelativePath(file.path) }}
+                </div>
+                <div class="result-meta">
+                  <span class="matched-field">{{ file.matchedField }}</span>
+                  <span class="file-type" *ngIf="file.fileType">{{ file.fileType }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+        
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              Links 
+              <span class="count">({{ searchResults.totalLinks }})</span>
+            </span>
+          </ng-template>
+          
+          <div class="results-list links-list">
+            <div *ngIf="searchResults.links.length === 0" class="no-results">
+              Nessun link trovato
+            </div>
+            
+            <div 
+              *ngFor="let link of searchResults.links" 
+              class="result-item link-item"
+              (click)="selectLink(link)">
+              <mat-icon class="result-icon">link</mat-icon>
+              <div class="result-content">
+                <div class="result-title" [innerHTML]="link.highlightedText || link.mdTitle || link.path"></div>
+                <div class="result-context" *ngIf="link.mdContext">{{ link.mdContext }}</div>
+                <div class="result-meta">
+                  <span class="matched-field">{{ link.matchedField }}</span>
+                  <span class="source-file" *ngIf="link.markdownFileName"
+                        [matTooltip]="getRelativePath(link.markdownFilePath)"
+                        matTooltipPosition="above"
+                        [matTooltipShowDelay]="500">
+                    in {{ link.markdownFileName }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </div>
+    
+    <div class="search-loading" *ngIf="isSearching">
+      <mat-spinner diameter="20"></mat-spinner>
+      <span>Ricerca in corso...</span>
+    </div>
+    
+    <div class="search-footer" *ngIf="searchResults && !isSearching">
+      <span class="search-time">{{ searchResults.searchDurationMs }}ms</span>
+    </div>
+  </div>
+</div>

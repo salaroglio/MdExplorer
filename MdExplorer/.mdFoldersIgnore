@@ -1,0 +1,39 @@
+# MdExplorer Folders Ignore Configuration
+# This file defines which folders should be hidden from exploration/navigation in the UI
+# Each folder name is matched against the folder's base name (not the full path)
+
+# Common development folders to ignore
+ignoredFolders:
+  - "node_modules"      # Node.js dependencies
+  - ".git"              # Git repository data
+  - ".vs"               # Visual Studio cache
+  - ".idea"             # JetBrains IDEs
+  - "bin"               # Binary output
+  - "obj"               # Object files
+  - ".md"               # MdExplorer internal folder
+  - "__pycache__"       # Python cache
+  - ".vscode"           # VS Code settings
+  - "dist"              # Distribution/build output
+  - "build"             # Build output
+  - ".svn"              # Subversion
+  - ".hg"               # Mercurial
+  - "target"            # Maven/Java build output
+  - "packages"          # NuGet packages
+  - ".gradle"           # Gradle cache
+  - "bower_components"  # Bower dependencies
+  - ".sass-cache"       # SASS compiler cache
+  - "coverage"          # Code coverage reports
+  - ".nyc_output"       # NYC coverage output
+  - ".pytest_cache"     # Pytest cache
+  - ".tox"              # Tox testing
+  - ".eggs"             # Python eggs
+  - "*.egg-info"        # Python egg info
+
+# Patterns for folders to ignore (supports wildcards)
+# Use * for any characters, ? for single character
+ignoredPatterns:
+  - "*.tmp"             # Temporary folders
+  - "backup_*"          # Backup folders
+  - "temp_*"            # Temporary folders
+  - "~*"                # Backup folders (Unix style)
+  - ".*cache*"          # Any cache folder

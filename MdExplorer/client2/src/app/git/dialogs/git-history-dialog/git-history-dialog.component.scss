@@ -1,0 +1,120 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #f44336;
+
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+    margin-bottom: 16px;
+  }
+}
+
+.history-content {
+  min-width: 800px;
+  max-height: 600px;
+  overflow: auto;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.table-container {
+  overflow: auto;
+  max-height: 500px;
+}
+
+.commit-table {
+  width: 100%;
+
+  .hash-cell {
+    font-family: monospace;
+
+    .hash-text {
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+
+      &:hover {
+        background-color: #f0f0f0;
+      }
+    }
+
+    .merge-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      color: #ff6b6b;
+      vertical-align: middle;
+    }
+  }
+
+  .date-cell {
+    white-space: nowrap;
+    font-size: 0.9em;
+  }
+
+  .author-cell {
+    font-weight: 500;
+  }
+
+  .message-cell {
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  tr:hover {
+    background-color: #f5f5f5;
+  }
+}
+
+.graph-container {
+  overflow: auto;
+  max-height: 500px;
+  padding: 16px;
+  background-color: #fafafa;
+  border-radius: 4px;
+}
+
+.graph-canvas {
+  width: 100%;
+  min-height: 400px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.no-commits {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+mat-dialog-content {
+  padding: 0 24px;
+}
+
+mat-dialog-actions {
+  padding: 16px 24px;
+}

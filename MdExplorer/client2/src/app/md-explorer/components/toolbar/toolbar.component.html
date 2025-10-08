@@ -9,17 +9,18 @@
     <button mat-icon-button matTooltip="export in word" (click)="Export()">
       <mat-icon>directions</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="full screen" (click)="FullScreenToggle()">
-      <mat-icon>{{screenType}}</mat-icon>
-    </button>
     <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()">
       <mat-icon>bookmark</mat-icon>
     </button>
-    <span *ngFor="let doc of this.mdFileService.navigationArray">
-      <span style="color:aquamarine" *ngIf="this.mdFileService.navigationArray.indexOf(doc)>0">>></span>
-      <a [ngStyle]="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? {'cursor':'pointer', 'color':'orange'}:{}"
-         (click)="this.mdFileService.navigationArray.indexOf(doc)<this.mdFileService.navigationArray.length - 1 ? backToDocument(doc):return;">{{doc.name}}</a>
-    </span>
+    <button mat-icon-button matTooltip="Open React Editor" (click)="openReactEditor()">
+      <mat-icon>article</mat-icon>
+    </button>
+    <button *ngIf="isTocDirectoryFile()" mat-icon-button matTooltip="Aggiorna TOC con AI" (click)="refreshTocDirectory()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+    <span>{{currentMdFile?.name}}</span>
+
+
     <span class="flexExpand"></span>
     <button *ngIf="!connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
       <mat-icon style="color:yellow">warning</mat-icon>
@@ -29,43 +30,66 @@
     <span style="display:flex; flex-direction:row" *ngIf="currentBranch!=null">
       <div style="display:flex; flex-direction:column">
         <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
-        <button class="smallMessagesToPull" (click)="pull()" *ngIf="somethingIsToPull">{{howManyFilesAreToPull}} to pull</button>
+        <div class="menu-container">
+          <button class="smallMessagesToPull" (click)="pull()"
+                  (mouseover)="showMenu=true"
+                  *ngIf="somethingIsToPull">
+            {{howManyFilesAreToPull}} to pull
+          </button>
+          <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">
+              <table>
+                <tr *ngFor="let fileAndAuthor of filesAndAuthors"><td style="color:blue;">{{fileAndAuthor.author}}</td><td>{{fileAndAuthor.fileName}}</td></tr>
+              </table>
+          </div>
+        </div>
+        <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{howManyCommitAreToPush}} to push</button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />
       </button>
     </span>
+
   </mat-toolbar-row>
 </mat-toolbar>
+<!--[matMenuTriggerFor]="FileAndAutorsToPull"
+#menuTrigger="matMenuTrigger"
+ (mouseenter)="openMenu(menuTrigger)"
+ (mouseleave)="closeMenu(menuTrigger)"-->
+
 
 
 <mat-menu #tagsAndBranches="matMenu">
   <div>
-    <div (click)="pull()" class="container" color="warn"
+    <div *ngIf="!hasRemoteConfigured" (click)="openSetupRemote()"
+         class="container setup-remote"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Pull</span><span class="flexExpand"></span>
+      <span>Setup GitHub Remote</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right"
-                  color="warn">arrow_downward</mat-icon>
+        <mat-icon style="text-align:right" color="warn">cloud_upload</mat-icon>
       </button>
     </div>
-    <div (click)="commit()"
-         class="container" color="warn"
+    <div *ngIf="hasRemoteConfigured" (click)="openManageRemote()"
+         class="container manage-remote"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Commit</span><span class="flexExpand"></span>
+      <span>Manage Remote</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right"
-                  color="warn">arrow_upward</mat-icon>
+        <mat-icon style="text-align:right">settings</mat-icon>
       </button>
     </div>
-    <div (click)="push()"
-         class="container" color="warn"
+    <div (click)="openHistory()" class="container"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Push</span><span class="flexExpand"></span>
+      <span>History</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right"
-                  color="warn">arrow_upward</mat-icon>
+        <mat-icon style="text-align:right">history</mat-icon>
+      </button>
+    </div>
+    <div (click)="openBranchDialog()"
+         class="container"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Branch</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right">account_tree</mat-icon>
       </button>
     </div>
   </div>

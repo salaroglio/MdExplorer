@@ -1,0 +1,21 @@
+::ng-deep .mat-dialog-container {
+  padding: 24px;
+}
+
+mat-dialog-content {
+  margin: 20px 0;
+}
+
+mat-form-field {
+  font-size: 14px;
+}
+
+textarea {
+  font-family: monospace;
+  font-size: 14px;
+}
+
+mat-dialog-actions {
+  margin-top: 16px;
+  padding: 0;
+}

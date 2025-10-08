@@ -1,5 +1,6 @@
 
-<div class="container" [@routeAnimations]="o.isActivated ? o.activatedRoute:''">
+<app-title-bar></app-title-bar>
+<div class="container app-content" [@routeAnimations]="o.isActivated ? o.activatedRoute:''">
   <router-outlet #o="outlet"></router-outlet>
 </div>
 

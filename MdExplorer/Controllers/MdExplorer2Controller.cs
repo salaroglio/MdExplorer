@@ -5,7 +5,9 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Controllers;
+using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
+using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
@@ -36,8 +38,10 @@ namespace MdExplorer.Service.Controllers
             IHubContext<MonitorMDHub> hubContext, 
             IUserSettingsDB session, 
             IEngineDB engineDB,
-            ICommandRunnerHtml commandRunner) : 
-            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner)
+            ICommandRunnerHtml commandRunner,
+            IWorkLink[] modifiers,
+            IHelper helper) : 
+            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper)
         {
         }      
 
@@ -52,7 +56,7 @@ namespace MdExplorer.Service.Controllers
             var recursionLevel = postData.Recursionlevel; //  string.IsNullOrEmpty(Request.Query["recursionLevel"]) ? 0 : Convert.ToInt32(Request.Query["recursionLevel"]);
 
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
-
+            var connectionId= postData.ConnectionId; 
 
             if (relativePathExtension != "" && relativePathExtension != ".md")
             {
@@ -101,14 +105,15 @@ namespace MdExplorer.Service.Controllers
                 AbsolutePathFile = filePathSystem1,
                 Recursionlevel = recursionLevel,
                 RootQueryRequest = postData.RootQueryRequest,
-                RelativePathFile = postData.RelativePathFile
+                RelativePathFile = postData.RelativePathFile,
+                ConnectionId = connectionId,
             };
 
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
             readText = processSharp(readText, recursionLevel);
 
-            var settingDal = _session.GetDal<Setting>();
+            var settingDal = _userSettingsDB.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
 
             var pipeline = new MarkdownPipelineBuilder()

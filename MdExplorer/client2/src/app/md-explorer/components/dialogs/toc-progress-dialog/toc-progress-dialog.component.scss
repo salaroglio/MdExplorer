@@ -1,0 +1,122 @@
+.progress-container {
+  min-height: 250px;
+  padding: 16px 0;
+}
+
+.directory-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  
+  mat-icon {
+    margin-right: 12px;
+    color: #1976d2;
+  }
+  
+  .directory-path {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    word-break: break-all;
+  }
+}
+
+.status-container {
+  margin-bottom: 20px;
+  
+  .status-text {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    
+    mat-icon {
+      margin-right: 8px;
+      
+      &.rotating {
+        animation: rotate 2s linear infinite;
+      }
+    }
+  }
+}
+
+.progress-info {
+  margin-bottom: 24px;
+  
+  .progress-numbers {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.7);
+    
+    .percentage {
+      font-weight: bold;
+      color: #1976d2;
+    }
+  }
+}
+
+.current-file {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  padding: 12px;
+  background-color: rgba(25, 118, 210, 0.08);
+  border-radius: 4px;
+  border-left: 3px solid #1976d2;
+  
+  mat-icon {
+    margin-right: 8px;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: #1976d2;
+  }
+  
+  .file-name {
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    color: rgba(0, 0, 0, 0.8);
+  }
+}
+
+.ai-info {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(103, 58, 183, 0.05), rgba(25, 118, 210, 0.05));
+  border-radius: 8px;
+  
+  mat-icon {
+    margin-right: 12px;
+    color: #673ab7;
+  }
+  
+  span {
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.7);
+    font-style: italic;
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+::ng-deep {
+  .mat-progress-bar-fill::after {
+    background-color: #1976d2;
+  }
+  
+  .mat-progress-bar-buffer {
+    background-color: rgba(25, 118, 210, 0.12);
+  }
+}

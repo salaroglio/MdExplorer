@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocsPilot WebComponent Dev</title>
+  <link rel="stylesheet" href="/public/css/milkdown-all.css">
+</head>
+<body>
+  <div id="app">
+    <h1>DocsPilot WebComponent Development</h1>
+    <div id="editor-container" style="border: 1px solid #ccc; padding: 20px; border-radius: 5px;"></div>
+  </div>
+  <script type="module">
+    import { initDocsPilot } from './src/integration.ts'
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('editor-container');
+      const editor = initDocsPilot(container);
+      
+      // Imposta un valore iniziale
+      setTimeout(() => {
+        editor.setAttribute('markdown', '# Hello from DocsPilot\n\nThis is a test markdown content.');
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using DocumentFormat.OpenXml.Presentation;
+using Markdig;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Utilities;
@@ -16,6 +18,9 @@ using System.Xml;
 
 namespace MdExplorer.Features.Commands
 {
+    /// <summary>
+    /// It manage SVG generation, and add to links in plantuml the SignalR connectionId
+    /// </summary>
     public class FromPlantumlToSvg : ICommand, IDisposable
     {
         protected readonly string _serverAddress;
@@ -98,7 +103,16 @@ namespace MdExplorer.Features.Commands
             return matches;
         }
 
+        protected MatchCollection GetLinks(string html)
+        {
 
+
+            Regex rx = new Regex(@"<a.+?<\/a>", //lnk?
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+            var matches = rx.Matches(html);
+            return matches;
+        }
 
         public virtual string TransformAfterConversion(string html, RequestInfo requestInfo)
         {
@@ -112,7 +126,7 @@ namespace MdExplorer.Features.Commands
                 var plantumlHasClass = checkIfThereIsCSS?.Value.Contains("linkHasClass:true;")??false;
                 var linkClassHasCSS = checkIfThereIsCSS?.Value.Contains("linkClassHasCSS:true;") ?? false;
                 var currentSvg = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.svg";
-                var currentPng = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.png";
+                
                 doc.Load(currentSvg);
                 var nodeToParse = doc.LastChild;
                 XmlNamespaceManager m = new XmlNamespaceManager(doc.NameTable);
@@ -126,10 +140,38 @@ namespace MdExplorer.Features.Commands
                         XmlAttribute itemAttribute = itemNode.Attributes[i];
                         if (itemAttribute.Name != "href")
                         {
-                            itemNode.Attributes.Remove(itemAttribute);
+                            itemNode.Attributes.Remove(itemAttribute);                        
                         }
                     }
                 }
+
+                var nodeListLinks = doc.SelectNodes("//myns:a", m);
+                foreach (XmlNode nodeLink in nodeListLinks)
+                {
+                    XmlAttribute itemAttribute = nodeLink.Attributes["href"];
+                    if (itemAttribute.Name == "href")
+                    {
+                        // here we found all Href, and we have to add the SignalR connection id
+                        if (itemAttribute.InnerText.Contains(".md"))
+                        {
+                            var indexOfSharp = itemAttribute.InnerText.IndexOf("#");
+                            var firstPart = itemAttribute.InnerText;
+                            var secondPart = string.Empty;
+                            if (indexOfSharp > -1)
+                            {
+                                firstPart = itemAttribute.InnerText.Substring(0, indexOfSharp);
+                                secondPart = itemAttribute.InnerText.Substring(indexOfSharp + 1);
+                            }
+                            if (firstPart.StartsWith('/')) { // manage relative path from the root of the project
+                                firstPart = "/api/mdexplorer/" + firstPart;
+                            }
+                            var stringURI = $@"{firstPart}" + "?connectionId=" + requestInfo.ConnectionId + secondPart;
+                            itemAttribute.InnerText = stringURI;
+                        }
+
+                    }
+                }
+
                 var svgStyleToChange = doc.DocumentElement.Attributes["style"].Value;
                 var width = GetWidthGroup(svgStyleToChange)[1].Value;
                 var height = GetHeightGroup(svgStyleToChange)[1].Value;
@@ -143,6 +185,10 @@ namespace MdExplorer.Features.Commands
                 var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\",@"\\");
                 var toReplace = nodeToParse.OuterXml;
                 html = html.Replace(itemMatch.Groups[0].Value, toReplace);
+
+                // insert ConnectionId of SignalR
+
+
             }
             return html;
         }

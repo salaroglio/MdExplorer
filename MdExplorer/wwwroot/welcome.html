@@ -1,68 +1,376 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <link rel="stylesheet" href="/common.css" />
-    <script src="/common.js"></script>
+    <link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css" />
+    <script src="/bootstrap/jquery-3.6.0.js"></script>
+    <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
     <title>Md Explorer</title>
+    <style>
+        /* Custom Carousel Styles */
+        .custom-carousel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 2rem 0;
+            position: relative;
+            height: 500px;
+        }
+
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .carousel-slides {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .carousel-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.6s ease-in-out;
+        }
+
+        .carousel-slide.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .carousel-slide.prev {
+            transform: translateX(-100%);
+        }
+
+        .carousel-slide img {
+            max-height: 250px;
+            max-width: 300px;
+            object-fit: contain;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .carousel-slide:hover img {
+            transform: scale(1.05);
+        }
+
+        .carousel-slide h2 {
+            color: white;
+            font-weight: 700;
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 0;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .welcome-title {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            font-size: 3.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        /* Custom Indicators */
+        .custom-indicators {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+        }
+
+        .custom-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.4);
+            border: 2px solid white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .custom-indicator.active {
+            background-color: #667eea;
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.8);
+        }
+
+        /* Custom Controls */
+        .custom-control {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 20px;
+        }
+
+        .custom-control:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .custom-control.prev {
+            left: 20px;
+        }
+
+        .custom-control.next {
+            right: 20px;
+        }
+
+        /* Feature badges */
+        .feature-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .carousel-slide.active .feature-badge {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .welcome-title {
+                font-size: 2.5rem;
+            }
+            
+            .custom-carousel {
+                height: 400px;
+            }
+            
+            .carousel-slide h2 {
+                font-size: 1.5rem;
+            }
+            
+            .carousel-slide img {
+                max-height: 200px;
+                max-width: 250px;
+            }
+        }
+
+        /* Container improvements */
+        .main-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            align-items: center;
+            padding: 2rem 0;
+        }
+    </style>
 </head>
 <body>
-    <div class="row">
-        <div class="col-1"></div>
-        <div class="col-10 text-center">
-            <h1>Welcome to MdExplorer </h1>
-            <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel">
-                <div class="carousel-indicators">
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="1" aria-label="Slide 2"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="2" aria-label="Slide 3"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="3" aria-label="Slide 4"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="4" aria-label="Slide 5"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="5" aria-label="Slide 6"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="6" aria-label="Slide 7"></button>
-                    <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="7" aria-label="Slide 8"></button>
-                </div>
-                <div class="carousel-inner">
-                    <div class="carousel-item active">
-                        <img src="assets/MdExplorer.png" />
-                    </div>
+    <div class="main-container">
+        <div class="container-fluid">
+            <div class="row justify-content-center">
+                <div class="col-11 col-lg-10">
+                    <h1 class="welcome-title">Welcome to MdExplorer</h1>
+                    
+                    <div id="customCarousel" class="custom-carousel">
+                        <div class="carousel-container">
+                            <div class="carousel-slides">
+                                <div class="carousel-slide active">
+                                    <img src="assets/MdExplorer.png" alt="MdExplorer Logo" />
+                                    <h2>Professional Markdown Management</h2>
+                                    <div class="feature-badge">✨ NEW</div>
+                                </div>
 
-                    <div class="carousel-item">
-                        <img src="assets/Matrioska.png" />
-                        <h2>DOCUMENT COMPOSITION</h2>
+                                <div class="carousel-slide">
+                                    <img src="assets/Matrioska.png" alt="Document Composition" />
+                                    <h2>Document Composition</h2>
+                                    <div class="feature-badge">🔧 ADVANCED</div>
+                                </div>
+                                
+                                <div class="carousel-slide">
+                                    <img src="assets/Refactoring.png" alt="Re-linking Feature" />
+                                    <h2>Smart Re-linking</h2>
+                                    <div class="feature-badge">🚀 SMART</div>
+                                </div>
+                                
+                                <div class="carousel-slide">
+                                    <img src="assets/plantuml.png" alt="PlantUML Support" />
+                                    <h2>PlantUML Integration</h2>
+                                    <div class="feature-badge">📊 DIAGRAMS</div>
+                                </div>
+                                
+                                <div class="carousel-slide">
+                                    <img src="assets/markdown.png" alt="Markdown Based" />
+                                    <h2>Markdown Native</h2>
+                                    <div class="feature-badge">📝 NATIVE</div>
+                                </div>
+                                
+                                <div class="carousel-slide">
+                                    <img src="assets/word.png" alt="Word Export" />
+                                    <h2>Export to Word</h2>
+                                    <div class="feature-badge">📄 EXPORT</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom Controls -->
+                            <div class="custom-control prev" onclick="customCarousel.prev()">‹</div>
+                            <div class="custom-control next" onclick="customCarousel.next()">›</div>
+                            
+                            <!-- Custom Indicators -->
+                            <div class="custom-indicators">
+                                <div class="custom-indicator active" onclick="customCarousel.goTo(0)"></div>
+                                <div class="custom-indicator" onclick="customCarousel.goTo(1)"></div>
+                                <div class="custom-indicator" onclick="customCarousel.goTo(2)"></div>
+                                <div class="custom-indicator" onclick="customCarousel.goTo(3)"></div>
+                                <div class="custom-indicator" onclick="customCarousel.goTo(4)"></div>
+                                <div class="custom-indicator" onclick="customCarousel.goTo(5)"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="carousel-item">
-                        <img src="assets/Refactoring.png" />
-                        <h2>RE-LINKING</h2>
+                    
+                    <!-- Call to Action -->
+                    <div class="text-center mt-5">
+                        <a href="/client2/" class="btn btn-primary btn-lg" style="background: linear-gradient(45deg, #667eea, #764ba2); border: none; padding: 15px 40px; border-radius: 25px; font-weight: 600; box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);">
+                            🚀 Start Exploring
+                        </a>
                     </div>
-                    <div class="carousel-item">
-                        <img src="assets/plantuml.png" />
-                        <h2>PLANTUML SUPPORT</h2>
-                    </div>
-                    <div class="carousel-item">
-                        <img src="assets/markdown.png" />
-                        <h2>MARKDOWN BASED</h2>
-                    </div>
-                    <div class="carousel-item">
-                        <img src="assets/word.png" />
-                        <h2>EXPORT AS WORD DOCUMENT</h2>
-                    </div>
-                    <!--<div class="carousel-item">
-                         <iframe src="https://giphy.com/embed/d17nhnqHflmUM" width="720" height="447" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>
-                    </div>-->
                 </div>
-                <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
-                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Previous</span>
-                </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="next">
-                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Next</span>
-                </button>
             </div>
         </div>
-        <div class="col-1"></div>
     </div>
 
+    <script>
+        // Custom Carousel Implementation
+        const customCarousel = {
+            currentSlide: 0,
+            totalSlides: 0,
+            slides: [],
+            indicators: [],
+            autoPlayInterval: null,
+            
+            init() {
+                this.slides = document.querySelectorAll('.carousel-slide');
+                this.indicators = document.querySelectorAll('.custom-indicator');
+                this.totalSlides = this.slides.length;
+                
+                console.log('Custom carousel initialized with', this.totalSlides, 'slides');
+                
+                // Start auto-play
+                this.startAutoPlay();
+                
+                // Pause on hover
+                const carousel = document.querySelector('#customCarousel');
+                carousel.addEventListener('mouseenter', () => this.stopAutoPlay());
+                carousel.addEventListener('mouseleave', () => this.startAutoPlay());
+            },
+            
+            goTo(slideIndex) {
+                console.log('Going to slide:', slideIndex);
+                
+                // Remove active class from all slides and indicators
+                this.slides.forEach(slide => slide.classList.remove('active', 'prev'));
+                this.indicators.forEach(indicator => indicator.classList.remove('active'));
+                
+                // Set previous slide
+                if (slideIndex !== this.currentSlide) {
+                    this.slides[this.currentSlide].classList.add('prev');
+                }
+                
+                // Set current slide
+                this.currentSlide = slideIndex;
+                this.slides[this.currentSlide].classList.add('active');
+                this.indicators[this.currentSlide].classList.add('active');
+                
+                console.log('Current slide now:', this.currentSlide);
+            },
+            
+            next() {
+                const nextSlide = (this.currentSlide + 1) % this.totalSlides;
+                this.goTo(nextSlide);
+            },
+            
+            prev() {
+                const prevSlide = (this.currentSlide - 1 + this.totalSlides) % this.totalSlides;
+                this.goTo(prevSlide);
+            },
+            
+            startAutoPlay() {
+                this.stopAutoPlay(); // Clear any existing interval
+                this.autoPlayInterval = setInterval(() => {
+                    this.next();
+                }, 4000);
+                console.log('Auto-play started');
+            },
+            
+            stopAutoPlay() {
+                if (this.autoPlayInterval) {
+                    clearInterval(this.autoPlayInterval);
+                    this.autoPlayInterval = null;
+                    console.log('Auto-play stopped');
+                }
+            }
+        };
 
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing custom carousel...');
+            customCarousel.init();
+        });
+    </script>
 </body>
 </html>

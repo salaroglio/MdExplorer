@@ -1,0 +1,9 @@
+[submodule "mdExplorerWebSite/mdExplorerWebSite"]
+	path = mdExplorerWebSite/mdExplorerWebSite
+	url = https://github.com/salaroglio/mdexplorer-website.git
+[submodule "ElectronMdExplorer"]
+	path = ElectronMdExplorer
+	url = https://github.com/salaroglio/electron-mdexplorer.git
+[submodule "docs-internal"]
+	path = docs-internal
+	url = https://github.com/salaroglio/mdexplorer-internal-docs.git

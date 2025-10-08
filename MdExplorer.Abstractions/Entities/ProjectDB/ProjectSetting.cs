@@ -12,6 +12,7 @@ namespace MdExplorer.Abstractions.Entities.ProjectDB
         public virtual string Name { get; set; }
         public virtual string Description { get; set; }
         public virtual string ValueString { get; set; }
+        public virtual bool? ValueBool { get; set; }
         public virtual int? ValueInt { get; set; }
         public virtual DateTime? ValueDateTime { get; set; }
         public virtual decimal? ValueDecimal { get; set; }

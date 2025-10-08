@@ -40,7 +40,7 @@ namespace MdExplorer.Features.Commands.html
             var currentIncrement = 0;
             foreach (Match item in matches)
             {
-                if (matchCounter < (matches.Count / 2))
+                if (matchCounter < (matches.Count))
                 {
                     matchCounter++;
                     var fileName = item.Groups[1].Value;
@@ -87,7 +87,18 @@ namespace MdExplorer.Features.Commands.html
                         requestInfo.Recursionlevel++;
                         requestInfo.RelativePathFile = fileName;
                         var uriUrl = new Uri($@"{_serverAddress}/api/mdexplorer2");
-                        var uriUrlRoot = new Uri($@"{_serverAddress}/api/mdexplorer/{queryEncoded}");
+
+                        Regex rxSharp = new Regex(@"([^#]*)(?:(#.*))?",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+                        var matchesSharp = rxSharp.Matches(queryEncoded);
+
+                        var firstPart = matchesSharp.First().Groups[1].Value;
+                        var secondPart = matchesSharp.First().Groups[2]?.Value;
+
+                        var stringURI = $@"{_serverAddress}/api/mdexplorer/{firstPart}" + "?connectionId=" + requestInfo.ConnectionId + secondPart;
+
+
+                        var uriUrlRoot = new Uri(stringURI);
                         _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
                         //var response = httpClient.GetAsync(uriUrl);
                         var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);

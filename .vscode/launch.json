@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (MdExplorer.Service)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            // Se riscontri problemi nell'avvio, potrebbe essere necessario modificare questo percorso per puntare all'eseguibile (.exe):
+            // "program": "${workspaceFolder}/MdExplorer/bin/Debug/netcoreapp3.1/win10-x64/MdExplorer.Service.exe",
+            "program": "${workspaceFolder}/MdExplorer/bin/Debug/netcoreapp3.1/MdExplorer.Service.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/MdExplorer",
+            "stopAtEntry": false,
+            // Imposta la console su "internalConsole" o "integratedTerminal" a seconda delle tue preferenze
+            "console": "internalConsole", 
+            // Questa azione apre automaticamente il browser quando l'app è pronta (utile per le web app)
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            // Imposta l'ambiente su Development per il debug
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        }
+        // Potresti voler aggiungere una configurazione per collegarti a un processo già in esecuzione:
+        // {
+        //     "name": ".NET Core Attach",
+        //     "type": "coreclr",
+        //     "request": "attach"
+        // }
+    ]
+}

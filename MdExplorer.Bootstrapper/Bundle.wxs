@@ -1,72 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 	<Bundle Name="MdExplorer.Bootstrapper" Version="1.0.0.0" Manufacturer="HP Inc." UpgradeCode="d3027afd-ee62-47e4-9555-52a7c0f5daed">
 		<BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense" />
 
 		<Chain>
-      <PackageGroupRef Id="Java8Runtime"/>
-      <PackageGroupRef Id="dotnet31"/>
-      <PackageGroupRef Id="pandoc2_16_1"/>
-      <!--<PackageGroupRef Id="MdExplorer"/>-->
+			<PackageGroupRef Id="Java8Runtime"/>
+			<PackageGroupRef Id="dotnet31"/>
+			<PackageGroupRef Id="pandoc2_16_1"/>
+			<!--<PackageGroupRef Id="MdExplorer"/>-->
 		</Chain>
 	</Bundle>
-  <Fragment>
-    <PackageGroup Id="Java8Runtime">
-      <ExePackage Id="Java8Runtime"
-          DisplayName="Java Runtime Version 8"
-          Cache="yes"
-          Compressed="yes"
-          PerMachine="yes"
-          Permanent="yes"
-          Vital="no"
-          SourceFile=".\assets\jre-8u311-windows-i586-iftw.exe"          
-          DetectCondition="Java8FamilyVersion">
-      </ExePackage>
-    </PackageGroup>
-    <PackageGroup Id="dotnet31">
-      <ExePackage Id="dotnet31"
-          DisplayName="Dot Net Core 3.1"
-          Cache="yes"
-          Compressed="yes"
-          PerMachine="yes"
-          Permanent="yes"
-          Vital="no"
-          SourceFile=".\assets\dotnet-runtime-3.1.32-win-x64.exe"         
-          >
-      </ExePackage>
-    </PackageGroup>
-    <PackageGroup Id="pandoc2_16_1">
-      <MsiPackage Id="pandoc2_16_1"
-          DisplayName="Pandoc"
-          Cache="yes"
-          Compressed="yes"          
-          Permanent="yes"
-          Vital="yes"
-          SourceFile=".\assets\pandoc-2.18-windows-x86_64.msi"         
-          >
-      </MsiPackage>
-    </PackageGroup>
-    <!--<PackageGroup Id="VSCode_x64_1_63_2">
-      <ExePackage Id="VSCode_x64_1_63_2"
-          DisplayName="VSCode"
-          Cache="yes"
-          Compressed="yes"
-          PerMachine="yes"
-          Permanent="yes"
-          Vital="yes"
-          SourceFile=".\assets\VSCodeUserSetup-x64-1.63.2.exe"
-          >
-      </ExePackage>
-    </PackageGroup>-->
-    <!--<PackageGroup Id="MdExplorer">
-      <MsiPackage Id="MdExplorer"
-          DisplayName="MdExplorer CI/CD For documentation"
-          Cache="yes"
-          Compressed="yes"          
-          Permanent="yes"
-          Vital="yes"
-          SourceFile="..\MdExplorer.Setup\bin\Debug\MdExplorer.Setup.msi">
-      </MsiPackage>
-    </PackageGroup>-->
-  </Fragment>
+	
+	<Fragment>
+		<!-- Definizione delle variabili per il rilevamento Java -->
+		<util:RegistrySearch Id="JavaJRE8VersionSearch"
+			Root="HKLM"
+			Key="SOFTWARE\JavaSoft\Java Runtime Environment\1.8"
+			Value="JavaHome"
+			Variable="JavaJRE8Path"
+			Result="exists" />
+			
+		<util:RegistrySearch Id="JavaJRE8Version64Search"
+			Root="HKLM"
+			Key="SOFTWARE\WOW6432Node\JavaSoft\Java Runtime Environment\1.8"
+			Value="JavaHome"
+			Variable="JavaJRE8Path64"
+			Result="exists" />
+
+		<!-- Rilevamento .NET Core 3.1 -->
+		<util:RegistrySearch Id="DotNetCore31Search"
+			Root="HKLM"
+			Key="SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost"
+			Value="Version"
+			Variable="DotNetCore31Version"
+			Result="value" />
+
+		<PackageGroup Id="Java8Runtime">
+			<ExePackage Id="Java8Runtime"
+				DisplayName="Java Runtime Version 8"
+				Cache="yes"
+				Compressed="yes"
+				PerMachine="yes"
+				Permanent="yes"
+				Vital="no"
+				SourceFile=".\assets\jre-8u441-windows-i586.exe"
+				DetectCondition="JavaJRE8Path OR JavaJRE8Path64"
+				InstallCommand="/s">
+			</ExePackage>
+		</PackageGroup>
+		
+		<PackageGroup Id="dotnet31">
+			<ExePackage Id="dotnet31"
+				DisplayName=".NET Core 3.1 Desktop Runtime"
+				Cache="yes"
+				Compressed="yes"
+				PerMachine="yes"
+				Permanent="yes"
+				Vital="no"
+				SourceFile=".\assets\dotnet-sdk-3.1.426-win-x64.exe"
+				DetectCondition="DotNetCore31Version &gt;= &quot;3.1.32&quot;"
+				InstallCommand="/quiet"
+				RepairCommand="/quiet /repair"
+				UninstallCommand="/quiet /uninstall">
+			</ExePackage>
+		</PackageGroup>
+		
+		<PackageGroup Id="pandoc2_16_1">
+			<MsiPackage Id="pandoc2_16_1"
+				DisplayName="Pandoc 2.18"
+				Cache="yes"
+				Compressed="yes"
+				Permanent="yes"
+				Vital="yes"
+				SourceFile=".\assets\pandoc-2.18-windows-x86_64.msi">
+			</MsiPackage>
+		</PackageGroup>
+	</Fragment>
 </Wix>

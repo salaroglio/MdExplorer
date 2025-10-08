@@ -72,7 +72,7 @@ class DynamicDataSource implements DataSource<MdFile> {
     private _database: DynamicDatabase,
     private _mdFileService: MdFileService) {
     this.data = _database.initialData();
-    this._mdFileService.loadDocumentFolder('root', 0).subscribe(_ => {
+    this._mdFileService.loadDocumentFolder('root', 0,"Folders").subscribe(_ => {
       this.data = _;
     });
     //this.dataChange = _mdFileService._mdDynFolderDocument;
@@ -106,7 +106,7 @@ class DynamicDataSource implements DataSource<MdFile> {
    * Toggle the node, remove from display list
    */
   toggleNode(node: MdFile, expand: boolean) {
-    this._mdFileService.loadDocumentFolder(node.path, node.level + 1).subscribe(_ => {
+    this._mdFileService.loadDocumentFolder(node.path, node.level + 1,"Folders").subscribe(_ => {
 
       const children = _;
       const index = this.data.indexOf(node);
@@ -174,8 +174,7 @@ export class NewProjectComponent implements OnInit {
   ngOnInit(): void {
     this.folder = { name: "<select project>", path: "" };
     // when the project change, then switch to navigation environment
-    this.projectService.currentProjects$.subscribe(_ => {
-      debugger;
+    this.projectService.currentProjects$.subscribe(_ => {      
       if (_ != null && _ != undefined) {
         var dateTime = new Date();
         this.router.navigate(['/main/navigation/document']); //main

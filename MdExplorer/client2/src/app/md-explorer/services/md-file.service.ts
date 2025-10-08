@@ -1,8 +1,11 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
+import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
+import { SpecialFolder, Drive } from '../../commons/components/show-file-system/file-explorer.models';
 
 @Injectable({
   providedIn: 'root'
@@ -17,6 +20,7 @@ export class MdFileService {
   private _selectedMdFileFromToolbar: BehaviorSubject<MdFile[]>;
   private _selectedMdFileFromSideNav: BehaviorSubject<MdFile>;
   private _selectedDirectoryFromNewDirectory: BehaviorSubject<MdFile>;
+  
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -24,7 +28,8 @@ export class MdFileService {
     mdDynFolderDocument: MdFile[]
     serverSelectedMdFile: MdFile[]
   }
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient,
+    private mdServerMessages: MdServerMessagesService) {
 
     var defaultSelectedMdFile = [];
     this.dataStore = {
@@ -86,7 +91,7 @@ export class MdFileService {
   }
 
   moveMdFile(mdFile: MdFile, pathDestination: string) {
-    const url = '../api/mdFiles/moveMdFile';
+    const url = '../api/mdfiles/MoveMdFile';
     return this.http.post<any>(url, { mdFile: mdFile, destinationPath:pathDestination });
   }
 
@@ -111,61 +116,122 @@ export class MdFileService {
     return this.http.get<IDocumentSettings>(url, { params });
   }
 
+
+  // This function adds a new file,
+  // looking for the right position in the
+  // folder hierarchy.
+  // It assumes that all structures are complete,
+  // and the only thing to add is the file itself.
   addNewFile(data: MdFile[]) {
     // searching directories    
-    var currentItem = data[0];
-    let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
-    if (currentFolder != undefined) {
+    const currentItem = data[0];
+    
+    // Assicuriamoci che le proprietà di indicizzazione siano preservate
+    if (currentItem.type === 'mdFile' || currentItem.type === 'mdFileTimer') {
+      // Preserva le proprietà esistenti o imposta i default
+      currentItem.isIndexed = currentItem.isIndexed ?? true; // Default true per nuovi file
+      currentItem.indexingStatus = currentItem.indexingStatus ?? 'completed';
+    }
+    
+    const currentFolder = this.dataStore.mdFiles.find(item => item.fullPath == currentItem.fullPath);
+
+    if (currentFolder) {
       this.recursiveSearchFolder(data, 0, currentFolder);
     } else {
-      if (currentFolder == undefined) { // the file is in the root
-        this.dataStore.mdFiles.push(data[0]);
-      } else {
-        currentFolder.childrens.push(data[0]); // insert new file in folder
-      }
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+      // The file is in the root
+      const dummyItem = this.dataStore.mdFiles.pop();
+      this.dataStore.mdFiles.push(currentItem, dummyItem); // Simplified push operation
+      this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified object cloning and notification
     }
   }
 
 
+  // This function adds new directories
+  // if one or more on the file path are missing.
+  // At the end of the process, it will call the classic addNewFile method.
+  addNewDirectoryExtended(folders: MdFile[]) {
+
+    let currentfolder = [];
+    folders.forEach((folder, index) => {      
+      const dataFound: MdFile[] = [];
+      this.recursiveSearch(this.dataStore.mdFiles, folder, dataFound);
+      currentfolder.push(folder);
+      if (dataFound.length === 0) {        
+        this.addNewDirectory(currentfolder);
+      }
+      
+    });
+      
+       
+  }
+
+  // This function adds a new directory.
+  // Assuming that all directories/folders are already present,
+  // and there is just one to add consequently to
+  // what already exists in the store.
   addNewDirectory(data: MdFile[]) {
-    // searching directories    
-    var currentItem = data[0];
+    //alert(JSON.stringify(data, null, 2));
+    // Initialize the current item and mark it as expandable
+    const currentItem = data[0];
     currentItem.expandable = true;
-    let currentFolder = this.dataStore.mdFiles.find(_ => _.fullPath == currentItem.fullPath);
-    if (currentFolder != undefined) {
+
+    // Search for the directory in the current datastore
+    const currentFolder = this.dataStore.mdFiles.find(item => item.fullPath == currentItem.fullPath);
+
+    if (currentFolder) {
+      // If found, perform a recursive search to insert the directory
       this.recursiveSearchFolder(data, 0, currentFolder);
     } else {
-      if (currentFolder == undefined) { // the directory is in the root
-        this.dataStore.mdFiles.push(currentItem);
-      } else {
-        currentFolder.childrens.push(currentItem); // insert new directory in folder
-      }
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+      // If the directory is in the root, handle the dummy item and reinsert
+      const dummyItem = this.dataStore.mdFiles.pop(); // Remove the last item (dummy)
+      this.dataStore.mdFiles.push(currentItem, dummyItem); // Add the current item and then the dummy back
+
+      // Notify subscribers of the update
+      this._mdFiles.next({ ...this.dataStore }.mdFiles);
     }
   }
+
+
+
 
   recursiveSearchFolder(data: MdFile[], i: number, parentFolder: MdFile) {
-    var currentI = i + 1;
-    var currentItem = data[currentI];
-    let currentFolder = parentFolder.childrens.find(_ => _.fullPath == currentItem.fullPath);
-    if (currentFolder != undefined) {
-      this.recursiveSearchFolder(data, currentI, currentFolder);
+    
+    const currentItem = data[i + 1];
+    if (!currentItem) return; // Guard clause
+    
+    // Assicuriamoci che le proprietà di indicizzazione siano preservate
+    if (currentItem.type === 'mdFile' || currentItem.type === 'mdFileTimer') {
+      currentItem.isIndexed = currentItem.isIndexed ?? true;
+      currentItem.indexingStatus = currentItem.indexingStatus ?? 'completed';
+    }
+    
+    const currentFolder = parentFolder.childrens.find(folder => folder.fullPath == currentItem.fullPath);
+
+    if (currentFolder) {
+      this.recursiveSearchFolder(data, i + 1, currentFolder);
     } else {
-      parentFolder.childrens.push(data[currentI]); // insert new file
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+      parentFolder.childrens.push(currentItem); // Directly use currentItem
+      this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified notification
     }
   }
 
 
 
 
+
+  getShallowStructure(): Observable<MdFile[]> {
+    const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
+    return this.http.get<MdFile[]>(url);
+  }
+
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
-    const url = '../api/mdfiles/GetAllMdFiles';
+    const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;    
     return this.http.get<MdFile[]>(url)
       .subscribe(data => {
+        // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
+        this.initializeIndexingProperties(data);
         this.dataStore.mdFiles = data;        
-        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);       
+        this._mdFiles.next([...this.dataStore.mdFiles]);       
         if (callback != null) {
           callback(data, objectThis);
         }
@@ -173,6 +239,59 @@ export class MdFileService {
         error => {
           console.log("failed to fetch mdfile list");
         });
+  }
+
+  private initializeIndexingProperties(nodes: any[]): void {
+    nodes.forEach(node => {
+      // Assicura che le proprietà esistano fin dall'inizio
+      if (node.type === 'mdFile' || node.type === 'mdFileTimer') {
+        node.isIndexed = node.isIndexed ?? false;
+        node.indexingStatus = node.indexingStatus ?? 'idle';
+      }
+      if (node.childrens && node.childrens.length > 0) {
+        this.initializeIndexingProperties(node.childrens);
+      }
+    });
+  }
+
+  updateFileIndexStatus(path: string, isIndexed: boolean): void {
+    // Ricostruisce completamente l'array invece di modificare gli oggetti esistenti
+    const updateNodeInArray = (nodes: any[]): any[] => {
+      return nodes.map(node => {
+        if (node.fullPath === path) {
+          // Crea un nuovo oggetto invece di modificare quello esistente
+          return {
+            ...node,
+            isIndexed: isIndexed,
+            indexingStatus: isIndexed ? 'completed' : 'idle'
+          };
+        }
+        
+        if (node.childrens && node.childrens.length > 0) {
+          return {
+            ...node,
+            childrens: updateNodeInArray(node.childrens)
+          };
+        }
+        
+        return node;
+      });
+    };
+
+    // Ricostruisce completamente l'array
+    this.dataStore.mdFiles = updateNodeInArray(this.dataStore.mdFiles);
+    
+    // Emette il nuovo array
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+  }
+
+  // Forza aggiornamento stato indicizzazione per file rinominati Rule #1
+  forceFileAsIndexed(filePath: string): void {
+    this.updateFileIndexStatus(filePath, true);
+    
+    setTimeout(() => {
+      this.mdServerMessages.triggerRule1ForceUpdate(filePath);
+    }, 100);
   }
 
 
@@ -195,11 +314,18 @@ export class MdFileService {
         });
   }
 
-  loadDocumentFolder(path: string, level: number): Observable<MdFile[]> {
-    const url = '../api/mdfiles/GetDynFoldersDocument';
+  loadDocumentFolder(path: string, level: number, typeOfSelection:string): Observable<MdFile[]> {
+    let url = '../api/mdfiles/GetDynFoldersDocument';
+        
+    if (typeOfSelection==="FoldersAndFiles") {
+      url = '../api/mdfiles/GetDynFoldersAndFilesDocument';
+    }
+    console.log(url);
     var params = new HttpParams().set('path', path).set('level', String(level));
     return this.http.get<MdFile[]>(url, { params });
   }
+
+
 
   loadPublishNodes(path: string, level: number): Observable<MdFile[]> {
     const url = '../api/mdPublishNodes';
@@ -222,40 +348,76 @@ export class MdFileService {
     const url = '../api/mdfiles/SetLandingPage';
     return this.http.post<MdFile>(url, file);
   }
+
+  setDevelopmentTags(folder: MdFile, projectRoot: string, tags: string[]) {
+    const url = '../api/mdfiles/SetDevelopmentTags';
+    return this.http.post(url, {
+      folderPath: folder.fullPath,
+      projectRoot: projectRoot,
+      tags: tags
+    });
+  }
+
   openFolderOnFileExplorer(file: MdFile) {
+    console.log('[MdFileService] openFolderOnFileExplorer() called');
+    console.log('[MdFileService] file:', file);
+    console.log('[MdFileService] file.fullPath:', file.fullPath);
+    
     const url = '../api/mdfiles/OpenFolderOnFileExplorer';
-    return this.http.post<MdFile>(url, file);
+    console.log('[MdFileService] POST to:', url);
+    
+    return this.http.post<MdFile>(url, file).pipe(
+      tap(response => {
+        console.log('[MdFileService] Response received:', response);
+      }),
+      catchError(error => {
+        console.error('[MdFileService] Error in openFolderOnFileExplorer:', error);
+        throw error;
+      })
+    );
   }
 
   deleteFile(file: MdFile) {
     const url = '../api/mdfiles/DeleteFile';
-    return this.http.post<MdFile>(url, file).subscribe(_ => {
-      this.recursiveDeleteFileFromDataStore(file);
-      this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    });
-  }
-
-  recursiveDeleteFileFromDataStore(fileToFind: MdFile) {
-    let dataFound: MdFile[] =[];    
-    this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
-    if (dataFound.length == 1) {
-      var dataIndex = this.dataStore.mdFiles.indexOf(dataFound[0]);
-      this.dataStore.mdFiles.splice(dataIndex, 1);
-    }
-    if (dataFound.length > 1) {
-      let cursor = this.dataStore.mdFiles;
-      let currentFolder:MdFile[] = []
-      for (var i = dataFound.length -1 ; i >0 ; i--) {
-        currentFolder = cursor[cursor.indexOf(dataFound[i])].childrens;
-      }
-      currentFolder.splice(currentFolder.indexOf(dataFound[dataFound.length - 1]), 1);
+    return this.http.post<MdFile>(url, file);
       
 
-    }
-    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-
+      //this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
     
   }
+
+  //Minimum information to set
+  // 1. fullPath:ex: "C:\Users\Carlo\Documents\2-personale\sviluppo\MdExplorer\UnitTestMdExplorer\RockSolidEdition\using-chatGPT\eargaer.md"
+  // 2. level: not important
+
+  recursiveDeleteFileFromDataStore(fileToFind: MdFile) {
+    
+    const dataFound: MdFile[] = [];
+    this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
+
+    if (dataFound.length === 1) {
+      const dataIndex = this.dataStore.mdFiles.indexOf(dataFound[0]);
+      if (dataIndex > -1) {
+        this.dataStore.mdFiles.splice(dataIndex, 1);
+      }
+    } if (dataFound.length > 1) {
+      //let cursor = this.dataStore.mdFiles;
+      let currentFolder: MdFile[] = this.dataStore.mdFiles;
+      for (var i = dataFound.length -1 ; i >0 ; i--) {
+        currentFolder = currentFolder[currentFolder.indexOf(dataFound[i])].childrens;
+      }
+      currentFolder.splice(currentFolder.indexOf(dataFound[0]), 1);
+    }
+    this._mdFiles.next({ ...this.dataStore }.mdFiles); 
+
+  }
+
+  recursiveSearchForShowData(fileToFind):MdFile[] {
+    let dataFound: MdFile[] = [];
+    this.recursiveSearch(this.dataStore.mdFiles, fileToFind, dataFound);
+    return dataFound;
+  }
+
 
   CreateNewDirectoryEx(path: string, directoryName: string, directoryLevel: number) {
     const url = '../api/mdfiles/CreateNewDirectoryEx';
@@ -289,7 +451,15 @@ export class MdFileService {
   }
   pasteFromClipboard(node: any) {
     const url = '../api/mdfiles/pasteFromClipboard';
+    console.log('[MdFileService] pasteFromClipboard called with:', node);
+    console.log('[MdFileService] Making POST request to:', url);
     return this.http.post<any>(url, node);
+  }
+
+
+  addExistingFileToMDEProject(node: MdFile,path:String) {
+    const url = '../api/mdfiles/addExistingFileToMDEProject';
+    return this.http.post<string>(url, { mdFile: node, fullPath:path });
   }
 
   getTextFromClipboard() {
@@ -327,19 +497,38 @@ export class MdFileService {
    * @param newFile
    */
   changeDataStoreMdFiles(oldFile: MdFile, newFile: MdFile) {
-
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, oldFile);
     var leaf = returnFound[0];
+    
+    if (!leaf) {
+      console.error('❌ [Service] File non trovato nel datastore:', oldFile.name);
+      return;
+    }
+    
+    // Aggiorna le proprietà del file
     leaf.name = newFile.name;
     leaf.fullPath = newFile.fullPath;
     leaf.path = newFile.path;
     leaf.relativePath = newFile.relativePath;
-    this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
-    this._serverSelectedMdFile.next(returnFound);
+    
+    // Per file rinominati via Rule #1, forza come indicizzato
+    leaf.isIndexed = true;
+    leaf.indexingStatus = 'completed';
+    
+    // Forza nuova referenza per triggerare OnPush change detection
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+    this._serverSelectedMdFile.next([...returnFound]);
+    
+    // Notifica il tree component per aggiornare il Set di tracking
+    this.mdServerMessages.triggerRule1ForceUpdate(leaf.fullPath);
   }
 
   setSelectedMdFileFromSideNav(selectedFile: MdFile) {
+    console.log('[MdFileService] setSelectedMdFileFromSideNav called with:', selectedFile);
+    console.log('[MdFileService] _selectedMdFileFromSideNav value before:', this._selectedMdFileFromSideNav.value);
+    console.log('[MdFileService] _selectedMdFileFromSideNav has observers:', this._selectedMdFileFromSideNav.observers?.length || 0);
     this._selectedMdFileFromSideNav.next(selectedFile);
+    console.log('[MdFileService] _selectedMdFileFromSideNav value after:', this._selectedMdFileFromSideNav.value);
   }
 
   setSelectedDirectoryFromNewDirectory(selectedDirectory: MdFile) {
@@ -356,6 +545,10 @@ export class MdFileService {
     this._serverSelectedMdFile.next(returnFound);
   }
 
+  setSelectionMdFile(selectedFile: MdFile[]) {
+    this._serverSelectedMdFile.next(selectedFile);
+  }
+
 
   getMdFileFromDataStore(selectedFile: MdFile): MdFile {
     var returnFound = this.searchMdFileIntoDataStore(this.dataStore.mdFiles, selectedFile);
@@ -370,30 +563,42 @@ export class MdFileService {
   }
 
 
-  recursiveSearch(arrayMd: MdFile[], fileTofind: MdFile, arrayFound: MdFile[]):boolean {
-    if (arrayMd.length == 0) {
-      return;
-    }
-    let found2 = false;
-    var thatFile = arrayMd.find(_ => _.fullPath.toLowerCase() == fileTofind.fullPath.toLowerCase());
+  recursiveSearch(arrayMd: MdFile[], fileToFind: MdFile, arrayFound: MdFile[]): boolean {
+    if (arrayMd.length === 0) {
+      return false;
+    }    
+    const thatFile = arrayMd.find(item => item.fullPath.toLowerCase() === fileToFind.fullPath.toLowerCase());
 
-    if (thatFile == undefined) {
-      for (var i = 0; i < arrayMd.length; i++) {
-        var _ = arrayMd[i];
-        if (!found2) { //this.fileFoundMd
-          found2 = this.recursiveSearch(_.childrens, fileTofind, arrayFound);//, newFile
+    if (!thatFile) {
+      return arrayMd.some(item => {
+        const found = this.recursiveSearch(item.childrens, fileToFind, arrayFound);
+        if (found) {
+          arrayFound.push(item);
         }
-        if (found2) { //this.fileFoundMd
-          arrayFound.push(_);
-          break;
-        }
-      }
+        return found;
+      });
     } else {
-      found2 = true; //this.fileFoundMd
       arrayFound.push(thatFile);
+      return true;
     }
-    return found2;
   }
+
+  // New methods for file explorer functionality
+  getSpecialFolders(): Observable<SpecialFolder[]> {
+    const url = '../api/mdfiles/GetSpecialFolders';
+    return this.http.get<SpecialFolder[]>(url);
+  }
+
+  getDrives(): Observable<Drive[]> {
+    const url = '../api/mdfiles/GetDrives';
+    return this.http.get<Drive[]>(url);
+  }
+
+  getNetworkShares(): Observable<any[]> {
+    const url = '../api/mdfiles/GetNetworkShares';
+    return this.http.get<any[]>(url);
+  }
+
 
 }
 

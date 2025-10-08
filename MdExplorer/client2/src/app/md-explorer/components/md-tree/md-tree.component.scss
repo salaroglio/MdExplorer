@@ -1,3 +1,6 @@
+.mat-tree{
+    height:calc(100vh - 128px);
+}
 .mat-tree-node {
   min-height: 40px !important;
 }
@@ -11,4 +14,132 @@
 .background-highlight {
   background-color: blue;
   color: white;
+}
+
+// Stili per file non indicizzati
+.md-file {
+  &:not(.indexed) {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+// Animazione per cartelle con indicizzazione in corso
+.folder-node {
+  &.indexing {
+    .folder-icon {
+      position: relative;
+      
+      &::after {
+        content: "";
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 8px;
+        height: 8px;
+        background-color: #2196F3;
+        border-radius: 50%;
+        animation: indexing-pulse 1.5s ease-in-out infinite;
+      }
+    }
+    
+    .folder-name {
+      &::after {
+        content: " (indicizzazione...)";
+        font-size: 0.8em;
+        color: #666;
+        font-style: italic;
+        animation: fade-in-out 2s ease-in-out infinite;
+      }
+    }
+  }
+}
+
+@keyframes indexing-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-out {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+// Stili aggiuntivi per l'albero
+.mat-tree-node {
+  &.not-indexed {
+    .mat-icon {
+      opacity: 0.5;
+    }
+  }
+  
+  &.indexing {
+    .mat-icon {
+      animation: rotate 2s linear infinite;
+    }
+  }
+}
+
+.folder-spinner {
+  margin: 2px;
+  display: inline-block;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Stili per il nodo selezionato
+.mat-tree-node {
+  &.selected {
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196F3;
+    
+    .node-text {
+      color: #1976d2;
+      font-weight: 500;
+    }
+  }
+  
+  &:hover:not(.selected) {
+    background-color: #f5f5f5;
+  }
+}
+
+.node-text {
+  transition: color 0.2s ease;
+}
+
+// Stili per snackbar di successo
+::ng-deep .success-snackbar {
+  background-color: #4caf50 !important;
+  color: white !important;
+  
+  .mat-button {
+    color: white !important;
+  }
+  
+  .mat-simple-snackbar-action {
+    color: #e8f5e8 !important;
+  }
 }

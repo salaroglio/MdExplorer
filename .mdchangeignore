@@ -1,0 +1,96 @@
+# MdExplorer Change Ignore Configuration
+# This file controls which files and directories are ignored by the file watcher
+
+ignoredDirectories:
+  - .md
+  - .git
+  - .vs
+  - .vscode
+  - node_modules
+  - bin
+  - obj
+  - packages
+  - TestResults
+  - .idea
+  - dist
+  - build
+  - target
+  - out
+  - coverage
+  - .nuget
+  - .angular
+
+ignoredExtensions:
+  - .pptx
+  - .docx
+  - .xlsx
+  - .xls
+  - .ppt
+  - .xlsb
+  - .bmpr
+  - .tmp
+  - .cache
+  - .dll
+  - .exe
+  - .pdb
+  - .suo
+  - .user
+  - .userosscache
+  - .log
+  - .vspscc
+  - .vssscc
+  - .builds
+  - .pidb
+  - .svclog
+  - .scc
+  - .dbmdl
+  - .jfm
+  - .pfx
+  - .publishsettings
+  - .bak
+  - .cache
+  - .ilk
+  - .log
+  - .lib
+  - .sbr
+  - .sdf
+  - .opensdf
+  - .unsuccessfulbuild
+  - .opt
+  - .plg
+  - .map
+  - .exp
+
+ignoredPatterns:
+  - .0.pdnSave
+  - ~$
+  - .~
+  - .swp
+  - .swo
+  - .DS_Store
+  - Thumbs.db
+  - desktop.ini
+  - .lock
+  - package-lock.json
+  - yarn.lock
+  - .tsbuildinfo
+
+gitIgnoredFiles:
+  - FETCH_HEAD
+  - COMMIT_EDITMSG
+  - .git/
+  - HEAD
+  - config
+  - description
+  - index
+  - packed-refs
+  - refs/
+  - objects/
+  - info/
+  - logs/
+  - hooks/
+  - .gitignore
+  - .gitattributes
+  - .gitmodules
+
+ignoreFilesWithoutExtension: true

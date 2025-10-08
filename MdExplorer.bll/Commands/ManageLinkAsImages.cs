@@ -47,10 +47,20 @@ namespace MdExplorer.Features.Commands
 
         public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] Starting image path transformation");
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - CurrentQueryRequest: {requestInfo.CurrentQueryRequest}");
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - CurrentRoot: {requestInfo.CurrentRoot}");
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - AbsolutePathFile: {requestInfo.AbsolutePathFile}");
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - BaseUrl: {requestInfo.BaseUrl}");
+            
             var matches = GetMatches(markdown);
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] Found {matches.Count} image references");
 
             foreach (Match item in matches)
             {
+                var originalImagePath = item.Groups[2].Value;
+                _logger.LogInformation($"🔍 [ManageLinkAsImages] Processing image: {originalImagePath}");
+                
                 // here you should compose the path adding missing part
                 // the missing part is the distance from the root folder and the current file
                 // you can build this using requestInfo.currentqueryrequest
@@ -72,9 +82,16 @@ namespace MdExplorer.Features.Commands
                 currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
                 var fileName = currentWebFolder + "/" + item.Groups[2].Value;
                 var allElementToReplace = item.Groups[0].Value.Replace(item.Groups[2].Value, fileName);
+                
+                _logger.LogInformation($"🔍 [ManageLinkAsImages] Original: {item.Groups[0].Value}");
+                _logger.LogInformation($"🔍 [ManageLinkAsImages] Transformed: {allElementToReplace}");
+                _logger.LogInformation($"🔍 [ManageLinkAsImages] CurrentWebFolder: {currentWebFolder}");
+                _logger.LogInformation($"🔍 [ManageLinkAsImages] Final fileName: {fileName}");
+                
                 markdown = markdown.Replace(item.Groups[0].Value, allElementToReplace);
             }
 
+            _logger.LogInformation($"🔍 [ManageLinkAsImages] Image path transformation completed");
             return markdown;
 
         }

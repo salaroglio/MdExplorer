@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,9 +13,11 @@ namespace MdExplorer.Features.ActionLinkModifiers
 {
     public class WorkLinkFromMarkdown : IWorkLink
     {
-        public LinkDetail[] GetLinks(string markdown)
+        public LinkDetail[] GetLinksFromMarkdown(string markdown)
         {
-            var rx = new Regex(@"[^!]\[[^\]]*\]\(([^\)]*)\)",
+            //Regex rx = new Regex(@"MdShowH2\((.*?),(.*?),(.*?)(?:,(.*?))?\)", //
+
+            var rx = new Regex(@"[^!]\[[^\]]*\]\((.*?)(?:(#.*?))?\)",
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             var listToReturn = new List<LinkDetail>();
@@ -24,7 +27,8 @@ namespace MdExplorer.Features.ActionLinkModifiers
                 var toStore = new LinkDetail
                 {
                     LinkedCommand = item.Groups[0].Value,
-                    LinkPath = item.Groups[1].Value,
+                    FullPath = item.Groups[1].Value,
+                    HTMLTitle = item.Groups[2].Value,
                 };
                 listToReturn.Add(toStore);
             }
@@ -34,15 +38,24 @@ namespace MdExplorer.Features.ActionLinkModifiers
         public LinkDetail[] GetLinksFromFile(string filepath)
         {
             var markdown = string.Empty;
-            using (var stream = File.Open(filepath, FileMode.Open,FileAccess.Read, FileShare.ReadWrite))
+            try
             {
-                using (var reader = new StreamReader(stream))
+                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    markdown = reader.ReadToEnd();
+                    using (var reader = new StreamReader(stream))
+                    {
+                        markdown = reader.ReadToEnd();
+                    }
                 }
             }
+            catch (Exception)
+            {
+
+                return new LinkDetail[] { };
+            }
+            
             //var markdown = File.ReadAllText(filepath);
-            return GetLinks(markdown);
+            return GetLinksFromMarkdown(markdown);
         }
 
         public void SetLinkIntoFile(string filepath, string oldLink, string newLink)
@@ -50,6 +63,16 @@ namespace MdExplorer.Features.ActionLinkModifiers
             var markdown = File.ReadAllText(filepath);
             markdown = markdown.Replace(oldLink, newLink);
             File.WriteAllText(filepath, markdown);
+        }
+
+
+        public string Relink(RelinkInfo relinkInfo)
+        {
+            var oldPathFile = relinkInfo.OldRelativePath;
+            var newPathFile = Path.Combine(relinkInfo.NewRelativePath, relinkInfo.NewFileName);
+            newPathFile = "/" +  newPathFile.Replace(Path.DirectorySeparatorChar, '/');
+            var newCommand = relinkInfo.LinkedCommand.Replace(oldPathFile, newPathFile);
+            return newCommand;
         }
     }
 }

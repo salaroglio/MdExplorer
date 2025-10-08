@@ -2,22 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Models.GIT;
 using LibGit2Sharp.Handlers;
-using Org.BouncyCastle.Asn1.Ocsp;
-using Microsoft.Extensions.Options;
 using Signature = LibGit2Sharp.Signature;
-using Antlr.Runtime;
 using System.IO;
-using System.Dynamic;
 using MdExplorer.Abstractions.DB;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
-using Ubiety.Dns.Core;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.GIT.models;
 
 namespace MdExplorer.Features.GIT
 {
@@ -40,7 +33,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 return config.Where(_ => _.Key == "user.name").First().Value.ToString();
             }
         }
@@ -54,7 +47,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var data = repo.Head.FriendlyName;
                 dataToReturn = data;
             }
@@ -69,7 +62,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 return config.Where(_ => _.Key == "user.email").First().Value.ToString();
             }
         }
@@ -138,6 +131,39 @@ namespace MdExplorer.Features.GIT
             }
         }
 
+        public int CountCommitsBehindTrackedBranch(string projectPath)
+        {
+            if (!Repository.IsValid(projectPath))
+            {
+                return 0;
+            }
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == projectPath).FirstOrDefault();
+            if (currentGitlab == null)
+            {
+                return 0;
+            }
+
+            using (var repo = new Repository(projectPath))
+            {
+                Branch currentBranch = repo.Head;
+
+                if (currentBranch.TrackedBranch != null)
+                {
+                    // Get the divergence between the current branch and its tracked remote branch
+                    HistoryDivergence divergence = repo.ObjectDatabase.CalculateHistoryDivergence(currentBranch.Tip, currentBranch.TrackedBranch.Tip);
+
+                    if (divergence != null)
+                    {
+                        // Return the count of how many commits the current branch is behind
+                        return divergence.AheadBy ?? 0;
+                    }
+                }
+            }
+            return 0;
+        }
+
         public GitBranch[] GetBranches(string projectPath)
         {
             try
@@ -160,6 +186,155 @@ namespace MdExplorer.Features.GIT
 
         }
 
+        public IList<FileNameAndAuthor> CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(string repoPath, PullInfo pullInfo)
+        {
+            _userSettingDb.BeginTransaction();
+            // Devo fare un check delle credenziali, se non le trovo, memorizzo quelle che mi sono passate
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+               .Where(_ => _.LocalPath == repoPath).FirstOrDefault();
+           
+            if (currentGitlab == null)
+            {
+                currentGitlab = new GitlabSetting
+                {
+                    LocalPath = repoPath,
+                    UserName = pullInfo.UserName,
+                    Password = pullInfo.Password,
+                    GitlabLink = "missing",
+                };
+                dalGitlabSetting.Save(currentGitlab);
+            }
+            _userSettingDb.Commit();
+            return GetFilesChangesAndAuthors(repoPath, "origin", "main");
+            
+        }
+
+        public IList<FileNameAndAuthor> GetFilesAndAuthorsToBeChanged(string repoPath)
+        {           
+            return GetFilesChangesAndAuthors(repoPath, "origin", "main");
+        }
+
+
+        ////////////////////////////////////////////////////////////
+        public IList<FileNameAndAuthor> GetFilesChangesAndAuthors(string repoPath,
+            string remoteName = "origin", string branchName = "main")
+        {
+           
+
+            var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
+            var currentGitlab = dalGitlabSetting.GetList()
+                .Where(_ => _.LocalPath == repoPath).FirstOrDefault();
+
+            var filesAndAuthors = new List<FileNameAndAuthor>();
+            var options = new FetchOptions
+            {
+                CredentialsProvider = (_url, _user, _cred) => new UsernamePasswordCredentials
+                {
+                    Username = currentGitlab.UserName,
+                    Password = currentGitlab.Password
+                }
+            };
+
+            using (var repo = new Repository(repoPath))
+            {
+                // Fetch the latest changes from the remote repository using provided credentials
+                LibGit2Sharp.Commands.Fetch(repo, remoteName, new string[0], options, "fetch");
+
+                // Get the current and remote branch
+                var localBranch = repo.Branches[branchName];
+                var remoteBranch = repo.Branches[$"{remoteName}/{branchName}"];
+
+                if (localBranch == null || remoteBranch == null)
+                    throw new InvalidOperationException("Branch not found.");
+
+                // Get the merge base and compare the branches to get the list of changes
+                var mergeBase = repo.ObjectDatabase.FindMergeBase(localBranch.Tip, remoteBranch.Tip);
+                var compareOptions = new CompareOptions { IncludeUnmodified = false };
+                var patches = repo.Diff.Compare<Patch>(mergeBase.Tree, remoteBranch.Tip.Tree, compareOptions);
+
+                foreach (var p in patches)
+                {
+                    var changeKind = p.Status.ToString(); // Added, Modified, Deleted
+                    string authorName = "Unknown";
+
+                    // For deleted files, getting the last commit might not work as expected because the file no longer exists in the tip.
+                    // So, we'll adjust our logic to look at the history to find when the file was last modified before being deleted.
+                    if (p.Status != ChangeKind.Deleted)
+                    {
+                        var commit = FindLastCommitAffectingPath(repo, remoteBranch.Tip, p.Path);
+                        if (commit != null)
+                        {
+                            authorName = commit.Author.Name;
+                        }
+                    }
+                    else
+                    {
+                        // Handling deleted files: We look for the most recent commit where the file still existed.
+                        var commit = FindLastCommitBeforeDeletion(repo, p.Path);
+                        if (commit != null)
+                        {
+                            authorName = commit.Author.Name;
+                        }
+                    }
+                    
+                    var changeType = p.Status.ToString();
+                    filesAndAuthors.Add(new FileNameAndAuthor
+                    {
+                        RelativePath = "/" + p.Path,
+                        FullPath = repoPath + Path.DirectorySeparatorChar + p.Path.Replace('/', Path.DirectorySeparatorChar),
+                        Author = authorName,
+                        FileName = Path.GetFileName(p.Path),
+                        Status = changeType
+                    });
+                    
+                }
+            }
+
+            return filesAndAuthors;
+        }
+
+        private static Commit FindLastCommitAffectingPath(Repository repo, Commit startCommit, string path)
+        {
+            var filter = new CommitFilter
+            {
+                SortBy = CommitSortStrategies.Time,
+                IncludeReachableFrom = startCommit
+            };
+
+            foreach (var entry in repo.Commits.QueryBy(path, filter))
+            {
+                return entry.Commit;
+            }
+
+            return null;
+        }
+
+        // New method to handle finding the last commit before a file was deleted.
+        private static Commit FindLastCommitBeforeDeletion(Repository repo, string path)
+        {
+            var filter = new CommitFilter
+            {
+                SortBy = CommitSortStrategies.Time | CommitSortStrategies.Topological,
+                FirstParentOnly = false // You might want to adjust this based on your branching strategy.
+            };
+
+            foreach (var commit in repo.Commits)
+            {
+                var treeEntry = commit[path];
+                if (treeEntry != null)
+                {
+                    return commit;
+                }
+            }
+
+            return null;
+        }
+        /////////////////////////////////////////////////////////////////
+
+
+
+
         public GitTag[] GetTagList(string projectPath)
         {
             if (!Repository.IsValid(projectPath))
@@ -168,7 +343,7 @@ namespace MdExplorer.Features.GIT
             }
             using (var repo = new Repository(projectPath))
             {
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var tags = repo.Tags;
                 var gitTags = tags.AsQueryable().Select(_ => new GitTag
                 {
@@ -262,7 +437,8 @@ namespace MdExplorer.Features.GIT
 
 
 
-        public (bool, bool, bool, string) Pull(PullInfo pullinfo)
+        public (bool IsConnectionMissing, bool IsAuthenticationMissing, bool ThereAreConflicts, string ErrorMessage) 
+                    Pull(PullInfo pullinfo)
         {
             var isAuthenticationMissing = false;
             var isConnectionMissing = false;
@@ -397,7 +573,7 @@ namespace MdExplorer.Features.GIT
             using (var repo = new Repository(pullInfo.ProjectPath))
             {
                 var currentEmail = GetCurrentUserEmail(pullInfo.ProjectPath);
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var data = repo.Head.CanonicalName;
 
                 var currentStatus = repo.RetrieveStatus();
@@ -541,7 +717,7 @@ namespace MdExplorer.Features.GIT
             using (var repo = new Repository(pullInfo.ProjectPath))
             {
                 var currentEmail = GetCurrentUserEmail(pullInfo.ProjectPath);
-                Configuration config = repo.Config;
+                LibGit2Sharp.Configuration config = repo.Config;
                 var data = repo.Head.CanonicalName;
 
                 var currentStatus = repo.RetrieveStatus();
@@ -611,5 +787,6 @@ namespace MdExplorer.Features.GIT
 
             return (isConnectionMissing, isAuthenticationMissing, thereAreConflicts, null);
         }
+        
     }
 }

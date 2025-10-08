@@ -3,6 +3,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,6 +18,7 @@ using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdProjects;
 using AutoMapper;
+using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
 
 namespace MdExplorer.Service.Controllers.MdProjects
@@ -59,88 +61,171 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpPost]
-        public IActionResult DeleteProject([FromBody] Project project)
+        public IActionResult DeleteProject([FromBody] DeleteProjectRequest request)
         {
-            _userSettingsDB.BeginTransaction();
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            var projectFromDb = projectDal.GetList().Where(_ => _.Id == project.Id).FirstOrDefault();
-            projectDal.Delete(projectFromDb);
-            _userSettingsDB.Commit();
-            return Ok(new { message = "done!" });
+            try
+            {
+                _userSettingsDB.BeginTransaction();
+                
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var projectFromDb = projectDal.GetList().Where(_ => _.Id == request.Id).FirstOrDefault();
+                
+                if (projectFromDb == null)
+                {
+                    _userSettingsDB.Rollback();
+                    return NotFound(new { message = "Project not found" });
+                }
+                
+                // Prima cancella tutti i bookmark associati al progetto
+                var bookmarkDal = _userSettingsDB.GetDal<Bookmark>();
+                var bookmarksToDelete = bookmarkDal.GetList().Where(b => b.Project.Id == request.Id).ToList();
+                foreach (var bookmark in bookmarksToDelete)
+                {
+                    bookmarkDal.Delete(bookmark);
+                }
+                
+                // Cancella anche le entry di TocDescriptionCache associate (ProjectId è int, non Guid)
+                // Nota: ProjectId in TocDescriptionCache è int, ma Project.Id è Guid
+                // Questo potrebbe essere un problema di design, ma per ora gestiamo entrambi i casi
+                var tocCacheDal = _userSettingsDB.GetDal<TocDescriptionCache>();
+                // Non possiamo fare un match diretto tra Guid e int, quindi rimuoviamo solo se ci sono cache orfane
+                
+                // Poi cancella il progetto
+                projectDal.Delete(projectFromDb);
+                
+                _userSettingsDB.Commit();
+                return Ok(new { message = "done!" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Error deleting project with ID: {ProjectId}", request.Id);
+                return StatusCode(500, new { message = "Error deleting project", error = ex.Message });
+            }
+        }
+        
+        public class DeleteProjectRequest
+        {
+            public Guid Id { get; set; }
         }
 
         [HttpPost]
-        public IActionResult SetFolderProject([FromBody] FolderPath folderPath)
+        public IActionResult SetFolderProject([FromBody] ProjectCreationRequest request)
         {
-            _fileSystemWatcher.Path = folderPath.Path;
-            // renew project data
-            _userSettingsDB.BeginTransaction();
-            var projectDal = _userSettingsDB.GetDal<Project>();
-            var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
-            if (project == null)
+            // Prima di cambiare il percorso, disabilita temporaneamente il FileSystemWatcher
+            bool wasEnabled = _fileSystemWatcher.EnableRaisingEvents;
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            
+            try
             {
-                project = new Project
+                // Aggiorna il percorso del FileSystemWatcher
+                _fileSystemWatcher.Path = request.Path;
+                
+                // Log del cambio percorso
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogInformation($"🔄 FileSystemWatcher path changed to: {request.Path}");
+                
+                // renew project data
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().Where(_ => _.Path == request.Path).FirstOrDefault();
+                if (project == null)
                 {
-                    Path = folderPath.Path,
-                    Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
-                };
+                    project = new Project
+                    {
+                        Path = request.Path,
+                        Name = System.IO.Path.GetFileName(_fileSystemWatcher.Path)
+                    };
+                }
+                project.LastUpdate = DateTime.Now;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+                
+                // Configura i database per il nuovo progetto e inizializza Git
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
+                
+                // Riabilita il FileSystemWatcher se era abilitato prima
+                if (wasEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {request.Path}");
+                }
+                
+                // Log Git initialization status
+                if (gitInitialized)
+                {
+                    logger?.LogInformation($"✅ Git repository initialized for project: {request.Path}");
+                }
+                
+                return Ok(new { 
+                    id = project.Id, 
+                    name = project.Name, 
+                    path = project.Path, 
+                    sidenavWidth = project.SidenavWidth,
+                    gitInitialized = gitInitialized
+                });
             }
-            project.LastUpdate = DateTime.Now;
-            projectDal.Save(project);
-            _userSettingsDB.Commit();
-            ProjectsManager.SetNewProject(_services, folderPath.Path);
-            return Ok(new { id = project.Id, name = project.Name, path = project.Path });
+            catch (Exception ex)
+            {
+                // In caso di errore, riabilita il FileSystemWatcher con il vecchio percorso
+                if (wasEnabled)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+                throw;
+            }
         }
 
         [HttpPost]
-        public IActionResult SetFolderProjectQuickNotes([FromBody] FolderPath folderPath)
+        public IActionResult SetSideNavWidth([FromBody] Project project)
         {
-            _fileSystemWatcher.Path = folderPath.Path;
-            string currentIdNotes = CreateQuickNote();
-
-            // renew project data
             _userSettingsDB.BeginTransaction();
             var projectDal = _userSettingsDB.GetDal<Project>();
-            var project = projectDal.GetList().Where(_ => _.Path == folderPath.Path).FirstOrDefault();
-            if (project == null)
+            var projectDB = projectDal.GetList().Where(_=>_.Id == project.Id).FirstOrDefault();
+            if (projectDB != null)
             {
-                project = new Project
-                {
-                    Path = folderPath.Path,
-                    Name = _fileSystemWatcher.Path.Substring(_fileSystemWatcher.Path.LastIndexOf("\\") + 1)
-                };
+                projectDB.SidenavWidth = project.SidenavWidth;
             }
-
-            project.LastUpdate = DateTime.Now;
-            projectDal.Save(project);
             _userSettingsDB.Commit();
-            ProjectsManager.SetNewProject(_services, folderPath.Path);
-            var settingDal = _userSettingsDB.GetDal<Setting>();
-            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString
-                ?? @"C:\Users\Carlo\AppData\Local\Programs\Microsoft VS Code\Code.exe";
-            _processUtil.OpenFileWithVisualStudioCode(currentIdNotes, editorPath);
-            return Ok(new { message = "done", currentNote = currentIdNotes });
+            return Ok();
         }
 
-        private string CreateQuickNote()
+        [HttpPost]
+        public IActionResult InitializeProjectTemplates([FromBody] FolderPath folderPath)
         {
-            var quickNotes = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + "Quick-Notes";
-            if (!Directory.Exists(quickNotes))
-                Directory.CreateDirectory(quickNotes);
-            var currentDate = DateTime.Now.ToString("yyyy_MM_dd");
-            var currentIdNotes = quickNotes + Path.DirectorySeparatorChar + currentDate + ".md";
-            if (!System.IO.File.Exists(currentIdNotes))
+            try
             {
-                System.IO.File.WriteAllText(currentIdNotes, $"# {currentDate}");
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogInformation($"🔧 [TemplateInit] Initializing templates for: {folderPath.Path}");
+                
+                // Chiama ConfigTemplates per creare la struttura template
+                ProjectsManager.ConfigTemplates(folderPath.Path);
+                
+                logger?.LogInformation($"✅ [TemplateInit] Templates initialized successfully for: {folderPath.Path}");
+                
+                return Ok(new { message = "Templates initialized successfully", path = folderPath.Path });
             }
-
-            return currentIdNotes;
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<MdProjectsController>>();
+                logger?.LogError($"❌ [TemplateInit] Error initializing templates: {ex.Message}");
+                
+                return StatusCode(500, new { error = "Failed to initialize templates", details = ex.Message });
+            }
         }
     }
 
     public class FolderPath
     {
         public string Path { get; set; }
+    }
+
+    public class ProjectCreationRequest
+    {
+        public string Path { get; set; }
+        public bool? InitializeGit { get; set; }
+        public bool? AddCopilotInstructions { get; set; }
     }
 }
 

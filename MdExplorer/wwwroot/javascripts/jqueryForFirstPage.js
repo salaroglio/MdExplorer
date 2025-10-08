@@ -1,167 +1,46 @@
-﻿// EDITOR H1
+﻿// Create snapshot
 
-editorH1CurrentIndex = 0;
+function createSnapshot(index) {
+    let $camera_flash_Id = $('span[md-camera_flash_id=' + index + ']');
+    let fullpath = $camera_flash_Id.attr('md-fullpath');
 
-function editH1(e) {    
-    //debugger;    
-    editorH1CurrentIndex = e;
-    var test$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']'); 
-    $(".edith1-popup-overlay, .popup-content").addClass("active");        
-    $('#editH1').val(test$[0].innerText);
-    let canvas$ = $('#canvas');
-    let toc$ = $('#toc');
-    let editorH1$ = $('#editorH1');
-    canvas$.addClass("hideIcons");
-    toc$.addClass("hideIcons");   
-    editorH1$.addClass("hideIcons");   
-    $('#editH1').highlightWithinTextarea('update');
-    if ($('#TOC').is(":hidden")) {
-    } else {
-        tocWasShown = true;
-    }
-    hideTocForEditH1();
-}
-
-tocWasShown = false; 
-function hideTocForEditH1() {
-    if ($('#TOC').is(":hidden")) {        
-        if (tocWasShown) {
-            var $page = $('#page');
-            $page.attr('class', 'col-9');
-            setTimeout(function () {
-                var $toc = $('#TOC');
-                $toc.attr('class', 'col-3');
-                $toc.show();
-
-            }, 500);
-        }
-    } else {        
-        var $toc = $('#TOC');
-        $toc.hide();
-        $toc.removeAttr('class');
-        var $page = $('#page');
-        $page.attr('class', 'col-12');        
-    }
-}
-
-// configuration of editH1
-$(function () {    
-    var editorH1$ = $('#editH1');
-    editorH1$.highlightWithinTextarea({
-        highlight: [
-            {
-                highlight: '#',
-                className: 'red'
-            },
-            {
-                highlight: ':ok:',
-                className: 'blue'
-            },
-            {
-                highlight: ':exclamation:',
-                className: 'red'
-            },
-            {
-                highlight: '-',
-                className: 'yellow'
-            },
-            {
-                highlight: ':warning:',
-                className: 'yellow'
-            },
-            {
-                highlight: ':warning:',
-                className: 'gold'
-            },
-            {
-                highlight: ':heavy_check_mark:',
-                className: 'green'
-            },
-            {
-                highlight: ':no_entry:',
-                className: 'red'
-            },
-            {
-                highlight: ':question:',
-                className: 'red'
-            },
-            
-            {
-                highlight: ':negative_squared_cross_mark:',
-                className: 'darkgreen'
-            },
-            
-
-        ]
-    });
-
-
-
-    var closeButton$ = $(".close, .popup-overlay");
-
-    closeButton$.on("click", function () {
-        $(".edith1-popup-overlay, .popup-content").removeClass("active");
-        $('#canvas').removeClass("hideIcons");
-        $('#toc').removeClass("hideIcons");
-        $('#editorH1').removeClass("hideIcons");
-        hideTocForEditH1();
-    });
-
-    var operButton$ = $(".save, .popup-overlay");
-
-    operButton$.on("click", function () {
-
-        var oldData$ = $('div.hiddendataforeditorh1[md-itemmatchindex=' + editorH1CurrentIndex + ']');
-        var textArea$ = $('#editH1');   
-        var oldMd = oldData$[0].innerText;
-        var newMd = textArea$.val();
-        var pathFile = oldData$.attr("md-path-file");
-        var indexStart = parseInt(oldData$.attr("md-itemmatchindex"));
-        var indexEnd = parseInt(oldData$.attr("md-itemmatchindex-end"));
-        
-
-        let toStringify = { oldMd: oldMd, newMd: newMd, pathFile: pathFile, indexStart: indexStart, indexEnd: indexEnd };
-        $.ajax({
-            url: "/api/WriteMD/SetEditorH1",
-            type: "POST",
-            data: JSON.stringify(toStringify),
-            contentType: "application/json; charset=utf-8",
-            dataType: "json",
-            success: function (data) {
-                console.log(data);
+    let $dialog = $('<div></div>')
+        .html('<p>Snapshot name:</p><input type="text" id="myTextbox" style="width: 100%;" />')
+        .dialog({
+            title: "Take a picture!",
+            autoOpen: false,
+            modal: true,
+            buttons: {
+                Ok: function () {
+                    var textboxValue = $('#myTextbox').val();
+                    $.post("/api/MdFiles/CreateSnapshot", { fullPath: fullpath, versioningdesc: textboxValue },
+                        function (data) {
+                        });
+                    $(this).dialog("close");
+                },
+                Cancel: function () {
+                    $(this).dialog("close");
+                }
             }
         });
 
-        $(".edith1-popup-overlay, .popup-content").removeClass("active");
-        $('#canvas').removeClass("hideIcons");
-        $('#toc').removeClass("hideIcons");
-        $('#editorH1').removeClass("hideIcons");
-        hideTocForEditH1();
-    });
-
-
-});
-
-editorIsShown = false;
-function toggleEditor() {
-    var arrayOfEditorH1$ = $(".editorH1");
-    if (!editorIsShown) {
-        //Set click for editorH1        
-        arrayOfEditorH1$.on("click", function () {
-            let currentTag$ = $(this);
-            let index = currentTag$.attr("md-itemmatchindex");
-            editH1(index);
-        });
-        arrayOfEditorH1$.addClass("showAreaH1");
-    } else {
-        var arrayOfEditorH1$ = $(".editorH1");
-        arrayOfEditorH1$.off("click");
-        arrayOfEditorH1$.removeClass("showAreaH1");
-    }
-    editorIsShown = !editorIsShown;
+    // Open the dialog
+    $dialog.dialog('open');
 }
 
-/////// end editH1
+
+//Refs
+
+$(function () {
+    window.addEventListener("scroll", function () {
+        const scrollX = window.scrollX;
+        document.documentElement.style.setProperty("--toc-scroll", Math.round(scrollX) + "px");
+
+    });
+});
+
+
+
 
 const cyrb53 = function (str, seed = 0) {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
@@ -178,8 +57,8 @@ const cyrb53 = function (str, seed = 0) {
 
 //Open link directly in the application
 function openApplication(fullpath) {
-    
-    let toStringify = { fullPath: fullpath };
+    let $body = $("#MdBody");
+    let toStringify = { fullPath: fullpath, connectionId: $body.attr("connectionid") };
     $.ajax({
         url: "/api/MdFiles/OpenFileInApplication",
         type: "POST",
@@ -187,11 +66,153 @@ function openApplication(fullpath) {
         contentType: "application/json; charset=utf-8",
         dataType: "json",
         success: function (data) {
-            console.log(data);            
+            console.log(data);
         }
     });
 
 }
+
+currentDocumentSetting = {};
+
+// Navigation history for internal links - stores scroll positions
+let navigationHistory = [];
+let currentHistoryIndex = -1;
+let hasNavigationStarted = 0; // -1 = mai cliccato, 0+ = almeno un click effettuato
+
+function initializeInternalNavigation() {
+    // Usa jQuery per event delegation - cattura anche link aggiunti dinamicamente
+    $(document).on('click', 'a[href^="#"]', function(e) {
+        // Save current scroll position BEFORE jumping
+        const currentScrollY = window.scrollY;
+        
+        // If navigating from middle of history, trim future entries
+        if (currentHistoryIndex < navigationHistory.length - 1) {
+            navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
+        }
+        
+        // Se lo stack è vuoto, questo è il primo click
+        if (navigationHistory.length === 0) {
+            navigationHistory.push({currentScrollY: currentScrollY,typePosition:'link'});
+            currentHistoryIndex = 0;
+            hasNavigationStarted = 1; // Primo click effettuato
+        } else {            
+            // Tolgo l'ultimo elemento se si tratta di un back.
+            lastPosition = navigationHistory.pop();
+            console.log(lastPosition);
+            if(lastPosition.typePosition === 'link'){
+                navigationHistory.push(lastPosition);
+            }
+            // Aggiungi la posizione corrente (da dove parti) allo stack
+            navigationHistory.push({currentScrollY: currentScrollY,typePosition:'link'});
+            currentHistoryIndex = navigationHistory.length - 1;
+            hasNavigationStarted++;// = navigationHistory.length - 1;//++; // Incrementa il contatore dei click
+        }
+        
+        // Aggiorna subito i pulsanti di navigazione
+        updateNavigationButtons();
+    });
+    
+    // Inizializza subito la navigazione
+    const $internalLinks = $('a[href^="#"]');
+    const $navButtons = $('.mdeNavButton');
+    
+    // I pulsanti sono già visibili dal CSS ma disabilitati
+    // Non serve fare show() perché il CSS li mostra già
+    
+    // Lo stack parte vuoto, si popola solo con i click sui link
+    
+    updateNavigationButtons();
+}
+
+function navigateBack() {
+    if (navigationHistory.length > 0) {
+        // Salva la posizione corrente prima di tornare indietro
+        const currentScrollY = window.scrollY;
+        
+        // Aggiungi la posizione corrente solo se:
+        // 1. Siamo all'ultima posizione dello stack (non siamo nel mezzo della storia)
+        // 2. La posizione corrente è diversa dall'ultima salvata (non veniamo da un forward)
+        if (currentHistoryIndex === navigationHistory.length - 1) {
+            // Controlla se la posizione corrente è diversa dall'ultima nello stack
+            const lastPosition = navigationHistory[navigationHistory.length - 1];
+            if (Math.abs(currentScrollY - lastPosition.currentScrollY) > 5) { // Tolleranza di 5px
+                navigationHistory.push({currentScrollY: currentScrollY,typePosition:'back'});
+            }
+            currentHistoryIndex = navigationHistory.length - 1;
+        }
+        
+        // Vai alla prima posizione (indice 0)
+        currentHistoryIndex--;// = 0;
+        console.log('navigate back before:' + hasNavigationStarted);
+        // Decrementa hasNavigationStarted quando torniamo indietro
+        if (hasNavigationStarted > 0) {
+            hasNavigationStarted--;
+        }
+        
+        // Scroll to first saved position
+        window.scrollTo({ 
+            top: navigationHistory[currentHistoryIndex].currentScrollY, 
+            behavior: 'smooth' 
+        });
+        
+        updateNavigationButtons();
+    }
+}
+
+function navigateForward() {
+    if (currentHistoryIndex < navigationHistory.length - 1) {
+        // Move index forward
+        currentHistoryIndex++;
+        
+        // Incrementa hasNavigationStarted quando andiamo avanti
+        hasNavigationStarted++;
+        
+        // Scroll to next position
+        window.scrollTo({ 
+            top: navigationHistory[currentHistoryIndex].currentScrollY, 
+            behavior: 'smooth' 
+        });
+        
+        updateNavigationButtons();
+    }
+}
+
+function updateNavigationButtons() {
+    // Debug: mostra lo stato delle variabili
+    
+    // Trova i contenitori dei pulsanti (div.mdeNavButton)
+    const navBackContainer = document.querySelector('#navBack')?.closest('.mdeNavButton');
+    const navForwardContainer = document.querySelector('#navForward')?.closest('.mdeNavButton');
+    
+    if (navBackContainer) {
+        // Back si disabilita se: mai cliccato OR siamo alla posizione iniziale dopo il primo click
+        if ((hasNavigationStarted === 0 && navigationHistory.length>-1)) {
+            navBackContainer.style.opacity = '0.3';
+            navBackContainer.style.pointerEvents = 'none';
+        } else {
+            navBackContainer.style.opacity = '1';
+            navBackContainer.style.pointerEvents = 'auto';
+        }
+    }
+    
+    if (navForwardContainer) {
+        if ((hasNavigationStarted === 0 && currentHistoryIndex===-1) || hasNavigationStarted >= navigationHistory.length - 1) {
+            navForwardContainer.style.opacity = '0.3';
+            navForwardContainer.style.pointerEvents = 'none';
+            
+        } else {
+            navForwardContainer.style.opacity = '1';
+            navForwardContainer.style.pointerEvents = 'auto';
+            
+        }
+    }
+    
+}
+
+// Initialize navigation when document is ready
+$(document).ready(function() {
+    initializeInternalNavigation();
+});
 
 // gestione tocbot
 $(function () {
@@ -207,7 +228,71 @@ $(function () {
 
     });
     setTimeout(tocbot.refresh());
-    //console.log('Tocbot initialized');
+    // visualizzazione toc
+    let $TOC = $("#TOC");
+
+    let pathFile = $TOC.attr("mdeFullPathDocument");
+    // This set TOC/References visible
+    $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
+        if (documentSetting == undefined) {
+            return;
+        }
+        currentDocumentSetting = documentSetting;
+
+        let $Toc = $('#TOC');
+        let $Refs = $("#Refs");
+        if (currentDocumentSetting.tocWidth != null && currentDocumentSetting.tocWidth != 0) {
+            document.documentElement.style.setProperty("--toc-width", currentDocumentSetting.tocWidth + "px");
+            
+        }
+        if (currentDocumentSetting.refsWidth != null && currentDocumentSetting.refsWidth != 0) {
+            document.documentElement.style.setProperty("--refs-width", currentDocumentSetting.refsWidth + "px");
+        }
+
+        if (documentSetting.showTOC) {
+            $Toc.show();
+        } else {
+            $Toc.hide();
+        }
+        if (documentSetting.showRefs) {
+            $Refs.show();
+        } else {
+            $Refs.hide();
+        }
+
+
+    });
+    // this populate References
+    $.get("/api/tabcontroller/GetRefsData?fullPathFile=" + pathFile, function (references) {
+        let $Refs = $("#Refs");
+        let $body = $("#MdBody");
+
+        // if there are NO references hide again
+        if (references == undefined || references.length == 0) {
+            $Refs.hide();             
+        }          
+        
+        $ref = $("#references");
+        $ref.append("<table>");
+        $ref.append("<tr><th>Context</th><th>FileName</th><th>Link Type</th></tr>");
+        if (references == undefined || references.length == 0) {
+            $ref.append("<tr><td>No references</td></tr>")
+        } else {
+
+           
+            
+
+
+            references.forEach(_ => {
+                let urlWithConnectionId = "/api/mdexplorer" + _.mdContext + "/" + _.markdownFile.fileName + "?connectionid=" + $body.attr("connectionid");                               
+                
+                $ref.append("<tr><td>" + _.mdContext + "</td><td><a class='mdExplorerLink' href='" + urlWithConnectionId +"'>" + _.markdownFile.fileName + "</a></td><td>" + _.linkType +"</td></tr>")
+            });
+        }
+        
+        $ref.append("</table>")
+    });
+
 });
 
 // array di tutti gli tooltip con emoji
@@ -263,7 +348,7 @@ function setTippyTypePriority(tippyReference, _) {
         _.setProps({ theme: 'priorityObbligatorio' });
     }
 
-    
+
 
 }
 
@@ -285,7 +370,7 @@ function setTippyTypeProcess(tippyReference, _) {
         _.setProps({ theme: 'processAttenzione' });
     }
 
-    
+
 }
 
 
@@ -294,20 +379,552 @@ function setTippyTypeProcess(tippyReference, _) {
 // function to manage readability 
 var arrayReadabilityToggle = [];
 function toggleSeeMe(stringMatchedHash) {
-
+    console.log('[toggleSeeMe] ========== FUNCTION CALLED ==========');
+    console.log('[toggleSeeMe] called with stringMatchedHash:', stringMatchedHash);
+    
     var $box = $('#' + stringMatchedHash);
-    var buttonPressed = arrayReadabilityToggle.find(data => data.id == $box.id);
+    console.log('[toggleSeeMe] $box element:', $box);
+    console.log('[toggleSeeMe] $box length:', $box.length);
+    
+    if ($box.length === 0) {
+        console.error('[toggleSeeMe] Element not found with id:', stringMatchedHash);
+        return;
+    }
+    
+    // Debug: mostra la struttura HTML del div
+    console.log('[toggleSeeMe] Box HTML:', $box.html());
+    console.log('[toggleSeeMe] Box children:', $box.children());
+    
+    // Trova l'immagine all'interno del div (potrebbe essere in elementi annidati)
+    var $img = $box.find('img');
+    console.log('[toggleSeeMe] Found image with find:', $img);
+    
+    // Se non trova con find, prova con un selettore più specifico
+    if ($img.length === 0) {
+        $img = $box.find('svg');
+        console.log('[toggleSeeMe] Found SVG instead:', $img);
+    }
+    
+    // Verifica se abbiamo trovato qualcosa
+    if ($img.length > 0) {
+        console.log('[toggleSeeMe] Element type:', $img[0].tagName);
+        if ($img[0].tagName === 'IMG') {
+            console.log('[toggleSeeMe] Image natural width:', $img[0].naturalWidth);
+            console.log('[toggleSeeMe] Image natural height:', $img[0].naturalHeight);
+        }
+    } else {
+        console.log('[toggleSeeMe] No image or SVG found in the box');
+    }
+    
+    console.log('[toggleSeeMe] Viewport width:', window.innerWidth);
+    console.log('[toggleSeeMe] Document width:', document.documentElement.clientWidth);
+    
+    var boxId = $box[0].id;
+    console.log('[toggleSeeMe] boxId:', boxId);
+    console.log('[toggleSeeMe] current div style:', $box.attr('style'));
+    if ($img.length > 0) {
+        console.log('[toggleSeeMe] current img/svg style:', $img.attr('style'));
+    }
+    
+    var buttonPressed = arrayReadabilityToggle.find(data => data.id == boxId);
+    console.log('[toggleSeeMe] buttonPressed:', buttonPressed);
+    console.log('[toggleSeeMe] arrayReadabilityToggle:', arrayReadabilityToggle);
+    
     if (buttonPressed == undefined) {
-        var dataToStore = { id: $box.id, style: $box.attr('style') };
-
-        $box.attr('style', 'width:100%;height:100%;');
+        // Prima volta - passa da 100% a dimensioni adattate al viewport
+        var dataToStore = { 
+            id: boxId, 
+            divStyle: $box.attr('style') || '',
+            imgStyle: $img.length > 0 ? ($img.attr('style') || '') : '',
+            imgClass: $img.length > 0 ? ($img.attr('class') || '') : ''
+        };
+        console.log('[toggleSeeMe] Storing original styles (100%):', dataToStore);
+        
+        // Calcola la larghezza disponibile (considerando margini e padding)
+        var availableWidth = window.innerWidth - 100; // 50px di margine per lato
+        var maxWidth = Math.min(availableWidth, document.documentElement.clientWidth - 100);
+        
+        console.log('[toggleSeeMe] Calculated max width:', maxWidth);
+        
+        // Applica stile adattato al viewport sul div contenitore
+        $box.css({
+            'width': maxWidth + 'px',
+            'height': 'auto',
+            'max-width': '100%',
+            'overflow': 'hidden'
+        });
+        
+        // Se c'è un'immagine o SVG, adattala al contenitore
+        if ($img.length > 0) {
+            $img.css({
+                'width': '100%',
+                'height': 'auto',
+                'max-width': '100%',
+                'object-fit': 'contain'
+            });
+        }
+        
         arrayReadabilityToggle.push(dataToStore);
+        console.log('[toggleSeeMe] Applied viewport-adapted size');
     }
     else {
-        $box.attr('style', buttonPressed.style);
-        var currentIndex = arrayReadabilityToggle.findIndex(data => data.id == $box.id);
+        // Seconda volta - torna alle dimensioni originali (100%)
+        console.log('[toggleSeeMe] Restoring original styles (100%):', buttonPressed);
+        
+        // Ripristina gli stili originali
+        $box.attr('style', buttonPressed.divStyle);
+        
+        if ($img.length > 0) {
+            $img.attr('style', buttonPressed.imgStyle);
+            if (buttonPressed.imgClass) {
+                $img.attr('class', buttonPressed.imgClass);
+            }
+        }
+        
+        var currentIndex = arrayReadabilityToggle.findIndex(data => data.id == boxId);
         arrayReadabilityToggle.splice(currentIndex, 1);
+        console.log('[toggleSeeMe] Restored original 100% size');
     }
+}
+
+// Magnifier/Zoom functionality
+var magnifierActive = {};
+var magnifierCanvas = null;
+var magnifierContext = null;
+var magnifierCache = {}; // Cache per immagini convertite
+var magnifierRAF = null; // Request Animation Frame per ottimizzazione
+
+function toggleMagnifier(stringMatchedHash) {
+    console.log('[toggleMagnifier] called with stringMatchedHash:', stringMatchedHash);
+    
+    var $box = $('#' + stringMatchedHash);
+    if ($box.length === 0) {
+        console.error('[toggleMagnifier] Element not found with id:', stringMatchedHash);
+        return;
+    }
+    
+    // Toggle magnifier state
+    if (magnifierActive[stringMatchedHash]) {
+        // Disattiva magnifier
+        console.log('[toggleMagnifier] Deactivating magnifier');
+        magnifierActive[stringMatchedHash] = false;
+        
+        // Rimuovi event handlers
+        $box.off('mousemove.magnifier');
+        $box.off('mouseleave.magnifier');
+        
+        // Nascondi e rimuovi canvas
+        if (magnifierCanvas) {
+            $(magnifierCanvas).remove();
+            magnifierCanvas = null;
+            magnifierContext = null;
+        }
+        
+        // Pulisci la cache per questo elemento
+        var svgId = $box.attr('id') || 'svg_' + stringMatchedHash;
+        if (magnifierCache[svgId]) {
+            delete magnifierCache[svgId];
+            console.log('[toggleMagnifier] Cache cleared for:', svgId);
+        }
+        
+        // Cancella eventuali animazioni pendenti
+        if (magnifierRAF) {
+            cancelAnimationFrame(magnifierRAF);
+            magnifierRAF = null;
+        }
+    } else {
+        // Attiva magnifier
+        console.log('[toggleMagnifier] Activating magnifier');
+        magnifierActive[stringMatchedHash] = true;
+        
+        // Crea canvas per lo zoom
+        createMagnifierCanvas();
+        
+        // Trova l'immagine o SVG
+        var $img = $box.find('img, svg').first();
+        if ($img.length === 0) {
+            console.error('[toggleMagnifier] No image or SVG found');
+            return;
+        }
+        
+        // Aggiungi event handlers
+        $box.on('mousemove.magnifier', function(e) {
+            updateMagnifier(e, $box, $img);
+        });
+        
+        $box.on('mouseleave.magnifier', function() {
+            if (magnifierCanvas) {
+                $(magnifierCanvas).hide();
+            }
+        });
+    }
+}
+
+function createMagnifierCanvas() {
+    // Rimuovi canvas esistente se presente
+    if (magnifierCanvas) {
+        $(magnifierCanvas).remove();
+    }
+    
+    // Calcola dimensioni canvas (min 300x300, max 500x500)
+    var canvasSize = Math.max(300, Math.min(500, window.innerWidth * 0.3));
+    
+    // Crea nuovo canvas
+    magnifierCanvas = document.createElement('canvas');
+    magnifierCanvas.width = canvasSize;
+    magnifierCanvas.height = canvasSize;
+    magnifierCanvas.style.cssText = `
+        position: fixed;
+        border: 2px solid #333;
+        border-radius: 8px;
+        pointer-events: none;
+        z-index: 10000;
+        display: none;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    `;
+    
+    document.body.appendChild(magnifierCanvas);
+    magnifierContext = magnifierCanvas.getContext('2d');
+    
+    console.log('[createMagnifierCanvas] Canvas created with size:', canvasSize);
+}
+
+function updateMagnifier(e, $box, $img) {
+    if (!magnifierCanvas || !magnifierContext || !$img[0]) {
+        console.log('[updateMagnifier] Missing requirements:', {
+            magnifierCanvas: !!magnifierCanvas,
+            magnifierContext: !!magnifierContext,
+            img: !!$img[0]
+        });
+        return;
+    }
+    
+    var img = $img[0];
+    console.log('[updateMagnifier] Image element:', img);
+    console.log('[updateMagnifier] Image tagName:', img.tagName);
+    console.log('[updateMagnifier] Image src:', img.src);
+    
+    // Se è un SVG, gestiscilo diversamente
+    if (img.tagName === 'svg' || img.tagName === 'SVG') {
+        console.log('[updateMagnifier] Found SVG element, handling zoom for SVG');
+        handleSVGMagnifier(e, $box, img);
+        return;
+    }
+    
+    var rect = img.getBoundingClientRect();
+    console.log('[updateMagnifier] Image rect:', rect);
+    
+    // Calcola posizione relativa del mouse sull'immagine
+    var mouseX = e.clientX - rect.left;
+    var mouseY = e.clientY - rect.top;
+    
+    // Verifica che il mouse sia sopra l'immagine
+    if (mouseX < 0 || mouseY < 0 || mouseX > rect.width || mouseY > rect.height) {
+        $(magnifierCanvas).hide();
+        return;
+    }
+    
+    // Mostra il canvas
+    $(magnifierCanvas).show();
+    
+    // Calcola posizione intelligente
+    var canvasPos = calculateSmartPosition(e.clientX, e.clientY, magnifierCanvas.width, magnifierCanvas.height);
+    $(magnifierCanvas).css({
+        left: canvasPos.left + 'px',
+        top: canvasPos.top + 'px'
+    });
+    
+    // Fattore di zoom
+    var zoomFactor = 2.5;
+    
+    // Se è un'immagine normale
+    if (img.tagName === 'IMG') {
+        console.log('[updateMagnifier] Processing IMG element');
+        console.log('[updateMagnifier] Image natural dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+        console.log('[updateMagnifier] Image complete:', img.complete);
+        
+        // Verifica che l'immagine sia caricata
+        if (!img.complete || img.naturalWidth === 0) {
+            console.log('[updateMagnifier] Image not loaded yet');
+            // Prova a ricaricare l'immagine
+            img.onload = function() {
+                console.log('[updateMagnifier] Image loaded, retrying');
+            };
+            return;
+        }
+        
+        // Calcola le coordinate sull'immagine originale
+        var naturalX = (mouseX / rect.width) * img.naturalWidth;
+        var naturalY = (mouseY / rect.height) * img.naturalHeight;
+        
+        // Area da zoomare
+        var sourceSize = magnifierCanvas.width / zoomFactor;
+        var sourceX = naturalX - sourceSize / 2;
+        var sourceY = naturalY - sourceSize / 2;
+        
+        console.log('[updateMagnifier] Draw parameters:', {
+            naturalX: naturalX,
+            naturalY: naturalY,
+            sourceX: sourceX,
+            sourceY: sourceY,
+            sourceSize: sourceSize,
+            canvasWidth: magnifierCanvas.width,
+            canvasHeight: magnifierCanvas.height
+        });
+        
+        // Clear canvas
+        magnifierContext.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+        
+        // Riempimento di sfondo per debug
+        magnifierContext.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        magnifierContext.fillRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+        
+        // Disegna l'immagine zoomata (senza clipping circolare)
+        try {
+            console.log('[updateMagnifier] Drawing image...');
+            magnifierContext.drawImage(
+                img,
+                sourceX, sourceY, sourceSize, sourceSize,
+                0, 0, magnifierCanvas.width, magnifierCanvas.height
+            );
+            console.log('[updateMagnifier] Image drawn successfully');
+        } catch (e) {
+            console.error('[updateMagnifier] Error drawing image:', e);
+            console.error('[updateMagnifier] Error details:', e.message);
+        }
+        
+        // Aggiungi crosshair al centro
+        magnifierContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        magnifierContext.lineWidth = 1;
+        magnifierContext.beginPath();
+        magnifierContext.moveTo(magnifierCanvas.width/2 - 10, magnifierCanvas.height/2);
+        magnifierContext.lineTo(magnifierCanvas.width/2 + 10, magnifierCanvas.height/2);
+        magnifierContext.moveTo(magnifierCanvas.width/2, magnifierCanvas.height/2 - 10);
+        magnifierContext.lineTo(magnifierCanvas.width/2, magnifierCanvas.height/2 + 10);
+        magnifierContext.stroke();
+    }
+    // TODO: Gestire SVG se necessario
+}
+
+function handleSVGMagnifier(e, $box, svgElement) {
+    if (!magnifierCanvas || !magnifierContext) return;
+    
+    // Cancella eventuali animazioni precedenti
+    if (magnifierRAF) {
+        cancelAnimationFrame(magnifierRAF);
+    }
+    
+    var rect = svgElement.getBoundingClientRect();
+    
+    // Calcola posizione relativa del mouse sull'SVG
+    var mouseX = e.clientX - rect.left;
+    var mouseY = e.clientY - rect.top;
+    
+    // Verifica che il mouse sia sopra l'SVG
+    if (mouseX < 0 || mouseY < 0 || mouseX > rect.width || mouseY > rect.height) {
+        $(magnifierCanvas).hide();
+        return;
+    }
+    
+    // Mostra il canvas
+    $(magnifierCanvas).show();
+    
+    // Calcola posizione intelligente
+    var canvasPos = calculateSmartPosition(e.clientX, e.clientY, magnifierCanvas.width, magnifierCanvas.height);
+    $(magnifierCanvas).css({
+        left: canvasPos.left + 'px',
+        top: canvasPos.top + 'px'
+    });
+    
+    // Genera un ID univoco per questo SVG
+    var svgId = $box.attr('id') || 'svg_' + Date.now();
+    
+    // Controlla se abbiamo già l'immagine in cache
+    if (magnifierCache[svgId] && magnifierCache[svgId].complete) {
+        // Usa l'immagine dalla cache
+        drawMagnifiedImage(magnifierCache[svgId], mouseX, mouseY, rect);
+    } else {
+        // Se non è in cache, mostra un placeholder mentre si carica
+        drawLoadingPlaceholder();
+        
+        // Converti SVG solo se non è già in cache
+        if (!magnifierCache[svgId]) {
+            try {
+                var data = new XMLSerializer().serializeToString(svgElement);
+                var DOMURL = window.URL || window.webkitURL || window;
+                
+                var img = new Image();
+                var svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+                var url = DOMURL.createObjectURL(svgBlob);
+                
+                img.onload = function () {
+                    console.log('[handleSVGMagnifier] SVG converted to image and cached');
+                    magnifierCache[svgId] = img;
+                    DOMURL.revokeObjectURL(url);
+                    
+                    // Disegna l'immagine appena caricata
+                    drawMagnifiedImage(img, mouseX, mouseY, rect);
+                };
+                
+                img.onerror = function() {
+                    console.error('[handleSVGMagnifier] Failed to load SVG as image');
+                    DOMURL.revokeObjectURL(url);
+                };
+                
+                img.src = url;
+        
+            } catch (e) {
+                console.error('[handleSVGMagnifier] Error handling SVG:', e);
+                drawErrorMessage();
+            }
+        }
+    }
+}
+
+// Funzione ottimizzata per disegnare l'immagine ingrandita
+function drawMagnifiedImage(img, mouseX, mouseY, rect) {
+    magnifierRAF = requestAnimationFrame(function() {
+        // Fattore di zoom
+        var zoomFactor = 2.5;
+        
+        // Calcola l'area da zoomare
+        var sourceSize = magnifierCanvas.width / zoomFactor;
+        var sourceX = (mouseX / rect.width) * img.width - sourceSize / 2;
+        var sourceY = (mouseY / rect.height) * img.height - sourceSize / 2;
+        
+        // Clear canvas
+        magnifierContext.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+        
+        // Sfondo bianco
+        magnifierContext.fillStyle = 'white';
+        magnifierContext.fillRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+        
+        // Disegna l'immagine zoomata (senza clipping circolare)
+        magnifierContext.drawImage(
+            img,
+            sourceX, sourceY, sourceSize, sourceSize,
+            0, 0, magnifierCanvas.width, magnifierCanvas.height
+        );
+        
+        // Aggiungi crosshair
+        magnifierContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        magnifierContext.lineWidth = 1;
+        magnifierContext.beginPath();
+        magnifierContext.moveTo(magnifierCanvas.width/2 - 10, magnifierCanvas.height/2);
+        magnifierContext.lineTo(magnifierCanvas.width/2 + 10, magnifierCanvas.height/2);
+        magnifierContext.moveTo(magnifierCanvas.width/2, magnifierCanvas.height/2 - 10);
+        magnifierContext.lineTo(magnifierCanvas.width/2, magnifierCanvas.height/2 + 10);
+        magnifierContext.stroke();
+    });
+}
+
+// Mostra un placeholder durante il caricamento
+function drawLoadingPlaceholder() {
+    magnifierContext.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    
+    // Sfondo grigio chiaro
+    magnifierContext.fillStyle = '#f0f0f0';
+    magnifierContext.fillRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    
+    // Testo di caricamento
+    magnifierContext.fillStyle = 'black';
+    magnifierContext.font = '14px Arial';
+    magnifierContext.textAlign = 'center';
+    magnifierContext.fillText('Loading...', magnifierCanvas.width/2, magnifierCanvas.height/2);
+}
+
+// Mostra messaggio di errore
+function drawErrorMessage() {
+    magnifierContext.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    
+    // Sfondo bianco
+    magnifierContext.fillStyle = 'white';
+    magnifierContext.fillRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    
+    // Messaggio di errore
+    magnifierContext.fillStyle = 'black';
+    magnifierContext.font = '14px Arial';
+    magnifierContext.textAlign = 'center';
+    magnifierContext.fillText('SVG Zoom', magnifierCanvas.width/2, magnifierCanvas.height/2 - 20);
+    magnifierContext.fillText('Not Available', magnifierCanvas.width/2, magnifierCanvas.height/2 + 20);
+}
+
+// Calcola posizione intelligente per evitare overflow della lente
+function calculateSmartPosition(mouseX, mouseY, canvasWidth, canvasHeight) {
+    // Margini di sicurezza dai bordi
+    var margin = 10;
+    var offsetFromCursor = 20; // Distanza dal cursore
+    
+    // Dimensioni viewport
+    var viewportWidth = window.innerWidth;
+    var viewportHeight = window.innerHeight;
+    
+    // Posizione di default (a destra del cursore)
+    var left = mouseX + offsetFromCursor;
+    var top = mouseY - canvasHeight / 2;
+    
+    // Controlla overflow a destra
+    if (left + canvasWidth + margin > viewportWidth) {
+        // Prova a sinistra del cursore
+        left = mouseX - canvasWidth - offsetFromCursor;
+        
+        // Se anche a sinistra non c'è spazio, posiziona sopra/sotto
+        if (left < margin) {
+            left = mouseX - canvasWidth / 2;
+            
+            // Posiziona sopra il cursore
+            if (mouseY > viewportHeight / 2) {
+                top = mouseY - canvasHeight - offsetFromCursor;
+            } else {
+                // Posiziona sotto il cursore
+                top = mouseY + offsetFromCursor;
+            }
+        }
+    }
+    
+    // Controlla overflow a sinistra
+    if (left < margin) {
+        left = margin;
+    }
+    
+    // Controlla overflow in alto
+    if (top < margin) {
+        top = margin;
+    }
+    
+    // Controlla overflow in basso
+    if (top + canvasHeight + margin > viewportHeight) {
+        top = viewportHeight - canvasHeight - margin;
+    }
+    
+    // Se la lente coprirebbe il cursore, aggiusta la posizione
+    var cursorCovered = mouseX >= left && mouseX <= left + canvasWidth &&
+                       mouseY >= top && mouseY <= top + canvasHeight;
+    
+    if (cursorCovered) {
+        // Sposta la lente per non coprire il cursore
+        if (mouseX < viewportWidth / 2) {
+            // Cursore a sinistra, metti lente a destra
+            left = mouseX + offsetFromCursor * 2;
+        } else {
+            // Cursore a destra, metti lente a sinistra
+            left = mouseX - canvasWidth - offsetFromCursor * 2;
+        }
+    }
+    
+    console.log('[calculateSmartPosition] Position calculated:', {
+        mouseX: mouseX,
+        mouseY: mouseY,
+        left: left,
+        top: top,
+        viewportWidth: viewportWidth,
+        viewportHeight: viewportHeight
+    });
+    
+    return {
+        left: Math.round(left),
+        top: Math.round(top)
+    };
 }
 
 // function to show/hide image's toolbar
@@ -471,6 +1088,259 @@ function activateSaveCopy(el, path) {
     });
 }
 
+// Variabili globali per la ricerca
+let searchResults = [];
+let currentSearchIndex = -1;
+let originalContent = null;
+
+// Funzione per attivare/disattivare la ricerca
+function toggleSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    
+    if (searchContainer.style.display === 'none' || searchContainer.style.display === '') {
+        // Mostra la barra di ricerca con animazione
+        searchContainer.style.display = 'flex';
+        searchContainer.style.opacity = '0';
+        searchContainer.style.width = '0';
+        
+        setTimeout(() => {
+            searchContainer.style.transition = 'all 0.3s ease';
+            searchContainer.style.opacity = '1';
+            searchContainer.style.width = '400px';
+        }, 10);
+        
+        searchInput.focus();
+        
+        // Aggiungi classe attiva al pulsante
+        if (searchButton) {
+            searchButton.parentElement.classList.add('active');
+        }
+        
+        // Aggiungi event listener per la ricerca in tempo reale
+        searchInput.addEventListener('input', performSearch);
+        searchInput.addEventListener('keydown', handleSearchKeydown);
+    } else {
+        closeSearch();
+    }
+}
+
+// Funzione per chiudere la ricerca
+function closeSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    
+    // Animazione di chiusura
+    searchContainer.style.transition = 'all 0.3s ease';
+    searchContainer.style.opacity = '0';
+    searchContainer.style.width = '0';
+    
+    setTimeout(() => {
+        searchContainer.style.display = 'none';
+        searchInput.value = '';
+        clearSearch();
+    }, 300);
+    
+    // Rimuovi classe attiva dal pulsante
+    if (searchButton) {
+        searchButton.parentElement.classList.remove('active');
+    }
+}
+
+// Funzione per eseguire la ricerca
+function performSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput.value.trim();
+    
+    if (searchTerm.length === 0) {
+        clearSearch();
+        return;
+    }
+    
+    if (searchTerm.length < 2) {
+        return; // Non cercare per termini troppo brevi
+    }
+    
+    // Pulisci risultati precedenti
+    clearSearch();
+    
+    // Salva il contenuto originale se non già salvato
+    const contentElement = document.querySelector('.mdeItemMainPageCenter');
+    if (!originalContent) {
+        originalContent = contentElement.innerHTML;
+    }
+    
+    // Esegui la ricerca e evidenzia
+    searchResults = [];
+    highlightSearchTerm(contentElement, searchTerm);
+    
+    // Aggiorna il contatore dei risultati
+    updateSearchResultCount();
+    
+    // Se ci sono risultati, vai al primo
+    if (searchResults.length > 0) {
+        currentSearchIndex = 0;
+        scrollToSearchResult(currentSearchIndex);
+    }
+}
+
+// Funzione per evidenziare il termine di ricerca
+function highlightSearchTerm(element, searchTerm) {
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function(node) {
+                // Ignora nodi dentro script, style, e la barra di ricerca stessa
+                const parent = node.parentElement;
+                if (parent.tagName === 'SCRIPT' || 
+                    parent.tagName === 'STYLE' ||
+                    parent.closest('#searchContainer') ||
+                    parent.closest('.mdeSearchContainer')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        }
+    );
+    
+    const nodesToReplace = [];
+    let node;
+    
+    // Raccogli tutti i nodi di testo che contengono il termine di ricerca
+    while (node = walker.nextNode()) {
+        const text = node.textContent;
+        const regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+        if (regex.test(text)) {
+            nodesToReplace.push(node);
+        }
+    }
+    
+    // Sostituisci i nodi con versioni evidenziate
+    nodesToReplace.forEach(textNode => {
+        const text = textNode.textContent;
+        const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+        const parts = text.split(regex);
+        
+        if (parts.length > 1) {
+            const span = document.createElement('span');
+            
+            parts.forEach((part, index) => {
+                if (index % 2 === 1) { // Parte che corrisponde alla ricerca
+                    const highlight = document.createElement('mark');
+                    highlight.className = 'mdeSearchHighlight';
+                    highlight.style.backgroundColor = '#ffff00';
+                    highlight.style.padding = '2px';
+                    highlight.style.borderRadius = '2px';
+                    highlight.textContent = part;
+                    span.appendChild(highlight);
+                    searchResults.push(highlight);
+                } else if (part) { // Testo normale
+                    span.appendChild(document.createTextNode(part));
+                }
+            });
+            
+            textNode.parentNode.replaceChild(span, textNode);
+        }
+    });
+}
+
+// Funzione per navigare tra i risultati di ricerca
+function navigateSearchResult(direction) {
+    if (searchResults.length === 0) return;
+    
+    // Rimuovi evidenziazione corrente
+    if (currentSearchIndex >= 0 && currentSearchIndex < searchResults.length) {
+        searchResults[currentSearchIndex].style.backgroundColor = '#ffff00';
+    }
+    
+    // Calcola il nuovo indice
+    currentSearchIndex += direction;
+    
+    // Wrap around
+    if (currentSearchIndex < 0) {
+        currentSearchIndex = searchResults.length - 1;
+    } else if (currentSearchIndex >= searchResults.length) {
+        currentSearchIndex = 0;
+    }
+    
+    // Evidenzia e scrolla al risultato corrente
+    scrollToSearchResult(currentSearchIndex);
+}
+
+// Funzione per scrollare al risultato di ricerca
+function scrollToSearchResult(index) {
+    if (index < 0 || index >= searchResults.length) return;
+    
+    const result = searchResults[index];
+    
+    // Evidenzia il risultato corrente con un colore diverso
+    result.style.backgroundColor = '#ff9900';
+    
+    // Scrolla al risultato
+    result.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+    });
+    
+    // Aggiorna il contatore
+    updateSearchResultCount();
+}
+
+// Funzione per aggiornare il contatore dei risultati
+function updateSearchResultCount() {
+    const countElement = document.getElementById('searchResultCount');
+    
+    if (searchResults.length === 0) {
+        countElement.textContent = 'Nessun risultato';
+        countElement.style.color = '#999';
+    } else {
+        const currentDisplay = currentSearchIndex + 1;
+        countElement.textContent = `${currentDisplay} di ${searchResults.length}`;
+        countElement.style.color = '#333';
+    }
+}
+
+// Funzione per pulire la ricerca
+function clearSearch() {
+    // Ripristina il contenuto originale se disponibile
+    if (originalContent) {
+        const contentElement = document.querySelector('.mdeItemMainPageCenter');
+        contentElement.innerHTML = originalContent;
+        originalContent = null;
+    }
+    
+    searchResults = [];
+    currentSearchIndex = -1;
+    
+    const countElement = document.getElementById('searchResultCount');
+    if (countElement) {
+        countElement.textContent = '';
+    }
+}
+
+// Funzione per gestire i tasti nella barra di ricerca
+function handleSearchKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        if (event.shiftKey) {
+            navigateSearchResult(-1);
+        } else {
+            navigateSearchResult(1);
+        }
+    } else if (event.key === 'Escape') {
+        closeSearch();
+    }
+}
+
+// Funzione di utility per escape delle regex
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // gestione del sortable dentro le icone di priorità
 $(function () {
     $(".sortable").sortable();
@@ -541,7 +1411,7 @@ $(function () {
             });
         console.log('sortstop parents Event = ', event, '  ui = ', ui);
         console.log(ui.item);
-
+        tocbot.refresh();
         //do sort of parents
     });
 });
@@ -554,18 +1424,18 @@ $.fn.datepicker.noConflict = function () {
 // funzione che memorizza l'ultima posizione della pagina
 document.addEventListener("DOMContentLoaded", function (event) {
     // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh    
-    var test3 = document.location.href;
+    var test3 = document.location.href;    
     var position = test3.indexOf('?');
     var position2 = test3.substring(0, position);
     var test2 = cyrb53(position2);
     var scrollpos1 = localStorage.getItem(test2);
-    if (scrollpos1) window.scrollTo(0, scrollpos1);
+    if (scrollpos1) window.scrollTo({ left: 0, top: scrollpos1, behavior: "instant" });
 
 });
 
 // gestione ultima posizione dello scroll
 window.onbeforeunload = function (e) {
-    var test3 = document.location.href;
+    var test3 = document.location.href;    
     var position = test3.indexOf('?');
     var position2 = test3.substring(0, position);
     var test2 = cyrb53(position2);
@@ -602,7 +1472,7 @@ function activateCalendar(el, index, target, dateformat, pathfile) {
 
 // gestione degli emoji di processo
 function dynamicEmojiForProcess(el, index, pathfile) {
-    
+
 
 
     let dataToSet;
@@ -636,25 +1506,35 @@ function dynamicEmojiForProcess(el, index, pathfile) {
     var currentIndex = el.attributes['data-md-process-index'].value;
     $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText.trim(), function (data) {
         $(".result").html(data);
-        console.log(data);
-    });
-    setTooltipProcess(dataToSet, el);
+        var oldData$ = $('div.hiddendataforeditorh1');
+        for (i = 0; i < oldData$.length; i++) {
+            let myData$ = $(oldData$.get(i));
+            let check = myData$.attr("md-itemmatchindex");
+            myData$.attr("md-itemmatchindex", data[i].itemMatchIndex);
+        }
 
+    });
+
+    setTooltipProcess(dataToSet, el);
+    tocbot.refresh();
 }
 
-function setTooltipPriority(dataToSet, el) {    
-    
-    let currentPriority = tippyDictPriority[el.attributes[8].value];
+function setTooltipPriority(dataToSet, el) {
+
+    let $el = $(el);
+    let attributeValue = $el.attr("data-tippy-priority-id");
+    let currentPriority = tippyDictPriority[attributeValue]; //el.attributes[8].value
     currentPriority.setContent(dataToSet);
-    currentPriority.reference.setAttribute('data-tippy-content',dataToSet)
+    currentPriority.reference.setAttribute('data-tippy-content', dataToSet)
     setTippyTypePriority(currentPriority.reference, currentPriority);
     currentPriority.show();
 }
 
 function setTooltipProcess(dataToSet, el) {
-    
-    let current = tippyDictProcess[el.attributes[4].value]; //data-tippy-process-id
-    current.setContent(dataToSet);    
+    let $el = $(el);
+    let attributeValue = $el.attr("data-tippy-process-id");
+    let current = tippyDictProcess[attributeValue]; //data-tippy-process-id //el.attributes[4].value
+    current.setContent(dataToSet);
     current.reference.setAttribute('data-tippy-content', dataToSet)
     setTippyTypeProcess(current.reference, current);
     current.show();
@@ -663,10 +1543,7 @@ function setTooltipProcess(dataToSet, el) {
 
 // gestione degli emoji di priorità
 function dynamicEmojiForPriority(el, index, pathfile) {
-    
-    if (el.attributes['data-md-table-game-index'] == undefined) {
-        return;
-    }
+
     if (el.innerText == '❓') {
         el.innerText = '❔';
         //el.title = 'da valutare';
@@ -703,7 +1580,7 @@ function dynamicEmojiForPriority(el, index, pathfile) {
                             if (check) {
                                 element = element.parent();
                             }
-                            element.fadeOut(3000);
+                            //element.fadeOut(3000);
                         } else
 
                             if (el.innerText == '❎') {
@@ -722,9 +1599,19 @@ function dynamicEmojiForPriority(el, index, pathfile) {
     var currentIndex = el.attributes['data-md-priority-index'].value;
     $.get("/api/WriteMD/SetEmojiPriority?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
         $(".result").html(data);
-        console.log(data);
+
+        var oldData$ = $('div.hiddendataforeditorh1');
+        for (i = 0; i < oldData$.length; i++) {
+            let myData$ = $(oldData$.get(i));
+            let check = myData$.attr("md-itemmatchindex");
+            myData$.attr("md-itemmatchindex", data[i].itemMatchIndex);
+        }
+
+
     });
+
     setTooltipPriority(dataToSet, el);
+    tocbot.refresh();
 }
 
 // gestione del box di ricerca della toc
@@ -750,73 +1637,122 @@ function dynamicEmojiForPriority(el, index, pathfile) {
 
 function toggleTOC(documentPath) {
 
-    var showToc = false;
-    showToc = toggleToc2();
+    let $refs = $('#Refs');
+    let $toc = $('#TOC');
 
-    $.get("/api/AppSettings/ShowToc?documentPathEncoded=" + documentPath + "&showToc=" + showToc, function (data) {
-        console.log(data);
+    if ($('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $toc.fadeIn();
+        currentDocumentSetting.showTOC = true;
+        currentDocumentSetting.showRefs = false;
+
+    } else if ($('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $toc.fadeOut();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = false;
+    } else if (!$('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $toc.fadeIn();
+        $refs.fadeOut();
+        currentDocumentSetting.showTOC = true;
+        currentDocumentSetting.showRefs = false;
+    } else if (!$('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $toc.fadeIn();
+        $refs.fadeOut();
+        currentDocumentSetting.showTOC = true;
+        currentDocumentSetting.showRefs = false;
+    }
+
+    $.ajax({
+        url: "/api/tabcontroller/SaveTOCData",
+        type: "POST",
+        data: JSON.stringify(currentDocumentSetting),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+
+            console.log(data);
+        }
     });
 
-    
 }
 
-function toggleToc2() {
-    var showToc = false;
-    if ($('#TOC').is(":hidden")) {
-        var $page = $('#page');
-        $page.attr('class', 'col-9');
-        setTimeout(function () {
-            var $toc = $('#TOC');
-            $toc.attr('class', 'col-3');
-            $toc.show();
 
-        }, 500);
-        showToc = true;
+function toggleReferences() {
+    let $refs = $('#Refs');
+    let $toc = $('#TOC');
 
-    } else {
-        var $toc = $('#TOC');
-        $toc.hide();
-        $toc.removeAttr('class');
-        var $page = $('#page');
-        $page.attr('class', 'col-12');
-        showToc = false;
+    if ($('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $refs.fadeIn();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = true;
+
+    } else if ($('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $refs.fadeIn();
+        $toc.fadeOut();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = true;
+    } else if (!$('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
+        $refs.fadeOut();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = false;
+    } else if (!$('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
+        $toc.fadeOut();
+        $refs.fadeIn();
+        currentDocumentSetting.showTOC = false;
+        currentDocumentSetting.showRefs = true;
     }
-    return showToc;
+
+    $.ajax({
+        url: "/api/tabcontroller/SaveTOCData",
+        type: "POST",
+        data: JSON.stringify(currentDocumentSetting),
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+
+            console.log(data);
+        }
+    });
 }
+
+
 
 // inizializzazione, al caricamnto della pagina,
 // del canvas, tela per la matitina, fuori dal campo visivo dell'utente
 $(function () {
-    console.log("Create canvas");
     if (window.toggleCanvas == 'undefined') {
         window.toggleCanvas = false;
     }
-
-    //console.log('initialize canvas');
 
     window.toggleCanvas = !window.toggleCanvas;
     window.canvas = document.createElement('canvas');
     window.canvas.setAttribute('id', 'writeCanvas');
     window.canvas.setAttribute('class', 'canvasForWriting'); // setting z-index to 100
     document.body.appendChild(canvas);
+    
+    // Crea la tavolozza colori
+    createColorPalette();
 
     // some hotfixes... ( ≖_≖)
     //document.body.style.margin = 0;
     window.canvas.setAttribute('hidden', 'hidden');
-    window.canvas.style.position = 'absolute';
+    window.canvas.style.position = 'absolute';  // torniamo ad absolute per seguire il contenuto
     window.canvas.style.top = 0;
-    window.canvas.style.left = window.innerWidth - 40; // qui è dove si imposta il canvas FUORI dal campo visivo
+    window.canvas.style.left = 0;
+    window.canvas.width = document.documentElement.scrollWidth;
+    window.canvas.height = document.documentElement.scrollHeight;  // intero documento
 
     // get canvas 2D context and set him correct size
     window.ctx = canvas.getContext('2d');
     resize();
 
     // last known position
-    console.log()
-    window.shiftY = 0;
-    window.shiftX = -40;
     window.pos = { x: 0, y: 0 };
-    window.scrollPos = { x: window.shiftX, y: window.shiftY };
+    window.scrollPos = { x: 0, y: 0 };
+    
+    // Drawing settings
+    window.currentColor = '#2bc02d'; // Verde di default
+    window.isErasing = false;
+    window.brushSize = 5;
 
     window.addEventListener('resize', resize);
     document.addEventListener('mousemove', draw);
@@ -825,67 +1761,195 @@ $(function () {
     document.addEventListener('scroll', scrollPosition);
 });
 
+// Crea la tavolozza colori
+function createColorPalette() {
+    const palette = document.createElement('div');
+    palette.id = 'colorPalette';
+    palette.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        display: none;
+        z-index: 101;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    `;
+    
+    // Colori disponibili
+    const colors = [
+        '#2bc02d', // Verde (default)
+        '#ff0000', // Rosso
+        '#0000ff', // Blu
+        '#ffff00', // Giallo
+        '#ff00ff', // Magenta
+        '#00ffff', // Ciano
+        '#000000', // Nero
+        '#ffffff', // Bianco (per correzioni)
+        '#ffa500', // Arancione
+        '#800080'  // Viola
+    ];
+    
+    // Crea i bottoni colore
+    colors.forEach(color => {
+        const colorBtn = document.createElement('button');
+        colorBtn.style.cssText = `
+            width: 30px;
+            height: 30px;
+            margin: 2px;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            background-color: ${color};
+        `;
+        colorBtn.onclick = () => selectColor(color);
+        palette.appendChild(colorBtn);
+    });
+    
+    // Separatore
+    const separator = document.createElement('div');
+    separator.style.cssText = 'width: 100%; height: 1px; background: #ccc; margin: 5px 0;';
+    palette.appendChild(separator);
+    
+    // Bottone gomma
+    const eraserBtn = document.createElement('button');
+    eraserBtn.innerHTML = '🧹 Gomma';
+    eraserBtn.style.cssText = `
+        padding: 5px 10px;
+        margin: 2px;
+        cursor: pointer;
+        background: #f0f0f0;
+        border: 2px solid #ccc;
+    `;
+    eraserBtn.onclick = toggleEraser;
+    palette.appendChild(eraserBtn);
+    
+    // Selezione dimensione pennello
+    const sizeLabel = document.createElement('span');
+    sizeLabel.innerHTML = ' Dimensione: ';
+    sizeLabel.style.marginLeft = '10px';
+    palette.appendChild(sizeLabel);
+    
+    const sizeInput = document.createElement('input');
+    sizeInput.type = 'range';
+    sizeInput.min = '1';
+    sizeInput.max = '20';
+    sizeInput.value = '5';
+    sizeInput.style.width = '80px';
+    sizeInput.oninput = (e) => { window.brushSize = parseInt(e.target.value); };
+    palette.appendChild(sizeInput);
+    
+    document.body.appendChild(palette);
+}
+
+// Seleziona un colore
+function selectColor(color) {
+    window.currentColor = color;
+    window.isErasing = false;
+    // Feedback visivo
+    document.querySelectorAll('#colorPalette button').forEach(btn => {
+        btn.style.border = '2px solid #ccc';
+    });
+    event.target.style.border = '3px solid #000';
+}
+
+// Toggle modalità gomma
+function toggleEraser() {
+    window.isErasing = !window.isErasing;
+    const eraserBtn = event.target;
+    if (window.isErasing) {
+        eraserBtn.style.background = '#ffa500';
+        eraserBtn.innerHTML = '🧹 Gomma ON';
+    } else {
+        eraserBtn.style.background = '#f0f0f0';
+        eraserBtn.innerHTML = '🧹 Gomma';
+    }
+}
+
 // gestione della matitina per evidenziare la pagina
 function toggleMdCanvas(me) {
-    debugger;
+    const palette = document.getElementById('colorPalette');
+    const buttonDiv = me.parentElement; // Il div con classe mdeLowerBarButton
+    
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
-        $(window.canvas).animate({
-            left: 40,
-        }, function () {
-        });
+        window.canvas.style.left = 0;
+        palette.style.display = 'block'; // Mostra la tavolozza
+        buttonDiv.classList.add('active'); // Aggiungi classe active
 
     } else {
         me.children[0].src = "/assets/drawStatic.png";
-        $(window.canvas).animate({
-            left: window.innerWidth,
-        }, function () {
-            window.canvas.setAttribute('hidden', 'hidden');
-        });
-
+        window.canvas.setAttribute('hidden', 'hidden');
+        palette.style.display = 'none'; // Nascondi la tavolozza
+        buttonDiv.classList.remove('active'); // Rimuovi classe active
     }
     window.toggleCanvas = !window.toggleCanvas;
 }
 
 function scrollPosition(e) {
-    scrollPos.x = window.scrollX + window.shiftX;
-    scrollPos.y = window.scrollY + window.shiftY;
+    scrollPos.x = window.pageXOffset || document.documentElement.scrollLeft;
+    scrollPos.y = window.pageYOffset || document.documentElement.scrollTop;
 }
 // new position from mouse event
 function setPosition(e) {
-    pos.x = scrollPos.x + e.clientX;
-    pos.y = scrollPos.y + e.clientY;
+    // Aggiorna sempre la posizione dello scroll corrente
+    scrollPos.x = window.pageXOffset || document.documentElement.scrollLeft;
+    scrollPos.y = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Calcoliamo l'offset del canvas
+    const canvasRect = window.canvas.getBoundingClientRect();
+    
+    // Posizione relativa al documento
+    // clientX/Y sono relative alla viewport, quindi aggiungiamo lo scroll
+    pos.x = e.clientX + scrollPos.x;
+    pos.y = e.clientY + scrollPos.y;
 }
 
 // resize canvas
 function resize() {
-    window.ctx.canvas.width = window.innerWidth;
+    // Salva il contenuto del canvas prima di ridimensionare
+    const imageData = window.ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
+    
+    // Ridimensiona all'intero documento
+    window.ctx.canvas.width = document.documentElement.scrollWidth;
     window.ctx.canvas.height = document.documentElement.scrollHeight;
+    
+    // Ripristina il contenuto
+    window.ctx.putImageData(imageData, 0, 0);
 }
 
 
 function draw(e) {
     if (!window.toggleCanvas) {
-
-        
         // mouse left button must be pressed
         if (e.buttons !== 1) return;
 
-        console.log("draw");
-        window.ctx.beginPath(); // begin
-
-        window.ctx.lineWidth = 5;
-        window.ctx.lineCap = 'round';
-        window.ctx.strokeStyle = '#2bc02d';
-
-        window.ctx.moveTo(pos.x, pos.y); // from
-        setPosition(e);
-        window.ctx.lineTo(pos.x, pos.y); // to
-
-        window.ctx.stroke(); // draw it!
+        if (window.isErasing) {
+            // Modalità gomma - usa clearRect per cancellare
+            window.ctx.save();
+            window.ctx.globalCompositeOperation = 'destination-out';
+            window.ctx.beginPath();
+            window.ctx.arc(pos.x, pos.y, window.brushSize * 2, 0, Math.PI * 2);
+            window.ctx.fill();
+            window.ctx.restore();
+            setPosition(e);
+        } else {
+            // Modalità disegno normale
+            window.ctx.beginPath();
+            window.ctx.lineWidth = window.brushSize;
+            window.ctx.lineCap = 'round';
+            window.ctx.strokeStyle = window.currentColor;
+            
+            window.ctx.moveTo(pos.x, pos.y);
+            setPosition(e);
+            window.ctx.lineTo(pos.x, pos.y);
+            
+            window.ctx.stroke();
+        }
     }
-
 }
 
 //Gestione Clipboard *************
@@ -933,4 +1997,274 @@ async function presentationSVG(relativePathFile, hashFile) {
     $forwardArrow.attr('data-step', trueStep);
 }
 
-//presentationSVG
+//resizeToc
+hookedToc = false;
+hookedRefs = false;
+function resizeToc() {
+
+    hookedToc = true;
+}
+function resizeRefs() {
+
+    hookedRefs = true;
+}
+
+
+$(function () {
+    document.addEventListener("mousemove", mouseMoveEvent, false);
+    document.addEventListener("mouseup", mouseUpEvent, false);
+});
+
+function mouseUpEvent(event) {
+
+    let toc$ = $('#TOC');
+    let refs$ = $('#Refs');
+
+    if (hookedToc) {
+        hookedToc = false;
+        let value = parseInt(event.clientX) + 30;
+        currentDocumentSetting.tocWidth = parseInt(toc$.css("width").substring(0, toc$.css("width").length - 2));
+        $.ajax({
+            url: "/api/tabcontroller/SaveTOCData",
+            type: "POST",
+            data: JSON.stringify(currentDocumentSetting),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (data) {
+
+                console.log(data);
+            }
+        });
+
+    }
+    if (hookedRefs) {
+        hookedRefs = false;
+        let value = parseInt(event.clientX) + 30;
+        
+        currentDocumentSetting.refsWidth = parseInt(refs$.css("width").substring(0, refs$.css("width").length - 2));
+        $.ajax({
+            url: "/api/tabcontroller/SaveRefsData",
+            type: "POST",
+            data: JSON.stringify(currentDocumentSetting),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (data) {
+
+                console.log(data);
+            }
+        });
+
+    }
+}
+
+function mouseMoveEvent(event) {
+
+    let toc$ = $('#TOC');
+    let refs$ = $('Refs');
+    if (hookedToc) {
+        let value = document.documentElement.scrollWidth - parseInt(event.clientX) - 30;
+        let scrolldata = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        console.log(scrolldata);
+        value = value - scrolldata;
+        document.documentElement.style.setProperty("--toc-width", value + "px");
+
+    }
+    if (hookedRefs) {
+        let value = document.documentElement.scrollWidth - parseInt(event.clientX) - 30;
+        let scrolldata = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        console.log(scrolldata);
+        value = value - scrolldata;
+        document.documentElement.style.setProperty("--refs-width", value + "px");
+
+    }
+}
+
+// Initialize Prism.js for syntax highlighting
+$(function() {
+    // Wait for DOM to be fully loaded
+    setTimeout(function() {
+        // Find code blocks and add language classes based on content
+        $('code').each(function() {
+            // Skip if already processed
+            if ($(this).hasClass('language-none') || $(this).attr('class')?.includes('language-')) {
+                return;
+            }
+            
+            // Check parent pre tag for language hint
+            var $pre = $(this).parent('pre');
+            if ($pre.length && $pre.attr('class')?.includes('language-')) {
+                return; // Already has language class
+            }
+            
+            // Add default language class for inline code
+            if (!$(this).parent('pre').length) {
+                // This is inline code, skip Prism for now
+                return;
+            }
+            
+            // For code blocks, try to detect language
+            var codeText = $(this).text().trim();
+            var lines = codeText.split('\n');
+            
+            // Simple heuristics for language detection
+            if (codeText.includes('public class') || codeText.includes('private ') || codeText.includes('import java')) {
+                $(this).addClass('language-java');
+            } else if (codeText.includes('using System') || codeText.includes('namespace ') || codeText.includes('public void')) {
+                $(this).addClass('language-csharp');
+            } else if (codeText.includes('function(') || codeText.includes('const ') || codeText.includes('var ')) {
+                $(this).addClass('language-javascript');
+            } else if (codeText.includes('def ') || codeText.includes('import ') || codeText.includes('print(')) {
+                $(this).addClass('language-python');
+            } else if (codeText.toUpperCase().includes('SELECT ') || codeText.toUpperCase().includes('INSERT ')) {
+                $(this).addClass('language-sql');
+            } else {
+                // Default to Java if can't detect
+                $(this).addClass('language-java');
+            }
+        });
+        
+        // Apply Prism highlighting only once
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightAll();
+        }
+    }, 500);
+});
+
+// Initialize Mermaid for diagram rendering
+$(function() {
+    // Check if we're in Electron
+    const isElectron = navigator.userAgent.includes('Electron');
+    console.log(`=== MERMAID INIT (${isElectron ? 'ELECTRON' : 'WEB'}) ===`);
+
+    // In web browser, let mermaid auto-initialize
+    if (!isElectron) {
+        console.log('Web browser detected - letting mermaid auto-initialize');
+        return;
+    }
+
+    // In Electron, we need careful handling
+    console.log('Electron detected - special mermaid handling');
+
+    // FIRST: Immediately handle all mermaid elements
+    const preProtect = document.querySelectorAll('.mermaid');
+    console.log(`Pre-processing ${preProtect.length} mermaid elements...`);
+    preProtect.forEach(el => {
+        if (el.querySelector('svg') || el.children.length > 0) {
+            // Already has SVG - just remove mermaid class to prevent reprocessing
+            el.classList.remove('mermaid');
+            el.classList.add('mermaid-already-processed');
+            el.setAttribute('data-pre-rendered', 'true');
+        } else {
+            // Needs rendering - hide it until ready to prevent flash
+            el.style.visibility = 'hidden';
+            el.setAttribute('data-needs-rendering', 'true');
+        }
+    });
+
+    // Process as soon as mermaid is available
+    const checkMermaid = () => {
+        if (typeof mermaid === 'undefined') {
+            // Retry quickly if mermaid not loaded yet
+            setTimeout(checkMermaid, 10);
+            return;
+        }
+
+        console.log('Mermaid loaded, processing immediately...');
+        const elements = document.querySelectorAll('.mermaid');
+        console.log(`Found ${elements.length} .mermaid elements`);
+
+        // Check what type of content we have
+        let needsRendering = [];
+        let alreadyRendered = [];
+
+        elements.forEach((el, i) => {
+            const content = el.textContent.trim();
+            const hasChildren = el.children.length > 0;
+            const hasSVG = el.querySelector('svg') !== null;
+            const innerHTML = el.innerHTML;
+
+            console.log(`Element ${i}:`);
+            console.log('  - ID:', el.id);
+            console.log('  - Has children:', hasChildren);
+            console.log('  - Has SVG:', hasSVG);
+            console.log('  - Has data-processed:', el.hasAttribute('data-processed'));
+            console.log('  - Content starts with:', content.substring(0, 50));
+            console.log('  - InnerHTML (first 300 chars):', innerHTML.substring(0, 300));
+            console.log('  - OuterHTML (first 300 chars):', el.outerHTML.substring(0, 300));
+
+            // Check for potential HTML issues
+            const hasStyleTag = innerHTML.includes('<style');
+            const hasScriptTag = innerHTML.includes('<script');
+            const looksBroken = innerHTML.includes('&lt;') || innerHTML.includes('&gt;');
+
+            console.log('  - Has <style> tag:', hasStyleTag);
+            console.log('  - Has <script> tag:', hasScriptTag);
+            console.log('  - Has escaped HTML entities:', looksBroken);
+
+            // IMPORTANT: Mark already processed elements to prevent mermaid from touching them
+            if (hasSVG || hasChildren) {
+                alreadyRendered.push(el);
+                console.log('  -> Already rendered, marking as processed');
+                // Mark it so mermaid won't try to process it
+                el.setAttribute('data-processed', 'true');
+                // Also remove the mermaid class to be extra safe
+                el.classList.remove('mermaid');
+                el.classList.add('mermaid-processed');
+            } else if (content && !content.startsWith('<')) {
+                // Has mermaid syntax that needs rendering
+                needsRendering.push(el);
+                console.log('  -> Needs rendering');
+                // Ensure it has an ID
+                if (!el.id) {
+                    el.id = `mermaid-${Date.now()}-${i}`;
+                }
+            } else {
+                console.log('  -> Unknown state, skipping and hiding');
+                el.setAttribute('data-processed', 'true');
+                el.classList.remove('mermaid');
+            }
+        });
+
+        console.log(`Summary: ${alreadyRendered.length} already rendered, ${needsRendering.length} need rendering`);
+
+        // Only initialize and render if we have elements that need it
+        if (needsRendering.length > 0) {
+            try {
+                console.log('Initializing mermaid...');
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose'
+                });
+
+                console.log('Running mermaid.run()...');
+                mermaid.run({
+                    nodes: needsRendering,
+                    querySelector: '.mermaid:not([data-processed="true"])'
+                }).then(() => {
+                    console.log('✅ Mermaid rendering complete');
+                    // Show all rendered elements with smooth transition
+                    needsRendering.forEach(el => {
+                        el.style.visibility = 'visible';
+                        el.style.opacity = '0';
+                        el.style.transition = 'opacity 0.3s ease-in';
+                        setTimeout(() => {
+                            el.style.opacity = '1';
+                        }, 10);
+                    });
+                }).catch(err => {
+                    console.error('❌ Mermaid rendering error:', err);
+                    // Show elements even if error
+                    needsRendering.forEach(el => {
+                        el.style.visibility = 'visible';
+                    });
+                });
+            } catch (error) {
+                console.error('❌ Fatal mermaid error:', error);
+            }
+        }
+    };
+
+    // Start checking immediately
+    checkMermaid();
+});

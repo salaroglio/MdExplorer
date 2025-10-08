@@ -9,6 +9,7 @@ import { CloneInfo } from '../../../git/models/cloneRequest';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
+import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 
 @Component({
   selector: 'app-clone-project',
@@ -74,10 +75,16 @@ export class CloneProjectComponent implements OnInit {
   }
 
   openFileSystem() {
+    let data = new ShowFileMetadata();
+    data.start = null;
+    data.title = "C:\ Folder";
+    data.typeOfSelection = "Folders";
+
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
-      width: '600px',
+      width: '800px',
       height: '600px',
-      data: null
+      panelClass: 'resizable-dialog-container',
+      data: data
     });
 
     dialogRef.afterClosed().subscribe(_ => {

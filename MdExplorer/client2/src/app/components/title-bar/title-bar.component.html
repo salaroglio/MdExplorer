@@ -1,0 +1,38 @@
+<div class="title-bar">
+  <div class="app-info">
+    <img src="/assets/MdIcon.png" alt="MdExplorer" class="app-icon">
+    <span class="app-title">MdExplorer</span>
+    <span class="app-version">v{{ version }}</span>
+  </div>
+  
+  <div class="navigation-controls" *ngIf="isSidenavOpen">
+    <button mat-icon-button 
+            (click)="backward()"
+            [disabled]="navService.navigationGhost.length <= 1"
+            class="nav-button">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <button mat-icon-button 
+            (click)="forward()"
+            [disabled]="navService.navigation.length == navService.navigationGhost.length"
+            class="nav-button">
+      <mat-icon>arrow_forward</mat-icon>
+    </button>
+  </div>
+  
+  <app-search-box></app-search-box>
+  
+  <div class="drag-region"></div>
+  
+  <div class="window-controls" *ngIf="isElectron">
+    <button mat-icon-button (click)="minimizeWindow()" class="window-control">
+      <mat-icon>remove</mat-icon>
+    </button>
+    <button mat-icon-button (click)="maximizeWindow()" class="window-control">
+      <mat-icon>crop_square</mat-icon>
+    </button>
+    <button mat-icon-button (click)="closeWindow()" class="window-control close-button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+</div>

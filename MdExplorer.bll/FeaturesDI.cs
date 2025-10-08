@@ -3,6 +3,8 @@ using MdExplorer.Features.ActionLinkModifiers;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Commands.Runners;
+using MdExplorer.Features.Configuration.Interfaces;
+using MdExplorer.Features.Configuration.Services;
 using MdExplorer.Features.GIT;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.LinkModifiers;
@@ -26,6 +28,7 @@ using PlantUml.Net;
 using System;
 using System.Collections.Generic;
 using MdExplorer.Features.Refactoring;
+using MdExplorer.Features.Exports;
 
 namespace MdExplorer.Features
 {
@@ -33,6 +36,9 @@ namespace MdExplorer.Features
     {
         public static IServiceCollection AddMDExplorerCommands(this IServiceCollection services)
         {
+            // Configuration services
+            services.AddSingleton<IApplicationExtensionConfiguration, ApplicationExtensionConfigurationService>();
+            
             services.AddSingleton<ICommandFactoryMD, CommandFactoryMD>();
             services.AddTransient(_ => _.GetService<ICommandFactoryMD>().GetCommands());
             services.AddSingleton<ICommandFactoryHtml, CommandFactoryHtml>();            
@@ -54,7 +60,8 @@ namespace MdExplorer.Features
                     new WorkLinkImgFromPlantuml(),
                     new WorkLinkFromPlantuml(),
                     new WorkLinkFromMarkdown(),
-                    new WorkLinkMdShowMd()
+                    new WorkLinkMdShowMd(),
+                    new WorkLinkMdShowH2(),
                 };
                 return listOfModfier.ToArray();
                 } );
@@ -81,9 +88,11 @@ namespace MdExplorer.Features
             });            
 
             services.AddSingleton<IYamlParser<MdExplorerDocumentDescriptor>, YamlDocumentDescriptorParser>();
+            services.AddScoped<IYamlDefaultGenerator, YamlDefaultGenerator>();
             services.AddTransient<IGitService, GitService>();
             services.AddSingleton<ProjectBodyEngine>();
             services.AddScoped<RefactoringManager>();
+            services.AddScoped<IWordTemplateService, WordTemplateService>();
             return services;
         }
     }

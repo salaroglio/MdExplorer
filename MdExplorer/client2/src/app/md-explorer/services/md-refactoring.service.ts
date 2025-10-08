@@ -26,14 +26,19 @@ export class MdRefactoringService {
   }
 
   renameFileName(data: any): Observable<IChangeFileData> {
+    console.log('🔧 [Refactoring] renameFileName chiamato con data:', data);
+    
     const url = '../api/refactoringfiles/RenameFileName';
     var newData = {
       message: data.message,
       fromFileName: data.fromFileName,
       toFileName: data.toFileName,
       fullPath: data.fullPath,
-      relativePath:data.relativePath,
+      relativePath: data.relativePath,
+      level: 0 // Campo richiesto dal backend, default 0
     }
+    
+    console.log('🔧 [Refactoring] Inviando al backend:', newData);
     return this.http.post<IChangeFileData>(url, newData );
   }
 
@@ -53,6 +58,6 @@ export interface IChangeFileData {
   oldLevel: number;
   newLevel: number;
   expandable: boolean;
-  relativePath: boolean;
+  relativePath: string;
   
 }

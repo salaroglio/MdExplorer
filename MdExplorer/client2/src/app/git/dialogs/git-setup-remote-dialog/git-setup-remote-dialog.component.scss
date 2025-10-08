@@ -1,0 +1,174 @@
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  min-height: 200px;
+}
+
+.setup-form {
+  min-width: 500px;
+  padding: 16px 0;
+}
+
+.instructions {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  margin-bottom: 24px;
+
+  mat-icon {
+    color: #1976d2;
+    margin-top: 2px;
+  }
+
+  p {
+    margin: 0;
+    color: #424242;
+    line-height: 1.5;
+  }
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.url-preview {
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-family: monospace;
+
+  strong {
+    display: block;
+    margin-bottom: 8px;
+    font-family: Roboto, sans-serif;
+    color: #666;
+    font-size: 0.9em;
+  }
+
+  code {
+    color: #1976d2;
+    word-break: break-all;
+    font-size: 0.95em;
+  }
+}
+
+.warning-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  margin-bottom: 24px;
+
+  mat-icon {
+    color: #ff9800;
+    margin-top: 2px;
+  }
+
+  p {
+    margin: 0;
+    color: #424242;
+    line-height: 1.5;
+  }
+}
+
+.visibility-option {
+  margin: 20px 0;
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+
+  mat-radio-group {
+    display: flex;
+    gap: 24px;
+  }
+
+  mat-radio-button {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.options {
+  margin: 20px 0;
+
+  mat-checkbox {
+    display: block;
+    margin-bottom: 12px;
+  }
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin-top: 16px;
+  color: #c62828;
+
+  mat-icon {
+    color: #c62828;
+  }
+}
+
+.github-instructions {
+  margin-top: 24px;
+  box-shadow: none;
+  border: 1px solid #e0e0e0;
+
+  mat-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95em;
+
+    mat-icon {
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
+    }
+  }
+
+  ol {
+    margin: 0;
+    padding-left: 24px;
+    line-height: 1.8;
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    a {
+      color: #1976d2;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+mat-dialog-content {
+  padding: 0 24px !important;
+}
+
+mat-dialog-actions {
+  padding: 16px 24px !important;
+
+  mat-spinner {
+    vertical-align: middle;
+  }
+}

@@ -1,6 +1,7 @@
 ﻿using MdExplorer;
 using MdExplorer.Abstractions.Models.GIT;
 using MdExplorer.Features.GIT;
+using MdExplorer.Features.GIT.models;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.GIT;
@@ -28,6 +29,7 @@ namespace MdExplorer.Service.Controllers.GIT
             _fileSystemWatcher = fileSystemWatcher;
         }
         [HttpGet("feat/GetCurrentBranch")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/branch-status for SSH-based operations.")]
         public IActionResult GetCurrentBranch()
         {
             var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
@@ -41,14 +43,18 @@ namespace MdExplorer.Service.Controllers.GIT
             });//classe branch lato angular
         }
         [HttpGet("feat/getdatatopull")]
+        [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/get-data-to-pull for SSH-based operations.")]
         public IActionResult GetDataToPull()
         {
             var howManyFilesAreToPull = 0;
+            var howManyCommitAreToPush = 0;
             var connectionIsActive = true;
+            IList<FileNameAndAuthor> whatFilesAreChanged = new List<FileNameAndAuthor>();
             try
             {
                 howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
-
+                howManyCommitAreToPush = _gitService.CountCommitsBehindTrackedBranch(_fileSystemWatcher.Path);
+                whatFilesAreChanged = _gitService.GetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path);
             }
             catch (Exception ex)
             {
@@ -58,11 +64,14 @@ namespace MdExplorer.Service.Controllers.GIT
             {
                 somethingIsToPull = howManyFilesAreToPull > 0,
                 howManyFilesAreToPull = howManyFilesAreToPull,
-                connectionIsActive = connectionIsActive
+                connectionIsActive = connectionIsActive,
+                howManyCommitAreToPush = howManyCommitAreToPush,
+                whatFilesWillBeChanged = whatFilesAreChanged
             });
         }
 
         [HttpPost("feat/checkoutBranch")]
+        [Obsolete("This endpoint uses legacy Git service. Consider using modern Git operations.")]
         public IActionResult CheckoutBranch([FromBody] GitBranch branch)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
@@ -88,6 +97,7 @@ namespace MdExplorer.Service.Controllers.GIT
 
 
         [HttpGet]
+        [Obsolete("This endpoint uses legacy Git service. Consider using modern Git operations.")]
         public IActionResult GetBranches()
         {
             var toReturn = _gitService.GetBranches(_fileSystemWatcher.Path);

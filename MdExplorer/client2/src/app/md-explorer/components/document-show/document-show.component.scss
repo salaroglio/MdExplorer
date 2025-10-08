@@ -1,0 +1,101 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0; // Importante per permettere al contenuto di ridursi
+  overflow: visible;
+}
+
+.document-show-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  position: relative;
+  min-width: 0; // Importante per permettere al contenuto di ridursi
+  
+  .toolbar-container {
+    flex: 0 0 auto;
+    z-index: 10;
+  }
+  
+  .content-container {
+    flex: 1 1 auto;
+    width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; // Important for flex items to shrink properly
+    
+    .inner-router-wrapper {
+      flex: 1 1 auto;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      
+      router-outlet {
+        display: none; // router-outlet è solo un placeholder
+      }
+      
+      // Applica flex properties ai componenti caricati nel router-outlet
+      router-outlet + * {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-width: 0; // Important for flex items to shrink properly
+      }
+    }
+  }
+  
+  .bookmark-overlay-container {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background-color: transparent;
+    top: 80px;  // Più in basso, sotto la toolbar
+    left: 0;
+    z-index: 100;
+    
+    .mdbookmark {
+      cursor: pointer;  
+      white-space: nowrap;
+      text-align: right;   
+      background: rgba(255, 235, 59, 0.85);  // Giallo con trasparenza
+      transition: all 0.3s ease;
+      margin-bottom: 3px;
+      border-radius: 0 4px 4px 0;  // Arrotondato solo a destra
+      box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      
+      div {
+        padding: 2px 4px;  // Ancora più corto
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        
+        span {
+          font-size: 13px;
+        }
+        
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          &:last-child {
+            margin-right: -2px;  // Riduce lo spazio a destra
+          }
+        }
+      }
+      
+      &:hover {
+        transform: translateX(5px);
+      }
+    }
+  }
+}
+

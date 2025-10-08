@@ -1,0 +1,84 @@
+.modern-clone-dialog {
+  min-width: 500px;
+  max-width: 700px;
+
+  mat-dialog-content {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .clone-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .full-width {
+    width: 100%;
+  }
+
+  .auth-section {
+    margin: 8px 0;
+
+    .auth-card {
+      background-color: #f5f5f5;
+
+      mat-card-header {
+        padding-bottom: 8px;
+
+        mat-card-title {
+          font-size: 16px;
+          font-weight: 500;
+        }
+      }
+
+      mat-card-content {
+        padding-top: 8px;
+      }
+    }
+  }
+
+  .token-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: rgba(33, 150, 243, 0.1);
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    &.warn {
+      background-color: rgba(255, 152, 0, 0.1);
+    }
+
+    button {
+      margin-left: auto;
+    }
+  }
+
+  mat-dialog-actions {
+    padding: 16px 24px;
+    border-top: 1px solid #e0e0e0;
+
+    button {
+      margin-left: 8px;
+    }
+  }
+
+  mat-form-field {
+    .mat-form-field-wrapper {
+      padding-bottom: 1.25em;
+    }
+  }
+
+  mat-hint {
+    font-size: 12px;
+    color: #666;
+  }
+}

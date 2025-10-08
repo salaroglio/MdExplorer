@@ -1,0 +1,99 @@
+﻿<html><head>
+            <link rel="stylesheet" href="/common.css" />            
+            <script src="/common.js"></script></head><body Id="MdBody" ConnectionId="dtBl0iJxMIrT27WxO5OUbQ">
+                    <div class="edith1-popup-overlay">
+                        <div class="popup-content">
+                            <h4>Inline Editor</h4>
+                           <textarea rows="10" class="edith1textarea " id="editH1">if you see this, something wrong happened</textarea>
+                            <button class="close">Close</button>    
+                            <button class="save">save</button>  
+                        </div>
+                    </div>    
+                   
+                    <div class="mdeTocSticky-top">                        
+                        <div id="TOC" class="tocNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">
+                            <div class="mdeTocTitle">Table of content</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeToc()"></div>
+                                <nav class="tocNavNavigation">
+                                    <div class="toc js-toc"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div id="Refs" class="refsNavigation" mdeFullPathDocument="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">
+                            <div class="mdeRefsTitle">References</div>
+                            <div class="mdeNavigationMain">
+                                <div class="tocSeparator" onmousedown="resizeRefs()"></div>
+                                <nav class="refsNavNavigation">
+                                    <div id="references" class="refsMain"></div>                                    
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="mdeVerticalTab">
+                            <div class="buttonTabToc">
+                                <div><div onClick="toggleTOC('C%3a%5csviluppo%5cmdExplorer%5c%5cMdExplorer---Features.md')" style="cursor: pointer">TOC</div></div>                             
+                            </div>
+                            <div class="buttonTabRefs">
+                                <div><div onClick="toggleReferences('C%3a%5csviluppo%5cmdExplorer%5c%5cMdExplorer---Features.md')" style="cursor: pointer">Refs</div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mdeLowerBar">
+                             <div class="mdeLowerBarButton"><a onClick="toggleMdCanvas(this)" class="mdExplorerLink"><img src="/assets/drawStatic.png" id="canvas" /></a></div>                            
+                             <div class="mdeLowerBarButton"><a onClick="toggleEditor()" class="mdExplorerLink"><img src="/assets/editorInLine.png" id="editorH1" /></a></div>
+                    </div>
+                    <div class="mdeContainerIFrameApplciation">
+                        <div class="mdeItemMainPageLeftMenu"></div>
+                        
+                        <div class="mdeItemMainPageCenter md-tocbot-content js-toc-content">
+                            <div md-itemmatchindex="0" md-h1Id="0" class="editorH1"><h1 id="mdexplorer-features" md-itemmatchindex="0" md-h1Id="0">MdExplorer - Features</h1></div><div md-itemmatchindex="27" md-h1Id="27" class="editorH1"><h2 id="configurazioni-yaml-implementate" md-itemmatchindex="27" md-h1Id="27">Configurazioni YAML Implementate</h2></div><h3 id="file-change-ignore-configuration.mdchangeignore">1. File Change Ignore Configuration (<code>.mdchangeignore</code>)</h3><p><strong>Descrizione</strong>: Configurazione per escludere file e directory dal monitoraggio del file system watcher.</p><p><strong>File di configurazione</strong>: <code>/MdExplorer/.mdchangeignore</code></p><p><strong>Struttura YAML</strong>:</p><pre><code class="language-YAML"># Directories to ignore
+ignoredDirectories:
+  - ".md"  # Ignore files in .md directory
+
+# File extensions to ignore
+ignoredExtensions:
+  - ".pptx"
+  - ".docx"
+  - ".xlsx"
+  - ".xls"
+  - ".ppt"
+  - ".xlsb"
+  - ".bmpr"
+  - ".tmp"
+
+# Specific file patterns to ignore
+ignoredPatterns:
+  - ".md"  # Files starting with .md
+  - ".0.pdnSave"  # Paint.net temporary files
+
+# Git-related files to ignore
+gitIgnoredFiles:
+  - "FETCH_HEAD"
+  - "COMMIT_EDITMSG"
+  - ".git/"  # Anything in .git directory
+
+# Additional rules
+ignoreFilesWithoutExtension: true
+</code></pre><p><strong>Implementazione</strong>:</p><ul><li>Classe: <code>MonitorMDHostedService</code></li><li>Servizio: Carica la configurazione all'avvio</li><li>Fallback: Se il file non esiste, usa i valori hardcoded predefiniti</li></ul><h3 id="application-extension-configuration.mdapplicationtoopen">2. Application Extension Configuration (<code>.mdapplicationtoopen</code>)</h3><p><strong>Descrizione</strong>: Configurazione per definire quali estensioni di file devono essere aperte con applicazioni esterne quando cliccate nell'interfaccia.</p><p><strong>File di configurazione</strong>: <code>/MdExplorer/.mdapplicationtoopen</code></p><p><strong>Struttura YAML</strong>:</p><pre><code class="language-YAML"># Extensions that should open in external applications
+supportedExtensions:
+  - xlsx    # Microsoft Excel files
+  - xls     # Microsoft Excel files (old format)
+  - pdf     # PDF documents
+  - docx    # Microsoft Word documents
+  - pptx    # Microsoft PowerPoint presentations
+  - ppt     # Microsoft PowerPoint presentations (old format)
+  - bmpr    # Balsamiq mockup files
+</code></pre><p><strong>Implementazione</strong>:</p><ul><li>Interfaccia: <code>IApplicationExtensionConfiguration</code></li><li>Servizio: <code>ApplicationExtensionConfigurationService</code></li><li>Registrazione DI: Singleton in <code>FeaturesDI.cs</code></li><li>Utilizzo: <code>FromLinkToApplication</code> command</li><li>Fallback: Se il file non esiste, usa le estensioni predefinite</li></ul><div md-itemmatchindex="2101" md-h1Id="2101" class="editorH1"><h2 id="architettura-implementata" md-itemmatchindex="2101" md-h1Id="2101">Architettura Implementata</h2></div><div md-itemmatchindex="2133" md-h1Id="2133" class="editorH1"><h3 id="organizzazione-del-codice" md-itemmatchindex="2133" md-h1Id="2133">Organizzazione del Codice</h3><pre><code>MdExplorer.Features/
+├── Configuration/
+│   ├── Models/
+│   │   └── ApplicationExtensionConfigurationModel.cs
+│   ├── Interfaces/
+│   │   └── IApplicationExtensionConfiguration.cs
+│   └── Services/
+│       └── ApplicationExtensionConfigurationService.cs
+</code></pre></div><div md-itemmatchindex="2440" md-h1Id="2440" class="editorH1"><h3 id="modifiche-al-sistema-esistente" md-itemmatchindex="2440" md-h1Id="2440">Modifiche al Sistema Esistente</h3><ol><li><p><strong>MonitorMDHostedService.cs</strong>:</p><ul><li>Aggiunto caricamento configurazione YAML</li><li>Modificato metodo <code>ThereIsNoNeedToAlertClient</code> per usare configurazione dinamica</li></ul></li><li><p><strong>FromLinkToApplication.cs</strong>:</p><ul><li>Iniettato <code>IApplicationExtensionConfiguration</code></li><li>Rimosso array hardcoded <code>ExtensionArrayToOpenInApplication</code></li><li>Usa configurazione dinamica per determinare le estensioni supportate</li></ul></li><li><p><strong>CommandFactory.cs</strong>:</p><ul><li>Aggiunto supporto per risolvere <code>IApplicationExtensionConfiguration</code> dal DI container</li><li>Risolto problema di dependency injection</li></ul></li><li><p><strong>GitService.cs</strong>:</p><ul><li>Risolto conflitto di namespace con <code>LibGit2Sharp.Configuration</code></li></ul></li></ol></div><div md-itemmatchindex="3142" md-h1Id="3142" class="editorH1"><h2 id="vantaggi-dellimplementazione" md-itemmatchindex="3142" md-h1Id="3142">Vantaggi dell'Implementazione</h2><ol><li><strong>Configurabilità</strong>: Gli amministratori possono modificare il comportamento senza ricompilare</li><li><strong>Manutenibilità</strong>: Configurazioni centralizzate e facilmente accessibili</li><li><strong>Estensibilità</strong>: Facile aggiungere nuove estensioni o pattern</li><li><strong>Robustezza</strong>: Fallback automatico ai valori predefiniti se i file YAML non esistono</li><li><strong>Separazione delle Responsabilità</strong>: Segue l'architettura a 3 livelli (Presentation, Business, Data)</li></ol></div><div md-itemmatchindex="3620" md-h1Id="3620" class="editorH1"><h2 id="test" md-itemmatchindex="3620" md-h1Id="3620">Test</h2><ul><li>Aggiornati i test esistenti per supportare le nuove dipendenze</li><li>Creato mock <code>MockApplicationExtensionConfiguration</code> per i test unitari</li></ul></div><div md-itemmatchindex="3773" md-h1Id="3773" class="editorH1"><h2 id="note-per-gli-sviluppatori" md-itemmatchindex="3773" md-h1Id="3773">Note per gli Sviluppatori</h2><ul><li>I file di configurazione YAML devono essere posizionati nella root del progetto MdExplorer</li><li>Le configurazioni vengono caricate all'avvio dell'applicazione</li><li>Per ricaricare le configurazioni a runtime, usare il metodo <code>ReloadConfiguration()</code> (per future implementazioni)</li><li>YamlDotNet v11.2.1 è utilizzato per il parsing YAML</li></ul><br /><div style="display:none" md-h1Id="0" md-itemmatchindex="0" md-itemmatchindex-end="27" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div><div style="display:none" md-h1Id="27" md-itemmatchindex="27" md-itemmatchindex-end="66" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div><div style="display:none" md-h1Id="2101" md-itemmatchindex="2101" md-itemmatchindex-end="2133" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div><div style="display:none" md-h1Id="3142" md-itemmatchindex="3142" md-itemmatchindex-end="3620" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div><div style="display:none" md-h1Id="3620" md-itemmatchindex="3620" md-itemmatchindex-end="3773" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div></div><div style="display:none" md-h1Id="3773" md-itemmatchindex="3773" md-itemmatchindex-end="0" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div><div style="display:none" md-h1Id="2133" md-itemmatchindex="2133" md-itemmatchindex-end="2440" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div><div style="display:none" md-h1Id="2440" md-itemmatchindex="2440" md-itemmatchindex-end="3142" class="hiddendataforeditorh1" md-path-file="C:\sviluppo\mdExplorer\\MdExplorer---Features.md">todo</div>
+                        </div>
+                        
+                    </div>
+                     
+                    </body></html>

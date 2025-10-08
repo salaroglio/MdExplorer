@@ -1,14 +1,60 @@
 
-<h1>rule # 1 broken!</h1>
+<div class="rule-dialog">
+  <div class="dialog-header">
+    <mat-icon class="header-icon">edit_note</mat-icon>
+    <div class="header-text">
+      <h3 class="dialog-title">File Rename Suggestion</h3>
+      <p class="dialog-subtitle">{{message}}</p>
+    </div>
+  </div>
 
-<p>{{message}}</p>
-<p>{{fromFileName}}</p>
-<p>{{toFileName}}</p>
+  <div class="dialog-content">
+    <!-- Error message -->
+    <div *ngIf="hasError" class="error-message">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <span class="error-text">{{errorMessage}}</span>
+    </div>
 
-<button mat-button color="primary" (click)="changeName()">
-  <mat-icon>swap_horiz</mat-icon>change file name
-</button>
-<button mat-button color="primary" (click)="dismiss()">
-  <mat-icon>cancel</mat-icon>Cancel
-</button>
+    <div class="file-comparison">
+      <div class="file-row">
+        <span class="file-label">Current:</span>
+        <code class="filename current">{{fromFileName}}</code>
+      </div>
+      
+      <div class="file-row">
+        <span class="file-label">Suggested:</span>
+        <code class="filename suggested">{{toFileName}}</code>
+      </div>
+    </div>
+  </div>
 
+  <div class="dialog-actions">
+    <button mat-button 
+            class="action-btn secondary"
+            [disabled]="isProcessing"
+            (click)="dismiss()">
+      {{ hasError ? 'Cancel' : 'Keep Current' }}
+    </button>
+    
+    <button *ngIf="!hasError"
+            mat-flat-button 
+            color="primary"
+            class="action-btn primary"
+            [disabled]="isProcessing"
+            (click)="changeName()">
+      <mat-spinner *ngIf="isProcessing" diameter="16"></mat-spinner>
+      <span *ngIf="!isProcessing">Apply Suggestion</span>
+      <span *ngIf="isProcessing">Applying...</span>
+    </button>
+    
+    <button *ngIf="hasError"
+            mat-flat-button 
+            color="warn"
+            class="action-btn retry"
+            [disabled]="isProcessing"
+            (click)="retryRename()">
+      <mat-icon>refresh</mat-icon>
+      <span>Retry</span>
+    </button>
+  </div>
+</div>

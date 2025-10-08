@@ -122,6 +122,7 @@ namespace MdExplorer.Features.Commands.html
                 var newButtonForPlantumlCopy = isPlantumlCopy ? 
                     $@"<button alt=""copy into clipboard"" onclick = ""copyToClipboard('/api/mdexplorer/{currentPng}', '{prepareCurrentQueryRequest}', '{stringMatchedHash}', 0)"" ><img src = ""/assets/clipboard.png""/></button>" : string.Empty;
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{stringMatchedHash}')""><img src = ""/assets/eyes.png""/></button>";
+                var newButtonMagnifier = $@"<button alt=""zoom"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>";
                 var endDivForToolbar = "</div>";
                 var endDivContainer = $"</div>";
                 divContainsImage = string.Concat(newDivContainer,
@@ -131,6 +132,7 @@ namespace MdExplorer.Features.Commands.html
                                                          newButtonForDynamicPlantuml,
                                                          newButtonForPlantumlCopy,
                                                          newButtonEyes,
+                                                         newButtonMagnifier,
                                                     endDivForToolbar, 
                                                     divContainsImage, 
                                                 endDivContainer);

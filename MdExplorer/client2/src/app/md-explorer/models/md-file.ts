@@ -16,4 +16,12 @@ export class MdFile implements IFileInfoNode {
   relativePath: string;
   fullDirectoryPath: string;
   index: number;
+  
+  // Nuove proprietà per caricamento incrementale
+  isIndexed?: boolean;
+  indexingStatus?: 'idle' | 'indexing' | 'completed';
+  indexingProgress?: number;
+
+  // Development tags per classificare le cartelle
+  developmentTags?: string[];
 }

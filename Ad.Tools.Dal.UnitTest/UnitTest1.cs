@@ -6,6 +6,7 @@ using Ad.Tools.Dal.UnitTest.map;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.IO;
 using System.Linq;
 
 namespace Ad.Tools.Dal.UnitTest
@@ -17,9 +18,9 @@ namespace Ad.Tools.Dal.UnitTest
         [TestInitialize]
         public void InitAll()
         {
-            var appdata = Environment.GetEnvironmentVariable("LocalAppData");
-            var databasePath = $@"Data Source = {appdata}\MdExplorer.db";
-            var databasePathEngine = $@"Data Source = {appdata}\MdEngine.db";
+            var appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
+            var databasePathEngine = $"Data Source = {Path.Combine(appdata, "MdEngine.db")}";
             serviceCollection = new ServiceCollection();
 
             serviceCollection.AddDalFeatures(typeof(SettingsMap).Assembly,

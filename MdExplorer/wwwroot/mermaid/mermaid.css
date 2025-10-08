@@ -1,0 +1,38 @@
+/* Mermaid diagrams styling */
+.mermaid {
+    text-align: center;
+    margin: 20px 0;
+    font-family: "trebuchet ms", verdana, arial, sans-serif;
+}
+
+/* Mermaid diagram container */
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Flowchart styling */
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon {
+    fill: #ECECFF;
+    stroke: #9370DB;
+    stroke-width: 1px;
+}
+
+/* Node text styling */
+.mermaid .nodeLabel {
+    color: #333;
+}
+
+/* Edge styling */
+.mermaid .edgePath .path {
+    stroke: #333;
+    stroke-width: 1.5px;
+}
+
+/* Edge label styling */
+.mermaid .edgeLabel {
+    background-color: #e8e8e8;
+}

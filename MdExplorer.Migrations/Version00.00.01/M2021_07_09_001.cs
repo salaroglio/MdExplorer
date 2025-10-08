@@ -13,7 +13,7 @@ namespace MdExplorer.Migrations.Version000001
         public override void Up()
         {
             Insert.IntoTable("Setting").Row(new { Id = Guid.NewGuid().ToByteArray(), Name = @"PlantumlLocalPath",
-                ValueString = @"D:\InstallBinaries\plantuml.jar" });            
+                ValueString = @"Binaries/plantuml.jar" });  // Relative path, cross-platform            
         }
 
         public override void Down()

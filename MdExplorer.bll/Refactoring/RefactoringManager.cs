@@ -7,20 +7,22 @@ using DocumentFormat.OpenXml.Bibliography;
 using System;
 using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
+using System.Text.RegularExpressions;
+using MdExplorer.Features.Refactoring.Work.Models;
 
 namespace MdExplorer.Features.Refactoring
 {
     public class RefactoringManager
     {
         private readonly IEngineDB _engineDB;
-        private readonly IWorkLink[] _getModifiers;
+        private readonly IWorkLink[] _workLinks;
 
         public RefactoringManager(
             IEngineDB engineDB,
-            IWorkLink[] getModifiers)
+            IWorkLink[] workLinks)
         {
             _engineDB = engineDB;
-            _getModifiers = getModifiers;
+            _workLinks = workLinks;
         }
 
         public void RenameTheMdFileIntoEngineDB(
@@ -36,14 +38,14 @@ namespace MdExplorer.Features.Refactoring
             changingFile.Path = newFullPath;
             changingFile.FileName = toFileName;
             markdonwFileDal.Save(changingFile);
-            _engineDB.Flush();
+            //_engineDB.Flush();
         }
 
         public RefactoringSourceAction SaveRefactoringActionForMoveFile(
             string filename,
             string fromFullPathDirectory,
             string toFullPathDirectory)
-        {            
+        {
             var oldFullPath = fromFullPathDirectory + Path.DirectorySeparatorChar + filename;
             var newFullPath = toFullPathDirectory + Path.DirectorySeparatorChar + filename;
 
@@ -59,7 +61,7 @@ namespace MdExplorer.Features.Refactoring
                 Status = "ToDo"
             };
             sourceActionDal.Save(refSourceAct);
-            _engineDB.Flush();
+            //_engineDB.Flush();
             return refSourceAct;
         }
 
@@ -67,7 +69,7 @@ namespace MdExplorer.Features.Refactoring
             string fullPath,
             string fromFileName,
             string toFileName)
-        {            
+        {
             var oldFullPath = fullPath + Path.DirectorySeparatorChar + fromFileName;
             var newFullPath = fullPath + Path.DirectorySeparatorChar + toFileName;
 
@@ -87,64 +89,82 @@ namespace MdExplorer.Features.Refactoring
             return refSourceAct;
         }
 
-        public void SetRefactoringInvolvedLinksActionsForMoveFile(
+        public void SetInternalLinks(
             string toDestinationFileName,
             string projectBasePath,
-            RefactoringSourceAction refSourceAct
+            RefactoringSourceAction refSourceAction
             )
         {
-            toDestinationFileName = refSourceAct.NewFullPath.Replace(projectBasePath, string.Empty)
+            toDestinationFileName = refSourceAction.NewFullPath.Replace(projectBasePath, string.Empty)
                 .Substring(1);
-
-            SetRefactoringInvolvedLinksActionsForMoveFileInExternalFiles(
-                //fromSourceFileName,
-                toDestinationFileName,
-                refSourceAct.OldFullPath,
-                refSourceAct);
             // change all contained files
             var linkDal = _engineDB.GetDal<LinkInsideMarkdown>();
             var RefInvolvedFilesActionDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
             var listOfLink1 = linkDal.GetList().Where(_ =>
                     (_.Path.StartsWith("../") || _.Path.StartsWith("./")) &&
-                     _.MarkdownFile.Path == refSourceAct.NewFullPath);
+                     _.MarkdownFile.Path == refSourceAction.NewFullPath);
             // do calc
             // startsWith("/")
             foreach (var item in listOfLink1)
             {
-                var itemProjectPath = item.FullPath.Replace(projectBasePath, string.Empty).Replace("\\","/");
+                var itemProjectPath = item.FullPath.Replace(projectBasePath, string.Empty).Replace("\\", "/");
+
+                var relinkInfo = new RelinkInfo
+                {
+                    LinkedCommand = item.LinkedCommand,
+                    OldFullPath = item.FullPath,
+                    OldRelativePath = item.Path,
+                    NewRelativePath = Path.GetDirectoryName(toDestinationFileName),
+                    NewFullPath = Path.GetDirectoryName(refSourceAction.NewFullPath),
+                    OdlFileName = Path.GetFileName(item.Path),
+                    NewFileName = Path.GetFileName(toDestinationFileName)
+                };
+                var workLink = _workLinks.Where(_ => _.GetType().Name == item.Source).FirstOrDefault();
+
+                var newLinkToReplace = workLink.Relink(relinkInfo);
+
                 var refactoringInvolvedFile = new RefactoringInvolvedFilesAction
                 {
                     CreationDate = DateTime.Now,
                     FileName = Path.GetFileName(item.MarkdownFile.FileName),
                     FullPath = item.MarkdownFile.Path,
                     NewLinkToReplace = item.LinkedCommand.ToLower()
-                    .Replace(item.Path.ToLower(), itemProjectPath.ToLower()),
+                        .Replace(item.Path.ToLower(), itemProjectPath),
                     OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Replace link",
-                    RefactoringSourceAction = refSourceAct,
+                    SuggestedAction = "Relink",
+                    RefactoringSourceAction = refSourceAction,
                     LinkInsideMarkdown = item
                 };
                 RefInvolvedFilesActionDal.Save(refactoringInvolvedFile);
             }
-            _engineDB.Flush();
-
-
+            //_engineDB.Flush();
         }
 
-        public void SetRefactoringInvolvedLinksActionsForMoveFileInExternalFiles(
-            string toFileName,
-            string oldFullPath,
-            RefactoringSourceAction refSourceAct
+        public void SetExternalLinks(
+            string toDestinationFileName,
+            RefactoringSourceAction refSourceAction
             )
         {
             var linkInsideMdDal = _engineDB.GetDal<LinkInsideMarkdown>();
             var listOfLink = linkInsideMdDal.GetList()
-                .Where(_ => _.FullPath.ToLower() == oldFullPath.ToLower());
+                .Where(_ => _.FullPath.ToLower() == refSourceAction.OldFullPath.ToLower()).ToList();
             var RefInvolvedFilesActionDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
             foreach (var item in listOfLink)
             {
-                var newLinkToReplace = item.LinkedCommand.ToLower()
-                    .Replace(item.Path.ToLower(), "/" + toFileName.ToLower().Replace("\\","/"));
+                var workLink = _workLinks.Where(_ => _.GetType().Name == item.Source).FirstOrDefault();
+
+                var relinkInfo = new RelinkInfo
+                {
+                    LinkedCommand = item.LinkedCommand,
+                    OldFullPath = item.FullPath,
+                    OldRelativePath = item.Path,
+                    NewRelativePath = Path.GetDirectoryName(toDestinationFileName),
+                    NewFullPath = Path.GetDirectoryName(refSourceAction.NewFullPath),
+                    OdlFileName = Path.GetFileName(item.Path),
+                    NewFileName = Path.GetFileName(toDestinationFileName)
+                };
+                var newLinkToReplace = workLink.Relink(relinkInfo);
+
                 var refactoringInvolvedFile = new RefactoringInvolvedFilesAction
                 {
                     CreationDate = DateTime.Now,
@@ -152,13 +172,13 @@ namespace MdExplorer.Features.Refactoring
                     FullPath = item.MarkdownFile.Path,
                     NewLinkToReplace = newLinkToReplace,
                     OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Replace link",
-                    RefactoringSourceAction = refSourceAct,
+                    SuggestedAction = "Relink",
+                    RefactoringSourceAction = refSourceAction,
                     LinkInsideMarkdown = item
                 };
                 RefInvolvedFilesActionDal.Save(refactoringInvolvedFile);
             }
-            _engineDB.Flush();
+            //_engineDB.Flush();
         }
 
 
@@ -181,10 +201,10 @@ namespace MdExplorer.Features.Refactoring
                     CreationDate = DateTime.Now,
                     FileName = item.MarkdownFile.FileName,
                     FullPath = item.MarkdownFile.Path,
-                    NewLinkToReplace = item.LinkedCommand.ToLower()
-                    .Replace(fromFileName.ToLower(), toFileName.ToLower()),
+                    NewLinkToReplace = Regex.Replace(item.LinkedCommand,
+                            Regex.Escape(fromFileName), toFileName, RegexOptions.IgnoreCase),
                     OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Replace link",
+                    SuggestedAction = "Relink",
                     RefactoringSourceAction = refSourceAct,
                     LinkInsideMarkdown = item
                 };
@@ -206,11 +226,11 @@ namespace MdExplorer.Features.Refactoring
 
             foreach (var refactInvolvedFile in listOfInvolvedFiles)
             {
-                foreach (var getModifier in _getModifiers
+                foreach (var getModifier in _workLinks
                     .Where(_ => _.GetType().Name == refactInvolvedFile.LinkInsideMarkdown.Source))
                 {
                     // change inside involved files, the links referencing to the file that changed name
-                    getModifier.SetLinkIntoFile(refactInvolvedFile.FullPath, 
+                    getModifier.SetLinkIntoFile(refactInvolvedFile.FullPath,
                         refactInvolvedFile.OldLinkStored, refactInvolvedFile.NewLinkToReplace);
                     // Aggiusto i cambiamenti sui link
                     // Into involved files, now links are changed,so update the db

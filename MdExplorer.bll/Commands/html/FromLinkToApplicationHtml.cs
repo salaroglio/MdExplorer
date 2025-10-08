@@ -1,4 +1,5 @@
 ﻿using MdExplorer.Abstractions.Interfaces;
+using MdExplorer.Features.Configuration.Interfaces;
 using MdExplorer.Features.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -9,7 +10,11 @@ namespace MdExplorer.Features.Commands.html
 {
     public class FromLinkToApplicationHtml: FromLinkToApplication, ICommandHtml
     {
-        public FromLinkToApplicationHtml(ILogger<FromLinkToApplicationHtml> logger, IServerCache serverCache) : base(logger)
+        public FromLinkToApplicationHtml(
+            ILogger<FromLinkToApplicationHtml> logger, 
+            IServerCache serverCache,
+            IApplicationExtensionConfiguration extensionConfiguration) 
+            : base(logger, extensionConfiguration)
         {
         }
     }

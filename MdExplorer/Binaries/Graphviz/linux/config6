@@ -1,0 +1,37 @@
+# Graphviz plugin configuration for Linux
+libgvplugin_core.so core {
+	render {
+		dot 1
+		xdot 1
+		ps 1
+		svg 1
+		fig 1
+		map 1
+		cmapx 1
+		imap 1
+		json 1
+		json0 1
+		dot_json 1
+		xdot_json 1
+		plain 1
+		plain-ext 1
+		canon 1
+		gv 1
+	}
+	device {
+		dot:dot 1
+		gv:dot 1
+		canon:dot 1
+		plain:dot 1
+		plain-ext:dot 1
+		xdot:xdot 1
+		xdot1.2:xdot 1
+		xdot1.4:xdot 1
+	}
+}
+
+libgvplugin_dot_layout.so dot_layout {
+	layout {
+		dot 1
+	}
+}

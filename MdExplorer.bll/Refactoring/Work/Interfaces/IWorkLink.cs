@@ -1,4 +1,5 @@
 ﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Refactoring.Work.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,8 +10,9 @@ namespace MdExplorer.Features.ActionLinkModifiers.Interfaces
 {
     public interface IWorkLink
     {
-        LinkDetail[] GetLinks(string markdown);
+        LinkDetail[] GetLinksFromMarkdown(string markdown);
         LinkDetail[] GetLinksFromFile(string filepath);
         void SetLinkIntoFile(string filepath, string oldLink, string newLink);
+        string Relink(RelinkInfo relinkInfo);
     }
 }

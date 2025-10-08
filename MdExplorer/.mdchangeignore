@@ -1,0 +1,32 @@
+# MdExplorer File Change Ignore Configuration
+# This file defines patterns for files and directories that should be ignored
+# by the file system watcher in MonitorMDHostedService
+
+# Directories to ignore
+ignoredDirectories:
+  - ".md"  # Ignore files in .md directory
+
+# File extensions to ignore
+ignoredExtensions:
+  - ".pptx"
+  - ".docx"
+  - ".xlsx"
+  - ".xls"
+  - ".ppt"
+  - ".xlsb"
+  - ".bmpr"
+  - ".tmp"
+
+# Specific file patterns to ignore
+ignoredPatterns:
+  - ".md"  # Files starting with .md
+  - ".0.pdnSave"  # Paint.net temporary files
+
+# Git-related files to ignore
+gitIgnoredFiles:
+  - "FETCH_HEAD"
+  - "COMMIT_EDITMSG"
+  - ".git/"  # Anything in .git directory
+
+# Additional rules
+ignoreFilesWithoutExtension: true

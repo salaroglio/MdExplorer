@@ -1,23 +1,10 @@
-﻿using Ad.Tools.Dal.Abstractions.Interfaces;
-using Ad.Tools.Dal.Decorators;
-using MdExplorer.Abstractions.DB;
-using MdExplorer.Abstractions.Interfaces;
-using MdExplorer.Abstractions.Models;
-using MdExplorer.Features.Commands;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.DependencyInjection;
+﻿using MdExplorer.Abstractions.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MdExplorer.Features.Commands.html;
-using NHibernate;
+using MdExplorer.Features.Configuration.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Tests.Commands
@@ -51,14 +38,34 @@ namespace MdExplorer.Features.Tests.Commands
             }
         }
 
+        public class MockApplicationExtensionConfiguration : IApplicationExtensionConfiguration
+        {
+            public List<string> GetSupportedExtensions()
+            {
+                // Return the default extensions for testing
+                return new List<string> { "xlsx", "pdf", "bmpr", "docx", "pptx", "xls", "ppt" };
+            }
+
+            public bool IsExtensionSupported(string extension)
+            {
+                return GetSupportedExtensions().Contains(extension.ToLower().TrimStart('.'));
+            }
+
+            public void ReloadConfiguration()
+            {
+                // No-op for testing
+            }
+        }
+
 
         [TestMethod]
         public void ChangeLinkIntoCallAJavscriptFunction()
         {
             var log = new Log();
             var serverCache = new ServerCache();
+            var extensionConfiguration = new MockApplicationExtensionConfiguration();
             var text = System.IO.File.ReadAllText(@"Commands\TestStore\ChangeLinkIntoCallAJavscriptFunction.html");
-            var fromLinkToApplication = new FromLinkToApplicationHtml(log, serverCache);
+            var fromLinkToApplication = new FromLinkToApplicationHtml(log, serverCache, extensionConfiguration);
 
             var matches = fromLinkToApplication.GetMatches(text);
             var testCount = matches.Count;
