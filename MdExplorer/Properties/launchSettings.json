@@ -20,6 +20,7 @@
     },
     "MdExplorer": {
       "commandName": "Project",
+      "launchBrowser": true,
       "launchUrl": "client2/index.html",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
