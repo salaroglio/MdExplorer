@@ -13,8 +13,8 @@ namespace MdExplorer.Migrations.Version000001
        
         public override void Up()
         {
-            Insert.IntoTable("Setting").Row(new {Id= Guid.NewGuid().ToByteArray(), Name = "PlantumlServer", ValueString = @"http://192.168.10.10" });
-            Insert.IntoTable("Setting").Row(new {Id= Guid.NewGuid().ToByteArray(), Name = "JiraServer", ValueString = "http://jira.swarco.com" });
+            Insert.IntoTable("Setting").Row(new {Id= Guid.NewGuid().ToByteArray(), Name = "PlantumlServer", ValueString = @"http://localhost:8080" });
+            Insert.IntoTable("Setting").Row(new {Id= Guid.NewGuid().ToByteArray(), Name = "JiraServer", ValueString = "" });
         }
         public override void Down()
         {
