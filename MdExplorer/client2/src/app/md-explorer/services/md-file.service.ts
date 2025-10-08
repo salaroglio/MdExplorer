@@ -91,7 +91,7 @@ export class MdFileService {
   }
 
   moveMdFile(mdFile: MdFile, pathDestination: string) {
-    const url = '../api/mdFiles/moveMdFile';
+    const url = '../api/mdfiles/MoveMdFile';
     return this.http.post<any>(url, { mdFile: mdFile, destinationPath:pathDestination });
   }
 
@@ -348,6 +348,16 @@ export class MdFileService {
     const url = '../api/mdfiles/SetLandingPage';
     return this.http.post<MdFile>(url, file);
   }
+
+  setDevelopmentTags(folder: MdFile, projectRoot: string, tags: string[]) {
+    const url = '../api/mdfiles/SetDevelopmentTags';
+    return this.http.post(url, {
+      folderPath: folder.fullPath,
+      projectRoot: projectRoot,
+      tags: tags
+    });
+  }
+
   openFolderOnFileExplorer(file: MdFile) {
     console.log('[MdFileService] openFolderOnFileExplorer() called');
     console.log('[MdFileService] file:', file);

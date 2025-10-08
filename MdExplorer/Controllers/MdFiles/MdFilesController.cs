@@ -64,6 +64,8 @@ using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Service.Services;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace MdExplorer.Service.Controllers.MdFiles
 {
@@ -159,41 +161,65 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult MoveMdFile([FromBody] RequestMoveMdFile requestMoveMdFile)
         {
-            var projectBasePath = _fileSystemWatcher.Path;
-            var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath.Substring(1);
-            var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
+            _logger.LogInformation("[MoveMdFile] Method called");
+            _logger.LogInformation($"[MoveMdFile] MdFile is null: {requestMoveMdFile?.MdFile == null}");
+            _logger.LogInformation($"[MoveMdFile] DestinationPath: {requestMoveMdFile?.DestinationPath}");
 
-            var fileName = requestMoveMdFile.MdFile.Name;
-            var relativeDestinationPath = requestMoveMdFile.DestinationPath
-                                    .Replace(_fileSystemWatcher.Path, "").Substring(1);
-            var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
-            var toFullPathFileName = Path.Combine(_fileSystemWatcher.Path, toRelativePathFileName);
-            
-            MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
+            if (requestMoveMdFile?.MdFile == null || string.IsNullOrEmpty(requestMoveMdFile.DestinationPath))
+            {
+                _logger.LogError("[MoveMdFile] Invalid request data");
+                return BadRequest(new { error = "Invalid request data" });
+            }
 
-            _engineDB.BeginTransaction();
-            _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
-                fromRelativePathFileName, toRelativePathFileName);
+            try
+            {
+                var projectBasePath = _fileSystemWatcher.Path;
+                var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath.Substring(1);
+                var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
 
-            var refSourceAct = _refactoringManager
-                .SaveRefactoringActionForMoveFile(fileName,
-                Path.GetDirectoryName(fromFullPathFileName),
-                requestMoveMdFile.DestinationPath); // Save the concept of change
+                _logger.LogInformation($"[MoveMdFile] From: {fromFullPathFileName}");
+
+                var fileName = requestMoveMdFile.MdFile.Name;
+                var relativeDestinationPath = requestMoveMdFile.DestinationPath
+                                        .Replace(_fileSystemWatcher.Path, "").Substring(1);
+                var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
+                var toFullPathFileName = Path.Combine(_fileSystemWatcher.Path, toRelativePathFileName);
+
+                _logger.LogInformation($"[MoveMdFile] To: {toFullPathFileName}");
+
+                MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
+
+                _engineDB.BeginTransaction();
+                _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
+                    fromRelativePathFileName, toRelativePathFileName);
+
+                var refSourceAct = _refactoringManager
+                    .SaveRefactoringActionForMoveFile(fileName,
+                    Path.GetDirectoryName(fromFullPathFileName),
+                    requestMoveMdFile.DestinationPath); // Save the concept of change
 
 
-            _refactoringManager.SetExternalLinks(
-               toRelativePathFileName,
-               refSourceAct);
+                _refactoringManager.SetExternalLinks(
+                   toRelativePathFileName,
+                   refSourceAct);
 
-            _refactoringManager.SetInternalLinks(
-                toRelativePathFileName,
-                projectBasePath, 
-                refSourceAct);
-            // After save, get back the list of links inside involved files
-            _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
+                _refactoringManager.SetInternalLinks(
+                    toRelativePathFileName,
+                    projectBasePath,
+                    refSourceAct);
+                // After save, get back the list of links inside involved files
+                _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
 
-            _engineDB.Commit();
-            return Ok("");
+                _engineDB.Commit();
+                _logger.LogInformation("[MoveMdFile] Completed successfully");
+                return Ok(new { message = "done" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MoveMdFile] Error during move operation");
+                _engineDB.Rollback();
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         private void MoveFileOnFilesystem(string oldFullPath, string newFullPath)
@@ -593,6 +619,88 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _projectDB.Rollback();
                 return StatusCode(500, new { message = $"Error setting landing page: {ex.Message}" });
             }
+        }
+
+        [HttpPost]
+        public IActionResult SetDevelopmentTags([FromBody] SetDevelopmentTagsRequest request)
+        {
+            Console.WriteLine("[MdFilesController] SetDevelopmentTags called");
+            try
+            {
+                Console.WriteLine($"[MdFilesController] SetDevelopmentTags request: FolderPath={request?.FolderPath}, Tags={string.Join(",", request?.Tags ?? new List<string>())}");
+
+                if (request == null || string.IsNullOrEmpty(request.FolderPath) || string.IsNullOrEmpty(request.ProjectRoot))
+                {
+                    Console.WriteLine("[MdFilesController] SetDevelopmentTags ERROR: Invalid request data");
+                    return BadRequest(new { error = "Invalid request data - missing FolderPath or ProjectRoot" });
+                }
+
+                // Calculate relative path from project root
+                var relativePath = request.FolderPath.Replace(request.ProjectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                Console.WriteLine($"[MdFilesController] Relative path: {relativePath}");
+
+                // Path to .development.yml in project root
+                var devConfigPath = Path.Combine(request.ProjectRoot, ".development.yml");
+                Console.WriteLine($"[MdFilesController] Config file path: {devConfigPath}");
+
+                // Load existing config or create new one
+                DevelopmentConfig config;
+                if (System.IO.File.Exists(devConfigPath))
+                {
+                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+                    var deserializer = new DeserializerBuilder()
+                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                        .Build();
+                    config = deserializer.Deserialize<DevelopmentConfig>(yamlContent) ?? new DevelopmentConfig();
+                }
+                else
+                {
+                    config = new DevelopmentConfig();
+                }
+
+                // Update or add folder entry
+                var existingFolder = config.Folders.FirstOrDefault(f => f.Path == relativePath);
+                if (existingFolder != null)
+                {
+                    existingFolder.Tags = request.Tags ?? new List<string>();
+                }
+                else
+                {
+                    config.Folders.Add(new DevelopmentFolder
+                    {
+                        Path = relativePath,
+                        Tags = request.Tags ?? new List<string>()
+                    });
+                }
+
+                // Remove folders with no tags
+                config.Folders.RemoveAll(f => f.Tags == null || f.Tags.Count == 0);
+
+                // Save config
+                var serializer = new SerializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .Build();
+
+                var newYamlContent = serializer.Serialize(config);
+                System.IO.File.WriteAllText(devConfigPath, newYamlContent);
+
+                _logger.LogInformation($"Development tags saved for folder: {relativePath}");
+                Console.WriteLine($"[MdFilesController] SetDevelopmentTags completed successfully");
+                return Ok(new { message = "Development tags saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting development tags");
+                Console.WriteLine($"[MdFilesController] SetDevelopmentTags EXCEPTION: {ex.Message}");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        public class SetDevelopmentTagsRequest
+        {
+            public string FolderPath { get; set; }
+            public string ProjectRoot { get; set; }
+            public List<string> Tags { get; set; }
         }
 
         private string GetSystemRootPath()
@@ -1683,7 +1791,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder)
         {
-            
+
             var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
             var node = new FileInfoNode
             {
@@ -1692,7 +1800,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 RelativePath =
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
-                Type = "folder"
+                Type = "folder",
+                DevelopmentTags = LoadDevelopmentTags(itemFolder)
             };
             var isEmpty = await ExploreNodes(node, itemFolder);
             return (node, isEmpty);
@@ -1706,10 +1815,95 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Name = Path.GetFileName(itemFolder),
                 FullPath = itemFolder,
                 Path = patchedItemFolfer,
-                Type = "folder"
+                Type = "folder",
+                DevelopmentTags = LoadDevelopmentTags(itemFolder)
             };
             ExploreNodesFolderOnly(node, itemFolder);
             return node;
+        }
+
+        /// <summary>
+        /// Loads development tags from .development.yml file in the specified folder
+        /// </summary>
+        /// <param name="folderPath">Path to the folder to check for .development.yml</param>
+        /// <returns>List of development tags, empty if file doesn't exist or parsing fails</returns>
+        private List<string> LoadDevelopmentTags(string folderPath)
+        {
+            try
+            {
+                // Find project root by looking for .development.yml file going up the directory tree
+                var projectRoot = FindProjectRoot(folderPath);
+                if (string.IsNullOrEmpty(projectRoot))
+                {
+                    return new List<string>();
+                }
+
+                var devConfigPath = Path.Combine(projectRoot, ".development.yml");
+                if (!System.IO.File.Exists(devConfigPath))
+                {
+                    return new List<string>();
+                }
+
+                var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+
+                // Use YamlDotNet for parsing
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .Build();
+
+                var config = deserializer.Deserialize<DevelopmentConfig>(yamlContent);
+                if (config == null || config.Folders == null)
+                {
+                    return new List<string>();
+                }
+
+                // Calculate relative path and find matching folder
+                var relativePath = folderPath.Replace(projectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var folderEntry = config.Folders.FirstOrDefault(f => f.Path == relativePath);
+
+                return folderEntry?.Tags ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LoadDevelopmentTags] ERROR: {ex.Message}");
+                Console.WriteLine($"[LoadDevelopmentTags] Stack trace: {ex.StackTrace}");
+                _logger.LogWarning(ex, $"Error reading development tags for {folderPath}");
+                return new List<string>();
+            }
+        }
+
+        private string FindProjectRoot(string startPath)
+        {
+            try
+            {
+                var currentDir = new DirectoryInfo(startPath);
+                while (currentDir != null)
+                {
+                    // Look for .development.yml in current directory
+                    var configPath = Path.Combine(currentDir.FullName, ".development.yml");
+                    if (System.IO.File.Exists(configPath))
+                    {
+                        return currentDir.FullName;
+                    }
+
+                    // Also look for other project markers like .git, .mdexplorer, etc.
+                    if (Directory.Exists(Path.Combine(currentDir.FullName, ".git")) ||
+                        System.IO.File.Exists(Path.Combine(currentDir.FullName, ".mdexplorer")))
+                    {
+                        return currentDir.FullName;
+                    }
+
+                    currentDir = currentDir.Parent;
+                }
+                // If no project root found, return the start path
+                return startPath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FindProjectRoot] ERROR: {ex.Message}");
+                _logger.LogWarning(ex, $"Error finding project root for {startPath}");
+                return startPath;
+            }
         }
 
         private void ExploreNodesFolderOnly(FileInfoNode fileInfoNode, string pathFile)

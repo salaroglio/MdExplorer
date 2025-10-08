@@ -35,7 +35,7 @@ namespace MdExplorer.Abstractions.Models
         public bool Expandable { get; set; } = true;
         
         [JsonPropertyName("dataText")]
-        public string DataText { get; set; }
+        public string? DataText { get; set; }
         
         [JsonPropertyName("childrens")]
         public IList<IFileInfoNode> Childrens { get; set; } = new List<IFileInfoNode>();
@@ -43,11 +43,15 @@ namespace MdExplorer.Abstractions.Models
         // Nuove proprietà per caricamento incrementale
         [JsonPropertyName("isIndexed")]
         public bool IsIndexed { get; set; } = false;
-        
+
         [JsonPropertyName("indexingStatus")]
         public string IndexingStatus { get; set; } = "idle";
-        
+
         [JsonPropertyName("indexingProgress")]
         public int? IndexingProgress { get; set; }
+
+        // Development tags per classificare le cartelle
+        [JsonPropertyName("developmentTags")]
+        public List<string> DevelopmentTags { get; set; } = new List<string>();
     }
 }

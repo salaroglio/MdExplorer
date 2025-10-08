@@ -30,6 +30,15 @@
       <mat-icon>list</mat-icon>
       <span>Toc Rapida (senza AI)</span>
     </button>
+
+    <!-- Mark as Development Environment -->
+    <button *ngIf="item.type==='folder'"
+            mat-menu-item
+            (click)="toggleTag(item, 'program')">
+      <mat-icon>{{hasTag(item, 'program') ? 'check_box' : 'check_box_outline_blank'}}</mat-icon>
+      <span>Mark as development environment</span>
+    </button>
+
     <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)"><b style="color:violet">Add</b> existing file<b style="color:blue"> as link</b></button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>Clone timed document</b></button>
@@ -89,7 +98,20 @@
             [ngClass]="{
               'indexing': node.indexingStatus === 'indexing'
             }">
-      <mat-icon *ngIf="node.name!='mdPublish' && node.indexingStatus !== 'indexing'" 
+      <!-- Icona per cartella .github (Copilot) -->
+      <img *ngIf="node.name=='.github' && node.indexingStatus !== 'indexing'"
+           src="/assets/github-copilot.svg"
+           alt="GitHub Copilot"
+           class="custom-folder-icon"
+           style="width: 24px; height: 24px; margin: 12px;" />
+      <!-- Icona per cartelle con tag "program" -->
+      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.indexingStatus !== 'indexing'"
+                color="primary"
+                class="mat-icon-rtl-mirror folder-icon">
+        terminal
+      </mat-icon>
+      <!-- Icona per cartelle normali -->
+      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.indexingStatus !== 'indexing'"
                 class="gold-icon mat-icon-rtl-mirror folder-icon">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>

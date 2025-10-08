@@ -21,4 +21,7 @@ export class MdFile implements IFileInfoNode {
   isIndexed?: boolean;
   indexingStatus?: 'idle' | 'indexing' | 'completed';
   indexingProgress?: number;
+
+  // Development tags per classificare le cartelle
+  developmentTags?: string[];
 }

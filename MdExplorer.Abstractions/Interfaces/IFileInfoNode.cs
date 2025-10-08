@@ -16,10 +16,13 @@ namespace MdExplorer.Abstractions.Interfaces
         public int Level { get; set; }
         public bool Expandable { get; set; }
         IList<IFileInfoNode> Childrens { get; set; }
-        
+
         // Nuove proprietà per caricamento incrementale
         bool IsIndexed { get; set; }
         string IndexingStatus { get; set; }
         int? IndexingProgress { get; set; }
+
+        // Development tags per classificare le cartelle
+        List<string> DevelopmentTags { get; set; }
     }
 }

@@ -604,7 +604,7 @@ namespace MdExplorer.Controllers.ModernGit
         /// <summary>
         /// Commit message (optional, will auto-generate if empty)
         /// </summary>
-        public string CommitMessage { get; set; }
+        public string? CommitMessage { get; set; }
     }
 
     /// <summary>

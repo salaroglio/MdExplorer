@@ -2634,8 +2634,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.09.23.2',
-    buildTime: '2025.09.23 17:22:38'
+    version: '2025.10.02.1',
+    buildTime: '2025.10.02 09:02:28'
 };
 
 
@@ -2796,7 +2796,7 @@ class MdFileService {
         this._navigationArray = mdFile;
     }
     moveMdFile(mdFile, pathDestination) {
-        const url = '../api/mdFiles/moveMdFile';
+        const url = '../api/mdfiles/MoveMdFile';
         return this.http.post(url, { mdFile: mdFile, destinationPath: pathDestination });
     }
     openInheritingTemplateWord(InheringTemplate) {
@@ -2998,6 +2998,14 @@ class MdFileService {
     SetLandingPage(file) {
         const url = '../api/mdfiles/SetLandingPage';
         return this.http.post(url, file);
+    }
+    setDevelopmentTags(folder, projectRoot, tags) {
+        const url = '../api/mdfiles/SetDevelopmentTags';
+        return this.http.post(url, {
+            folderPath: folder.fullPath,
+            projectRoot: projectRoot,
+            tags: tags
+        });
     }
     openFolderOnFileExplorer(file) {
         console.log('[MdFileService] openFolderOnFileExplorer() called');

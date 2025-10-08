@@ -13,5 +13,6 @@ export interface IFileInfoNode {
   isIndexed?: boolean;
   indexingStatus?: 'idle' | 'indexing' | 'completed';
   indexingProgress?: number; // 0-100
+  developmentTags?: string[]; // Tags for development folders (e.g., "program", "tests", "docs")
 }
 

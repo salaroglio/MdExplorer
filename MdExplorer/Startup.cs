@@ -82,7 +82,12 @@ namespace MdExplorer
             services.AddControllers(config =>
             {
                 //config.Filters.Add<TransactionActionFilter>();
-            }).AddJsonOptions(options => options.JsonSerializerOptions.MaxDepth = 64);
+            }).AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.MaxDepth = 64;
+                // Don't ignore properties with default values (like empty lists)
+                options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never;
+            });
 
         }
 

@@ -49,7 +49,8 @@
       "Bash(dotnet run:*)",
       "WebSearch",
       "Bash(curl:*)",
-      "Bash(del \"C:\\sviluppo\\mdExplorer\\MdExplorer.Abstractions\\Entities\\UserDB\\ProjectSetting.cs\")"
+      "Bash(del \"C:\\sviluppo\\mdExplorer\\MdExplorer.Abstractions\\Entities\\UserDB\\ProjectSetting.cs\")",
+      "Read(//c/sviluppo/electron-mdexplorer-temp/**)"
     ]
   },
   "enableAllProjectMcpServers": true,

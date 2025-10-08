@@ -66,7 +66,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       relativePath: node.path,
       fullPath: node.fullPath,
       type: node.type,
-      index:node.index
+      index: node.index,
+      isLoading: node.isLoading,
+      childrens: [],
+      isIndexed: node.isIndexed,
+      indexingStatus: node.indexingStatus,
+      indexingProgress: node.indexingProgress,
+      developmentTags: node.developmentTags
     };
   }
   treeControl = new FlatTreeControl<IFileInfoNode>(
@@ -194,9 +200,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdFileService.mdFiles.subscribe(data => {
       // Inizializza ricorsivamente tutte le proprietà
       this.initializeNodeProperties(data);
-      this.dataSource.data = data;
+      // Crea una NUOVA array per forzare il change detection con OnPush
+      this.dataSource.data = [...data];
       // Con OnPush, forza il re-check del componente
       this.changeDetectorRef.markForCheck();
+      // Forza anche il detectChanges per sicurezza
+      this.changeDetectorRef.detectChanges();
     });
     this.mdFileService.loadAll(this.deferredOpenProject, this);
   }
@@ -1034,11 +1043,83 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.updateTimer) {
       clearTimeout(this.updateTimer);
     }
-    
+
     // Chiudi snackbar attiva
     if (this.currentSnackbarRef) {
       this.currentSnackbarRef.dismiss();
     }
+  }
+
+  // ========== Development Tags Methods ==========
+
+  /**
+   * Verifica se un nodo ha un tag specifico
+   */
+  hasTag(node: MdFile, tag: string): boolean {
+    return node.developmentTags?.includes(tag) ?? false;
+  }
+
+  /**
+   * Verifica se una cartella è marcata come "program"
+   */
+  isProgramFolder(node: MdFile): boolean {
+    return this.hasTag(node, 'program');
+  }
+
+  /**
+   * Toggle di un tag specifico per una cartella
+   */
+  toggleTag(node: MdFile, tag: string) {
+    console.log('toggleTag called', { node, tag, fullPath: node.fullPath, currentTags: node.developmentTags });
+    const currentTags = node.developmentTags ?? [];
+    const newTags = currentTags.includes(tag)
+      ? currentTags.filter(t => t !== tag)
+      : [...currentTags, tag];
+
+    // Get project root from the tree data source
+    const projectRoot = this.getProjectRoot();
+    if (!projectRoot) {
+      console.error('Could not determine project root');
+      this.snackBar.open('Error: Could not determine project root', 'OK', { duration: 3000 });
+      return;
+    }
+
+    console.log('Calling setDevelopmentTags', { fullPath: node.fullPath, projectRoot, newTags });
+    this.mdFileService.setDevelopmentTags(node, projectRoot, newTags).subscribe({
+      next: (response) => {
+        console.log('setDevelopmentTags success', response);
+        node.developmentTags = newTags;
+        const action = newTags.includes(tag) ? 'added' : 'removed';
+        this.snackBar.open(`Tag '${tag}' ${action}`, 'OK', { duration: 2000 });
+        this.changeDetectorRef.markForCheck();
+      },
+      error: (error) => {
+        console.error('setDevelopmentTags error', error);
+        this.snackBar.open(`Error: ${error.message}`, 'OK', { duration: 3000 });
+      }
+    });
+  }
+
+  /**
+   * Get the project root from the tree data source
+   */
+  private getProjectRoot(): string | null {
+    const data = this.dataSource.data;
+    if (data && data.length > 0) {
+      // Look for the node with name 'root'
+      const rootNode = data.find(node => node.name === 'root');
+      if (rootNode && rootNode.fullPath) {
+        console.log('Found root node:', rootNode.fullPath);
+        return rootNode.fullPath;
+      }
+      // Fallback to first node if 'root' not found
+      const firstNode = data[0];
+      if (firstNode && firstNode.fullPath) {
+        console.log('Using first node as root:', firstNode.fullPath);
+        return firstNode.fullPath;
+      }
+    }
+    return null;
   }
 
 }
