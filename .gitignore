@@ -391,6 +391,17 @@ FodyWeavers.xsd
 /.md/
 /.claude
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# VS Copilot indices
+.vs/**/CopilotIndices/
+
 # Large installer files
 MdExplorer.Bootstrapper/assets/*.exe
 MdExplorer.Bootstrapper/assets/*.msi
