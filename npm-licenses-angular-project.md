@@ -1,7 +1,7 @@
 ---
 author: Carlo Salaroglio
 document_type: Document
-email: salaroglio@hotmail.com
+email: developer@mdexplorer.net
 title: 
 date: 13/08/2025
 word_section:
