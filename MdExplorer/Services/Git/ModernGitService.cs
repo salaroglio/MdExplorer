@@ -40,7 +40,7 @@ namespace MdExplorer.Services.Git
         {
             var stopwatch = Stopwatch.StartNew();
             var credentialCallCount = 0;
-            
+
             try
             {
                 _logger.LogInformation("Starting pull operation for repository: {RepositoryPath}", repositoryPath);
@@ -54,6 +54,9 @@ namespace MdExplorer.Services.Git
                         Duration = stopwatch.Elapsed
                     };
                 }
+
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
 
                 using var repo = new Repository(repositoryPath);
                 
@@ -133,7 +136,7 @@ namespace MdExplorer.Services.Git
         {
             var stopwatch = Stopwatch.StartNew();
             var credentialCallCount = 0;
-            
+
             try
             {
                 _logger.LogInformation("Starting push operation for repository: {RepositoryPath}, Remote: {Remote}, Branch: {Branch}",
@@ -148,6 +151,9 @@ namespace MdExplorer.Services.Git
                         Duration = stopwatch.Elapsed
                     };
                 }
+
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
 
                 using var repo = new Repository(repositoryPath);
                 
@@ -377,7 +383,7 @@ namespace MdExplorer.Services.Git
         public async Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogInformation("Starting clone operation: {Url} to {LocalPath}", url, localPath);
@@ -391,6 +397,9 @@ namespace MdExplorer.Services.Git
                         Duration = stopwatch.Elapsed
                     };
                 }
+
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = localPath;
 
                 var cloneOptions = new CloneOptions
                 {
@@ -564,11 +573,14 @@ namespace MdExplorer.Services.Git
         public async Task<GitOperationResult> FetchAsync(string repositoryPath, string remoteName = "origin")
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogInformation("Starting fetch operation for repository: {RepositoryPath}, Remote: {Remote}",
                     repositoryPath, remoteName);
+
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
 
                 using var repo = new Repository(repositoryPath);
                 
@@ -618,9 +630,13 @@ namespace MdExplorer.Services.Git
         #region Private Helper Methods
 
         private AuthenticationMethod _lastUsedAuthMethod = AuthenticationMethod.UserPrompt;
-        private readonly Dictionary<string, CachedCredential> _credentialCache = new Dictionary<string, CachedCredential>();
-        private readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
-        private readonly TimeSpan _cacheTimeout = TimeSpan.FromMinutes(5);
+
+        // STATIC cache shared across all instances - per-project and permanent until application close
+        // Key format: "repositoryPath|url|username|types"
+        private static readonly Dictionary<string, CachedCredential> _credentialCache = new Dictionary<string, CachedCredential>();
+        private static readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
+        private static readonly object _cacheLock = new object(); // Thread safety
+
         private const int MaxAuthenticationAttempts = 3;
 
         private class CachedCredential
@@ -628,42 +644,43 @@ namespace MdExplorer.Services.Git
             public Credentials Credentials { get; set; }
             public DateTime CachedAt { get; set; }
             public AuthenticationMethod AuthMethod { get; set; }
+            public string RepositoryPath { get; set; }
         }
 
         private async Task<Credentials> ResolveCredentials(string url, string usernameFromUrl, SupportedCredentialTypes types)
         {
             var resolverCallId = Guid.NewGuid().ToString("N")[..8];
-            var cacheKey = $"{url}:{usernameFromUrl}:{types}";
-            
-            // IMPORTANT: Check cache FIRST before doing anything else
-            if (_credentialCache.ContainsKey(cacheKey))
+
+            // Get repository path from execution context for per-project caching
+            var repositoryPath = GitExecutionContext.CurrentRepositoryPath ?? "global";
+
+            // Create per-project cache key
+            var cacheKey = $"{repositoryPath}|{url}|{usernameFromUrl}|{types}";
+
+            // IMPORTANT: Check cache FIRST before doing anything else - with thread safety
+            // Cache is PERMANENT (no timeout) - credentials persist until application close
+            lock (_cacheLock)
             {
-                var cached = _credentialCache[cacheKey];
-                var age = DateTime.UtcNow - cached.CachedAt;
-                
-                if (age < _cacheTimeout)
+                if (_credentialCache.ContainsKey(cacheKey))
                 {
-                    _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials for {Url} (age: {Age:F1} seconds)", 
-                        resolverCallId, url, age.TotalSeconds);
+                    var cached = _credentialCache[cacheKey];
+                    var age = DateTime.UtcNow - cached.CachedAt;
+
+                    _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials for {Url} in project {Project} (age: {Age:F1} seconds)",
+                        resolverCallId, url, repositoryPath, age.TotalSeconds);
                     _lastUsedAuthMethod = cached.AuthMethod;
                     return cached.Credentials;
                 }
+
+                // Track call history for this URL
+                if (_credentialCallHistory.ContainsKey(cacheKey))
+                {
+                    _credentialCallHistory[cacheKey]++;
+                }
                 else
                 {
-                    _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Cache expired for {Url} (age: {Age:F1} minutes)", 
-                        resolverCallId, url, age.TotalMinutes);
-                    _credentialCache.Remove(cacheKey);
+                    _credentialCallHistory[cacheKey] = 1;
                 }
-            }
-            
-            // Track call history for this URL
-            if (_credentialCallHistory.ContainsKey(cacheKey))
-            {
-                _credentialCallHistory[cacheKey]++;
-            }
-            else
-            {
-                _credentialCallHistory[cacheKey] = 1;
             }
             
             var callCount = _credentialCallHistory[cacheKey];
@@ -710,22 +727,27 @@ namespace MdExplorer.Services.Git
                             var isSSH = url.StartsWith("git@") || url.StartsWith("ssh://");
                             var isHTTPS = url.StartsWith("https://");
                             
-                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - SUCCESS using {ResolverType}: {AuthMethod}, CredType: {CredType}, SSH: {IsSSH}, HTTPS: {IsHTTPS}", 
+                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - SUCCESS using {ResolverType}: {AuthMethod}, CredType: {CredType}, SSH: {IsSSH}, HTTPS: {IsHTTPS}",
                                 resolverCallId, resolver.GetType().Name, _lastUsedAuthMethod, credType, isSSH, isHTTPS);
-                                
-                            // Cache the successful credential for future use
-                            _credentialCache[cacheKey] = new CachedCredential
+
+                            // Cache the successful credential for future use - with thread safety
+                            // Credentials are cached per-project and persist until application close
+                            lock (_cacheLock)
                             {
-                                Credentials = credentials,
-                                CachedAt = DateTime.UtcNow,
-                                AuthMethod = _lastUsedAuthMethod
-                            };
-                            
-                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Credentials CACHED for {Url} (timeout: {Timeout} minutes)", 
-                                resolverCallId, url, _cacheTimeout.TotalMinutes);
-                            
-                            // Reset call history on success
-                            _credentialCallHistory[cacheKey] = 0;
+                                _credentialCache[cacheKey] = new CachedCredential
+                                {
+                                    Credentials = credentials,
+                                    CachedAt = DateTime.UtcNow,
+                                    AuthMethod = _lastUsedAuthMethod,
+                                    RepositoryPath = repositoryPath
+                                };
+
+                                _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Credentials CACHED PERMANENTLY for {Url} in project {Project} (valid until application close)",
+                                    resolverCallId, url, repositoryPath);
+
+                                // Reset call history on success
+                                _credentialCallHistory[cacheKey] = 0;
+                            }
                             
                             return credentials;
                         }
@@ -820,26 +842,36 @@ namespace MdExplorer.Services.Git
 
         private void ClearCredentialCallHistory()
         {
-            // Clear the call history to prevent false positives on next operation
-            _credentialCallHistory.Clear();
-            _logger.LogDebug("Credential call history cleared after successful operation");
+            // Clear the call history to prevent false positives on next operation - with thread safety
+            lock (_cacheLock)
+            {
+                _credentialCallHistory.Clear();
+                _logger.LogDebug("Credential call history cleared after successful operation");
+            }
         }
 
-        private void CleanExpiredCache()
+        /// <summary>
+        /// Clears all cached credentials for a specific repository
+        /// Useful when changing credentials for a project
+        /// </summary>
+        public void ClearProjectCache(string repositoryPath)
         {
-            var expiredKeys = _credentialCache
-                .Where(kvp => DateTime.UtcNow - kvp.Value.CachedAt > _cacheTimeout)
-                .Select(kvp => kvp.Key)
-                .ToList();
-
-            foreach (var key in expiredKeys)
+            lock (_cacheLock)
             {
-                _credentialCache.Remove(key);
-            }
+                var keysToRemove = _credentialCache
+                    .Where(kvp => kvp.Value.RepositoryPath == repositoryPath)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
 
-            if (expiredKeys.Any())
-            {
-                _logger.LogDebug("Removed {Count} expired credentials from cache", expiredKeys.Count);
+                foreach (var key in keysToRemove)
+                {
+                    _credentialCache.Remove(key);
+                }
+
+                if (keysToRemove.Any())
+                {
+                    _logger.LogInformation("Cleared {Count} cached credentials for project: {RepositoryPath}", keysToRemove.Count, repositoryPath);
+                }
             }
         }
 
@@ -847,9 +879,15 @@ namespace MdExplorer.Services.Git
 
         public async Task<GitPullPushData> GetPullPushDataAsync(string repositoryPath)
         {
+            var callId = Guid.NewGuid().ToString("N")[..8];
+            _logger.LogWarning("🟢 [GET PULL PUSH DATA - START] CallId: {CallId}, Repository: {RepositoryPath}", callId, repositoryPath);
+
             try
             {
-                _logger.LogInformation("Getting pull/push data for repository: {RepositoryPath}", repositoryPath);
+                _logger.LogInformation("🟢 [GET PULL PUSH DATA {CallId}] Getting pull/push data for repository: {RepositoryPath}", callId, repositoryPath);
+
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
 
                 using var repo = new Repository(repositoryPath);
                 var currentBranch = repo.Head;
@@ -1140,13 +1178,20 @@ namespace MdExplorer.Services.Git
         /// </summary>
         public async Task<RemoteStatus> CheckRemoteStatusAsync(string repositoryPath)
         {
+            var callId = Guid.NewGuid().ToString("N")[..8];
+            _logger.LogWarning("🔵 [CHECK REMOTE STATUS - START] CallId: {CallId}, Repository: {RepositoryPath}", callId, repositoryPath);
+
             return await Task.Run(() =>
             {
-                var status = new RemoteStatus();
+                var status = new RemoteStatus
+                {
+                    CanAuthenticate = false,
+                    AuthenticationMethod = null
+                };
 
                 try
                 {
-                    _logger.LogInformation("Checking remote status for repository: {RepositoryPath}", repositoryPath);
+                    _logger.LogInformation("🔵 [CHECK REMOTE STATUS {CallId}] Checking remote status for repository: {RepositoryPath}", callId, repositoryPath);
 
                     if (!Directory.Exists(repositoryPath))
                     {
@@ -1175,6 +1220,18 @@ namespace MdExplorer.Services.Git
                             status.RemoteName = origin.Name;
                             status.RemoteUrl = origin.Url;
                             _logger.LogInformation("Remote found: {RemoteName} -> {RemoteUrl}", origin.Name, origin.Url);
+
+                            // Test authentication by attempting a lightweight fetch
+                            status.CanAuthenticate = TestRemoteAuthentication(repo, origin, repositoryPath);
+                            if (status.CanAuthenticate)
+                            {
+                                status.AuthenticationMethod = _lastUsedAuthMethod.ToString();
+                                _logger.LogInformation("Authentication test successful using method: {Method}", status.AuthenticationMethod);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Authentication test failed for remote: {RemoteUrl}", origin.Url);
+                            }
                         }
                         else
                         {
@@ -1191,6 +1248,47 @@ namespace MdExplorer.Services.Git
 
                 return status;
             });
+        }
+
+        /// <summary>
+        /// Tests if authentication to the remote works by attempting a lightweight fetch
+        /// </summary>
+        private bool TestRemoteAuthentication(Repository repo, Remote remote, string repositoryPath)
+        {
+            try
+            {
+                _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Testing authentication for remote: {RemoteUrl}", remote.Url);
+
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+
+                // Attempt to list remote references (lightweight operation that tests authentication)
+                // Using inline delegate for credentials provider
+                _logger.LogWarning("🔐 [CHECK REMOTE STATUS] About to call ListReferences...");
+                var refs = repo.Network.ListReferences(remote, (url, usernameFromUrl, types) =>
+                {
+                    _logger.LogWarning("🔐 [CHECK REMOTE STATUS - CREDENTIAL CALLBACK] Resolving credentials for: {Url}", url);
+                    var task = ResolveCredentials(url, usernameFromUrl, types);
+                    var result = task.GetAwaiter().GetResult();
+                    _logger.LogWarning("🔐 [CHECK REMOTE STATUS - CREDENTIAL CALLBACK] Resolved: {HasCreds}, Method: {Method}",
+                        result != null, _lastUsedAuthMethod);
+                    return result;
+                });
+
+                // If we get here without exception, authentication worked
+                _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Authentication test successful - {RefCount} references found", refs.Count());
+                return true;
+            }
+            catch (LibGit2SharpException ex)
+            {
+                _logger.LogWarning(ex, "🔐 [CHECK REMOTE STATUS] Authentication test failed: {Message}", ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "🔐 [CHECK REMOTE STATUS] Authentication test error: {Message}", ex.Message);
+                return false;
+            }
         }
 
         /// <summary>

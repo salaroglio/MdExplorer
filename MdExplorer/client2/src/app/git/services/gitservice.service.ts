@@ -95,36 +95,55 @@ export class GITService implements OnDestroy {
 
   /**
    * Perform polling based on current configuration
+   * IMPORTANT: Checks remote status first to authenticate, then fetches Git data using cached credentials
    */
   private performPoll(): void {
     if (this.currentProjectPath) {
-      // Use modern endpoints with SSH support
-      
-      // Get branch status
-      this.modernGetBranchStatus(this.currentProjectPath).subscribe(
-        branch => {
-          this.currentBranch$.next(branch);
+      // Step 1: Check remote status first (authenticates and caches credentials)
+      this.checkRemoteStatus(this.currentProjectPath).subscribe(
+        remoteStatus => {
+          // Only proceed with Git operations if authentication is successful
+          if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
+            // Step 2: Now fetch Git data (will use cached credentials, no additional auth)
+            this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+              branch => {
+                this.currentBranch$.next(branch);
+              },
+              error => {
+                console.error('Error in modern branch status:', error);
+                // Set default empty state on error
+                this.currentBranch$.next({
+                  id: "", name: "unknown",
+                  somethingIsChangedInTheBranch: false,
+                  howManyFilesAreChanged: 0,
+                  fullPath: this.currentProjectPath,
+                  howManyCommitAreToPush: 0
+                });
+              }
+            );
+
+            this.modernGetDataToPull(this.currentProjectPath).subscribe(
+              pullData => {
+                this.commmitsToPull$.next(pullData);
+              },
+              error => {
+                console.error('Error in modern data to pull:', error);
+              }
+            );
+          } else if (!remoteStatus.hasRemote) {
+            // No remote configured - still get branch status but skip pull/push data
+            this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+              branch => {
+                this.currentBranch$.next(branch);
+              },
+              error => {
+                console.error('Error in modern branch status:', error);
+              }
+            );
+          }
         },
         error => {
-          console.error('Error in modern branch status:', error);
-          // Set default empty state on error
-          this.currentBranch$.next({
-            id: "", name: "unknown",
-            somethingIsChangedInTheBranch: false,
-            howManyFilesAreChanged: 0,
-            fullPath: this.currentProjectPath,
-            howManyCommitAreToPush: 0
-          });
-        }
-      );
-      
-      // Get pull/push data
-      this.modernGetDataToPull(this.currentProjectPath).subscribe(
-        pullData => {
-          this.commmitsToPull$.next(pullData);
-        },
-        error => {
-          console.error('Error in modern data to pull:', error);
+          console.error('Error checking remote status in poll:', error);
         }
       );
     }
@@ -394,7 +413,8 @@ export class GITService implements OnDestroy {
         return of({
           hasRemote: false,
           isGitRepository: false,
-          errorMessage: error.message || 'Failed to check remote status'
+          errorMessage: error.message || 'Failed to check remote status',
+          canAuthenticate: false
         });
       })
     );
