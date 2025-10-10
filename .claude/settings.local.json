@@ -52,7 +52,8 @@
       "Bash(del \"C:\\sviluppo\\mdExplorer\\MdExplorer.Abstractions\\Entities\\UserDB\\ProjectSetting.cs\")",
       "Read(//c/sviluppo/electron-mdexplorer-temp/**)",
       "WebFetch(domain:docs.github.com)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(cmd.exe:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

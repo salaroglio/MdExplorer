@@ -51,9 +51,10 @@ export class OpenRecentComponent implements OnInit {
   openProjectSettings(project: any) {
     const dialogRef = this.dialog.open(ProjectSettingsComponent, {
       width: '600px',
-      data: { 
+      data: {
         projectId: project.id,
-        projectName: project.name 
+        projectName: project.name,
+        projectPath: project.path
       }
     });
 

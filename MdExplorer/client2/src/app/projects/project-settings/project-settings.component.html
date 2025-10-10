@@ -10,8 +10,8 @@
       
       <mat-card-content>
         <div class="setting-item" *ngIf="!loading">
-          <mat-checkbox 
-            [(ngModel)]="rule1Enabled" 
+          <mat-checkbox
+            [(ngModel)]="rule1Enabled"
             (change)="onRule1Change()"
             [disabled]="saving">
             <span class="setting-label">Rule #1: Check H1 matches filename</span>
@@ -19,6 +19,19 @@
           <p class="setting-description">
             When enabled, verifies that the H1 heading in each Markdown file matches the filename.
             This helps maintain consistency between file names and document titles.
+          </p>
+        </div>
+
+        <div class="setting-item" *ngIf="!loading">
+          <mat-checkbox
+            [(ngModel)]="githubModeEnabled"
+            (change)="onGitHubModeChange()"
+            [disabled]="saving">
+            <span class="setting-label">GitHub Compatible Mode</span>
+          </mat-checkbox>
+          <p class="setting-description">
+            When enabled, uses GitHub-compatible markdown rendering (no PlantUML, interactive emoji, etc.).
+            Disable for full MdExplorer features when working in a team environment.
           </p>
         </div>
 

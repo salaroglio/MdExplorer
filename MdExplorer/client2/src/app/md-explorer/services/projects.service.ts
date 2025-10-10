@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
+import { CompatibilityMode } from '../../models/compatibility-mode.model';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +17,10 @@ export class ProjectsService {
     return this._mdProjects.asObservable();
   }
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private injector: Injector
+  ) {
     this.dataStore = { mdProjects: [] };
     this._mdProjects = new BehaviorSubject<MdProject[]>([]);
   }
@@ -44,8 +48,21 @@ export class ProjectsService {
 
   setNewFolderProject(path: string):void {
     const url = '../api/MdProjects/SetFolderProject';
-    this.http.post<MdProject>(url, { path: path }).subscribe(_ => {
-      this.currentProjects$.next(_);
+    this.http.post<any>(url, { path: path }).subscribe(async response => {
+      this.currentProjects$.next(response);
+
+      // Update compatibility mode from response
+      if (response.compatibilityMode) {
+        const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
+                     response.compatibilityMode === 'commonmark' ? CompatibilityMode.CommonMark :
+                     CompatibilityMode.MdExplorer;
+        console.log('Setting compatibility mode from project open response:', mode);
+
+        // Get CompatibilityModeService using dynamic import to avoid circular dependency
+        const { CompatibilityModeService } = await import('../../services/compatibility-mode.service');
+        const compatibilityService = this.injector.get(CompatibilityModeService);
+        compatibilityService.updateMode(mode);
+      }
     });
 
   }
@@ -58,8 +75,21 @@ export class ProjectsService {
       addCopilotInstructions: config.addCopilotInstructions
     };
 
-    this.http.post<MdProject>(url, request).subscribe(_ => {
-      this.currentProjects$.next(_);
+    this.http.post<any>(url, request).subscribe(async response => {
+      this.currentProjects$.next(response);
+
+      // Update compatibility mode from response
+      if (response.compatibilityMode) {
+        const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
+                     response.compatibilityMode === 'commonmark' ? CompatibilityMode.CommonMark :
+                     CompatibilityMode.MdExplorer;
+        console.log('Setting compatibility mode from project create response:', mode);
+
+        // Get CompatibilityModeService using dynamic import to avoid circular dependency
+        const { CompatibilityModeService } = await import('../../services/compatibility-mode.service');
+        const compatibilityService = this.injector.get(CompatibilityModeService);
+        compatibilityService.updateMode(mode);
+      }
     }, error => {
       console.error('Error creating project with config:', error);
     });

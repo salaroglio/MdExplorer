@@ -1,0 +1,61 @@
+.compatibility-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+
+  button {
+    font-size: 12px;
+    padding: 4px 8px;
+    cursor: default;
+    min-width: auto;
+    color: rgba(255, 255, 255, 0.9) !important;
+
+    &:disabled {
+      color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .mode-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-right: 4px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .mode-text {
+      font-weight: 500;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+
+  &.github-mode {
+    button {
+      animation: pulse-github 2s ease-in-out infinite;
+    }
+  }
+
+  &.mdexplorer-mode {
+    button {
+      // Default styling
+    }
+  }
+}
+
+@keyframes pulse-github {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+  .compatibility-badge {
+    .mode-text {
+      display: none; // Hide text on mobile, show only icon
+    }
+  }
+}

@@ -1,0 +1,11 @@
+<div class="compatibility-badge"
+     [matTooltip]="getTooltip()"
+     [class.github-mode]="isGitHubMode()"
+     [class.mdexplorer-mode]="isMdExplorerMode()">
+
+  <button mat-button [color]="modeColor" disabled>
+    <mat-icon class="mode-icon">{{modeIcon}}</mat-icon>
+    <span class="mode-text">{{modeDisplayName}}</span>
+  </button>
+
+</div>
