@@ -263,10 +263,24 @@ namespace MdExplorer.Controllers
             //.Replace(@"\",@"\\");
             await _hubContext.Clients.Client(connectionId:connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
 
+            // Get HTML content - check if using fallback mode
+            string htmlContent;
+            if (doc1.DocumentElement != null &&
+                doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
+            {
+                // Using string-based fallback
+                htmlContent = doc1.DocumentElement.InnerText;
+            }
+            else
+            {
+                // Using standard XML approach
+                htmlContent = doc1.InnerXml;
+            }
+
             try
             {
                 System.IO.File.WriteAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
-                                        Path.DirectorySeparatorChar + cacheName, doc1.InnerXml, Encoding.UTF8);
+                                        Path.DirectorySeparatorChar + cacheName, htmlContent, Encoding.UTF8);
             }
             catch (Exception ex)
             {
@@ -282,18 +296,18 @@ namespace MdExplorer.Controllers
                 var markdownFile = new MarkdownFile
                 {
                     FileName = Path.GetFileName(fullPathFile),
-                    Path = fullPathFile,                    
+                    Path = fullPathFile,
                     FileType = "File"
                 };
                 relDal.Save(markdownFile);
             }
-            
+
             SaveLinksFromMarkdown(mdFile);
             _engineDB.Commit();
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
-                Content = doc1.InnerXml,
+                Content = htmlContent,
 
             };
             return toReturn;
@@ -614,24 +628,36 @@ namespace MdExplorer.Controllers
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId);
 
-            var elementsA = doc1.FirstChild.SelectNodes("//a");
-            foreach (XmlNode itemElement in elementsA)
+            try
             {
-                var href = itemElement.Attributes["href"];
-                if (href != null && href.Value.Length > 8)
+                var elementsA = doc1.FirstChild.SelectNodes("//a");
+                if (elementsA != null)
                 {
-                    if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
+                    foreach (XmlNode itemElement in elementsA)
                     {
-                        var htmltarget = doc1.CreateAttribute("target");
-                        htmltarget.InnerText = "_target";
-                        itemElement.Attributes.Append(htmltarget);
+                        var href = itemElement.Attributes["href"];
+                        if (href != null && href.Value.Length > 8)
+                        {
+                            if (Regex.Match(href.Value, "http[s]?://(?!localhost)").Success)
+                            {
+                                var htmltarget = doc1.CreateAttribute("target");
+                                htmltarget.InnerText = "_target";
+                                itemElement.Attributes.Append(htmltarget);
+                            }
+
+                        }
+
+                        var htmlClass = doc1.CreateAttribute("class");
+                        htmlClass.InnerText = "mdExplorerLink";
+                        itemElement.Attributes.Append(htmlClass);
                     }
-
                 }
-
-                var htmlClass = doc1.CreateAttribute("class");
-                htmlClass.InnerText = "mdExplorerLink";
-                itemElement.Attributes.Append(htmlClass);
+            }
+            catch (Exception ex)
+            {
+                // If link manipulation fails (e.g., due to fallback rendering), skip it
+                // The content will still be displayed, just without the link enhancements
+                _logger.LogWarning($"⚠️ [MdExplorer] Could not enhance links: {ex.Message}");
             }
 
             if (isPlantuml)
@@ -679,55 +705,103 @@ namespace MdExplorer.Controllers
 
 
             head.InnerXml = $@"
-            <link rel=""stylesheet"" href=""/common.css"" />            
+            <link rel=""stylesheet"" href=""/common.css"" />
             <script src=""/common.js""></script>";
 
-            body.InnerXml += resultToParse;
+            try
+            {
+                body.InnerXml += resultToParse;
+            }
+            catch (XmlException ex)
+            {
+                // GitHub-flavored markdown may generate HTML that is not well-formed XML
+                // Use string-based HTML construction as fallback
+                System.Diagnostics.Debug.WriteLine($"XmlException in CreateHTMLBody: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine("Using string-based HTML construction as fallback");
+
+                // Build complete HTML document as string
+                var htmlString = $@"<html style=""overflow: auto; height: auto; min-height: 100%;"">
+<head>
+    <link href=""/MdCustomCSS.css"" rel=""stylesheet"" />
+    <link rel=""stylesheet"" href=""/common.css"" />
+    <script src=""/common.js""></script>
+</head>
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+{resultToParse}
+</body>
+</html>";
+
+                // Load the complete HTML string into the XmlDocument
+                // This will be used as a string, not parsed as XML
+                doc1.LoadXml("<root></root>"); // Reset document
+                doc1.PreserveWhitespace = true;
+
+                // Store the HTML string in a special marker that will be handled differently
+                var root = doc1.DocumentElement;
+                root.SetAttribute("_html_fallback", "true");
+                root.InnerText = htmlString;
+            }
         }
 
        
 
         private string AddButtonOnLowerBar(string functionJs, string image, string Id, string cssClass = "mdeLowerBarButton")
         {
-            var doc1 = new XmlDocument();
-            var body = doc1.CreateElement("div");
-            var a = doc1.CreateElement("a");
-            var aAtt = doc1.CreateAttribute("onClick");
-            var aAtt3 = doc1.CreateAttribute("class");
-            aAtt3.Value = cssClass;
-            body.Attributes.Append(aAtt3);
-            a.Attributes.Append(aAtt);            
-            aAtt.Value = functionJs;
-            var imgEl = doc1.CreateElement("img");
-            a.AppendChild(imgEl);
-            var srcImg = doc1.CreateAttribute("src");
-            var id = doc1.CreateAttribute("id");
-            srcImg.Value = image;
-            id.Value = Id;
-            imgEl.Attributes.Append(srcImg);
-            imgEl.Attributes.Append(id);
-            body.AppendChild(a);
-            return body.OuterXml;
+            try
+            {
+                var doc1 = new XmlDocument();
+                var body = doc1.CreateElement("div");
+                var a = doc1.CreateElement("a");
+                var aAtt = doc1.CreateAttribute("onClick");
+                var aAtt3 = doc1.CreateAttribute("class");
+                aAtt3.Value = cssClass;
+                body.Attributes.Append(aAtt3);
+                a.Attributes.Append(aAtt);
+                aAtt.Value = functionJs;
+                var imgEl = doc1.CreateElement("img");
+                a.AppendChild(imgEl);
+                var srcImg = doc1.CreateAttribute("src");
+                var id = doc1.CreateAttribute("id");
+                srcImg.Value = image;
+                id.Value = Id;
+                imgEl.Attributes.Append(srcImg);
+                imgEl.Attributes.Append(id);
+                body.AppendChild(a);
+                return body.OuterXml;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"⚠️ [MdExplorer] Could not create button {Id}: {ex.Message}");
+                // Return a simple HTML fallback
+                return $"<div class=\"{cssClass}\"><a onclick=\"{functionJs}\"><img src=\"{image}\" id=\"{Id}\" /></a></div>";
+            }
         }
 
         private string AddButtonTextOnVerticalBar(string functionJs, string text, string Id)
         {
-            var doc1 = new XmlDocument();
-            var body = doc1.CreateElement("div");
-            var a = doc1.CreateElement("div");
-            a.InnerText = text;
-            var aAtt = doc1.CreateAttribute("onClick");
-            var att2 = doc1.CreateAttribute("style");
-            att2.Value = "cursor: pointer";
-            a.Attributes.Append(aAtt);
-            a.Attributes.Append(att2);
-            aAtt.Value = functionJs;
-            var id = doc1.CreateAttribute("id");
-            id.Value = Id;
-            body.AppendChild(a);
-            return body.OuterXml;
-            body.AppendChild(a);
-            return body.OuterXml;
+            try
+            {
+                var doc1 = new XmlDocument();
+                var body = doc1.CreateElement("div");
+                var a = doc1.CreateElement("div");
+                a.InnerText = text;
+                var aAtt = doc1.CreateAttribute("onClick");
+                var att2 = doc1.CreateAttribute("style");
+                att2.Value = "cursor: pointer";
+                a.Attributes.Append(aAtt);
+                a.Attributes.Append(att2);
+                aAtt.Value = functionJs;
+                var id = doc1.CreateAttribute("id");
+                id.Value = Id;
+                body.AppendChild(a);
+                return body.OuterXml;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"⚠️ [MdExplorer] Could not create text button {Id}: {ex.Message}");
+                // Return a simple HTML fallback
+                return $"<div><div onclick=\"{functionJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
+            }
         }
 
     }
