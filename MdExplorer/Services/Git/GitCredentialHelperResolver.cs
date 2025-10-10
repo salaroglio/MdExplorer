@@ -61,13 +61,8 @@ namespace MdExplorer.Services.Git
             if (string.IsNullOrEmpty(url))
                 return false;
 
-            // Skip Git credential helper for GitHub to avoid conflicts with Windows Credential Store
-            // This prevents multiple authentication dialogs
-            if (url.Contains("github.com", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogDebug("GitCredentialHelperResolver skipped for GitHub - letting WindowsCredentialStore handle it");
-                return false;
-            }
+            // Git credential helper works for all URLs including GitHub
+            // This is the same approach used by VS Code - delegate to git credential manager
 
             // Git credential helpers primarily work with HTTPS URLs
             var isHTTPSUrl = url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||

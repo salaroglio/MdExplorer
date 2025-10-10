@@ -83,6 +83,8 @@ export interface RemoteStatus {
   remoteUrl?: string;
   isGitRepository: boolean;
   errorMessage?: string;
+  canAuthenticate: boolean;
+  authenticationMethod?: string;
 }
 
 export interface SetupRemoteRequest {

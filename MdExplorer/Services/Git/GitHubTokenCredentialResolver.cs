@@ -111,8 +111,11 @@ namespace MdExplorer.Services.Git
 
         public int GetPriority()
         {
-            // Highest priority for GitHub HTTPS URLs - always try PAT first
-            return 0;
+            // Lower priority (50) - use this only if system credentials don't work
+            // System credentials (priority 30) should be tried first because they're
+            // what the user has configured in their Git environment
+            // Only use PAT if explicitly configured or if system credentials fail
+            return 50;
         }
 
         public AuthenticationMethod GetAuthenticationMethod()
