@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { IBranch } from '../models/branch';
+import { IBranch, BranchInfo, CheckoutResult } from '../models/branch';
 import { DataToPull } from '../models/DataToPull'
 import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
@@ -535,6 +535,55 @@ export class GITService implements OnDestroy {
       catchError(error => {
         console.error('Error saving GitHub organization:', error);
         return of(false);
+      })
+    );
+  }
+
+  /**
+   * Get list of all branches (local and remote)
+   */
+  getBranches(projectPath: string, includeRemote: boolean = true): Observable<BranchInfo[]> {
+    const url = `../api/ModernGit/branches?repositoryPath=${encodeURIComponent(projectPath)}&includeRemote=${includeRemote}`;
+
+    return this.http.get<BranchInfo[]>(url).pipe(
+      catchError(error => {
+        console.error('Error getting branches:', error);
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Checkout/switch to a different branch
+   */
+  checkoutBranch(projectPath: string, branchName: string): Observable<CheckoutResult> {
+    const url = '../api/ModernGit/checkout';
+    const request = {
+      repositoryPath: projectPath,
+      branchName: branchName
+    };
+
+    return this.http.post<CheckoutResult>(url, request).pipe(
+      catchError(error => {
+        console.error('Error checking out branch:', error);
+        return of({
+          success: false,
+          error: error.error?.error || error.message || 'Failed to checkout branch'
+        });
+      })
+    );
+  }
+
+  /**
+   * Get repository status (for checking uncommitted changes)
+   */
+  getRepositoryStatus(projectPath: string): Observable<any> {
+    const url = `../api/ModernGit/status?repositoryPath=${encodeURIComponent(projectPath)}`;
+
+    return this.http.get<any>(url).pipe(
+      catchError(error => {
+        console.error('Error getting repository status:', error);
+        return of({ hasChanges: false, files: [] });
       })
     );
   }
