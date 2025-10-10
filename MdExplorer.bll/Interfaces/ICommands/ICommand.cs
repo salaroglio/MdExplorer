@@ -1,4 +1,5 @@
 ﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Configuration.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,10 +14,17 @@ namespace MdExplorer.Features.Commands
         //string ServerAddress { get; set; }
         public int Priority { get; set; }
         public bool Enabled { get; set; }
+
+        /// <summary>
+        /// List of compatibility modes this command supports.
+        /// If null or empty, command is assumed to support all modes.
+        /// </summary>
+        List<CompatibilityMode> SupportedModes { get; }
+
         string TransformInNewMDFromMD(string markdown,RequestInfo requestInfo);
         string TransformAfterConversion(string html, RequestInfo requestInfo);
         string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo);
-        
+
         MatchCollection GetMatches(string markdown);
         string Name { get; set; }
     }

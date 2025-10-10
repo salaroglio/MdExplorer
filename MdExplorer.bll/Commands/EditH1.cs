@@ -18,6 +18,17 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "EditH1";
 
+        /// <summary>
+        /// EditH1 uses XML parsing which requires well-formed HTML.
+        /// GitHub-flavored markdown HTML is not always well-formed XML, so this command
+        /// is only compatible with MdExplorer and CommonMark modes.
+        /// </summary>
+        public override List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
+
         public EditH1(ILogger<EditH1> logger)
         {
             _logger = logger;

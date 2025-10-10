@@ -32,6 +32,16 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 20;
         public string Name { get; set; } = "FromPlantumlToSvg";
+
+        /// <summary>
+        /// PlantUML diagrams are not supported on GitHub
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
+
         public FromPlantumlToSvg(string ServerAddress,
                 ILogger<FromPlantumlToSvg> logger,
                 IUserSettingsDB session,

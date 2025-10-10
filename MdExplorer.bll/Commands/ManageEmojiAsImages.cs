@@ -14,8 +14,6 @@ namespace MdExplorer.Features.Commands
 {
     public class ManageEmojiAsImages : ICommand
     {
-
-
         private readonly ILogger<ManageEmojiAsImages> _logger;
         private readonly IHelper _helper;
 
@@ -28,6 +26,15 @@ namespace MdExplorer.Features.Commands
         public int Priority { get; set; } = 30;
         public string Name { get; set; } = "ManageEmojiAsImages";
         public bool Enabled { get; set; } = true;
+
+        /// <summary>
+        /// Emoji image management is an MdExplorer-specific feature, not compatible with GitHub mode
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
         public MatchCollection GetMatches(string markdown)
         {
             // ![alt text](Icons\plus.png "Title")

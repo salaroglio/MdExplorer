@@ -5,6 +5,7 @@ using MdExplorer.Features.Commands;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -27,6 +28,14 @@ namespace MdExplorer.Features.Commands.GitHub
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 20;
         public string Name { get; set; } = "FromPlantumlToPngGitHub";
+
+        /// <summary>
+        /// GitHub-specific PlantUML handling - only active in GitHub compatibility mode
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.GitHub
+        };
 
         public FromPlantumlToPngGitHub(
             ILogger<FromPlantumlToPngGitHub> logger,

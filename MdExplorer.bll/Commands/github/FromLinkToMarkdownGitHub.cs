@@ -1,6 +1,7 @@
 using MdExplorer.Abstractions.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Commands.GitHub
@@ -17,6 +18,14 @@ namespace MdExplorer.Features.Commands.GitHub
         public int Priority { get; set; } = 30;
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromLinkToMarkdownGitHub";
+
+        /// <summary>
+        /// GitHub-specific link handling - only active in GitHub compatibility mode
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.GitHub
+        };
 
         public FromLinkToMarkdownGitHub(ILogger<FromLinkToMarkdownGitHub> logger)
         {

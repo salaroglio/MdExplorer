@@ -38,6 +38,15 @@ namespace MdExplorer.Features.Commands
 
         public int Priority { get; set; } = 20;
         public string Name { get; set; } = "FromPlantumlToPng";
+
+        /// <summary>
+        /// PlantUML diagrams are not supported on GitHub
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
         public FromPlantumlToPng(string ServerAddress, 
                 ILogger<FromPlantumlToPng> logger,
                 IUserSettingsDB session,

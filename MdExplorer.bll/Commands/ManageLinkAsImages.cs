@@ -16,6 +16,7 @@ namespace MdExplorer.Features.Commands
         public int Priority { get; set; } = 5;
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "ManageLinkAsImages";
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => null; // Supports all modes
         private readonly ILogger<ManageLinkAsImages> _logger;
         private readonly IHelper _helper;
 
