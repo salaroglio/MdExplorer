@@ -65,7 +65,7 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
 - Se è necessario fare riferimento a codice, indicare solo il nome del file e la posizione, senza includerlo
 
 ### Naming Convention per Sprint e Documenti
-**IMPORTANTE: Seguire sempre queste regole per i file markdown nella cartella `/sprints` e simili**:
+**IMPORTANTE: Seguire sempre queste regole per i file markdown nelle cartelle sprint**:
 - **Formato nome file**: `Anno-mese-giorno-NomeDescrittivo.md` (es: `2025-08-21-Sprint-AI-RAG-Implementation.md`)
 - **Prefisso data sempre**: Utilizzare formato `YYYY-MM-DD` come prefisso per ordinamento cronologico
 - **Niente emoji nei nomi file**: Rimuovere emoji come 🚀, 🔄, etc. dai nomi dei file
@@ -74,6 +74,28 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
   - `2025-06-01-Sprint.md` con titolo `# Sprint`
   - `2025-08-10-Sprint-Chat-AI.md` con titolo `# Sprint Chat AI`
   - `2025-12-06-Git-Authentication-Refactoring.md` con titolo `# Git Authentication Refactoring`
+
+### Struttura Documentazione Sprint
+**IMPORTANTE: Dove scrivere gli sprint**:
+
+Il progetto ha DUE cartelle per gli sprint con scopi diversi:
+
+1. **`/sprints/`** (repository principale pubblico - MIT)
+   - Sprint tecnici pubblici
+   - Documentazione implementazioni tecniche
+   - Architetture e design patterns
+   - Esempi: Sprint RAG Implementation, Angular Migration, etc.
+
+2. **`docs-internal/Sprints/`** (submodule privato)
+   - Sprint strategici e commerciali
+   - Piani di business e monetizzazione
+   - Documentazione confidenziale
+   - Esempi: AI Premium Strategy, Pricing Models, etc.
+
+**Regola decisionale**:
+- Se lo sprint contiene informazioni sul business model, pricing, strategie commerciali → `docs-internal/Sprints/`
+- Se lo sprint è puramente tecnico e può essere pubblico → `/sprints/`
+- In caso di dubbio, chiedere all'utente
 
 ## Pattern di Debug tramite Log Strutturati
 
@@ -156,6 +178,69 @@ Il caso dei pulsanti backward/forward ha dimostrato l'efficacia di questo approc
 * NON inserire MAI riferimenti a Claude, Anthropic o AI nei messaggi di commit
 * NON usare "Co-Authored-By: Claude" o simili
 * I commit devono essere scritti come se fossero stati fatti da uno sviluppatore umano
+
+## Git Submodules Structure
+
+**IMPORTANTE**: Il progetto utilizza git submodules per organizzare componenti separati.
+
+### Submodule Esistenti
+
+1. **`docs-internal`** (privato)
+   - URL: `https://github.com/salaroglio/mdexplorer-internal-docs.git`
+   - Documentazione interna, sprints strategici, note confidenziali
+   - Contiene cartella `Sprints/` per sprint commerciali/strategici
+
+2. **`ElectronMdExplorer`** (pubblico)
+   - URL: `https://github.com/salaroglio/electron-mdexplorer.git`
+   - Applicazione desktop Electron
+   - Wrapper per la web app
+
+3. **`mdExplorerWebSite/mdExplorerWebSite`** (pubblico)
+   - URL: `https://github.com/salaroglio/mdexplorer-website.git`
+   - Sito web ufficiale mdexplorer.net
+   - Marketing e documentazione pubblica
+
+### Comandi Git Submodule Utili
+
+```bash
+# Clonare con tutti i submodule
+git clone --recurse-submodules https://github.com/salaroglio/mdExplorer.git
+
+# Inizializzare submodule dopo clone normale
+git submodule update --init --recursive
+
+# Aggiornare tutti i submodule alle ultime versioni
+git submodule update --remote
+
+# Aggiornare un singolo submodule
+git submodule update --remote docs-internal
+
+# Verificare stato submodule
+git submodule status
+```
+
+### Lavorare nei Submodule
+
+Quando si fanno modifiche in un submodule:
+1. Entrare nella directory del submodule
+2. Fare commit e push nel repository del submodule
+3. Tornare al repository principale
+4. Committare il nuovo riferimento del submodule
+
+```bash
+# Esempio con docs-internal
+cd docs-internal
+git checkout main
+# ... modifiche ...
+git add .
+git commit -m "docs: add new sprint documentation"
+git push
+
+cd ..
+git add docs-internal
+git commit -m "chore: update docs-internal submodule"
+git push
+```
 
 ## Architecture Overview
 

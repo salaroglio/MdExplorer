@@ -32,6 +32,8 @@ using MdExplorer.Services.Git;
 using System.Text;
 using MdExplorer.Features.Services;
 using MdExplorer.Service.Services;
+using MdExplorer.AI.Abstractions.Services;
+using System.Reflection;
 
 namespace MdExplorer
 {
@@ -64,13 +66,12 @@ namespace MdExplorer
 
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
-            
-            // Add AI services
+
+            // Add AI services - conditional loading based on Premium addon presence
             services.AddHttpClient();
-            services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
-            services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
-            services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
-            services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
+            ConfigureAiServices(services);
+
+            // Keep existing AI-related services (not part of Premium)
             services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
             services.AddScoped<Services.IGitCommitAiService, Services.GitCommitAiService>();
             
@@ -91,6 +92,59 @@ namespace MdExplorer
 
         }
 
+        /// <summary>
+        /// Configure AI services with conditional loading based on Premium addon presence
+        /// </summary>
+        private void ConfigureAiServices(IServiceCollection services)
+        {
+            var premiumAssemblyPath = Path.Combine(AppContext.BaseDirectory, "MdExplorer.AI.Premium.dll");
+
+            if (File.Exists(premiumAssemblyPath))
+            {
+                try
+                {
+                    // Load Premium assembly via reflection
+                    var premiumAssembly = Assembly.LoadFrom(premiumAssemblyPath);
+                    var serviceProviderType = premiumAssembly.GetType("MdExplorer.AI.Premium.DependencyInjection.ServiceCollectionExtensions");
+
+                    if (serviceProviderType != null)
+                    {
+                        var addPremiumServicesMethod = serviceProviderType.GetMethod(
+                            "AddAiPremiumServices",
+                            BindingFlags.Static | BindingFlags.Public,
+                            null,
+                            new[] { typeof(IServiceCollection) },
+                            null);
+
+                        if (addPremiumServicesMethod != null)
+                        {
+                            addPremiumServicesMethod.Invoke(null, new object[] { services });
+                            Console.WriteLine("✅ AI Premium addon detected - loading premium services");
+                            return;
+                        }
+                    }
+
+                    Console.WriteLine("⚠️  AI Premium DLL found but could not load services - falling back to stub");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️  Error loading AI Premium addon: {ex.Message} - falling back to stub");
+                }
+            }
+
+            // Fallback to stub implementations
+            Console.WriteLine("ℹ️  AI Premium addon not found - using stub implementation");
+
+            // Register stubs using the AI.Abstractions interfaces
+            services.AddSingleton<MdExplorer.AI.Abstractions.Services.IAiChatService, MdExplorer.AI.Stubs.Services.AiChatServiceStub>();
+            services.AddSingleton<MdExplorer.AI.Abstractions.Services.IModelDownloadService, MdExplorer.AI.Stubs.Services.ModelDownloadServiceStub>();
+
+            // Keep existing implementations using the old Features interfaces (temporary compatibility)
+            services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
+            services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
+            services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
+            services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
+        }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app,
