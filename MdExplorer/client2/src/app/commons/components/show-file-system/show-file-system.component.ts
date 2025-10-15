@@ -1,15 +1,16 @@
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
 import { FlatTreeControl } from '@angular/cdk/tree';
-import { Component, Inject, Injectable, OnInit, ViewChild } from '@angular/core';
+import { Component, Inject, Injectable, OnInit, ViewChild, HostListener, ElementRef } from '@angular/core';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { BehaviorSubject, merge, Observable, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NewDirectoryComponent } from '../new-directory/new-directory.component';
 import { IFileInfoNode } from '../../../md-explorer/models/IFileInfoNode';
 import { MdFile } from '../../../md-explorer/models/md-file';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
-import { ShowFileMetadata } from './show-file-metadata';
+import { ShowFileMetadata, BreadcrumbSegment, NewDirectoryDialogData } from './show-file-metadata';
 import { SpecialFolder, Drive, FileExplorerState } from './file-explorer.models';
 
 
@@ -193,6 +194,19 @@ export class ShowFileSystemComponent implements OnInit {
   private folderCache = new Map<string, { data: MdFile[], timestamp: number }>();
   private readonly CACHE_DURATION = 30000; // 30 seconds
 
+  // NEW: Breadcrumb navigation
+  public pathSegments: BreadcrumbSegment[] = [];
+
+  // NEW: Search filter tracking
+  private filterAppliedToPath: string = '';
+
+  // NEW: Context menu and hover tracking
+  public hoveredNode: MdFile | null = null;
+  public contextMenuNode: MdFile | null = null;
+
+  // NEW: ViewChild for filter input
+  @ViewChild('filterInput') filterInput: ElementRef;
+
   // Legacy properties (manteniamo per compatibilità)
   getLevel = (node: MdFile) => node.level;
   isExpandable = (node: MdFile) => node.expandable;
@@ -205,8 +219,9 @@ export class ShowFileSystemComponent implements OnInit {
     private database: DynamicDatabase,
     public dialog: MatDialog,
     private mdFileService: MdFileService,
-    private dialogRef: MatDialogRef<ShowFileSystemComponent>) {
-    
+    private dialogRef: MatDialogRef<ShowFileSystemComponent>,
+    private snackBar: MatSnackBar) {
+
     // Inizializza legacy tree control per compatibilità
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
     let start = this.baseStart.start == null ? 'root' : this.baseStart.start;
@@ -289,6 +304,12 @@ export class ShowFileSystemComponent implements OnInit {
   public navigateToFolder(path: string): void {
     if (!path || path === this.currentPath) return;
 
+    // NEW: Reset automatico del filtro quando si naviga
+    if (this.searchFilter && this.filterAppliedToPath !== path) {
+      this.searchFilter = '';
+      this.filterAppliedToPath = '';
+    }
+
     // Aggiungi il path corrente alla history
     if (this.currentPath) {
       this.navigationHistory.push(this.currentPath);
@@ -296,6 +317,7 @@ export class ShowFileSystemComponent implements OnInit {
 
     this.currentPath = path;
     this.displayPath = this.formatDisplayPath(path);
+    this.buildBreadcrumb(path); // NEW: Costruisci breadcrumb
     this.loadFolderContent(path);
   }
 
@@ -304,6 +326,7 @@ export class ShowFileSystemComponent implements OnInit {
       const previousPath = this.navigationHistory.pop()!;
       this.currentPath = previousPath;
       this.displayPath = this.formatDisplayPath(previousPath);
+      this.buildBreadcrumb(previousPath); // FIX: Aggiorna breadcrumb
       this.loadFolderContent(previousPath);
     }
   }
@@ -443,6 +466,14 @@ export class ShowFileSystemComponent implements OnInit {
   // Filter functionality
   public onFilterChange(event: any): void {
     this.searchFilter = event.target.value;
+
+    // NEW: Traccia il path dove è stato applicato il filtro
+    if (this.searchFilter && this.searchFilter.trim() !== '') {
+      this.filterAppliedToPath = this.currentPath;
+    } else {
+      this.filterAppliedToPath = '';
+    }
+
     this.applyFilter();
   }
 
@@ -520,6 +551,298 @@ export class ShowFileSystemComponent implements OnInit {
   public getItemAriaLabel(item: MdFile): string {
     const type = item.type === 'folder' ? 'folder' : 'file';
     return `${type} ${item.name}. ${item.type === 'folder' ? 'Double click to open' : 'Click to select'}`;
+  }
+
+  // ============================================
+  // NEW METHODS FOR UX IMPROVEMENTS
+  // ============================================
+
+  /**
+   * Costruisce il breadcrumb path cliccabile
+   * Cross-platform: gestisce sia / che \ come separatori
+   */
+  private buildBreadcrumb(path: string): void {
+    this.pathSegments = [];
+
+    if (!path) return;
+
+    // Normalizza i separatori per la gestione cross-platform
+    const normalizedPath = path.replace(/\\/g, '/');
+
+    // Trova special folder come primo elemento
+    const specialFolder = this.specialFolders.find(f => {
+      const normalizedFolderPath = f.path.replace(/\\/g, '/');
+      return normalizedPath.startsWith(normalizedFolderPath) || normalizedPath === normalizedFolderPath;
+    });
+
+    if (specialFolder) {
+      this.pathSegments.push({
+        name: specialFolder.name,
+        fullPath: specialFolder.path,
+        icon: specialFolder.icon
+      });
+
+      // Aggiungi sottocartelle relative
+      const normalizedSpecialPath = specialFolder.path.replace(/\\/g, '/');
+      let relativePath = normalizedPath.substring(normalizedSpecialPath.length);
+
+      // Rimuovi il separatore iniziale se presente
+      if (relativePath.startsWith('/')) {
+        relativePath = relativePath.substring(1);
+      }
+
+      if (relativePath) {
+        const parts = relativePath.split('/').filter(p => p);
+        let currentPath = specialFolder.path;
+
+        parts.forEach(part => {
+          // Usa il separatore del sistema operativo originale
+          const separator = specialFolder.path.includes('\\') ? '\\' : '/';
+          currentPath = `${currentPath}${separator}${part}`;
+          this.pathSegments.push({
+            name: part,
+            fullPath: currentPath
+          });
+        });
+      }
+    } else {
+      // Fallback per path normali (senza special folder)
+      const parts = normalizedPath.split('/').filter(p => p);
+      let currentPath = '';
+
+      parts.forEach((part, index) => {
+        if (index === 0) {
+          // Prima parte (es: C:, D:, /home, etc.)
+          currentPath = part;
+          // Ripristina \ se era nel path originale
+          if (path.includes('\\')) {
+            currentPath = part;
+          }
+        } else {
+          // Usa il separatore appropriato
+          const separator = path.includes('\\') ? '\\' : '/';
+          currentPath = `${currentPath}${separator}${part}`;
+        }
+
+        this.pathSegments.push({
+          name: part,
+          fullPath: currentPath
+        });
+      });
+    }
+  }
+
+  /**
+   * Naviga a un segmento specifico del breadcrumb
+   */
+  public navigateToBreadcrumb(segment: BreadcrumbSegment): void {
+    this.navigateToFolder(segment.fullPath);
+  }
+
+  /**
+   * Copia il path corrente negli appunti
+   */
+  public async copyPathToClipboard(path?: string): Promise<void> {
+    const pathToCopy = path || this.currentPath;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(pathToCopy);
+        this.showSuccessNotification('Path copied to clipboard');
+      } else {
+        // Fallback per ambienti non sicuri
+        this.fallbackCopyToClipboard(pathToCopy);
+        this.showSuccessNotification('Path copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Failed to copy path:', error);
+      this.snackBar.open('Failed to copy path', 'Close', { duration: 3000 });
+    }
+  }
+
+  /**
+   * Fallback per copia negli appunti (cross-browser compatibility)
+   */
+  private fallbackCopyToClipboard(text: string): void {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+    } catch (error) {
+      console.error('Fallback copy failed:', error);
+    }
+
+    document.body.removeChild(textArea);
+  }
+
+  /**
+   * Getter per verificare se il filtro è attivo
+   */
+  public get isFilterActive(): boolean {
+    return !!(this.searchFilter && this.searchFilter.trim() !== '');
+  }
+
+  /**
+   * Pulisce il filtro di ricerca
+   */
+  public clearFilter(): void {
+    this.searchFilter = '';
+    this.filterAppliedToPath = '';
+    this.applyFilter();
+  }
+
+  /**
+   * Aggiorna createDirectoryOn con contesto migliorato
+   */
+  public createDirectoryOnImproved(node: MdFile | null): void {
+    if (node == null) {
+      node = new MdFile("root", "root", 0, false);
+      node.fullPath = this.currentPath || "root";
+    }
+
+    // Prepara i dati con contesto completo
+    const dialogData: NewDirectoryDialogData = {
+      parentNode: node,
+      parentPath: node.fullPath || node.path,
+      parentName: node.name,
+      isRoot: node.name === "root",
+      currentPath: this.currentPath
+    };
+
+    const dialogRef = this.dialog.open(NewDirectoryComponent, {
+      width: '500px',
+      data: dialogData,
+      disableClose: false,
+      autoFocus: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Refresh node nel tree view legacy
+        this.dataSource.refreshNode(node);
+
+        // Refresh anche la vista corrente
+        this.refreshCurrentFolder();
+
+        // Mostra notifica di successo
+        this.showSuccessNotification(`Folder "${result.name}" created successfully`);
+      }
+    });
+  }
+
+  /**
+   * Cleanup quando il context menu si chiude
+   */
+  public onMenuClosed(): void {
+    setTimeout(() => {
+      this.contextMenuNode = null;
+    }, 200);
+  }
+
+  /**
+   * Aggiorna l'onRightClick con tracking del context menu
+   */
+  public onRightClickImproved(event: MouseEvent, item: MdFile | null): void {
+    event.preventDefault();
+
+    // Normalizza item per root
+    if (item == null) {
+      item = new MdFile("root", "root", 0, false);
+      item.fullPath = this.currentPath || "root";
+    }
+
+    this.contextMenuNode = item;
+
+    // Posiziona menu
+    this.menuTopLeftPosition.x = event.clientX;
+    this.menuTopLeftPosition.y = event.clientY;
+
+    this.matMenuTrigger.menuData = { item: item };
+    this.matMenuTrigger.openMenu();
+  }
+
+  /**
+   * Refresh della cartella corrente (invalida cache)
+   */
+  public refreshCurrentFolder(): void {
+    this.folderCache.delete(this.currentPath);
+    this.loadFolderContent(this.currentPath);
+  }
+
+  /**
+   * Refresh di una cartella specifica
+   */
+  public refreshFolder(item: MdFile): void {
+    const pathToRefresh = item.fullPath || item.path;
+    this.folderCache.delete(pathToRefresh);
+
+    if (pathToRefresh === this.currentPath) {
+      this.loadFolderContent(pathToRefresh);
+    }
+  }
+
+  /**
+   * Mostra notifica di successo
+   */
+  private showSuccessNotification(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 3000,
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom',
+      panelClass: ['success-snackbar']
+    });
+  }
+
+  /**
+   * Focus sull'input del filtro
+   */
+  private focusFilter(): void {
+    if (this.filterInput && this.filterInput.nativeElement) {
+      this.filterInput.nativeElement.focus();
+    }
+  }
+
+  /**
+   * Keyboard shortcuts handler
+   * Cross-platform: usa Ctrl su Windows/Linux, Cmd su Mac
+   */
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    // Ctrl/Cmd + F: Focus sul filtro
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+      event.preventDefault();
+      this.focusFilter();
+    }
+
+    // Ctrl/Cmd + N: Nuova cartella nella cartella corrente
+    if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+      event.preventDefault();
+      this.createDirectoryOnImproved(null);
+    }
+
+    // Escape: Clear filter
+    if (event.key === 'Escape' && this.isFilterActive) {
+      event.preventDefault();
+      this.clearFilter();
+    }
+
+    // Alt + Up: Navigate up
+    if (event.altKey && event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.navigateUp();
+    }
+
+    // F5: Refresh
+    if (event.key === 'F5') {
+      event.preventDefault();
+      this.refreshCurrentFolder();
+    }
   }
 
 }

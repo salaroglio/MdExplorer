@@ -1,19 +1,48 @@
-<!-- Context menu (manteniamo quello esistente) -->
+<!-- Context menu migliorato -->
 <div style="visibility: hidden; position: fixed;"
      [style.left.px]="menuTopLeftPosition.x"
      [style.top.px]="menuTopLeftPosition.y"
-     [matMenuTriggerFor]="rightMenu"></div>
+     [matMenuTriggerFor]="rightMenu"
+     (menuClosed)="onMenuClosed()"></div>
 
-<mat-menu #rightMenu="matMenu">
+<mat-menu #rightMenu="matMenu" class="context-menu">
   <ng-template matMenuContent let-item="item">
-    <div>
-      <button mat-icon-button matTooltip="create new folder" color="primary" (click)="createDirectoryOn(item)">
-        <mat-icon>create_new_folder</mat-icon>
-      </button>
+    <!-- Header del menu con contesto -->
+    <div class="context-menu-header">
+      <mat-icon class="context-menu-icon">
+        {{item.type === 'folder' ? 'folder' : 'insert_drive_file'}}
+      </mat-icon>
+      <div class="context-menu-info">
+        <div class="context-menu-name">{{item.name}}</div>
+        <div class="context-menu-path">{{item.fullPath || item.path}}</div>
+      </div>
     </div>
+
+    <mat-divider></mat-divider>
+
+    <!-- Azioni -->
+    <button mat-menu-item (click)="createDirectoryOnImproved(item)">
+      <mat-icon color="primary">create_new_folder</mat-icon>
+      <span>New folder here</span>
+      <span class="menu-hint">Create as child of "{{item.name}}"</span>
+    </button>
+
     <button mat-menu-item (click)="openFolderOn(item)">
       <mat-icon>folder_open</mat-icon>
-      <span><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></span>
+      <span>Open in File Explorer</span>
+    </button>
+
+    <mat-divider></mat-divider>
+
+    <!-- Azioni aggiuntive -->
+    <button mat-menu-item (click)="refreshFolder(item)">
+      <mat-icon>refresh</mat-icon>
+      <span>Refresh</span>
+    </button>
+
+    <button mat-menu-item (click)="copyPathToClipboard(item.fullPath || item.path)">
+      <mat-icon>content_copy</mat-icon>
+      <span>Copy path</span>
     </button>
   </ng-template>
 </mat-menu>
@@ -25,12 +54,37 @@
     <div class="filter-section">
       <mat-form-field appearance="outline" class="filter-input">
         <mat-label>Filter files</mat-label>
-        <input matInput 
-               placeholder="Type to filter..." 
-               [(ngModel)]="searchFilter" 
+        <input matInput
+               #filterInput
+               placeholder="Type to filter..."
+               [(ngModel)]="searchFilter"
                (input)="onFilterChange($event)">
-        <mat-icon matSuffix>search</mat-icon>
+
+        <!-- Badge per numero risultati -->
+        <span matPrefix *ngIf="isFilterActive" class="filter-badge">
+          {{filteredItems.length}}
+        </span>
+
+        <!-- Icona dinamica -->
+        <mat-icon matSuffix *ngIf="!isFilterActive">search</mat-icon>
+        <button mat-icon-button
+                matSuffix
+                *ngIf="isFilterActive"
+                (click)="clearFilter()"
+                matTooltip="Clear filter"
+                class="clear-filter-button">
+          <mat-icon>close</mat-icon>
+        </button>
       </mat-form-field>
+
+      <!-- Chip per indicare filtro attivo -->
+      <mat-chip-list *ngIf="isFilterActive" class="filter-chip-list">
+        <mat-chip color="primary" selected removable (removed)="clearFilter()">
+          <mat-icon matChipAvatar>filter_alt</mat-icon>
+          Filter: "{{searchFilter}}"
+          <mat-icon matChipRemove>cancel</mat-icon>
+        </mat-chip>
+      </mat-chip-list>
     </div>
   </div>
   
@@ -97,15 +151,38 @@
     
     <!-- Colonna destra: Contenuto -->
     <div class="right-panel">
-      <!-- Breadcrumb -->
+      <!-- Breadcrumb ottimizzato -->
       <div class="breadcrumb">
-        <button mat-icon-button 
-                (click)="navigateUp()" 
+        <button mat-icon-button
+                (click)="navigateUp()"
                 [disabled]="navigationHistory.length === 0"
-                matTooltip="Go back">
+                matTooltip="Go back"
+                class="breadcrumb-back">
           <mat-icon>arrow_back</mat-icon>
         </button>
-        <span class="current-path">{{displayPath}}</span>
+
+        <div class="breadcrumb-path">
+          <ng-container *ngFor="let segment of pathSegments; let i = index; let last = last">
+            <button mat-button
+                    class="breadcrumb-segment"
+                    [class.current]="last"
+                    (click)="navigateToBreadcrumb(segment)"
+                    [disabled]="last">
+              <mat-icon *ngIf="segment.icon && i === 0" class="breadcrumb-icon">{{segment.icon}}</mat-icon>
+              <span>{{segment.name}}</span>
+            </button>
+            <mat-icon class="breadcrumb-separator" *ngIf="!last">chevron_right</mat-icon>
+          </ng-container>
+        </div>
+
+        <!-- Pulsante per creare folder -->
+        <button mat-icon-button
+                (click)="createDirectoryOnImproved(null)"
+                matTooltip="New folder (Ctrl+N)"
+                color="primary"
+                class="breadcrumb-action">
+          <mat-icon>create_new_folder</mat-icon>
+        </button>
       </div>
       
       <!-- Loading indicator -->
@@ -115,19 +192,23 @@
       </div>
       
       <!-- File/Folder list -->
-      <div class="content-list" 
-           *ngIf="!isLoading" 
-           (contextmenu)="onRightClick($event, null)"
+      <div class="content-list"
+           *ngIf="!isLoading"
+           (contextmenu)="onRightClickImproved($event, null)"
            role="grid"
            aria-label="Folder contents">
-        <div class="content-item" 
+        <div class="content-item"
              *ngFor="let item of filteredItems; trackBy: trackByItem"
              (click)="onItemClick(item)"
              (dblclick)="onItemDoubleClick(item)"
+             (mouseenter)="hoveredNode = item"
+             (mouseleave)="hoveredNode = null"
              (keydown.enter)="onItemDoubleClick(item)"
              (keydown.space)="onItemClick(item)"
-             (contextmenu)="onRightClick($event, item)"
+             (contextmenu)="onRightClickImproved($event, item)"
              [class.selected]="activeNode === item"
+             [class.context-menu-active]="contextMenuNode === item"
+             [class.hovered]="hoveredNode === item"
              [class.not-selectable]="!isItemSelectable(item)"
              tabindex="0"
              role="gridcell"
@@ -137,7 +218,7 @@
           </mat-icon>
           <span class="item-name">{{item.name}}</span>
         </div>
-        
+
         <!-- Empty state -->
         <div class="empty-state" *ngIf="filteredItems.length === 0 && !isLoading">
           <mat-icon>{{searchFilter ? 'search_off' : 'folder_open'}}</mat-icon>

@@ -917,16 +917,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     }
                 }
 
-                // Project folder
-                if (Directory.Exists(_fileSystemWatcher.Path))
-                {
-                    folders.Add(new { 
-                        name = "Project", 
-                        path = _fileSystemWatcher.Path,
-                        icon = "work"
-                    });
-                }
-
                 return Ok(folders);
             }
             catch (Exception ex)
