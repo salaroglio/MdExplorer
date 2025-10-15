@@ -20,6 +20,15 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromEmojiToPng";
 
+        /// <summary>
+        /// Emoji-to-PNG conversion is not compatible with GitHub mode
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
+
         public FromEmojiToPng(ILogger<FromEmojiToPng> logger, IServerCache serverCache)
         {
             _logger = logger;

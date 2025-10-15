@@ -1,4 +1,6 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using MdExplorer.Features.Configuration;
+using MdExplorer.Features.Interfaces;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +11,10 @@ namespace MdExplorer.Features.Commands
 {
     public class CommandRunnerPdf : CommandRunner, ICommandRunnerPdf
     {
-        public CommandRunnerPdf(ICommandPdf[] commands): base(commands)
+        public CommandRunnerPdf(
+            ICommandPdf[] commands,
+            ICompatibilityModeService compatibilityService,
+            ILogger<CommandRunner> logger) : base(commands, compatibilityService, logger)
         {
 
         }

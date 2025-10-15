@@ -12,6 +12,16 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 10;
         public string Name { get; set; } = "MDShowH1";
+
+        /// <summary>
+        /// MDShowH2 is an MdExplorer-specific interactive feature not supported in GitHub mode
+        /// </summary>
+        public override List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
+
         public MDShowH2(string ServerAddress, ILogger<MDShowH2> logger)
         {
             _serverAddress = ServerAddress;

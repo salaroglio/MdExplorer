@@ -1,65 +1,140 @@
-<h2 mat-dialog-title>Branch Info {{ data.projectName ? '- ' + data.projectName : '' }}</h2>
+<h2 mat-dialog-title>
+  <mat-icon class="dialog-icon">account_tree</mat-icon>
+  Branch Manager {{ data.projectName ? '- ' + data.projectName : '' }}
+</h2>
 
-<mat-dialog-content>
-  <!-- Loading spinner -->
+<mat-dialog-content class="branch-dialog-content">
+  <!-- Current Branch Summary -->
+  <mat-card class="current-branch-card" *ngIf="currentBranch && !isLoading">
+    <mat-card-content>
+      <div class="current-branch-header">
+        <mat-icon color="primary">check_circle</mat-icon>
+        <div class="branch-details">
+          <span class="current-label">Branch corrente:</span>
+          <span class="current-branch-name">{{ currentBranch.name }}</span>
+        </div>
+      </div>
+
+      <div class="branch-stats" *ngIf="currentBranch.somethingIsChangedInTheBranch || currentBranch.howManyCommitAreToPush > 0">
+        <mat-chip-list>
+          <mat-chip *ngIf="currentBranch.somethingIsChangedInTheBranch" color="warn" selected>
+            <mat-icon>edit</mat-icon>
+            {{ currentBranch.howManyFilesAreChanged }} file modificati
+          </mat-chip>
+          <mat-chip *ngIf="currentBranch.howManyCommitAreToPush > 0" color="accent" selected>
+            <mat-icon>upload</mat-icon>
+            {{ currentBranch.howManyCommitAreToPush }} commit da pushare
+          </mat-chip>
+        </mat-chip-list>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Search Bar -->
+  <mat-form-field class="search-field" appearance="outline" *ngIf="!isLoading">
+    <mat-label>Cerca branch</mat-label>
+    <input
+      matInput
+      [(ngModel)]="searchTerm"
+      (input)="filterBranches()"
+      placeholder="Nome del branch..."
+      autocomplete="off">
+    <mat-icon matPrefix>search</mat-icon>
+    <button mat-icon-button matSuffix *ngIf="searchTerm" (click)="searchTerm=''; filterBranches()" aria-label="Clear">
+      <mat-icon>close</mat-icon>
+    </button>
+  </mat-form-field>
+
+  <!-- Loading State -->
   <div *ngIf="isLoading" class="loading-container">
-    <mat-spinner></mat-spinner>
-    <p>Caricamento informazioni branch...</p>
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Caricamento branch...</p>
   </div>
 
-  <!-- Error message -->
-  <div *ngIf="error && !isLoading" class="error-container">
-    <mat-icon color="warn">error</mat-icon>
-    <p>{{ error }}</p>
+  <!-- Error State -->
+  <mat-card *ngIf="error && !isLoading" class="error-card">
+    <mat-card-content>
+      <mat-icon color="warn">error</mat-icon>
+      <p>{{ error }}</p>
+      <button mat-raised-button color="primary" (click)="loadBranches()">
+        <mat-icon>refresh</mat-icon>
+        Riprova
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Branch List -->
+  <div class="branch-list-container" *ngIf="!isLoading && !error">
+    <div class="branch-count">
+      {{ filteredBranches.length }} branch trovati
+    </div>
+
+    <mat-list class="branch-list">
+      <mat-list-item
+        *ngFor="let branch of filteredBranches"
+        class="branch-item"
+        [class.current]="branch.isCurrentBranch"
+        [class.remote]="branch.isRemote"
+        [class.local]="!branch.isRemote"
+        [class.disabled]="isSwitching"
+        (click)="switchToBranch(branch)">
+
+        <mat-icon matListIcon [color]="branch.isCurrentBranch ? 'primary' : ''">
+          {{ branch.isCurrentBranch ? 'check_circle' : (branch.isRemote ? 'cloud' : 'computer') }}
+        </mat-icon>
+
+        <div matLine class="branch-name-line">
+          <span class="branch-name">{{ branch.name }}</span>
+          <span class="branch-badge current-badge" *ngIf="branch.isCurrentBranch">CORRENTE</span>
+          <span class="branch-badge remote-badge" *ngIf="branch.isRemote">REMOTO</span>
+        </div>
+
+        <div matLine class="branch-info-line" *ngIf="branch.upstreamBranch || branch.ahead || branch.behind">
+          <span class="upstream-info" *ngIf="branch.upstreamBranch">
+            <mat-icon class="small-icon">link</mat-icon>
+            {{ branch.upstreamBranch }}
+          </span>
+          <span class="sync-info" *ngIf="branch.ahead">
+            <mat-icon class="small-icon">arrow_upward</mat-icon>
+            {{ branch.ahead }} ahead
+          </span>
+          <span class="sync-info" *ngIf="branch.behind">
+            <mat-icon class="small-icon">arrow_downward</mat-icon>
+            {{ branch.behind }} behind
+          </span>
+        </div>
+
+        <button
+          mat-icon-button
+          *ngIf="!branch.isCurrentBranch"
+          class="switch-button"
+          [disabled]="isSwitching"
+          (click)="switchToBranch(branch); $event.stopPropagation()">
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </mat-list-item>
+    </mat-list>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredBranches.length === 0" class="empty-state">
+      <mat-icon>search_off</mat-icon>
+      <p>Nessun branch trovato</p>
+      <button mat-button (click)="searchTerm=''; filterBranches()" *ngIf="searchTerm">
+        Cancella ricerca
+      </button>
+    </div>
   </div>
 
-  <!-- Branch information -->
-  <div *ngIf="!isLoading && !error && currentBranch" class="branch-info">
-    <div class="info-row">
-      <mat-icon>branch</mat-icon>
-      <div class="info-content">
-        <label>Branch corrente:</label>
-        <span class="branch-name">{{ currentBranch.name }}</span>
-      </div>
-    </div>
-
-    <div class="info-row" *ngIf="currentBranch.somethingIsChangedInTheBranch">
-      <mat-icon color="warn">edit</mat-icon>
-      <div class="info-content">
-        <label>File modificati:</label>
-        <span>{{ currentBranch.howManyFilesAreChanged }}</span>
-      </div>
-    </div>
-
-    <div class="info-row" *ngIf="currentBranch.howManyCommitAreToPush > 0">
-      <mat-icon color="primary">upload</mat-icon>
-      <div class="info-content">
-        <label>Commit da pushare:</label>
-        <span>{{ currentBranch.howManyCommitAreToPush }}</span>
-      </div>
-    </div>
-
-    <div class="info-row">
-      <mat-icon>folder</mat-icon>
-      <div class="info-content">
-        <label>Percorso:</label>
-        <span class="path">{{ currentBranch.fullPath }}</span>
-      </div>
-    </div>
-
-    <div class="status-summary">
-      <mat-chip-list>
-        <mat-chip [color]="currentBranch.somethingIsChangedInTheBranch ? 'warn' : 'primary'" selected>
-          {{ currentBranch.somethingIsChangedInTheBranch ? 'Modifiche locali presenti' : 'Nessuna modifica locale' }}
-        </mat-chip>
-        <mat-chip *ngIf="currentBranch.howManyCommitAreToPush > 0" color="accent" selected>
-          {{ currentBranch.howManyCommitAreToPush }} commit da pushare
-        </mat-chip>
-      </mat-chip-list>
-    </div>
+  <!-- Switching Overlay -->
+  <div class="switching-overlay" *ngIf="isSwitching">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Cambio branch in corso...</p>
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="onClose()">Chiudi</button>
+  <button mat-button (click)="onClose()" [disabled]="isSwitching">
+    <mat-icon>close</mat-icon>
+    Chiudi
+  </button>
 </mat-dialog-actions>

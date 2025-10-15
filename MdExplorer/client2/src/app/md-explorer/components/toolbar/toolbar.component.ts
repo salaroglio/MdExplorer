@@ -21,6 +21,7 @@ import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-messag
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteDialogComponent } from '../../../git/dialogs/git-setup-remote-dialog/git-setup-remote-dialog.component';
+import { GitAccountManagementDialogComponent } from '../../../git/dialogs/git-account-management-dialog/git-account-management-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
@@ -238,30 +239,52 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.gitservice.checkRemoteStatus(projectPath).subscribe(
       remoteStatus => {
         console.log('Remote status:', remoteStatus);
-        this.hasRemoteConfigured = remoteStatus.hasRemote;
+
+        // Remote is considered configured if it exists AND authentication works
+        // This allows the system to recognize when Git is already set up and working
+        this.hasRemoteConfigured = remoteStatus.hasRemote && remoteStatus.canAuthenticate;
         this.currentRemoteUrl = remoteStatus.remoteUrl || '';
 
-        // If Git repository exists, proceed with normal checks
-        if (remoteStatus.isGitRepository) {
-          // Get both branch status and pull/push data using modern Git service
-          forkJoin([
-            this.gitservice.modernGetBranchStatus(projectPath),
-            this.gitservice.modernGetDataToPull(projectPath)
-          ]).subscribe(
-            ([branch, pullData]) => {
-              // Update observables with the received data
-              this.gitservice.currentBranch$.next(branch);
-              this.gitservice.commmitsToPull$.next(pullData);
-              this.isCheckingConnection = false;
-            },
-            error => {
-              console.error('Error checking Git connection:', error);
-              this.isCheckingConnection = false;
-              this.connectionIsActive = false;
-            }
-          );
+        // Log authentication status for debugging
+        if (remoteStatus.hasRemote && !remoteStatus.canAuthenticate) {
+          console.warn('Remote is configured but authentication failed. You may need to set up credentials.');
+          this.isCheckingConnection = false;
+          this.connectionIsActive = false;
+        } else if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
+          console.log('✅ Remote configured and authentication successful using:', remoteStatus.authenticationMethod);
+          console.log('🔑 Credentials are now cached - subsequent calls will not require authentication');
+
+          // Authentication successful - credentials are now cached
+          // Now fetch Git data (will use cached credentials, no auth request)
+          if (remoteStatus.isGitRepository) {
+            forkJoin([
+              this.gitservice.modernGetBranchStatus(projectPath),
+              this.gitservice.modernGetDataToPull(projectPath)
+            ]).subscribe(
+              ([branch, pullData]) => {
+                console.log('📊 Git data retrieved using cached credentials');
+                // Update observables with the received data
+                this.gitservice.currentBranch$.next(branch);
+                this.gitservice.commmitsToPull$.next(pullData);
+                this.isCheckingConnection = false;
+              },
+              error => {
+                console.error('Error fetching Git data:', error);
+                this.isCheckingConnection = false;
+                this.connectionIsActive = false;
+              }
+            );
+          } else {
+            this.isCheckingConnection = false;
+            this.connectionIsActive = false;
+          }
+        } else if (remoteStatus.isGitRepository && !remoteStatus.hasRemote) {
+          // Git repository exists but no remote configured
+          console.log('Git repository without remote');
+          this.isCheckingConnection = false;
+          this.connectionIsActive = true;
         } else {
-          // Not a Git repository, hide all Git-related UI
+          // Not a Git repository
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
           this.hasRemoteConfigured = true; // Hide setup menu if not Git repo
@@ -675,45 +698,23 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
 
-    // Show confirmation using snackbar with action
-    const snackBarRef = this._snackBar.open(
-      'Vuoi rimuovere il remote Git configurato?',
-      'RIMUOVI',
-      {
-        duration: 10000,
-        verticalPosition: 'top',
-        horizontalPosition: 'center'
-      }
-    );
+    const currentProject = this.projectService.currentProjects$.value;
+    const projectName = currentProject?.name || 'Current Project';
 
-    snackBarRef.onAction().subscribe(() => {
-      // User confirmed, remove the remote
-      this.gitservice.removeRemote(projectPath).subscribe({
-        next: (response) => {
-          if (response.success) {
-            this._snackBar.open('Remote rimosso con successo', 'OK', {
-              duration: 3000,
-              verticalPosition: 'top'
-            });
-            // Refresh the remote status
-            this.checkConnection();
-          } else {
-            this._snackBar.open(`Errore: ${response.error}`, 'OK', {
-              duration: 5000,
-              verticalPosition: 'top',
-              panelClass: ['error-snackbar']
-            });
-          }
-        },
-        error: (err) => {
-          console.error('Error removing remote:', err);
-          this._snackBar.open('Errore nella rimozione del remote', 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      });
+    const dialogRef = this.dialog.open(GitAccountManagementDialogComponent, {
+      width: '600px',
+      data: {
+        repositoryPath: projectPath,
+        repositoryName: projectName
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(accountConfigured => {
+      if (accountConfigured === true) {
+        // Account was successfully configured or updated
+        this.checkConnection();
+      }
+      console.log('Git account management dialog closed');
     });
 
     this.matMenuTrigger.closeMenu();

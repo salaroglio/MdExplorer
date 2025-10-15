@@ -5,23 +5,25 @@
     <span class="app-version">v{{ version }}</span>
   </div>
   
-  <div class="navigation-controls" *ngIf="isSidenavOpen">
-    <button mat-icon-button 
+  <div class="navigation-controls" *ngIf="isSidenavOpen && isProjectOpened">
+    <button mat-icon-button
             (click)="backward()"
             [disabled]="navService.navigationGhost.length <= 1"
             class="nav-button">
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <button mat-icon-button 
+    <button mat-icon-button
             (click)="forward()"
             [disabled]="navService.navigation.length == navService.navigationGhost.length"
             class="nav-button">
       <mat-icon>arrow_forward</mat-icon>
     </button>
   </div>
-  
-  <app-search-box></app-search-box>
-  
+
+  <app-search-box *ngIf="isProjectOpened"></app-search-box>
+
+  <app-compatibility-mode-badge *ngIf="isProjectOpened"></app-compatibility-mode-badge>
+
   <div class="drag-region"></div>
   
   <div class="window-controls" *ngIf="isElectron">

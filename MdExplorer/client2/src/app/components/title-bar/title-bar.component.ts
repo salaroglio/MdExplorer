@@ -14,6 +14,7 @@ export class TitleBarComponent implements OnInit {
   isElectron = false;
   version = versionInfo.version;
   isSidenavOpen = true;
+  isProjectOpened = false;
 
   constructor(
     public navService: MdNavigationService,
@@ -30,6 +31,14 @@ export class TitleBarComponent implements OnInit {
     this.layoutService.sidenavOpen$.subscribe(isOpen => {
       this.isSidenavOpen = isOpen;
     });
+
+    // Subscribe to route changes to detect if we're in a project
+    this.router.events.subscribe(() => {
+      this.isProjectOpened = this.router.url.startsWith('/main');
+    });
+
+    // Initialize on first load
+    this.isProjectOpened = this.router.url.startsWith('/main');
   }
 
   backward(): void {

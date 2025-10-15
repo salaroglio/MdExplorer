@@ -3,7 +3,7 @@ import { FormControl } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { SearchService } from '../../services/search.service';
-import { SearchResult, FileSearchResult, LinkSearchResult } from '../../Models/search.models';
+import { SearchResult, FileSearchResult, LinkSearchResult } from '../../models/search.models';
 import { Router } from '@angular/router';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../md-explorer/services/projects.service';

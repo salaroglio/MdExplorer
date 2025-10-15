@@ -391,6 +391,9 @@ FodyWeavers.xsd
 /.md/
 /.claude
 
+# Image collection folder
+/mdImages/
+
 # Database files
 *.db
 *.sqlite

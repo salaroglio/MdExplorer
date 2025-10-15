@@ -170,6 +170,13 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="remoteName">Name of the remote to remove (default: origin)</param>
         /// <returns>Result of the remove remote operation</returns>
         Task<GitOperationResult> RemoveRemoteAsync(string repositoryPath, string remoteName = "origin");
+
+        /// <summary>
+        /// Clears all cached credentials for a specific repository
+        /// Useful when changing credentials for a project
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        void ClearProjectCache(string repositoryPath);
     }
 
     /// <summary>
@@ -288,6 +295,16 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Error message if any
         /// </summary>
         public string ErrorMessage { get; set; }
+
+        /// <summary>
+        /// Whether authentication to the remote works (credentials are valid)
+        /// </summary>
+        public bool CanAuthenticate { get; set; }
+
+        /// <summary>
+        /// Authentication method that was used successfully (SSH, Token, System, etc.)
+        /// </summary>
+        public string AuthenticationMethod { get; set; }
     }
 
     /// <summary>

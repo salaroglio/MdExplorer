@@ -157,13 +157,52 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     logger?.LogInformation($"✅ Git repository initialized for project: {request.Path}");
                 }
-                
-                return Ok(new { 
-                    id = project.Id, 
-                    name = project.Name, 
-                    path = project.Path, 
+
+                // Leggi la compatibility mode dal file .development.yml
+                string compatibilityMode = "mdexplorer"; // default
+                var devConfigPath = System.IO.Path.Combine(request.Path, ".development.yml");
+                if (System.IO.File.Exists(devConfigPath))
+                {
+                    try
+                    {
+                        var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+                        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+                            .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
+                            .Build();
+                        var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(yamlContent);
+
+                        if (fullConfig != null && fullConfig.ContainsKey("compatibility"))
+                        {
+                            var compatibilityYaml = new YamlDotNet.Serialization.SerializerBuilder()
+                                .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
+                                .Build()
+                                .Serialize(fullConfig["compatibility"]);
+                            var compatConfig = deserializer.Deserialize<MdExplorer.Features.Configuration.Models.CompatibilityConfig>(compatibilityYaml);
+                            compatibilityMode = compatConfig.Mode ?? "mdexplorer";
+                            logger?.LogInformation($"📖 Loaded compatibility mode from .development.yml: {compatibilityMode}");
+                        }
+                        else
+                        {
+                            logger?.LogInformation($"📖 No compatibility section in .development.yml, using default: {compatibilityMode}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Could not read compatibility mode from .development.yml, using default");
+                    }
+                }
+                else
+                {
+                    logger?.LogInformation($"📖 No .development.yml file found at {devConfigPath}, using default mode: {compatibilityMode}");
+                }
+
+                return Ok(new {
+                    id = project.Id,
+                    name = project.Name,
+                    path = project.Path,
                     sidenavWidth = project.SidenavWidth,
-                    gitInitialized = gitInitialized
+                    gitInitialized = gitInitialized,
+                    compatibilityMode = compatibilityMode
                 });
             }
             catch (Exception ex)

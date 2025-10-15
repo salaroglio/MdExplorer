@@ -18,22 +18,31 @@ namespace MdExplorer.Services.Git
         /// <returns>The service collection for chaining</returns>
         public static IServiceCollection AddModernGitServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Register core Git service
+            // Register core Git service as SCOPED (not Singleton due to dependencies on scoped services)
+            // The credential cache is managed internally with a static/shared cache
             services.AddScoped<IModernGitService, ModernGitService>();
 
             // Register GitHub service for repository management
             services.AddScoped<IGitHubService, GitHubService>();
 
+            // Register Git account management service
+            services.AddScoped<IGitAccountService, GitAccountService>();
+
             // Register SSH key manager
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
-            
-            // Register credential resolvers in priority order
+
+            // Register credential resolvers as SCOPED (they depend on scoped services like IUserSettingsDB)
+            // Repository-specific resolver has highest priority for multi-account support
+            services.AddScoped<ICredentialResolver, RepositorySpecificCredentialResolver>();
             services.AddScoped<ICredentialResolver, SSHKeyCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
-            
+
             // Add platform-specific credential stores
             AddPlatformSpecificServices(services);
+
+            // System credential resolver - lowest priority fallback (delegates to OS/Git)
+            services.AddScoped<ICredentialResolver, SystemCredentialResolver>();
             
             // Configure options from appsettings.json
             services.Configure<GitAuthenticationOptions>(configuration.GetSection("Git:Authentication"));
@@ -48,21 +57,28 @@ namespace MdExplorer.Services.Git
         /// <param name="services">The service collection</param>
         /// <param name="configureOptions">Action to configure Git options</param>
         /// <returns>The service collection for chaining</returns>
-        public static IServiceCollection AddModernGitServices(this IServiceCollection services, 
+        public static IServiceCollection AddModernGitServices(this IServiceCollection services,
             System.Action<GitAuthenticationOptions> configureOptions = null)
         {
-            // Register core services
+            // Register core services as SCOPED (not Singleton due to dependencies)
+            // The credential cache is managed with a static/shared cache
             services.AddScoped<IModernGitService, ModernGitService>();
             services.AddScoped<IGitHubService, GitHubService>();
+            services.AddScoped<IGitAccountService, GitAccountService>();
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
-            
-            // Register credential resolvers
+
+            // Register credential resolvers as SCOPED
+            // Repository-specific resolver has highest priority for multi-account support
+            services.AddScoped<ICredentialResolver, RepositorySpecificCredentialResolver>();
             services.AddScoped<ICredentialResolver, SSHKeyCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
-            
+
             // Add platform-specific services
             AddPlatformSpecificServices(services);
+
+            // System credential resolver - lowest priority fallback (delegates to OS/Git)
+            services.AddScoped<ICredentialResolver, SystemCredentialResolver>();
             
             // Configure options
             if (configureOptions != null)
@@ -75,7 +91,13 @@ namespace MdExplorer.Services.Git
 
         private static void AddPlatformSpecificServices(IServiceCollection services)
         {
-            // Add platform-specific credential resolvers based on the current OS
+            // Platform-specific credential resolvers are DISABLED
+            // SystemCredentialResolver with DefaultCredentials works better because it
+            // delegates to Git Credential Manager (same as git.exe and VS Code)
+            // This avoids "too many redirects" and "could not find appropriate mechanism" errors
+
+            // COMMENTED OUT - Use SystemCredentialResolver instead
+            /*
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 services.AddScoped<ICredentialResolver, CredentialStores.WindowsCredentialStoreResolver>();
@@ -88,6 +110,7 @@ namespace MdExplorer.Services.Git
             {
                 services.AddScoped<ICredentialResolver, CredentialStores.LinuxSecretServiceResolver>();
             }
+            */
         }
     }
 

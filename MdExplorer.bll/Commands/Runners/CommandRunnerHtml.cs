@@ -1,4 +1,6 @@
-﻿using MdExplorer.Features.Interfaces;
+﻿using MdExplorer.Features.Configuration;
+using MdExplorer.Features.Interfaces;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +13,10 @@ namespace MdExplorer.Features.Commands
     {
         private readonly ICommandHtml[] _commands;
 
-        public CommandRunnerHtml(ICommandHtml[] commands) : base(commands)
+        public CommandRunnerHtml(
+            ICommandHtml[] commands,
+            ICompatibilityModeService compatibilityService,
+            ILogger<CommandRunner> logger) : base(commands, compatibilityService, logger)
         {
             _commands = commands;
         }

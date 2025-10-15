@@ -1,6 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ProjectSettingsService } from '../services/project-settings.service';
+import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 
 @Component({
   selector: 'app-project-settings',
@@ -9,18 +10,22 @@ import { ProjectSettingsService } from '../services/project-settings.service';
 })
 export class ProjectSettingsComponent implements OnInit {
   rule1Enabled: boolean = false;
+  githubModeEnabled: boolean = false;
   projectId: string;
   projectName: string;
+  projectPath: string;
   loading: boolean = false;
   saving: boolean = false;
 
   constructor(
     public dialogRef: MatDialogRef<ProjectSettingsComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
-    private projectSettingsService: ProjectSettingsService
+    private projectSettingsService: ProjectSettingsService,
+    private compatibilityService: CompatibilityModeService
   ) {
     this.projectId = data.projectId;
     this.projectName = data.projectName;
+    this.projectPath = data.projectPath;
   }
 
   ngOnInit(): void {
@@ -29,14 +34,41 @@ export class ProjectSettingsComponent implements OnInit {
 
   loadSettings(): void {
     this.loading = true;
+    let rule1Loaded = false;
+    let compatibilityLoaded = false;
+
+    const checkIfDone = () => {
+      if (rule1Loaded && compatibilityLoaded) {
+        this.loading = false;
+      }
+    };
+
+    // Load Rule 1 setting
     this.projectSettingsService.getRule1Setting().subscribe({
       next: (response) => {
         this.rule1Enabled = response.enabled;
-        this.loading = false;
+        rule1Loaded = true;
+        checkIfDone();
       },
       error: (error) => {
-        console.error('Error loading settings:', error);
-        this.loading = false;
+        console.error('Error loading Rule 1 setting:', error);
+        rule1Loaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load compatibility mode for this specific project
+    this.compatibilityService.getCurrentMode(this.projectPath).subscribe({
+      next: (response) => {
+        console.log('Compatibility mode loaded for project:', this.projectPath, response);
+        this.githubModeEnabled = response.mode === 'github';
+        compatibilityLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading compatibility mode:', error);
+        compatibilityLoaded = true;
+        checkIfDone();
       }
     });
   }
@@ -53,6 +85,34 @@ export class ProjectSettingsComponent implements OnInit {
         this.saving = false;
         // Revert the change on error
         this.rule1Enabled = !this.rule1Enabled;
+      }
+    });
+  }
+
+  onGitHubModeChange(): void {
+    console.log('onGitHubModeChange called, githubModeEnabled:', this.githubModeEnabled);
+    this.saving = true;
+    const mode = this.githubModeEnabled ? 'github' : 'mdexplorer';
+
+    console.log('Setting compatibility mode to:', mode, 'for project:', this.projectPath);
+    this.compatibilityService.setCompatibilityMode({
+      mode,
+      githubOptions: {
+        embedImages: false,
+        stripInteractive: true,
+        preserveEmoji: true
+      },
+      projectPath: this.projectPath
+    }).subscribe({
+      next: (response) => {
+        console.log('Compatibility mode saved successfully:', mode, response);
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving compatibility mode:', error);
+        this.saving = false;
+        // Revert the change on error
+        this.githubModeEnabled = !this.githubModeEnabled;
       }
     });
   }

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { IBranch } from '../models/branch';
+import { IBranch, BranchInfo, CheckoutResult } from '../models/branch';
 import { DataToPull } from '../models/DataToPull'
 import { CloneInfo } from '../models/cloneRequest';
 import { GitlabSetting } from '../models/gitlab-setting';
@@ -95,36 +95,55 @@ export class GITService implements OnDestroy {
 
   /**
    * Perform polling based on current configuration
+   * IMPORTANT: Checks remote status first to authenticate, then fetches Git data using cached credentials
    */
   private performPoll(): void {
     if (this.currentProjectPath) {
-      // Use modern endpoints with SSH support
-      
-      // Get branch status
-      this.modernGetBranchStatus(this.currentProjectPath).subscribe(
-        branch => {
-          this.currentBranch$.next(branch);
+      // Step 1: Check remote status first (authenticates and caches credentials)
+      this.checkRemoteStatus(this.currentProjectPath).subscribe(
+        remoteStatus => {
+          // Only proceed with Git operations if authentication is successful
+          if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
+            // Step 2: Now fetch Git data (will use cached credentials, no additional auth)
+            this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+              branch => {
+                this.currentBranch$.next(branch);
+              },
+              error => {
+                console.error('Error in modern branch status:', error);
+                // Set default empty state on error
+                this.currentBranch$.next({
+                  id: "", name: "unknown",
+                  somethingIsChangedInTheBranch: false,
+                  howManyFilesAreChanged: 0,
+                  fullPath: this.currentProjectPath,
+                  howManyCommitAreToPush: 0
+                });
+              }
+            );
+
+            this.modernGetDataToPull(this.currentProjectPath).subscribe(
+              pullData => {
+                this.commmitsToPull$.next(pullData);
+              },
+              error => {
+                console.error('Error in modern data to pull:', error);
+              }
+            );
+          } else if (!remoteStatus.hasRemote) {
+            // No remote configured - still get branch status but skip pull/push data
+            this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+              branch => {
+                this.currentBranch$.next(branch);
+              },
+              error => {
+                console.error('Error in modern branch status:', error);
+              }
+            );
+          }
         },
         error => {
-          console.error('Error in modern branch status:', error);
-          // Set default empty state on error
-          this.currentBranch$.next({
-            id: "", name: "unknown",
-            somethingIsChangedInTheBranch: false,
-            howManyFilesAreChanged: 0,
-            fullPath: this.currentProjectPath,
-            howManyCommitAreToPush: 0
-          });
-        }
-      );
-      
-      // Get pull/push data
-      this.modernGetDataToPull(this.currentProjectPath).subscribe(
-        pullData => {
-          this.commmitsToPull$.next(pullData);
-        },
-        error => {
-          console.error('Error in modern data to pull:', error);
+          console.error('Error checking remote status in poll:', error);
         }
       );
     }
@@ -394,7 +413,8 @@ export class GITService implements OnDestroy {
         return of({
           hasRemote: false,
           isGitRepository: false,
-          errorMessage: error.message || 'Failed to check remote status'
+          errorMessage: error.message || 'Failed to check remote status',
+          canAuthenticate: false
         });
       })
     );
@@ -515,6 +535,55 @@ export class GITService implements OnDestroy {
       catchError(error => {
         console.error('Error saving GitHub organization:', error);
         return of(false);
+      })
+    );
+  }
+
+  /**
+   * Get list of all branches (local and remote)
+   */
+  getBranches(projectPath: string, includeRemote: boolean = true): Observable<BranchInfo[]> {
+    const url = `../api/ModernGit/branches?repositoryPath=${encodeURIComponent(projectPath)}&includeRemote=${includeRemote}`;
+
+    return this.http.get<BranchInfo[]>(url).pipe(
+      catchError(error => {
+        console.error('Error getting branches:', error);
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Checkout/switch to a different branch
+   */
+  checkoutBranch(projectPath: string, branchName: string): Observable<CheckoutResult> {
+    const url = '../api/ModernGit/checkout';
+    const request = {
+      repositoryPath: projectPath,
+      branchName: branchName
+    };
+
+    return this.http.post<CheckoutResult>(url, request).pipe(
+      catchError(error => {
+        console.error('Error checking out branch:', error);
+        return of({
+          success: false,
+          error: error.error?.error || error.message || 'Failed to checkout branch'
+        });
+      })
+    );
+  }
+
+  /**
+   * Get repository status (for checking uncommitted changes)
+   */
+  getRepositoryStatus(projectPath: string): Observable<any> {
+    const url = `../api/ModernGit/status?repositoryPath=${encodeURIComponent(projectPath)}`;
+
+    return this.http.get<any>(url).pipe(
+      catchError(error => {
+        console.error('Error getting repository status:', error);
+        return of({ hasChanges: false, files: [] });
       })
     );
   }

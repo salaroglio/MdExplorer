@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using MdExplorer.Features.Configuration.Models;
 
 namespace MdExplorer.Service.Models
 {
     /// <summary>
     /// Root configuration model for .development.yml file
-    /// Contains all folders marked with development tags
+    /// Contains all folders marked with development tags and compatibility settings
     /// </summary>
     public class DevelopmentConfig
     {
@@ -13,6 +14,11 @@ namespace MdExplorer.Service.Models
         /// List of folders with their associated tags
         /// </summary>
         public List<DevelopmentFolder> Folders { get; set; } = new List<DevelopmentFolder>();
+
+        /// <summary>
+        /// Markdown compatibility mode configuration
+        /// </summary>
+        public CompatibilityConfig Compatibility { get; set; } = new CompatibilityConfig();
     }
 
     /// <summary>

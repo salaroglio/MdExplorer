@@ -50,22 +50,20 @@ namespace MdExplorer.Services.Git.CredentialStores
             try
             {
                 var targetName = GetTargetName(url);
-                _logger.LogDebug("Looking for credentials in Windows Credential Manager for: {TargetName}", targetName);
+                _logger.LogDebug("Checking if credentials exist in Windows Credential Manager for: {TargetName}", targetName);
 
                 var credential = await Task.Run(() => ReadCredential(targetName));
-                
+
                 if (credential != null)
                 {
-                    _logger.LogInformation("Successfully retrieved credentials from Windows Credential Manager for: {TargetName}", targetName);
-                    return new UsernamePasswordCredentials
-                    {
-                        Username = credential.Username,
-                        Password = credential.Password
-                    };
+                    _logger.LogInformation("Credentials found in Windows Credential Manager for: {TargetName}, delegating to LibGit2Sharp DefaultCredentials", targetName);
+                    // Return DefaultCredentials to let LibGit2Sharp use Git Credential Manager
+                    // This avoids "too many redirects" issues with OAuth tokens
+                    return new DefaultCredentials();
                 }
 
                 // Try without port as fallback (for backwards compatibility)
-                try 
+                try
                 {
                     var uri = new Uri(url);
                     var targetWithoutPort = $"{CredentialTargetPrefix}{uri.Scheme}://{uri.Host}";
@@ -73,19 +71,15 @@ namespace MdExplorer.Services.Git.CredentialStores
                     {
                         _logger.LogDebug("Trying fallback target without port: {TargetName}", targetWithoutPort);
                         credential = await Task.Run(() => ReadCredential(targetWithoutPort));
-                        
+
                         if (credential != null)
                         {
-                            _logger.LogInformation("Successfully retrieved credentials from Windows Credential Manager for fallback target: {TargetName}", targetWithoutPort);
-                            return new UsernamePasswordCredentials
-                            {
-                                Username = credential.Username,
-                                Password = credential.Password
-                            };
+                            _logger.LogInformation("Credentials found for fallback target: {TargetName}, delegating to LibGit2Sharp DefaultCredentials", targetWithoutPort);
+                            return new DefaultCredentials();
                         }
                     }
                 }
-                catch 
+                catch
                 {
                     // Ignore fallback errors
                 }
@@ -94,15 +88,11 @@ namespace MdExplorer.Services.Git.CredentialStores
                 var genericTarget = "git:https://github.com";
                 _logger.LogDebug("Trying generic Git credentials: {TargetName}", genericTarget);
                 credential = await Task.Run(() => ReadCredential(genericTarget));
-                
+
                 if (credential != null)
                 {
-                    _logger.LogInformation("Using generic Git credentials from Windows Credential Manager");
-                    return new UsernamePasswordCredentials
-                    {
-                        Username = credential.Username,
-                        Password = credential.Password
-                    };
+                    _logger.LogInformation("Using generic Git credentials from Windows Credential Manager, delegating to LibGit2Sharp DefaultCredentials");
+                    return new DefaultCredentials();
                 }
 
                 _logger.LogDebug("No credentials found in Windows Credential Manager");

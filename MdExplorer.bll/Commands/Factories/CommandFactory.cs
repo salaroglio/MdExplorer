@@ -1,7 +1,9 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
+using MdExplorer.Features.Configuration;
 using MdExplorer.Features.Configuration.Interfaces;
+using MdExplorer.Features.Configuration.Models;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -37,6 +39,7 @@ namespace MdExplorer.Features.Commands
         private readonly PlantumlServer _plantumlServer;
         private readonly IHelper _helper;
         private readonly IServerCache _serverCache;
+        private readonly ICompatibilityModeService _compatibilityService;
 
         private string _serverAddress { get; set; }
 
@@ -45,7 +48,8 @@ namespace MdExplorer.Features.Commands
                                 IDALFactory<IUserSettingsDB> dalFactory,
                                 PlantumlServer plantumlServer,
                                 IHelper helper,
-                                IServerCache serverCache
+                                IServerCache serverCache,
+                                ICompatibilityModeService compatibilityService
             )//IServerAddressesFeature serverAddresses
         {
             _server = server;
@@ -54,6 +58,7 @@ namespace MdExplorer.Features.Commands
             _plantumlServer = plantumlServer;
             _helper = helper;
             _serverCache = serverCache;
+            _compatibilityService = compatibilityService;
             var features = _server.Features;
             var addressesFeature = features.Get<IServerAddressesFeature>();
 
@@ -70,11 +75,15 @@ namespace MdExplorer.Features.Commands
             lock (lockGetCommands)
             {
                 var listToReturn = new List<T>();
+                var currentMode = _compatibilityService.GetMode();
 
                 var commandInstances = Assembly.GetExecutingAssembly().GetTypes()
                     .Where(_ => (typeof(T).IsAssignableFrom(_) && !_.IsInterface));
 
-                foreach (var item in commandInstances)
+                // Filter commands based on compatibility mode
+                var filteredCommands = FilterCommandsByMode(commandInstances, currentMode);
+
+                foreach (var item in filteredCommands)
                 {
 
                     Type loggerType = typeof(ILogger<>);
@@ -121,11 +130,60 @@ namespace MdExplorer.Features.Commands
                             var extensionConfig = _serviceProvider.GetService<IApplicationExtensionConfiguration>();
                             paramsTo.Add(extensionConfig);
                         }
-                        
+
                     }
                     listToReturn.Add((T)Activator.CreateInstance(item, args: paramsTo.ToArray())); //new object[] { _serverAddress, currentLogger }
                 }
                 return listToReturn.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Filters command types based on compatibility mode
+        /// Returns GitHub-specific commands in GitHub mode, standard commands otherwise
+        /// </summary>
+        private IEnumerable<Type> FilterCommandsByMode(IEnumerable<Type> allCommands, CompatibilityMode mode)
+        {
+            if (mode == CompatibilityMode.GitHub)
+            {
+                // In GitHub mode, use GitHub-specific commands and exclude incompatible ones
+                return allCommands.Where(cmd =>
+                {
+                    var ns = cmd.Namespace ?? "";
+                    var name = cmd.Name;
+
+                    // Include GitHub-specific commands
+                    if (ns.Contains(".GitHub"))
+                        return true;
+
+                    // Exclude incompatible commands
+                    if (name.Contains("FromPlantumlTo") && !ns.Contains(".GitHub"))
+                        return false;
+                    if (name.Contains("FromEmojiTo") && !ns.Contains(".GitHub"))
+                        return false;
+                    if (name.Contains("FromLinkToApplication") && !ns.Contains(".GitHub"))
+                        return false;
+                    if (name.Contains("DynamicProcess"))
+                        return false;
+                    if (name.Contains("EmojiCalendar"))
+                        return false;
+                    if (name.Contains("EmojiFloppyDisk"))
+                        return false;
+                    if (name.Contains("EmojiCamera"))
+                        return false;
+
+                    // Include all other standard commands
+                    return true;
+                });
+            }
+            else // MdExplorer or CommonMark mode
+            {
+                // Use standard MdExplorer commands, exclude GitHub-specific ones
+                return allCommands.Where(cmd =>
+                {
+                    var ns = cmd.Namespace ?? "";
+                    return !ns.Contains(".GitHub");
+                });
             }
         }
     }

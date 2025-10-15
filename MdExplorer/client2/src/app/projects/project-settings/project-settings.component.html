@@ -10,15 +10,32 @@
       
       <mat-card-content>
         <div class="setting-item" *ngIf="!loading">
-          <mat-checkbox 
-            [(ngModel)]="rule1Enabled" 
+          <mat-checkbox
+            [(ngModel)]="rule1Enabled"
             (change)="onRule1Change()"
             [disabled]="saving">
             <span class="setting-label">Rule #1: Check H1 matches filename</span>
           </mat-checkbox>
           <p class="setting-description">
-            When enabled, verifies that the H1 heading in each Markdown file matches the filename.
+            When enabled, verifies that the H1 heading in each Markdown file matches the filename
+            and automatically adds YAML frontmatter to markdown files.
             This helps maintain consistency between file names and document titles.
+            <br><br>
+            <strong>Note:</strong> This feature should be disabled when using GitHub Compatible Mode,
+            as GitHub doesn't recognize MdExplorer's custom YAML frontmatter format.
+          </p>
+        </div>
+
+        <div class="setting-item" *ngIf="!loading">
+          <mat-checkbox
+            [(ngModel)]="githubModeEnabled"
+            (change)="onGitHubModeChange()"
+            [disabled]="saving">
+            <span class="setting-label">GitHub Compatible Mode</span>
+          </mat-checkbox>
+          <p class="setting-description">
+            When enabled, uses GitHub-compatible markdown rendering (no PlantUML, interactive emoji, etc.).
+            Disable for full MdExplorer features when working in a team environment.
           </p>
         </div>
 

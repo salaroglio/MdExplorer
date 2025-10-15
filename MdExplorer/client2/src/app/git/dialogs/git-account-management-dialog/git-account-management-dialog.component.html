@@ -1,0 +1,172 @@
+<h2 mat-dialog-title>Gestione Account Git</h2>
+
+<mat-dialog-content class="dialog-content">
+  <div class="repository-info">
+    <mat-icon>folder</mat-icon>
+    <span>Repository: <strong>{{ data.repositoryName }}</strong></span>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Caricamento...</p>
+  </div>
+
+  <!-- Current Account Display -->
+  <div *ngIf="!isLoading && !showCreateForm && currentAccount" class="current-account">
+    <h3>Account Attivo</h3>
+    <mat-card class="account-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon class="status-icon success">check_circle</mat-icon>
+          {{ currentAccount.accountName }}
+        </mat-card-title>
+        <mat-card-subtitle>
+          {{ currentAccount.accountType }}
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="account-detail" *ngIf="currentAccount.username">
+          <mat-icon>person</mat-icon>
+          <span>{{ currentAccount.username }}</span>
+        </div>
+        <div class="account-detail" *ngIf="currentAccount.email">
+          <mat-icon>email</mat-icon>
+          <span>{{ currentAccount.email }}</span>
+        </div>
+        <div class="account-detail">
+          <mat-icon>vpn_key</mat-icon>
+          <span *ngIf="currentAccount.hasGitHubPAT">GitHub Token configurato</span>
+          <span *ngIf="currentAccount.hasGitLabToken">GitLab Token configurato</span>
+          <mat-icon class="credential-status" [class.success]="currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken">
+            {{ (currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken) ? 'verified' : 'error' }}
+          </mat-icon>
+        </div>
+        <div class="account-detail" *ngIf="currentAccount.notes">
+          <mat-icon>note</mat-icon>
+          <span class="notes">{{ currentAccount.notes }}</span>
+        </div>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-button color="primary" (click)="editAccount()">
+          <mat-icon>edit</mat-icon>
+          Modifica
+        </button>
+        <button mat-button color="warn" (click)="deleteAccount()">
+          <mat-icon>delete</mat-icon>
+          Elimina
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+  <!-- No Account State -->
+  <div *ngIf="!isLoading && !showCreateForm && !currentAccount" class="no-account">
+    <mat-icon class="large-icon">info</mat-icon>
+    <h3>Nessun Account Configurato</h3>
+    <p>Configura un account Git per questo repository per abilitare push e pull.</p>
+    <button mat-raised-button color="primary" (click)="showCreate()">
+      <mat-icon>add</mat-icon>
+      Crea Nuovo Account
+    </button>
+  </div>
+
+  <!-- Create/Edit Form -->
+  <div *ngIf="!isLoading && showCreateForm" class="account-form">
+    <h3>{{ currentAccount ? 'Modifica Account' : 'Nuovo Account Git' }}</h3>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Nome Account</mat-label>
+      <input matInput [(ngModel)]="accountName" placeholder="es: My GitHub Work" required>
+      <mat-icon matSuffix>badge</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Tipo Account</mat-label>
+      <mat-select [(ngModel)]="accountType" required>
+        <mat-option *ngFor="let type of accountTypes" [value]="type.value">
+          {{ type.label }}
+        </mat-option>
+      </mat-select>
+      <mat-icon matSuffix>cloud</mat-icon>
+    </mat-form-field>
+
+    <!-- GitHub Token Field -->
+    <mat-form-field appearance="outline" class="full-width" *ngIf="accountType === 'GitHub'">
+      <mat-label>GitHub Personal Access Token</mat-label>
+      <input matInput
+             [(ngModel)]="gitHubPAT"
+             [type]="hideToken ? 'password' : 'text'"
+             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+             required>
+      <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
+        <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
+      </button>
+      <mat-hint>
+        <a (click)="openTokenCreationPage()" class="link">Crea un nuovo token su GitHub</a>
+      </mat-hint>
+    </mat-form-field>
+
+    <!-- GitLab Token Field -->
+    <mat-form-field appearance="outline" class="full-width" *ngIf="accountType === 'GitLab'">
+      <mat-label>GitLab Personal Access Token</mat-label>
+      <input matInput
+             [(ngModel)]="gitLabToken"
+             [type]="hideToken ? 'password' : 'text'"
+             placeholder="glpat-xxxxxxxxxxxxxxxxxxxx"
+             required>
+      <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
+        <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
+      </button>
+      <mat-hint>
+        <a (click)="openTokenCreationPage()" class="link">Crea un nuovo token su GitLab</a>
+      </mat-hint>
+    </mat-form-field>
+
+    <mat-divider></mat-divider>
+
+    <h4>Informazioni Git (Opzionali)</h4>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Git Username</mat-label>
+      <input matInput [(ngModel)]="username" placeholder="username">
+      <mat-icon matSuffix>person</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Git Email</mat-label>
+      <input matInput [(ngModel)]="email" type="email" placeholder="user@example.com">
+      <mat-icon matSuffix>email</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Note</mat-label>
+      <textarea matInput [(ngModel)]="notes" rows="2" placeholder="Note opzionali su questo account"></textarea>
+      <mat-icon matSuffix>note</mat-icon>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()" [disabled]="isLoading">Chiudi</button>
+
+  <ng-container *ngIf="showCreateForm">
+    <button mat-button (click)="cancelCreate()" [disabled]="isLoading">Annulla</button>
+    <button mat-raised-button color="primary"
+            (click)="currentAccount ? updateAccount() : saveAccount()"
+            [disabled]="isLoading">
+      <mat-icon>{{ currentAccount ? 'save' : 'add' }}</mat-icon>
+      {{ currentAccount ? 'Aggiorna' : 'Salva' }}
+    </button>
+  </ng-container>
+
+  <button mat-raised-button color="primary"
+          (click)="showCreate()"
+          *ngIf="!showCreateForm && currentAccount"
+          [disabled]="isLoading">
+    <mat-icon>add</mat-icon>
+    Crea Nuovo
+  </button>
+</mat-dialog-actions>

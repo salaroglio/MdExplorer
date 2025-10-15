@@ -29,6 +29,15 @@ namespace MdExplorer.Features.Commands
         public bool Enabled { get; set; } = true;
         public string Name { get; set; } = "FromLinkToApplication";
 
+        /// <summary>
+        /// Application launcher links do not work on GitHub
+        /// </summary>
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark
+        };
+
         public MatchCollection GetMatches(string markdown)
         {
             Regex rx = new Regex(@"<a.+?<\/a>", //lnk?

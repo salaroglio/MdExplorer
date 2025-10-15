@@ -12,6 +12,7 @@ namespace MdExplorer.Features.Commands
         public int Priority { get; set; } = 40;
         public bool Enabled { get ; set ; }= true;
         public string Name { get; set; } = "FromImageLinkToNumbering";
+        public List<Configuration.Models.CompatibilityMode> SupportedModes => null; // Supports all modes
 
         public MatchCollection GetMatches(string markdown)
         {

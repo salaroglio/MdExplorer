@@ -1,0 +1,55 @@
+# MdExplorer Development Configuration
+# This file configures development-specific settings for your project
+
+# Folder tagging for development organization
+folders:
+  - path: "src"
+    tags: ["code", "main"]
+    description: "Main source code"
+  - path: "docs"
+    tags: ["documentation"]
+    description: "Project documentation"
+  - path: "tests"
+    tags: ["tests"]
+    description: "Test files"
+
+# Markdown Compatibility Mode Configuration
+# Controls how MdExplorer renders markdown for different platforms
+compatibility:
+  # Mode options: "mdexplorer" | "github" | "commonmark"
+  # - mdexplorer: Full MdExplorer features (default)
+  # - github: GitHub-compatible markdown (removes proprietary extensions)
+  # - commonmark: Strict CommonMark compliance
+  mode: "mdexplorer"
+
+  # GitHub-specific options (only used when mode is "github")
+  githubOptions:
+    # Embed images as data URIs instead of file references
+    # Useful for self-contained markdown files
+    embedImages: false
+
+    # Remove all interactive elements (onclick handlers, widgets)
+    # GitHub doesn't support JavaScript, so these are stripped
+    stripInteractive: true
+
+    # Preserve emoji as Unicode text (GitHub renders them natively)
+    # If false, emoji would be converted to images
+    preserveEmoji: true
+
+# Example configurations for different scenarios:
+
+# For publishing to GitHub:
+# compatibility:
+#   mode: "github"
+#   githubOptions:
+#     embedImages: false
+#     stripInteractive: true
+#     preserveEmoji: true
+
+# For strict CommonMark compliance:
+# compatibility:
+#   mode: "commonmark"
+
+# For full MdExplorer features (default):
+# compatibility:
+#   mode: "mdexplorer"

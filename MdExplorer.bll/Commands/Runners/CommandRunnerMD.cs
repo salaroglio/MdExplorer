@@ -1,5 +1,7 @@
 ﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Configuration;
 using MdExplorer.Features.Interfaces;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +14,10 @@ namespace MdExplorer.Features.Commands.Runners
     {
         private readonly ICommandMD[] _commands;
 
-        public CommandRunnerMD(ICommandMD[] commands) : base(commands)
+        public CommandRunnerMD(
+            ICommandMD[] commands,
+            ICompatibilityModeService compatibilityService,
+            ILogger<CommandRunner> logger) : base(commands, compatibilityService, logger)
         {
             _commands = commands;
         }
