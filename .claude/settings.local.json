@@ -53,7 +53,16 @@
       "Read(//c/sviluppo/electron-mdexplorer-temp/**)",
       "WebFetch(domain:docs.github.com)",
       "Bash(taskkill:*)",
-      "Bash(cmd.exe:*)"
+      "Bash(cmd.exe:*)",
+      "Bash(for file in FromImageLinkToNumbering.cs ManageEmojiAsImages.cs ManageLinkAsImages.cs ManageLinkAbsolutePath.cs)",
+      "Bash(do)",
+      "Bash(done)",
+      "Bash(for file in FromEmojiToTextGitHub.cs FromLinkToMarkdownGitHub.cs FromPlantumlToPngGitHub.cs)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfix: prevent XML parsing crashes in GitHub Compatible Mode\n\nAdd compatibility mode awareness to command system to prevent XML parsing\nerrors when processing GitHub-flavored markdown HTML.\n\nChanges:\n- Extended ICommand interface with SupportedModes property\n- Updated CommandBase with default implementation (null = supports all modes)\n- Modified CommandRunner to filter commands based on current compatibility mode\n- Added try-catch resilience around command execution\n- Marked incompatible commands:\n  * EditH1, MdShowH1, MdShowH2 (require well-formed XML)\n  * FromPlantumlToPng, FromPlantumlToSvg (not supported on GitHub)\n  * FromEmojiToPng (incompatible with GitHub''s native emoji)\n  * FromLinkToApplication (desktop-only feature)\n  * ManageEmojiAsImages (MdExplorer-specific)\n- GitHub-specific commands now only run in GitHub mode:\n  * FromEmojiToTextGitHub\n  * FromLinkToMarkdownGitHub\n  * FromPlantumlToPngGitHub\n\nFixes XmlException: \"The 'img' start tag does not match the end tag of 'mdroot'\"\nthat occurred when GitHub-generated HTML was processed by XML-parsing commands.\nEOF\n)\")",
+      "Bash(while read file)",
+      "Bash(tree:*)",
+      "Bash(test:*)",
+      "Bash(git pull:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
