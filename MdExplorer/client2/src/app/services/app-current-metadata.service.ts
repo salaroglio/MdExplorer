@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { IMdSetting } from '../Models/IMdSetting';
-import { MdSetting } from '../Models/MdSettings';
+import { IMdSetting } from '../models/IMdSetting';
+import { MdSetting } from '../models/MdSettings';
 
 @Injectable({
   providedIn: 'root'

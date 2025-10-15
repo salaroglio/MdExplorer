@@ -1,7 +1,7 @@
 import { animate, animateChild, group, query, style, transition, trigger } from "@angular/animations";
 import { ActivatedRoute } from "@angular/router";
 import { BehaviorSubject, Observable } from "rxjs";
-import { IDataForRouting } from "../Models/IDataForRouting";
+import { IDataForRouting } from "../models/IDataForRouting";
 
 const fromProjectsToMain = (fromState: any, toState: any): boolean => {
   
