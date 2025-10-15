@@ -7,7 +7,7 @@
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! C:\sviluppo\mdExplorer\MdExplorer\client2\src\polyfills.ts */"hN/g");
+module.exports = __webpack_require__(/*! /home/carlo/Documents/sviluppo/MdExplorer/MdExplorer/client2/src/polyfills.ts */"hN/g");
 
 
 /***/ }),

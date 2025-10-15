@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
-import { IMdSetting } from '../../../../Models/IMdSetting'
+import { IMdSetting } from '../../../../models/IMdSetting'
 import { AppCurrentMetadataService } from '../../../../services/app-current-metadata.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
