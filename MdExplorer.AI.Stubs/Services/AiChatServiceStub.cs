@@ -4,9 +4,9 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MdExplorer.AI.Abstractions.Exceptions;
-using MdExplorer.AI.Abstractions.Models;
-using MdExplorer.AI.Abstractions.Services;
+using MdExplorer.Abstractions.Exceptions;
+using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Services;
 
 namespace MdExplorer.AI.Stubs.Services
 {
@@ -99,7 +99,7 @@ namespace MdExplorer.AI.Stubs.Services
             Status = "Premium Required",
             Name = "N/A",
             FormattedMemory = "N/A",
-            CudaVersion = "N/A",
+            CudaVersion = 0,
             DriverVersion = "N/A"
         };
 

@@ -8,5 +8,8 @@ if (environment.production) {
   enableProdMode();
 }
 
+// Mark this as the main app to prevent Premium module from bootstrapping
+(window as any).__MDEXPLORER_MAIN_APP__ = true;
+
 platformBrowserDynamic().bootstrapModule(AppModule)
   .catch(err => console.error(err));

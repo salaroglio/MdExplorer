@@ -64,7 +64,7 @@
 /******/
 /******/ 	// script path function
 /******/ 	function jsonpScriptSrc(chunkId) {
-/******/ 		return __webpack_require__.p + "" + ({"default~md-explorer-md-explorer-module~projects-projects-module":"default~md-explorer-md-explorer-module~projects-projects-module","md-explorer-md-explorer-module":"md-explorer-md-explorer-module","projects-projects-module":"projects-projects-module"}[chunkId]||chunkId) + ".js"
+/******/ 		return __webpack_require__.p + "" + ({"ai-stub-ai-stub-module":"ai-stub-ai-stub-module","default~md-explorer-md-explorer-module~projects-projects-module":"default~md-explorer-md-explorer-module~projects-projects-module","md-explorer-md-explorer-module":"md-explorer-md-explorer-module","projects-projects-module":"projects-projects-module"}[chunkId]||chunkId) + ".js"
 /******/ 	}
 /******/
 /******/ 	// The require function

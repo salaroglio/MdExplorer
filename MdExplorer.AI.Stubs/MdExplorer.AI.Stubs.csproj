@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\MdExplorer.AI.Abstractions\MdExplorer.AI.Abstractions.csproj" />
+    <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

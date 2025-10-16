@@ -7,6 +7,7 @@ using LibGit2Sharp;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
 using MdExplorer.Features.Services;
+using MdExplorer.Abstractions.Services;
 
 namespace MdExplorer.Services
 {

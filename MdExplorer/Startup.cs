@@ -32,7 +32,7 @@ using MdExplorer.Services.Git;
 using System.Text;
 using MdExplorer.Features.Services;
 using MdExplorer.Service.Services;
-using MdExplorer.AI.Abstractions.Services;
+using MdExplorer.Abstractions.Services;
 using System.Reflection;
 
 namespace MdExplorer
@@ -72,7 +72,7 @@ namespace MdExplorer
             ConfigureAiServices(services);
 
             // Keep existing AI-related services (not part of Premium)
-            services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IGeminiApiService, MdExplorer.AI.Stubs.Services.GeminiApiServiceStub>();
             services.AddScoped<Services.IGitCommitAiService, Services.GitCommitAiService>();
             
             // Register both TocGenerationService and TocGenerationHubService
@@ -113,13 +113,24 @@ namespace MdExplorer
                             "AddAiPremiumServices",
                             BindingFlags.Static | BindingFlags.Public,
                             null,
-                            new[] { typeof(IServiceCollection) },
+                            new[] { typeof(IServiceCollection), typeof(string) },
                             null);
 
                         if (addPremiumServicesMethod != null)
                         {
-                            addPremiumServicesMethod.Invoke(null, new object[] { services });
+                            addPremiumServicesMethod.Invoke(null, new object[] { services, null });
                             Console.WriteLine("✅ AI Premium addon detected - loading premium services");
+
+                            // Register Premium controllers dynamically
+                            services.AddControllers()
+                                .AddApplicationPart(premiumAssembly);
+
+                            Console.WriteLine("✅ AI Premium controllers registered");
+
+                            // Store assembly for later asset extraction (in Configure method)
+                            _premiumAssembly = premiumAssembly;
+                            _premiumExtensions = serviceProviderType;
+
                             return;
                         }
                     }
@@ -135,16 +146,21 @@ namespace MdExplorer
             // Fallback to stub implementations
             Console.WriteLine("ℹ️  AI Premium addon not found - using stub implementation");
 
-            // Register stubs using the AI.Abstractions interfaces
-            services.AddSingleton<MdExplorer.AI.Abstractions.Services.IAiChatService, MdExplorer.AI.Stubs.Services.AiChatServiceStub>();
-            services.AddSingleton<MdExplorer.AI.Abstractions.Services.IModelDownloadService, MdExplorer.AI.Stubs.Services.ModelDownloadServiceStub>();
+            // Register stubs using the Abstractions interfaces
+            services.AddSingleton<MdExplorer.Abstractions.Services.IAiChatService, MdExplorer.AI.Stubs.Services.AiChatServiceStub>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IModelDownloadService, MdExplorer.AI.Stubs.Services.ModelDownloadServiceStub>();
 
-            // Keep existing implementations using the old Features interfaces (temporary compatibility)
+            // Keep existing implementations using Features services (temporary compatibility)
             services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
             services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
-            services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
-            services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IGpuDetectionService, MdExplorer.AI.Stubs.Services.GpuDetectionServiceStub>();
+            // Register the free AI service with unified interface
+            services.AddSingleton<MdExplorer.Abstractions.Services.IAiChatService, Features.Services.AiChatService>();
         }
+
+        // Store Premium assembly for asset extraction
+        private Assembly? _premiumAssembly;
+        private Type? _premiumExtensions;
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app,
@@ -152,6 +168,34 @@ namespace MdExplorer
             IHostApplicationLifetime lifetime,
             ILogger<Startup> logger)
         {
+            // Extract Premium frontend assets if Premium addon was loaded
+            if (_premiumAssembly != null && _premiumExtensions != null)
+            {
+                try
+                {
+                    var wwwrootPath = env.WebRootPath;
+                    var extractMethod = _premiumExtensions.GetMethod(
+                        "ExtractPremiumFrontendAssets",
+                        BindingFlags.Static | BindingFlags.Public);
+
+                    if (extractMethod != null)
+                    {
+                        var result = (bool)extractMethod.Invoke(null, new object[] { wwwrootPath, logger });
+                        if (result)
+                        {
+                            logger.LogInformation("✅ Premium frontend assets extracted successfully");
+                        }
+                        else
+                        {
+                            logger.LogWarning("⚠️ Premium frontend assets extraction failed");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error extracting Premium frontend assets");
+                }
+            }
 
             if (env.IsDevelopment())
             {
@@ -243,7 +287,7 @@ namespace MdExplorer
                     }
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
-                endpoints.MapHub<AiChatHub>("/signalr/aichat");
+                // endpoints.MapHub<AiChatHub>("/signalr/aichat"); // Moved to Premium
             });
 
             //#if !DEBUG

@@ -2,9 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MdExplorer.AI.Abstractions.Exceptions;
-using MdExplorer.AI.Abstractions.Models;
-using MdExplorer.AI.Abstractions.Services;
+using MdExplorer.Abstractions.Exceptions;
+using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Services;
 
 namespace MdExplorer.AI.Stubs.Services
 {

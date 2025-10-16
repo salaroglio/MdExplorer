@@ -17,8 +17,52 @@ word_section:
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## IMPORTANTE: Confermare lettura di questo file
+## ⚠️ CRITICO: Confermare lettura di questo file
 All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le regole in questo file CLAUDE.md.
+
+## ⚠️ CRITICO: Dove Scrivere gli Sprint - LEGGERE SEMPRE QUESTA SEZIONE
+
+**ATTENZIONE: Questa è una delle regole più importanti e viene violata frequentemente!**
+
+Il progetto ha **DUE cartelle separate** per gli sprint:
+
+### 1. `/sprints/` - Repository principale PUBBLICO (licenza MIT)
+**Percorso:** `/c/sviluppo/mdExplorer/sprints/`
+- ✅ Sprint **tecnici pubblici**
+- ✅ Documentazione implementazioni tecniche
+- ✅ Architetture e design patterns
+- ✅ Tutorial e guide tecniche
+- ❌ MAI informazioni commerciali o strategiche
+- **Esempi:** Sprint RAG Implementation, Angular Migration, Git Authentication
+
+### 2. `docs-internal/Sprints/` - Submodule PRIVATO (confidenziale)
+**Percorso:** `/c/sviluppo/mdExplorer/docs-internal/Sprints/`
+- ✅ Sprint **strategici e commerciali**
+- ✅ Piani di business e monetizzazione
+- ✅ Strategie Premium/Free
+- ✅ Informazioni confidenziali
+- ✅ Decisioni architetturali che rivelano strategie commerciali
+- **Esempi:** AI Premium Strategy, Pricing Models, Zero Knowledge Architecture
+
+### 🚨 REGOLA DECISIONALE (MEMORIZZARE):
+
+**Quando scrivi uno sprint, SEMPRE chiedere prima:**
+
+1. **Contiene informazioni su business model?** → `docs-internal/Sprints/`
+2. **Contiene informazioni su pricing/licensing?** → `docs-internal/Sprints/`
+3. **Contiene strategie commerciali Premium vs Free?** → `docs-internal/Sprints/`
+4. **Rivela come monetizziamo features?** → `docs-internal/Sprints/`
+5. **È puramente tecnico e può essere pubblico?** → `/sprints/`
+
+**In caso di dubbio:** `docs-internal/Sprints/` (meglio essere cauti con info commerciali)
+
+### Verificare SEMPRE prima di scrivere:
+```bash
+# Verificare che docs-internal esista
+ls /c/sviluppo/mdExplorer/docs-internal/Sprints/
+
+# Se NON esiste, chiedere all'utente di inizializzare il submodule
+```
 
 ## IMPORTANTE: Ambiente di Sviluppo
 * **All'inizio di ogni nuova sessione/contesto, SEMPRE chiedere all'utente se sta sviluppando in Windows con PowerShell oppure in Linux con Bash**
@@ -76,26 +120,8 @@ All'inizio di ogni sessione, confermare all'utente di aver letto e compreso le r
   - `2025-12-06-Git-Authentication-Refactoring.md` con titolo `# Git Authentication Refactoring`
 
 ### Struttura Documentazione Sprint
-**IMPORTANTE: Dove scrivere gli sprint**:
 
-Il progetto ha DUE cartelle per gli sprint con scopi diversi:
-
-1. **`/sprints/`** (repository principale pubblico - MIT)
-   - Sprint tecnici pubblici
-   - Documentazione implementazioni tecniche
-   - Architetture e design patterns
-   - Esempi: Sprint RAG Implementation, Angular Migration, etc.
-
-2. **`docs-internal/Sprints/`** (submodule privato)
-   - Sprint strategici e commerciali
-   - Piani di business e monetizzazione
-   - Documentazione confidenziale
-   - Esempi: AI Premium Strategy, Pricing Models, etc.
-
-**Regola decisionale**:
-- Se lo sprint contiene informazioni sul business model, pricing, strategie commerciali → `docs-internal/Sprints/`
-- Se lo sprint è puramente tecnico e può essere pubblico → `/sprints/`
-- In caso di dubbio, chiedere all'utente
+**Vedi sezione "⚠️ CRITICO: Dove Scrivere gli Sprint" all'inizio del documento per regole dettagliate.**
 
 ## Pattern di Debug tramite Log Strutturati
 

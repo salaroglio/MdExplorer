@@ -1,0 +1,68 @@
+<div class="ai-stub-container">
+  <mat-card class="premium-required-card">
+    <mat-card-header>
+      <div mat-card-avatar class="premium-icon">
+        <mat-icon color="warn">lock</mat-icon>
+      </div>
+      <mat-card-title>AI Premium Required</mat-card-title>
+      <mat-card-subtitle>Unlock powerful AI features</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="features-list">
+        <h3>Features included in AI Premium:</h3>
+        <mat-list>
+          <mat-list-item>
+            <mat-icon matListIcon>psychology</mat-icon>
+            <h4 matLine>Local AI Models</h4>
+            <p matLine>No cloud required, your data stays private</p>
+          </mat-list-item>
+
+          <mat-list-item>
+            <mat-icon matListIcon>description</mat-icon>
+            <h4 matLine>Document RAG</h4>
+            <p matLine>Chat with your documents using semantic search</p>
+          </mat-list-item>
+
+          <mat-list-item>
+            <mat-icon matListIcon>speed</mat-icon>
+            <h4 matLine>GPU Acceleration</h4>
+            <p matLine>Fast inference with NVIDIA GPU support</p>
+          </mat-list-item>
+
+          <mat-list-item>
+            <mat-icon matListIcon>build</mat-icon>
+            <h4 matLine>Tool System & Agents</h4>
+            <p matLine>Coming soon - automated markdown tasks</p>
+          </mat-list-item>
+        </mat-list>
+      </div>
+
+      <div class="pricing-tiers">
+        <h3>Pricing Tiers:</h3>
+        <mat-chip-list>
+          <mat-chip>
+            <strong>Starter</strong> - $29/year
+          </mat-chip>
+          <mat-chip selected>
+            <strong>Professional</strong> - $99/year
+          </mat-chip>
+          <mat-chip>
+            <strong>Enterprise</strong> - $299/year
+          </mat-chip>
+        </mat-chip-list>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-button (click)="openPremiumPage()">
+        <mat-icon>open_in_new</mat-icon>
+        Learn More
+      </button>
+      <button mat-raised-button color="primary" (click)="enterLicenseKey()">
+        <mat-icon>vpn_key</mat-icon>
+        I Have a License
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

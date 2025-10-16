@@ -12,24 +12,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using System.IO;
+using MdExplorer.Abstractions.Services;
+using MdExplorer.Abstractions.Models;
 
 namespace MdExplorer.Features.Services
 {
-    public interface IAiChatService
-    {
-        Task<string> ChatAsync(string prompt);
-        IAsyncEnumerable<string> StreamChatAsync(string prompt, CancellationToken ct = default);
-        bool IsModelLoaded();
-        Task<bool> LoadModelAsync(string modelPath, string modelId = null);
-        string GetCurrentModelName();
-        string GetCurrentModelId();
-        Task SetSystemPromptAsync(string systemPrompt);
-        string GetSystemPrompt();
-        GpuInfo GetGpuInfo();
-        bool IsGpuEnabled();
-        int GetGpuLayerCount();
-    }
-
     public class AiChatService : IAiChatService, IDisposable
     {
         private readonly ILogger<AiChatService> _logger;
@@ -97,6 +84,24 @@ namespace MdExplorer.Features.Services
             {
                 _logger.LogInformation($"[AiChatService] Running on macOS");
             }
+        }
+
+        public Task<bool> IsLicensedAsync()
+        {
+            // Free version - not licensed
+            return Task.FromResult(false);
+        }
+
+        public Task<LicenseStatus> GetLicenseStatusAsync()
+        {
+            // Free version - return unlicensed status
+            return Task.FromResult(new LicenseStatus
+            {
+                IsValid = false,
+                Type = LicenseType.Free,
+                Message = "AI features require MdExplorer Premium",
+                EnabledFeatures = Array.Empty<string>()
+            });
         }
 
         public bool IsModelLoaded()

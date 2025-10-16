@@ -1,0 +1,78 @@
+.ai-stub-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 2rem;
+  background-color: #f5f5f5;
+}
+
+.premium-required-card {
+  max-width: 700px;
+  width: 100%;
+
+  mat-card-header {
+    margin-bottom: 1rem;
+  }
+
+  .premium-icon {
+    background-color: #ff9800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+
+    mat-icon {
+      color: white;
+    }
+  }
+}
+
+.features-list {
+  margin: 1.5rem 0;
+
+  h3 {
+    color: rgba(0, 0, 0, 0.87);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  mat-list-item {
+    height: auto;
+    min-height: 72px;
+    padding: 0.5rem 0;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.pricing-tiers {
+  margin-top: 2rem;
+  text-align: center;
+
+  h3 {
+    color: rgba(0, 0, 0, 0.87);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  mat-chip-list {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  mat-chip {
+    font-size: 0.9rem;
+  }
+}
+
+mat-card-actions {
+  padding: 1rem;
+
+  button {
+    margin-left: 0.5rem;
+  }
+}

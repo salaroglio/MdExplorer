@@ -22,6 +22,7 @@ import { OpeningApplicationProvider } from './signalR/dialogs/opening-applicatio
 import { TitleBarComponent } from './components/title-bar/title-bar.component';
 import { SearchBoxComponent } from './components/search-box/search-box.component';
 import { CompatibilityModeBadgeComponent } from './md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component';
+import { loadPremiumModule } from './premium-loader';
 
 
 const routes: Routes = [
@@ -33,6 +34,11 @@ const routes: Routes = [
   {
     path: 'projects', loadChildren: () => import('./projects/projects.module').then(m => m.ProjectsModule),
     data: { animation: 'projects' }
+  },
+  {
+    path: 'ai-premium',
+    loadChildren: () => loadPremiumModule(),
+    data: { animation: 'ai-premium' }
   },
   { path: '**', redirectTo: 'projects', data: { animation: 'projects' } }
 ];
