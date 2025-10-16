@@ -29,7 +29,6 @@ import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-f
 import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
 import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
-import { AiChatModule } from '../ai-chat/ai-chat.module';
 import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
 import { TocProgressService } from './services/toc-progress.service';
 
@@ -49,12 +48,12 @@ const routes: Routes = [
           { path: 'gitlabsettings', component: GitlabSettingsComponent },
           { path: 'documentsettings', component: DocumentSettingsComponent },
           { path: 'react-editor', component: MilkdownReactHostComponent },
-          { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
+          { path: 'ai-chat', loadChildren: () => import('../ai-stub/ai-stub.module').then(m => m.AiStubModule) }
         ]
       },
       { 
         path: 'ai-model-manager', 
-        loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule)
+        loadChildren: () => import('../ai-stub/ai-stub.module').then(m => m.AiStubModule)
       }
     ]
   }
