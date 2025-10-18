@@ -31,6 +31,7 @@ import { MilkdownReactHostComponent } from './components/milkdown-react-host/mil
 import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
 import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
 import { TocProgressService } from './services/toc-progress.service';
+import { DynamicTabHostDirective } from './components/sidenav/directives/dynamic-tab-host.directive';
 
 
 
@@ -84,7 +85,8 @@ const routes: Routes = [
     MoveMdFileComponent, AddNewFileToMDEComponent,
     MilkdownReactHostComponent,
     DocumentShowComponent, // Added to declarations
-    TocProgressDialogComponent
+    TocProgressDialogComponent,
+    DynamicTabHostDirective // Added for dynamic tab loading
   ],
   imports: [
     CommonModule,
@@ -92,7 +94,6 @@ const routes: Routes = [
     HttpClientModule,
     FormsModule,
     GitModule,
-    AiChatModule,
     RouterModule.forChild(routes)
   ],
   providers: [

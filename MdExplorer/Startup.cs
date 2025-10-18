@@ -34,6 +34,7 @@ using MdExplorer.Features.Services;
 using MdExplorer.Service.Services;
 using MdExplorer.Abstractions.Services;
 using System.Reflection;
+using Microsoft.Extensions.FileProviders;
 
 namespace MdExplorer
 {
@@ -270,22 +271,50 @@ namespace MdExplorer
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
 
             app.UseRouting();
-            
+
             app.UseStaticFiles();
+
+            // In Development mode, serve Premium frontend from filesystem for hot reload
+            if (env.IsDevelopment())
+            {
+                var premiumFrontendPath = Path.GetFullPath(
+                    Path.Combine(Directory.GetCurrentDirectory(),
+                    "../MdExplorer.AI.Premium/MdExplorer.AI.Premium/Frontend/dist")
+                );
+
+                if (Directory.Exists(premiumFrontendPath))
+                {
+                    logger.LogInformation($"🔥 [DEV] Serving Premium frontend from filesystem: {premiumFrontendPath}");
+                    app.UseStaticFiles(new StaticFileOptions
+                    {
+                        FileProvider = new PhysicalFileProvider(premiumFrontendPath),
+                        RequestPath = "/client2/premium"
+                    });
+                }
+                else
+                {
+                    logger.LogWarning($"⚠️ [DEV] Premium frontend path not found: {premiumFrontendPath}");
+                }
+            }
+
             app.UseAuthorization();
+
+            // Angular SPA fallback - redirect all client2 routes to index.html
+            // EXCEPT /client2/premium which is served by PhysicalFileProvider
+            // This must come BEFORE UseEndpoints to not interfere with endpoint routing
+            app.MapWhen(
+                context => context.Request.Path.StartsWithSegments("/client2") &&
+                           !context.Request.Path.StartsWithSegments("/client2/premium") &&
+                           !context.Request.Path.Value.Contains('.'), // Skip files with extensions
+                builder => builder.Run(async context =>
+                {
+                    context.Response.Redirect("/client2/index.html");
+                })
+            );
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-
-                endpoints.Map(
-
-                    pattern: "/client2/{name:alpha}/{**anything}",
-                    async context =>
-                    {
-                        context.Response.Redirect("/client2/index.html");
-                    }
-                    );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
                 // endpoints.MapHub<AiChatHub>("/signalr/aichat"); // Moved to Premium
             });

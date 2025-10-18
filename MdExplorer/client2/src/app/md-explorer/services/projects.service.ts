@@ -43,7 +43,10 @@ export class ProjectsService {
 
   async SetSideNavWidth(mdProject: MdProject) {
     const url = '../api/MdProjects/SetSideNavWidth';
-    await this.http.post<any>(url, mdProject).toPromise();
+    await this.http.post<any>(url, {
+      id: mdProject.id,
+      sidenavWidth: mdProject.sidenavWidth
+    }).toPromise();
   }
 
   setNewFolderProject(path: string):void {

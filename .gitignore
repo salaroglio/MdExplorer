@@ -419,3 +419,7 @@ AI-Models/
 
 # Website managed as submodule
 # /mdExplorerWebSite/
+
+# Premium DLL auto-copied for development (never commit to open source)
+MdExplorer/bin/**/MdExplorer.AI.Premium.dll
+MdExplorer/bin/**/MdExplorer.AI.Premium.pdb
