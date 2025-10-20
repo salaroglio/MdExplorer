@@ -391,6 +391,9 @@ FodyWeavers.xsd
 /.md/
 /.claude
 
+# POC and experimental directories
+/poc-angular13-federation/
+
 # Image collection folder
 /mdImages/
 

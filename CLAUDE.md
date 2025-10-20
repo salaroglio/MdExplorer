@@ -32,5 +32,6 @@ This project uses specialized skills for different development tasks. Use the ap
 * **developer** - General development, architecture, patterns, and implementation
 * **bug-fixing** - Debugging, troubleshooting, and fixing issues
 * **document-writer** - Writing sprint and technical documentation
+* **solution-architect** - Architectural design, strategic technical decisions, system design, and pattern evaluation
 
 <br />
