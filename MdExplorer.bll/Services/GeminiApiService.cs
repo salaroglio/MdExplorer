@@ -12,6 +12,8 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.Extensions.DependencyInjection;
 using Ad.Tools.Dal.Extensions;
+using MdExplorer.bll.Models.AI;
+using MdExplorer.bll.Services.AI;
 
 namespace MdExplorer.Features.Services
 {
@@ -26,6 +28,12 @@ namespace MdExplorer.Features.Services
         bool IsConfigured();
         Task SetSystemPromptAsync(string systemPrompt);
         Task<string> GetSystemPromptAsync();
+        Task<string> ChatWithToolsAsync(
+            string prompt,
+            List<ToolDefinition> tools,
+            Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
+            string modelName = "gemini-1.5-flash",
+            CancellationToken ct = default);
     }
 
     public class GeminiModel
@@ -459,6 +467,217 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
             
             _logger.LogInformation($"[StreamChatAsync] Stream reading complete. Total lines read: {lineCount}");
+        }
+
+        /// <summary>
+        /// Chat with tool calling support (function calling).
+        /// The AI can autonomously decide to use tools to accomplish tasks.
+        /// </summary>
+        public async Task<string> ChatWithToolsAsync(
+            string prompt,
+            List<ToolDefinition> tools,
+            Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
+            string modelName = "gemini-1.5-flash",
+            CancellationToken ct = default)
+        {
+            _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools", tools?.Count ?? 0);
+
+            // Ensure API key is loaded
+            if (string.IsNullOrEmpty(_apiKey))
+            {
+                _apiKey = await GetApiKeyAsync();
+            }
+
+            if (!IsConfigured())
+            {
+                throw new InvalidOperationException("Gemini API key is not configured");
+            }
+
+            // Ensure system prompt is loaded
+            if (string.IsNullOrEmpty(_systemPrompt))
+            {
+                _systemPrompt = await GetSystemPromptAsync();
+            }
+
+            var url = $"{GEMINI_API_BASE}/models/{modelName}:generateContent?key={_apiKey}";
+
+            // Build conversation history
+            var contents = new List<object>
+            {
+                new
+                {
+                    role = "user",
+                    parts = new[] { new { text = _systemPrompt + "\n\n" + prompt } }
+                }
+            };
+
+            // Convert tool definitions to Gemini function format
+            var geminiTools = new
+            {
+                function_declarations = tools.Select(t => new
+                {
+                    name = t.Name,
+                    description = t.Description,
+                    parameters = new
+                    {
+                        type = t.Parameters.Type,
+                        properties = t.Parameters.Properties.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => new
+                            {
+                                type = kvp.Value.Type,
+                                description = kvp.Value.Description,
+                                @enum = kvp.Value.Enum
+                            }
+                        ),
+                        required = t.Parameters.Required
+                    }
+                }).ToArray()
+            };
+
+            const int maxIterations = 10; // Prevent infinite loops
+            int iteration = 0;
+            string finalResponse = null;
+
+            while (iteration < maxIterations && !ct.IsCancellationRequested)
+            {
+                iteration++;
+                _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Iteration {Iteration}", iteration);
+
+                var requestBody = new
+                {
+                    contents = contents.ToArray(),
+                    tools = new[] { geminiTools },
+                    generationConfig = new
+                    {
+                        temperature = 0.7,
+                        maxOutputTokens = 8192
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(url, content, ct);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("[GeminiApiService.ChatWithToolsAsync] Gemini API error: {Error}", error);
+                    throw new Exception($"Gemini API error: {response.StatusCode}");
+                }
+
+                var responseJson = await response.Content.ReadAsStringAsync();
+                var responseData = JsonDocument.Parse(responseJson);
+
+                var candidate = responseData.RootElement
+                    .GetProperty("candidates")[0];
+
+                var contentElement = candidate.GetProperty("content");
+                var parts = contentElement.GetProperty("parts");
+
+                // Add model response to conversation history
+                contents.Add(JsonSerializer.Deserialize<object>(contentElement.GetRawText()));
+
+                // Check if model wants to call functions
+                bool hasFunctionCalls = false;
+                foreach (var part in parts.EnumerateArray())
+                {
+                    if (part.TryGetProperty("functionCall", out var functionCall))
+                    {
+                        hasFunctionCalls = true;
+                        var functionName = functionCall.GetProperty("name").GetString();
+                        var args = functionCall.GetProperty("args");
+
+                        _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Executing function: {FunctionName}", functionName);
+
+                        // Convert args to dynamic object
+                        var arguments = JsonSerializer.Deserialize<dynamic>(args.GetRawText());
+
+                        // Execute tool
+                        FileOperationResult toolResult;
+                        try
+                        {
+                            toolResult = await toolExecutor(functionName, arguments);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "[GeminiApiService.ChatWithToolsAsync] Tool execution error");
+                            toolResult = FileOperationResult.CreateError(
+                                FileOperationType.Create,
+                                null,
+                                $"Tool execution error: {ex.Message}");
+                        }
+
+                        // Add function response to conversation
+                        var functionResponse = new
+                        {
+                            role = "function",
+                            parts = new[]
+                            {
+                                new
+                                {
+                                    functionResponse = new
+                                    {
+                                        name = functionName,
+                                        response = new
+                                        {
+                                            name = functionName,
+                                            content = new
+                                            {
+                                                success = toolResult.Success,
+                                                path = toolResult.Path,
+                                                message = toolResult.Message,
+                                                error = toolResult.Error,
+                                                suggestions = toolResult.Suggestions,
+                                                result_content = toolResult.Content
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+
+                        contents.Add(functionResponse);
+
+                        _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Function {FunctionName} result: {Success}", functionName, toolResult.Success);
+                    }
+                }
+
+                if (hasFunctionCalls)
+                {
+                    // Continue loop to get model's next response
+                    continue;
+                }
+
+                // No function calls, extract final text response
+                foreach (var part in parts.EnumerateArray())
+                {
+                    if (part.TryGetProperty("text", out var textElement))
+                    {
+                        finalResponse = textElement.GetString();
+                        _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Model provided final response");
+                        break;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(finalResponse))
+                {
+                    break;
+                }
+
+                // Safety: if we reach here something unexpected happened
+                _logger.LogWarning("[GeminiApiService.ChatWithToolsAsync] Unexpected response format, breaking loop");
+                break;
+            }
+
+            if (iteration >= maxIterations)
+            {
+                _logger.LogWarning("[GeminiApiService.ChatWithToolsAsync] Reached max iterations, stopping");
+                finalResponse = "Tool execution loop exceeded maximum iterations. Please try a simpler request.";
+            }
+
+            return finalResponse ?? "No response generated";
         }
     }
 }

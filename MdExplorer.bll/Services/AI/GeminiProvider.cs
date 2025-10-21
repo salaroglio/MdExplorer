@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
+using MdExplorer.bll.Models.AI;
+using MdExplorer.bll.Services.AI;
 
 namespace MdExplorer.Features.Services.AI
 {
@@ -112,6 +114,28 @@ namespace MdExplorer.Features.Services.AI
         public async Task<bool> TestApiKeyAsync(string apiKey)
         {
             return await _geminiService.TestApiKeyAsync(apiKey);
+        }
+
+        /// <summary>
+        /// Chat with tool calling support (function calling).
+        /// The AI can autonomously decide to use tools to accomplish tasks.
+        /// </summary>
+        public async Task<string> ChatWithToolsAsync(
+            string prompt,
+            List<ToolDefinition> tools,
+            Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
+            string modelId = null,
+            CancellationToken ct = default)
+        {
+            _logger.LogInformation("[GeminiProvider.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools", tools?.Count ?? 0);
+
+            if (!IsAvailable())
+            {
+                throw new InvalidOperationException("Gemini API key is not configured");
+            }
+
+            var model = modelId ?? _currentModelId;
+            return await _geminiService.ChatWithToolsAsync(prompt, tools, toolExecutor, model, ct);
         }
     }
 }
