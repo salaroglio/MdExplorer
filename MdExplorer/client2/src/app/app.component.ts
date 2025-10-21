@@ -3,6 +3,7 @@ import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { slideInAnimation } from './shared/animations';
 import { AppCurrentMetadataService } from './services/app-current-metadata.service';
+import { AiNotificationService } from './services/ai-notification.service';
 
 @Component({
   selector: 'app-root',
@@ -11,7 +12,7 @@ import { AppCurrentMetadataService } from './services/app-current-metadata.servi
   animations: [
     slideInAnimation
   ],
-}) 
+})
 export class AppComponent {
   @HostListener('window:unload', ['$event'])
   unloadHandler(event) {
@@ -20,19 +21,20 @@ export class AppComponent {
     if (performance.navigation.type != performance.navigation.TYPE_RELOAD) {
       //this.currentFolder.killServer();
     }
-    
+
     //
   }
   title = 'client2';
   constructor(private titleService: Title,
     private currentFolder: AppCurrentMetadataService,
     private route: ActivatedRoute,
-    private router: Router) {
-    
-    currentFolder.folderName.subscribe((data: any) => {      
+    private router: Router,
+    private aiNotificationService: AiNotificationService) { // Initialize AI notification service
+
+    currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);
     });
     currentFolder.loadFolderName();
-    
+
   }
 }

@@ -33,6 +33,7 @@ namespace MdExplorer.Features.Services
             List<ToolDefinition> tools,
             Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
             string modelName = "gemini-1.5-flash",
+            string currentDocumentPath = null,
             CancellationToken ct = default);
     }
 
@@ -478,9 +479,11 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             List<ToolDefinition> tools,
             Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
             string modelName = "gemini-1.5-flash",
+            string currentDocumentPath = null,
             CancellationToken ct = default)
         {
-            _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools", tools?.Count ?? 0);
+            _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools, currentDoc: {CurrentDoc}",
+                tools?.Count ?? 0, currentDocumentPath ?? "none");
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -501,13 +504,34 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
             var url = $"{GEMINI_API_BASE}/models/{modelName}:generateContent?key={_apiKey}";
 
+            // Add tool usage guidance to help model understand when and how to use tools
+            var currentDocInfo = !string.IsNullOrEmpty(currentDocumentPath)
+                ? $"\n\nCURRENT DOCUMENT CONTEXT:\nYou are currently viewing: {currentDocumentPath}\nWhen the user says 'add here', 'modify this file', 'append', etc., they refer to THIS document.\n"
+                : "";
+
+            var toolGuidance = @"You have access to file operation tools. When the user asks to create, write, save, or put content in a file:
+1. FIRST generate the content they want (diagram, text, code, etc.)
+2. THEN call create_markdown_file or update_markdown_file with that content
+3. ALWAYS respond naturally and explain what you did
+
+For NEW files: Use create_markdown_file with explicit file_path.
+For CURRENT document modifications: Use update_markdown_file WITHOUT file_path (it will use the current document automatically).
+For SPECIFIC file modifications: Use update_markdown_file WITH explicit file_path.
+
+Examples:
+- 'create a PlantUML diagram and put it in diagram.md' → Generate PlantUML code, call create_markdown_file
+- 'add a conclusion section' → Generate content, call update_markdown_file WITHOUT file_path (uses current document)
+- 'update notes.md with...' → Generate content, call update_markdown_file WITH file_path='notes.md'
+
+Be proactive and context-aware!";
+
             // Build conversation history
             var contents = new List<object>
             {
                 new
                 {
                     role = "user",
-                    parts = new[] { new { text = _systemPrompt + "\n\n" + prompt } }
+                    parts = new[] { new { text = currentDocInfo + toolGuidance + "\n\n" + _systemPrompt + "\n\n" + prompt } }
                 }
             };
 
@@ -591,8 +615,8 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
                         _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Executing function: {FunctionName}", functionName);
 
-                        // Convert args to dynamic object
-                        var arguments = JsonSerializer.Deserialize<dynamic>(args.GetRawText());
+                        // Convert args to dictionary for tool executor
+                        var arguments = JsonSerializer.Deserialize<Dictionary<string, object>>(args.GetRawText());
 
                         // Execute tool
                         FileOperationResult toolResult;

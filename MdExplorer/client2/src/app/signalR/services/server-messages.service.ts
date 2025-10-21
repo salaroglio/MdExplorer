@@ -267,4 +267,12 @@ export class MdServerMessagesService {
     });
   }
 
+  // AI File Operation listener
+  public addAiFileOperationListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('aiFileOperation', (data) => {
+      console.log('[SignalR] AI File Operation:', data);
+      callback(data, objectThis);
+    });
+  }
+
 }

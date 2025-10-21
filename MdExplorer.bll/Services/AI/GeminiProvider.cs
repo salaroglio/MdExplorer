@@ -125,9 +125,11 @@ namespace MdExplorer.Features.Services.AI
             List<ToolDefinition> tools,
             Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
             string modelId = null,
+            string currentDocumentPath = null,
             CancellationToken ct = default)
         {
-            _logger.LogInformation("[GeminiProvider.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools", tools?.Count ?? 0);
+            _logger.LogInformation("[GeminiProvider.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools, currentDoc: {CurrentDoc}",
+                tools?.Count ?? 0, currentDocumentPath ?? "none");
 
             if (!IsAvailable())
             {
@@ -135,7 +137,7 @@ namespace MdExplorer.Features.Services.AI
             }
 
             var model = modelId ?? _currentModelId;
-            return await _geminiService.ChatWithToolsAsync(prompt, tools, toolExecutor, model, ct);
+            return await _geminiService.ChatWithToolsAsync(prompt, tools, toolExecutor, model, currentDocumentPath, ct);
         }
     }
 }

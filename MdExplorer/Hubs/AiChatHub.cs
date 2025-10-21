@@ -3,8 +3,14 @@ using Microsoft.Extensions.Logging;
 using MdExplorer.Features.Services;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MdExplorer.Abstractions.Services;
+using MdExplorer.bll.Services.AI;
+using MdExplorer.bll.Models.AI;
+using MdExplorer.Features.Services.AI;
 
 namespace MdExplorer.Hubs
 {
@@ -14,27 +20,42 @@ namespace MdExplorer.Hubs
         private readonly Features.Services.IModelDownloadService _downloadService;
         private readonly Features.Services.IGeminiApiService _geminiService;
         private readonly ILogger<AiChatHub> _logger;
-        
+        private readonly IEnumerable<IAiProvider> _aiProviders;
+        private readonly ToolExecutor _toolExecutor;
+
         // Static dictionary to store chat mode per connection
-        private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes = 
+        private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
             new ConcurrentDictionary<string, ChatModeInfo>();
-        
+
+        // Static dictionary to store current document context per connection
+        private static readonly ConcurrentDictionary<string, DocumentContext> _connectionDocumentContexts =
+            new ConcurrentDictionary<string, DocumentContext>();
+
         private class ChatModeInfo
         {
             public bool UseGemini { get; set; }
             public string GeminiModel { get; set; } = "gemini-1.5-flash";
         }
 
+        private class DocumentContext
+        {
+            public string CurrentDocumentPath { get; set; }
+        }
+
         public AiChatHub(
             Features.Services.IAiChatService aiChatService,
             Features.Services.IModelDownloadService downloadService,
             Features.Services.IGeminiApiService geminiService,
-            ILogger<AiChatHub> logger)
+            ILogger<AiChatHub> logger,
+            IEnumerable<IAiProvider> aiProviders,
+            ToolExecutor toolExecutor)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
             _geminiService = geminiService;
             _logger = logger;
+            _aiProviders = aiProviders;
+            _toolExecutor = toolExecutor;
         }
 
         public async Task SendMessage(string message)
@@ -51,28 +72,64 @@ namespace MdExplorer.Hubs
                 {
                     _logger.LogInformation($"[SendMessage] Using Gemini API with model: {chatMode.GeminiModel}");
                     _logger.LogInformation($"[SendMessage] Message to send: {message}");
-                    
+
                     if (!_geminiService.IsConfigured())
                     {
                         _logger.LogWarning("[SendMessage] Gemini API is not configured!");
-                        await Clients.Caller.SendAsync("ReceiveMessage", 
-                            "system", 
+                        await Clients.Caller.SendAsync("ReceiveMessage",
+                            "system",
                             "⚠️ Gemini API is not configured. Please configure it in Settings.");
                         return;
                     }
-                    
-                    _logger.LogInformation("[SendMessage] Starting to stream response from Gemini...");
-                    int chunkCount = 0;
-                    
-                    // Stream response from Gemini
-                    await foreach (var chunk in _geminiService.StreamChatAsync(message, chatMode.GeminiModel))
+
+                    // Get GeminiProvider for tool calling
+                    var geminiProviderBase = _aiProviders.FirstOrDefault(p => p.GetProviderType() == Abstractions.Models.AI.ProviderType.Gemini);
+                    var geminiProvider = geminiProviderBase as GeminiProvider;
+
+                    if (geminiProvider != null)
                     {
-                        chunkCount++;
-                        _logger.LogDebug($"[SendMessage] Sending chunk #{chunkCount}: {chunk?.Substring(0, Math.Min(chunk?.Length ?? 0, 50))}...");
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                        _logger.LogInformation("[SendMessage] Using Gemini with tool calling capability");
+
+                        // Get tool definitions
+                        var tools = FileOperationTools.GetToolDefinitions();
+
+                        // Get current document context
+                        var docContext = GetDocumentContext();
+                        var currentDoc = docContext.CurrentDocumentPath;
+
+                        // Create tool executor delegate that captures connectionId and currentDocument
+                        var connectionId = Context.ConnectionId;
+                        Func<string, dynamic, Task<FileOperationResult>> toolExecutorFunc =
+                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
+
+                        // Use ChatWithToolsAsync (non-streaming but with tool support)
+                        var response = await geminiProvider.ChatWithToolsAsync(
+                            message,
+                            tools,
+                            toolExecutorFunc,
+                            chatMode.GeminiModel,
+                            currentDoc);
+
+                        _logger.LogInformation($"[SendMessage] Received response from Gemini with tools: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                        // Send complete response as a single chunk
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
                     }
-                    
-                    _logger.LogInformation($"[SendMessage] Finished streaming {chunkCount} chunks from Gemini");
+                    else
+                    {
+                        _logger.LogWarning("[SendMessage] GeminiProvider not found, falling back to streaming without tools");
+
+                        // Fallback to streaming without tools
+                        int chunkCount = 0;
+                        await foreach (var chunk in _geminiService.StreamChatAsync(message, chatMode.GeminiModel))
+                        {
+                            chunkCount++;
+                            _logger.LogDebug($"[SendMessage] Sending chunk #{chunkCount}: {chunk?.Substring(0, Math.Min(chunk?.Length ?? 0, 50))}...");
+                            await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                        }
+
+                        _logger.LogInformation($"[SendMessage] Finished streaming {chunkCount} chunks from Gemini");
+                    }
                 }
                 else
                 {
@@ -193,6 +250,7 @@ namespace MdExplorer.Hubs
             _logger.LogInformation($"Client disconnected: {Context.ConnectionId}");
             // Clean up connection state
             _connectionChatModes.TryRemove(Context.ConnectionId, out _);
+            _connectionDocumentContexts.TryRemove(Context.ConnectionId, out _);
             await base.OnDisconnectedAsync(exception);
         }
         
@@ -220,6 +278,25 @@ namespace MdExplorer.Hubs
         private ChatModeInfo GetChatMode()
         {
             return _connectionChatModes.GetOrAdd(Context.ConnectionId, _ => new ChatModeInfo());
+        }
+
+        public Task SetCurrentDocument(string filePath)
+        {
+            _logger.LogInformation($"[SetCurrentDocument] Called with filePath: {filePath}, ConnectionId: {Context.ConnectionId}");
+
+            var docContext = GetDocumentContext();
+            docContext.CurrentDocumentPath = filePath;
+
+            _connectionDocumentContexts[Context.ConnectionId] = docContext;
+
+            _logger.LogInformation($"[SetCurrentDocument] Connection {Context.ConnectionId} - CurrentDocument: {docContext.CurrentDocumentPath}");
+
+            return Task.CompletedTask;
+        }
+
+        private DocumentContext GetDocumentContext()
+        {
+            return _connectionDocumentContexts.GetOrAdd(Context.ConnectionId, _ => new DocumentContext());
         }
     }
 }

@@ -84,7 +84,18 @@ namespace MdExplorer
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
-            
+
+            // Add AI Tool Calling services
+            services.AddSingleton<MdExplorer.bll.Services.AI.PathValidator>(sp =>
+            {
+                // Use the project directory from FileSystemWatcher as workspace root for AI Tool Calling
+                var fileSystemWatcher = sp.GetRequiredService<FileSystemWatcher>();
+                var workspaceRoot = fileSystemWatcher.Path;
+                return new MdExplorer.bll.Services.AI.PathValidator(workspaceRoot);
+            });
+            services.AddScoped<Abstractions.Services.IAiFileOperationNotifier, Services.AiFileOperationNotifier>();
+            services.AddScoped<MdExplorer.bll.Services.AI.ToolExecutor>();
+
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();

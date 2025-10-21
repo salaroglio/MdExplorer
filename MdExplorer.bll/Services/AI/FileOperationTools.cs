@@ -26,7 +26,7 @@ namespace MdExplorer.bll.Services.AI
             return new ToolDefinition
             {
                 Name = "create_markdown_file",
-                Description = "Create a new markdown file with specified content. Use this when user asks to create documents, reports, summaries, or any new markdown file.",
+                Description = "Create a new markdown file with specified content. Use this tool when user asks to: create/write/save documents, reports, notes, diagrams, code examples, or when they say 'put it in a file', 'save it to file.md', 'create file.md with...'. You MUST generate the content yourself before calling this tool. Examples: 'create a diagram and put it in diagram.md' → generate PlantUML/Mermaid diagram content, then call this tool. 'write a summary in summary.md' → generate summary content, then call this tool.",
                 Parameters = new ToolParameters
                 {
                     Type = "object",
@@ -35,12 +35,12 @@ namespace MdExplorer.bll.Services.AI
                         ["file_path"] = new ToolProperty
                         {
                             Type = "string",
-                            Description = "Relative path from workspace root. Must end with .md. Example: 'reports/summary.md' or 'notes/meeting-2025-10-21.md'"
+                            Description = "Relative path from workspace root. Must end with .md. Examples: 'reports/summary.md', 'notes/meeting-2025-10-21.md', 'diagrams/architecture.md', 'ciao-darwin.md'"
                         },
                         ["content"] = new ToolProperty
                         {
                             Type = "string",
-                            Description = "Complete markdown content to write. Include proper markdown formatting with headings, lists, tables as appropriate."
+                            Description = "Complete markdown content to write. YOU must generate this content based on user's request. Can include: markdown formatting (headings, lists, tables), PlantUML diagrams (```plantuml), Mermaid diagrams (```mermaid), code blocks, text, etc. Always include proper frontmatter YAML if needed."
                         },
                         ["overwrite"] = new ToolProperty
                         {
@@ -81,7 +81,7 @@ namespace MdExplorer.bll.Services.AI
             return new ToolDefinition
             {
                 Name = "update_markdown_file",
-                Description = "Update an existing markdown file by appending content, replacing sections, or inserting after specific headings.",
+                Description = "Update an existing markdown file by appending content, replacing sections, or inserting after specific headings. Can work on the CURRENT DOCUMENT (the file user is viewing) or a specific file. Use cases: 'add a conclusion section' → updates current document. 'modify this file' → updates current document. 'update report.md with...' → updates specific file.",
                 Parameters = new ToolParameters
                 {
                     Type = "object",
@@ -90,7 +90,7 @@ namespace MdExplorer.bll.Services.AI
                         ["file_path"] = new ToolProperty
                         {
                             Type = "string",
-                            Description = "Relative path to the markdown file to update"
+                            Description = "Relative path to the markdown file to update. OPTIONAL: If omitted, updates the CURRENT DOCUMENT (the file user is viewing). Provide this ONLY when user explicitly mentions a different file name. Examples: omit for 'add a section here', provide 'notes.md' for 'update notes.md'."
                         },
                         ["content"] = new ToolProperty
                         {
@@ -109,7 +109,7 @@ namespace MdExplorer.bll.Services.AI
                             Description = "Required if mode='insert_after_heading'. The heading text after which to insert content. Example: '## Installation'"
                         }
                     },
-                    Required = new List<string> { "file_path", "content", "mode" }
+                    Required = new List<string> { "content", "mode" }
                 }
             };
         }
