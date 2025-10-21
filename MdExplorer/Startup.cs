@@ -31,7 +31,9 @@ using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git;
 using System.Text;
 using MdExplorer.Features.Services;
+using MdExplorer.Features.Services.AI;
 using MdExplorer.Service.Services;
+using MdExplorer.Abstractions.Services;
 
 namespace MdExplorer
 {
@@ -73,6 +75,15 @@ namespace MdExplorer
             services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
             services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
             services.AddScoped<Services.IGitCommitAiService, Services.GitCommitAiService>();
+
+            // Add multi-provider AI system
+            // Registra tutti i provider disponibili (possono essere iniettati come IEnumerable<IAiProvider>)
+            services.AddSingleton<IAiProvider, OpenAiProvider>();
+            services.AddSingleton<IAiProvider, GeminiProvider>();
+
+            // Model discovery per ogni provider
+            services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
+            services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
             
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();
