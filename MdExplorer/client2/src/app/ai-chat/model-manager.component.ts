@@ -66,7 +66,8 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.checkGeminiConfiguration();
     this.checkOpenAiConfiguration();
     this.loadAvailableProviders();
-    
+    this.loadDefaultPreferences();
+
     // Subscribe to download progress
     this.aiService.downloadProgress$
       .pipe(takeUntil(this.destroy$))
@@ -149,21 +150,23 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       console.log('[ModelManager] Model not installed, returning');
       return;
     }
-    
+
     console.log('[ModelManager] Starting to load model:', model.id);
     this.loading = true;
+    this.selectedProvider = 'local';
+
     this.aiService.loadModel(model.id).subscribe({
       next: (response: any) => {
         console.log(`[ModelManager] Model ${model.name} loaded successfully, response:`, response);
         this.loading = false;
         this.currentModelId = model.id;
-        
+
         // Sync TOC generation service to use local model
         this.tocService.setAiMode(false).subscribe({
           next: () => console.log('[ModelManager] TOC service synced to use local model'),
           error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
         });
-        
+
         // Load system prompt if provided in response
         if (response && response.systemPrompt) {
           this.systemPrompt = response.systemPrompt;
@@ -176,6 +179,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         // Refresh models list to update status
         this.loadModels();
         this.loadGpuInfo();
+
+        // Save as default preference
+        this.saveCurrentPreference('local', model.id);
       },
       error: (err) => {
         console.error(`[ModelManager] Error loading ${model.name}:`, err);
@@ -345,19 +351,23 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     console.log('[ModelManager] Connecting to Gemini model:', modelId);
     this.selectedGeminiModel = modelId;
     this.useGemini = true;
+    this.selectedProvider = 'gemini';
     this.aiService.setUseGemini(true, modelId);
-    
+
     // Sync TOC generation service to use Gemini
     this.tocService.setAiMode(true, modelId).subscribe({
       next: () => console.log('[ModelManager] TOC service synced to use Gemini'),
       error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
     });
-    
+
     // Notify that a model is now "loaded" (connected)
     console.log('[ModelManager] Calling notifyGeminiConnected for model:', modelId);
     this.aiService.notifyGeminiConnected(modelId);
     console.log('[ModelManager] notifyGeminiConnected called successfully');
-    
+
+    // Save as default preference
+    this.saveCurrentPreference('gemini', modelId);
+
     alert(`Connected to Gemini model: ${this.geminiModels.find(m => m.id === modelId)?.name}`);
   }
   
@@ -543,6 +553,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.aiService.notifyGeminiConnected(`OpenAI: ${modelId}`);
     console.log('[ModelManager] OpenAI model connected successfully');
 
+    // Save as default preference
+    this.saveCurrentPreference('openai', modelId);
+
     alert(`Connected to OpenAI model: ${this.openAiModels.find(m => m.id === modelId)?.name || modelId}`);
   }
 
@@ -615,6 +628,60 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   toggleProviderSelector(): void {
     this.showProviderSelector = !this.showProviderSelector;
     this.contentChanged.emit();
+  }
+
+  // Preference management methods
+  loadDefaultPreferences(): void {
+    this.aiService.getDefaultAiPreferences().subscribe({
+      next: (response: any) => {
+        console.log('[ModelManager] Loaded preferences:', response);
+        if (response.hasDefault && response.provider && response.model) {
+          this.autoConnectToDefaultProvider(response.provider, response.model);
+        }
+      },
+      error: (err) => {
+        console.error('Error loading AI preferences:', err);
+      }
+    });
+  }
+
+  autoConnectToDefaultProvider(provider: string, model: string): void {
+    console.log('[ModelManager] Auto-connecting to provider:', provider, 'model:', model);
+
+    // Wait for configurations to load
+    setTimeout(() => {
+      switch (provider.toLowerCase()) {
+        case 'gemini':
+          if (this.geminiConfigured && this.geminiModels.length > 0) {
+            this.connectGeminiModel(model);
+          }
+          break;
+        case 'openai':
+          if (this.openAiConfigured && this.openAiModels.length > 0) {
+            this.connectOpenAiModel(model);
+          }
+          break;
+        case 'local':
+          // For local models, find the model and load it
+          const localModel = this.availableModels.find(m => m.id === model);
+          if (localModel && localModel.isInstalled) {
+            this.loadModel(localModel);
+          }
+          break;
+      }
+    }, 1000); // Give time for configurations and models to load
+  }
+
+  saveCurrentPreference(provider: string, model: string): void {
+    console.log('[ModelManager] Saving preference:', provider, model);
+    this.aiService.saveDefaultAiPreferences(provider, model).subscribe({
+      next: (response: any) => {
+        console.log('[ModelManager] Preference saved successfully:', response);
+      },
+      error: (err) => {
+        console.error('Error saving AI preference:', err);
+      }
+    });
   }
 
   ngOnDestroy(): void {

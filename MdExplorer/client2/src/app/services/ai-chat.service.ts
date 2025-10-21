@@ -404,6 +404,19 @@ export class AiChatService {
     return this.http.get('/api/GitAi/ai-status');
   }
 
+  // AI Preferences methods
+  getDefaultAiPreferences(): Observable<any> {
+    return this.http.get('/api/AiPreferences/default');
+  }
+
+  saveDefaultAiPreferences(provider: string, model: string): Observable<any> {
+    return this.http.post('/api/AiPreferences/default', { provider, model });
+  }
+
+  clearDefaultAiPreferences(): Observable<any> {
+    return this.http.delete('/api/AiPreferences/default');
+  }
+
   ngOnDestroy(): void {
     if (this.hubConnection) {
       this.hubConnection.stop();
