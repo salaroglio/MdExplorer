@@ -57,5 +57,20 @@ namespace MdExplorer.Abstractions.Services
         /// Ottiene il system prompt corrente
         /// </summary>
         Task<string> GetSystemPromptAsync();
+
+        /// <summary>
+        /// Ottiene l'API key configurata per il provider
+        /// </summary>
+        Task<string> GetApiKeyAsync();
+
+        /// <summary>
+        /// Salva l'API key per il provider
+        /// </summary>
+        Task SaveApiKeyAsync(string apiKey);
+
+        /// <summary>
+        /// Testa la validità di un'API key
+        /// </summary>
+        Task<bool> TestApiKeyAsync(string apiKey);
     }
 }

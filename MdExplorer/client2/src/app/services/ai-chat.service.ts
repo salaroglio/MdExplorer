@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface ModelInfo {
   id: string;
@@ -292,25 +293,74 @@ export class AiChatService {
   checkGeminiConfiguration(): Observable<any> {
     return this.http.get('/api/gemini/configured');
   }
-  
+
   getGeminiModels(): Observable<any[]> {
     return this.http.get<any[]>('/api/gemini/models');
   }
-  
+
   testGeminiApiKey(apiKey: string): Observable<any> {
     return this.http.post('/api/gemini/test-api-key', { apiKey });
   }
-  
+
   saveGeminiApiKey(apiKey: string): Observable<any> {
     return this.http.post('/api/gemini/api-key', { apiKey });
   }
-  
+
   getGeminiSystemPrompt(): Observable<any> {
     return this.http.get('/api/gemini/system-prompt');
   }
-  
+
   setGeminiSystemPrompt(systemPrompt: string): Observable<any> {
     return this.http.post('/api/gemini/system-prompt', { systemPrompt });
+  }
+
+  // Multi-Provider AI methods
+  getAvailableProviders(): Observable<any> {
+    return this.http.get('/api/aiproviders/list');
+  }
+
+  getAllModelsFromAllProviders(): Observable<any> {
+    return this.http.get('/api/aiproviders/models');
+  }
+
+  getModelsByProvider(providerType: string): Observable<any> {
+    return this.http.get(`/api/aiproviders/models/${providerType}`);
+  }
+
+  testChatWithProvider(providerType: string, message: string, modelId?: string): Observable<any> {
+    return this.http.post('/api/aiproviders/test-chat', {
+      providerType,
+      message,
+      modelId
+    });
+  }
+
+  // OpenAI API methods
+  checkOpenAiConfiguration(): Observable<any> {
+    return this.http.get('/api/openai/configured');
+  }
+
+  getOpenAiModels(): Observable<any[]> {
+    // Uses the multi-provider endpoint
+    return this.getModelsByProvider('OpenAI').pipe(
+      map((response: any) => response.models || [])
+    );
+  }
+
+  testOpenAiApiKey(apiKey: string): Observable<any> {
+    return this.http.post('/api/openai/test-api-key', { apiKey });
+  }
+
+  saveOpenAiApiKey(apiKey: string): Observable<any> {
+    return this.http.post('/api/openai/api-key', { apiKey });
+  }
+
+  getOpenAiSystemPrompt(): Observable<any> {
+    return this.http.get('/api/openai/system-prompt');
+  }
+
+  setOpenAiSystemPrompt(systemPrompt: string): Observable<any> {
+    return this.http.post('/api/openai/system-prompt', { systemPrompt });
   }
   
   setUseGemini(useGemini: boolean, modelId: string | null): void {
