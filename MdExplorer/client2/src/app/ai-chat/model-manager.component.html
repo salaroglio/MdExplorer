@@ -4,11 +4,15 @@
       <mat-card-title>AI Model Manager</mat-card-title>
       <mat-card-subtitle>
         <span *ngIf="isModelLoaded && currentModel">
+          <span *ngIf="currentModel.startsWith('OpenAI')">
+            <mat-icon inline="true" style="vertical-align: middle; color: #10a37f;">psychology</mat-icon>
+            Connected to: {{ currentModel }}
+          </span>
           <span *ngIf="currentModel.startsWith('Gemini')">
             <mat-icon inline="true" style="vertical-align: middle;">cloud</mat-icon>
             Connected to: {{ currentModel }}
           </span>
-          <span *ngIf="!currentModel.startsWith('Gemini')">
+          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI')">
             Local Model: {{ currentModel }}
             <span *ngIf="gpuEnabled" class="gpu-indicator">
               <mat-icon inline="true">memory</mat-icon>
@@ -67,10 +71,14 @@
           <mat-icon>refresh</mat-icon>
           Refresh
         </button>
-        <button mat-raised-button color="accent" (click)="editSystemPrompt()" 
+        <button mat-raised-button color="accent" (click)="editSystemPrompt()"
                 [disabled]="!isModelLoaded || editingSystemPrompt">
           <mat-icon>edit</mat-icon>
           Configure System Prompt
+        </button>
+        <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
+          <mat-icon>psychology</mat-icon>
+          {{ showOpenAiConfig ? 'Hide' : 'Configure' }} OpenAI
         </button>
         <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
           <mat-icon>cloud</mat-icon>
@@ -102,6 +110,99 @@
             Save System Prompt
           </button>
         </mat-card-actions>
+      </mat-card>
+
+      <!-- OpenAI Configuration Card -->
+      <mat-card *ngIf="showOpenAiConfig" class="openai-config-card" style="margin: 20px 0;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>psychology</mat-icon>
+            OpenAI Configuration
+          </mat-card-title>
+          <mat-card-subtitle>
+            Configure OpenAI API for GPT-4, GPT-4o, and other models
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!openAiConfigured">
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>OpenAI API Key</mat-label>
+              <input matInput type="password" [(ngModel)]="openAiApiKey"
+                     placeholder="Enter your OpenAI API key">
+              <mat-hint>Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></mat-hint>
+            </mat-form-field>
+            <div style="margin-top: 16px;">
+              <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="saveOpenAiApiKey()"
+                      [disabled]="loading || !openAiApiKey.trim()">
+                <mat-icon>save</mat-icon>
+                Save API Key
+              </button>
+              <button mat-button (click)="testOpenAiApiKey()"
+                      [disabled]="testingOpenAiApiKey || !openAiApiKey.trim()"
+                      style="margin-left: 8px;">
+                <mat-icon>check</mat-icon>
+                Test Key
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="openAiConfigured">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip style="background-color: #10a37f; color: white;" selected>
+                <mat-icon>check_circle</mat-icon>
+                API Key Configured
+              </mat-chip>
+            </mat-chip-list>
+
+            <h4>Available OpenAI Models:</h4>
+            <div class="models-grid">
+              <mat-card *ngFor="let model of openAiModels" class="model-card">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                  <mat-card-subtitle>
+                    Cloud Model | {{ (model.inputTokenLimit || 128000) / 1000 }}K input / {{ (model.outputTokenLimit || 4096) / 1000 }}K output
+                  </mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content>
+                  <p class="model-description">{{ model.description || 'Advanced AI model from OpenAI' }}</p>
+
+                  <mat-chip-list *ngIf="useOpenAi && selectedOpenAiModel === model.id">
+                    <mat-chip color="accent" selected>
+                      <mat-icon>check_circle</mat-icon>
+                      Connected
+                    </mat-chip>
+                  </mat-chip-list>
+                </mat-card-content>
+
+                <mat-card-actions>
+                  <button mat-raised-button style="background-color: #10a37f; color: white;"
+                          *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
+                          (click)="connectOpenAiModel(model.id)">
+                    <mat-icon>psychology</mat-icon>
+                    Connect
+                  </button>
+
+                  <button mat-button
+                          *ngIf="useOpenAi && selectedOpenAiModel === model.id"
+                          (click)="disconnectOpenAi()">
+                    <mat-icon>cloud_off</mat-icon>
+                    Disconnect
+                  </button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <button mat-raised-button color="accent" (click)="editOpenAiSystemPrompt()"
+                      [disabled]="editingOpenAiSystemPrompt || !useOpenAi">
+                <mat-icon>edit</mat-icon>
+                Configure OpenAI System Prompt
+              </button>
+            </div>
+
+          </div>
+        </mat-card-content>
       </mat-card>
 
       <!-- Gemini API Configuration Card -->

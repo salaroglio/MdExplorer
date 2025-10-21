@@ -34,7 +34,23 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   testingApiKey = false;
   geminiSystemPrompt = '';
   editingGeminiSystemPrompt = false;
-  
+
+  // OpenAI API properties
+  useOpenAi = false;
+  openAiApiKey = '';
+  openAiModels: any[] = [];
+  selectedOpenAiModel = 'gpt-4o';
+  openAiConfigured = false;
+  showOpenAiConfig = false;
+  testingOpenAiApiKey = false;
+  openAiSystemPrompt = '';
+  editingOpenAiSystemPrompt = false;
+
+  // Multi-provider properties
+  availableProviders: any[] = [];
+  selectedProvider: string = 'local'; // 'local', 'openai', 'gemini'
+  showProviderSelector = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -48,6 +64,8 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.loadSystemPrompt();
     this.loadGpuInfo();
     this.checkGeminiConfiguration();
+    this.checkOpenAiConfiguration();
+    this.loadAvailableProviders();
     
     // Subscribe to download progress
     this.aiService.downloadProgress$
@@ -411,7 +429,194 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
+  // OpenAI methods
+  checkOpenAiConfiguration(): void {
+    this.aiService.checkOpenAiConfiguration().subscribe({
+      next: (response: any) => {
+        this.openAiConfigured = response.configured;
+        if (this.openAiConfigured) {
+          this.loadOpenAiModels();
+          this.loadOpenAiSystemPrompt();
+        }
+      },
+      error: (err) => {
+        console.error('Error checking OpenAI configuration:', err);
+      }
+    });
+  }
+
+  loadOpenAiModels(): void {
+    this.aiService.getOpenAiModels().subscribe({
+      next: (models) => {
+        this.openAiModels = models;
+      },
+      error: (err) => {
+        console.error('Error loading OpenAI models:', err);
+      }
+    });
+  }
+
+  loadOpenAiSystemPrompt(): void {
+    this.aiService.getOpenAiSystemPrompt().subscribe({
+      next: (response: any) => {
+        this.openAiSystemPrompt = response.systemPrompt;
+      },
+      error: (err) => {
+        console.error('Error loading OpenAI system prompt:', err);
+      }
+    });
+  }
+
+  toggleOpenAiConfig(): void {
+    this.showOpenAiConfig = !this.showOpenAiConfig;
+    if (this.showOpenAiConfig && this.openAiConfigured) {
+      this.loadOpenAiModels();
+    }
+    this.contentChanged.emit();
+  }
+
+  testOpenAiApiKey(): void {
+    if (!this.openAiApiKey.trim()) {
+      alert('Please enter an API key');
+      return;
+    }
+
+    this.testingOpenAiApiKey = true;
+    this.aiService.testOpenAiApiKey(this.openAiApiKey).subscribe({
+      next: (response: any) => {
+        if (response.valid) {
+          alert('API key is valid!');
+        } else {
+          alert('Invalid API key');
+        }
+        this.testingOpenAiApiKey = false;
+      },
+      error: (err) => {
+        console.error('Error testing API key:', err);
+        alert('Error testing API key');
+        this.testingOpenAiApiKey = false;
+      }
+    });
+  }
+
+  saveOpenAiApiKey(): void {
+    if (!this.openAiApiKey.trim()) {
+      alert('Please enter an API key');
+      return;
+    }
+
+    this.loading = true;
+    this.aiService.saveOpenAiApiKey(this.openAiApiKey).subscribe({
+      next: () => {
+        this.openAiConfigured = true;
+        this.showOpenAiConfig = false;
+        this.openAiApiKey = '';
+        this.loadOpenAiModels();
+        this.loading = false;
+        alert('OpenAI API key saved successfully');
+      },
+      error: (err) => {
+        console.error('Error saving API key:', err);
+        alert('Error saving API key. Please check if it is valid.');
+        this.loading = false;
+      }
+    });
+  }
+
+  connectOpenAiModel(modelId: string): void {
+    console.log('[ModelManager] Connecting to OpenAI model:', modelId);
+    this.selectedOpenAiModel = modelId;
+    this.useOpenAi = true;
+    this.selectedProvider = 'openai';
+
+    // Disconnect Gemini if active
+    if (this.useGemini) {
+      this.disconnectGemini();
+    }
+
+    this.aiService.setUseGemini(false, null); // Disable Gemini mode
+    // TODO: Add setUseOpenAi method to service
+
+    // Notify that a model is now "loaded" (connected)
+    console.log('[ModelManager] Calling notifyGeminiConnected for OpenAI model:', modelId);
+    this.aiService.notifyGeminiConnected(`OpenAI: ${modelId}`);
+    console.log('[ModelManager] OpenAI model connected successfully');
+
+    alert(`Connected to OpenAI model: ${this.openAiModels.find(m => m.id === modelId)?.name || modelId}`);
+  }
+
+  disconnectOpenAi(): void {
+    console.log('[ModelManager] Disconnecting from OpenAI');
+    this.useOpenAi = false;
+    this.selectedOpenAiModel = null;
+    this.selectedProvider = 'local';
+
+    // Notify that OpenAI is disconnected
+    this.aiService.notifyGeminiDisconnected();
+  }
+
+  editOpenAiSystemPrompt(): void {
+    this.editingOpenAiSystemPrompt = true;
+    this.contentChanged.emit();
+  }
+
+  saveOpenAiSystemPrompt(): void {
+    if (!this.openAiSystemPrompt.trim()) {
+      alert('System prompt cannot be empty');
+      return;
+    }
+
+    this.aiService.setOpenAiSystemPrompt(this.openAiSystemPrompt).subscribe({
+      next: () => {
+        console.log('OpenAI system prompt saved successfully');
+        this.editingOpenAiSystemPrompt = false;
+      },
+      error: (err) => {
+        console.error('Error saving OpenAI system prompt:', err);
+        alert('Failed to save system prompt');
+      }
+    });
+  }
+
+  cancelEditOpenAiSystemPrompt(): void {
+    this.editingOpenAiSystemPrompt = false;
+    this.loadOpenAiSystemPrompt();
+  }
+
+  // Multi-provider methods
+  loadAvailableProviders(): void {
+    this.aiService.getAvailableProviders().subscribe({
+      next: (response: any) => {
+        this.availableProviders = response.providers || [];
+        console.log('[ModelManager] Loaded providers:', this.availableProviders);
+      },
+      error: (err) => {
+        console.error('Error loading providers:', err);
+      }
+    });
+  }
+
+  selectProvider(providerType: string): void {
+    console.log('[ModelManager] Selecting provider:', providerType);
+    this.selectedProvider = providerType.toLowerCase();
+
+    // Disconnect all providers first
+    if (this.useGemini) {
+      this.disconnectGemini();
+    }
+    if (this.useOpenAi) {
+      this.disconnectOpenAi();
+    }
+
+    this.showProviderSelector = false;
+  }
+
+  toggleProviderSelector(): void {
+    this.showProviderSelector = !this.showProviderSelector;
+    this.contentChanged.emit();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
