@@ -52,6 +52,7 @@ namespace MdExplorer.Features.Services
         private readonly ILogger<GeminiApiService> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly HttpClient _httpClient;
+        private readonly ChatInteractionLogger _chatLogger;
         private string _apiKey;
         private string _systemPrompt;
         
@@ -95,12 +96,17 @@ namespace MdExplorer.Features.Services
             }
         };
 
-        public GeminiApiService(ILogger<GeminiApiService> logger, IServiceProvider serviceProvider, IHttpClientFactory httpClientFactory)
+        public GeminiApiService(
+            ILogger<GeminiApiService> logger,
+            IServiceProvider serviceProvider,
+            IHttpClientFactory httpClientFactory,
+            ChatInteractionLogger chatLogger)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _httpClient = httpClientFactory.CreateClient();
-            
+            _chatLogger = chatLogger;
+
             // Don't load API key and system prompt in constructor to avoid deadlocks
             // They will be loaded on first use
         }
@@ -527,6 +533,15 @@ Examples:
 
 Be proactive and context-aware!";
 
+            // Log Gemini request details
+            _chatLogger?.LogGeminiRequest(
+                prompt,
+                toolGuidance,
+                tools?.Select(t => t.Name).ToList() ?? new List<string>(),
+                currentDocumentPath,
+                conversationHistory?.Count ?? 0
+            );
+
             // Build conversation history
             var contents = new List<object>();
 
@@ -642,6 +657,22 @@ Be proactive and context-aware!";
 
                 // Check if model wants to call functions
                 bool hasFunctionCalls = false;
+
+                // Pre-check for logging
+                foreach (var part in parts.EnumerateArray())
+                {
+                    if (part.TryGetProperty("functionCall", out _))
+                    {
+                        hasFunctionCalls = true;
+                        break;
+                    }
+                }
+
+                // Log Gemini response
+                _chatLogger?.LogGeminiResponse(responseJson, hasFunctionCalls);
+
+                // Reset for actual processing
+                hasFunctionCalls = false;
                 foreach (var part in parts.EnumerateArray())
                 {
                     if (part.TryGetProperty("functionCall", out var functionCall))
@@ -651,6 +682,9 @@ Be proactive and context-aware!";
                         var args = functionCall.GetProperty("args");
 
                         _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Executing function: {FunctionName}", functionName);
+
+                        // Log function call detection
+                        _chatLogger?.LogFunctionCall(functionName, args.GetRawText());
 
                         // Convert args to dictionary for tool executor
                         var arguments = JsonSerializer.Deserialize<Dictionary<string, object>>(args.GetRawText());
@@ -669,6 +703,9 @@ Be proactive and context-aware!";
                                 null,
                                 $"Tool execution error: {ex.Message}");
                         }
+
+                        // Log tool execution result
+                        _chatLogger?.LogFunctionResult(functionName, toolResult.Success, toolResult.Path, toolResult.Message);
 
                         // Add function response to conversation
                         var functionResponse = new
@@ -718,6 +755,9 @@ Be proactive and context-aware!";
                     {
                         finalResponse = textElement.GetString();
                         _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Model provided final response");
+
+                        // Log final response
+                        _chatLogger?.LogFinalResponse(finalResponse);
                         break;
                     }
                 }

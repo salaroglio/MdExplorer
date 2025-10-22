@@ -22,6 +22,7 @@ namespace MdExplorer.Hubs
         private readonly ILogger<AiChatHub> _logger;
         private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly ToolExecutor _toolExecutor;
+        private readonly Features.Services.ChatInteractionLogger _chatLogger;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -57,7 +58,8 @@ namespace MdExplorer.Hubs
             Features.Services.IGeminiApiService geminiService,
             ILogger<AiChatHub> logger,
             IEnumerable<IAiProvider> aiProviders,
-            ToolExecutor toolExecutor)
+            ToolExecutor toolExecutor,
+            Features.Services.ChatInteractionLogger chatLogger)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -65,6 +67,7 @@ namespace MdExplorer.Hubs
             _logger = logger;
             _aiProviders = aiProviders;
             _toolExecutor = toolExecutor;
+            _chatLogger = chatLogger;
         }
 
         public async Task SendMessage(string message)
@@ -115,6 +118,9 @@ namespace MdExplorer.Hubs
                         });
 
                         _logger.LogInformation($"[SendMessage] Conversation history has {history.Messages.Count} messages");
+
+                        // Log user message to chat logger
+                        _chatLogger?.LogUserMessage(Context.ConnectionId, message, currentDoc, history.Messages.Count);
 
                         // Create tool executor delegate that captures connectionId and currentDocument
                         var connectionId = Context.ConnectionId;

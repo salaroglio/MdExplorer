@@ -76,6 +76,9 @@ namespace MdExplorer
             services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
             services.AddScoped<Services.IGitCommitAiService, Services.GitCommitAiService>();
 
+            // Add Chat Interaction Logger for debugging tool calling
+            services.AddSingleton<Features.Services.ChatInteractionLogger>();
+
             // Add multi-provider AI system
             // Registra tutti i provider disponibili (possono essere iniettati come IEnumerable<IAiProvider>)
             services.AddSingleton<IAiProvider, OpenAiProvider>();
