@@ -519,23 +519,37 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
             var toolGuidance = @"🔧 FILE OPERATION TOOLS - MANDATORY RULES:
 
-RULE 1: YOU MUST ALWAYS CALL TOOLS FOR FILE OPERATIONS
+RULE 1: DO NOT EXPLAIN - CALL THE TOOL IMMEDIATELY
+❌ WRONG: 'I need to read the file first...' or 'I will now...' or 'Let me...'
+✅ CORRECT: Just call read_markdown_file immediately WITHOUT explaining
+This is the #1 mistake: explaining instead of acting. NEVER do this.
+
+RULE 2: YOU MUST ALWAYS CALL TOOLS FOR FILE OPERATIONS
 When the user asks to create, add, modify, replace, delete, or save content in files:
 ✅ CORRECT: Generate content AND call the appropriate tool
 ❌ WRONG: Only show the content in chat without calling tools
 
-RULE 2: UNDERSTAND THE OPERATION MODE
+RULE 3: UNDERSTAND THE OPERATION MODE
 update_markdown_file has THREE modes:
 - mode='append' → ADD content at the END of the file (default)
 - mode='replace' → REPLACE the ENTIRE file with new content
 - mode='prepend' → ADD content at the BEGINNING of the file
 
-RULE 3: FILE PATH BEHAVIOR
+RULE 4: FILE PATH BEHAVIOR
 - NEW files → create_markdown_file WITH explicit file_path
 - CURRENT document → update_markdown_file WITHOUT file_path (auto-detects current document)
 - SPECIFIC file → update_markdown_file WITH explicit file_path
 
-RULE 4: BILINGUAL EXAMPLES (Italian + English)
+RULE 5: DELETING CONTENT - BE PRECISE
+When user says 'delete the LAST X':
+1. Read file to find ALL occurrences of X
+2. Identify ONLY the last occurrence (by position in file)
+3. Remove ONLY that one, keep all others
+4. Replace entire file with cleaned content
+
+Example: File has 3 tables. User says 'delete last table'. Remove ONLY table #3, keep tables #1 and #2.
+
+RULE 6: BILINGUAL EXAMPLES (Italian + English)
 
 ✅ CORRECT EXAMPLES:
 
@@ -546,7 +560,10 @@ RULE 4: BILINGUAL EXAMPLES (Italian + English)
    → Generate table markdown, call update_markdown_file(mode='append')
 
 🇮🇹 'cancella l'ultima tabella' / 🇬🇧 'delete the last table'
-   → Read current file, remove table, call update_markdown_file(mode='replace') with cleaned content
+   → Call read_markdown_file, identify LAST table only, remove it, call update_markdown_file(mode='replace')
+
+🇮🇹 'crea un diagramma PlantUML' / 🇬🇧 'create a PlantUML diagram'
+   → Generate diagram, call update_markdown_file(mode='append') - DO NOT show in chat first!
 
 🇮🇹 'sostituisci tutto il contenuto con...' / 🇬🇧 'replace all content with...'
    → Generate new content, call update_markdown_file(mode='replace')
@@ -567,11 +584,16 @@ User: 'cancella l'ultima riga'
 ❌ AI: 'Non posso cancellare direttamente' (refuses to act)
 ✅ AI: Calls read_markdown_file, removes line, calls update_markdown_file(mode='replace')
 
-RULE 5: ALWAYS BE PROACTIVE
-Don't ask for permission - just do it! Generate content and call the tool immediately.
-The user expects you to MODIFY FILES, not just talk about them.
+User: 'crea un diagramma'
+❌ AI: 'I need to read the file first...' (explains instead of acting)
+✅ AI: Calls read_markdown_file immediately, generates diagram, calls update_markdown_file
 
-Remember: YOUR JOB IS TO MODIFY FILES, NOT JUST GENERATE TEXT!";
+RULE 7: CHAIN ACTIONS TOGETHER
+When a task requires multiple steps (read → modify → write):
+- Call all tools in sequence WITHOUT explaining between them
+- Only respond with text AFTER all tools have been called
+
+Remember: ACTIONS SPEAK LOUDER THAN WORDS. Call tools, don't explain!";
 
             // Log Gemini request details
             _chatLogger?.LogGeminiRequest(

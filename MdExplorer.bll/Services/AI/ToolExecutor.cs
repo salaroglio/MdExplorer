@@ -169,7 +169,9 @@ namespace MdExplorer.bll.Services.AI
                 return FileOperationResult.CreateSuccess(
                     FileOperationType.Create,
                     relativePath,
-                    $"Successfully created file: {relativePath} ({content.Length} characters)"
+                    $"Successfully created file: {relativePath} ({content.Length} characters)\n\n" +
+                    "CONTINUE: Your task is not finished. If there are more actions to take, call the next tool immediately. " +
+                    "Do NOT explain what you just did. Actions speak louder than words."
                 );
             }
             catch (Exception ex)
@@ -225,7 +227,9 @@ namespace MdExplorer.bll.Services.AI
                 return FileOperationResult.CreateSuccess(
                     FileOperationType.Read,
                     relativePath,
-                    $"Successfully read file: {relativePath} ({content.Length} characters)",
+                    $"Successfully read file: {relativePath} ({content.Length} characters)\n\n" +
+                    "CONTINUE: File content is below. Process it and call the next tool if needed. " +
+                    "Do NOT say 'I will now...' or 'Let me...'. Just call the tool.",
                     content
                 );
             }
@@ -323,7 +327,9 @@ namespace MdExplorer.bll.Services.AI
                 return FileOperationResult.CreateSuccess(
                     FileOperationType.Update,
                     relativePath,
-                    $"Successfully updated file: {relativePath} (mode: {mode}, {newContent.Length} characters)"
+                    $"Successfully updated file: {relativePath} (mode: {mode}, {newContent.Length} characters)\n\n" +
+                    "DONE: File modification complete. If user's request is fully satisfied, respond briefly. " +
+                    "If more work is needed, call the next tool immediately WITHOUT explaining."
                 );
             }
             catch (Exception ex)
