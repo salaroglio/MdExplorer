@@ -517,21 +517,61 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 ? $"\n\nCURRENT DOCUMENT CONTEXT:\nYou are currently viewing: {currentDocumentPath}\nWhen the user says 'add here', 'modify this file', 'append', etc., they refer to THIS document.\n"
                 : "";
 
-            var toolGuidance = @"You have access to file operation tools. When the user asks to create, write, save, or put content in a file:
-1. FIRST generate the content they want (diagram, text, code, etc.)
-2. THEN call create_markdown_file or update_markdown_file with that content
-3. ALWAYS respond naturally and explain what you did
+            var toolGuidance = @"🔧 FILE OPERATION TOOLS - MANDATORY RULES:
 
-For NEW files: Use create_markdown_file with explicit file_path.
-For CURRENT document modifications: Use update_markdown_file WITHOUT file_path (it will use the current document automatically).
-For SPECIFIC file modifications: Use update_markdown_file WITH explicit file_path.
+RULE 1: YOU MUST ALWAYS CALL TOOLS FOR FILE OPERATIONS
+When the user asks to create, add, modify, replace, delete, or save content in files:
+✅ CORRECT: Generate content AND call the appropriate tool
+❌ WRONG: Only show the content in chat without calling tools
 
-Examples:
-- 'create a PlantUML diagram and put it in diagram.md' → Generate PlantUML code, call create_markdown_file
-- 'add a conclusion section' → Generate content, call update_markdown_file WITHOUT file_path (uses current document)
-- 'update notes.md with...' → Generate content, call update_markdown_file WITH file_path='notes.md'
+RULE 2: UNDERSTAND THE OPERATION MODE
+update_markdown_file has THREE modes:
+- mode='append' → ADD content at the END of the file (default)
+- mode='replace' → REPLACE the ENTIRE file with new content
+- mode='prepend' → ADD content at the BEGINNING of the file
 
-Be proactive and context-aware!";
+RULE 3: FILE PATH BEHAVIOR
+- NEW files → create_markdown_file WITH explicit file_path
+- CURRENT document → update_markdown_file WITHOUT file_path (auto-detects current document)
+- SPECIFIC file → update_markdown_file WITH explicit file_path
+
+RULE 4: BILINGUAL EXAMPLES (Italian + English)
+
+✅ CORRECT EXAMPLES:
+
+🇮🇹 'aggiungi una sezione conclusioni' / 🇬🇧 'add a conclusion section'
+   → Generate content, call update_markdown_file(mode='append')
+
+🇮🇹 'aggiungi una tabella 3 colonne 2 righe' / 🇬🇧 'add a 3x2 table'
+   → Generate table markdown, call update_markdown_file(mode='append')
+
+🇮🇹 'cancella l'ultima tabella' / 🇬🇧 'delete the last table'
+   → Read current file, remove table, call update_markdown_file(mode='replace') with cleaned content
+
+🇮🇹 'sostituisci tutto il contenuto con...' / 🇬🇧 'replace all content with...'
+   → Generate new content, call update_markdown_file(mode='replace')
+
+🇮🇹 'crea un diagramma PlantUML in diagram.md' / 🇬🇧 'create a PlantUML diagram in diagram.md'
+   → Generate PlantUML code, call create_markdown_file(file_path='diagram.md')
+
+🇮🇹 'modifica notes.md aggiungendo...' / 🇬🇧 'modify notes.md by adding...'
+   → Generate content, call update_markdown_file(file_path='notes.md', mode='append')
+
+❌ WRONG EXAMPLES:
+
+User: 'aggiungi una tabella'
+❌ AI: 'Ecco la tabella: | Col1 | Col2 |...' (shows in chat without calling tool)
+✅ AI: Generates table AND calls update_markdown_file
+
+User: 'cancella l'ultima riga'
+❌ AI: 'Non posso cancellare direttamente' (refuses to act)
+✅ AI: Calls read_markdown_file, removes line, calls update_markdown_file(mode='replace')
+
+RULE 5: ALWAYS BE PROACTIVE
+Don't ask for permission - just do it! Generate content and call the tool immediately.
+The user expects you to MODIFY FILES, not just talk about them.
+
+Remember: YOUR JOB IS TO MODIFY FILES, NOT JUST GENERATE TEXT!";
 
             // Log Gemini request details
             _chatLogger?.LogGeminiRequest(
