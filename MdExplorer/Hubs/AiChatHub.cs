@@ -31,6 +31,10 @@ namespace MdExplorer.Hubs
         private static readonly ConcurrentDictionary<string, DocumentContext> _connectionDocumentContexts =
             new ConcurrentDictionary<string, DocumentContext>();
 
+        // Static dictionary to store conversation history per connection
+        private static readonly ConcurrentDictionary<string, ConversationHistory> _connectionHistories =
+            new ConcurrentDictionary<string, ConversationHistory>();
+
         private class ChatModeInfo
         {
             public bool UseGemini { get; set; }
@@ -40,6 +44,11 @@ namespace MdExplorer.Hubs
         private class DocumentContext
         {
             public string CurrentDocumentPath { get; set; }
+        }
+
+        private class ConversationHistory
+        {
+            public List<bll.Models.AI.ConversationMessage> Messages { get; set; } = new List<bll.Models.AI.ConversationMessage>();
         }
 
         public AiChatHub(
@@ -97,20 +106,38 @@ namespace MdExplorer.Hubs
                         var docContext = GetDocumentContext();
                         var currentDoc = docContext.CurrentDocumentPath;
 
+                        // Get conversation history and add current message
+                        var history = GetConversationHistory();
+                        history.Messages.Add(new bll.Models.AI.ConversationMessage
+                        {
+                            Role = "user",
+                            Content = message
+                        });
+
+                        _logger.LogInformation($"[SendMessage] Conversation history has {history.Messages.Count} messages");
+
                         // Create tool executor delegate that captures connectionId and currentDocument
                         var connectionId = Context.ConnectionId;
                         Func<string, dynamic, Task<FileOperationResult>> toolExecutorFunc =
                             async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
 
-                        // Use ChatWithToolsAsync (non-streaming but with tool support)
+                        // Use ChatWithToolsAsync with history (non-streaming but with tool support)
                         var response = await geminiProvider.ChatWithToolsAsync(
                             message,
                             tools,
                             toolExecutorFunc,
                             chatMode.GeminiModel,
-                            currentDoc);
+                            currentDoc,
+                            history.Messages);
 
                         _logger.LogInformation($"[SendMessage] Received response from Gemini with tools: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                        // Add assistant response to history
+                        history.Messages.Add(new bll.Models.AI.ConversationMessage
+                        {
+                            Role = "model",
+                            Content = response
+                        });
 
                         // Send complete response as a single chunk
                         await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
@@ -251,6 +278,7 @@ namespace MdExplorer.Hubs
             // Clean up connection state
             _connectionChatModes.TryRemove(Context.ConnectionId, out _);
             _connectionDocumentContexts.TryRemove(Context.ConnectionId, out _);
+            _connectionHistories.TryRemove(Context.ConnectionId, out _);
             await base.OnDisconnectedAsync(exception);
         }
         
@@ -297,6 +325,184 @@ namespace MdExplorer.Hubs
         private DocumentContext GetDocumentContext()
         {
             return _connectionDocumentContexts.GetOrAdd(Context.ConnectionId, _ => new DocumentContext());
+        }
+
+        private ConversationHistory GetConversationHistory()
+        {
+            return _connectionHistories.GetOrAdd(Context.ConnectionId, _ => new ConversationHistory());
+        }
+
+        public async Task EditAndRegenerateFromMessage(int messageIndex, string newContent)
+        {
+            _logger.LogInformation($"[EditAndRegenerateFromMessage] Index: {messageIndex}, NewContent length: {newContent?.Length ?? 0}, ConnectionId: {Context.ConnectionId}");
+
+            try
+            {
+                var history = GetConversationHistory();
+
+                // Validazione indice
+                if (messageIndex < 0 || messageIndex >= history.Messages.Count)
+                {
+                    _logger.LogWarning($"[EditAndRegenerateFromMessage] Invalid message index: {messageIndex}, total messages: {history.Messages.Count}");
+                    await Clients.Caller.SendAsync("ReceiveError", "Invalid message index");
+                    return;
+                }
+
+                var messageToEdit = history.Messages[messageIndex];
+
+                // Verifica che sia un messaggio user
+                if (messageToEdit.Role != "user")
+                {
+                    _logger.LogWarning($"[EditAndRegenerateFromMessage] Cannot edit non-user message at index {messageIndex}");
+                    await Clients.Caller.SendAsync("ReceiveError", "Can only edit user messages");
+                    return;
+                }
+
+                // Aggiorna il contenuto
+                messageToEdit.Content = newContent;
+                _logger.LogInformation($"[EditAndRegenerateFromMessage] Updated message content");
+
+                // Tronca la history: rimuovi tutti i messaggi DOPO questo indice
+                int messagesToRemove = history.Messages.Count - messageIndex - 1;
+                if (messagesToRemove > 0)
+                {
+                    history.Messages.RemoveRange(messageIndex + 1, messagesToRemove);
+                    _logger.LogInformation($"[EditAndRegenerateFromMessage] Removed {messagesToRemove} messages after index {messageIndex}");
+                }
+
+                _logger.LogInformation($"[EditAndRegenerateFromMessage] Truncated history to {history.Messages.Count} messages");
+
+                // Notifica frontend di rimuovere messaggi
+                await Clients.Caller.SendAsync("TruncateMessagesAfter", messageIndex);
+
+                // Rigenera risposta AI
+                await RegenerateAiResponse();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[EditAndRegenerateFromMessage] Error editing and regenerating message");
+                await Clients.Caller.SendAsync("ReceiveError", ex.Message);
+            }
+        }
+
+        private async Task RegenerateAiResponse()
+        {
+            _logger.LogInformation("[RegenerateAiResponse] Starting regeneration");
+
+            try
+            {
+                var chatMode = GetChatMode();
+                var history = GetConversationHistory();
+
+                if (history.Messages.Count == 0 || history.Messages[history.Messages.Count - 1].Role != "user")
+                {
+                    _logger.LogWarning("[RegenerateAiResponse] No user message to regenerate from");
+                    await Clients.Caller.SendAsync("ReceiveError", "No user message to regenerate from");
+                    return;
+                }
+
+                var lastUserMessage = history.Messages[history.Messages.Count - 1].Content;
+                _logger.LogInformation($"[RegenerateAiResponse] Regenerating from last user message: {lastUserMessage?.Substring(0, Math.Min(lastUserMessage?.Length ?? 0, 50))}...");
+
+                // Check if using Gemini API
+                if (chatMode.UseGemini)
+                {
+                    _logger.LogInformation($"[RegenerateAiResponse] Using Gemini API with model: {chatMode.GeminiModel}");
+
+                    if (!_geminiService.IsConfigured())
+                    {
+                        _logger.LogWarning("[RegenerateAiResponse] Gemini API is not configured!");
+                        await Clients.Caller.SendAsync("ReceiveMessage",
+                            "system",
+                            "⚠️ Gemini API is not configured. Please configure it in Settings.");
+                        return;
+                    }
+
+                    // Get GeminiProvider for tool calling
+                    var geminiProviderBase = _aiProviders.FirstOrDefault(p => p.GetProviderType() == Abstractions.Models.AI.ProviderType.Gemini);
+                    var geminiProvider = geminiProviderBase as GeminiProvider;
+
+                    if (geminiProvider != null)
+                    {
+                        _logger.LogInformation("[RegenerateAiResponse] Using Gemini with tool calling capability");
+
+                        // Get tool definitions
+                        var tools = FileOperationTools.GetToolDefinitions();
+
+                        // Get current document context
+                        var docContext = GetDocumentContext();
+                        var currentDoc = docContext.CurrentDocumentPath;
+
+                        _logger.LogInformation($"[RegenerateAiResponse] Conversation history has {history.Messages.Count} messages");
+
+                        // Create tool executor delegate
+                        var connectionId = Context.ConnectionId;
+                        Func<string, dynamic, Task<FileOperationResult>> toolExecutorFunc =
+                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
+
+                        // Use ChatWithToolsAsync with history
+                        var response = await geminiProvider.ChatWithToolsAsync(
+                            lastUserMessage,
+                            tools,
+                            toolExecutorFunc,
+                            chatMode.GeminiModel,
+                            currentDoc,
+                            history.Messages);
+
+                        _logger.LogInformation($"[RegenerateAiResponse] Received response from Gemini: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                        // Add assistant response to history
+                        history.Messages.Add(new bll.Models.AI.ConversationMessage
+                        {
+                            Role = "model",
+                            Content = response
+                        });
+
+                        // Send complete response as a single chunk
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[RegenerateAiResponse] GeminiProvider not found, falling back to streaming without tools");
+
+                        // Fallback to streaming without tools
+                        int chunkCount = 0;
+                        await foreach (var chunk in _geminiService.StreamChatAsync(lastUserMessage, chatMode.GeminiModel))
+                        {
+                            chunkCount++;
+                            _logger.LogDebug($"[RegenerateAiResponse] Sending chunk #{chunkCount}: {chunk?.Substring(0, Math.Min(chunk?.Length ?? 0, 50))}...");
+                            await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                        }
+
+                        _logger.LogInformation($"[RegenerateAiResponse] Finished streaming {chunkCount} chunks from Gemini");
+                    }
+                }
+                else
+                {
+                    // Use local model
+                    if (!_aiChatService.IsModelLoaded())
+                    {
+                        await Clients.Caller.SendAsync("ReceiveMessage",
+                            "system",
+                            "⚠️ No AI model loaded. Please download and select a model from Settings.");
+                        return;
+                    }
+
+                    // Stream the response back to the client
+                    await foreach (var chunk in _aiChatService.StreamChatAsync(lastUserMessage))
+                    {
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                    }
+                }
+
+                await Clients.Caller.SendAsync("StreamComplete");
+                _logger.LogInformation("[RegenerateAiResponse] Regeneration complete");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RegenerateAiResponse] Error regenerating AI response");
+                await Clients.Caller.SendAsync("ReceiveError", ex.Message);
+            }
         }
     }
 }

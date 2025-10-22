@@ -125,12 +125,34 @@
         .message-header {
           display: flex;
           justify-content: space-between;
+          align-items: center;
           margin-bottom: 8px;
           font-size: 0.85em;
 
           .message-role {
             font-weight: 600;
             text-transform: capitalize;
+          }
+
+          .message-actions {
+            display: flex;
+            gap: 4px;
+            margin: 0 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+
+            .edit-button {
+              width: 32px;
+              height: 32px;
+              line-height: 32px;
+
+              ::ng-deep .mat-icon {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+                line-height: 18px;
+              }
+            }
           }
 
           .message-time {
@@ -157,9 +179,42 @@
           }
         }
 
+        .message-edit {
+          margin-top: 8px;
+
+          .edit-textarea {
+            width: 100%;
+            margin-bottom: 8px;
+
+            ::ng-deep .mat-form-field-wrapper {
+              padding-bottom: 0;
+            }
+
+            ::ng-deep textarea {
+              resize: vertical;
+              font-family: inherit;
+            }
+          }
+
+          .edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+
+            button {
+              min-width: auto;
+            }
+          }
+        }
+
         mat-progress-spinner {
           margin-top: 10px;
         }
+      }
+
+      // Show edit button on hover
+      &:hover .message-content .message-header .message-actions {
+        opacity: 1;
       }
 
       &.message-user {

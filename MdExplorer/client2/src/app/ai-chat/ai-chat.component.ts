@@ -19,8 +19,13 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   inputMessage = '';
   isModelLoaded = false;
   currentModel: string | null = null;
+  currentDocument: string | null = null;
   showModelManager = false;
-  
+
+  // Edit message state
+  editingMessageId: string | null = null;
+  editedContent: string = '';
+
   private destroy$ = new Subject<void>();
   private shouldScrollToBottom = false;
 
@@ -58,6 +63,22 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         console.log('[AiChatComponent] Current model changed:', model);
         this.currentModel = model;
       });
+
+    // Subscribe to current document
+    this.aiService.currentDocument$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(doc => {
+        console.log('[AiChatComponent] Current document changed:', doc);
+        this.currentDocument = doc;
+      });
+
+    // Listen for TruncateMessagesAfter event from backend
+    this.aiService['hubConnection'].on('TruncateMessagesAfter', (messageIndex: number) => {
+      console.log('[AiChatComponent] Truncating messages after index:', messageIndex);
+      // Keep only messages up to and including messageIndex
+      this.messages = this.messages.slice(0, messageIndex + 1);
+      this.shouldScrollToBottom = true;
+    });
   }
 
   ngAfterViewChecked(): void {
@@ -146,5 +167,68 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       default:
         return 'chat';
     }
+  }
+
+  getCurrentDocumentName(): string {
+    if (!this.currentDocument) return '';
+    // Extract filename from path (works for both / and \\ separators)
+    const parts = this.currentDocument.replace(/\\/g, '/').split('/');
+    return parts[parts.length - 1];
+  }
+
+  startEditMessage(message: ChatMessage): void {
+    console.log('[AiChatComponent] Starting edit for message:', message.id);
+    this.editingMessageId = message.id;
+    this.editedContent = message.content;
+  }
+
+  cancelEditMessage(): void {
+    console.log('[AiChatComponent] Canceling edit');
+    this.editingMessageId = null;
+    this.editedContent = '';
+  }
+
+  saveEditedMessage(message: ChatMessage): void {
+    if (!this.editedContent.trim()) {
+      console.log('[AiChatComponent] Cannot save empty message');
+      return;
+    }
+
+    console.log('[AiChatComponent] Saving edited message:', message.id);
+
+    // Find the index of this message in the messages array
+    const messageIndex = this.messages.findIndex(m => m.id === message.id);
+
+    if (messageIndex === -1) {
+      console.error('[AiChatComponent] Message not found in messages array');
+      return;
+    }
+
+    // Update the message content locally
+    this.messages[messageIndex].content = this.editedContent;
+
+    // Call backend to regenerate from this point
+    // The backend uses the conversation history index, which matches our messages array index
+    this.aiService.editAndRegenerateMessage(messageIndex, this.editedContent);
+
+    // Reset edit state
+    this.editingMessageId = null;
+    this.editedContent = '';
+
+    // Create placeholder for new assistant response
+    const assistantMessageId = this.generateMessageId();
+    this.messages.push({
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true
+    });
+
+    this.shouldScrollToBottom = true;
+  }
+
+  private generateMessageId(): string {
+    return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 }

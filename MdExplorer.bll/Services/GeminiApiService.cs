@@ -34,6 +34,7 @@ namespace MdExplorer.Features.Services
             Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
             string modelName = "gemini-1.5-flash",
             string currentDocumentPath = null,
+            List<ConversationMessage> conversationHistory = null,
             CancellationToken ct = default);
     }
 
@@ -480,10 +481,11 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
             string modelName = "gemini-1.5-flash",
             string currentDocumentPath = null,
+            List<ConversationMessage> conversationHistory = null,
             CancellationToken ct = default)
         {
-            _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools, currentDoc: {CurrentDoc}",
-                tools?.Count ?? 0, currentDocumentPath ?? "none");
+            _logger.LogInformation("[GeminiApiService.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools, currentDoc: {CurrentDoc}, history: {HistoryCount}",
+                tools?.Count ?? 0, currentDocumentPath ?? "none", conversationHistory?.Count ?? 0);
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -526,14 +528,49 @@ Examples:
 Be proactive and context-aware!";
 
             // Build conversation history
-            var contents = new List<object>
+            var contents = new List<object>();
+
+            if (conversationHistory != null && conversationHistory.Any())
             {
-                new
+                // We have existing conversation history - convert it to Gemini format
+                _logger.LogInformation("[ChatWithToolsAsync] Building conversation from {Count} history messages", conversationHistory.Count);
+
+                // Add system context to the FIRST user message only
+                bool systemContextAdded = false;
+
+                foreach (var msg in conversationHistory)
+                {
+                    if (msg.Role == "user" && !systemContextAdded)
+                    {
+                        // Prepend system info to first user message
+                        contents.Add(new
+                        {
+                            role = "user",
+                            parts = new[] { new { text = currentDocInfo + toolGuidance + "\n\n" + _systemPrompt + "\n\n" + msg.Content } }
+                        });
+                        systemContextAdded = true;
+                    }
+                    else
+                    {
+                        // Regular message
+                        contents.Add(new
+                        {
+                            role = msg.Role,
+                            parts = new[] { new { text = msg.Content } }
+                        });
+                    }
+                }
+            }
+            else
+            {
+                // No history - this is the first message
+                _logger.LogInformation("[ChatWithToolsAsync] No conversation history, creating first message");
+                contents.Add(new
                 {
                     role = "user",
                     parts = new[] { new { text = currentDocInfo + toolGuidance + "\n\n" + _systemPrompt + "\n\n" + prompt } }
-                }
-            };
+                });
+            }
 
             // Convert tool definitions to Gemini function format
             var geminiTools = new

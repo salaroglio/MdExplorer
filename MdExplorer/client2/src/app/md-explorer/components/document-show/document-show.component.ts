@@ -9,6 +9,7 @@ import { ProjectsService } from '../../services/projects.service';
 import { Router, NavigationEnd } from '@angular/router';
 import { MdFile } from '../../models/md-file';
 import { Bookmark } from '../../services/Types/Bookmark';
+import { AiChatService } from '../../../services/ai-chat.service';
 
 @Component({
   selector: 'app-document-show',
@@ -34,7 +35,8 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
     private appMetadata: AppCurrentMetadataService,
     private navigationService: MdNavigationService,
     private projectService: ProjectsService,
-    private router: Router
+    private router: Router,
+    private aiChatService: AiChatService
   ) {}
 
   ngOnInit(): void {
@@ -86,10 +88,21 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(file => {
         if (file) {
+          // Notify AI about current document context
+          if (file.relativePath) {
+            // Remove leading slash/backslash for proper path validation
+            const cleanPath = file.relativePath.replace(/^[\\\/]+/, '');
+            console.log('[DocumentShow] Setting current document for AI:', cleanPath);
+            this.aiChatService.setCurrentDocument(cleanPath);
+          }
+
           // Aspetta che l'iframe carichi il nuovo contenuto
           setTimeout(() => {
             this.checkAndFixTocVisibility();
           }, 1500);
+        } else {
+          // Clear current document when no file is selected
+          this.aiChatService.setCurrentDocument(null);
         }
       });
   }

@@ -6,7 +6,7 @@
     
     <span class="spacer"></span>
     
-    <div class="model-status" *ngIf="!compactMode || isModelLoaded">
+    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument">
       <mat-chip-list>
         <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
           <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
@@ -15,6 +15,10 @@
         <mat-chip *ngIf="!isModelLoaded && !compactMode" color="warn">
           <mat-icon>warning</mat-icon>
           No Model
+        </mat-chip>
+        <mat-chip *ngIf="currentDocument" color="primary">
+          <mat-icon *ngIf="!compactMode">description</mat-icon>
+          {{ compactMode ? getCurrentDocumentName().substring(0, 12) : getCurrentDocumentName() }}
         </mat-chip>
       </mat-chip-list>
     </div>
@@ -51,14 +55,47 @@
       <div class="message-content">
         <div class="message-header">
           <span class="message-role">{{ compactMode ? (message.role === 'user' ? 'You' : 'AI') : (message.role | titlecase) }}</span>
+          <div class="message-actions" *ngIf="message.role === 'user' && !message.isStreaming && editingMessageId !== message.id">
+            <button mat-icon-button
+                    (click)="startEditMessage(message)"
+                    matTooltip="Edit message"
+                    class="edit-button">
+              <mat-icon>edit</mat-icon>
+            </button>
+          </div>
           <span class="message-time" *ngIf="!compactMode">{{ message.timestamp | date:'short' }}</span>
         </div>
-        
-        <div class="message-text" [innerHTML]="formatMessageContent(message.content)"></div>
-        
-        <mat-progress-spinner 
-          *ngIf="message.isStreaming" 
-          [diameter]="compactMode ? 16 : 20" 
+
+        <!-- Normal view mode -->
+        <div class="message-text"
+             *ngIf="editingMessageId !== message.id"
+             [innerHTML]="formatMessageContent(message.content)"></div>
+
+        <!-- Edit mode -->
+        <div class="message-edit" *ngIf="editingMessageId === message.id">
+          <mat-form-field appearance="outline" class="edit-textarea">
+            <textarea matInput
+                      [(ngModel)]="editedContent"
+                      [rows]="compactMode ? 3 : 4"
+                      autosize
+                      cdkTextareaAutosize
+                      #autosize="cdkTextareaAutosize"
+                      cdkAutosizeMinRows="2"
+                      cdkAutosizeMaxRows="10">
+            </textarea>
+          </mat-form-field>
+          <div class="edit-actions">
+            <button mat-button (click)="cancelEditMessage()">Cancel</button>
+            <button mat-raised-button color="primary" (click)="saveEditedMessage(message)">
+              <mat-icon>check</mat-icon>
+              Save & Regenerate
+            </button>
+          </div>
+        </div>
+
+        <mat-progress-spinner
+          *ngIf="message.isStreaming"
+          [diameter]="compactMode ? 16 : 20"
           mode="indeterminate">
         </mat-progress-spinner>
       </div>

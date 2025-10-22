@@ -79,9 +79,13 @@ export class AiChatService {
   // Gemini API state
   private _useGemini$ = new BehaviorSubject<boolean>(false);
   public useGemini$ = this._useGemini$.asObservable();
-  
+
   private _geminiModel$ = new BehaviorSubject<string>('gemini-1.5-flash');
   public geminiModel$ = this._geminiModel$.asObservable();
+
+  // Current document context for AI
+  private _currentDocument$ = new BehaviorSubject<string | null>(null);
+  public currentDocument$ = this._currentDocument$.asObservable();
 
   constructor(private http: HttpClient) {
     this.initializeSignalR();
@@ -415,6 +419,49 @@ export class AiChatService {
 
   clearDefaultAiPreferences(): Observable<any> {
     return this.http.delete('/api/AiPreferences/default');
+  }
+
+  /**
+   * Set the current document context for AI.
+   * This allows context-aware operations like "add a section" without specifying the file.
+   * @param filePath Relative path to the current document (from workspace root)
+   */
+  setCurrentDocument(filePath: string | null): void {
+    console.log('[AiChatService] setCurrentDocument called with:', filePath);
+
+    // Update local state
+    this._currentDocument$.next(filePath);
+
+    // Notify backend via SignalR
+    if (this.hubConnection.state === 'Connected' && filePath) {
+      this.hubConnection.invoke('SetCurrentDocument', filePath)
+        .then(() => {
+          console.log('[AiChatService] SetCurrentDocument sent to backend:', filePath);
+        })
+        .catch(err => {
+          console.error('[AiChatService] Error calling SetCurrentDocument:', err);
+        });
+    }
+  }
+
+  /**
+   * Edit a user message and regenerate the conversation from that point.
+   * All messages after the edited message will be removed.
+   * @param messageIndex Index of the message in the conversation history (0-based)
+   * @param newContent New content for the message
+   */
+  editAndRegenerateMessage(messageIndex: number, newContent: string): void {
+    console.log('[AiChatService] editAndRegenerateMessage called with index:', messageIndex);
+
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('EditAndRegenerateFromMessage', messageIndex, newContent)
+        .then(() => {
+          console.log('[AiChatService] EditAndRegenerateFromMessage sent to backend');
+        })
+        .catch(err => {
+          console.error('[AiChatService] Error calling EditAndRegenerateFromMessage:', err);
+        });
+    }
   }
 
   ngOnDestroy(): void {
