@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -113,8 +114,8 @@ namespace MdExplorer.Features.Services.AI
                     new { role = "system", content = _systemPrompt },
                     new { role = "user", content = prompt }
                 },
-                temperature = 0.7,
-                max_tokens = 4096
+                temperature = 1,
+                max_completion_tokens = 4096
             };
 
             var json = JsonSerializer.Serialize(requestBody);
@@ -183,8 +184,8 @@ namespace MdExplorer.Features.Services.AI
                     new { role = "system", content = _systemPrompt },
                     new { role = "user", content = prompt }
                 },
-                temperature = 0.7,
-                max_tokens = 4096,
+                temperature = 1,
+                max_completion_tokens = 4096,
                 stream = true
             };
 
@@ -436,12 +437,43 @@ Always provide clear, concise, and well-formatted responses using proper markdow
         /// </summary>
         public async Task<string> ChatWithToolsAsync(
             string prompt,
-            List<ToolDefinition> tools,
-            Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
+            List<object> tools,
+            Func<string, dynamic, Task<object>> toolExecutor,
             string modelId = null,
+            string currentDocumentPath = null,
+            List<object> conversationHistory = null,
             CancellationToken ct = default)
         {
             _logger.LogInformation("[OpenAiProvider.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools", tools?.Count ?? 0);
+
+            // Convert from List<object> to specific types
+            var typedTools = tools?.Cast<ToolDefinition>().ToList() ?? new List<ToolDefinition>();
+            var typedHistory = conversationHistory?.Cast<bll.Models.AI.ConversationMessage>().ToList();
+
+            // Wrap the executor to match the expected signature
+            Func<string, dynamic, Task<FileOperationResult>> typedExecutor =
+                async (toolName, arguments) =>
+                {
+                    var result = await toolExecutor(toolName, arguments);
+                    object resultObj = result; // Cast to object for logging
+                    _logger.LogInformation("[OpenAiProvider] Tool executor returned: {ResultType}, IsNull: {IsNull}",
+                        resultObj?.GetType().Name ?? "null", resultObj == null);
+
+                    if (resultObj == null)
+                    {
+                        _logger.LogWarning("[OpenAiProvider] Tool executor returned null!");
+                        return FileOperationResult.CreateError(FileOperationType.Create, null, "Tool executor returned null");
+                    }
+
+                    var typed = resultObj as FileOperationResult;
+                    if (typed == null)
+                    {
+                        _logger.LogWarning("[OpenAiProvider] Failed to cast result to FileOperationResult. Actual type: {ActualType}", resultObj.GetType().FullName);
+                        return FileOperationResult.CreateError(FileOperationType.Create, null, $"Invalid tool result type: {resultObj.GetType().Name}");
+                    }
+
+                    return typed;
+                };
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -463,15 +495,35 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             var model = modelId ?? _currentModelId;
             var url = $"{OPENAI_API_BASE}/chat/completions";
 
-            // Build messages array
-            var messages = new List<object>
+            // Build extended system prompt with tool guidance
+            var toolGuidance = ToolGuidanceBuilder.BuildForProvider(Abstractions.Models.AI.ProviderType.OpenAI);
+            var currentDocInfo = !string.IsNullOrEmpty(currentDocumentPath)
+                ? $"\n\nCURRENT DOCUMENT CONTEXT:\nYou are currently viewing: {currentDocumentPath}\nWhen the user says 'add here', 'modify this file', 'append', etc., they refer to THIS document.\n"
+                : "";
+            var extendedSystemPrompt = _systemPrompt + "\n\n" + toolGuidance + currentDocInfo;
+
+            // Build messages array with conversation history
+            var messages = new List<object>();
+
+            // Add system prompt
+            messages.Add(new { role = "system", content = extendedSystemPrompt });
+
+            // Add conversation history if provided
+            if (typedHistory != null && typedHistory.Count > 0)
             {
-                new { role = "system", content = _systemPrompt },
-                new { role = "user", content = prompt }
-            };
+                foreach (var historyMsg in typedHistory)
+                {
+                    // Convert role from Gemini format to OpenAI format
+                    var role = historyMsg.Role == "model" ? "assistant" : historyMsg.Role;
+                    messages.Add(new { role, content = historyMsg.Content });
+                }
+            }
+
+            // Add current user prompt
+            messages.Add(new { role = "user", content = prompt });
 
             // Convert tool definitions to OpenAI function format
-            var functions = tools.Select(t => new
+            var functions = typedTools.Select(t => new
             {
                 type = "function",
                 function = new
@@ -510,11 +562,16 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                     model = model,
                     messages = messages.ToArray(),
                     tools = functions,
-                    temperature = 0.7,
-                    max_tokens = 4096
+                    temperature = 1,
+                    max_completion_tokens = 4096
                 };
 
-                var json = JsonSerializer.Serialize(requestBody);
+                // Use JsonSerializerOptions to ignore null values
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                };
+                var json = JsonSerializer.Serialize(requestBody, jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var request = new HttpRequestMessage(HttpMethod.Post, url)
@@ -537,9 +594,30 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
                 var choice = responseData.RootElement.GetProperty("choices")[0];
                 var message = choice.GetProperty("message");
+                var finishReason = choice.GetProperty("finish_reason").GetString();
+
+                _logger.LogInformation("[OpenAiProvider.ChatWithToolsAsync] Finish reason: {FinishReason}", finishReason);
 
                 // Add assistant message to history
                 messages.Add(JsonSerializer.Deserialize<object>(message.GetRawText()));
+
+                // Check finish reason first
+                if (finishReason == "stop")
+                {
+                    // AI has finished, extract final response
+                    if (message.TryGetProperty("content", out var stopContent))
+                    {
+                        finalResponse = stopContent.GetString();
+                        _logger.LogInformation("[OpenAiProvider.ChatWithToolsAsync] AI finished with stop reason");
+                        break;
+                    }
+                }
+                else if (finishReason == "length")
+                {
+                    _logger.LogWarning("[OpenAiProvider.ChatWithToolsAsync] Reached token limit");
+                    finalResponse = "Response truncated due to token limit. Please try a shorter request.";
+                    break;
+                }
 
                 // Check if AI wants to call tools
                 if (message.TryGetProperty("tool_calls", out var toolCallsElement))
@@ -555,14 +633,14 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
                         _logger.LogInformation("[OpenAiProvider.ChatWithToolsAsync] Executing tool: {FunctionName}", functionName);
 
-                        // Parse arguments as dynamic object
-                        var arguments = JsonSerializer.Deserialize<dynamic>(argumentsJson);
+                        // Parse arguments as Dictionary to avoid JsonElement issues
+                        var arguments = JsonSerializer.Deserialize<Dictionary<string, object>>(argumentsJson);
 
                         // Execute tool
                         FileOperationResult toolResult;
                         try
                         {
-                            toolResult = await toolExecutor(functionName, arguments);
+                            toolResult = await typedExecutor(functionName, arguments);
                         }
                         catch (Exception ex)
                         {

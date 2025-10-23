@@ -372,10 +372,40 @@ export class AiChatService {
     if (modelId) {
       this._geminiModel$.next(modelId);
     }
-    
+
     // Notify via SignalR
     if (this.hubConnection.state === 'Connected') {
       this.hubConnection.invoke('SetChatMode', useGemini ? 'gemini' : 'local', modelId);
+    }
+  }
+
+  /**
+   * Set the AI provider to use (generic method for all providers).
+   * @param provider 'local', 'gemini', or 'openai'
+   * @param modelId Model ID to use with the provider
+   */
+  setProvider(provider: string, modelId: string | null): void {
+    console.log('[AiChatService] setProvider called with:', provider, modelId);
+
+    // Update internal state based on provider
+    if (provider === 'gemini') {
+      this._useGemini$.next(true);
+      if (modelId) {
+        this._geminiModel$.next(modelId);
+      }
+    } else {
+      this._useGemini$.next(false);
+    }
+
+    // Notify backend via SignalR
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SetChatMode', provider, modelId)
+        .then(() => {
+          console.log('[AiChatService] SetChatMode sent to backend:', provider, modelId);
+        })
+        .catch(err => {
+          console.error('[AiChatService] Error calling SetChatMode:', err);
+        });
     }
   }
   
@@ -398,6 +428,34 @@ export class AiChatService {
     this._isModelLoaded$.next(false);
     this._currentModel$.next(null);
     console.log('[AiChatService] Gemini disconnected');
+  }
+
+  /**
+   * Notify that OpenAI has been connected.
+   * Updates the model loaded status for the UI.
+   */
+  notifyOpenAiConnected(modelId: string): void {
+    console.log('[AiChatService] notifyOpenAiConnected called with modelId:', modelId);
+    console.log('[AiChatService] Current isModelLoaded value before update:', this._isModelLoaded$.getValue());
+
+    // When OpenAI is connected, we treat it as a "loaded" model
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`OpenAI: ${modelId}`);
+
+    console.log('[AiChatService] OpenAI connected:', modelId);
+    console.log('[AiChatService] isModelLoaded value after update:', this._isModelLoaded$.getValue());
+    console.log('[AiChatService] currentModel value after update:', this._currentModel$.getValue());
+  }
+
+  /**
+   * Notify that OpenAI has been disconnected.
+   */
+  notifyOpenAiDisconnected(): void {
+    // When OpenAI is disconnected, check if we have a local model loaded
+    // For now, we'll set to false assuming no local model
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] OpenAI disconnected');
   }
 
   generateCommitMessage(projectPath: string): Observable<any> {

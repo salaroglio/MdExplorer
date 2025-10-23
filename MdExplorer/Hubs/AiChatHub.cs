@@ -38,8 +38,12 @@ namespace MdExplorer.Hubs
 
         private class ChatModeInfo
         {
-            public bool UseGemini { get; set; }
-            public string GeminiModel { get; set; } = "gemini-1.5-flash";
+            public Abstractions.Models.AI.ProviderType? ProviderType { get; set; }
+            public string ModelId { get; set; }
+
+            // Backward compatibility properties
+            public bool UseGemini => ProviderType == Abstractions.Models.AI.ProviderType.Gemini;
+            public string GeminiModel => UseGemini ? ModelId : "gemini-1.5-flash";
         }
 
         private class DocumentContext
@@ -79,90 +83,82 @@ namespace MdExplorer.Hubs
                 // Get chat mode for this connection
                 var chatMode = GetChatMode();
                 
-                // Check if using Gemini API
-                if (chatMode.UseGemini)
+                // Check if using external AI provider (Gemini or OpenAI)
+                if (chatMode.ProviderType.HasValue)
                 {
-                    _logger.LogInformation($"[SendMessage] Using Gemini API with model: {chatMode.GeminiModel}");
-                    _logger.LogInformation($"[SendMessage] Message to send: {message}");
+                    _logger.LogInformation($"[SendMessage] Using external provider: {chatMode.ProviderType} with model: {chatMode.ModelId}");
 
-                    if (!_geminiService.IsConfigured())
+                    // Get the provider dynamically
+                    var provider = _aiProviders.FirstOrDefault(p => p.GetProviderType() == chatMode.ProviderType.Value);
+
+                    if (provider == null)
                     {
-                        _logger.LogWarning("[SendMessage] Gemini API is not configured!");
+                        _logger.LogWarning($"[SendMessage] Provider {chatMode.ProviderType} not found!");
                         await Clients.Caller.SendAsync("ReceiveMessage",
                             "system",
-                            "⚠️ Gemini API is not configured. Please configure it in Settings.");
+                            $"⚠️ {chatMode.ProviderType} provider is not available.");
                         return;
                     }
 
-                    // Get GeminiProvider for tool calling
-                    var geminiProviderBase = _aiProviders.FirstOrDefault(p => p.GetProviderType() == Abstractions.Models.AI.ProviderType.Gemini);
-                    var geminiProvider = geminiProviderBase as GeminiProvider;
-
-                    if (geminiProvider != null)
+                    if (!provider.IsAvailable())
                     {
-                        _logger.LogInformation("[SendMessage] Using Gemini with tool calling capability");
-
-                        // Get tool definitions
-                        var tools = FileOperationTools.GetToolDefinitions();
-
-                        // Get current document context
-                        var docContext = GetDocumentContext();
-                        var currentDoc = docContext.CurrentDocumentPath;
-
-                        // Get conversation history and add current message
-                        var history = GetConversationHistory();
-                        history.Messages.Add(new bll.Models.AI.ConversationMessage
-                        {
-                            Role = "user",
-                            Content = message
-                        });
-
-                        _logger.LogInformation($"[SendMessage] Conversation history has {history.Messages.Count} messages");
-
-                        // Log user message to chat logger
-                        _chatLogger?.LogUserMessage(Context.ConnectionId, message, currentDoc, history.Messages.Count);
-
-                        // Create tool executor delegate that captures connectionId and currentDocument
-                        var connectionId = Context.ConnectionId;
-                        Func<string, dynamic, Task<FileOperationResult>> toolExecutorFunc =
-                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
-
-                        // Use ChatWithToolsAsync with history (non-streaming but with tool support)
-                        var response = await geminiProvider.ChatWithToolsAsync(
-                            message,
-                            tools,
-                            toolExecutorFunc,
-                            chatMode.GeminiModel,
-                            currentDoc,
-                            history.Messages);
-
-                        _logger.LogInformation($"[SendMessage] Received response from Gemini with tools: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
-
-                        // Add assistant response to history
-                        history.Messages.Add(new bll.Models.AI.ConversationMessage
-                        {
-                            Role = "model",
-                            Content = response
-                        });
-
-                        // Send complete response as a single chunk
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                        _logger.LogWarning($"[SendMessage] Provider {chatMode.ProviderType} is not configured!");
+                        await Clients.Caller.SendAsync("ReceiveMessage",
+                            "system",
+                            $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
+                        return;
                     }
-                    else
+
+                    _logger.LogInformation($"[SendMessage] Using {provider.GetName()} with tool calling capability");
+
+                    // Get tool definitions
+                    var tools = FileOperationTools.GetToolDefinitions();
+
+                    // Get current document context
+                    var docContext = GetDocumentContext();
+                    var currentDoc = docContext.CurrentDocumentPath;
+
+                    // Get conversation history and add current message
+                    var history = GetConversationHistory();
+                    history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
-                        _logger.LogWarning("[SendMessage] GeminiProvider not found, falling back to streaming without tools");
+                        Role = "user",
+                        Content = message
+                    });
 
-                        // Fallback to streaming without tools
-                        int chunkCount = 0;
-                        await foreach (var chunk in _geminiService.StreamChatAsync(message, chatMode.GeminiModel))
-                        {
-                            chunkCount++;
-                            _logger.LogDebug($"[SendMessage] Sending chunk #{chunkCount}: {chunk?.Substring(0, Math.Min(chunk?.Length ?? 0, 50))}...");
-                            await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
-                        }
+                    _logger.LogInformation($"[SendMessage] Conversation history has {history.Messages.Count} messages");
 
-                        _logger.LogInformation($"[SendMessage] Finished streaming {chunkCount} chunks from Gemini");
-                    }
+                    // Log user message to chat logger
+                    _chatLogger?.LogUserMessage(Context.ConnectionId, message, currentDoc, history.Messages.Count);
+
+                    // Create tool executor delegate that captures connectionId and currentDocument
+                    var connectionId = Context.ConnectionId;
+                    Func<string, dynamic, Task<object>> toolExecutorFunc =
+                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
+
+                    // Convert conversation history to List<object> for interface compatibility
+                    var conversationHistory = history.Messages.Cast<object>().ToList();
+
+                    // Use ChatWithToolsAsync with history (works for all providers)
+                    var response = await provider.ChatWithToolsAsync(
+                        message,
+                        tools.Cast<object>().ToList(),
+                        toolExecutorFunc,
+                        chatMode.ModelId,
+                        currentDoc,
+                        conversationHistory);
+
+                    _logger.LogInformation($"[SendMessage] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                    // Add assistant response to history
+                    history.Messages.Add(new bll.Models.AI.ConversationMessage
+                    {
+                        Role = "model",
+                        Content = response
+                    });
+
+                    // Send complete response as a single chunk
+                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
                 }
                 else
                 {
@@ -194,24 +190,24 @@ namespace MdExplorer.Hubs
         public async Task<object> GetModelStatus()
         {
             var chatMode = GetChatMode();
-            
-            // If using Gemini, report it as loaded
-            if (chatMode.UseGemini)
+
+            // If using external AI provider (Gemini or OpenAI), report it as loaded
+            if (chatMode.ProviderType.HasValue)
             {
                 var availableModels = await _downloadService.GetAvailableModelsAsync();
                 return new
                 {
                     isModelLoaded = true,
-                    currentModel = $"Gemini: {chatMode.GeminiModel}",
+                    currentModel = $"{chatMode.ProviderType}: {chatMode.ModelId}",
                     availableModels = availableModels
                 };
             }
-            
+
             // Otherwise check local model status
             var isLoaded = _aiChatService.IsModelLoaded();
             var modelName = _aiChatService.GetCurrentModelName();
             var availableModels2 = await _downloadService.GetAvailableModelsAsync();
-            
+
             return new
             {
                 isModelLoaded = isLoaded,
@@ -291,21 +287,32 @@ namespace MdExplorer.Hubs
         public Task SetChatMode(string mode, string modelId)
         {
             _logger.LogInformation($"[SetChatMode] Called with mode: {mode}, modelId: {modelId}, ConnectionId: {Context.ConnectionId}");
-            
+
             var chatMode = GetChatMode();
-            chatMode.UseGemini = mode == "gemini";
-            if (chatMode.UseGemini && !string.IsNullOrEmpty(modelId))
+
+            switch (mode?.ToLower())
             {
-                chatMode.GeminiModel = modelId;
+                case "gemini":
+                    chatMode.ProviderType = Abstractions.Models.AI.ProviderType.Gemini;
+                    chatMode.ModelId = modelId ?? "gemini-1.5-flash";
+                    break;
+                case "openai":
+                    chatMode.ProviderType = Abstractions.Models.AI.ProviderType.OpenAI;
+                    chatMode.ModelId = modelId ?? "gpt-4o";
+                    break;
+                default:
+                    chatMode.ProviderType = null; // Local model
+                    chatMode.ModelId = null;
+                    break;
             }
-            
-            _logger.LogInformation($"[SetChatMode] Connection {Context.ConnectionId} - UseGemini: {chatMode.UseGemini}, Model: {chatMode.GeminiModel}");
-            
+
+            _logger.LogInformation($"[SetChatMode] Connection {Context.ConnectionId} - ProviderType: {chatMode.ProviderType}, ModelId: {chatMode.ModelId}");
+
             // Update the stored mode
             _connectionChatModes[Context.ConnectionId] = chatMode;
-            
+
             _logger.LogInformation($"[SetChatMode] Total connections tracked: {_connectionChatModes.Count}");
-            
+
             return Task.CompletedTask;
         }
         
@@ -410,78 +417,71 @@ namespace MdExplorer.Hubs
                 var lastUserMessage = history.Messages[history.Messages.Count - 1].Content;
                 _logger.LogInformation($"[RegenerateAiResponse] Regenerating from last user message: {lastUserMessage?.Substring(0, Math.Min(lastUserMessage?.Length ?? 0, 50))}...");
 
-                // Check if using Gemini API
-                if (chatMode.UseGemini)
+                // Check if using external AI provider (Gemini or OpenAI)
+                if (chatMode.ProviderType.HasValue)
                 {
-                    _logger.LogInformation($"[RegenerateAiResponse] Using Gemini API with model: {chatMode.GeminiModel}");
+                    _logger.LogInformation($"[RegenerateAiResponse] Using external provider: {chatMode.ProviderType} with model: {chatMode.ModelId}");
 
-                    if (!_geminiService.IsConfigured())
+                    // Get the provider dynamically
+                    var provider = _aiProviders.FirstOrDefault(p => p.GetProviderType() == chatMode.ProviderType.Value);
+
+                    if (provider == null)
                     {
-                        _logger.LogWarning("[RegenerateAiResponse] Gemini API is not configured!");
+                        _logger.LogWarning($"[RegenerateAiResponse] Provider {chatMode.ProviderType} not found!");
                         await Clients.Caller.SendAsync("ReceiveMessage",
                             "system",
-                            "⚠️ Gemini API is not configured. Please configure it in Settings.");
+                            $"⚠️ {chatMode.ProviderType} provider is not available.");
                         return;
                     }
 
-                    // Get GeminiProvider for tool calling
-                    var geminiProviderBase = _aiProviders.FirstOrDefault(p => p.GetProviderType() == Abstractions.Models.AI.ProviderType.Gemini);
-                    var geminiProvider = geminiProviderBase as GeminiProvider;
-
-                    if (geminiProvider != null)
+                    if (!provider.IsAvailable())
                     {
-                        _logger.LogInformation("[RegenerateAiResponse] Using Gemini with tool calling capability");
-
-                        // Get tool definitions
-                        var tools = FileOperationTools.GetToolDefinitions();
-
-                        // Get current document context
-                        var docContext = GetDocumentContext();
-                        var currentDoc = docContext.CurrentDocumentPath;
-
-                        _logger.LogInformation($"[RegenerateAiResponse] Conversation history has {history.Messages.Count} messages");
-
-                        // Create tool executor delegate
-                        var connectionId = Context.ConnectionId;
-                        Func<string, dynamic, Task<FileOperationResult>> toolExecutorFunc =
-                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
-
-                        // Use ChatWithToolsAsync with history
-                        var response = await geminiProvider.ChatWithToolsAsync(
-                            lastUserMessage,
-                            tools,
-                            toolExecutorFunc,
-                            chatMode.GeminiModel,
-                            currentDoc,
-                            history.Messages);
-
-                        _logger.LogInformation($"[RegenerateAiResponse] Received response from Gemini: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
-
-                        // Add assistant response to history
-                        history.Messages.Add(new bll.Models.AI.ConversationMessage
-                        {
-                            Role = "model",
-                            Content = response
-                        });
-
-                        // Send complete response as a single chunk
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                        _logger.LogWarning($"[RegenerateAiResponse] Provider {chatMode.ProviderType} is not configured!");
+                        await Clients.Caller.SendAsync("ReceiveMessage",
+                            "system",
+                            $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
+                        return;
                     }
-                    else
+
+                    _logger.LogInformation($"[RegenerateAiResponse] Using {provider.GetName()} with tool calling capability");
+
+                    // Get tool definitions
+                    var tools = FileOperationTools.GetToolDefinitions();
+
+                    // Get current document context
+                    var docContext = GetDocumentContext();
+                    var currentDoc = docContext.CurrentDocumentPath;
+
+                    _logger.LogInformation($"[RegenerateAiResponse] Conversation history has {history.Messages.Count} messages");
+
+                    // Create tool executor delegate
+                    var connectionId = Context.ConnectionId;
+                    Func<string, dynamic, Task<object>> toolExecutorFunc =
+                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
+
+                    // Convert conversation history to List<object> for interface compatibility
+                    var conversationHistory = history.Messages.Cast<object>().ToList();
+
+                    // Use ChatWithToolsAsync with history (works for all providers)
+                    var response = await provider.ChatWithToolsAsync(
+                        lastUserMessage,
+                        tools.Cast<object>().ToList(),
+                        toolExecutorFunc,
+                        chatMode.ModelId,
+                        currentDoc,
+                        conversationHistory);
+
+                    _logger.LogInformation($"[RegenerateAiResponse] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                    // Add assistant response to history
+                    history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
-                        _logger.LogWarning("[RegenerateAiResponse] GeminiProvider not found, falling back to streaming without tools");
+                        Role = "model",
+                        Content = response
+                    });
 
-                        // Fallback to streaming without tools
-                        int chunkCount = 0;
-                        await foreach (var chunk in _geminiService.StreamChatAsync(lastUserMessage, chatMode.GeminiModel))
-                        {
-                            chunkCount++;
-                            _logger.LogDebug($"[RegenerateAiResponse] Sending chunk #{chunkCount}: {chunk?.Substring(0, Math.Min(chunk?.Length ?? 0, 50))}...");
-                            await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
-                        }
-
-                        _logger.LogInformation($"[RegenerateAiResponse] Finished streaming {chunkCount} chunks from Gemini");
-                    }
+                    // Send complete response as a single chunk
+                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
                 }
                 else
                 {

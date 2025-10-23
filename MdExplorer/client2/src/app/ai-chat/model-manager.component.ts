@@ -352,7 +352,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.selectedGeminiModel = modelId;
     this.useGemini = true;
     this.selectedProvider = 'gemini';
-    this.aiService.setUseGemini(true, modelId);
+    this.aiService.setProvider('gemini', modelId);
 
     // Sync TOC generation service to use Gemini
     this.tocService.setAiMode(true, modelId).subscribe({
@@ -545,12 +545,12 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       this.disconnectGemini();
     }
 
-    this.aiService.setUseGemini(false, null); // Disable Gemini mode
-    // TODO: Add setUseOpenAi method to service
+    // Set provider to OpenAI
+    this.aiService.setProvider('openai', modelId);
 
     // Notify that a model is now "loaded" (connected)
-    console.log('[ModelManager] Calling notifyGeminiConnected for OpenAI model:', modelId);
-    this.aiService.notifyGeminiConnected(`OpenAI: ${modelId}`);
+    console.log('[ModelManager] Calling notifyOpenAiConnected for OpenAI model:', modelId);
+    this.aiService.notifyOpenAiConnected(modelId);
     console.log('[ModelManager] OpenAI model connected successfully');
 
     // Save as default preference

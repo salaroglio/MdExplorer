@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -122,11 +123,11 @@ namespace MdExplorer.Features.Services.AI
         /// </summary>
         public async Task<string> ChatWithToolsAsync(
             string prompt,
-            List<ToolDefinition> tools,
-            Func<string, dynamic, Task<FileOperationResult>> toolExecutor,
+            List<object> tools,
+            Func<string, dynamic, Task<object>> toolExecutor,
             string modelId = null,
             string currentDocumentPath = null,
-            List<ConversationMessage> conversationHistory = null,
+            List<object> conversationHistory = null,
             CancellationToken ct = default)
         {
             _logger.LogInformation("[GeminiProvider.ChatWithToolsAsync] Starting with prompt and {ToolCount} tools, currentDoc: {CurrentDoc}, history: {HistoryCount}",
@@ -138,7 +139,20 @@ namespace MdExplorer.Features.Services.AI
             }
 
             var model = modelId ?? _currentModelId;
-            return await _geminiService.ChatWithToolsAsync(prompt, tools, toolExecutor, model, currentDocumentPath, conversationHistory, ct);
+
+            // Convert back to specific types for GeminiService
+            var typedTools = tools?.Cast<ToolDefinition>().ToList();
+            var typedHistory = conversationHistory?.Cast<ConversationMessage>().ToList();
+
+            // Wrap the executor to match the expected signature
+            Func<string, dynamic, Task<FileOperationResult>> typedExecutor =
+                async (toolName, arguments) =>
+                {
+                    var result = await toolExecutor(toolName, arguments);
+                    return result as FileOperationResult;
+                };
+
+            return await _geminiService.ChatWithToolsAsync(prompt, typedTools, typedExecutor, model, currentDocumentPath, typedHistory, ct);
         }
     }
 }

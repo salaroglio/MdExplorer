@@ -112,6 +112,11 @@ namespace MdExplorer.bll.Services.AI
             // Convert to dictionary for safe access
             var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
 
+            object argsObj = args; // Cast to object to avoid CS1973
+            _logger.LogInformation("[CreateMarkdownFile] Arguments received: {ArgsType}, Keys: {Keys}",
+                argsObj?.GetType().Name ?? "null",
+                argsDict != null ? string.Join(", ", argsDict.Keys) : "none");
+
             string relativePath = argsDict.ContainsKey("file_path")
                 ? argsDict["file_path"]?.ToString()
                 : null;
@@ -122,21 +127,35 @@ namespace MdExplorer.bll.Services.AI
                 ? Convert.ToBoolean(argsDict["overwrite"])
                 : false;
 
+            _logger.LogInformation("[CreateMarkdownFile] Parsed arguments - relativePath: {RelativePath}, contentLength: {ContentLength}, overwrite: {Overwrite}",
+                relativePath ?? "null", content?.Length ?? 0, overwrite);
+
             if (string.IsNullOrEmpty(relativePath))
+            {
+                _logger.LogWarning("[CreateMarkdownFile] Missing file_path!");
                 return FileOperationResult.CreateError(FileOperationType.Create, null, "file_path is required");
+            }
 
             if (content == null)
+            {
+                _logger.LogWarning("[CreateMarkdownFile] Missing content!");
                 return FileOperationResult.CreateError(FileOperationType.Create, relativePath, "content is required");
+            }
 
             try
             {
                 // Validate path and content size
+                _logger.LogInformation("[CreateMarkdownFile] Validating path: {RelativePath}", relativePath);
                 var absolutePath = _pathValidator.ValidateAndResolvePath(relativePath);
+                _logger.LogInformation("[CreateMarkdownFile] Path validated successfully: {AbsolutePath}", absolutePath);
+
                 _pathValidator.ValidateContentSize(content);
+                _logger.LogInformation("[CreateMarkdownFile] Content size validated");
 
                 // Check if file exists
                 if (File.Exists(absolutePath) && !overwrite)
                 {
+                    _logger.LogWarning("[CreateMarkdownFile] File already exists: {AbsolutePath}", absolutePath);
                     var errorResult = FileOperationResult.CreateError(
                         FileOperationType.Create,
                         relativePath,
@@ -256,6 +275,18 @@ namespace MdExplorer.bll.Services.AI
             string heading = argsDict.ContainsKey("heading")
                 ? argsDict["heading"]?.ToString()
                 : null;
+            string startMarker = argsDict.ContainsKey("start_marker")
+                ? argsDict["start_marker"]?.ToString()
+                : null;
+            string endMarker = argsDict.ContainsKey("end_marker")
+                ? argsDict["end_marker"]?.ToString()
+                : null;
+            int occurrence = argsDict.ContainsKey("occurrence")
+                ? Convert.ToInt32(argsDict["occurrence"])
+                : 1;
+            bool includeMarkers = argsDict.ContainsKey("include_markers")
+                ? Convert.ToBoolean(argsDict["include_markers"])
+                : true;
 
             // If file_path is not provided, use current document
             if (string.IsNullOrEmpty(relativePath))
@@ -309,7 +340,8 @@ namespace MdExplorer.bll.Services.AI
                     "prepend" => content + "\n\n" + existingContent,
                     "replace" => content,
                     "insert_after_heading" => InsertAfterHeading(existingContent, content, heading),
-                    _ => throw new ArgumentException($"Invalid mode: {mode}. Valid modes: append, prepend, replace, insert_after_heading")
+                    "replace_section" => ReplaceSectionByMarkers(existingContent, content, startMarker, endMarker, occurrence, includeMarkers),
+                    _ => throw new ArgumentException($"Invalid mode: {mode}. Valid modes: append, prepend, replace, insert_after_heading, replace_section")
                 };
 
                 // Validate new content size
@@ -374,6 +406,122 @@ namespace MdExplorer.bll.Services.AI
                     result.AppendLine();
                     result.AppendLine(contentToInsert);
                 }
+            }
+
+            return result.ToString().TrimEnd();
+        }
+
+        private string ReplaceSectionByMarkers(string existingContent, string newContent, string startMarker, string endMarker, int occurrence, bool includeMarkers)
+        {
+            if (string.IsNullOrEmpty(startMarker))
+                throw new ArgumentException("start_marker is required when mode is 'replace_section'");
+
+            var lines = existingContent.Split('\n');
+            int startIndex = -1;
+            int endIndex = -1;
+            int currentOccurrence = 0;
+
+            // Find the specified occurrence of start marker
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (line.Contains(startMarker.Trim()))
+                {
+                    currentOccurrence++;
+                    if ((occurrence > 0 && currentOccurrence == occurrence) ||
+                        (occurrence < 0 && currentOccurrence == lines.Length + occurrence + 1))
+                    {
+                        startIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (startIndex == -1)
+            {
+                throw new ArgumentException($"Start marker not found: {startMarker} (occurrence: {occurrence})");
+            }
+
+            // Determine end marker if not provided
+            if (string.IsNullOrEmpty(endMarker))
+            {
+                // Auto-detect based on start marker type
+                if (startMarker.Trim().StartsWith("```"))
+                {
+                    // Fenced code block - find closing ```
+                    endMarker = "```";
+                    for (int i = startIndex + 1; i < lines.Length; i++)
+                    {
+                        if (lines[i].Trim().StartsWith("```"))
+                        {
+                            endIndex = i;
+                            break;
+                        }
+                    }
+                }
+                else if (startMarker.Trim().StartsWith("#"))
+                {
+                    // Markdown heading - find next heading at same or higher level
+                    int headingLevel = startMarker.Trim().TakeWhile(c => c == '#').Count();
+                    for (int i = startIndex + 1; i < lines.Length; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (line.StartsWith("#"))
+                        {
+                            int currentLevel = line.TakeWhile(c => c == '#').Count();
+                            if (currentLevel <= headingLevel)
+                            {
+                                endIndex = i - 1;
+                                break;
+                            }
+                        }
+                    }
+                    // If no next heading found, go to end of file
+                    if (endIndex == -1)
+                        endIndex = lines.Length - 1;
+                }
+                else
+                {
+                    throw new ArgumentException("end_marker is required for custom markers (not fenced code blocks or headings)");
+                }
+            }
+            else
+            {
+                // Find end marker after start marker
+                for (int i = startIndex + 1; i < lines.Length; i++)
+                {
+                    var line = lines[i].Trim();
+                    if (line.Contains(endMarker.Trim()))
+                    {
+                        endIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (endIndex == -1)
+            {
+                throw new ArgumentException($"End marker not found: {endMarker ?? "(auto-detect failed)"}");
+            }
+
+            // Build result
+            var result = new StringBuilder();
+
+            // Add content before section
+            for (int i = 0; i < (includeMarkers ? startIndex : startIndex + 1); i++)
+            {
+                result.AppendLine(lines[i]);
+            }
+
+            // Add new content
+            result.Append(newContent);
+            if (!newContent.EndsWith("\n"))
+                result.AppendLine();
+
+            // Add content after section
+            for (int i = (includeMarkers ? endIndex + 1 : endIndex); i < lines.Length; i++)
+            {
+                result.AppendLine(lines[i]);
             }
 
             return result.ToString().TrimEnd();

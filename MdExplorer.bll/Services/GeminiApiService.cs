@@ -517,7 +517,11 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 ? $"\n\nCURRENT DOCUMENT CONTEXT:\nYou are currently viewing: {currentDocumentPath}\nWhen the user says 'add here', 'modify this file', 'append', etc., they refer to THIS document.\n"
                 : "";
 
-            var toolGuidance = @"🔧 FILE OPERATION TOOLS - MANDATORY RULES:
+            var toolGuidance = ToolGuidanceBuilder.BuildForProvider(Abstractions.Models.AI.ProviderType.Gemini);
+
+            // OLD GUIDANCE - REMOVED, NOW USING ToolGuidanceBuilder
+            /*
+            var oldToolGuidance = @"🔧 FILE OPERATION TOOLS - MANDATORY RULES:
 
 RULE 1: DO NOT EXPLAIN - CALL THE TOOL IMMEDIATELY
 ❌ WRONG: 'I need to read the file first...' or 'I will now...' or 'Let me...'
@@ -530,10 +534,12 @@ When the user asks to create, add, modify, replace, delete, or save content in f
 ❌ WRONG: Only show the content in chat without calling tools
 
 RULE 3: UNDERSTAND THE OPERATION MODE
-update_markdown_file has THREE modes:
+update_markdown_file has FIVE modes:
 - mode='append' → ADD content at the END of the file (default)
 - mode='replace' → REPLACE the ENTIRE file with new content
 - mode='prepend' → ADD content at the BEGINNING of the file
+- mode='insert_after_heading' → INSERT content after a specific heading
+- mode='replace_section' → REPLACE a specific section between markers (e.g., PlantUML blocks, markdown sections)
 
 RULE 4: FILE PATH BEHAVIOR
 - NEW files → create_markdown_file WITH explicit file_path
@@ -574,6 +580,12 @@ RULE 6: BILINGUAL EXAMPLES (Italian + English)
 🇮🇹 'modifica notes.md aggiungendo...' / 🇬🇧 'modify notes.md by adding...'
    → Generate content, call update_markdown_file(file_path='notes.md', mode='append')
 
+🇮🇹 'modifica il diagramma PlantUML' / 🇬🇧 'modify the PlantUML diagram'
+   → Call read_markdown_file, generate new diagram, call update_markdown_file(mode='replace_section', start_marker='```plantuml', end_marker='```', include_markers=true)
+
+🇮🇹 'sostituisci la sezione Installation' / 🇬🇧 'replace the Installation section'
+   → Generate new content, call update_markdown_file(mode='replace_section', start_marker='## Installation', end_marker=null, include_markers=true)
+
 ❌ WRONG EXAMPLES:
 
 User: 'aggiungi una tabella'
@@ -594,6 +606,7 @@ When a task requires multiple steps (read → modify → write):
 - Only respond with text AFTER all tools have been called
 
 Remember: ACTIONS SPEAK LOUDER THAN WORDS. Call tools, don't explain!";
+            */
 
             // Log Gemini request details
             _chatLogger?.LogGeminiRequest(

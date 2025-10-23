@@ -100,13 +100,35 @@ namespace MdExplorer.bll.Services.AI
                         ["mode"] = new ToolProperty
                         {
                             Type = "string",
-                            Enum = new List<string> { "append", "prepend", "replace", "insert_after_heading" },
-                            Description = "How to update the file. 'append': add at end. 'prepend': add at start. 'replace': replace entire content. 'insert_after_heading': insert after specific heading."
+                            Enum = new List<string> { "append", "prepend", "replace", "insert_after_heading", "replace_section" },
+                            Description = "How to update the file. 'append': add at end. 'prepend': add at start. 'replace': replace entire content. 'insert_after_heading': insert after specific heading. 'replace_section': replace content between start_marker and end_marker."
                         },
                         ["heading"] = new ToolProperty
                         {
                             Type = "string",
                             Description = "Required if mode='insert_after_heading'. The heading text after which to insert content. Example: '## Installation'"
+                        },
+                        ["start_marker"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Required if mode='replace_section'. The text marking the start of the section to replace. Examples: '```plantuml' for code blocks, '## Section Title' for headings."
+                        },
+                        ["end_marker"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Optional if mode='replace_section'. The text marking the end of the section to replace. If omitted, auto-detects end based on start_marker type (e.g., closing ``` for fenced code blocks, next heading for markdown sections)."
+                        },
+                        ["occurrence"] = new ToolProperty
+                        {
+                            Type = "integer",
+                            Description = "Optional if mode='replace_section'. Which occurrence of start_marker to replace. Default: 1 (first occurrence). Use -1 for last occurrence.",
+                            Default = 1
+                        },
+                        ["include_markers"] = new ToolProperty
+                        {
+                            Type = "boolean",
+                            Description = "Optional if mode='replace_section'. Whether to include the markers in the replacement. Default: true. If false, preserves the original start and end marker lines.",
+                            Default = true
                         }
                     },
                     Required = new List<string> { "content", "mode" }

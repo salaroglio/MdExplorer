@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,5 +73,26 @@ namespace MdExplorer.Abstractions.Services
         /// Testa la validità di un'API key
         /// </summary>
         Task<bool> TestApiKeyAsync(string apiKey);
+
+        /// <summary>
+        /// Chat with tool calling support (function calling).
+        /// The AI can autonomously decide to use tools to accomplish tasks.
+        /// </summary>
+        /// <param name="prompt">User prompt/message</param>
+        /// <param name="tools">Available tools for the AI to call</param>
+        /// <param name="toolExecutor">Function to execute tool calls</param>
+        /// <param name="modelId">ID del modello da usare (opzionale)</param>
+        /// <param name="currentDocumentPath">Path to the current document for context-aware operations (opzionale)</param>
+        /// <param name="conversationHistory">Previous conversation messages for multi-turn dialogs (opzionale)</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <returns>Final AI response after tool executions</returns>
+        Task<string> ChatWithToolsAsync(
+            string prompt,
+            List<object> tools,
+            Func<string, dynamic, Task<object>> toolExecutor,
+            string modelId = null,
+            string currentDocumentPath = null,
+            List<object> conversationHistory = null,
+            CancellationToken ct = default);
     }
 }

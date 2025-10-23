@@ -78,7 +78,7 @@ namespace MdExplorer.Controllers.AI
                 // Execute with tools
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
-                    tools,
+                    tools.Cast<object>().ToList(),
                     async (toolName, args) => await _toolExecutor.ExecuteToolAsync(toolName, args),
                     request.Model ?? "gpt-4o"
                 );
@@ -148,7 +148,7 @@ namespace MdExplorer.Controllers.AI
                 // Execute with tools
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
-                    tools,
+                    tools.Cast<object>().ToList(),
                     async (toolName, args) => await _toolExecutor.ExecuteToolAsync(toolName, args),
                     request.Model ?? "gemini-1.5-flash"
                 );
