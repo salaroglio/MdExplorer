@@ -259,7 +259,7 @@ namespace MdExplorer.Features.Commands
 
 
                 }
-                
+
 
                 markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
             }

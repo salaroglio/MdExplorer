@@ -2,6 +2,7 @@
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
+using Microsoft.Extensions.Logging;
 using NHibernate;
 using PlantUml.Net;
 using System;
@@ -18,11 +19,13 @@ namespace MdExplorer.Features.Commands
     {
         private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly RendererFactory _rendererFactory;
+        private readonly ILogger<PlantumlServer> _logger;
 
-        public PlantumlServer(IDALFactory<IUserSettingsDB> dalFactory, RendererFactory rendererFactory)
+        public PlantumlServer(IDALFactory<IUserSettingsDB> dalFactory, RendererFactory rendererFactory, ILogger<PlantumlServer> logger)
         {
             _dalFactory = dalFactory;
             _rendererFactory = rendererFactory;
+            _logger = logger;
         }
 
         public  async Task<byte[]> GetSvgFromJar(string plantumlcode)
@@ -31,7 +34,6 @@ namespace MdExplorer.Features.Commands
             using (var session = _dalFactory.OpenSession())
             {
                 IPlantUmlRenderer renderer = getRenderer(session);
-
                 var bytes = await renderer.RenderAsync(plantumlcode, OutputFormat.Svg);
                 return bytes;
             }
@@ -152,14 +154,7 @@ namespace MdExplorer.Features.Commands
                 }
                 catch { }
             }
-            
-            // Log the paths for debugging
-            Console.WriteLine($"[PlantumlServer] JavaPath: {javaPath}");
-            Console.WriteLine($"[PlantumlServer] PlantUmlPath: {plantumlPath}");
-            Console.WriteLine($"[PlantumlServer] GraphvizPath: {localGraphvizDotPath}");
-            Console.WriteLine($"[PlantumlServer] PlantUML exists: {File.Exists(plantumlPath)}");
-            Console.WriteLine($"[PlantumlServer] Graphviz exists: {File.Exists(localGraphvizDotPath)}");
-            
+
             var renderer = _rendererFactory.CreateRenderer(new PlantUmlSettings()
             {
                 JavaPath = javaPath,

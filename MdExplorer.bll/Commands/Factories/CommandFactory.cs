@@ -156,9 +156,14 @@ namespace MdExplorer.Features.Commands
                     if (ns.Contains(".GitHub"))
                         return true;
 
-                    // Exclude incompatible commands
-                    if (name.Contains("FromPlantumlTo") && !ns.Contains(".GitHub"))
+                    // Exclude incompatible PlantUML commands (but keep Html ones - they generate GitHub-compatible images)
+                    if (name.Contains("FromPlantumlTo") && !ns.Contains(".GitHub") && !ns.Contains(".html"))
                         return false;
+
+                    // Include PlantUML Html commands in GitHub mode (they generate SVG/PNG images)
+                    if (name.Contains("FromPlantumlTo") && ns.Contains(".html"))
+                        return true;
+
                     if (name.Contains("FromEmojiTo") && !ns.Contains(".GitHub"))
                         return false;
                     if (name.Contains("FromLinkToApplication") && !ns.Contains(".GitHub"))

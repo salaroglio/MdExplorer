@@ -650,5 +650,14 @@ body {
   color: #856404 !important;
   font-weight: bold !important;
 }
+.error-snackbar .mat-snack-bar-container {
+  background: #c62828 !important;
+  color: #fff !important;
+  border: 1px solid #b71c1c !important;
+}
+.error-snackbar .mat-simple-snackbar-action {
+  color: #ffcdd2 !important;
+  font-weight: bold !important;
+}
 
 /*# sourceMappingURL=styles.css.map*/
