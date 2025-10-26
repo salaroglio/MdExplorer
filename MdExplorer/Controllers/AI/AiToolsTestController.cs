@@ -21,18 +21,18 @@ namespace MdExplorer.Controllers.AI
         private readonly ILogger<AiToolsTestController> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly ToolExecutor _toolExecutor;
-        private readonly PathValidator _pathValidator;
+        private readonly System.IO.FileSystemWatcher _fileSystemWatcher;
 
         public AiToolsTestController(
             ILogger<AiToolsTestController> logger,
             IServiceProvider serviceProvider,
             ToolExecutor toolExecutor,
-            PathValidator pathValidator)
+            System.IO.FileSystemWatcher fileSystemWatcher)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _toolExecutor = toolExecutor;
-            _pathValidator = pathValidator;
+            _fileSystemWatcher = fileSystemWatcher;
         }
 
         /// <summary>
@@ -76,10 +76,11 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 // Execute with tools
+                var workspaceRoot = _fileSystemWatcher.Path;
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
                     tools.Cast<object>().ToList(),
-                    async (toolName, args) => await _toolExecutor.ExecuteToolAsync(toolName, args),
+                    async (toolName, args) => await _toolExecutor.ExecuteToolAsync(toolName, args, workspaceRoot),
                     request.Model ?? "gpt-4o"
                 );
 
@@ -146,10 +147,11 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 // Execute with tools
+                var workspaceRoot = _fileSystemWatcher.Path;
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
                     tools.Cast<object>().ToList(),
-                    async (toolName, args) => await _toolExecutor.ExecuteToolAsync(toolName, args),
+                    async (toolName, args) => await _toolExecutor.ExecuteToolAsync(toolName, args, workspaceRoot),
                     request.Model ?? "gemini-1.5-flash"
                 );
 
@@ -184,12 +186,14 @@ namespace MdExplorer.Controllers.AI
         {
             try
             {
-                var validatedPath = _pathValidator.ValidateAndResolvePath(path);
+                var workspaceRoot = _fileSystemWatcher.Path;
+                var pathValidator = new PathValidator(workspaceRoot);
+                var validatedPath = pathValidator.ValidateAndResolvePath(path);
                 return Ok(new
                 {
                     inputPath = path,
                     validatedPath = validatedPath,
-                    workspaceRoot = _pathValidator.WorkspaceRoot,
+                    workspaceRoot = pathValidator.WorkspaceRoot,
                     valid = true
                 });
             }
@@ -231,10 +235,11 @@ namespace MdExplorer.Controllers.AI
         [HttpGet("workspace-info")]
         public IActionResult GetWorkspaceInfo()
         {
+            var workspaceRoot = _fileSystemWatcher.Path;
             return Ok(new
             {
-                workspaceRoot = _pathValidator.WorkspaceRoot,
-                exists = System.IO.Directory.Exists(_pathValidator.WorkspaceRoot)
+                workspaceRoot = workspaceRoot,
+                exists = System.IO.Directory.Exists(workspaceRoot)
             });
         }
     }

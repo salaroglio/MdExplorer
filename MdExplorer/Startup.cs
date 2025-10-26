@@ -89,13 +89,7 @@ namespace MdExplorer
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
 
             // Add AI Tool Calling services
-            services.AddSingleton<MdExplorer.bll.Services.AI.PathValidator>(sp =>
-            {
-                // Use the project directory from FileSystemWatcher as workspace root for AI Tool Calling
-                var fileSystemWatcher = sp.GetRequiredService<FileSystemWatcher>();
-                var workspaceRoot = fileSystemWatcher.Path;
-                return new MdExplorer.bll.Services.AI.PathValidator(workspaceRoot);
-            });
+            // PathValidator is now created dynamically by ToolExecutor with the current workspace root
             services.AddScoped<Abstractions.Services.IAiFileOperationNotifier, Services.AiFileOperationNotifier>();
             services.AddScoped<MdExplorer.bll.Services.AI.ToolExecutor>();
 

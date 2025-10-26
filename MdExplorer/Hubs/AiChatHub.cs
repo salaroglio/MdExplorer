@@ -23,6 +23,7 @@ namespace MdExplorer.Hubs
         private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly ToolExecutor _toolExecutor;
         private readonly Features.Services.ChatInteractionLogger _chatLogger;
+        private readonly System.IO.FileSystemWatcher _fileSystemWatcher;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -63,7 +64,8 @@ namespace MdExplorer.Hubs
             ILogger<AiChatHub> logger,
             IEnumerable<IAiProvider> aiProviders,
             ToolExecutor toolExecutor,
-            Features.Services.ChatInteractionLogger chatLogger)
+            Features.Services.ChatInteractionLogger chatLogger,
+            System.IO.FileSystemWatcher fileSystemWatcher)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -72,6 +74,7 @@ namespace MdExplorer.Hubs
             _aiProviders = aiProviders;
             _toolExecutor = toolExecutor;
             _chatLogger = chatLogger;
+            _fileSystemWatcher = fileSystemWatcher;
         }
 
         public async Task SendMessage(string message)
@@ -131,10 +134,14 @@ namespace MdExplorer.Hubs
                     // Log user message to chat logger
                     _chatLogger?.LogUserMessage(Context.ConnectionId, message, currentDoc, history.Messages.Count);
 
-                    // Create tool executor delegate that captures connectionId and currentDocument
+                    // Create tool executor delegate that captures connectionId, currentDocument, and workspaceRoot
                     var connectionId = Context.ConnectionId;
+                    var workspaceRoot = _fileSystemWatcher.Path; // Get current workspace root dynamically
+
+                    _logger.LogInformation($"[SendMessage] Using workspace root: {workspaceRoot}");
+
                     Func<string, dynamic, Task<object>> toolExecutorFunc =
-                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
+                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
 
                     // Convert conversation history to List<object> for interface compatibility
                     var conversationHistory = history.Messages.Cast<object>().ToList();

@@ -69,8 +69,8 @@ namespace MdExplorer.Features.Services.AI
                 SupportsFunctionCalling = true,
                 SupportsEmbeddings = true,
                 SupportsVision = true,
-                MaxInputTokens = 128000, // GPT-4 Turbo
-                MaxOutputTokens = 4096,
+                MaxInputTokens = 200000, // Updated to support GPT-5 and future models
+                MaxOutputTokens = 16000, // Updated from 4096 to support longer responses
                 AvailableModels = new[]
                 {
                     "gpt-4o",
@@ -115,7 +115,7 @@ namespace MdExplorer.Features.Services.AI
                     new { role = "user", content = prompt }
                 },
                 temperature = 1,
-                max_completion_tokens = 4096
+                max_completion_tokens = 16000
             };
 
             var json = JsonSerializer.Serialize(requestBody);
@@ -185,7 +185,7 @@ namespace MdExplorer.Features.Services.AI
                     new { role = "user", content = prompt }
                 },
                 temperature = 1,
-                max_completion_tokens = 4096,
+                max_completion_tokens = 16000,
                 stream = true
             };
 
@@ -563,7 +563,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                     messages = messages.ToArray(),
                     tools = functions,
                     temperature = 1,
-                    max_completion_tokens = 4096
+                    max_completion_tokens = 16000
                 };
 
                 // Use JsonSerializerOptions to ignore null values
@@ -615,7 +615,11 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 else if (finishReason == "length")
                 {
                     _logger.LogWarning("[OpenAiProvider.ChatWithToolsAsync] Reached token limit");
-                    finalResponse = "Response truncated due to token limit. Please try a shorter request.";
+                    finalResponse = "⚠️ La risposta è stata troncata perché la conversazione ha raggiunto il limite di token.\n\n" +
+                                  "**Suggerimenti**:\n" +
+                                  "- Inizia una nuova conversazione per ripartire da zero\n" +
+                                  "- Riduci la lunghezza delle richieste\n" +
+                                  "- Fai domande più specifiche e concise";
                     break;
                 }
 

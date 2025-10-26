@@ -18,16 +18,13 @@ namespace MdExplorer.bll.Services.AI
     /// </summary>
     public class ToolExecutor
     {
-        private readonly PathValidator _pathValidator;
         private readonly ILogger<ToolExecutor> _logger;
         private readonly IAiFileOperationNotifier _notifier;
 
         public ToolExecutor(
-            PathValidator pathValidator,
             ILogger<ToolExecutor> logger,
             IAiFileOperationNotifier notifier)
         {
-            _pathValidator = pathValidator ?? throw new ArgumentNullException(nameof(pathValidator));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
         }
@@ -61,20 +58,24 @@ namespace MdExplorer.bll.Services.AI
         /// </summary>
         /// <param name="toolName">Name of the tool to execute</param>
         /// <param name="arguments">Tool arguments as JSON object</param>
+        /// <param name="workspaceRoot">Workspace root directory for file operations</param>
         /// <param name="connectionId">Optional SignalR connection ID for notifications</param>
         /// <param name="currentDocumentPath">Optional current document path (relative to workspace) for context-aware operations</param>
-        public async Task<FileOperationResult> ExecuteToolAsync(string toolName, dynamic arguments, string connectionId = null, string currentDocumentPath = null)
+        public async Task<FileOperationResult> ExecuteToolAsync(string toolName, dynamic arguments, string workspaceRoot, string connectionId = null, string currentDocumentPath = null)
         {
             try
             {
-                _logger.LogInformation("Executing tool: {ToolName} for connectionId: {ConnectionId}, currentDocument: {CurrentDocument}",
-                    toolName, connectionId ?? "none", currentDocumentPath ?? "none");
+                _logger.LogInformation("Executing tool: {ToolName} for connectionId: {ConnectionId}, currentDocument: {CurrentDocument}, workspaceRoot: {WorkspaceRoot}",
+                    toolName, connectionId ?? "none", currentDocumentPath ?? "none", workspaceRoot ?? "none");
+
+                // Create PathValidator dynamically with the current workspace root
+                var pathValidator = new PathValidator(workspaceRoot);
 
                 return toolName switch
                 {
-                    "create_markdown_file" => await CreateMarkdownFileAsync(arguments, connectionId),
-                    "read_markdown_file" => await ReadMarkdownFileAsync(arguments, connectionId),
-                    "update_markdown_file" => await UpdateMarkdownFileAsync(arguments, connectionId, currentDocumentPath),
+                    "create_markdown_file" => await CreateMarkdownFileAsync(arguments, pathValidator, connectionId),
+                    "read_markdown_file" => await ReadMarkdownFileAsync(arguments, pathValidator, connectionId),
+                    "update_markdown_file" => await UpdateMarkdownFileAsync(arguments, pathValidator, connectionId, currentDocumentPath),
                     _ => FileOperationResult.CreateError(
                         FileOperationType.Create,
                         null,
@@ -107,7 +108,7 @@ namespace MdExplorer.bll.Services.AI
             }
         }
 
-        private async Task<FileOperationResult> CreateMarkdownFileAsync(dynamic args, string connectionId = null)
+        private async Task<FileOperationResult> CreateMarkdownFileAsync(dynamic args, PathValidator pathValidator, string connectionId = null)
         {
             // Convert to dictionary for safe access
             var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
@@ -146,10 +147,10 @@ namespace MdExplorer.bll.Services.AI
             {
                 // Validate path and content size
                 _logger.LogInformation("[CreateMarkdownFile] Validating path: {RelativePath}", relativePath);
-                var absolutePath = _pathValidator.ValidateAndResolvePath(relativePath);
+                var absolutePath = pathValidator.ValidateAndResolvePath(relativePath);
                 _logger.LogInformation("[CreateMarkdownFile] Path validated successfully: {AbsolutePath}", absolutePath);
 
-                _pathValidator.ValidateContentSize(content);
+                pathValidator.ValidateContentSize(content);
                 _logger.LogInformation("[CreateMarkdownFile] Content size validated");
 
                 // Check if file exists
@@ -200,7 +201,7 @@ namespace MdExplorer.bll.Services.AI
             }
         }
 
-        private async Task<FileOperationResult> ReadMarkdownFileAsync(dynamic args, string connectionId = null)
+        private async Task<FileOperationResult> ReadMarkdownFileAsync(dynamic args, PathValidator pathValidator, string connectionId = null)
         {
             var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
 
@@ -214,7 +215,7 @@ namespace MdExplorer.bll.Services.AI
             try
             {
                 // Validate path
-                var absolutePath = _pathValidator.ValidateAndResolvePath(relativePath);
+                var absolutePath = pathValidator.ValidateAndResolvePath(relativePath);
 
                 // Check if file exists
                 if (!File.Exists(absolutePath))
@@ -232,7 +233,7 @@ namespace MdExplorer.bll.Services.AI
 
                 // Validate file size before reading
                 var fileInfo = new FileInfo(absolutePath);
-                _pathValidator.ValidateFileSize(fileInfo.Length);
+                pathValidator.ValidateFileSize(fileInfo.Length);
 
                 // Read file
                 var content = await File.ReadAllTextAsync(absolutePath, Encoding.UTF8);
@@ -259,7 +260,7 @@ namespace MdExplorer.bll.Services.AI
             }
         }
 
-        private async Task<FileOperationResult> UpdateMarkdownFileAsync(dynamic args, string connectionId = null, string currentDocumentPath = null)
+        private async Task<FileOperationResult> UpdateMarkdownFileAsync(dynamic args, PathValidator pathValidator, string connectionId = null, string currentDocumentPath = null)
         {
             var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
 
@@ -314,7 +315,7 @@ namespace MdExplorer.bll.Services.AI
             try
             {
                 // Validate path
-                var absolutePath = _pathValidator.ValidateAndResolvePath(relativePath);
+                var absolutePath = pathValidator.ValidateAndResolvePath(relativePath);
 
                 // Check if file exists
                 if (!File.Exists(absolutePath))
@@ -345,7 +346,7 @@ namespace MdExplorer.bll.Services.AI
                 };
 
                 // Validate new content size
-                _pathValidator.ValidateContentSize(newContent);
+                pathValidator.ValidateContentSize(newContent);
 
                 // Write updated content
                 await File.WriteAllTextAsync(absolutePath, newContent, Encoding.UTF8);

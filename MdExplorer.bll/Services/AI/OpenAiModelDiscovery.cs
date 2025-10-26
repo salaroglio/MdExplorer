@@ -221,21 +221,31 @@ namespace MdExplorer.Features.Services.AI
         private void SetTokenLimits(AiProviderModel modelInfo)
         {
             // Set token limits based on model
-            if (modelInfo.Id.Contains("gpt-4o"))
+            // GPT-5 and o-series models (o1, o3) - future-proof for new advanced models
+            if (modelInfo.Id.Contains("gpt-5") || modelInfo.Id.Contains("-o1") || modelInfo.Id.Contains("-o3"))
+            {
+                modelInfo.InputTokenLimit = 200000;
+                modelInfo.OutputTokenLimit = 16000;
+            }
+            // GPT-4o models - most advanced GPT-4 variant
+            else if (modelInfo.Id.Contains("gpt-4o"))
             {
                 modelInfo.InputTokenLimit = 128000;
-                modelInfo.OutputTokenLimit = 4096;
+                modelInfo.OutputTokenLimit = 16000; // Updated from 4096 to support longer responses
             }
+            // GPT-4 Turbo models
             else if (modelInfo.Id.Contains("gpt-4-turbo"))
             {
                 modelInfo.InputTokenLimit = 128000;
                 modelInfo.OutputTokenLimit = 4096;
             }
+            // Standard GPT-4 models
             else if (modelInfo.Id.Contains("gpt-4"))
             {
                 modelInfo.InputTokenLimit = 8192;
                 modelInfo.OutputTokenLimit = 4096;
             }
+            // GPT-3.5 Turbo models
             else if (modelInfo.Id.Contains("gpt-3.5-turbo"))
             {
                 modelInfo.InputTokenLimit = 16385;
@@ -243,9 +253,10 @@ namespace MdExplorer.Features.Services.AI
             }
             else
             {
-                // Default values
-                modelInfo.InputTokenLimit = 4096;
-                modelInfo.OutputTokenLimit = 4096;
+                // Default values for unknown models - set to reasonable modern defaults
+                // This ensures new models work out of the box with generous limits
+                modelInfo.InputTokenLimit = 128000;
+                modelInfo.OutputTokenLimit = 16000;
             }
 
             if (modelInfo.Capabilities != null)
