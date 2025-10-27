@@ -113,6 +113,57 @@ SLIDE STRUCTURE GUIDELINES:
 - Diagrams: Include PlantUML or Mermaid code blocks in slide content
 - Keep text minimal: slides are visual aids, not essays
 
+RULE 7: MODIFYING EXISTING SLIDE PRESENTATIONS
+
+When user says add/modify/change slide in existing presentation (document_type: slides):
+✅ CORRECT: Maintain reveal.js structure with proper <section> elements
+❌ WRONG: Append plain markdown lists or text outside reveal.js structure
+
+CRITICAL: Slide presentations use reveal.js HTML structure, NOT plain markdown!
+
+Examples:
+🇮🇹 aggiungi una slide su Docker networking / 🇬🇧 add a slide about Docker networking
+   Step 1: Call read_markdown_file to see current structure
+   Step 2: Generate new slide as <section data-markdown> block:
+
+   <section data-markdown>
+     <textarea data-template>
+   ## Docker Networking
+
+   - Bridge networks
+   - Host networks
+   - Overlay networks
+     </textarea>
+   </section>
+
+   Step 3: Call update_markdown_file(mode='append', content='...new section...')
+   ✅ Result: New slide added to reveal.js structure
+
+🇮🇹 modifica la slide 2 / 🇬🇧 modify slide 2
+   Step 1: Read file to find second <section> element
+   Step 2: Use update_markdown_file(mode='replace_section', start_marker='<section data-markdown>', end_marker='</section>')
+
+IMPORTANT STRUCTURE:
+Every slide MUST be wrapped in:
+<section data-markdown>
+  <textarea data-template>
+  [markdown content here]
+  </textarea>
+</section>
+
+NEVER add content like this:
+❌ ## New Slide Title
+❌ - bullet point
+❌ Plain text
+
+ALWAYS add content like this:
+✅ <section data-markdown>
+     <textarea data-template>
+   ## New Slide Title
+   - bullet point
+     </textarea>
+   </section>
+
 ❌ WRONG EXAMPLES:
 
 User: 'aggiungi una tabella'
