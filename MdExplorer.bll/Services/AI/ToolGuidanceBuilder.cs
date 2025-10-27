@@ -143,26 +143,29 @@ Examples:
    Step 1: Read file to find second <section> element
    Step 2: Use update_markdown_file(mode='replace_section', start_marker='<section data-markdown>', end_marker='</section>')
 
-IMPORTANT STRUCTURE:
-Every slide MUST be wrapped in:
-<section data-markdown>
-  <textarea data-template>
-  [markdown content here]
-  </textarea>
-</section>
+CRITICAL XML WELL-FORMED REQUIREMENTS:
+MdExplorer uses XmlDocument.InnerXml which REQUIRES well-formed XML!
 
-NEVER add content like this:
-❌ ## New Slide Title
-❌ - bullet point
-❌ Plain text
+MANDATORY RULES (NO EXCEPTIONS):
+1. ALWAYS quote attributes with double quotes
+2. NEVER use self-closing tags like textarea/
+3. ALWAYS close ALL tags explicitly
+4. Copy the EXACT template below - DO NOT change tag structure
 
-ALWAYS add content like this:
-✅ <section data-markdown>
-     <textarea data-template>
-   ## New Slide Title
-   - bullet point
-     </textarea>
-   </section>
+EXACT TEMPLATE (copy this structure exactly - change only content inside textarea):
+
+START_SECTION
+    OPEN_SECTION_TAG with data-markdown attribute
+      OPEN_TEXTAREA_TAG with data-template attribute
+SLIDE_TITLE
+
+SLIDE_CONTENT_HERE
+      CLOSE_TEXTAREA_TAG
+    CLOSE_SECTION_TAG
+END_SECTION
+
+Example filled template:
+Your slides must follow this exact tag structure with proper attribute quoting.
 
 ❌ WRONG EXAMPLES:
 

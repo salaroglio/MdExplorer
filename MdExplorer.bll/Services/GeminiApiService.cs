@@ -678,7 +678,9 @@ Remember: ACTIONS SPEAK LOUDER THAN WORDS. Call tools, don't explain!";
                             {
                                 type = kvp.Value.Type,
                                 description = kvp.Value.Description,
-                                @enum = kvp.Value.Enum
+                                @enum = kvp.Value.Enum,
+                                @default = kvp.Value.Default,
+                                items = kvp.Value.Items
                             }
                         ),
                         required = t.Parameters.Required

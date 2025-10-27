@@ -529,6 +529,32 @@ namespace MdExplorer.bll.Services.AI
             return result.ToString().TrimEnd();
         }
 
+        /// <summary>
+        /// Validates that HTML content can be parsed as well-formed XML.
+        /// This is critical because MdExplorerController uses XmlDocument.InnerXml which requires well-formed XML.
+        /// </summary>
+        private (bool IsValid, string ErrorMessage) ValidateHtmlAsXml(string htmlContent)
+        {
+            try
+            {
+                var xmlDoc = new System.Xml.XmlDocument();
+                xmlDoc.LoadXml($"<root>{htmlContent}</root>");
+                return (true, null);
+            }
+            catch (System.Xml.XmlException ex)
+            {
+                var errorMessage = $"XML parsing error: {ex.Message} at line {ex.LineNumber}, position {ex.LinePosition}";
+                _logger.LogError("[ValidateHtmlAsXml] {ErrorMessage}", errorMessage);
+                return (false, errorMessage);
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = $"Unexpected error validating XML: {ex.Message}";
+                _logger.LogError(ex, "[ValidateHtmlAsXml] {ErrorMessage}", errorMessage);
+                return (false, errorMessage);
+            }
+        }
+
         private async Task<FileOperationResult> CreateSlidePresentationAsync(dynamic args, PathValidator pathValidator, string connectionId = null)
         {
             var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
@@ -566,65 +592,50 @@ namespace MdExplorer.bll.Services.AI
             {
                 var slidesObj = argsDict["slides"];
 
-                // Handle different possible formats for slides
-                if (slidesObj is System.Collections.IEnumerable slidesEnum)
+                // Handle JsonElement from Gemini/OpenAI deserialization
+                if (slidesObj is System.Text.Json.JsonElement slidesElement && slidesElement.ValueKind == System.Text.Json.JsonValueKind.Array)
                 {
-                    foreach (var slideObj in slidesEnum)
+                    foreach (var slideElement in slidesElement.EnumerateArray())
                     {
-                        var slideDict = slideObj as Dictionary<string, object>;
-                        if (slideDict == null && slideObj != null)
+                        string heading = slideElement.TryGetProperty("heading", out var h) ? h.GetString() : "";
+                        string content = slideElement.TryGetProperty("content", out var c) ? c.GetString() : "";
+                        string slideType = slideElement.TryGetProperty("type", out var t) ? t.GetString() : "horizontal";
+                        bool useFragments = slideElement.TryGetProperty("useFragments", out var f) ? f.GetBoolean() : false;
+
+                        // Build slide (well-formed XML with quoted attributes)
+                        slidesContent.AppendLine("    <section data-markdown=\"true\">");
+                        slidesContent.AppendLine("      <textarea data-template=\"\">");
+
+                        if (!string.IsNullOrEmpty(heading))
                         {
-                            // Try to convert using reflection
-                            var slideType = slideObj.GetType();
-                            slideDict = new Dictionary<string, object>();
-                            foreach (var prop in slideType.GetProperties())
-                            {
-                                slideDict[prop.Name.ToLower()] = prop.GetValue(slideObj);
-                            }
-                        }
-
-                        if (slideDict != null)
-                        {
-                            string heading = slideDict.ContainsKey("heading") ? slideDict["heading"]?.ToString() : "";
-                            string content = slideDict.ContainsKey("content") ? slideDict["content"]?.ToString() : "";
-                            string slideType = slideDict.ContainsKey("type") ? slideDict["type"]?.ToString() : "horizontal";
-                            bool useFragments = slideDict.ContainsKey("useFragments") ? Convert.ToBoolean(slideDict["useFragments"]) : false;
-
-                            // Build slide
-                            slidesContent.AppendLine("    <section data-markdown>");
-                            slidesContent.AppendLine("      <textarea data-template>");
-
-                            if (!string.IsNullOrEmpty(heading))
-                            {
-                                slidesContent.AppendLine($"## {heading}");
-                                slidesContent.AppendLine();
-                            }
-
-                            if (useFragments && content.Contains("- "))
-                            {
-                                // Add fragment class to list items
-                                var contentLines = content.Split('\n');
-                                foreach (var line in contentLines)
-                                {
-                                    if (line.TrimStart().StartsWith("- "))
-                                    {
-                                        slidesContent.AppendLine(line + " <!-- .element: class=\"fragment\" -->");
-                                    }
-                                    else
-                                    {
-                                        slidesContent.AppendLine(line);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                slidesContent.AppendLine(content);
-                            }
-
-                            slidesContent.AppendLine("      </textarea>");
-                            slidesContent.AppendLine("    </section>");
+                            slidesContent.AppendLine($"## {heading}");
                             slidesContent.AppendLine();
                         }
+
+                        if (useFragments && content.Contains("- "))
+                        {
+                            // Add fragment class to list items
+                            var contentLines = content.Split('\n');
+                            foreach (var line in contentLines)
+                            {
+                                if (line.TrimStart().StartsWith("- "))
+                                {
+                                    slidesContent.AppendLine(line + " <!-- .element: class=\"fragment\" -->");
+                                }
+                                else
+                                {
+                                    slidesContent.AppendLine(line);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            slidesContent.AppendLine(content);
+                        }
+
+                        slidesContent.AppendLine("      </textarea>");
+                        slidesContent.AppendLine("    </section>");
+                        slidesContent.AppendLine();
                     }
                 }
             }
@@ -695,6 +706,24 @@ namespace MdExplorer.bll.Services.AI
                 markdown.AppendLine("</div>");
 
                 var content = markdown.ToString();
+
+                // Validate that HTML is well-formed XML (critical for XmlDocument.InnerXml)
+                var (isValid, xmlError) = ValidateHtmlAsXml(content);
+                if (!isValid)
+                {
+                    _logger.LogError("[CreateSlidePresentation] XML validation failed: {Error}", xmlError);
+
+                    await SendNotificationAsync(connectionId, "create_slides", relativePath, false,
+                        $"XML validation error: {xmlError}");
+
+                    return FileOperationResult.CreateError(
+                        FileOperationType.Create,
+                        relativePath,
+                        "Generated HTML is not well-formed XML",
+                        xmlError,
+                        "Ensure all HTML tags are properly closed and attributes are quoted with double quotes.");
+                }
+                _logger.LogInformation("[CreateSlidePresentation] XML validation passed");
 
                 // Validate content size
                 pathValidator.ValidateContentSize(content);
