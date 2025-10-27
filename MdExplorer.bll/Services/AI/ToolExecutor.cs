@@ -547,6 +547,9 @@ namespace MdExplorer.bll.Services.AI
             string author = argsDict.ContainsKey("author")
                 ? argsDict["author"]?.ToString()
                 : "";
+            string email = argsDict.ContainsKey("email")
+                ? argsDict["email"]?.ToString()
+                : "";
             string theme = argsDict.ContainsKey("theme")
                 ? argsDict["theme"]?.ToString()
                 : "black";
@@ -651,13 +654,22 @@ namespace MdExplorer.bll.Services.AI
                 // Build complete markdown content
                 var markdown = new StringBuilder();
 
-                // YAML frontmatter
+                // YAML frontmatter completo conforme allo standard MdExplorer
                 markdown.AppendLine("---");
-                if (!string.IsNullOrEmpty(author))
-                    markdown.AppendLine($"author: {author}");
+                markdown.AppendLine($"author: {author}");
                 markdown.AppendLine("document_type: slides");
+                if (!string.IsNullOrEmpty(email))
+                    markdown.AppendLine($"email: {email}");
                 markdown.AppendLine($"title: {title}");
-                markdown.AppendLine($"date: {DateTime.Now:yyyy-MM-dd}");
+                markdown.AppendLine($"date: {DateTime.Now:dd/MM/yyyy}");
+                markdown.AppendLine("word_section:");
+                markdown.AppendLine("  write_toc: false");
+                markdown.AppendLine("  document_header: ''");
+                markdown.AppendLine("  template_section:");
+                markdown.AppendLine("    inherit_from_template: project");
+                markdown.AppendLine("    custom_template: ''");
+                markdown.AppendLine("    template_type: inherits");
+                markdown.AppendLine("  predefined_pages: ''");
                 markdown.AppendLine("---");
                 markdown.AppendLine();
 
@@ -671,7 +683,7 @@ namespace MdExplorer.bll.Services.AI
                 markdown.AppendLine($"      <h1>{title}</h1>");
                 if (!string.IsNullOrEmpty(author))
                     markdown.AppendLine($"      <p>{author}</p>");
-                markdown.AppendLine($"      <p><small>{DateTime.Now:yyyy-MM-dd}</small></p>");
+                markdown.AppendLine($"      <p><small>{DateTime.Now:dd/MM/yyyy}</small></p>");
                 markdown.AppendLine("    </section>");
                 markdown.AppendLine();
 

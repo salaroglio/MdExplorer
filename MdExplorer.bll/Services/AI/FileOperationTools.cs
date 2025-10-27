@@ -163,6 +163,11 @@ namespace MdExplorer.bll.Services.AI
                             Type = "string",
                             Description = "Author name (optional)"
                         },
+                        ["email"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Author email address (optional)"
+                        },
                         ["slides"] = new ToolProperty
                         {
                             Type = "array",
