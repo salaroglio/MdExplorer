@@ -166,7 +166,19 @@ namespace MdExplorer.bll.Services.AI
                         ["slides"] = new ToolProperty
                         {
                             Type = "array",
-                            Description = "Array of slide objects. Each slide should have: heading (string), content (string markdown), type ('horizontal' or 'vertical', default: 'horizontal'), useFragments (boolean, default: false for code slides, true for lists)"
+                            Description = "Array of slide objects. Each slide should have: heading (string), content (string markdown), type ('horizontal' or 'vertical', default: 'horizontal'), useFragments (boolean, default: false for code slides, true for lists)",
+                            Items = new
+                            {
+                                type = "object",
+                                properties = new Dictionary<string, object>
+                                {
+                                    ["heading"] = new { type = "string", description = "Slide title/heading" },
+                                    ["content"] = new { type = "string", description = "Markdown content of the slide (bullets, code, text)" },
+                                    ["type"] = new { type = "string", description = "Slide type: 'horizontal' or 'vertical'", @default = "horizontal" },
+                                    ["useFragments"] = new { type = "boolean", description = "Enable fragment animations for list items", @default = false }
+                                },
+                                required = new[] { "heading", "content" }
+                            }
                         },
                         ["theme"] = new ToolProperty
                         {
@@ -204,5 +216,6 @@ namespace MdExplorer.bll.Services.AI
         public string Description { get; set; }
         public List<string> Enum { get; set; }
         public object Default { get; set; }
+        public object Items { get; set; } // For array types: defines the structure of array elements
     }
 }

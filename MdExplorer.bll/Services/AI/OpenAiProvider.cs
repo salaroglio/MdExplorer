@@ -540,7 +540,8 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                                 type = kvp.Value.Type,
                                 description = kvp.Value.Description,
                                 @enum = kvp.Value.Enum,
-                                @default = kvp.Value.Default
+                                @default = kvp.Value.Default,
+                                items = kvp.Value.Items
                             }
                         ),
                         required = t.Parameters.Required
