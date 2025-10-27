@@ -16,7 +16,8 @@ namespace MdExplorer.bll.Services.AI
             {
                 CreateMarkdownFileTool(),
                 ReadMarkdownFileTool(),
-                UpdateMarkdownFileTool()
+                UpdateMarkdownFileTool(),
+                CreateSlidePresentationTool()
                 // search_documents tool will be added in Phase 7 (RAG)
             };
         }
@@ -132,6 +133,49 @@ namespace MdExplorer.bll.Services.AI
                         }
                     },
                     Required = new List<string> { "content", "mode" }
+                }
+            };
+        }
+
+        private static ToolDefinition CreateSlidePresentationTool()
+        {
+            return new ToolDefinition
+            {
+                Name = "create_slide_presentation",
+                Description = "Create a reveal.js slide presentation from markdown. Use this when user asks to: 'create slides', 'make a presentation', 'create slideshow', 'make slides about...'. YOU MUST generate all slide content yourself. Examples: 'create slides about Docker' → generate 5-7 slides with titles and content, then call this tool. 'make a presentation on AI' → generate structured slides with introduction, main points, examples, conclusion.",
+                Parameters = new ToolParameters
+                {
+                    Type = "object",
+                    Properties = new Dictionary<string, ToolProperty>
+                    {
+                        ["file_path"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Relative path from workspace root. Must end with .md. Examples: 'presentations/docker-intro.md', 'slides/ai-overview.md'"
+                        },
+                        ["title"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Main title of the presentation"
+                        },
+                        ["author"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Author name (optional)"
+                        },
+                        ["slides"] = new ToolProperty
+                        {
+                            Type = "array",
+                            Description = "Array of slide objects. Each slide should have: heading (string), content (string markdown), type ('horizontal' or 'vertical', default: 'horizontal'), useFragments (boolean, default: false for code slides, true for lists)"
+                        },
+                        ["theme"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "Reveal.js theme: 'black', 'white', 'league', 'beige', 'sky', 'night', 'serif', 'simple', 'solarized', 'blood', 'moon'. Default: 'black'",
+                            Default = "black"
+                        }
+                    },
+                    Required = new List<string> { "file_path", "title", "slides" }
                 }
             };
         }

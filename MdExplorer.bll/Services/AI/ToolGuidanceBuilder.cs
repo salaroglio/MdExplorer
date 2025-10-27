@@ -91,6 +91,28 @@ RULE 5: BILINGUAL EXAMPLES (Italian + English)
 🇮🇹 'sostituisci la sezione Installation' / 🇬🇧 'replace the Installation section'
    → Generate new content, call update_markdown_file(mode='replace_section', start_marker='## Installation', end_marker=null, include_markers=true)
 
+RULE 6: CREATING SLIDE PRESENTATIONS WITH REVEAL.JS
+
+When user says create slides/presentation/slideshow:
+✅ CORRECT: Use create_slide_presentation tool
+❌ WRONG: Use create_markdown_file with manual HTML structure
+
+Examples:
+🇮🇹 crea slide su Docker / 🇬🇧 create slides about Docker
+   → Generate 5-7 slides with heading and content, call create_slide_presentation
+
+🇮🇹 fai una presentazione su microservizi con diagrammi / 🇬🇧 make presentation on microservices with diagrams
+   → Generate slides including PlantUML or Mermaid diagrams, call create_slide_presentation
+
+SLIDE STRUCTURE GUIDELINES:
+- Title slide: Auto-generated from title parameter
+- Content slides: 5-7 slides typically
+- Each slide: Clear heading + concise content (3-5 bullets or 1 code block)
+- Use useFragments=true for lists (animated bullet points)
+- Use useFragments=false for code blocks (no animation)
+- Diagrams: Include PlantUML or Mermaid code blocks in slide content
+- Keep text minimal: slides are visual aids, not essays
+
 ❌ WRONG EXAMPLES:
 
 User: 'aggiungi una tabella'

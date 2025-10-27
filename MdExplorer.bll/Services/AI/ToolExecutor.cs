@@ -76,11 +76,12 @@ namespace MdExplorer.bll.Services.AI
                     "create_markdown_file" => await CreateMarkdownFileAsync(arguments, pathValidator, connectionId),
                     "read_markdown_file" => await ReadMarkdownFileAsync(arguments, pathValidator, connectionId),
                     "update_markdown_file" => await UpdateMarkdownFileAsync(arguments, pathValidator, connectionId, currentDocumentPath),
+                    "create_slide_presentation" => await CreateSlidePresentationAsync(arguments, pathValidator, connectionId),
                     _ => FileOperationResult.CreateError(
                         FileOperationType.Create,
                         null,
                         $"Unknown tool: {toolName}",
-                        "Available tools: create_markdown_file, read_markdown_file, update_markdown_file")
+                        "Available tools: create_markdown_file, read_markdown_file, update_markdown_file, create_slide_presentation")
                 };
             }
             catch (SecurityException ex)
@@ -526,6 +527,197 @@ namespace MdExplorer.bll.Services.AI
             }
 
             return result.ToString().TrimEnd();
+        }
+
+        private async Task<FileOperationResult> CreateSlidePresentationAsync(dynamic args, PathValidator pathValidator, string connectionId = null)
+        {
+            var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
+
+            object argsObj = args;
+            _logger.LogInformation("[CreateSlidePresentation] Arguments received: {ArgsType}, Keys: {Keys}",
+                argsObj?.GetType().Name ?? "null",
+                argsDict != null ? string.Join(", ", argsDict.Keys) : "none");
+
+            string relativePath = argsDict.ContainsKey("file_path")
+                ? argsDict["file_path"]?.ToString()
+                : null;
+            string title = argsDict.ContainsKey("title")
+                ? argsDict["title"]?.ToString()
+                : "Untitled Presentation";
+            string author = argsDict.ContainsKey("author")
+                ? argsDict["author"]?.ToString()
+                : "";
+            string theme = argsDict.ContainsKey("theme")
+                ? argsDict["theme"]?.ToString()
+                : "black";
+
+            if (string.IsNullOrEmpty(relativePath))
+            {
+                _logger.LogWarning("[CreateSlidePresentation] Missing file_path!");
+                return FileOperationResult.CreateError(FileOperationType.Create, null, "file_path is required");
+            }
+
+            // Parse slides array
+            var slidesContent = new StringBuilder();
+            if (argsDict.ContainsKey("slides"))
+            {
+                var slidesObj = argsDict["slides"];
+
+                // Handle different possible formats for slides
+                if (slidesObj is System.Collections.IEnumerable slidesEnum)
+                {
+                    foreach (var slideObj in slidesEnum)
+                    {
+                        var slideDict = slideObj as Dictionary<string, object>;
+                        if (slideDict == null && slideObj != null)
+                        {
+                            // Try to convert using reflection
+                            var slideType = slideObj.GetType();
+                            slideDict = new Dictionary<string, object>();
+                            foreach (var prop in slideType.GetProperties())
+                            {
+                                slideDict[prop.Name.ToLower()] = prop.GetValue(slideObj);
+                            }
+                        }
+
+                        if (slideDict != null)
+                        {
+                            string heading = slideDict.ContainsKey("heading") ? slideDict["heading"]?.ToString() : "";
+                            string content = slideDict.ContainsKey("content") ? slideDict["content"]?.ToString() : "";
+                            string slideType = slideDict.ContainsKey("type") ? slideDict["type"]?.ToString() : "horizontal";
+                            bool useFragments = slideDict.ContainsKey("useFragments") ? Convert.ToBoolean(slideDict["useFragments"]) : false;
+
+                            // Build slide
+                            slidesContent.AppendLine("    <section data-markdown>");
+                            slidesContent.AppendLine("      <textarea data-template>");
+
+                            if (!string.IsNullOrEmpty(heading))
+                            {
+                                slidesContent.AppendLine($"## {heading}");
+                                slidesContent.AppendLine();
+                            }
+
+                            if (useFragments && content.Contains("- "))
+                            {
+                                // Add fragment class to list items
+                                var contentLines = content.Split('\n');
+                                foreach (var line in contentLines)
+                                {
+                                    if (line.TrimStart().StartsWith("- "))
+                                    {
+                                        slidesContent.AppendLine(line + " <!-- .element: class=\"fragment\" -->");
+                                    }
+                                    else
+                                    {
+                                        slidesContent.AppendLine(line);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                slidesContent.AppendLine(content);
+                            }
+
+                            slidesContent.AppendLine("      </textarea>");
+                            slidesContent.AppendLine("    </section>");
+                            slidesContent.AppendLine();
+                        }
+                    }
+                }
+            }
+
+            try
+            {
+                // Validate path
+                _logger.LogInformation("[CreateSlidePresentation] Validating path: {RelativePath}", relativePath);
+                var absolutePath = pathValidator.ValidateAndResolvePath(relativePath);
+                _logger.LogInformation("[CreateSlidePresentation] Path validated successfully: {AbsolutePath}", absolutePath);
+
+                // Check if file exists
+                if (File.Exists(absolutePath))
+                {
+                    _logger.LogWarning("[CreateSlidePresentation] File already exists: {AbsolutePath}", absolutePath);
+                    var errorResult = FileOperationResult.CreateError(
+                        FileOperationType.Create,
+                        relativePath,
+                        $"File already exists: {relativePath}",
+                        "Choose a different file name",
+                        "Use update_markdown_file to modify existing presentation");
+
+                    await SendNotificationAsync(connectionId, "create_slides", relativePath, false, "File already exists");
+                    return errorResult;
+                }
+
+                // Build complete markdown content
+                var markdown = new StringBuilder();
+
+                // YAML frontmatter
+                markdown.AppendLine("---");
+                if (!string.IsNullOrEmpty(author))
+                    markdown.AppendLine($"author: {author}");
+                markdown.AppendLine("document_type: slides");
+                markdown.AppendLine($"title: {title}");
+                markdown.AppendLine($"date: {DateTime.Now:yyyy-MM-dd}");
+                markdown.AppendLine("---");
+                markdown.AppendLine();
+
+                // Reveal.js structure
+                markdown.AppendLine("<div class=\"reveal\">");
+                markdown.AppendLine("  <div class=\"slides\">");
+                markdown.AppendLine();
+
+                // Title slide
+                markdown.AppendLine("    <section>");
+                markdown.AppendLine($"      <h1>{title}</h1>");
+                if (!string.IsNullOrEmpty(author))
+                    markdown.AppendLine($"      <p>{author}</p>");
+                markdown.AppendLine($"      <p><small>{DateTime.Now:yyyy-MM-dd}</small></p>");
+                markdown.AppendLine("    </section>");
+                markdown.AppendLine();
+
+                // Content slides
+                markdown.Append(slidesContent);
+
+                // Close reveal structure
+                markdown.AppendLine("  </div>");
+                markdown.AppendLine("</div>");
+
+                var content = markdown.ToString();
+
+                // Validate content size
+                pathValidator.ValidateContentSize(content);
+                _logger.LogInformation("[CreateSlidePresentation] Content size validated");
+
+                // Ensure directory exists
+                var directory = Path.GetDirectoryName(absolutePath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                    _logger.LogInformation("Created directory: {Directory}", directory);
+                }
+
+                // Write file
+                await File.WriteAllTextAsync(absolutePath, content, Encoding.UTF8);
+
+                _logger.LogInformation("Created slide presentation: {Path} ({Size} bytes)", absolutePath, content.Length);
+
+                // Send success notification
+                await SendNotificationAsync(connectionId, "create_slides", relativePath, true,
+                    $"Slide presentation created successfully: {relativePath}");
+
+                return FileOperationResult.CreateSuccess(
+                    FileOperationType.Create,
+                    relativePath,
+                    $"Successfully created slide presentation: {relativePath} ({content.Length} characters)\n\n" +
+                    "DONE: Presentation is ready! Open it in the browser to see the slides. " +
+                    "Use keyboard arrows to navigate: → next slide, ← previous slide, ↓ vertical slides."
+                );
+            }
+            catch (Exception ex)
+            {
+                await SendNotificationAsync(connectionId, "create_slides", relativePath, false, $"Error: {ex.Message}");
+                throw;
+            }
         }
     }
 }
