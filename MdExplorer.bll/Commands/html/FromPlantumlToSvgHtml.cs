@@ -15,11 +15,19 @@ namespace MdExplorer.Features.Commands.html
 {
     public class FromPlantumlToSvgHtml : FromPlantumlToSvg, ICommandHtml
     {
-        public FromPlantumlToSvgHtml(string ServerAddress, ILogger<FromPlantumlToSvg> logger, IUserSettingsDB session, PlantumlServer plantumlServer, IHelper helper) 
+        public FromPlantumlToSvgHtml(string ServerAddress, ILogger<FromPlantumlToSvg> logger, IUserSettingsDB session, PlantumlServer plantumlServer, IHelper helper)
             : base(ServerAddress, logger, session, plantumlServer, helper)
         {
         }
 
-        
+        /// <summary>
+        /// Override to include GitHub mode support for HTML export
+        /// </summary>
+        public override List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        {
+            Configuration.Models.CompatibilityMode.MdExplorer,
+            Configuration.Models.CompatibilityMode.CommonMark,
+            Configuration.Models.CompatibilityMode.GitHub
+        };
     }
 }

@@ -36,7 +36,7 @@ namespace MdExplorer.Features.Commands
         /// <summary>
         /// PlantUML diagrams are not supported on GitHub
         /// </summary>
-        public List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
+        public virtual List<Configuration.Models.CompatibilityMode> SupportedModes => new List<Configuration.Models.CompatibilityMode>
         {
             Configuration.Models.CompatibilityMode.MdExplorer,
             Configuration.Models.CompatibilityMode.CommonMark
