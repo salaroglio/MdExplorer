@@ -1341,6 +1341,25 @@ function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Listen for messages from Angular parent to trigger search
+window.addEventListener('message', function(event) {
+    console.log('[iframe] Message received:', event.data);
+    if (event.data && event.data.action === 'toggleSearch') {
+        console.log('[iframe] Triggering search from parent message');
+        toggleSearch();
+    }
+});
+
+// Listen for Ctrl+F keyboard shortcut within iframe (fallback)
+document.addEventListener('keydown', function(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        console.log('[iframe] Ctrl+F detected within iframe, preventing default and triggering search');
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSearch();
+    }
+});
+
 // gestione del sortable dentro le icone di priorità
 $(function () {
     $(".sortable").sortable();

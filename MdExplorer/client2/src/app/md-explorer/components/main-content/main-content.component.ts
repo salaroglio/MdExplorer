@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -177,6 +177,34 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  /**
+   * Global keyboard shortcut handler - intercepts Ctrl+F to trigger iframe search
+   */
+  @HostListener('window:keydown', ['$event'])
+  handleGlobalKeydown(event: KeyboardEvent): void {
+    // Ctrl/Cmd + F: Trigger iframe search
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      console.log('[MainContent] Ctrl+F intercepted, sending message to iframe');
+
+      // Communicate with iframe to trigger search
+      const iframeWindow = this.iframe?.nativeElement?.contentWindow;
+      if (iframeWindow) {
+        try {
+          iframeWindow.postMessage({ action: 'toggleSearch' }, '*');
+          console.log('[MainContent] Message sent to iframe');
+        } catch (error) {
+          console.error('[MainContent] Error communicating with iframe:', error);
+        }
+      } else {
+        console.warn('[MainContent] iframe not available');
+      }
+    }
+  }
+
   /**
    * Enhanced file loading with state management and error handling
    */
