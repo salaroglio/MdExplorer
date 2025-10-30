@@ -107,10 +107,40 @@ namespace MdExplorer.Service.Controllers.TabBar
         public IActionResult GetRefsData([FromQuery] string fullPathFile)
         {
             //_session.BeginTransaction();
+            _logger.LogInformation($"[GetRefsData] Searching references for: '{fullPathFile}'");
+
+            // Normalize the path to remove double backslashes
+            var normalizedPath = fullPathFile.Replace("\\\\", "\\");
+            _logger.LogInformation($"[GetRefsData] Normalized path: '{normalizedPath}'");
+
             var docLinkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
-            var links = docLinkInsideMarkdownDal.GetList().Where(_ => _.FullPath.Contains(fullPathFile)).ToList();
-            
-            var linkDtoList = _mapper.Map<List<LinkInsideMarkdownDto>>(links);            
+            var allLinks = docLinkInsideMarkdownDal.GetList().ToList();
+
+            _logger.LogInformation($"[GetRefsData] Total links in database: {allLinks.Count}");
+
+            // Log PlantUML links specifically
+            var plantumlLinks = allLinks.Where(_ => _.Source == "WorkLinkFromPlantuml").ToList();
+            _logger.LogInformation($"[GetRefsData] PlantUML links in database: {plantumlLinks.Count}");
+            foreach (var link in plantumlLinks)
+            {
+                _logger.LogInformation($"[GetRefsData] PlantUML link - FullPath: '{link.FullPath}', From file: '{link.MarkdownFile?.Path}'");
+            }
+
+            // Log first 5 links for debugging
+            foreach (var link in allLinks.Take(5))
+            {
+                _logger.LogInformation($"[GetRefsData] Sample link - FullPath: '{link.FullPath}', Source: '{link.Source}'");
+            }
+
+            var links = allLinks.Where(_ => _.FullPath.Contains(normalizedPath)).ToList();
+
+            _logger.LogInformation($"[GetRefsData] Found {links.Count} matching references");
+            foreach (var link in links)
+            {
+                _logger.LogInformation($"[GetRefsData] Match - FullPath: '{link.FullPath}', Source: '{link.Source}', File: '{link.MarkdownFile?.FileName}'");
+            }
+
+            var linkDtoList = _mapper.Map<List<LinkInsideMarkdownDto>>(links);
             //_session.Commit();
             return Ok(linkDtoList);
         }

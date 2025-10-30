@@ -35,6 +35,7 @@ using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySqlX.XDevAPI;
@@ -73,8 +74,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
     [Route("api/mdfiles/{action}")]
     public class MdFilesController : MdControllerBase<MdFilesController>
     {
-        
-        
+
+
         private readonly IHelper _helper;
 
         private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
@@ -86,13 +87,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly ProcessUtil _visualStudioCode;
         private readonly IMdIgnoreService _mdIgnoreService;
         private readonly FoldersIgnoreService _foldersIgnoreService;
-        
+        private readonly IServiceScopeFactory _serviceScopeFactory;
+
 
         public MdFilesController(FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             ILogger<MdFilesController> logger,
-            IEngineDB engineDB, 
-            IWorkLink[] getModifiers, 
+            IEngineDB engineDB,
+            IWorkLink[] getModifiers,
             IHelper helper,
             IUserSettingsDB userSettingsDB,
             IHubContext<MonitorMDHub> hubContext,
@@ -106,7 +108,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         RefactoringManager refactoringManager,
         ProcessUtil visualStudioCode,
         IMdIgnoreService mdIgnoreService,
-        FoldersIgnoreService foldersIgnoreService
+        FoldersIgnoreService foldersIgnoreService,
+        IServiceScopeFactory serviceScopeFactory
             ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper)
         {
 
@@ -119,6 +122,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _visualStudioCode = visualStudioCode;
             _mdIgnoreService = mdIgnoreService;
             _foldersIgnoreService = foldersIgnoreService;
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
         [HttpGet]
@@ -2013,10 +2017,93 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 fullStructure.Add(nodeFile);
             }
             
-            // TODO: Implementare salvataggio relazioni nel database con sessione dedicata
-            
+            // Parse links for all markdown files
+            _logger.LogInformation("[IndexLinksInBackground] Starting link parsing for all files");
+            await ParseAllLinks();
+            _logger.LogInformation("[IndexLinksInBackground] Link parsing completed");
+
             // Notifica che i file sono stati indicizzati
             await NotifyFilesIndexed(fullStructure, connectionId);
+        }
+
+        private async Task ParseAllLinks()
+        {
+            await Task.Run(() =>
+            {
+                // Create a new service scope for background task
+                using (var serviceScope = _serviceScopeFactory.CreateScope())
+                {
+                    var engineDB = serviceScope.ServiceProvider.GetService<IEngineDB>();
+                    var helper = serviceScope.ServiceProvider.GetService<IHelper>();
+                    var getModifiers = serviceScope.ServiceProvider.GetService<IWorkLink[]>();
+                    var fileSystemWatcher = serviceScope.ServiceProvider.GetService<FileSystemWatcher>();
+
+                    try
+                    {
+                        engineDB.BeginTransaction();
+
+                        var markdownFileDal = engineDB.GetDal<MarkdownFile>();
+                        var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
+
+                        // Get all markdown files from database
+                        var allFiles = markdownFileDal.GetList().ToList();
+                        _logger.LogInformation($"[ParseAllLinks] Processing {allFiles.Count} files with base path: {fileSystemWatcher.Path}");
+
+                        foreach (var mdf in allFiles)
+                        {
+                            try
+                            {
+                                // Delete existing links for this file
+                                var existingLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf).ToList();
+                                foreach (var link in existingLinks)
+                                {
+                                    linkDal.Delete(link);
+                                }
+
+                                // Parse links using all IWorkLink parsers
+                                foreach (var getModifier in getModifiers)
+                                {
+                                    var linksToStore = getModifier.GetLinksFromFile(mdf.Path);
+                                    foreach (var singleLink in linksToStore)
+                                    {
+                                        var fullPath = Path.GetDirectoryName(mdf.Path) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
+
+                                        // Calculate MdContext: relative path from project root
+                                        var context = Path.GetDirectoryName(mdf.Path)
+                                            .Replace(fileSystemWatcher.Path, string.Empty)
+                                            .Replace(Path.DirectorySeparatorChar, '/');
+
+                                        var linkToStore = new LinkInsideMarkdown
+                                        {
+                                            FullPath = helper.NormalizePath(fullPath),
+                                            Path = singleLink.FullPath,
+                                            Source = getModifier.GetType().Name,
+                                            LinkedCommand = singleLink.LinkedCommand,
+                                            SectionIndex = singleLink.SectionIndex,
+                                            MarkdownFile = mdf,
+                                            MdContext = context
+                                        };
+                                        linkDal.Save(linkToStore);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, $"[ParseAllLinks] Error parsing links for file: {mdf.Path}");
+                            }
+                        }
+
+                        engineDB.Commit();
+                        _logger.LogInformation($"[ParseAllLinks] Successfully parsed links for {allFiles.Count} files");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[ParseAllLinks] Error during link parsing - rolling back");
+                        engineDB.Rollback();
+                        throw;
+                    }
+                }
+            });
         }
 
         private async Task NotifyFilesIndexed(List<IFileInfoNode> structure, string connectionId)

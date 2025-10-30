@@ -25,6 +25,7 @@ using MdExplorer.Features.snippets.workflow;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Yaml;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using PlantUml.Net;
 using System;
 using System.Collections.Generic;
@@ -55,12 +56,13 @@ namespace MdExplorer.Features
             services.AddTransient<IHelper, Helper>();
             services.AddTransient<IHelperPdf, HelperPdf>();
             services.AddTransient<IHelperHtml, HelperHtml>();
-            services.AddTransient(typeof(IWorkLink[]),_=> {
+            services.AddTransient(typeof(IWorkLink[]),sp=> {
+                var logger = sp.GetRequiredService<ILogger<WorkLinkFromPlantuml>>();
                 var listOfModfier = new List<IWorkLink>
                 {
                     new WorkLinkImagesFromMarkdown(),
                     new WorkLinkImgFromPlantuml(),
-                    new WorkLinkFromPlantuml(),
+                    new WorkLinkFromPlantuml(logger),
                     new WorkLinkFromMarkdown(),
                     new WorkLinkMdShowMd(),
                     new WorkLinkMdShowH2(),
