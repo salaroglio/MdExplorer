@@ -211,8 +211,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private callMdExplorerController(node: MdFile): void {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
-      const newHtmlSource = `../api/mdexplorer/${node.relativePath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}`;
-      
+      const newHtmlSource = `../api/mdexplorer/${node.relativePath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
         this.htmlSource = newHtmlSource;
@@ -361,7 +361,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force iframe reload by modifying URL
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
-        this.htmlSource = `../api/mdexplorer/${currentState.currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&retry=${currentState.retryCount + 1}`;
+        this.htmlSource = `../api/mdexplorer/${currentState.currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
       }
     });
   }
@@ -412,7 +412,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
-    this.htmlSource = `../api/mdexplorer/${newPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}`;
+    this.htmlSource = `../api/mdexplorer/${newPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
   }
 
   /**
@@ -429,7 +429,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
-      this.htmlSource = `../api/mdexplorer/${currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&refreshed=true`;
+      this.htmlSource = `../api/mdexplorer/${currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
     }
   }
 

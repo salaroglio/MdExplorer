@@ -217,14 +217,14 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpPost]
-        public IActionResult SetSideNavWidth([FromBody] Project project)
+        public IActionResult SetSideNavWidth([FromBody] SetSideNavWidthRequest request)
         {
             _userSettingsDB.BeginTransaction();
             var projectDal = _userSettingsDB.GetDal<Project>();
-            var projectDB = projectDal.GetList().Where(_=>_.Id == project.Id).FirstOrDefault();
+            var projectDB = projectDal.GetList().Where(_=>_.Id == request.Id).FirstOrDefault();
             if (projectDB != null)
             {
-                projectDB.SidenavWidth = project.SidenavWidth;
+                projectDB.SidenavWidth = request.SidenavWidth;
             }
             _userSettingsDB.Commit();
             return Ok();

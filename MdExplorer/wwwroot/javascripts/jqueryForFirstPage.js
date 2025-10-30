@@ -1422,24 +1422,163 @@ $.fn.datepicker.noConflict = function () {
 };
 
 // funzione che memorizza l'ultima posizione della pagina
-document.addEventListener("DOMContentLoaded", function (event) {
-    // Memorizza la posizione corrente della pagina,perché sia riproposta dopo un refresh    
-    var test3 = document.location.href;    
-    var position = test3.indexOf('?');
-    var position2 = test3.substring(0, position);
-    var test2 = cyrb53(position2);
-    var scrollpos1 = localStorage.getItem(test2);
-    if (scrollpos1) window.scrollTo({ left: 0, top: scrollpos1, behavior: "instant" });
+$(function () {
+    console.log('[Scroll Restore] ========== INIZIO RIPRISTINO ==========');
+    try {
+        // Ottieni URL senza query parameters e anchor
+        var fullUrl = document.location.href;
+        console.log('[Scroll Restore] URL completo:', fullUrl);
 
+        var queryIndex = fullUrl.indexOf('?');
+        var anchorIndex = fullUrl.indexOf('#');
+        console.log('[Scroll Restore] Query index:', queryIndex, 'Anchor index:', anchorIndex);
+
+        // Trova il primo delimitatore (? o #)
+        var endIndex = -1;
+        if (queryIndex !== -1 && anchorIndex !== -1) {
+            endIndex = Math.min(queryIndex, anchorIndex);
+        } else if (queryIndex !== -1) {
+            endIndex = queryIndex;
+        } else if (anchorIndex !== -1) {
+            endIndex = anchorIndex;
+        }
+
+        // Estrai URL base (senza query/anchor)
+        var baseUrl = endIndex !== -1 ? fullUrl.substring(0, endIndex) : fullUrl;
+        console.log('[Scroll Restore] URL base:', baseUrl);
+
+        // Genera hash univoco per questo URL
+        var urlHash = cyrb53(baseUrl);
+        console.log('[Scroll Restore] Hash generato:', urlHash);
+
+        // Recupera posizione salvata (compatibile con vecchio formato)
+        var savedPosition = localStorage.getItem(urlHash);
+        console.log('[Scroll Restore] Valore localStorage (raw):', savedPosition);
+
+        if (savedPosition) {
+            console.log('[Scroll Restore] ✅ Posizione trovata, ripristino...');
+
+            // Determina il formato: numero puro o oggetto JSON
+            var scrollY = 0;
+
+            // Prova a parsare come JSON
+            try {
+                var parsed = JSON.parse(savedPosition);
+
+                // Se è un oggetto con proprietà x/y, è il nuovo formato
+                if (typeof parsed === 'object' && parsed !== null) {
+                    console.log('[Scroll Restore] Formato JSON oggetto rilevato, ripristino X:', parsed.x, 'Y:', parsed.y);
+                    scrollY = parsed.y || 0;
+                } else {
+                    // È un numero (vecchio formato o JSON.parse di numero)
+                    console.log('[Scroll Restore] Formato numero rilevato (parsed):', parsed);
+                    scrollY = parsed;
+                }
+            } catch (e) {
+                // Non è un JSON valido, prova come numero puro
+                scrollY = parseInt(savedPosition) || 0;
+                console.log('[Scroll Restore] Formato stringa numero rilevato:', scrollY);
+            }
+
+            console.log('[Scroll Restore] 🎯 Ripristino a Y:', scrollY);
+            window.scrollTo({
+                left: 0,
+                top: scrollY,
+                behavior: "instant"
+            });
+
+            console.log('[Scroll Restore] ✅ Ripristino completato!');
+        } else {
+            console.log('[Scroll Restore] ⚠️ Nessuna posizione salvata per questo URL');
+        }
+    } catch (e) {
+        console.error('[Scroll Restore] ❌ Errore nel ripristino posizione:', e);
+    }
+    console.log('[Scroll Restore] ========== FINE RIPRISTINO ==========');
+
+    // Salva posizione automaticamente quando lo scroll si ferma
+    var scrollTimeout;
+
+    console.log('[Scroll Save] 🎯 Attivazione listener scroll su window');
+
+    window.addEventListener('scroll', function() {
+        console.log('[Scroll Save] 📜 Evento scroll rilevato! Posizione Y:', window.scrollY);
+
+        // Cancella il timeout precedente
+        clearTimeout(scrollTimeout);
+
+        // Imposta un nuovo timeout: salva dopo 500ms di inattività
+        scrollTimeout = setTimeout(function() {
+            console.log('[Scroll Save] ⏱️ Scroll fermato, inizio salvataggio...');
+            try {
+                // Ottieni URL base
+                var fullUrl = document.location.href;
+                var queryIndex = fullUrl.indexOf('?');
+                var anchorIndex = fullUrl.indexOf('#');
+
+                var endIndex = -1;
+                if (queryIndex !== -1 && anchorIndex !== -1) {
+                    endIndex = Math.min(queryIndex, anchorIndex);
+                } else if (queryIndex !== -1) {
+                    endIndex = queryIndex;
+                } else if (anchorIndex !== -1) {
+                    endIndex = anchorIndex;
+                }
+
+                var baseUrl = endIndex !== -1 ? fullUrl.substring(0, endIndex) : fullUrl;
+                var urlHash = cyrb53(baseUrl);
+
+                // Salva posizione corrente (compatibile con vecchio formato: solo Y)
+                var scrollY = window.scrollY || window.pageYOffset || 0;
+                console.log('[Scroll Save] 💾 Posizione rilevata - ScrollY:', scrollY);
+
+                // NON salvare se siamo a Y=0 (pagina appena caricata o reset automatico)
+                if (scrollY > 0) {
+                    console.log('[Scroll Save] 💾 Salvataggio - URL:', baseUrl);
+                    console.log('[Scroll Save] 💾 Hash:', urlHash);
+                    localStorage.setItem(urlHash, scrollY);
+                    console.log('[Scroll Save] ✅ Posizione salvata!');
+                } else {
+                    console.log('[Scroll Save] ⚠️ Posizione Y=0, skip salvataggio (pagina appena caricata)');
+                }
+            } catch (e) {
+                console.error('[Scroll Save] ❌ Errore durante salvataggio:', e);
+            }
+        }, 500); // Aspetta 500ms dopo l'ultimo movimento di scroll
+    }, {passive: true});
+
+    console.log('[Scroll Save] ✅ Listener scroll registrato');
 });
 
-// gestione ultima posizione dello scroll
+// Salvataggio aggiuntivo su onbeforeunload (come backup)
 window.onbeforeunload = function (e) {
-    var test3 = document.location.href;    
-    var position = test3.indexOf('?');
-    var position2 = test3.substring(0, position);
-    var test2 = cyrb53(position2);
-    localStorage.setItem(test2, window.scrollY);
+    try {
+        var fullUrl = document.location.href;
+        var queryIndex = fullUrl.indexOf('?');
+        var anchorIndex = fullUrl.indexOf('#');
+
+        var endIndex = -1;
+        if (queryIndex !== -1 && anchorIndex !== -1) {
+            endIndex = Math.min(queryIndex, anchorIndex);
+        } else if (queryIndex !== -1) {
+            endIndex = queryIndex;
+        } else if (anchorIndex !== -1) {
+            endIndex = anchorIndex;
+        }
+
+        var baseUrl = endIndex !== -1 ? fullUrl.substring(0, endIndex) : fullUrl;
+        var urlHash = cyrb53(baseUrl);
+
+        // Salva posizione corrente (compatibile con vecchio formato: solo Y)
+        var scrollY = window.scrollY || window.pageYOffset || 0;
+
+        // NON salvare se siamo a Y=0 (pagina appena caricata o reset automatico)
+        if (scrollY > 0) {
+            localStorage.setItem(urlHash, scrollY);
+        }
+    } catch (e) {
+        // Ignora errori silenziosamente
+    }
 };
 
 // gestione dell'emoji :calendar:
@@ -1872,13 +2011,17 @@ function toggleEraser() {
 function toggleMdCanvas(me) {
     const palette = document.getElementById('colorPalette');
     const buttonDiv = me.parentElement; // Il div con classe mdeLowerBarButton
-    
+
     if (window.toggleCanvas) {
         me.children[0].src = "/assets/drawAnimated.gif";
         $(window.canvas).removeAttr('hidden');
         window.canvas.style.left = 0;
         palette.style.display = 'block'; // Mostra la tavolozza
         buttonDiv.classList.add('active'); // Aggiungi classe active
+
+        // IMPORTANTE: Ridimensiona il canvas quando lo attiviamo
+        // Questo assicura che le dimensioni siano corrette per lo zoom corrente
+        resize();
 
     } else {
         me.children[0].src = "/assets/drawStatic.png";
@@ -1898,27 +2041,68 @@ function setPosition(e) {
     // Aggiorna sempre la posizione dello scroll corrente
     scrollPos.x = window.pageXOffset || document.documentElement.scrollLeft;
     scrollPos.y = window.pageYOffset || document.documentElement.scrollTop;
-    
-    // Calcoliamo l'offset del canvas
+
+    // Ottieni la posizione del canvas rispetto alla viewport (considera zoom e transform)
     const canvasRect = window.canvas.getBoundingClientRect();
-    
-    // Posizione relativa al documento
-    // clientX/Y sono relative alla viewport, quindi aggiungiamo lo scroll
-    pos.x = e.clientX + scrollPos.x;
-    pos.y = e.clientY + scrollPos.y;
+
+    // Calcola il fattore di scala tra dimensioni CSS e dimensioni interne del canvas
+    // Questo è necessario perché il canvas può essere scalato dal browser con lo zoom
+    const scaleX = window.canvas.width / canvasRect.width;
+    const scaleY = window.canvas.height / canvasRect.height;
+
+    // Calcola coordinate nel sistema CSS (viewport)
+    const cssX = e.clientX - canvasRect.left + scrollPos.x;
+    const cssY = e.clientY - canvasRect.top + scrollPos.y;
+
+    // Scala le coordinate dal sistema CSS al sistema interno del canvas
+    // Questo compensa il fatto che il canvas è scalato dal browser con lo zoom
+    pos.x = cssX * scaleX;
+    pos.y = cssY * scaleY;
 }
 
 // resize canvas
 function resize() {
+    // Salva le vecchie dimensioni
+    const oldWidth = window.canvas.width;
+    const oldHeight = window.canvas.height;
+
+    // Calcola le nuove dimensioni basate sul documento corrente
+    const newWidth = document.documentElement.scrollWidth;
+    const newHeight = document.documentElement.scrollHeight;
+
+    // Se le dimensioni sono già corrette, non fare nulla
+    if (Math.abs(oldWidth - newWidth) < 2 && Math.abs(oldHeight - newHeight) < 2) {
+        return;
+    }
+
     // Salva il contenuto del canvas prima di ridimensionare
-    const imageData = window.ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
-    
+    const imageData = window.ctx.getImageData(0, 0, oldWidth, oldHeight);
+
     // Ridimensiona all'intero documento
-    window.ctx.canvas.width = document.documentElement.scrollWidth;
-    window.ctx.canvas.height = document.documentElement.scrollHeight;
-    
-    // Ripristina il contenuto
-    window.ctx.putImageData(imageData, 0, 0);
+    window.ctx.canvas.width = newWidth;
+    window.ctx.canvas.height = newHeight;
+
+    // Calcola il fattore di scala se le dimensioni sono cambiate significativamente
+    const scaleX = newWidth / oldWidth;
+    const scaleY = newHeight / oldHeight;
+
+    // Se lo zoom è cambiato significativamente, scala il contenuto
+    if (Math.abs(scaleX - 1.0) > 0.05 || Math.abs(scaleY - 1.0) > 0.05) {
+        // Crea un canvas temporaneo per scalare il contenuto
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = oldWidth;
+        tempCanvas.height = oldHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(imageData, 0, 0);
+
+        // Scala e disegna sul canvas principale
+        window.ctx.scale(scaleX, scaleY);
+        window.ctx.drawImage(tempCanvas, 0, 0);
+        window.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    } else {
+        // Ripristina il contenuto senza scalare
+        window.ctx.putImageData(imageData, 0, 0);
+    }
 }
 
 
@@ -1942,11 +2126,11 @@ function draw(e) {
             window.ctx.lineWidth = window.brushSize;
             window.ctx.lineCap = 'round';
             window.ctx.strokeStyle = window.currentColor;
-            
+
             window.ctx.moveTo(pos.x, pos.y);
             setPosition(e);
             window.ctx.lineTo(pos.x, pos.y);
-            
+
             window.ctx.stroke();
         }
     }

@@ -102,9 +102,14 @@ namespace MdExplorer.Controllers
                 return responseForNotMdFile;
             }
             var connectionId = Request.Query["ConnectionId"];
+            var source = Request.Query["source"]; // "angular" or null
+            bool isIframeLinkClick = string.IsNullOrEmpty(source);
+
+            _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
+
             string fullPathFile = ManageIfThePathContainsExtensionMdOrNot(
-                    rootPathSystem, 
-                    relativePathFile, 
+                    rootPathSystem,
+                    relativePathFile,
                     relativePathExtension);
             
             _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
@@ -258,10 +263,23 @@ namespace MdExplorer.Controllers
                     monitoredMd);
             }
 
-            
+
 
             //.Replace(@"\",@"\\");
             await _hubContext.Clients.Client(connectionId:connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
+
+            // If navigation comes from iframe link click, notify Angular to update navigation history
+            if (isIframeLinkClick)
+            {
+                await _hubContext.Clients.Client(connectionId: connectionId)
+                    .SendAsync("documentNavigated", new {
+                        fullPath = monitoredMd.FullPath,
+                        relativePath = monitoredMd.RelativePath,
+                        name = monitoredMd.Name,
+                        fullDirectoryPath = monitoredMd.FullDirectoryPath
+                    });
+                _logger.LogInformation($"📍 [MdExplorer] Navigation history event sent for: {monitoredMd.RelativePath}");
+            }
 
             // Get HTML content - check if using fallback mode
             string htmlContent;

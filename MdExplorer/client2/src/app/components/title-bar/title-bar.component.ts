@@ -4,6 +4,8 @@ import { MdNavigationService } from '../../md-explorer/services/md-navigation.se
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { Router } from '@angular/router';
 import { LayoutService } from '../../md-explorer/services/layout.service';
+import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
+import { MdFile } from '../../md-explorer/models/md-file';
 
 @Component({
   selector: 'app-title-bar',
@@ -20,7 +22,8 @@ export class TitleBarComponent implements OnInit {
     public navService: MdNavigationService,
     private mdFileService: MdFileService,
     private router: Router,
-    private layoutService: LayoutService
+    private layoutService: LayoutService,
+    private monitorMDService: MdServerMessagesService
   ) {
     // Check if running in Electron
     this.isElectron = !!(window && (window as any).electronAPI);
@@ -39,6 +42,33 @@ export class TitleBarComponent implements OnInit {
 
     // Initialize on first load
     this.isProjectOpened = this.router.url.startsWith('/main');
+
+    // Subscribe to document navigation events from iframe links
+    this.monitorMDService.addDocumentNavigatedListener(this.onDocumentNavigated, this);
+  }
+
+  private onDocumentNavigated(data: any, objectThis: TitleBarComponent): void {
+    console.log('[TitleBar] Document navigated event received:', data);
+
+    // Create MdFile object from the data
+    const mdFile: MdFile = {
+      name: data.name,
+      path: data.relativePath,
+      relativePath: data.relativePath,
+      fullPath: data.fullPath,
+      fullDirectoryPath: data.fullDirectoryPath,
+      level: 0,
+      expandable: false,
+      type: 'file',
+      index: 0,
+      isLoading: false,
+      childrens: []
+    };
+
+    // Add to navigation history
+    objectThis.navService.setNewNavigation(mdFile);
+    console.log('[TitleBar] Added to navigation history:', mdFile);
+    console.log('[TitleBar] Navigation stack:', objectThis.navService.navigation);
   }
 
   backward(): void {
