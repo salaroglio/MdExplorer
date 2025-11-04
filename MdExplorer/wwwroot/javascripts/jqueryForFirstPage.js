@@ -2070,8 +2070,9 @@ function setPosition(e) {
     const scaleY = window.canvas.height / canvasRect.height;
 
     // Calcola coordinate nel sistema CSS (viewport)
-    const cssX = e.clientX - canvasRect.left + scrollPos.x;
-    const cssY = e.clientY - canvasRect.top + scrollPos.y;
+    // clientX/Y sono viewport-relative, aggiungere scrollPos per convertire a document-relative
+    const cssX = e.clientX + scrollPos.x;
+    const cssY = e.clientY + scrollPos.y;
 
     // Scala le coordinate dal sistema CSS al sistema interno del canvas
     // Questo compensa il fatto che il canvas è scalato dal browser con lo zoom
