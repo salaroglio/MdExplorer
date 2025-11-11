@@ -138,30 +138,75 @@ namespace MdExplorer.Features.Services
             if (pattern == path)
                 return true;
 
+            // gitignore convention: pattern starting with / matches only from root
+            bool anchoredToRoot = pattern.StartsWith("/");
+            if (anchoredToRoot)
+            {
+                pattern = pattern.Substring(1); // Remove leading /
+            }
+
             // Handle directory patterns (ending with /)
             if (pattern.EndsWith("/"))
             {
                 var dirPattern = pattern.TrimEnd('/');
-                if (path == dirPattern || path.StartsWith(dirPattern + "/"))
-                    return true;
+
+                if (anchoredToRoot)
+                {
+                    // /bin/ matches only bin/ at root level
+                    if (path == dirPattern || path.StartsWith(dirPattern + "/"))
+                        return true;
+                }
+                else
+                {
+                    // bin/ matches bin/ at ANY level (gitignore standard)
+                    // Match: bin/, src/bin/, project/lib/bin/, etc.
+                    if (path == dirPattern ||
+                        path.StartsWith(dirPattern + "/") ||
+                        path.Contains("/" + dirPattern + "/") ||
+                        path.EndsWith("/" + dirPattern))
+                        return true;
+                }
             }
 
             // Handle wildcard patterns
             if (pattern.Contains("*"))
             {
                 var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
-                return Regex.IsMatch(path, regexPattern);
+                if (Regex.IsMatch(path, regexPattern))
+                    return true;
+
+                // If not anchored to root, try matching at any level
+                if (!anchoredToRoot)
+                {
+                    var pathParts = path.Split('/');
+                    foreach (var part in pathParts)
+                    {
+                        if (Regex.IsMatch(part, regexPattern))
+                            return true;
+                    }
+                }
             }
 
-            // Handle patterns that should match at any level
-            if (!pattern.Contains("/"))
+            // Handle patterns without / (should match at any level)
+            if (!pattern.Contains("/") && !anchoredToRoot)
             {
                 var pathParts = path.Split('/');
                 return pathParts.Any(part => part == pattern);
             }
 
             // Handle patterns with path separators
-            return path == pattern || path.StartsWith(pattern + "/");
+            if (anchoredToRoot)
+            {
+                return path == pattern || path.StartsWith(pattern + "/");
+            }
+            else
+            {
+                // Match at any level
+                return path == pattern ||
+                       path.StartsWith(pattern + "/") ||
+                       path.Contains("/" + pattern + "/") ||
+                       path.EndsWith("/" + pattern);
+            }
         }
     }
 }

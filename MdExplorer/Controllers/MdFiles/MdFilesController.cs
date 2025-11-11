@@ -1101,9 +1101,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _engineDB.BeginTransaction();
                 var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
                 
-                // Trova tutti i file .md ricorsivamente
+                // Trova tutti i file .md ricorsivamente, escludendo i path ignorati
                 var allMdFiles = Directory.GetFiles(currentPath, "*.md", SearchOption.AllDirectories)
                     .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar)) // Esclude la cartella .md
+                    .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, currentPath)) // Esclude i file/cartelle ignorati da .mdignore
                     .ToList();
                 
                 _logger.LogInformation($"[IndexAllMarkdownFiles] Found {allMdFiles.Count} markdown files to index");
