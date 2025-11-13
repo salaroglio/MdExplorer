@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
@@ -410,6 +411,96 @@ namespace MdExplorer.Services.Git
                     ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
 
                 var clonedRepoPath = Repository.Clone(url, localPath, cloneOptions);
+
+                // Diagnostic logging to investigate clone behavior
+                try
+                {
+                    using (var repo = new Repository(localPath))
+                    {
+                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Local HEAD: {LocalHead}", repo.Head.Tip?.Sha);
+                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Branch: {Branch}", repo.Head.FriendlyName);
+                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Tracking branch: {TrackingBranch}",
+                            repo.Head.TrackedBranch?.FriendlyName ?? "none");
+
+                        var origin = repo.Network.Remotes["origin"];
+                        if (origin != null)
+                        {
+                            _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Remote URL: {RemoteUrl}", origin.Url);
+
+                            // Check what remote HEAD points to
+                            var remoteHead = repo.Refs["refs/remotes/origin/HEAD"];
+                            if (remoteHead != null)
+                            {
+                                _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Remote HEAD ref: {RemoteHead}",
+                                    remoteHead.TargetIdentifier);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Remote HEAD ref: NOT SET");
+                            }
+                        }
+
+                        // List all remote branches with their commit SHAs
+                        var remoteBranches = repo.Branches.Where(b => b.IsRemote).ToList();
+                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Found {Count} remote branches:", remoteBranches.Count);
+                        foreach (var branch in remoteBranches.Take(10)) // Limit to first 10 to avoid log spam
+                        {
+                            _logger.LogWarning("   📍 {Branch} -> {Commit}",
+                                branch.FriendlyName, branch.Tip?.Sha?.Substring(0, 8));
+                        }
+
+                        // Check if local branch is behind remote
+                        if (repo.Head.TrackedBranch != null)
+                        {
+                            var localTip = repo.Head.Tip;
+                            var remoteTip = repo.Head.TrackedBranch.Tip;
+
+                            if (localTip?.Sha != remoteTip?.Sha)
+                            {
+                                _logger.LogError("⚠️ CLONE DIAGNOSTIC - LOCAL IS BEHIND REMOTE!");
+                                _logger.LogError("   Local commit:  {LocalSha}", localTip?.Sha);
+                                _logger.LogError("   Remote commit: {RemoteSha}", remoteTip?.Sha);
+
+                                // Calculate how many commits behind
+                                var filter = new CommitFilter
+                                {
+                                    IncludeReachableFrom = remoteTip,
+                                    ExcludeReachableFrom = localTip
+                                };
+                                var commitsBehind = repo.Commits.QueryBy(filter).Count();
+                                _logger.LogError("   Commits behind: {Count}", commitsBehind);
+
+                                // FIX: Force checkout of the remote HEAD to sync local with remote
+                                _logger.LogWarning("🔧 FIX - Forcing checkout of remote HEAD: {RemoteSha}", remoteTip?.Sha);
+
+                                try
+                                {
+                                    var checkoutOptions = new CheckoutOptions
+                                    {
+                                        CheckoutModifiers = CheckoutModifiers.Force
+                                    };
+
+                                    Commands.Checkout(repo, remoteTip, checkoutOptions);
+
+                                    _logger.LogInformation("✅ FIX - Successfully checked out remote HEAD");
+                                    _logger.LogInformation("   New local HEAD: {NewLocalSha}", repo.Head.Tip?.Sha);
+                                }
+                                catch (Exception checkoutEx)
+                                {
+                                    _logger.LogError(checkoutEx, "❌ FIX - Failed to checkout remote HEAD");
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogInformation("✅ CLONE DIAGNOSTIC - Local HEAD matches remote HEAD");
+                            }
+                        }
+                    }
+                }
+                catch (Exception diagEx)
+                {
+                    _logger.LogError(diagEx, "Error during clone diagnostics (non-fatal)");
+                }
 
                 stopwatch.Stop();
 
@@ -1468,6 +1559,222 @@ namespace MdExplorer.Services.Git
                     Duration = stopwatch.Elapsed
                 };
             }
+        }
+
+        /// <summary>
+        /// Initializes a new Git repository
+        /// </summary>
+        public async Task<InitRepositoryResponse> InitRepositoryAsync(InitRepositoryRequest request)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var callId = Guid.NewGuid().ToString("N").Substring(0, 8);
+
+            _logger.LogWarning($"🔵 [INIT REPOSITORY - START] CallId: {callId}, Path: {request.RepositoryPath}");
+
+            try
+            {
+                // Validate request
+                if (string.IsNullOrWhiteSpace(request.RepositoryPath))
+                {
+                    return new InitRepositoryResponse
+                    {
+                        Success = false,
+                        Message = "Repository path is required",
+                        IsGitRepository = false
+                    };
+                }
+
+                if (!Directory.Exists(request.RepositoryPath))
+                {
+                    return new InitRepositoryResponse
+                    {
+                        Success = false,
+                        Message = $"Directory does not exist: {request.RepositoryPath}",
+                        IsGitRepository = false,
+                        RepositoryPath = request.RepositoryPath
+                    };
+                }
+
+                var gitPath = Path.Combine(request.RepositoryPath, ".git");
+
+                // Check if Git repository already exists
+                if (Directory.Exists(gitPath))
+                {
+                    _logger.LogInformation($"[INIT REPOSITORY {callId}] Git repository already exists");
+                    return new InitRepositoryResponse
+                    {
+                        Success = false,
+                        Message = "Git repository already initialized",
+                        IsGitRepository = true,
+                        RepositoryPath = request.RepositoryPath
+                    };
+                }
+
+                // Initialize Git repository
+                _logger.LogInformation($"[INIT REPOSITORY {callId}] Initializing Git repository");
+                Repository.Init(request.RepositoryPath);
+
+                // Create .gitignore file
+                await CreateGitignoreFileAsync(request.RepositoryPath, request.GitignoreTemplate);
+
+                // Set initial branch name if specified
+                if (!string.IsNullOrWhiteSpace(request.InitialBranch) && request.InitialBranch != "master")
+                {
+                    using (var repo = new Repository(request.RepositoryPath))
+                    {
+                        // Create initial commit to establish branch
+                        var signature = new Signature("MdExplorer", "noreply@mdexplorer.net", DateTimeOffset.Now);
+                        repo.Commit($"Initial commit", signature, signature, new CommitOptions { AllowEmptyCommit = true });
+
+                        // Rename branch
+                        var currentBranch = repo.Head;
+                        repo.Branches.Rename(currentBranch, request.InitialBranch);
+                    }
+                }
+
+                stopwatch.Stop();
+                _logger.LogInformation($"✅ [INIT REPOSITORY {callId}] Repository initialized successfully in {stopwatch.ElapsedMilliseconds}ms");
+
+                return new InitRepositoryResponse
+                {
+                    Success = true,
+                    Message = $"Git repository initialized successfully with branch '{request.InitialBranch}'",
+                    IsGitRepository = true,
+                    RepositoryPath = request.RepositoryPath,
+                    InitialBranch = request.InitialBranch
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError($"❌ [INIT REPOSITORY {callId}] Error: {ex.Message}");
+                _logger.LogError($"Stack trace: {ex.StackTrace}");
+
+                return new InitRepositoryResponse
+                {
+                    Success = false,
+                    Message = $"Failed to initialize Git repository: {ex.Message}",
+                    IsGitRepository = false,
+                    RepositoryPath = request.RepositoryPath
+                };
+            }
+        }
+
+        /// <summary>
+        /// Creates a .gitignore file based on the selected template
+        /// </summary>
+        private async Task CreateGitignoreFileAsync(string repositoryPath, string template)
+        {
+            var gitignorePath = Path.Combine(repositoryPath, ".gitignore");
+
+            // Don't overwrite existing .gitignore
+            if (File.Exists(gitignorePath))
+            {
+                _logger.LogInformation($"[CREATE GITIGNORE] .gitignore already exists, skipping");
+                return;
+            }
+
+            var content = GetGitignoreTemplate(template);
+            await File.WriteAllTextAsync(gitignorePath, content);
+            _logger.LogInformation($"[CREATE GITIGNORE] Created .gitignore with template: {template}");
+        }
+
+        /// <summary>
+        /// Gets the .gitignore template content
+        /// </summary>
+        private string GetGitignoreTemplate(string template)
+        {
+            var sb = new StringBuilder();
+
+            switch (template?.ToLower())
+            {
+                case "mdexplorer":
+                    sb.AppendLine("# MdExplorer specific files and folders");
+                    sb.AppendLine(".md/");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Database files");
+                    sb.AppendLine("*.db");
+                    sb.AppendLine("*.db-shm");
+                    sb.AppendLine("*.db-wal");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Temporary files");
+                    sb.AppendLine("*.tmp");
+                    sb.AppendLine("*.temp");
+                    sb.AppendLine("~*");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Log files");
+                    sb.AppendLine("*.log");
+                    sb.AppendLine("");
+                    sb.AppendLine("# OS specific files");
+                    sb.AppendLine(".DS_Store");
+                    sb.AppendLine("Thumbs.db");
+                    sb.AppendLine("desktop.ini");
+                    break;
+
+                case "node":
+                    sb.AppendLine("# Node.js");
+                    sb.AppendLine("node_modules/");
+                    sb.AppendLine("npm-debug.log*");
+                    sb.AppendLine("yarn-debug.log*");
+                    sb.AppendLine("yarn-error.log*");
+                    sb.AppendLine(".npm");
+                    sb.AppendLine(".env");
+                    sb.AppendLine(".env.local");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Build outputs");
+                    sb.AppendLine("dist/");
+                    sb.AppendLine("build/");
+                    sb.AppendLine("*.tgz");
+                    break;
+
+                case "python":
+                    sb.AppendLine("# Python");
+                    sb.AppendLine("__pycache__/");
+                    sb.AppendLine("*.py[cod]");
+                    sb.AppendLine("*$py.class");
+                    sb.AppendLine("*.so");
+                    sb.AppendLine(".Python");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Virtual environments");
+                    sb.AppendLine("venv/");
+                    sb.AppendLine("ENV/");
+                    sb.AppendLine(".venv");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Distribution / packaging");
+                    sb.AppendLine("dist/");
+                    sb.AppendLine("build/");
+                    sb.AppendLine("*.egg-info/");
+                    break;
+
+                case "csharp":
+                    sb.AppendLine("# .NET / C#");
+                    sb.AppendLine("bin/");
+                    sb.AppendLine("obj/");
+                    sb.AppendLine("*.dll");
+                    sb.AppendLine("*.exe");
+                    sb.AppendLine("*.pdb");
+                    sb.AppendLine("");
+                    sb.AppendLine("# User-specific files");
+                    sb.AppendLine("*.user");
+                    sb.AppendLine("*.suo");
+                    sb.AppendLine("*.userosscache");
+                    sb.AppendLine("");
+                    sb.AppendLine("# Visual Studio");
+                    sb.AppendLine(".vs/");
+                    sb.AppendLine("*.sln.docstates");
+                    break;
+
+                case "none":
+                    // Empty .gitignore
+                    sb.AppendLine("# No template selected");
+                    break;
+
+                default:
+                    // Default to mdexplorer template
+                    return GetGitignoreTemplate("mdexplorer");
+            }
+
+            return sb.ToString();
         }
 
     }
