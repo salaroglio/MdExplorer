@@ -1,0 +1,23 @@
+mat-dialog-content {
+  min-height: 300px;
+  max-height: 70vh;
+  padding: 24px;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.success-snackbar {
+  background-color: #4caf50 !important;
+  color: white !important;
+}
+
+.error-snackbar {
+  background-color: #f44336 !important;
+  color: white !important;
+}
+
+mat-icon {
+  vertical-align: middle;
+}

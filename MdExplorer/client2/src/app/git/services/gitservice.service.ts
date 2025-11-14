@@ -130,7 +130,7 @@ export class GITService implements OnDestroy {
                 console.error('Error in modern data to pull:', error);
               }
             );
-          } else if (!remoteStatus.hasRemote) {
+          } else if (!remoteStatus.hasRemote && remoteStatus.isGitRepository) {
             // No remote configured - still get branch status but skip pull/push data
             this.modernGetBranchStatus(this.currentProjectPath).subscribe(
               branch => {
@@ -140,10 +140,48 @@ export class GITService implements OnDestroy {
                 console.error('Error in modern branch status:', error);
               }
             );
+          } else if (!remoteStatus.isGitRepository) {
+            // Not a Git repository - emit empty state to clear UI
+            console.log('📁 Not a Git repository - clearing Git state');
+            this.currentBranch$.next({
+              id: "",
+              name: "",
+              somethingIsChangedInTheBranch: false,
+              howManyFilesAreChanged: 0,
+              fullPath: this.currentProjectPath,
+              howManyCommitAreToPush: 0
+            });
+
+            this.commmitsToPull$.next({
+              somethingIsToPull: false,
+              somethingIsToPush: false,
+              howManyFilesAreToPull: 0,
+              howManyCommitAreToPush: 0,
+              connectionIsActive: false,
+              whatFilesWillBeChanged: []
+            });
           }
         },
         error => {
           console.error('Error checking remote status in poll:', error);
+          // On error, also clear Git state
+          this.currentBranch$.next({
+            id: "",
+            name: "",
+            somethingIsChangedInTheBranch: false,
+            howManyFilesAreChanged: 0,
+            fullPath: this.currentProjectPath,
+            howManyCommitAreToPush: 0
+          });
+
+          this.commmitsToPull$.next({
+            somethingIsToPull: false,
+            somethingIsToPush: false,
+            howManyFilesAreToPull: 0,
+            howManyCommitAreToPush: 0,
+            connectionIsActive: false,
+            whatFilesWillBeChanged: []
+          });
         }
       );
     }
@@ -416,6 +454,19 @@ export class GITService implements OnDestroy {
           errorMessage: error.message || 'Failed to check remote status',
           canAuthenticate: false
         });
+      })
+    );
+  }
+
+  /**
+   * Initialize a new Git repository
+   */
+  initRepository(request: any): Observable<any> {
+    const url = '../api/ModernGit/init';
+    return this.http.post<any>(url, request).pipe(
+      catchError(error => {
+        console.error('Error initializing Git repository:', error);
+        throw error;
       })
     );
   }

@@ -80,7 +80,62 @@ if (window.commonJsLoaded) {
         </script>`);
     }
 
-    loadScriptOnce('/javascripts/jqueryForFirstPage.js');
+    // ============================================================================
+    // jqueryForFirstPage.js Loading Strategy
+    // ============================================================================
+    // Feature flag: Set to true to use new modular structure, false for monolithic file
+    const USE_MODULAR_STRUCTURE = false; // Change to true after testing
+
+    if (USE_MODULAR_STRUCTURE) {
+        console.log('=== LOADING MODULAR jqueryForFirstPage FILES ===');
+
+        // Load in dependency order (globals first, init last)
+        // CORE: Foundation - global variables and utilities
+        loadScriptOnce('/javascripts/jqueryForFirstPage/core/globals.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/core/utilities.js');
+
+        // EMOJIS: Tippy tooltips and sortable functionality
+        loadScriptOnce('/javascripts/jqueryForFirstPage/emojis/emoji-tooltips.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/emojis/emoji-sortable.js');
+
+        // IMAGES: Readability, magnifier, transform (move/resize)
+        loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-readability.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-magnifier.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-transform.js');
+
+        // NAVIGATION: History and scroll position management
+        loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/navigation-history.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/scroll-position.js');
+
+        // SEARCH: Full-text search with highlighting
+        loadScriptOnce('/javascripts/jqueryForFirstPage/search/search-functionality.js');
+
+        // PANELS: TOC, references, and resize functionality
+        loadScriptOnce('/javascripts/jqueryForFirstPage/panels/toc-manager.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/panels/references-manager.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/panels/panel-resize.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/panels/panels-initialization.js');
+
+        // CALENDAR: Datepicker conflict resolution
+        loadScriptOnce('/javascripts/jqueryForFirstPage/calendar/calendar-picker.js');
+
+        // DRAWING: Canvas drawing tool with color palette
+        loadScriptOnce('/javascripts/jqueryForFirstPage/drawing/canvas-drawing.js');
+
+        // DIAGRAMS: PlantUML, Mermaid, and syntax highlighting
+        loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/plantuml-integration.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/syntax-highlighting.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/mermaid-rendering.js');
+
+        // CORE: Initialization coordinator (MUST BE LAST)
+        loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
+
+        console.log('=== MODULAR FILES LOADED (20 files) ===');
+    } else {
+        console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
+        loadScriptOnce('/javascripts/jqueryForFirstPage.js');
+    }
+
     loadScriptOnce('/TocBot/tocbot.min.js');
     loadScriptOnce('/jspreadsheet_ce/jsuites.js');
     loadScriptOnce('/jspreadsheet_ce/jexcel.js');

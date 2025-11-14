@@ -417,6 +417,7 @@ namespace MdExplorer.Service.HostedServices
         }
 
         DateTime lastRead = DateTime.MinValue;
+        private Dictionary<string, int> _fileProcessingCount = new Dictionary<string, int>();
 
         private async void _fileSystemWatcher_Changed(object sender, FileSystemEventArgs e)
         {
@@ -425,12 +426,12 @@ namespace MdExplorer.Service.HostedServices
                 // Log only for markdown files to reduce noise
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
-                
+
                 if (isMarkdown)
                 {
                     _logger.LogInformation($"📝 FileSystemWatcher.Changed triggered for: {e.FullPath}");
                 }
-                
+
                 // Check if it's a directory - skip directories
                 if (Directory.Exists(e.FullPath))
                 {
@@ -438,7 +439,7 @@ namespace MdExplorer.Service.HostedServices
                     _logger.LogDebug($"Path {e.FullPath} is a directory, skipping");
                     return;
                 }
-                
+
                 // Check if it's a markdown file
                 if (!isMarkdown)
                 {
@@ -456,9 +457,29 @@ namespace MdExplorer.Service.HostedServices
                 }
 
                 var lastWriteTime = File.GetLastWriteTime(e.FullPath);
+
+                // LOOP DETECTION LOG
+                if (!_fileProcessingCount.ContainsKey(e.FullPath))
+                {
+                    _fileProcessingCount[e.FullPath] = 0;
+                }
+                _fileProcessingCount[e.FullPath]++;
+
+                _logger.LogWarning($"🔍 LOOP DEBUG - File: {Path.GetFileName(e.FullPath)}");
+                _logger.LogWarning($"🔍 LOOP DEBUG - Processing Count: {_fileProcessingCount[e.FullPath]}");
+                _logger.LogWarning($"🔍 LOOP DEBUG - lastWriteTime: {lastWriteTime:yyyy-MM-dd HH:mm:ss.fff}");
+                _logger.LogWarning($"🔍 LOOP DEBUG - lastRead: {lastRead:yyyy-MM-dd HH:mm:ss.fff}");
+                _logger.LogWarning($"🔍 LOOP DEBUG - Check (lastWriteTime > lastRead): {lastWriteTime > lastRead}");
+
+                if (_fileProcessingCount[e.FullPath] > 5)
+                {
+                    _logger.LogError($"⚠️⚠️⚠️ LOOP DETECTED! File {e.FullPath} has been processed {_fileProcessingCount[e.FullPath]} times!");
+                }
+
                 if (lastWriteTime > lastRead)
                 {
                     _logger.LogInformation($"✅ Markdown file changed: {e.FullPath}");
+                    _logger.LogWarning($"🔍 LOOP DEBUG - Calling ParseNewFileIntoDB...");
                     ParseNewFileIntoDB(e);
 
                     // Calculate relative path and ensure it's correct (remove leading separator)
@@ -536,19 +557,22 @@ namespace MdExplorer.Service.HostedServices
 
         private void ParseNewFileIntoDB(FileSystemEventArgs e)
         {
+            _logger.LogWarning($"🔍 LOOP DEBUG - ParseNewFileIntoDB START for: {Path.GetFileName(e.FullPath)}");
+
             using (var serviceScope = _serviceProvider.CreateScope())
             {
-                // document analysis 
+                // document analysis
                 // if not exits, then insert:
                 // MarkdownFile + LinkInsideMarkdown
                 // Else
-                // Delete LinkInsideMarkdown and rebuild                    
+                // Delete LinkInsideMarkdown and rebuild
                 var engineDB = serviceScope.ServiceProvider.GetService<IEngineDB>();
                 engineDB.BeginTransaction();
                 var fileDal = engineDB.GetDal<MarkdownFile>();
                 var mdf = fileDal.GetList().Where(_ => _.Path == e.FullPath).FirstOrDefault();
                 if (mdf == null)
                 {
+                    _logger.LogWarning($"🔍 LOOP DEBUG - Creating NEW MarkdownFile record");
                     mdf = new MarkdownFile
                     {
                         FileName = Path.GetFileName(e.FullPath),
@@ -557,19 +581,27 @@ namespace MdExplorer.Service.HostedServices
                     };
                     fileDal.Save(mdf);
                 }
+                else
+                {
+                    _logger.LogWarning($"🔍 LOOP DEBUG - MarkdownFile record already EXISTS");
+                }
 
                 engineDB.Flush();
                 var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
                 var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf);
+                _logger.LogWarning($"🔍 LOOP DEBUG - Deleting {listLinks.Count()} existing links");
                 foreach (var item in listLinks)
                 {
                     linkDal.Delete(item);
                 }
 
                 engineDB.Flush();
+                _logger.LogWarning($"🔍 LOOP DEBUG - Processing {_linkManagers.Length} link managers");
                 foreach (var getModifier in _linkManagers)
                 {
+                    _logger.LogWarning($"🔍 LOOP DEBUG - Calling {getModifier.GetType().Name}.GetLinksFromFile()");
                     var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
+                    _logger.LogWarning($"🔍 LOOP DEBUG - {getModifier.GetType().Name} found {linksToStore.Length} links");
                     foreach (var singleLink in linksToStore)
                     {
                         var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
@@ -587,6 +619,7 @@ namespace MdExplorer.Service.HostedServices
                 }
 
                 engineDB.Commit();
+                _logger.LogWarning($"🔍 LOOP DEBUG - ParseNewFileIntoDB COMPLETED for: {Path.GetFileName(e.FullPath)}");
             }
         }
     }

@@ -1,3 +1,18 @@
+---
+author: Carlo Salaroglio
+document_type: Document
+email: salaroglio@hotmail.com
+title: 
+date: 11/11/2025
+word_section:
+  write_toc: false
+  document_header: ''
+  template_section:
+    inherit_from_template: ''
+    custom_template: ''
+    template_type: default
+  predefined_pages: 
+---
 Contributor Covenant Code of Conduct
 Our Pledge
 We as members, contributors, and leaders pledge to make participation in our community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, caste, color, religion, or sexual identity and orientation.

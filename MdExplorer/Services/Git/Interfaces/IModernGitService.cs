@@ -154,6 +154,13 @@ namespace MdExplorer.Services.Git.Interfaces
         Task<RemoteStatus> CheckRemoteStatusAsync(string repositoryPath);
 
         /// <summary>
+        /// Initializes a new Git repository
+        /// </summary>
+        /// <param name="request">Initialization request with repository path, branch name, and gitignore template</param>
+        /// <returns>Initialization response with success status and repository information</returns>
+        Task<InitRepositoryResponse> InitRepositoryAsync(InitRepositoryRequest request);
+
+        /// <summary>
         /// Adds a GitHub remote repository to the local repository
         /// </summary>
         /// <param name="repositoryPath">Path to the local repository</param>
@@ -382,5 +389,57 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Indicates if this is a merge commit
         /// </summary>
         public bool IsMerge => Parents?.Count > 1;
+    }
+
+    /// <summary>
+    /// Request for initializing a Git repository
+    /// </summary>
+    public class InitRepositoryRequest
+    {
+        /// <summary>
+        /// Path to the directory where Git repository should be initialized
+        /// </summary>
+        public string RepositoryPath { get; set; }
+
+        /// <summary>
+        /// Name of the initial branch (default: "main")
+        /// </summary>
+        public string InitialBranch { get; set; } = "main";
+
+        /// <summary>
+        /// Template for .gitignore file (mdexplorer, node, python, csharp, none)
+        /// </summary>
+        public string GitignoreTemplate { get; set; } = "mdexplorer";
+    }
+
+    /// <summary>
+    /// Response from initializing a Git repository
+    /// </summary>
+    public class InitRepositoryResponse
+    {
+        /// <summary>
+        /// Whether the initialization was successful
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// Success or error message
+        /// </summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        /// Whether the directory is now a Git repository
+        /// </summary>
+        public bool IsGitRepository { get; set; }
+
+        /// <summary>
+        /// Path to the initialized repository
+        /// </summary>
+        public string RepositoryPath { get; set; }
+
+        /// <summary>
+        /// Name of the initial branch created
+        /// </summary>
+        public string InitialBranch { get; set; }
     }
 }

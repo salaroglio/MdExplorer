@@ -67,6 +67,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public showMenu: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
+  public isUsingNativeGit: boolean = false; // True when Git native credentials are working
+  public needsRemoteManagement: boolean = false; // True when using app-stored credentials
+  public isGitRepository: boolean = true; // False for non-Git projects (hides Git UI elements)
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -123,6 +126,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // Subscribe to project changes to update Git service
     this.projectService.currentProjects$.subscribe(project => {
       if (project && project.path) {
+        // Reset Git state immediately when switching projects
+        this.resetGitState();
+        // Then set new project path and trigger poll
         this.gitservice.setProjectPath(project.path);
       }
     });
@@ -223,6 +229,39 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Reset all Git-related state variables to initial/empty values.
+   * Called when switching projects to ensure clean state.
+   */
+  private resetGitState(): void {
+    // Reset branch and commit counters
+    this.currentBranch = "";
+    this.somethingIsChangedInTheBranch = false;
+    this.somethingIsToPull = false;
+    this.somethingIsToPush = false;
+    this.howManyFilesAreToCommit = 0;
+    this.howManyCommitAreToPush = 0;
+    this.howManyFilesAreToPull = 0;
+
+    // Reset arrays
+    this.filesAndAuthors = [];
+    this.branches = [];
+    this.taglist = [];
+
+    // Reset remote configuration flags
+    this.hasRemoteConfigured = false;  // Will show "checking..." until poll completes
+    this.currentRemoteUrl = '';
+    this.isUsingNativeGit = false;
+    this.needsRemoteManagement = false;
+
+    // Reset connection state
+    this.connectionIsActive = false;
+    this.isCheckingConnection = true;
+
+    // Assume Git repository by default (will be updated after check)
+    this.isGitRepository = true;
+  }
+
   checkConnection(): void {
     this.isCheckingConnection = true;
 
@@ -241,22 +280,41 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         console.log('Remote status:', remoteStatus);
 
         // Remote is considered configured if it exists AND authentication works
-        // This allows the system to recognize when Git is already set up and working
+        // IMPORTANT: Hide menu when native Git authentication is working
+        // Native Git methods: 'Default', 'GitCredentialHelper', 'SystemCredentialStore'
+        // Three states:
+        // 1. No remote OR auth failed → Show "Setup Remote" (hasRemoteConfigured=false)
+        // 2. Native Git working → Hide all menus (isUsingNativeGit=true, hasRemoteConfigured=true)
+        // 3. App credentials working → Show "Manage Remote" (needsRemoteManagement=true)
+        const nativeGitMethods = ['Default', 'GitCredentialHelper', 'SystemCredentialStore'];
+        this.isUsingNativeGit = remoteStatus.authenticationMethod &&
+                                nativeGitMethods.includes(remoteStatus.authenticationMethod);
+        const needsRemoteSetup = !remoteStatus.hasRemote || !remoteStatus.canAuthenticate;
+        this.needsRemoteManagement = remoteStatus.hasRemote && remoteStatus.canAuthenticate && !this.isUsingNativeGit;
+
+        // Set hasRemoteConfigured to control "Setup Remote" visibility
+        // false = show "Setup Remote", true = hide "Setup Remote"
         this.hasRemoteConfigured = remoteStatus.hasRemote && remoteStatus.canAuthenticate;
         this.currentRemoteUrl = remoteStatus.remoteUrl || '';
 
         // Log authentication status for debugging
         if (remoteStatus.hasRemote && !remoteStatus.canAuthenticate) {
-          console.warn('Remote is configured but authentication failed. You may need to set up credentials.');
+          console.warn('⚠️ Remote is configured but authentication failed. Showing "Setup Remote" menu.');
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
         } else if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
           console.log('✅ Remote configured and authentication successful using:', remoteStatus.authenticationMethod);
+          if (this.isUsingNativeGit) {
+            console.log('🎯 Native Git credentials working - hiding remote setup menu');
+          } else {
+            console.log('🔧 App-stored credentials active - showing "Manage Remote" menu');
+          }
           console.log('🔑 Credentials are now cached - subsequent calls will not require authentication');
 
           // Authentication successful - credentials are now cached
           // Now fetch Git data (will use cached credentials, no auth request)
           if (remoteStatus.isGitRepository) {
+            this.isGitRepository = true;
             forkJoin([
               this.gitservice.modernGetBranchStatus(projectPath),
               this.gitservice.modernGetDataToPull(projectPath)
@@ -280,11 +338,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           }
         } else if (remoteStatus.isGitRepository && !remoteStatus.hasRemote) {
           // Git repository exists but no remote configured
-          console.log('Git repository without remote');
+          console.log('📁 Git repository without remote - showing "Setup Remote" menu');
+          this.isGitRepository = true;
           this.isCheckingConnection = false;
           this.connectionIsActive = true;
         } else {
-          // Not a Git repository
+          // Not a Git repository - reset all Git state
+          console.log('📁 Not a Git repository - resetting Git state');
+          this.isGitRepository = false;
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
           this.hasRemoteConfigured = true; // Hide setup menu if not Git repo
@@ -292,7 +353,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       },
       error => {
         console.error('Error checking remote status:', error);
+        // On error, treat as non-Git repository
+        this.isGitRepository = false;
         this.isCheckingConnection = false;
+        this.connectionIsActive = false;
         // On error, assume remote is configured to hide the menu
         this.hasRemoteConfigured = true;
       }
@@ -718,6 +782,35 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
 
     this.matMenuTrigger.closeMenu();
+  }
+
+  openGitInitWizard(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) {
+      this._snackBar.open('No project path available', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+
+    // Import the component dynamically
+    import('../../../git/dialogs/git-init-wizard/git-init-wizard-dialog.component').then(m => {
+      const dialogRef = this.dialog.open(m.GitInitWizardDialogComponent, {
+        width: '600px',
+        data: {
+          repositoryPath: projectPath
+        }
+      });
+
+      dialogRef.afterClosed().subscribe(initialized => {
+        if (initialized === true) {
+          console.log('[Toolbar] Git repository initialized, refreshing status');
+          // Refresh Git status after initialization
+          this.checkConnection();
+        }
+      });
+    });
   }
 
   bookmarkToggle(): void {

@@ -32,18 +32,19 @@ export class AddNewFileToMDEComponent implements OnInit {
   }
 
   openFileSystem() {
-    let data = new ShowFileMetadata();    
+    let data = new ShowFileMetadata();
     data.title = "Select file to add";
     data.typeOfSelection = "FoldersAndFiles";
     data.buttonText = "Add to project";
-    data.fileExtensions = ['.md', '.txt', '.doc', '.docx', '.pdf']; // Solo questi file
+    // FILTRO PER ESTENSIONI RIMOSSO - mostra tutti i file
+    // data.fileExtensions = ['.md', '.txt', '.doc', '.docx', '.pdf'];
     data.showFileDetails = true; // Mostra dimensione e data
 
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
       width: '800px',
       height: '600px',
       panelClass: 'resizable-dialog-container',
-      data: data 
+      data: data
     });
     dialogRef.afterClosed().subscribe(_ => {
       this.fullPath = _.data;

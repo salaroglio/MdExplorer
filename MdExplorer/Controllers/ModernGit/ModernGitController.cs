@@ -816,5 +816,43 @@ namespace MdExplorer.Controllers.ModernGit
                 }
             });
         }
+
+        /// <summary>
+        /// Initializes a new Git repository in the specified directory
+        /// </summary>
+        /// <param name="request">Initialization request with repository path, branch name, and gitignore template</param>
+        /// <returns>Initialization response with success status</returns>
+        [HttpPost("init")]
+        public async Task<IActionResult> InitRepository([FromBody] InitRepositoryRequest request)
+        {
+            _logger.LogInformation("Initializing Git repository at: {RepositoryPath}", request.RepositoryPath);
+
+            try
+            {
+                var response = await _gitService.InitRepositoryAsync(request);
+
+                if (response.Success)
+                {
+                    _logger.LogInformation("✅ Git repository initialized successfully: {RepositoryPath}", request.RepositoryPath);
+                    return Ok(response);
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ Git repository initialization failed: {Message}", response.Message);
+                    return BadRequest(response);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error initializing Git repository: {RepositoryPath}", request.RepositoryPath);
+                return StatusCode(500, new InitRepositoryResponse
+                {
+                    Success = false,
+                    Message = $"Internal server error: {ex.Message}",
+                    IsGitRepository = false,
+                    RepositoryPath = request.RepositoryPath
+                });
+            }
+        }
     }
 }

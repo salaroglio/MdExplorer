@@ -479,27 +479,19 @@ export class ShowFileSystemComponent implements OnInit {
 
   private applyFilter(): void {
     let filtered = [...this.currentItems];
-    
+
     // Filtro per nome
     if (this.searchFilter && this.searchFilter.trim() !== '') {
       const filter = this.searchFilter.toLowerCase().trim();
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.name.toLowerCase().includes(filter)
       );
     }
-    
-    // Filtro per estensioni (solo se specificato e per selezione file)
-    if (this.baseStart.typeOfSelection === 'FoldersAndFiles' 
-        && this.baseStart.fileExtensions 
-        && this.baseStart.fileExtensions.length > 0) {
-      filtered = filtered.filter(item => {
-        if (item.type === 'folder') return true; // Sempre mostra cartelle per navigazione
-        
-        const extension = this.getFileExtension(item.name);
-        return this.baseStart.fileExtensions.includes(extension);
-      });
-    }
-    
+
+    // FILTRO PER ESTENSIONI RIMOSSO - mostra tutti i file
+    // Commentato per permettere la visualizzazione di tutti i file disponibili
+    // Se necessario in futuro, l'utente può aggiungere una configurazione
+
     this.filteredItems = filtered;
   }
   

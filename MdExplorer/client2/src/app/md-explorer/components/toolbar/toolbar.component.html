@@ -22,12 +22,20 @@
 
 
     <span class="flexExpand"></span>
-    <button *ngIf="!connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
+    <button *ngIf="isGitRepository && !connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
       <mat-icon style="color:yellow">warning</mat-icon>
     </button>
-    <span *ngIf="isCheckingConnection"><img src="/assets/connecting.gif" /></span>
+    <span *ngIf="isGitRepository && isCheckingConnection"><img src="/assets/connecting.gif" /></span>
 
-    <span style="display:flex; flex-direction:row" *ngIf="currentBranch!=null">
+    <!-- Git button for NON-Git projects -->
+    <span *ngIf="!isGitRepository" style="display:flex; flex-direction:row">
+      <button mat-button [matMenuTriggerFor]="gitInitMenu" style="color: white;">
+        <mat-icon>settings</mat-icon>
+        Git <img src="/assets/gitlogo.png" style="height: 16px; margin-left: 4px;" />
+      </button>
+    </span>
+
+    <span style="display:flex; flex-direction:row" *ngIf="currentBranch && currentBranch.length > 0">
       <div style="display:flex; flex-direction:column">
         <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
         <div class="menu-container">
@@ -61,6 +69,7 @@
 
 <mat-menu #tagsAndBranches="matMenu">
   <div>
+    <!-- Show "Setup Remote" when no remote exists OR authentication failed -->
     <div *ngIf="!hasRemoteConfigured" (click)="openSetupRemote()"
          class="container setup-remote"
          mat-menu-item (click)="$event.stopPropagation()">
@@ -69,7 +78,8 @@
         <mat-icon style="text-align:right" color="warn">cloud_upload</mat-icon>
       </button>
     </div>
-    <div *ngIf="hasRemoteConfigured" (click)="openManageRemote()"
+    <!-- Show "Manage Remote" ONLY when using app-stored credentials (NOT when using native Git) -->
+    <div *ngIf="needsRemoteManagement && !isUsingNativeGit" (click)="openManageRemote()"
          class="container manage-remote"
          mat-menu-item (click)="$event.stopPropagation()">
       <span>Manage Remote</span><span class="flexExpand"></span>
@@ -90,6 +100,20 @@
       <span>Branch</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right">account_tree</mat-icon>
+      </button>
+    </div>
+  </div>
+</mat-menu>
+
+<!-- Git Init Menu for non-Git projects -->
+<mat-menu #gitInitMenu="matMenu">
+  <div>
+    <div (click)="openGitInitWizard()"
+         class="container"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>Inizializza Git</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right" color="primary">add_circle</mat-icon>
       </button>
     </div>
   </div>
