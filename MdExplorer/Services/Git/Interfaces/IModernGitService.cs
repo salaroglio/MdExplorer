@@ -17,6 +17,7 @@ namespace MdExplorer.Services.Git.Interfaces
         public IEnumerable<string> Changes { get; set; }
         public AuthenticationMethod AuthenticationMethodUsed { get; set; }
         public TimeSpan Duration { get; set; }
+        public string BranchName { get; set; }  // Current branch name after operation
     }
 
     /// <summary>

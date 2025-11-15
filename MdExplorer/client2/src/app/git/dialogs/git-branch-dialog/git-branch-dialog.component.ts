@@ -159,18 +159,28 @@ export class GitBranchDialogComponent implements OnInit {
         this.isSwitching = false;
 
         if (result.success) {
+          const actualBranchName = result.branchName || branchName;
+
           this.snackBar.open(
-            `Switchato a branch: ${branchName}`,
+            `Switchato a branch: ${actualBranchName}`,
             'OK',
             { duration: 3000, panelClass: ['success-snackbar'] }
           );
 
-          // Refresh branch info
-          this.loadBranchInfo();
-          this.loadBranches();
+          // If backend returned branch name, use it directly to update current branch
+          if (result.branchName) {
+            this.gitService.currentBranch$.next({
+              id: '',
+              name: result.branchName,
+              somethingIsChangedInTheBranch: false,
+              howManyFilesAreChanged: 0,
+              howManyCommitAreToPush: 0,
+              fullPath: this.data.projectPath
+            });
+          }
 
-          // Update main service
-          this.gitService.modernGetBranchStatus(this.data.projectPath).subscribe();
+          // Refresh branch list
+          this.loadBranches();
         } else {
           this.error = result.error || 'Errore durante il cambio branch';
           this.snackBar.open(

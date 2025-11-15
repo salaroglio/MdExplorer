@@ -23,4 +23,5 @@ export interface CheckoutResult {
   error?: string;
   hasUncommittedChanges?: boolean;
   durationMs?: number;
+  branchName?: string;  // Current branch name after checkout
 }

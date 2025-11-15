@@ -811,6 +811,14 @@ namespace MdExplorer.Services.Git
 
                 stopwatch.Stop();
 
+                // Verify the current branch with a fresh repository instance to avoid caching issues
+                string currentBranchName;
+                using (var freshRepo = new Repository(repositoryPath))
+                {
+                    currentBranchName = freshRepo.Head.FriendlyName;
+                    _logger.LogInformation("✅ Verified current branch from fresh repository: {CurrentBranch}", currentBranchName);
+                }
+
                 _logger.LogInformation("✅ Checkout operation completed successfully: {BranchName}, Duration: {Duration}ms",
                     branchName, stopwatch.ElapsedMilliseconds);
 
@@ -818,6 +826,7 @@ namespace MdExplorer.Services.Git
                 {
                     Success = true,
                     Message = $"Successfully checked out branch '{branchName}'",
+                    BranchName = currentBranchName,  // Return verified branch name
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
