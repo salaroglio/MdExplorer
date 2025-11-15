@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
@@ -470,30 +471,120 @@ namespace MdExplorer.Services.Git
                                 var commitsBehind = repo.Commits.QueryBy(filter).Count();
                                 _logger.LogError("   Commits behind: {Count}", commitsBehind);
 
-                                // FIX: Force checkout of the remote HEAD to sync local with remote
-                                _logger.LogWarning("🔧 FIX - Forcing checkout of remote HEAD: {RemoteSha}", remoteTip?.Sha);
+                                // FIX: Force checkout of the BRANCH (not commit) to sync local with remote
+                                var remoteBranchName = repo.Head.TrackedBranch?.FriendlyName;
+                                _logger.LogWarning("🔧 FIX - Forcing checkout of tracked branch: {RemoteBranch} (tip: {RemoteSha})",
+                                    remoteBranchName, remoteTip?.Sha);
 
                                 try
                                 {
-                                    var checkoutOptions = new CheckoutOptions
+                                    // Find the local branch that tracks this remote branch
+                                    var localBranchName = repo.Head.FriendlyName;
+                                    var localBranch = repo.Branches[localBranchName];
+
+                                    if (localBranch != null)
                                     {
-                                        CheckoutModifiers = CheckoutModifiers.Force
-                                    };
+                                        _logger.LogInformation("🔧 FIX - Resetting local branch {LocalBranch} to match remote", localBranchName);
 
-                                    Commands.Checkout(repo, remoteTip, checkoutOptions);
+                                        // Reset the local branch to match the remote
+                                        repo.Reset(ResetMode.Hard, remoteTip);
 
-                                    _logger.LogInformation("✅ FIX - Successfully checked out remote HEAD");
-                                    _logger.LogInformation("   New local HEAD: {NewLocalSha}", repo.Head.Tip?.Sha);
+                                        _logger.LogInformation("✅ FIX - Successfully reset local branch to remote HEAD");
+                                        _logger.LogInformation("   New local HEAD: {NewLocalSha}", repo.Head.Tip?.Sha);
+                                        _logger.LogInformation("   Branch: {Branch}",
+                                            repo.Head.FriendlyName);
+                                    }
+                                    else
+                                    {
+                                        _logger.LogWarning("⚠️ FIX - Could not find local branch {LocalBranch}", localBranchName);
+                                    }
                                 }
                                 catch (Exception checkoutEx)
                                 {
-                                    _logger.LogError(checkoutEx, "❌ FIX - Failed to checkout remote HEAD");
+                                    _logger.LogError(checkoutEx, "❌ FIX - Failed to reset local branch to remote HEAD");
                                 }
                             }
                             else
                             {
                                 _logger.LogInformation("✅ CLONE DIAGNOSTIC - Local HEAD matches remote HEAD");
                             }
+                        }
+
+                        // FINAL CHECK: Ensure we're not in detached HEAD state
+                        // In LibGit2Sharp, detached HEAD is indicated by FriendlyName = "(no branch)"
+                        var isDetached = repo.Head.FriendlyName == "(no branch)" ||
+                                         !repo.Head.CanonicalName.StartsWith("refs/heads/");
+
+                        if (isDetached)
+                        {
+                            _logger.LogError("⚠️ POST-CLONE CHECK - Repository is in DETACHED HEAD state!");
+                            _logger.LogError("   Current HEAD: {HeadSha}", repo.Head.Tip?.Sha);
+
+                            try
+                            {
+                                // Find the default branch from remote (usually origin/main or origin/master)
+                                var remoteHead = repo.Refs["refs/remotes/origin/HEAD"];
+                                string defaultBranchName = null;
+
+                                if (remoteHead != null && remoteHead is SymbolicReference symRef)
+                                {
+                                    // Extract branch name from "refs/remotes/origin/main" -> "main"
+                                    defaultBranchName = symRef.Target.CanonicalName.Replace("refs/remotes/origin/", "");
+                                    _logger.LogInformation("🔧 Found default branch from origin/HEAD: {DefaultBranch}", defaultBranchName);
+                                }
+                                else
+                                {
+                                    // Fallback: try common default branches
+                                    var commonDefaults = new[] { "main", "master", "develop" };
+                                    foreach (var commonBranch in commonDefaults)
+                                    {
+                                        var remoteBranch = repo.Branches[$"origin/{commonBranch}"];
+                                        if (remoteBranch != null)
+                                        {
+                                            defaultBranchName = commonBranch;
+                                            _logger.LogInformation("🔧 Found common default branch: {DefaultBranch}", defaultBranchName);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!string.IsNullOrEmpty(defaultBranchName))
+                                {
+                                    var localBranch = repo.Branches[defaultBranchName];
+                                    var remoteBranch = repo.Branches[$"origin/{defaultBranchName}"];
+
+                                    if (localBranch == null && remoteBranch != null)
+                                    {
+                                        // Create local branch tracking the remote
+                                        _logger.LogInformation("🔧 Creating local branch {Branch} to track origin/{Branch}", defaultBranchName, defaultBranchName);
+                                        localBranch = repo.CreateBranch(defaultBranchName, remoteBranch.Tip);
+                                        repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
+                                    }
+
+                                    if (localBranch != null)
+                                    {
+                                        // Checkout the branch
+                                        _logger.LogInformation("🔧 Checking out branch {Branch}", defaultBranchName);
+                                        Commands.Checkout(repo, localBranch);
+
+                                        _logger.LogInformation("✅ POST-CLONE FIX - Successfully checked out branch {Branch}", defaultBranchName);
+                                        _logger.LogInformation("   HEAD is now at: {HeadSha}", repo.Head.Tip?.Sha);
+                                    }
+                                }
+                                else
+                                {
+                                    _logger.LogError("❌ POST-CLONE FIX - Could not determine default branch");
+                                }
+                            }
+                            catch (Exception detachedEx)
+                            {
+                                _logger.LogError(detachedEx, "❌ POST-CLONE FIX - Failed to resolve detached HEAD state");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogInformation("✅ POST-CLONE CHECK - Repository has a proper branch checked out: {Branch}",
+                                repo.Head.FriendlyName);
                         }
                     }
                 }
@@ -726,7 +817,9 @@ namespace MdExplorer.Services.Git
         // Key format: "repositoryPath|url|username|types"
         private static readonly Dictionary<string, CachedCredential> _credentialCache = new Dictionary<string, CachedCredential>();
         private static readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
-        private static readonly object _cacheLock = new object(); // Thread safety
+        private static readonly Dictionary<string, SemaphoreSlim> _credentialResolutionLocks = new Dictionary<string, SemaphoreSlim>();
+        private static readonly object _cacheLock = new object(); // Thread safety for cache access
+        private static readonly object _lockDictionaryLock = new object(); // Thread safety for lock dictionary
 
         private const int MaxAuthenticationAttempts = 3;
 
@@ -762,19 +855,51 @@ namespace MdExplorer.Services.Git
                     _lastUsedAuthMethod = cached.AuthMethod;
                     return cached.Credentials;
                 }
-
-                // Track call history for this URL
-                if (_credentialCallHistory.ContainsKey(cacheKey))
-                {
-                    _credentialCallHistory[cacheKey]++;
-                }
-                else
-                {
-                    _credentialCallHistory[cacheKey] = 1;
-                }
             }
-            
-            var callCount = _credentialCallHistory[cacheKey];
+
+            // Get or create a semaphore for this specific cache key to prevent concurrent resolution
+            SemaphoreSlim resolutionLock;
+            lock (_lockDictionaryLock)
+            {
+                if (!_credentialResolutionLocks.ContainsKey(cacheKey))
+                {
+                    _credentialResolutionLocks[cacheKey] = new SemaphoreSlim(1, 1);
+                }
+                resolutionLock = _credentialResolutionLocks[cacheKey];
+            }
+
+            // Wait for any ongoing credential resolution for this cache key
+            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Waiting for resolution lock for {Url}", resolverCallId, url);
+            await resolutionLock.WaitAsync();
+
+            try
+            {
+                // Double-check cache after acquiring lock (another thread might have resolved it)
+                lock (_cacheLock)
+                {
+                    if (_credentialCache.ContainsKey(cacheKey))
+                    {
+                        var cached = _credentialCache[cacheKey];
+                        var age = DateTime.UtcNow - cached.CachedAt;
+
+                        _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials (found after lock wait) for {Url} in project {Project} (age: {Age:F1} seconds)",
+                            resolverCallId, url, repositoryPath, age.TotalSeconds);
+                        _lastUsedAuthMethod = cached.AuthMethod;
+                        return cached.Credentials;
+                    }
+
+                    // Track call history for this URL
+                    if (_credentialCallHistory.ContainsKey(cacheKey))
+                    {
+                        _credentialCallHistory[cacheKey]++;
+                    }
+                    else
+                    {
+                        _credentialCallHistory[cacheKey] = 1;
+                    }
+                }
+
+                var callCount = _credentialCallHistory[cacheKey];
             
             _logger.LogInformation("CREDENTIAL RESOLUTION CALL [{CallId}] - URL: {Url}, User: {User}, Types: {Types}, CallCount: {CallCount}", 
                 resolverCallId, url, usernameFromUrl, types, callCount);
@@ -861,9 +986,16 @@ namespace MdExplorer.Services.Git
                 }
             }
 
-            _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - FAILED: No resolver could provide credentials for URL: {Url}", 
-                resolverCallId, url);
-            return null;
+                _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - FAILED: No resolver could provide credentials for URL: {Url}",
+                    resolverCallId, url);
+                return null;
+            }
+            finally
+            {
+                // Always release the semaphore
+                resolutionLock.Release();
+                _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Released resolution lock for {Url}", resolverCallId, url);
+            }
         }
 
         private Signature GetGitSignature(Repository repo)
