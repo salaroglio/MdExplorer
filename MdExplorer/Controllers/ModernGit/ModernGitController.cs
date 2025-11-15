@@ -373,7 +373,8 @@ namespace MdExplorer.Controllers.ModernGit
                     {
                         success = true,
                         message = result.Message,
-                        durationMs = result.Duration.TotalMilliseconds
+                        durationMs = result.Duration.TotalMilliseconds,
+                        branchName = result.BranchName
                     });
                 }
 

@@ -203,8 +203,10 @@ export class GITService implements OnDestroy {
    */
   private handleWindowFocus(): void {
     this.startPolling(this.ACTIVE_POLLING_INTERVAL);
-    // Polling immediato quando torna in focus
-    this.performPoll();
+    // Add short delay to avoid race condition with dialog updates (e.g., branch switch)
+    setTimeout(() => {
+      this.performPoll();
+    }, 500);
   }
 
   /**
