@@ -80,6 +80,12 @@ namespace MdExplorer.Controllers.ModernGit
         [Required]
         [StringLength(100, MinimumLength = 1, ErrorMessage = "Branch name must be between 1 and 100 characters")]
         public string BranchName { get; set; }
+
+        /// <summary>
+        /// SignalR connection ID for client-specific notifications
+        /// </summary>
+        [StringLength(100, ErrorMessage = "Connection ID cannot exceed 100 characters")]
+        public string ConnectionId { get; set; }
     }
 
     /// <summary>

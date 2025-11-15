@@ -3,6 +3,7 @@ import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dial
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GITService } from '../../services/gitservice.service';
 import { IBranch, BranchInfo, CheckoutResult } from '../../models/branch';
+import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 
 export interface GitBranchDialogData {
   projectPath: string;
@@ -28,7 +29,8 @@ export class GitBranchDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: GitBranchDialogData,
     private gitService: GITService,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private serverMessages: MdServerMessagesService
   ) {}
 
   ngOnInit(): void {
@@ -149,12 +151,21 @@ export class GitBranchDialogComponent implements OnInit {
 
     // Extract branch name (remove remote prefix if present)
     let branchName = branch.name;
-    if (branch.isRemote && branch.remoteName) {
-      // For remote branches, checkout creates a local tracking branch
-      branchName = branch.name.replace(`${branch.remoteName}/`, '');
+    if (branch.isRemote) {
+      // For remote branches, remove the remote prefix (e.g., "origin/test" -> "test")
+      // Handle both cases: when remoteName is set or when we need to detect it
+      if (branch.remoteName) {
+        branchName = branch.name.replace(`${branch.remoteName}/`, '');
+      } else {
+        // Fallback: remove everything before the last slash
+        const slashIndex = branch.name.indexOf('/');
+        if (slashIndex !== -1) {
+          branchName = branch.name.substring(slashIndex + 1);
+        }
+      }
     }
 
-    this.gitService.checkoutBranch(this.data.projectPath, branchName).subscribe({
+    this.gitService.checkoutBranch(this.data.projectPath, branchName, this.serverMessages.connectionId).subscribe({
       next: (result: CheckoutResult) => {
         this.isSwitching = false;
 

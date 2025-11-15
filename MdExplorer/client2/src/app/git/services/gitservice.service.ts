@@ -52,7 +52,9 @@ export class GITService implements OnDestroy {
     whatFilesWillBeChanged: []
   });
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient
+  ) {
     this.initializeSmartPolling();
   }
 
@@ -608,13 +610,19 @@ export class GITService implements OnDestroy {
 
   /**
    * Checkout/switch to a different branch
+   * Sends connectionId to backend for client-specific SignalR notifications
    */
-  checkoutBranch(projectPath: string, branchName: string): Observable<CheckoutResult> {
+  checkoutBranch(projectPath: string, branchName: string, connectionId?: string): Observable<CheckoutResult> {
     const url = '../api/ModernGit/checkout';
     const request = {
       repositoryPath: projectPath,
-      branchName: branchName
+      branchName: branchName,
+      connectionId: connectionId || null // Include SignalR connectionId if provided
     };
+
+    if (connectionId) {
+      console.log('🔄 Checkout branch request with connectionId:', connectionId);
+    }
 
     return this.http.post<CheckoutResult>(url, request).pipe(
       catchError(error => {

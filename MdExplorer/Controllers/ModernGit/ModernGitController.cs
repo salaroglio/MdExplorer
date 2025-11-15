@@ -9,6 +9,11 @@ using System.Linq;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Ad.Tools.Dal.Extensions;
+using Microsoft.AspNetCore.SignalR;
+using MdExplorer.Hubs;
+using MdExplorer.Abstractions.Entities.EngineDB;
+using MdExplorer.Abstractions.Services;
+using System.IO;
 
 namespace MdExplorer.Controllers.ModernGit
 {
@@ -23,17 +28,29 @@ namespace MdExplorer.Controllers.ModernGit
         private readonly IGitHubService _gitHubService;
         private readonly ILogger<ModernGitController> _logger;
         private readonly IUserSettingsDB _userSettingsDb;
+        private readonly IHubContext<MonitorMDHub> _hubContext;
+        private readonly IEngineDB _engineDB;
+        private readonly IMdIgnoreService _mdIgnoreService;
+        private readonly FileSystemWatcher _fileSystemWatcher;
 
         public ModernGitController(
             IModernGitService gitService,
             IGitHubService gitHubService,
             ILogger<ModernGitController> logger,
-            IUserSettingsDB userSettingsDb)
+            IUserSettingsDB userSettingsDb,
+            IHubContext<MonitorMDHub> hubContext,
+            IEngineDB engineDB,
+            IMdIgnoreService mdIgnoreService,
+            FileSystemWatcher fileSystemWatcher)
         {
             _gitService = gitService;
             _gitHubService = gitHubService;
             _logger = logger;
             _userSettingsDb = userSettingsDb;
+            _hubContext = hubContext;
+            _engineDB = engineDB;
+            _mdIgnoreService = mdIgnoreService;
+            _fileSystemWatcher = fileSystemWatcher;
         }
 
         /// <summary>
@@ -351,9 +368,9 @@ namespace MdExplorer.Controllers.ModernGit
         }
 
         /// <summary>
-        /// Checks out a specific branch
+        /// Checks out a specific branch and triggers full tree refresh
         /// </summary>
-        /// <param name="request">Checkout request parameters</param>
+        /// <param name="request">Checkout request parameters (includes connectionId for SignalR)</param>
         /// <returns>Result of the checkout operation</returns>
         [HttpPost("checkout")]
         public async Task<IActionResult> CheckoutBranch([FromBody] CheckoutRequest request)
@@ -365,16 +382,36 @@ namespace MdExplorer.Controllers.ModernGit
                     return BadRequest(ModelState);
                 }
 
+                _logger.LogInformation("🔄 Starting branch checkout to '{Branch}' with connectionId: {ConnectionId}",
+                    request.BranchName, request.ConnectionId ?? "none");
+
                 var result = await _gitService.CheckoutBranchAsync(request.RepositoryPath, request.BranchName);
 
                 if (result.Success)
                 {
+                    _logger.LogInformation("✅ Branch checkout succeeded: {Branch}", result.BranchName);
+
+                    // CRITICAL: Perform full tree refresh after successful checkout
+                    // This ensures MD-tree reflects the new branch's file structure
+                    int fileCount = 0;
+                    try
+                    {
+                        fileCount = await PerformFullTreeRefreshAsync(request.RepositoryPath, request.ConnectionId);
+                        _logger.LogInformation("✅ Tree refresh completed: {FileCount} files indexed", fileCount);
+                    }
+                    catch (Exception refreshEx)
+                    {
+                        _logger.LogError(refreshEx, "❌ Tree refresh failed after checkout (checkout itself succeeded)");
+                        // Don't fail the entire operation if refresh fails
+                    }
+
                     return Ok(new
                     {
                         success = true,
                         message = result.Message,
                         durationMs = result.Duration.TotalMilliseconds,
-                        branchName = result.BranchName
+                        branchName = result.BranchName,
+                        fileCount = fileCount
                     });
                 }
 
@@ -855,5 +892,143 @@ namespace MdExplorer.Controllers.ModernGit
                 });
             }
         }
+
+        #region MD-Tree Refresh for Git Operations
+
+        /// <summary>
+        /// Performs full tree refresh after Git branch switch:
+        /// 1. DELETE all LinkInsideMarkdown records
+        /// 2. DELETE all MarkdownFile records
+        /// 3. RE-INDEX all .md files from filesystem
+        /// 4. Emit SignalR event to notify client
+        /// </summary>
+        private async Task<int> PerformFullTreeRefreshAsync(string projectPath, string connectionId)
+        {
+            try
+            {
+                _logger.LogInformation("[PerformFullTreeRefresh] Starting full tree refresh for path: {Path}", projectPath);
+
+                // Step 1: Clean database (DELETE all records)
+                CleanupDatabase();
+
+                // Step 2: Re-index all markdown files from filesystem
+                int fileCount = IndexAllMarkdownFiles(projectPath);
+
+                // Step 3: Emit SignalR event to notify client (client-specific, NOT broadcast)
+                if (!string.IsNullOrEmpty(connectionId))
+                {
+                    await _hubContext.Clients.Client(connectionId).SendAsync("gitBranchSwitched", new
+                    {
+                        fileCount = fileCount,
+                        message = "Tree refresh completed after branch switch"
+                    });
+
+                    _logger.LogInformation("[PerformFullTreeRefresh] SignalR event 'gitBranchSwitched' sent to client: {ConnectionId}", connectionId);
+                }
+
+                _logger.LogInformation("[PerformFullTreeRefresh] Full tree refresh completed: {FileCount} files indexed", fileCount);
+                return fileCount;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[PerformFullTreeRefresh] Error during full tree refresh");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Cleans database by deleting ALL records from LinkInsideMarkdown and MarkdownFile tables.
+        /// This ensures a clean slate before re-indexing from filesystem.
+        /// </summary>
+        private void CleanupDatabase()
+        {
+            try
+            {
+                _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup");
+
+                _engineDB.BeginTransaction();
+
+                // Step 1: Delete all LinkInsideMarkdown records (foreign key to MarkdownFile)
+                _logger.LogInformation("[CleanupDatabase] Deleting all LinkInsideMarkdown records");
+                _engineDB.Delete("from LinkInsideMarkdown");
+                _engineDB.Flush();
+
+                // Step 2: Delete all MarkdownFile records
+                _logger.LogInformation("[CleanupDatabase] Deleting all MarkdownFile records");
+                _engineDB.Delete("from MarkdownFile");
+                _engineDB.Flush();
+
+                _engineDB.Commit();
+
+                _logger.LogInformation("[CleanupDatabase] Database cleanup completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup");
+                _engineDB.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Indexes all markdown files from the filesystem into the MarkdownFile table.
+        /// Respects .mdignore rules and excludes .md folder.
+        /// </summary>
+        private int IndexAllMarkdownFiles(string projectPath)
+        {
+            try
+            {
+                _logger.LogInformation("[IndexAllMarkdownFiles] Starting indexing for path: {Path}", projectPath);
+
+                if (string.IsNullOrEmpty(projectPath) || projectPath == AppDomain.CurrentDomain.BaseDirectory)
+                {
+                    _logger.LogWarning("[IndexAllMarkdownFiles] Invalid path, skipping indexing");
+                    return 0;
+                }
+
+                _engineDB.BeginTransaction();
+                var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
+
+                // Find all .md files recursively, excluding ignored paths
+                var allMdFiles = Directory.GetFiles(projectPath, "*.md", SearchOption.AllDirectories)
+                    .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar))
+                    .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, projectPath))
+                    .ToList();
+
+                _logger.LogInformation("[IndexAllMarkdownFiles] Found {FileCount} markdown files to index", allMdFiles.Count);
+
+                foreach (var filePath in allMdFiles)
+                {
+                    try
+                    {
+                        var markdownFile = new MarkdownFile
+                        {
+                            FileName = Path.GetFileName(filePath),
+                            Path = filePath,
+                            FileType = "file"
+                        };
+
+                        markdownFileDal.Save(markdownFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[IndexAllMarkdownFiles] Error indexing file: {FilePath}", filePath);
+                    }
+                }
+
+                _engineDB.Commit();
+                _logger.LogInformation("[IndexAllMarkdownFiles] Indexing completed: {FileCount} files", allMdFiles.Count);
+
+                return allMdFiles.Count;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during indexing");
+                _engineDB.Rollback();
+                throw;
+            }
+        }
+
+        #endregion
     }
 }

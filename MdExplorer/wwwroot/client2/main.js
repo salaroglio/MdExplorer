@@ -92,12 +92,14 @@ AiNotificationService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵd
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MdServerMessagesService", function() { return MdServerMessagesService; });
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
-/* harmony import */ var _dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../dialogs/opening-application/opening-application.provider */ "l94Z");
-/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../git/services/gitservice.service */ "N73s");
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+/* harmony import */ var _dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../dialogs/opening-application/opening-application.provider */ "l94Z");
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../git/services/gitservice.service */ "N73s");
+
 
 
 
@@ -112,6 +114,8 @@ class MdServerMessagesService {
         this.connectionLostProvider = connectionLostProvider;
         this.openingApplicationProvider = openingApplicationProvider;
         this.gitService = gitService;
+        // Observable for Git branch switch events
+        this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
         this.connectionIsLost = false;
         this.consoleIsClosed = false;
         this.startConnection = () => {
@@ -145,6 +149,11 @@ class MdServerMessagesService {
                 });
                 this.hubConnection.on('indexingFolder', (folder) => {
                     this.parsingProjectProvider.folder$.next(folder);
+                });
+                // Git branch switch event (client-specific, from ModernGitController)
+                this.hubConnection.on('gitBranchSwitched', (data) => {
+                    console.log('✅ SignalR event received: gitBranchSwitched', data);
+                    this.gitBranchSwitched$.next(data);
                 });
                 this.hubConnection.on('consoleClosed', (data) => {
                     console.log('consoleClosed');
@@ -323,8 +332,8 @@ class MdServerMessagesService {
         });
     }
 }
-MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_5__["OpeningApplicationProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__["GITService"])); };
-MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: MdServerMessagesService, factory: MdServerMessagesService.ɵfac, providedIn: 'root' });
+MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_3__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_4__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_5__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_6__["OpeningApplicationProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_7__["GITService"])); };
+MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: MdServerMessagesService, factory: MdServerMessagesService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),
@@ -1758,13 +1767,18 @@ class GITService {
     }
     /**
      * Checkout/switch to a different branch
+     * Sends connectionId to backend for client-specific SignalR notifications
      */
-    checkoutBranch(projectPath, branchName) {
+    checkoutBranch(projectPath, branchName, connectionId) {
         const url = '../api/ModernGit/checkout';
         const request = {
             repositoryPath: projectPath,
-            branchName: branchName
+            branchName: branchName,
+            connectionId: connectionId || null // Include SignalR connectionId if provided
         };
+        if (connectionId) {
+            console.log('🔄 Checkout branch request with connectionId:', connectionId);
+        }
         return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
             var _a;
             console.error('Error checking out branch:', error);
@@ -3433,8 +3447,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.15.24',
-    buildTime: '2025.11.15 17:37:11'
+    version: '2025.11.15.30',
+    buildTime: '2025.11.15 19:10:55'
 };
 
 
@@ -3587,6 +3601,12 @@ class MdFileService {
         this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
         this._selectedDirectoryFromNewDirectory = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
         this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]('block');
+        // Subscribe to Git branch switch events to refresh tree
+        this.mdServerMessages.gitBranchSwitched$.subscribe((data) => {
+            console.log('🌳 Git branch switched - refreshing tree. Files indexed:', data.fileCount);
+            // Use loadAll() to properly update dataStore and notify subscribers
+            this.loadAll(null, null);
+        });
     }
     get whatDisplayForToolbar() {
         return this._whatDisplayForToolbar.asObservable();

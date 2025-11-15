@@ -2,6 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ProjectSettingsService } from '../services/project-settings.service';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
+import { IdeConfigurationService } from '../services/ide-configuration.service';
 
 @Component({
   selector: 'app-project-settings',
@@ -11,6 +12,9 @@ import { CompatibilityModeService } from '../../services/compatibility-mode.serv
 export class ProjectSettingsComponent implements OnInit {
   rule1Enabled: boolean = false;
   githubModeEnabled: boolean = false;
+  selectedIde: string = 'vscode';
+  vscodePath: string = '';
+  intellijPath: string = '';
   projectId: string;
   projectName: string;
   projectPath: string;
@@ -21,7 +25,8 @@ export class ProjectSettingsComponent implements OnInit {
     public dialogRef: MatDialogRef<ProjectSettingsComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
     private projectSettingsService: ProjectSettingsService,
-    private compatibilityService: CompatibilityModeService
+    private compatibilityService: CompatibilityModeService,
+    private ideConfigService: IdeConfigurationService
   ) {
     this.projectId = data.projectId;
     this.projectName = data.projectName;
@@ -36,9 +41,10 @@ export class ProjectSettingsComponent implements OnInit {
     this.loading = true;
     let rule1Loaded = false;
     let compatibilityLoaded = false;
+    let ideConfigLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && compatibilityLoaded) {
+      if (rule1Loaded && compatibilityLoaded && ideConfigLoaded) {
         this.loading = false;
       }
     };
@@ -68,6 +74,23 @@ export class ProjectSettingsComponent implements OnInit {
       error: (error) => {
         console.error('Error loading compatibility mode:', error);
         compatibilityLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load IDE configuration for this specific project
+    this.ideConfigService.getIdeConfiguration(this.projectPath).subscribe({
+      next: (response) => {
+        console.log('IDE configuration loaded for project:', this.projectPath, response);
+        this.selectedIde = response.selectedIde || 'vscode';
+        this.vscodePath = response.vscodePath || '';
+        this.intellijPath = response.intellijPath || '';
+        ideConfigLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading IDE configuration:', error);
+        ideConfigLoaded = true;
         checkIfDone();
       }
     });
@@ -113,6 +136,27 @@ export class ProjectSettingsComponent implements OnInit {
         this.saving = false;
         // Revert the change on error
         this.githubModeEnabled = !this.githubModeEnabled;
+      }
+    });
+  }
+
+  onIdeChange(): void {
+    console.log('onIdeChange called, selectedIde:', this.selectedIde);
+    this.saving = true;
+
+    this.ideConfigService.setIdeConfiguration({
+      selectedIde: this.selectedIde,
+      projectPath: this.projectPath
+    }).subscribe({
+      next: (response) => {
+        console.log('IDE configuration saved successfully:', this.selectedIde, response);
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving IDE configuration:', error);
+        this.saving = false;
+        // Revert the change on error
+        this.selectedIde = this.selectedIde === 'vscode' ? 'intellij' : 'vscode';
       }
     });
   }

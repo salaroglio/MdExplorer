@@ -25156,6 +25156,8 @@ class MdTreeComponent {
         // Contatore delle directory indicizzate
         this.indexedFoldersCount = 0;
         this.currentSnackbarRef = null;
+        // State preservation for tree expansion during branch switch
+        this.expansionStateBeforeRefresh = null;
         this.menuTopLeftPosition = { x: 0, y: 0 };
         this._transformer = (node, level) => {
             return {
@@ -25259,6 +25261,12 @@ class MdTreeComponent {
         this.mdServerMessages.addRule1ForceUpdateListener((data, component) => {
             // Questo non verrà mai chiamato perché non c'è un vero evento SignalR
         }, this);
+        // Listener for Git branch switch - capture expansion state BEFORE refresh
+        this.mdServerMessages.gitBranchSwitched$.subscribe((data) => {
+            console.log('🔄 Git branch switched detected - capturing expansion state');
+            this.expansionStateBeforeRefresh = this.captureExpansionState();
+            console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
+        });
     }
     //="{ value: '', params: { delay: node.index * 100 } }"
     ngOnInit() {
@@ -25268,6 +25276,12 @@ class MdTreeComponent {
             this.initializeNodeProperties(data);
             // Crea una NUOVA array per forzare il change detection con OnPush
             this.dataSource.data = [...data];
+            // Restore expansion state if we have saved state (from branch switch)
+            if (this.expansionStateBeforeRefresh !== null) {
+                console.log('🔄 Restoring expansion state after branch switch');
+                this.restoreExpansionState(this.expansionStateBeforeRefresh);
+                this.expansionStateBeforeRefresh = null; // Clear after use
+            }
             // Con OnPush, forza il re-check del componente
             this.changeDetectorRef.markForCheck();
             // Forza anche il detectChanges per sicurezza
@@ -25981,6 +25995,41 @@ class MdTreeComponent {
         this.indexedFilesSubject.next(currentSet);
         // Forza change detection per aggiornare immediatamente il template
         this.changeDetectorRef.detectChanges();
+    }
+    /**
+     * Capture current expansion state of the tree
+     * Returns a Set of fullPath strings for all expanded nodes
+     */
+    captureExpansionState() {
+        const expandedPaths = new Set();
+        if (this.treeControl && this.treeControl.dataNodes) {
+            this.treeControl.dataNodes.forEach(node => {
+                if (this.treeControl.isExpanded(node)) {
+                    expandedPaths.add(node.fullPath);
+                }
+            });
+        }
+        return expandedPaths;
+    }
+    /**
+     * Restore expansion state from a previous capture
+     * Expands all nodes whose fullPath is in the provided Set
+     */
+    restoreExpansionState(expandedPaths) {
+        // Wait for tree to render with new data
+        setTimeout(() => {
+            if (this.treeControl && this.treeControl.dataNodes) {
+                this.treeControl.dataNodes.forEach(node => {
+                    // If this node was expanded before AND still exists, re-expand it
+                    if (expandedPaths.has(node.fullPath)) {
+                        this.treeControl.expand(node);
+                    }
+                });
+                // Force change detection after expansion
+                this.changeDetectorRef.detectChanges();
+                console.log('✅ Expansion state restored');
+            }
+        }, 100);
     }
     ngOnDestroy() {
         // Pulisci il timer se esiste

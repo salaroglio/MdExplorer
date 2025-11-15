@@ -6,6 +6,7 @@ import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/pa
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { connect } from 'net';
 import { OpeningApplicationProvider } from '../dialogs/opening-application/opening-application.provider';
+import { Subject } from 'rxjs';
 
 interface linkSignalREvent_Component {
   key: string
@@ -20,6 +21,9 @@ export class MdServerMessagesService {
 
   linkEventCompArray: linkSignalREvent_Component[];
   public connectionId: string;
+
+  // Observable for Git branch switch events
+  public gitBranchSwitched$ = new Subject<{ fileCount: number, message: string }>();
 
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
@@ -70,6 +74,12 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('indexingFolder', (folder) => {
         this.parsingProjectProvider.folder$.next(folder);
+      });
+
+      // Git branch switch event (client-specific, from ModernGitController)
+      this.hubConnection.on('gitBranchSwitched', (data) => {
+        console.log('✅ SignalR event received: gitBranchSwitched', data);
+        this.gitBranchSwitched$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {

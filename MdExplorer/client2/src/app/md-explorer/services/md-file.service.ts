@@ -46,6 +46,13 @@ export class MdFileService {
     this._selectedMdFileFromSideNav = new BehaviorSubject<MdFile>(null);
     this._selectedDirectoryFromNewDirectory = new BehaviorSubject<MdFile>(null);
     this._whatDisplayForToolbar = new BehaviorSubject<string>('block');
+
+    // Subscribe to Git branch switch events to refresh tree
+    this.mdServerMessages.gitBranchSwitched$.subscribe((data) => {
+      console.log('🌳 Git branch switched - refreshing tree. Files indexed:', data.fileCount);
+      // Use loadAll() to properly update dataStore and notify subscribers
+      this.loadAll(null, null);
+    });
   }
 
   get whatDisplayForToolbar(): Observable<string> {

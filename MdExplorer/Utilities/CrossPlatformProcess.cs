@@ -376,7 +376,7 @@ namespace MdExplorer.Utilities
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 // Linux: Check multiple package managers and locations
-                
+
                 // 1. Check if it's in PATH (most common)
                 var whichResult = ExecuteCommand("which code");
                 if (whichResult.Success && !string.IsNullOrWhiteSpace(whichResult.StandardOutput))
@@ -410,7 +410,7 @@ namespace MdExplorer.Utilities
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 // macOS: Check standard application locations
-                
+
                 // 1. Check Applications folder
                 var appPath = "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code";
                 if (File.Exists(appPath))
@@ -432,6 +432,203 @@ namespace MdExplorer.Utilities
             }
 
             // If nothing found, return null (not a fallback "code")
+            return null;
+        }
+
+        /// <summary>
+        /// Discovers IntelliJ IDEA installation path on the system
+        /// Checks common installation locations and registry on Windows
+        /// </summary>
+        /// <returns>Full path to idea64.exe or null if not found</returns>
+        public static string DiscoverIntelliJPath()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // Windows: Check multiple possible locations
+                var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+                // 1. Check Program Files for IntelliJ IDEA (try multiple versions)
+                var jetbrainsPath = Path.Combine(programFiles, "JetBrains");
+                if (Directory.Exists(jetbrainsPath))
+                {
+                    // Find IntelliJ IDEA directories (Community, Ultimate, or versioned)
+                    var ideaDirs = Directory.GetDirectories(jetbrainsPath, "IntelliJ IDEA*");
+                    foreach (var dir in ideaDirs)
+                    {
+                        var ideaExe = Path.Combine(dir, "bin", "idea64.exe");
+                        if (File.Exists(ideaExe))
+                            return ideaExe;
+                    }
+                }
+
+                // 2. Check JetBrains Toolbox installations
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var toolboxPath = Path.Combine(localAppData, "JetBrains", "Toolbox", "apps");
+                if (Directory.Exists(toolboxPath))
+                {
+                    // Check for IDEA-U (Ultimate) and IDEA-C (Community)
+                    var ideaTypes = new[] { "IDEA-U", "IDEA-C", "intellij-idea-ultimate", "intellij-idea-community" };
+                    foreach (var ideaType in ideaTypes)
+                    {
+                        var ideaToolboxPath = Path.Combine(toolboxPath, ideaType);
+                        if (Directory.Exists(ideaToolboxPath))
+                        {
+                            // Find the latest channel/version
+                            var channelDirs = Directory.GetDirectories(ideaToolboxPath);
+                            foreach (var channelDir in channelDirs)
+                            {
+                                var versionDirs = Directory.GetDirectories(channelDir);
+                                foreach (var versionDir in versionDirs)
+                                {
+                                    var ideaExe = Path.Combine(versionDir, "bin", "idea64.exe");
+                                    if (File.Exists(ideaExe))
+                                        return ideaExe;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Try to find it via registry
+                try
+                {
+                    var result = ExecuteCommand("reg query \"HKEY_LOCAL_MACHINE\\SOFTWARE\\JetBrains\\IntelliJ IDEA\" /s");
+                    if (result.Success && !string.IsNullOrEmpty(result.StandardOutput))
+                    {
+                        // Parse registry output to find install location
+                        var lines = result.StandardOutput.Split('\n');
+                        foreach (var line in lines)
+                        {
+                            if (line.Contains("InstallLocation") && line.Contains("REG_SZ"))
+                            {
+                                var parts = line.Split(new[] { "REG_SZ" }, StringSplitOptions.None);
+                                if (parts.Length > 1)
+                                {
+                                    var installPath = parts[1].Trim();
+                                    var ideaExe = Path.Combine(installPath, "bin", "idea64.exe");
+                                    if (File.Exists(ideaExe))
+                                        return ideaExe;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                // 4. Try to find it in PATH
+                var pathResult = ExecuteCommand("where idea64");
+                if (pathResult.Success && !string.IsNullOrWhiteSpace(pathResult.StandardOutput))
+                {
+                    var firstPath = pathResult.StandardOutput.Split('\n')[0].Trim();
+                    if (File.Exists(firstPath))
+                        return firstPath;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                // Linux: Check multiple locations
+
+                // 1. Check if it's in PATH
+                var whichResult = ExecuteCommand("which idea");
+                if (whichResult.Success && !string.IsNullOrWhiteSpace(whichResult.StandardOutput))
+                {
+                    return whichResult.StandardOutput.Trim();
+                }
+
+                // 2. Check snap installation
+                if (File.Exists("/snap/bin/intellij-idea-community"))
+                    return "/snap/bin/intellij-idea-community";
+                if (File.Exists("/snap/bin/intellij-idea-ultimate"))
+                    return "/snap/bin/intellij-idea-ultimate";
+
+                // 3. Check JetBrains Toolbox
+                var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var toolboxPath = Path.Combine(homeDir, ".local", "share", "JetBrains", "Toolbox", "apps");
+                if (Directory.Exists(toolboxPath))
+                {
+                    var ideaTypes = new[] { "IDEA-U", "IDEA-C" };
+                    foreach (var ideaType in ideaTypes)
+                    {
+                        var ideaToolboxPath = Path.Combine(toolboxPath, ideaType);
+                        if (Directory.Exists(ideaToolboxPath))
+                        {
+                            var channelDirs = Directory.GetDirectories(ideaToolboxPath);
+                            foreach (var channelDir in channelDirs)
+                            {
+                                var versionDirs = Directory.GetDirectories(channelDir);
+                                foreach (var versionDir in versionDirs)
+                                {
+                                    var ideaScript = Path.Combine(versionDir, "bin", "idea.sh");
+                                    if (File.Exists(ideaScript))
+                                        return ideaScript;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Check standard locations
+                var standardPaths = new[] {
+                    "/opt/idea/bin/idea.sh",
+                    "/usr/local/bin/idea",
+                    "/usr/bin/idea"
+                };
+                foreach (var path in standardPaths)
+                {
+                    if (File.Exists(path))
+                        return path;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                // macOS: Check standard application locations
+
+                // 1. Check Applications folder
+                var appPaths = new[] {
+                    "/Applications/IntelliJ IDEA.app/Contents/MacOS/idea",
+                    "/Applications/IntelliJ IDEA CE.app/Contents/MacOS/idea"
+                };
+                foreach (var appPath in appPaths)
+                {
+                    if (File.Exists(appPath))
+                        return appPath;
+                }
+
+                // 2. Check if idea command is available
+                var whichResult = ExecuteCommand("which idea");
+                if (whichResult.Success && !string.IsNullOrWhiteSpace(whichResult.StandardOutput))
+                {
+                    return whichResult.StandardOutput.Trim();
+                }
+
+                // 3. Check JetBrains Toolbox
+                var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var toolboxPath = Path.Combine(homeDir, "Library", "Application Support", "JetBrains", "Toolbox", "apps");
+                if (Directory.Exists(toolboxPath))
+                {
+                    var ideaTypes = new[] { "IDEA-U", "IDEA-C" };
+                    foreach (var ideaType in ideaTypes)
+                    {
+                        var ideaToolboxPath = Path.Combine(toolboxPath, ideaType);
+                        if (Directory.Exists(ideaToolboxPath))
+                        {
+                            var channelDirs = Directory.GetDirectories(ideaToolboxPath);
+                            foreach (var channelDir in channelDirs)
+                            {
+                                var versionDirs = Directory.GetDirectories(channelDir);
+                                foreach (var versionDir in versionDirs)
+                                {
+                                    var ideaApp = Path.Combine(versionDir, "IntelliJ IDEA.app", "Contents", "MacOS", "idea");
+                                    if (File.Exists(ideaApp))
+                                        return ideaApp;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If nothing found, return null
             return null;
         }
     }
