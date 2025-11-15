@@ -6,3 +6,16 @@
 .vertical-form-container > * {
   width: 100%
 }
+
+// IDE icons styling
+.ide-icon {
+  margin-right: 8px;
+
+  &.vscode-color {
+    color: #007ACC; // VS Code blue
+  }
+
+  &.intellij-color {
+    color: #FF6B00; // IntelliJ orange
+  }
+}

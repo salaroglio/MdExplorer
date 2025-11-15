@@ -1,7 +1,11 @@
-.settings-container {
+// Tab styles
+.settings-tabs {
   min-width: 500px;
   max-width: 600px;
-  padding: 16px;
+}
+
+.tab-content {
+  padding: 20px 16px;
 }
 
 .settings-section {
@@ -44,16 +48,16 @@
 
 .info-card {
   background-color: #f5f5f5;
-  
+
   mat-card-content {
     display: flex;
     align-items: start;
     gap: 12px;
-    
+
     mat-icon {
       color: #1976d2;
     }
-    
+
     p {
       margin: 0;
       font-size: 14px;
@@ -61,3 +65,31 @@
     }
   }
 }
+
+.ide-radio {
+  display: block;
+  margin: 12px 0;
+}
+
+.ide-label {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ide-icon-inline {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+
+  &.vscode-color {
+    color: #007ACC; // VS Code blue
+  }
+
+  &.intellij-color {
+    color: #FF6B00; // IntelliJ orange
+  }
+}
+
+// IDE paths styling removed - now shown in Projects component main page

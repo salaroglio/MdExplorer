@@ -16,6 +16,7 @@ export class SettingsComponent implements OnInit {
 
   _settings: IMdSetting[];
   vscodePath: string;
+  intellijPath: string;
   jiraServer: string;
   plantumlLocalPath: string;
   javaPath: string;
@@ -35,6 +36,7 @@ export class SettingsComponent implements OnInit {
       if (settings != undefined) {
         this._settings = settings;
         this.vscodePath = settings.filter(_ => _.name === "EditorPath")[0].valueString || null;
+        this.intellijPath = settings.filter(_ => _.name === "IntelliJPath")[0]?.valueString || null;
         this.jiraServer = settings.filter(_ => _.name === "JiraServer")[0].valueString || null;
         this.plantumlLocalPath = settings.filter(_ => _.name === "PlantumlLocalPath")[0].valueString || null;
         this.javaPath = settings.filter(_ => _.name === "JavaPath")[0].valueString || null;
@@ -45,6 +47,7 @@ export class SettingsComponent implements OnInit {
 
   save() {
     this._settings.filter(_ => _.name === "EditorPath")[0].valueString = this.vscodePath;
+    this._settings.filter(_ => _.name === "IntelliJPath")[0].valueString = this.intellijPath;
     this._settings.filter(_ => _.name === "JiraServer")[0].valueString = this.jiraServer;
     this._settings.filter(_ => _.name === "PlantumlLocalPath")[0].valueString = this.plantumlLocalPath;
     this._settings.filter(_ => _.name === "JavaPath")[0].valueString = this.javaPath;
