@@ -586,6 +586,40 @@ namespace MdExplorer.Services.Git
                             _logger.LogInformation("✅ POST-CLONE CHECK - Repository has a proper branch checked out: {Branch}",
                                 repo.Head.FriendlyName);
                         }
+
+                        // FINAL STEP: Pull to ensure we have the latest commits from remote
+                        _logger.LogInformation("🔄 POST-CLONE - Performing pull to sync with remote");
+
+                        try
+                        {
+                            var pullOptions = new PullOptions
+                            {
+                                FetchOptions = new FetchOptions
+                                {
+                                    CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
+                                        ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult()
+                                }
+                            };
+
+                            var signature = GetGitSignature(repo);
+                            var pullResult = Commands.Pull(repo, signature, pullOptions);
+
+                            _logger.LogInformation("✅ POST-CLONE - Pull completed: {Status}", pullResult.Status);
+
+                            if (pullResult.Status == MergeStatus.UpToDate)
+                            {
+                                _logger.LogInformation("   Repository is up to date with remote");
+                            }
+                            else if (pullResult.Status == MergeStatus.FastForward)
+                            {
+                                _logger.LogInformation("   Fast-forwarded to latest commit: {CommitSha}", repo.Head.Tip?.Sha);
+                            }
+                        }
+                        catch (Exception pullEx)
+                        {
+                            // Pull failure is non-fatal - the clone already succeeded
+                            _logger.LogWarning(pullEx, "⚠️ POST-CLONE - Pull failed (non-fatal): {Message}", pullEx.Message);
+                        }
                     }
                 }
                 catch (Exception diagEx)
