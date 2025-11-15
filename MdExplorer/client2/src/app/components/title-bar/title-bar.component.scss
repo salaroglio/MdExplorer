@@ -68,6 +68,28 @@
   flex: 1;
   height: 100%;
   -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.welcome-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+
+  .welcome-text {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .welcome-subtitle {
+    font-size: 12px;
+    opacity: 0.8;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+  }
 }
 
 .window-controls {

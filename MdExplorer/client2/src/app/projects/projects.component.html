@@ -1,34 +1,141 @@
-<div class="container-flex">
-  <div class="container-columns">
-  </div>
-  <div class="container-columns">
-    <div class="container-first-column">
-      <router-outlet></router-outlet>
-    </div>
-    <div>
-      <h1>Get started</h1>
-      <mat-card>
-        <mat-card-title>Clone a repository</mat-card-title>
-        <mat-card-subtitle>Get code from an online repository like GitLab</mat-card-subtitle>
-        <mat-card-actions>
-          <button mat-stroked-button data-test="clone-button" (click)="prepareToClone()" color="primary">Clone</button>
-        </mat-card-actions>
-      </mat-card>
-      <mat-card>
-        <mat-card-title>Create new project</mat-card-title>
-        <mat-card-subtitle>Choose filesystem folder to get started</mat-card-subtitle>
-        <mat-card-actions>
-          <button mat-stroked-button color="primary" data-test="new-folder-button" (click)="openNewFolder()">Create</button>
-        </mat-card-actions>
-      </mat-card>
-      <mat-card>
-        <mat-card-title>General settings</mat-card-title>
-        <mat-card-subtitle>Change main settings</mat-card-subtitle>
-        <mat-card-actions>
-          <button mat-stroked-button color="primary" data-test="settings-button" (click)="openSettings()">Settings</button>
-        </mat-card-actions>
-      </mat-card>
-    </div>
-  </div>
+<div class="modern-container">
+  <!-- Main Content -->
+  <div class="content-wrapper">
 
+    <!-- Two Column Layout -->
+    <div class="main-layout">
+
+      <!-- Left Column: Recent Projects -->
+      <div class="left-column">
+        <div class="recent-projects-section" *ngIf="(recentProjects | async)?.length > 0">
+          <div class="section-header">
+            <h2 class="section-title">
+              <mat-icon class="section-icon">history</mat-icon>
+              Recent Projects
+            </h2>
+            <mat-form-field class="search-field" appearance="outline">
+              <mat-icon matPrefix>search</mat-icon>
+              <input matInput
+                     placeholder="Search projects..."
+                     [(ngModel)]="searchQuery"
+                     (input)="onSearchChange()">
+              <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery=''; onSearchChange()">
+                <mat-icon>clear</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+
+          <div class="projects-grid">
+        <mat-card class="project-card"
+                  [class.last-opened]="isLastOpened(project)"
+                  *ngFor="let project of recentProjects | async">
+          <mat-card-content class="project-card-content">
+            <div class="project-info" (click)="openProject(project.path)">
+              <div class="project-icon-wrapper">
+                <img src="/assets/icons/files-stack.svg" class="project-icon-svg" alt="Project">
+              </div>
+              <div class="project-details">
+                <h3 class="project-name">{{project.name}}</h3>
+                <p class="project-path">{{project.path}}</p>
+                <div class="project-meta">
+                  <span class="last-opened-badge" *ngIf="isLastOpened(project)">
+                    <mat-icon class="badge-icon">schedule</mat-icon>
+                    Last Opened
+                  </span>
+                  <p class="project-date" *ngIf="project.lastUpdate">
+                    Last accessed: {{project.lastUpdate | date:'short'}}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="project-actions">
+              <button mat-icon-button
+                      matTooltip="Project Settings"
+                      (click)="openProjectSettings(project)"
+                      class="action-btn settings-btn">
+                <mat-icon>settings</mat-icon>
+              </button>
+              <button mat-icon-button
+                      matTooltip="Delete Project"
+                      (click)="deleteProject(project)"
+                      class="action-btn delete-btn">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+        </div>
+
+        <!-- Message when no projects -->
+        <div class="no-projects-message" *ngIf="!(recentProjects | async)?.length">
+          <mat-icon class="empty-icon">folder_open</mat-icon>
+          <h3>No Recent Projects</h3>
+          <p>Start by creating a new project or cloning a repository</p>
+        </div>
+      </div>
+
+      <!-- Right Column: Quick Actions -->
+      <div class="right-column">
+        <h2 class="section-title">
+          <mat-icon class="section-icon">flash_on</mat-icon>
+          Quick Actions
+        </h2>
+
+        <!-- Action Cards Grid -->
+        <div class="actions-grid">
+
+      <!-- Clone Repository Card -->
+      <mat-card class="action-card clone-card" data-test="clone-button" (click)="prepareToClone()">
+        <mat-card-content class="card-content">
+          <div class="icon-wrapper clone-icon">
+            <mat-icon>cloud_download</mat-icon>
+          </div>
+          <div class="card-text">
+            <h2 class="card-title">Clone Repository</h2>
+            <p class="card-description">Get code from an online repository like GitHub or GitLab</p>
+          </div>
+          <div class="card-action">
+            <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Create Project Card -->
+      <mat-card class="action-card create-card" data-test="new-folder-button" (click)="openNewFolder()">
+        <mat-card-content class="card-content">
+          <div class="icon-wrapper create-icon">
+            <mat-icon>create_new_folder</mat-icon>
+          </div>
+          <div class="card-text">
+            <h2 class="card-title">Create New Project</h2>
+            <p class="card-description">Choose a filesystem folder to get started with your documentation</p>
+          </div>
+          <div class="card-action">
+            <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Settings Card -->
+      <mat-card class="action-card settings-card" data-test="settings-button" (click)="openSettings()">
+        <mat-card-content class="card-content">
+          <div class="icon-wrapper settings-icon">
+            <mat-icon>settings</mat-icon>
+          </div>
+          <div class="card-text">
+            <h2 class="card-title">Settings</h2>
+            <p class="card-description">Configure IDE paths, PlantUML, and other global preferences</p>
+          </div>
+          <div class="card-action">
+            <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>

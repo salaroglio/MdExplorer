@@ -15,8 +15,10 @@ import { MdFile } from '../../md-explorer/models/md-file';
 export class TitleBarComponent implements OnInit {
   isElectron = false;
   version = versionInfo.version;
+  buildTime = versionInfo.buildTime;
   isSidenavOpen = true;
   isProjectOpened = false;
+  isProjectsPage = false;
 
   constructor(
     public navService: MdNavigationService,
@@ -38,10 +40,12 @@ export class TitleBarComponent implements OnInit {
     // Subscribe to route changes to detect if we're in a project
     this.router.events.subscribe(() => {
       this.isProjectOpened = this.router.url.startsWith('/main');
+      this.isProjectsPage = this.router.url === '/projects' || this.router.url.startsWith('/projects/');
     });
 
     // Initialize on first load
     this.isProjectOpened = this.router.url.startsWith('/main');
+    this.isProjectsPage = this.router.url === '/projects' || this.router.url.startsWith('/projects/');
 
     // Subscribe to document navigation events from iframe links
     this.monitorMDService.addDocumentNavigatedListener(this.onDocumentNavigated, this);

@@ -24,7 +24,12 @@
 
   <app-compatibility-mode-badge *ngIf="isProjectOpened"></app-compatibility-mode-badge>
 
-  <div class="drag-region"></div>
+  <div class="drag-region">
+    <div class="welcome-message" *ngIf="isProjectsPage">
+      <span class="welcome-text">Welcome to MdExplorer</span>
+      <span class="welcome-subtitle">Your markdown documentation workspace</span>
+    </div>
+  </div>
   
   <div class="window-controls" *ngIf="isElectron">
     <button mat-icon-button (click)="minimizeWindow()" class="window-control">
