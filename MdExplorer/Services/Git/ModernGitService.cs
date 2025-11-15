@@ -710,34 +710,116 @@ namespace MdExplorer.Services.Git
         public async Task<GitOperationResult> CheckoutBranchAsync(string repositoryPath, string branchName)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogInformation("Starting checkout operation for repository: {RepositoryPath}, Branch: {Branch}",
                     repositoryPath, branchName);
 
+                // Set repository path in execution context for credential resolvers
+                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+
                 using var repo = new Repository(repositoryPath);
-                
+
+                // STEP 1: Try to find local branch first
                 var branch = repo.Branches[branchName];
+
+                // STEP 2: If not found locally, check if it's a remote branch
                 if (branch == null)
                 {
-                    return new GitOperationResult
+                    _logger.LogInformation("Local branch '{BranchName}' not found, searching remote branches", branchName);
+
+                    // Try to find remote branch (check all remotes, typically "origin/branchName")
+                    var remoteBranch = repo.Branches.FirstOrDefault(b =>
+                        b.IsRemote && b.FriendlyName.EndsWith($"/{branchName}"));
+
+                    if (remoteBranch != null)
                     {
-                        Success = false,
-                        ErrorMessage = $"Branch '{branchName}' not found",
-                        Duration = stopwatch.Elapsed
-                    };
+                        _logger.LogInformation("Found remote branch: {RemoteBranch}, creating local tracking branch '{LocalBranch}'",
+                            remoteBranch.FriendlyName, branchName);
+
+                        // Create local branch from remote tip
+                        branch = repo.CreateBranch(branchName, remoteBranch.Tip);
+
+                        // Set up tracking relationship
+                        repo.Branches.Update(branch, b => b.TrackedBranch = remoteBranch.CanonicalName);
+
+                        _logger.LogInformation("✅ Created local tracking branch '{BranchName}' → '{RemoteBranch}'",
+                            branchName, remoteBranch.FriendlyName);
+                    }
+                    else
+                    {
+                        // Still not found in local or remote - return error
+                        return new GitOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Branch '{branchName}' not found in local or remote branches",
+                            Duration = stopwatch.Elapsed
+                        };
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Found local branch: {BranchName}", branchName);
                 }
 
+                // STEP 3: Checkout the branch
+                _logger.LogInformation("Checking out branch: {BranchName}", branchName);
                 Commands.Checkout(repo, branch);
 
+                // STEP 4: If it has a remote tracking branch, pull latest changes
+                if (branch.TrackedBranch != null)
+                {
+                    _logger.LogInformation("Branch has remote tracking: {TrackedBranch}, pulling latest changes",
+                        branch.TrackedBranch.FriendlyName);
+
+                    try
+                    {
+                        var pullOptions = new PullOptions
+                        {
+                            FetchOptions = new FetchOptions
+                            {
+                                CredentialsProvider = (url, usernameFromUrl, types) =>
+                                    ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult()
+                            }
+                        };
+
+                        var signature = GetGitSignature(repo);
+                        var pullResult = Commands.Pull(repo, signature, pullOptions);
+
+                        _logger.LogInformation("✅ Pull completed: {PullStatus}", pullResult.Status);
+
+                        if (pullResult.Status == MergeStatus.UpToDate)
+                        {
+                            _logger.LogInformation("   Repository is up to date with remote");
+                        }
+                        else if (pullResult.Status == MergeStatus.FastForward)
+                        {
+                            _logger.LogInformation("   Fast-forwarded to latest commit: {CommitSha}", repo.Head.Tip?.Sha);
+                        }
+                    }
+                    catch (Exception pullEx)
+                    {
+                        // Pull failure is non-fatal - checkout already succeeded
+                        _logger.LogWarning(pullEx, "⚠️ Pull after checkout failed (non-fatal): {Message}", pullEx.Message);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Branch has no remote tracking, skipping pull");
+                }
+
                 stopwatch.Stop();
+
+                _logger.LogInformation("✅ Checkout operation completed successfully: {BranchName}, Duration: {Duration}ms",
+                    branchName, stopwatch.ElapsedMilliseconds);
 
                 return new GitOperationResult
                 {
                     Success = true,
                     Message = $"Successfully checked out branch '{branchName}'",
-                    Duration = stopwatch.Elapsed
+                    Duration = stopwatch.Elapsed,
+                    AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
             }
             catch (Exception ex)
@@ -745,7 +827,7 @@ namespace MdExplorer.Services.Git
                 stopwatch.Stop();
                 _logger.LogError(ex, "Error during checkout operation for repository: {RepositoryPath}, Branch: {Branch}",
                     repositoryPath, branchName);
-                
+
                 return new GitOperationResult
                 {
                     Success = false,
