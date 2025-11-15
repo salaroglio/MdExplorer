@@ -15,6 +15,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using MdExplorer.Utilities;
+using MdExplorer.Service.Models;
+using MdExplorer.Features.Configuration.Models;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace MdExplorer.Service.Controllers
 {
@@ -79,15 +83,42 @@ namespace MdExplorer.Service.Controllers
         public IActionResult OpenFile(string path)
         {
             var settingDal = _session.GetDal<Setting>();
-            var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString;
+            var projectDal = _session.GetDal<Project>();
 
-            if (string.IsNullOrEmpty(editorPath))
+            // Read IDE selection from Project database
+            string selectedIde = "vscode"; // Default to VS Code
+            var project = projectDal.GetList().FirstOrDefault(p => p.Path == _fileSystemWatcher.Path);
+
+            if (project != null && !string.IsNullOrWhiteSpace(project.SelectedIde))
             {
-                return BadRequest(new { error = "VS Code not found. Please configure the editor path in settings." });
+                selectedIde = project.SelectedIde;
             }
 
-            _processUtil.OpenFileWithVisualStudioCode(path, editorPath);
-            return Ok(new { message = "opened" });
+            // Open with selected IDE
+            if (selectedIde?.ToLowerInvariant() == "intellij")
+            {
+                var intellijPath = settingDal.GetList().Where(_ => _.Name == "IntelliJPath").FirstOrDefault()?.ValueString;
+
+                if (string.IsNullOrEmpty(intellijPath))
+                {
+                    return BadRequest(new { error = "IntelliJ IDEA not found. Please configure IntelliJ path in settings or run auto-discovery." });
+                }
+
+                _processUtil.OpenFileWithIntelliJ(path, intellijPath);
+                return Ok(new { message = "opened with IntelliJ IDEA" });
+            }
+            else
+            {
+                var editorPath = settingDal.GetList().Where(_ => _.Name == "EditorPath").FirstOrDefault()?.ValueString;
+
+                if (string.IsNullOrEmpty(editorPath))
+                {
+                    return BadRequest(new { error = "VS Code not found. Please configure the editor path in settings." });
+                }
+
+                _processUtil.OpenFileWithVisualStudioCode(path, editorPath);
+                return Ok(new { message = "opened with VS Code" });
+            }
         }
 
         

@@ -41,25 +41,25 @@ namespace MdExplorer.Service.HostedServices
                 {
                     var session = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                     
-                    // Check and auto-discover VS Code if needed
-                    _logger.LogInformation("Checking VS Code editor configuration...");
-                    
-                    var settingsDal = session.GetDal<Setting>();
-                    var editorSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "EditorPath");
+                    // Check and auto-discover IDEs (VS Code and IntelliJ IDEA)
+                    _logger.LogInformation("Checking IDE configurations...");
 
+                    var settingsDal = session.GetDal<Setting>();
+
+                    // VS Code discovery
+                    var editorSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "EditorPath");
                     if (editorSetting == null || string.IsNullOrWhiteSpace(editorSetting.ValueString))
                     {
                         _logger.LogInformation("EditorPath is empty or not found. Starting VS Code auto-discovery...");
-                        
+
                         var discoveredPath = CrossPlatformProcess.DiscoverVSCodePath();
-                        
+
                         if (!string.IsNullOrEmpty(discoveredPath))
                         {
                             _logger.LogInformation($"VS Code discovered at: {discoveredPath}");
-                            
-                            // Save to database
+
                             session.BeginTransaction();
-                            
+
                             if (editorSetting == null)
                             {
                                 editorSetting = new Setting
@@ -73,10 +73,10 @@ namespace MdExplorer.Service.HostedServices
                             {
                                 editorSetting.ValueString = discoveredPath;
                             }
-                            
+
                             settingsDal.Save(editorSetting);
                             session.Commit();
-                            
+
                             _logger.LogInformation($"Editor path saved to database: {discoveredPath}");
                         }
                         else
@@ -92,7 +92,58 @@ namespace MdExplorer.Service.HostedServices
                     {
                         _logger.LogWarning($"Configured VS Code path does not exist: {editorSetting.ValueString}. Consider re-running auto-discovery.");
                     }
-                    
+
+                    // Check and auto-discover IntelliJ IDEA if needed
+                    _logger.LogInformation("Checking IntelliJ IDEA configuration...");
+
+                    var intellijSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "IntelliJPath");
+
+                    if (intellijSetting == null || string.IsNullOrWhiteSpace(intellijSetting.ValueString))
+                    {
+                        _logger.LogInformation("IntelliJPath is empty or not found. Starting IntelliJ IDEA auto-discovery...");
+
+                        var discoveredIntellijPath = CrossPlatformProcess.DiscoverIntelliJPath();
+
+                        if (!string.IsNullOrEmpty(discoveredIntellijPath))
+                        {
+                            _logger.LogInformation($"IntelliJ IDEA discovered at: {discoveredIntellijPath}");
+
+                            // Save to database
+                            session.BeginTransaction();
+
+                            if (intellijSetting == null)
+                            {
+                                intellijSetting = new Setting
+                                {
+                                    // Let NHibernate auto-generate Id via GuidComb
+                                    Name = "IntelliJPath",
+                                    ValueString = discoveredIntellijPath
+                                };
+                            }
+                            else
+                            {
+                                intellijSetting.ValueString = discoveredIntellijPath;
+                            }
+
+                            settingsDal.Save(intellijSetting);
+                            session.Commit();
+
+                            _logger.LogInformation($"IntelliJ path saved to database: {discoveredIntellijPath}");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("IntelliJ IDEA auto-discovery failed. No IntelliJ IDEA installation found.");
+                        }
+                    }
+                    else if (File.Exists(intellijSetting.ValueString))
+                    {
+                        _logger.LogInformation($"IntelliJ IDEA already configured at: {intellijSetting.ValueString}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Configured IntelliJ IDEA path does not exist: {intellijSetting.ValueString}. Consider re-running auto-discovery.");
+                    }
+
                     // Check and auto-discover Java if needed
                     _logger.LogInformation("Checking Java configuration...");
                     

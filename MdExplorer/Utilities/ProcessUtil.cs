@@ -31,20 +31,23 @@ namespace MdExplorer.Service.Utilities
         {
             _editorPath = editorPath;
             _lastDocumentOpened = path;
-            
+
             // Clean up the path
             var currentPath = path.Replace(@"\\", System.IO.Path.DirectorySeparatorChar.ToString())
                                   .Replace(@"\", System.IO.Path.DirectorySeparatorChar.ToString());
-            
+
             // Create ProcessStartInfo for cross-platform compatibility
+            // --reuse-window: Reuse existing window instead of opening a new one
+            // First parameter: Open project root folder as workspace
+            // --goto <file:line>: Open file at specific line (line 1)
             var startInfo = new ProcessStartInfo
             {
                 FileName = editorPath,
-                Arguments = $"-a \"{_fileSystemWatcher.Path}\" \"{currentPath}\"",
+                Arguments = $"--reuse-window \"{_fileSystemWatcher.Path}\" --goto \"{currentPath}:1\"",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            
+
             try
             {
                 if (_currentVisualStudio == null || _currentVisualStudio.HasExited)
@@ -65,6 +68,36 @@ namespace MdExplorer.Service.Utilities
             }
         }
 
+        public void OpenFileWithIntelliJ(string path, string intellijPath)
+        {
+            // Clean up the path
+            var currentPath = path.Replace(@"\\", System.IO.Path.DirectorySeparatorChar.ToString())
+                                  .Replace(@"\", System.IO.Path.DirectorySeparatorChar.ToString());
+
+            // IntelliJ IDEA command line arguments:
+            // --line <number> : go to the specified line
+            // Opening only the file (not the project) to avoid multiple windows
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = intellijPath,
+                Arguments = $"--line 1 \"{currentPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            try
+            {
+                Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't crash the application
+                Console.WriteLine($"Error opening file with IntelliJ IDEA: {ex.Message}");
+                Console.WriteLine($"IntelliJ path: {intellijPath}");
+                Console.WriteLine($"File path: {currentPath}");
+            }
+        }
+
         public void KillVisualStudioCode()
         {
             if (_currentVisualStudio != null && !_currentVisualStudio.HasExited)
@@ -73,7 +106,7 @@ namespace MdExplorer.Service.Utilities
                 IKilled = true;
                 //_currentVisualStudio.Dispose();
                 //_currentVisualStudio = null;
-            }            
+            }
         }
 
 
