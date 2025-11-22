@@ -23,13 +23,11 @@ namespace MdExplorer.Services.DatabaseManager
         private readonly ConcurrentDictionary<string, ConnectionDatabaseContext> _contexts = new();
         private readonly ILogger<DatabaseManager> _logger;
         private readonly string _appDataPath;
-        private readonly IUserSettingsDB _sharedUserSettingsDB;
 
-        public DatabaseManager(ILogger<DatabaseManager> logger, IUserSettingsDB userSettingsDB)
+        public DatabaseManager(ILogger<DatabaseManager> logger)
         {
             _logger = logger;
             _appDataPath = CrossPlatformPath.GetAppDataPath();
-            _sharedUserSettingsDB = userSettingsDB; // UserSettingsDB is shared across all clients
         }
 
         public void RegisterConnection(string connectionId, string projectPath)
@@ -64,7 +62,6 @@ namespace MdExplorer.Services.DatabaseManager
                     ProjectId = Guid.NewGuid(), // TODO: Get actual project ID from database
                     EngineDB = engineDB,
                     ProjectDB = projectDB,
-                    UserSettingsDB = _sharedUserSettingsDB, // Shared across all connections
                     RegisteredAt = DateTime.UtcNow
                 };
 

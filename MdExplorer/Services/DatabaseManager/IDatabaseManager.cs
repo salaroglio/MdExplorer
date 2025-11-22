@@ -76,11 +76,6 @@ namespace MdExplorer.Services.DatabaseManager
         public IProjectDB ProjectDB { get; set; }
 
         /// <summary>
-        /// User settings database (global, shared across projects)
-        /// </summary>
-        public IUserSettingsDB UserSettingsDB { get; set; }
-
-        /// <summary>
         /// Timestamp when this connection was registered
         /// </summary>
         public DateTime RegisteredAt { get; set; }

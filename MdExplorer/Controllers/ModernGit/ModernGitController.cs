@@ -18,8 +18,6 @@ using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Models;
 using MdExplorer.Abstractions.Models;
 using Microsoft.Extensions.Options;
-using MdExplorer.Features.Commands;
-using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Services.DatabaseManager;
 
@@ -46,11 +44,8 @@ namespace MdExplorer.Controllers.ModernGit
             IMdIgnoreService mdIgnoreService,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
-            ICommandRunner commandRunner,
-            IWorkLink[] modifiers,
-            IHelper helper,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDb, engineDB, commandRunner, modifiers, helper, databaseManager)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
         {
             _gitService = gitService;
             _gitHubService = gitHubService;

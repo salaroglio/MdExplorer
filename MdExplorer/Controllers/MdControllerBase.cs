@@ -45,9 +45,9 @@ namespace MdExplorer.Service.Controllers
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingDB,
             IEngineDB engineDB,
-            ICommandRunner commandRunner,
-            IWorkLink[] getModifiers,
-            IHelper helper,
+            ICommandRunner commandRunner = null,
+            IWorkLink[] getModifiers = null,
+            IHelper helper = null,
             IDatabaseManager databaseManager = null)
         {
             _logger = logger;
