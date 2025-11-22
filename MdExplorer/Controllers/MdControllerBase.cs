@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Services.DatabaseManager;
 using NHibernate.Util;
 
 namespace MdExplorer.Service.Controllers
@@ -36,6 +37,7 @@ namespace MdExplorer.Service.Controllers
         protected readonly ICommandRunner _commandRunner;
         protected readonly IWorkLink[] _getModifiers;
         protected readonly IHelper _helper;
+        protected readonly IDatabaseManager _databaseManager;
 
         public MdControllerBase(ILogger<T> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -45,7 +47,8 @@ namespace MdExplorer.Service.Controllers
             IEngineDB engineDB,
             ICommandRunner commandRunner,
             IWorkLink[] getModifiers,
-            IHelper helper)
+            IHelper helper,
+            IDatabaseManager databaseManager = null)
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
@@ -56,9 +59,58 @@ namespace MdExplorer.Service.Controllers
             _commandRunner = commandRunner;
             _getModifiers = getModifiers;
             _helper = helper;
+            _databaseManager = databaseManager;
         }
 
         public IEngineDB _engineDB { get; }
+
+        /// <summary>
+        /// Gets database context for the current client based on ConnectionId.
+        /// Falls back to injected _engineDB if DatabaseManager is not available.
+        /// </summary>
+        protected ConnectionDatabaseContext GetDatabaseContext()
+        {
+            if (_databaseManager == null)
+            {
+                // Backward compatibility: use injected _engineDB
+                return null;
+            }
+
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                _logger?.LogWarning("⚠️ ConnectionId not provided in request query");
+                return null;
+            }
+
+            try
+            {
+                return _databaseManager.GetContext(connectionId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Failed to get database context for connection {connectionId}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets EngineDB for current client. Uses DatabaseManager if available, otherwise falls back to injected _engineDB.
+        /// </summary>
+        protected IEngineDB GetEngineDB()
+        {
+            var context = GetDatabaseContext();
+            return context?.EngineDB ?? _engineDB;
+        }
+
+        /// <summary>
+        /// Gets ProjectDB for current client. Only available when using DatabaseManager.
+        /// </summary>
+        protected IProjectDB GetProjectDB()
+        {
+            var context = GetDatabaseContext();
+            return context?.ProjectDB;
+        }
 
         protected string GetRelativePathFileSystem(string controllerName)
         {
