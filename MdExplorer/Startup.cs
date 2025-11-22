@@ -64,6 +64,9 @@ namespace MdExplorer
             // Add FoldersIgnoreService
             services.AddSingleton<FoldersIgnoreService>();
 
+            // Add DatabaseManager for multi-client support
+            services.AddSingleton<Services.DatabaseManager.IDatabaseManager, Services.DatabaseManager.DatabaseManager>();
+
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
             
