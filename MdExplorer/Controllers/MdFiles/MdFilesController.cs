@@ -67,6 +67,7 @@ using MdExplorer.Abstractions.Services;
 using MdExplorer.Service.Services;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Service.Controllers.MdFiles
 {
@@ -109,8 +110,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
         ProcessUtil visualStudioCode,
         IMdIgnoreService mdIgnoreService,
         FoldersIgnoreService foldersIgnoreService,
-        IServiceScopeFactory serviceScopeFactory
-            ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper)
+        IServiceScopeFactory serviceScopeFactory,
+        IDatabaseManager databaseManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager)
         {
 
             _goodRules = GoodRules;
@@ -193,7 +195,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
                 _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
                     fromRelativePathFileName, toRelativePathFileName);
 
@@ -214,14 +216,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 // After save, get back the list of links inside involved files
                 _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 _logger.LogInformation("[MoveMdFile] Completed successfully");
                 return Ok(new { message = "done" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[MoveMdFile] Error during move operation");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 return StatusCode(500, new { error = ex.Message });
             }
         }
@@ -1098,8 +1100,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return;
                 }
                 
-                _engineDB.BeginTransaction();
-                var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
+                GetEngineDB().BeginTransaction();
+                var markdownFileDal = GetEngineDB().GetDal<MarkdownFile>();
                 
                 // Trova tutti i file .md ricorsivamente, escludendo i path ignorati
                 var allMdFiles = Directory.GetFiles(currentPath, "*.md", SearchOption.AllDirectories)
@@ -1130,13 +1132,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     }
                 }
                 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 _logger.LogInformation($"[IndexAllMarkdownFiles] Initial indexing completed - {allMdFiles.Count} files indexed");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during initial indexing - rolling back");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 throw;
             }
         }
@@ -1147,20 +1149,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup - removing ALL records");
                 
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
                 
                 // IMPORTANTE: Cancella TUTTO il contenuto delle due tabelle
                 // Prima i link (hanno foreign key verso MarkdownFile)
                 _logger.LogInformation("[CleanupDatabase] Step 1: Deleting all LinkInsideMarkdown records");
-                _engineDB.Delete("from LinkInsideMarkdown");
-                _engineDB.Flush();
+                GetEngineDB().Delete("from LinkInsideMarkdown");
+                GetEngineDB().Flush();
                 
                 // Poi i file (dopo che i link sono stati eliminati)
                 _logger.LogInformation("[CleanupDatabase] Step 2: Deleting all MarkdownFile records");
-                _engineDB.Delete("from MarkdownFile");
-                _engineDB.Flush();
+                GetEngineDB().Delete("from MarkdownFile");
+                GetEngineDB().Flush();
                 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 
                 _logger.LogInformation("[CleanupDatabase] Database cleanup completed - both tables are now empty");
                 _logger.LogInformation("[CleanupDatabase] Ready for fresh indexing from filesystem");
@@ -1168,7 +1170,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup - rolling back");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 throw; // Rilancia l'eccezione per fermare il processo
             }
         }
@@ -1334,16 +1336,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _hubContext.Clients.Client(connectionId: connectionId)
                         .SendAsync("indexingFolder", "deleting database").Wait();
                 // nettificazione dei folder che non contengono md            
-                _engineDB.BeginTransaction();
-                _engineDB.Delete("from LinkInsideMarkdown");
-                _engineDB.Flush();
-                _engineDB.Delete("from MarkdownFile");
-                _engineDB.Flush();
+                GetEngineDB().BeginTransaction();
+                GetEngineDB().Delete("from LinkInsideMarkdown");
+                GetEngineDB().Flush();
+                GetEngineDB().Delete("from MarkdownFile");
+                GetEngineDB().Flush();
 
                 _hubContext.Clients.Client(connectionId: connectionId)
                         .SendAsync("indexingFolder", "creating database").Wait();
                 SaveRealationships(list);
-                _engineDB.Commit();
+                GetEngineDB().Commit();
 
                 GC.Collect();
                 var nodeempty = new FileInfoNode
@@ -1703,7 +1705,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             // clean all data
            
-            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var relDal = GetEngineDB().GetDal<MarkdownFile>();
 
             foreach (var item in list)
             {
@@ -1729,7 +1731,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         //private void SaveLinksFromMarkdown(IFileInfoNode item,
         //    MarkdownFile relationship)
         //{
-        //    var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+        //    var linkInsideMarkdownDal = GetEngineDB().GetDal<LinkInsideMarkdown>();
         //    foreach (var getModifier in _getModifiers)
         //    {
         //        var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(item.FullPath) : new List<LinkDetail>().ToArray();

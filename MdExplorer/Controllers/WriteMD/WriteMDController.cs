@@ -20,6 +20,7 @@ using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Controllers.WriteMD.dto;
 using MdExplorer.Service.Controllers.WriteMDDto;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -49,8 +50,9 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             ICommandRunnerMD commandRunner,
             IHubContext<MonitorMDHub> hubContext,
             IWorkLink[] modifiers,
-            IHelper helper
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
+            IHelper helper,
+            IDatabaseManager databaseManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
 
 
@@ -288,7 +290,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             var editorH1Engine = (IEditorH1Context)_commandRunner.GetAllCommands()
                        .Where(_ => _.Name == "EditH1").FirstOrDefault();
 
-            var limDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var limDal = GetEngineDB().GetDal<LinkInsideMarkdown>();
             var listOfLinksTochangeFromDB = limDal.GetList()
                 .Where(_ => _.FullPath == dto.PathFile && _.Source == "WorkLinkMdShowH2")                
                 .Select(_=> new LinkInsideMarkdownDto { 

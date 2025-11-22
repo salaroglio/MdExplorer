@@ -34,6 +34,7 @@ using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using Microsoft.Extensions.DependencyInjection;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Controllers
 {
@@ -56,8 +57,9 @@ namespace MdExplorer.Controllers
             IHelper helper,
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor,
             IYamlDefaultGenerator yamlDefaultGenerator,
-            IWorkLink[] modifiers            
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper)
+            IWorkLink[] modifiers,
+            IDatabaseManager databaseManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
             _goodRules = GoodRules;
             
@@ -306,9 +308,9 @@ namespace MdExplorer.Controllers
 
             }
             // Refresh database
-            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var relDal = GetEngineDB().GetDal<MarkdownFile>();
             var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
-            _engineDB.BeginTransaction();
+            GetEngineDB().BeginTransaction();
             if (mdFile == null)
             {
                 var markdownFile = new MarkdownFile
@@ -321,7 +323,7 @@ namespace MdExplorer.Controllers
             }
 
             SaveLinksFromMarkdown(mdFile);
-            _engineDB.Commit();
+            GetEngineDB().Commit();
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",

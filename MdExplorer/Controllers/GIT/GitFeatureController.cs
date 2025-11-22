@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using MdExplorer.Features.GIT.models;
 using MdExplorer.Service.Controllers.GIT.models;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Service.Controllers.GIT
 {
@@ -33,7 +34,7 @@ namespace MdExplorer.Service.Controllers.GIT
     {
         private readonly IGitService _gitService;                                                   
         public GitFeatureController(IGitService gitService,
-        FileSystemWatcher fileSystemWatcher,        
+        FileSystemWatcher fileSystemWatcher,
         IOptions<MdExplorerAppSettings> options,
         ILogger<GitFeatureController> logger,
         IHubContext<MonitorMDHub> hubContext,
@@ -41,9 +42,10 @@ namespace MdExplorer.Service.Controllers.GIT
         ICommandRunnerHtml commandRunner,
          IHelper helper,
          IWorkLink[] modifiers,
-        IEngineDB engineDB) : base(logger, fileSystemWatcher, options, 
-            hubContext, session, engineDB, commandRunner, 
-            modifiers, helper)
+        IEngineDB engineDB,
+        IDatabaseManager databaseManager = null) : base(logger, fileSystemWatcher, options,
+            hubContext, session, engineDB, commandRunner,
+            modifiers, helper, databaseManager)
         {
             _gitService = gitService;            
         }
@@ -140,11 +142,11 @@ namespace MdExplorer.Service.Controllers.GIT
 
         private void RefreshDatabase(IEnumerable<FileNameAndAuthor> filesToBeChanged)
         {
-            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var relDal = GetEngineDB().GetDal<MarkdownFile>();
             foreach (var item in filesToBeChanged)
             {
                 var mdFile = relDal.GetList().FirstOrDefault(_ => _.Path == item.FullPath);
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
                 if (mdFile == null)
                 {
                     relDal.Save(new MarkdownFile
@@ -158,7 +160,7 @@ namespace MdExplorer.Service.Controllers.GIT
                 {
                     SaveLinksFromMarkdown(mdFile);
                 }
-                _engineDB.Commit();
+                GetEngineDB().Commit();
             }
         }
 
