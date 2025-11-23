@@ -11,6 +11,7 @@ using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -32,23 +33,24 @@ namespace MdExplorer.Service.Controllers
     [Route("/api/mdexplorer2/{*url}")]
     public class MdExplorer2Controller : MdControllerBase<MdExplorer2Controller>
     {
-        public MdExplorer2Controller(ILogger<MdExplorer2Controller> logger, 
-            FileSystemWatcher fileSystemWatcher, 
-            IOptions<MdExplorerAppSettings> options, 
-            IHubContext<MonitorMDHub> hubContext, 
-            IUserSettingsDB session, 
+        public MdExplorer2Controller(ILogger<MdExplorer2Controller> logger,
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB session,
             IEngineDB engineDB,
             ICommandRunnerHtml commandRunner,
             IWorkLink[] modifiers,
-            IHelper helper) : 
-            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper)
+            IHelper helper,
+            IDatabaseManager databaseManager = null) :
+            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
         }      
 
         [HttpPost]
         public IActionResult PostAsync([FromBody] RequestInfo postData )
         {
-            var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
+            var rootPathSystem = $"{GetProjectPath()}{Path.DirectorySeparatorChar}";
             string relativePathFileSystem = 
                 postData.RelativePathFile.Replace('/', Path.DirectorySeparatorChar)
                 .Replace("%20"," "); // GetRelativePathFileSystem("mdexplorer2");
@@ -89,7 +91,7 @@ namespace MdExplorer.Service.Controllers
             {
                 Path = filePathSystem1,
                 Name = Path.GetFileName(filePathSystem1),
-                RelativePath = filePathSystem1.Replace(_fileSystemWatcher.Path, string.Empty)
+                RelativePath = filePathSystem1.Replace(GetProjectPath(), string.Empty)
             };
 
             var readText = string.Empty;
@@ -101,7 +103,7 @@ namespace MdExplorer.Service.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = _fileSystemWatcher.Path,
+                CurrentRoot = GetProjectPath(),
                 AbsolutePathFile = filePathSystem1,
                 Recursionlevel = recursionLevel,
                 RootQueryRequest = postData.RootQueryRequest,
@@ -129,7 +131,7 @@ namespace MdExplorer.Service.Controllers
 
             var result = Markdown.ToHtml(readText, pipeline);
 
-            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+            Directory.SetCurrentDirectory(GetProjectPath());
 
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 

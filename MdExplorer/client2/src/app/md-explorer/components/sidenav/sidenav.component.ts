@@ -54,10 +54,13 @@ export class SidenavComponent implements OnInit, OnDestroy {
   ) {
     this.setupResizeListeners();
 
-    this.currentFolder.folderName.subscribe((data: any) => {
-      this.titleProject = data.currentFolder;
+    // Use ProjectsService as source of truth for project name
+    this.projectService.currentProjects$.subscribe(project => {
+      if (project && project.name) {
+        this.titleProject = project.name;
+      }
     });
-    this.currentFolder.loadFolderName();
+
     this.gitService.currentBranch$.subscribe(_ => {
       this.currentBranch = _.name;
     });

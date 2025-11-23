@@ -95,11 +95,42 @@ namespace MdExplorer.Service.Controllers
         }
 
         /// <summary>
+        /// Gets database context for a specific connectionId (for use in background tasks).
+        /// This version doesn't depend on HttpContext and is safe to use in background tasks.
+        /// </summary>
+        protected ConnectionDatabaseContext GetDatabaseContext(string connectionId)
+        {
+            if (_databaseManager == null || string.IsNullOrEmpty(connectionId))
+            {
+                return null;
+            }
+
+            try
+            {
+                return _databaseManager.GetContext(connectionId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Failed to get database context for connection {connectionId}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Gets EngineDB for current client. Uses DatabaseManager if available, otherwise falls back to injected _engineDB.
         /// </summary>
         protected IEngineDB GetEngineDB()
         {
             var context = GetDatabaseContext();
+            return context?.EngineDB ?? _engineDB;
+        }
+
+        /// <summary>
+        /// Gets EngineDB for a specific connectionId (for use in background tasks).
+        /// </summary>
+        protected IEngineDB GetEngineDB(string connectionId)
+        {
+            var context = GetDatabaseContext(connectionId);
             return context?.EngineDB ?? _engineDB;
         }
 
@@ -110,6 +141,46 @@ namespace MdExplorer.Service.Controllers
         {
             var context = GetDatabaseContext();
             return context?.ProjectDB;
+        }
+
+        /// <summary>
+        /// Gets ProjectDB for a specific connectionId (for use in background tasks).
+        /// </summary>
+        protected IProjectDB GetProjectDB(string connectionId)
+        {
+            var context = GetDatabaseContext(connectionId);
+            return context?.ProjectDB;
+        }
+
+        /// <summary>
+        /// Gets the project path for current client. Uses DatabaseManager if available, otherwise falls back to global FileSystemWatcher.
+        /// </summary>
+        protected string GetProjectPath()
+        {
+            var context = GetDatabaseContext();
+            if (context != null && !string.IsNullOrEmpty(context.ProjectPath))
+            {
+                return context.ProjectPath;
+            }
+
+            // Fallback to global FileSystemWatcher (backward compatibility)
+            return _fileSystemWatcher?.Path;
+        }
+
+        /// <summary>
+        /// Gets the project path for a specific connectionId (for use in background tasks).
+        /// This version doesn't depend on HttpContext and is safe to use in background tasks.
+        /// </summary>
+        protected string GetProjectPath(string connectionId)
+        {
+            var context = GetDatabaseContext(connectionId);
+            if (context != null && !string.IsNullOrEmpty(context.ProjectPath))
+            {
+                return context.ProjectPath;
+            }
+
+            // Fallback to global FileSystemWatcher (backward compatibility)
+            return _fileSystemWatcher?.Path;
         }
 
         protected string GetRelativePathFileSystem(string controllerName)
@@ -124,7 +195,7 @@ namespace MdExplorer.Service.Controllers
             {
                 return;
             }
-            var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var linkInsideMarkdownDal = GetEngineDB().GetDal<LinkInsideMarkdown>();
             foreach (var getModifier in _getModifiers)
             {
                 var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(relationship.Path) : new List<LinkDetail>().ToArray();
@@ -138,14 +209,16 @@ namespace MdExplorer.Service.Controllers
                     // manage absolute path in link
                     if (singleLink.FullPath.StartsWith("/"))
                     {
-                        fullPath = _fileSystemWatcher.Path
+                        var projectPath = GetProjectPath();
+                        fullPath = projectPath
                             + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
                     }
 
                     var normalizedFullPath = _helper.NormalizePath(fullPath);
 
+                    var projectPath2 = GetProjectPath();
                     var context = Path.GetDirectoryName(relationship.Path)
-                        .Replace(_fileSystemWatcher.Path, string.Empty)
+                        .Replace(projectPath2, string.Empty)
                         .Replace(Path.DirectorySeparatorChar, '/');
                     LinkInsideMarkdown linkToStore = linkInsideMarkdownDal.GetList()
                         .Where(_=>_.FullPath == normalizedFullPath 

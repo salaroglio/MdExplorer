@@ -43,7 +43,7 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAsync()
         {
-            var filePath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar;            
+            var filePath = GetProjectPath() + Path.DirectorySeparatorChar;            
             var relativePath = GetRelativePathFileSystem("mdcreatemd");
             var relativePathExtension = Path.GetExtension(relativePath);
 
@@ -74,7 +74,7 @@ namespace MdExplorer.Service.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePath,
-                CurrentRoot = _fileSystemWatcher.Path,
+                CurrentRoot = GetProjectPath(),
                 AbsolutePathFile = filePath
             };
 

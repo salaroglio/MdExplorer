@@ -78,7 +78,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = dto.PathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     CurrentQueryRequest = dto.CurrentQueryRequest
                 };
                 var param = new CSSSavedOnPageInfo
@@ -139,7 +139,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                 };
 
                 var param = new EmojiPriorityOrderInfo
@@ -177,7 +177,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                 };
                 // transform
                 var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.GetAllCommands()
@@ -211,7 +211,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     CurrentQueryRequest = ""
                 };
                 // transform
@@ -244,7 +244,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     CurrentQueryRequest = ""
                 };
                 // transform
@@ -362,12 +362,12 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             // 
 
             System.IO.File.WriteAllText(systemPathFile, markdown);
-            var relativePath = dto.PathFile.Replace(_fileSystemWatcher.Path, string.Empty).Replace(Path.DirectorySeparatorChar, '/');
+            var relativePath = dto.PathFile.Replace(GetProjectPath(), string.Empty).Replace(Path.DirectorySeparatorChar, '/');
             var monitoredMd = new MonitoredMDModel
             {
                 Path = relativePath,
                 Name = Path.GetFileName(systemPathFile),
-                RelativePath = systemPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                RelativePath = systemPathFile.Replace(GetProjectPath(), string.Empty),
                 FullPath = systemPathFile,
                 FullDirectoryPath = Path.GetDirectoryName(systemPathFile)
             };

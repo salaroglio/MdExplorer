@@ -19,30 +19,40 @@ using MdExplorer.Service.Models;
 using MdExplorer.Features.Configuration.Models;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using MdExplorer.Hubs;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Service.Controllers
 {
     [ApiController]
     [Route("api/AppSettings/{action}")] //AppCurrentFolder
-    public class AppSettingsController : ControllerBase
+    public class AppSettingsController : MdControllerBase<AppSettingsController>
     {
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IUserSettingsDB _session;
         private readonly ProcessUtil _processUtil;
 
-        public AppSettingsController(FileSystemWatcher fileSystemWatcher, 
-                IUserSettingsDB session,
-                ProcessUtil processUtil)
+        public AppSettingsController(
+                ILogger<AppSettingsController> logger,
+                FileSystemWatcher fileSystemWatcher,
+                IOptions<MdExplorerAppSettings> options,
+                IHubContext<MonitorMDHub> hubContext,
+                IUserSettingsDB userSettingDB,
+                IEngineDB engineDB,
+                ProcessUtil processUtil,
+                IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingDB, engineDB, databaseManager: databaseManager)
         {
-            _fileSystemWatcher = fileSystemWatcher;
-            _session = session;
+            _session = userSettingDB;
             _processUtil = processUtil;
         }
 
         [HttpGet]
         public IActionResult GetCurrentFolder()
         {
-            var currentFolder = _fileSystemWatcher.Path;
+            var currentFolder = GetProjectPath();
             // Use Path.GetFileName to get the last part of the path, cross-platform compatible
             string lastFolder = Path.GetFileName(currentFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             // If Path.GetFileName returns empty (e.g. for root paths), use the full path
@@ -84,10 +94,11 @@ namespace MdExplorer.Service.Controllers
         {
             var settingDal = _session.GetDal<Setting>();
             var projectDal = _session.GetDal<Project>();
+            var projectPath = GetProjectPath();
 
             // Read IDE selection from Project database
             string selectedIde = "vscode"; // Default to VS Code
-            var project = projectDal.GetList().FirstOrDefault(p => p.Path == _fileSystemWatcher.Path);
+            var project = projectDal.GetList().FirstOrDefault(p => p.Path == projectPath);
 
             if (project != null && !string.IsNullOrWhiteSpace(project.SelectedIde))
             {
@@ -116,7 +127,7 @@ namespace MdExplorer.Service.Controllers
                     return BadRequest(new { error = "VS Code not found. Please configure the editor path in settings." });
                 }
 
-                _processUtil.OpenFileWithVisualStudioCode(path, editorPath);
+                _processUtil.OpenFileWithVisualStudioCode(path, editorPath, projectPath);
                 return Ok(new { message = "opened with VS Code" });
             }
         }

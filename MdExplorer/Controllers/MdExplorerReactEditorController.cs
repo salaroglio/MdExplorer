@@ -193,11 +193,11 @@ namespace MdExplorer.Controllers
 
                 // Relative path for ProcessMarkdownToMarkdownAsync might need adjustment
                 // For now, we pass the full path as relativePathFile as ProcessMarkdownToMarkdownAsync uses it for RequestInfo
-                // This might need further refinement if ProcessMarkdownToMarkdownAsync strictly expects a path relative to _fileSystemWatcher.Path
+                // This might need further refinement if ProcessMarkdownToMarkdownAsync strictly expects a path relative to GetProjectPath()
                 string relativePathForProcessing = filePathToAccessOnServer;
-                if (filePathToAccessOnServer.StartsWith(_fileSystemWatcher.Path, StringComparison.OrdinalIgnoreCase))
+                if (filePathToAccessOnServer.StartsWith(GetProjectPath(), StringComparison.OrdinalIgnoreCase))
                 {
-                    relativePathForProcessing = filePathToAccessOnServer.Substring(_fileSystemWatcher.Path.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    relativePathForProcessing = filePathToAccessOnServer.Substring(GetProjectPath().Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 }
 
 
@@ -274,7 +274,7 @@ namespace MdExplorer.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = _fileSystemWatcher.Path,
+                CurrentRoot = GetProjectPath(),
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
                 //ConnectionId = connectionId, // Removed

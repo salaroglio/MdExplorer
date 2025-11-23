@@ -35,6 +35,7 @@ namespace MdExplorer.Features.Commands.html
             // ed in più devo prendere xxx
 
             var matches = GetMatches(markdown);
+            _logger.LogInformation($"[MDShowMDHtml] TransformAfterConversion called - Found {matches.Count} mdShowMd matches");
 
             var matchCounter = 0;
             var currentIncrement = 0;
@@ -44,6 +45,7 @@ namespace MdExplorer.Features.Commands.html
                 {
                     matchCounter++;
                     var fileName = item.Groups[1].Value;
+                    _logger.LogInformation($"[MDShowMDHtml] Processing match #{matchCounter}: {fileName}");
                     if (item.Groups[1].Value.StartsWith("../") || item.Groups[1].Value.StartsWith("./"))
                     {
 
@@ -95,16 +97,17 @@ namespace MdExplorer.Features.Commands.html
                         var firstPart = matchesSharp.First().Groups[1].Value;
                         var secondPart = matchesSharp.First().Groups[2]?.Value;
 
-                        var stringURI = $@"{_serverAddress}/api/mdexplorer/{firstPart}" + "?connectionId=" + requestInfo.ConnectionId + secondPart;
+                        var stringURI = $@"{_serverAddress}/api/mdexplorer2/{firstPart}" + "?ConnectionId=" + requestInfo.ConnectionId + secondPart;
 
 
                         var uriUrlRoot = new Uri(stringURI);
-                        _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
-                        //var response = httpClient.GetAsync(uriUrl);
+                        _logger.LogInformation($"looking for: {uriUrlRoot.AbsoluteUri}");
+                        //var response = httpClient.GetAsync(uriUrlRoot);
                         var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);
                         HttpContent c = new StringContent(payload, Encoding.UTF8, "application/json");
-                        var response = httpClient.PostAsync(uriUrl, c);
+                        var response = httpClient.PostAsync(uriUrlRoot, c);
                         response.Wait();
+                        _logger.LogInformation($"[MDShowMDHtml] HTTP POST completed - IsCompletedSuccessfully: {response.IsCompletedSuccessfully}, Status: {response.Result?.StatusCode}");
 
                         if (response.IsCompletedSuccessfully)
                         {
@@ -156,9 +159,15 @@ namespace MdExplorer.Features.Commands.html
 
                             var nodeA = doc1.CreateElement("a");
                             var attraHref = doc1.CreateAttribute("href");
-                            attraHref.Value = uriUrlRoot.AbsoluteUri.Replace("127.0.0.1", "localhost"); // WorkAraound bug in Avalonia CefGlue
-
+                            // Replace /api/mdexplorer2/ with /api/mdexplorer/ for GET navigation
+                            var linkUrl = uriUrlRoot.AbsoluteUri.Replace("127.0.0.1", "localhost").Replace("/api/mdexplorer2/", "/api/mdexplorer/");
+                            attraHref.Value = linkUrl;
                             nodeA.Attributes.Append(attraHref);
+
+                            var htmlClass = doc1.CreateAttribute("class");
+                            htmlClass.InnerText = "mdExplorerLink";
+                            nodeA.Attributes.Append(htmlClass);
+
                             nodeDiv.AppendChild(nodeA);
 
                             var nodeSpan = doc1.CreateElement("span");
@@ -178,6 +187,10 @@ namespace MdExplorer.Features.Commands.html
                             //markdown = markdown.Replace(allElementToReplace, stringToReplace);
 
                             markdown =  markdown + tagStyle;
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"[MDShowMDHtml] HTTP request failed for {uriUrlRoot.AbsoluteUri} - Response not successful");
                         }
                     }
                 }

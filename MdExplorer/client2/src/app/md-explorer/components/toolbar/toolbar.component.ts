@@ -397,8 +397,12 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   OpenEditor() {
-    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
-    return this.http.get(url)
+    this.monitorMDService.getConnectionId(this.sendOpenFileRequest, this);
+  }
+
+  private sendOpenFileRequest(data, objectThis: ToolbarComponent) {
+    const url = '../api/AppSettings/OpenFile?path=' + objectThis.absolutePath + '&ConnectionId=' + data;
+    return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });
   }
 

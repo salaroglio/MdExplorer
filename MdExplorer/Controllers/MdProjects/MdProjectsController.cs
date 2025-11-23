@@ -21,6 +21,7 @@ using AutoMapper;
 using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 
 namespace MdExplorer.Service.Controllers.MdProjects
 {
@@ -34,13 +35,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly ProcessUtil _processUtil;
         private readonly IMapper _mapper;
         private readonly IDatabaseManager _databaseManager;
+        private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 FileSystemWatcher fileSystemWatcher,
                 IServiceProvider services,
                 ProcessUtil processUtil,
                 IMapper mapper,
-                IDatabaseManager databaseManager)
+                IDatabaseManager databaseManager,
+                IFileSystemWatcherManager fileSystemWatcherManager)
         {
             _userSettingsDB = userSettingsDB;
             _fileSystemWatcher = fileSystemWatcher;
@@ -48,6 +51,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _processUtil = processUtil;
             _mapper = mapper;
             _databaseManager = databaseManager;
+            _fileSystemWatcherManager = fileSystemWatcherManager;
         }
 
         [HttpGet]
@@ -129,19 +133,18 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             logger?.LogInformation($"📁 Opening project for connection {connectionId}: {request.Path}");
 
-            // Prima di cambiare il percorso, disabilita temporaneamente il FileSystemWatcher
-            bool wasEnabled = _fileSystemWatcher.EnableRaisingEvents;
-            _fileSystemWatcher.EnableRaisingEvents = false;
-
             try
             {
                 // Register database contexts for this connection
                 _databaseManager.RegisterConnection(connectionId, request.Path);
                 logger?.LogInformation($"✅ Database contexts registered for connection {connectionId}");
 
-                // Aggiorna il percorso del FileSystemWatcher
-                _fileSystemWatcher.Path = request.Path;
-                logger?.LogInformation($"🔄 FileSystemWatcher path changed to: {request.Path}");
+                // Register FileSystemWatcher for this connection
+                _fileSystemWatcherManager.RegisterWatcher(connectionId, request.Path);
+                logger?.LogInformation($"✅ FileSystemWatcher registered for connection {connectionId}");
+
+                // NOTE: We no longer modify the global FileSystemWatcher singleton
+                // Each client now has its own dedicated FileSystemWatcher via FileSystemWatcherManager
 
                 // renew project data
                 _userSettingsDB.BeginTransaction();
@@ -162,14 +165,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 // Configura i database per il nuovo progetto e inizializza Git
                 // TODO: In futuro, rimuovere ReplaceDalFeatures da SetNewProject per evitare conflitti
                 bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
-                
-                // Riabilita il FileSystemWatcher se era abilitato prima
-                if (wasEnabled)
-                {
-                    _fileSystemWatcher.EnableRaisingEvents = true;
-                    logger?.LogInformation($"✅ FileSystemWatcher re-enabled for path: {request.Path}");
-                }
-                
+
                 // Log Git initialization status
                 if (gitInitialized)
                 {
@@ -225,11 +221,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
             catch (Exception ex)
             {
-                // In caso di errore, riabilita il FileSystemWatcher con il vecchio percorso
-                if (wasEnabled)
-                {
-                    _fileSystemWatcher.EnableRaisingEvents = true;
-                }
+                // TODO: Consider cleaning up registered database and watcher on error
                 throw;
             }
         }

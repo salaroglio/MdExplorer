@@ -78,7 +78,7 @@ namespace MdExplorer.Controllers
             var currentCultureInfo = CultureInfo.CurrentCulture;
             var test = Encoding.Default;
             
-            var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
+            var rootPathSystem = $"{GetProjectPath()}{Path.DirectorySeparatorChar}";
             var relativePathFile = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFile);
 
@@ -117,7 +117,7 @@ namespace MdExplorer.Controllers
             _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
 
             // Calculate relative path properly
-            var calculatedRelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty);
+            var calculatedRelativePath = fullPathFile.Replace(GetProjectPath(), string.Empty);
             if (calculatedRelativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
             {
                 calculatedRelativePath = calculatedRelativePath.Substring(1);
@@ -144,7 +144,7 @@ namespace MdExplorer.Controllers
                 var directoryName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(fullPathFile));
                 
                 // Genera il contenuto iniziale con YAML front matter e titolo
-                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(GetProjectPath());
                 var initialContent = $"{defaultYaml}# {directoryName}\n\n";
                 
                 try
@@ -175,7 +175,7 @@ namespace MdExplorer.Controllers
                 var isGitHubMode = false;
                 try
                 {
-                    var devConfigPath = Path.Combine(_fileSystemWatcher.Path, ".development.yml");
+                    var devConfigPath = Path.Combine(GetProjectPath(), ".development.yml");
                     if (System.IO.File.Exists(devConfigPath))
                     {
                         var yamlContent = System.IO.File.ReadAllText(devConfigPath);
@@ -209,7 +209,7 @@ namespace MdExplorer.Controllers
                     _logger.LogInformation($"🔍 [MdExplorer] YAML front matter mancante per {fullPathFile}, aggiunta automatica...");
 
                     // YAML mancante o invalido - aggiungiamolo automaticamente
-                    var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                    var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(GetProjectPath());
                     var updatedContent = defaultYaml + markdownTxt;
 
                     // Salva il file evitando il trigger del FileSystemWatcher
@@ -308,22 +308,23 @@ namespace MdExplorer.Controllers
 
             }
             // Refresh database
-            var relDal = GetEngineDB().GetDal<MarkdownFile>();
+            var engineDB = GetEngineDB();
+            var relDal = engineDB.GetDal<MarkdownFile>();
             var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
-            GetEngineDB().BeginTransaction();
+            engineDB.BeginTransaction();
             if (mdFile == null)
             {
-                var markdownFile = new MarkdownFile
+                mdFile = new MarkdownFile
                 {
                     FileName = Path.GetFileName(fullPathFile),
                     Path = fullPathFile,
                     FileType = "File"
                 };
-                relDal.Save(markdownFile);
+                relDal.Save(mdFile);
             }
 
             SaveLinksFromMarkdown(mdFile);
-            GetEngineDB().Commit();
+            engineDB.Commit();
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
@@ -446,7 +447,7 @@ namespace MdExplorer.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = _fileSystemWatcher.Path,
+                CurrentRoot = GetProjectPath(),
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
                 ConnectionId = connectionId,
@@ -538,7 +539,7 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+            Directory.SetCurrentDirectory(GetProjectPath());
 
             
 
@@ -579,7 +580,7 @@ namespace MdExplorer.Controllers
 
 
 
-            //Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+            //Directory.SetCurrentDirectory(GetProjectPath());
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
             var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();

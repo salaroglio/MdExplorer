@@ -67,7 +67,7 @@ namespace MdExplorer.Service.Controllers.GIT
             _fileSystemWatcher.EnableRaisingEvents = false;
 
 
-            var filesToBeChanged = _gitService.CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path, pullInfo);
+            var filesToBeChanged = _gitService.CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(GetProjectPath(), pullInfo);
             var filesMdo = filesToBeChanged.Select(_ => {
                 var myData = new FilesAndAuthorsChangedMdo
                 {
@@ -83,7 +83,7 @@ namespace MdExplorer.Service.Controllers.GIT
 
             foreach (var fileMdo in filesMdo)
             {
-                var splittedFullPath = fileMdo.FullPath.Replace(_fileSystemWatcher.Path, string.Empty).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
+                var splittedFullPath = fileMdo.FullPath.Replace(GetProjectPath(), string.Empty).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
                 var currentPathName = string.Empty;
                 var currentLevel = 0;
                 foreach (var item in splittedFullPath)
@@ -92,7 +92,7 @@ namespace MdExplorer.Service.Controllers.GIT
                     var myNewMd = new FileInfoNode
                     {
                         Name = item,
-                        FullPath = _fileSystemWatcher.Path + currentPathName,
+                        FullPath = GetProjectPath() + currentPathName,
                         Level = currentLevel,
                         Path = currentPathName,
                         RelativePath = currentPathName,
@@ -119,7 +119,7 @@ namespace MdExplorer.Service.Controllers.GIT
             // prepare multiple data for client
 
 
-            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            pullInfo.ProjectPath = GetProjectPath();
 
             var pullResult = _gitService.Pull(pullInfo);
             RefreshDatabase(filesToBeChanged);            
@@ -175,7 +175,7 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult CommitAndPush(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-             pullInfo.ProjectPath = _fileSystemWatcher.Path;
+             pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
@@ -195,7 +195,7 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult Commit(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
@@ -215,7 +215,7 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult Push(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,

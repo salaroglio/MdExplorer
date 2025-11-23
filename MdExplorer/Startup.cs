@@ -67,6 +67,9 @@ namespace MdExplorer
             // Add DatabaseManager for multi-client support
             services.AddSingleton<Services.DatabaseManager.IDatabaseManager, Services.DatabaseManager.DatabaseManager>();
 
+            // Add FileSystemWatcherManager for multi-client support
+            services.AddSingleton<Services.FileSystemWatcherManager.IFileSystemWatcherManager, Services.FileSystemWatcherManager.FileSystemWatcherManager>();
+
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
             
