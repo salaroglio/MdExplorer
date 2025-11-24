@@ -26,7 +26,20 @@
  * Initialize Tippy tooltips for all emoji elements
  * Sets up tooltips and assigns custom themes based on content
  */
-$(function () {
+window.initializeEmojiTooltips = function() {
+    console.log('🔍 [EMOJI-TOOLTIPS] Initializing tooltips...');
+    console.log('🔍 [EMOJI-TOOLTIPS] typeof tippy:', typeof tippy);
+    console.log('🔍 [EMOJI-TOOLTIPS] typeof $:', typeof $);
+
+    const priorityElements = document.querySelectorAll('[id*="Priority"][data-tippy-content]');
+    const processElements = document.querySelectorAll('[id*="Process"][data-tippy-content]');
+    console.log('🔍 [EMOJI-TOOLTIPS] Found priority elements:', priorityElements.length);
+    console.log('🔍 [EMOJI-TOOLTIPS] Found process elements:', processElements.length);
+
+    if (typeof tippy === 'undefined') {
+        console.error('❌ [EMOJI-TOOLTIPS] CRITICAL: tippy is not defined! Tooltips will not work.');
+        return;
+    }
 
     window.tippyDictPriority = tippy('[id*="Priority"][data-tippy-content]', {
         placement: 'left',
@@ -34,6 +47,9 @@ $(function () {
     window.tippyDictProcess = tippy('[id*="Process"][data-tippy-content]', {
         placement: 'left'
     });
+
+    console.log('🔍 [EMOJI-TOOLTIPS] tippyDictPriority instances:', window.tippyDictPriority ? window.tippyDictPriority.length : 0);
+    console.log('🔍 [EMOJI-TOOLTIPS] tippyDictProcess instances:', window.tippyDictProcess ? window.tippyDictProcess.length : 0);
 
     window.tippyDictProcess.forEach(_ => {
         let tippyReferenceProcess = _.reference;
@@ -46,6 +62,30 @@ $(function () {
         tippyReferencePriority.setAttribute('data-tippy-priority-id', window.tippyDictPriority.indexOf(_));
         setTippyTypePriority(tippyReferencePriority, _);
     });
+
+    console.log('✅ [EMOJI-TOOLTIPS] Initialization complete');
+};
+
+// Call initialization multiple times to catch dynamic content loading
+$(function () {
+    console.log('🔍 [EMOJI-TOOLTIPS] Document ready - attempting initialization');
+    window.initializeEmojiTooltips();
+
+    // Retry after a delay to catch dynamically loaded content
+    setTimeout(function() {
+        console.log('🔍 [EMOJI-TOOLTIPS] Delayed initialization (500ms) - attempting');
+        window.initializeEmojiTooltips();
+    }, 500);
+
+    setTimeout(function() {
+        console.log('🔍 [EMOJI-TOOLTIPS] Delayed initialization (1000ms) - attempting');
+        window.initializeEmojiTooltips();
+    }, 1000);
+
+    setTimeout(function() {
+        console.log('🔍 [EMOJI-TOOLTIPS] Delayed initialization (2000ms) - final attempt');
+        window.initializeEmojiTooltips();
+    }, 2000);
 });
 
 /**
@@ -55,7 +95,7 @@ $(function () {
  * @param {HTMLElement} tippyReference - Reference element with data-tippy-content
  * @param {TippyInstance} _ - Tippy instance to configure
  */
-function setTippyTypePriority(tippyReference, _) {
+window.setTippyTypePriority = function(tippyReference, _) {
     if (tippyReference.getAttribute('data-tippy-content') == 'urgente') {
         _.setProps({ theme: 'priorityUrgente' });
     }
@@ -91,7 +131,7 @@ function setTippyTypePriority(tippyReference, _) {
  * @param {HTMLElement} tippyReference - Reference element with data-tippy-content
  * @param {TippyInstance} _ - Tippy instance to configure
  */
-function setTippyTypeProcess(tippyReference, _) {
+window.setTippyTypeProcess = function(tippyReference, _) {
     if (tippyReference.getAttribute('data-tippy-content') == 'approvato') {
         _.setProps({ theme: 'processok' });
     }

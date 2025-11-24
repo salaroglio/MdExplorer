@@ -421,4 +421,5 @@ AI-Models/
 ~/MdExplorer-Models/
 
 # Website managed as submodule
-# /mdExplorerWebSite/
+# /mdExplorerWebSite/.development.yml
+MdExplorer.AI.Premium/

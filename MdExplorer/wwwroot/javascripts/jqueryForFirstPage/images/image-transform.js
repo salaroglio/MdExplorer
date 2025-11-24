@@ -172,6 +172,12 @@ var cumulativeOffset = function (element) {
  */
 function resizeImage(currentDiv) {
 
+    // Skip saving for SVG/PlantUML images - they don't need position/size persistence
+    if (currentDiv && currentDiv.querySelector && currentDiv.querySelector('svg')) {
+        console.log('Skipping resizeImage for SVG/PlantUML element');
+        return;
+    }
+
     // going inside the div
     var img = currentDiv.childNodes[0].childNodes[0];
     var divStyle = getComputedStyle(img.parentElement.parentElement.parentElement);

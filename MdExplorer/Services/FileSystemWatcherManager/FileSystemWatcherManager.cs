@@ -64,8 +64,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // Create FileSystemWatcher
                 var watcher = new System.IO.FileSystemWatcher(normalizedPath)
                 {
-                    NotifyFilter = NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
+                    NotifyFilter = NotifyFilters.CreationTime
                                  | NotifyFilters.DirectoryName
                                  | NotifyFilters.FileName
                                  | NotifyFilters.LastWrite

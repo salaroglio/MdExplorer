@@ -21,6 +21,10 @@
 function initializeInternalNavigation() {
     // Usa jQuery per event delegation - cattura anche link aggiunti dinamicamente
     $(document).on('click', 'a[href^="#"]', function(e) {
+        // Prevent default navigation behavior (critical for Electron compatibility)
+        e.preventDefault();
+        e.stopPropagation();
+
         // Save current scroll position BEFORE jumping
         const currentScrollY = window.scrollY;
 
@@ -49,6 +53,13 @@ function initializeInternalNavigation() {
 
         // Aggiorna subito i pulsanti di navigazione
         updateNavigationButtons();
+
+        // Manually scroll to the target anchor element
+        const targetId = $(this).attr('href').substring(1); // Remove the '#'
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     });
 
     // Inizializza subito la navigazione
