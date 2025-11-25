@@ -45,6 +45,14 @@ namespace MdExplorer.Services.DatabaseManager
             var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
             var projectDbPath = $"Data Source={Path.Combine(normalizedPath, ".md", $"MdProject_{hash}.db")}";
 
+            // Ensure .md folder exists before attempting to create the database
+            var mdFolder = Path.Combine(normalizedPath, ".md");
+            if (!Directory.Exists(mdFolder))
+            {
+                Directory.CreateDirectory(mdFolder);
+                _logger.LogInformation($"📁 Created .md folder at: {mdFolder}");
+            }
+
             _logger.LogInformation($"📁 Registering connection {connectionId} for project: {normalizedPath}");
             _logger.LogDebug($"   Engine DB: MdEngine_{hash}.db");
             _logger.LogDebug($"   Project DB: MdProject_{hash}.db");
