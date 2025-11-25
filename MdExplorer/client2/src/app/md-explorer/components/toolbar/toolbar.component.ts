@@ -30,6 +30,7 @@ import { Subscription, forkJoin } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
+import { GitChangedFile } from '../../../git/models/modern-git-models';
 import _ from 'lodash';
 
 
@@ -65,6 +66,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
   public showMenu: boolean = false;
+  public showCommitMenu: boolean = false;
+  public changedFiles: GitChangedFile[] = [];
+  public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
   public isUsingNativeGit: boolean = false; // True when Git native credentials are working
@@ -849,6 +853,75 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   openAiChat(): void {
     // Navigate to AI chat within the application
     this.router.navigate(['/main/navigation/ai-chat']);
+  }
+
+  /**
+   * Load the list of changed files for the commit panel hover
+   */
+  loadChangedFiles(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    this.isLoadingChangedFiles = true;
+    this.gitservice.getChangedFiles(projectPath).subscribe(
+      response => {
+        this.changedFiles = response.files || [];
+        this.isLoadingChangedFiles = false;
+      },
+      error => {
+        console.error('Error loading changed files:', error);
+        this.changedFiles = [];
+        this.isLoadingChangedFiles = false;
+      }
+    );
+  }
+
+  /**
+   * Discard changes to a file (restore from HEAD) or remove from staging (for new files)
+   */
+  discardFile(file: GitChangedFile): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    // Show confirmation only for modified files (destructive operation)
+    if (!file.isNew) {
+      const confirmed = confirm(`Vuoi scartare le modifiche a "${file.fileName}"? Questa azione non può essere annullata.`);
+      if (!confirmed) return;
+    }
+
+    this.gitservice.discardFile(projectPath, file.relativePath, file.isNew).subscribe(
+      response => {
+        if (response.success) {
+          // Remove from local list
+          this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
+          // Update counters
+          this.checkConnection();
+
+          const action = file.isNew ? 'rimosso dallo staging' : 'ripristinato';
+          this._snackBar.open(`File "${file.fileName}" ${action}`, 'OK', {
+            duration: 3000,
+            horizontalPosition: 'right',
+            verticalPosition: 'bottom'
+          });
+        } else {
+          this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
+            duration: 5000,
+            horizontalPosition: 'right',
+            verticalPosition: 'bottom',
+            panelClass: ['error-snackbar']
+          });
+        }
+      },
+      error => {
+        console.error('Error discarding file:', error);
+        this._snackBar.open(`Errore: ${error.message}`, 'OK', {
+          duration: 5000,
+          horizontalPosition: 'right',
+          verticalPosition: 'bottom',
+          panelClass: ['error-snackbar']
+        });
+      }
+    );
   }
 
   isTocDirectoryFile(): boolean {

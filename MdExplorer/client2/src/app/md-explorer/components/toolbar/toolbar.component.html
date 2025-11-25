@@ -37,7 +37,45 @@
 
     <span style="display:flex; flex-direction:row" *ngIf="currentBranch && currentBranch.length > 0">
       <div style="display:flex; flex-direction:column">
-        <button class="smallMessagesToCommit" (click)="commit()" *ngIf="somethingIsChangedInTheBranch">{{howManyFilesAreToCommit}} to commit</button>
+        <!-- Commit button with hover panel -->
+        <div class="commit-menu-container" *ngIf="somethingIsChangedInTheBranch">
+          <button class="smallMessagesToCommit"
+                  (click)="commit()"
+                  (mouseenter)="showCommitMenu=true; loadChangedFiles()">
+            {{howManyFilesAreToCommit}} to commit
+          </button>
+          <div class="commit-menu"
+               *ngIf="showCommitMenu"
+               (mouseleave)="showCommitMenu=false">
+            <div class="commit-menu-header">File da committare</div>
+            <div *ngIf="isLoadingChangedFiles" class="commit-menu-loading">
+              Caricamento...
+            </div>
+            <div *ngIf="!isLoadingChangedFiles && changedFiles.length > 0" class="commit-files-list">
+              <div *ngFor="let file of changedFiles" class="commit-file-row">
+                <span class="file-status" [ngClass]="file.status.toLowerCase()">
+                  {{file.status}}
+                </span>
+                <span class="file-name" [title]="file.relativePath">
+                  {{file.fileName}}
+                </span>
+                <span class="file-action">
+                  <button mat-icon-button
+                          class="rollback-btn"
+                          (click)="discardFile(file); $event.stopPropagation()"
+                          [matTooltip]="file.isNew ? 'Rimuovi da staging' : 'Scarta modifiche'">
+                    <mat-icon>{{file.isNew ? 'remove_circle_outline' : 'undo'}}</mat-icon>
+                  </button>
+                </span>
+              </div>
+            </div>
+            <div *ngIf="!isLoadingChangedFiles && changedFiles.length === 0" class="commit-menu-empty">
+              Nessun file modificato
+            </div>
+          </div>
+        </div>
+
+        <!-- Pull button with hover panel -->
         <div class="menu-container">
           <button class="smallMessagesToPull" (click)="pull()"
                   (mouseover)="showMenu=true"

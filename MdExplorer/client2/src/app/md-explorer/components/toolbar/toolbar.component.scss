@@ -107,3 +107,102 @@ mat-toolbar {
 .menu-container:hover .menu {
   display: block;
 }
+
+// Commit panel hover styles
+.commit-menu-container {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.commit-menu {
+  display: none;
+  color: black;
+  font-size: 12px;
+  position: absolute;
+  top: 20px;
+  right: 0;
+  background-color: #f9f9f9;
+  min-width: 350px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1000;
+  border-radius: 4px;
+}
+
+.commit-menu-container:hover .commit-menu {
+  display: block;
+}
+
+.commit-menu-header {
+  padding: 8px 12px;
+  font-weight: bold;
+  background-color: #e0e0e0;
+  border-bottom: 1px solid #ccc;
+}
+
+.commit-menu-loading,
+.commit-menu-empty {
+  padding: 12px;
+  text-align: center;
+  color: #666;
+}
+
+.commit-file-row {
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background-color: #e8e8e8;
+  }
+}
+
+.file-status {
+  padding: 4px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  &.modified { color: #ff9800; }
+  &.added, &.untracked { color: #4caf50; }
+  &.deleted { color: #f44336; }
+}
+
+.file-name {
+  padding: 4px 8px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.file-action {
+  padding: 2px 8px 2px 4px;
+  text-align: right;
+}
+
+.rollback-btn {
+  width: 28px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  background-color: #e0e0e0;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  .mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    line-height: 14px;
+  }
+
+  &:hover {
+    background-color: #ffcdd2;
+    border-color: #f44336;
+    color: #f44336;
+  }
+}

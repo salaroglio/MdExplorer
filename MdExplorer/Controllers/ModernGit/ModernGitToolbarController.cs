@@ -588,6 +588,128 @@ namespace MdExplorer.Controllers.ModernGit
             
             return nodes;
         }
+
+        /// <summary>
+        /// Gets the list of all changed files in the repository
+        /// </summary>
+        /// <param name="projectPath">Path to repository</param>
+        /// <returns>List of changed files with details</returns>
+        [HttpGet("changed-files")]
+        public async Task<IActionResult> GetChangedFiles([FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(projectPath))
+                {
+                    return BadRequest("Project path is required");
+                }
+
+                _logger.LogInformation("GetChangedFiles request for path: {Path}", projectPath);
+
+                var detailedStatus = await _modernGitService.GetDetailedStatusAsync(projectPath);
+
+                var response = new ChangedFilesResponse
+                {
+                    Files = detailedStatus.Files?.Select(f => new GitChangedFile
+                    {
+                        FileName = f.FileName,
+                        RelativePath = f.RelativePath,
+                        FullPath = f.FullPath,
+                        Status = f.Status,
+                        IsNew = f.IsNew
+                    }).ToList() ?? new List<GitChangedFile>(),
+                    TotalCount = detailedStatus.TotalCount
+                };
+
+                _logger.LogInformation("GetChangedFiles response: {Count} files found", response.TotalCount);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting changed files for path: {Path}", projectPath);
+                return StatusCode(500, new { error = "Internal server error getting changed files" });
+            }
+        }
+
+        /// <summary>
+        /// Discards changes to a specific file or removes it from staging
+        /// </summary>
+        /// <param name="request">Request with file path and type</param>
+        /// <returns>Result of the discard operation</returns>
+        [HttpPost("discard-file")]
+        public async Task<IActionResult> DiscardFile([FromBody] DiscardFileRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request?.ProjectPath))
+                {
+                    return BadRequest("Project path is required");
+                }
+
+                if (string.IsNullOrEmpty(request.FilePath))
+                {
+                    return BadRequest("File path is required");
+                }
+
+                _logger.LogInformation("DiscardFile request for file: {FilePath} in project: {ProjectPath}, IsNew: {IsNew}",
+                    request.FilePath, request.ProjectPath, request.IsNew);
+
+                // Disable file watcher during Git operations
+                _fileSystemWatcher.EnableRaisingEvents = false;
+
+                try
+                {
+                    Services.Git.Interfaces.GitOperationResult result;
+
+                    if (request.IsNew)
+                    {
+                        // For new files, just unstage them (remove from staging, keep file on disk)
+                        result = await _modernGitService.UnstageFileAsync(request.ProjectPath, request.FilePath);
+                    }
+                    else
+                    {
+                        // For modified files, discard changes (restore from HEAD)
+                        result = await _modernGitService.DiscardFileChangesAsync(request.ProjectPath, request.FilePath);
+                    }
+
+                    var response = new DiscardFileResponse
+                    {
+                        Success = result.Success,
+                        Message = result.Message,
+                        ErrorMessage = result.ErrorMessage,
+                        FilePath = request.FilePath
+                    };
+
+                    if (result.Success)
+                    {
+                        _logger.LogInformation("Successfully discarded/unstaged file: {FilePath}", request.FilePath);
+                        return Ok(response);
+                    }
+
+                    _logger.LogWarning("Failed to discard/unstage file: {FilePath}, Error: {Error}",
+                        request.FilePath, result.ErrorMessage);
+                    return BadRequest(response);
+                }
+                finally
+                {
+                    // Re-enable file watcher
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error discarding file: {FilePath} in project: {ProjectPath}",
+                    request?.FilePath, request?.ProjectPath);
+
+                return StatusCode(500, new DiscardFileResponse
+                {
+                    Success = false,
+                    ErrorMessage = "Internal server error during discard operation",
+                    FilePath = request?.FilePath
+                });
+            }
+        }
     }
 
     /// <summary>
