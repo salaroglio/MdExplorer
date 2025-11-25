@@ -10,6 +10,12 @@ export interface GitBranchDialogData {
   projectName?: string;
 }
 
+export interface BranchGroup {
+  name: string;
+  icon: string;
+  branches: BranchInfo[];
+}
+
 @Component({
   selector: 'app-git-branch-dialog',
   templateUrl: './git-branch-dialog.component.html',
@@ -19,6 +25,8 @@ export class GitBranchDialogComponent implements OnInit {
   currentBranch: IBranch | null = null;
   branches: BranchInfo[] = [];
   filteredBranches: BranchInfo[] = [];
+  branchGroups: BranchGroup[] = [];
+  selectedTabIndex: number = 0;
   searchTerm: string = '';
   isLoading = true;
   isSwitching = false;
@@ -68,6 +76,7 @@ export class GitBranchDialogComponent implements OnInit {
       next: (branches) => {
         this.branches = branches;
         this.filteredBranches = this.sortBranches(branches);
+        this.groupBranchesBySource(branches);
         this.isLoading = false;
       },
       error: (err) => {
@@ -75,6 +84,57 @@ export class GitBranchDialogComponent implements OnInit {
         this.error = 'Errore nel caricamento della lista branch';
         console.error('Error loading branches:', err);
       }
+    });
+  }
+
+  groupBranchesBySource(branches: BranchInfo[]): void {
+    const groups: Map<string, BranchInfo[]> = new Map();
+
+    // Group local branches
+    const localBranches = branches.filter(b => !b.isRemote);
+    if (localBranches.length > 0) {
+      groups.set('local', this.sortBranches(localBranches));
+    }
+
+    // Group remote branches by remoteName
+    const remoteBranches = branches.filter(b => b.isRemote);
+    remoteBranches.forEach(branch => {
+      const remoteName = branch.remoteName || 'origin';
+      if (!groups.has(remoteName)) {
+        groups.set(remoteName, []);
+      }
+      groups.get(remoteName)!.push(branch);
+    });
+
+    // Sort remote branches within each group
+    groups.forEach((branchList, key) => {
+      if (key !== 'local') {
+        groups.set(key, this.sortBranches(branchList));
+      }
+    });
+
+    // Build branchGroups array with local first, then remotes alphabetically
+    this.branchGroups = [];
+
+    if (groups.has('local')) {
+      this.branchGroups.push({
+        name: 'Local',
+        icon: 'computer',
+        branches: groups.get('local')!
+      });
+    }
+
+    // Add remote groups sorted alphabetically
+    const remoteKeys = Array.from(groups.keys())
+      .filter(k => k !== 'local')
+      .sort();
+
+    remoteKeys.forEach(remoteName => {
+      this.branchGroups.push({
+        name: remoteName,
+        icon: 'cloud',
+        branches: groups.get(remoteName)!
+      });
     });
   }
 
@@ -97,11 +157,13 @@ export class GitBranchDialogComponent implements OnInit {
     const term = this.searchTerm.toLowerCase();
     if (!term) {
       this.filteredBranches = this.sortBranches(this.branches);
+      this.groupBranchesBySource(this.branches);
     } else {
       const filtered = this.branches.filter(b =>
         b.name.toLowerCase().includes(term)
       );
       this.filteredBranches = this.sortBranches(filtered);
+      this.groupBranchesBySource(filtered);
     }
   }
 

@@ -126,10 +126,10 @@ namespace MdExplorer.Controllers.ModernGit
                     // Use current git user for author info
                     var author = await GetGitAuthorAsync(request.ProjectPath);
                     
-                    // Generate commit message with user name
-                    var commitMessage = string.IsNullOrEmpty(request.CommitMessage) 
-                        ? $"Committato da {author.Name} - {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
-                        : $"Committato da {author.Name}: {request.CommitMessage}";
+                    // Use commit message directly (author info is already in Git metadata)
+                    var commitMessage = string.IsNullOrEmpty(request.CommitMessage)
+                        ? $"Commit {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
+                        : request.CommitMessage;
 
                     var result = await _modernGitService.CommitAndPushAsync(request.ProjectPath, commitMessage, author);
 
@@ -189,10 +189,10 @@ namespace MdExplorer.Controllers.ModernGit
                 {
                     var author = await GetGitAuthorAsync(request.ProjectPath);
                     
-                    // Generate commit message with user name
-                    var commitMessage = string.IsNullOrEmpty(request.CommitMessage) 
-                        ? $"Committato da {author.Name} - {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
-                        : $"Committato da {author.Name}: {request.CommitMessage}";
+                    // Use commit message directly (author info is already in Git metadata)
+                    var commitMessage = string.IsNullOrEmpty(request.CommitMessage)
+                        ? $"Commit {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
+                        : request.CommitMessage;
 
                     var result = await _modernGitService.CommitAsync(request.ProjectPath, commitMessage, author);
 

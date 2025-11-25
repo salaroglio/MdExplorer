@@ -63,60 +63,75 @@
     </mat-card-content>
   </mat-card>
 
-  <!-- Branch List -->
+  <!-- Branch List with Tabs -->
   <div class="branch-list-container" *ngIf="!isLoading && !error">
     <div class="branch-count">
       {{ filteredBranches.length }} branch trovati
     </div>
 
-    <mat-list class="branch-list">
-      <mat-list-item
-        *ngFor="let branch of filteredBranches"
-        class="branch-item"
-        [class.current]="branch.isCurrentBranch"
-        [class.remote]="branch.isRemote"
-        [class.local]="!branch.isRemote"
-        [class.disabled]="isSwitching"
-        (click)="switchToBranch(branch)">
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" class="branch-tabs">
+      <mat-tab *ngFor="let group of branchGroups">
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">{{ group.icon }}</mat-icon>
+          <span class="tab-label">{{ group.name }}</span>
+          <span class="tab-count">({{ group.branches.length }})</span>
+        </ng-template>
 
-        <mat-icon matListIcon [color]="branch.isCurrentBranch ? 'primary' : ''">
-          {{ branch.isCurrentBranch ? 'check_circle' : (branch.isRemote ? 'cloud' : 'computer') }}
-        </mat-icon>
+        <mat-list class="branch-list">
+          <mat-list-item
+            *ngFor="let branch of group.branches"
+            class="branch-item"
+            [class.current]="branch.isCurrentBranch"
+            [class.remote]="branch.isRemote"
+            [class.local]="!branch.isRemote"
+            [class.disabled]="isSwitching"
+            (click)="switchToBranch(branch)">
 
-        <div matLine class="branch-name-line">
-          <span class="branch-name">{{ branch.name }}</span>
-          <span class="branch-badge current-badge" *ngIf="branch.isCurrentBranch">CORRENTE</span>
-          <span class="branch-badge remote-badge" *ngIf="branch.isRemote">REMOTO</span>
+            <mat-icon matListIcon [color]="branch.isCurrentBranch ? 'primary' : ''">
+              {{ branch.isCurrentBranch ? 'check_circle' : (branch.isRemote ? 'cloud' : 'computer') }}
+            </mat-icon>
+
+            <div matLine class="branch-name-line">
+              <span class="branch-name">{{ branch.name }}</span>
+              <span class="branch-badge current-badge" *ngIf="branch.isCurrentBranch">CORRENTE</span>
+            </div>
+
+            <div matLine class="branch-info-line" *ngIf="branch.upstreamBranch || branch.ahead || branch.behind">
+              <span class="upstream-info" *ngIf="branch.upstreamBranch">
+                <mat-icon class="small-icon">link</mat-icon>
+                {{ branch.upstreamBranch }}
+              </span>
+              <span class="sync-info" *ngIf="branch.ahead">
+                <mat-icon class="small-icon">arrow_upward</mat-icon>
+                {{ branch.ahead }} ahead
+              </span>
+              <span class="sync-info" *ngIf="branch.behind">
+                <mat-icon class="small-icon">arrow_downward</mat-icon>
+                {{ branch.behind }} behind
+              </span>
+            </div>
+
+            <button
+              mat-icon-button
+              *ngIf="!branch.isCurrentBranch"
+              class="switch-button"
+              [disabled]="isSwitching"
+              (click)="switchToBranch(branch); $event.stopPropagation()">
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          </mat-list-item>
+        </mat-list>
+
+        <!-- Empty State within Tab -->
+        <div *ngIf="group.branches.length === 0" class="empty-state">
+          <mat-icon>search_off</mat-icon>
+          <p>Nessun branch trovato in questa categoria</p>
         </div>
+      </mat-tab>
+    </mat-tab-group>
 
-        <div matLine class="branch-info-line" *ngIf="branch.upstreamBranch || branch.ahead || branch.behind">
-          <span class="upstream-info" *ngIf="branch.upstreamBranch">
-            <mat-icon class="small-icon">link</mat-icon>
-            {{ branch.upstreamBranch }}
-          </span>
-          <span class="sync-info" *ngIf="branch.ahead">
-            <mat-icon class="small-icon">arrow_upward</mat-icon>
-            {{ branch.ahead }} ahead
-          </span>
-          <span class="sync-info" *ngIf="branch.behind">
-            <mat-icon class="small-icon">arrow_downward</mat-icon>
-            {{ branch.behind }} behind
-          </span>
-        </div>
-
-        <button
-          mat-icon-button
-          *ngIf="!branch.isCurrentBranch"
-          class="switch-button"
-          [disabled]="isSwitching"
-          (click)="switchToBranch(branch); $event.stopPropagation()">
-          <mat-icon>arrow_forward</mat-icon>
-        </button>
-      </mat-list-item>
-    </mat-list>
-
-    <!-- Empty State -->
-    <div *ngIf="filteredBranches.length === 0" class="empty-state">
+    <!-- Global Empty State -->
+    <div *ngIf="branchGroups.length === 0" class="empty-state">
       <mat-icon>search_off</mat-icon>
       <p>Nessun branch trovato</p>
       <button mat-button (click)="searchTerm=''; filterBranches()" *ngIf="searchTerm">
