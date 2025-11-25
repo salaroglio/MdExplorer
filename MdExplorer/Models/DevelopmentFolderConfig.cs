@@ -19,6 +19,11 @@ namespace MdExplorer.Service.Models
         /// Markdown compatibility mode configuration
         /// </summary>
         public CompatibilityConfig Compatibility { get; set; } = new CompatibilityConfig();
+
+        /// <summary>
+        /// YAML auto-generation configuration
+        /// </summary>
+        public YamlAutoGenerationConfig YamlAutoGeneration { get; set; } = new YamlAutoGenerationConfig();
     }
 
     /// <summary>
@@ -40,5 +45,22 @@ namespace MdExplorer.Service.Models
         /// Optional description of the folder's purpose
         /// </summary>
         public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for YAML front matter auto-generation
+    /// </summary>
+    public class YamlAutoGenerationConfig
+    {
+        /// <summary>
+        /// If true, automatically add YAML front matter to markdown files that don't have it
+        /// </summary>
+        public bool Enabled { get; set; } = true;
+
+        /// <summary>
+        /// List of folder paths (relative to project root) where YAML auto-generation should be disabled
+        /// Uses exact path matching (e.g., ".github", "docs/external")
+        /// </summary>
+        public List<string> ExcludePaths { get; set; } = new List<string> { ".github" };
     }
 }

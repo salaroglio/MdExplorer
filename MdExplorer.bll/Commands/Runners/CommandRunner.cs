@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Commands
             _logger = logger;
         }
 
-        private bool IsCommandCompatible(ICommand command)
+        private bool IsCommandCompatible(ICommand command, string projectPath)
         {
             // If command has no SupportedModes specified (null or empty), it supports all modes
             if (command.SupportedModes == null || command.SupportedModes.Count == 0)
@@ -35,20 +35,20 @@ namespace MdExplorer.Features.Commands
                 return true;
             }
 
-            var currentMode = _compatibilityService.GetMode();
+            var currentMode = _compatibilityService.GetMode(projectPath);
             return command.SupportedModes.Contains(currentMode);
         }
 
-        private IEnumerable<ICommand> GetCompatibleCommands()
+        private IEnumerable<ICommand> GetCompatibleCommands(string projectPath)
         {
-            var currentMode = _compatibilityService.GetMode();
+            var currentMode = _compatibilityService.GetMode(projectPath);
 
             return _commands
                 .OrderBy(_ => _.Priority)
                 .Where(_ => _.Enabled)
                 .Where(cmd =>
                 {
-                    var isCompatible = IsCommandCompatible(cmd);
+                    var isCompatible = IsCommandCompatible(cmd, projectPath);
                     if (!isCompatible)
                     {
                         _logger.LogDebug($"⏭️ [CommandRunner] Skipping command '{cmd.Name}' - not compatible with {currentMode} mode");
@@ -59,7 +59,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformInNewMDFromMD(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in GetCompatibleCommands())
+            foreach (var item in GetCompatibleCommands(requestInfo.CurrentRoot))
             {
                 try
                 {
@@ -80,7 +80,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformAfterConversion(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in GetCompatibleCommands())
+            foreach (var item in GetCompatibleCommands(requestInfo.CurrentRoot))
             {
                 try
                 {
@@ -96,7 +96,7 @@ namespace MdExplorer.Features.Commands
 
         public string PrepareMetadataBasedOnMD(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in GetCompatibleCommands())
+            foreach (var item in GetCompatibleCommands(requestInfo.CurrentRoot))
             {
                 try
                 {

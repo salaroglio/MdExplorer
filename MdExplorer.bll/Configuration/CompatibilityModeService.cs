@@ -11,8 +11,6 @@ namespace MdExplorer.Features.Configuration
     public class CompatibilityModeService : ICompatibilityModeService
     {
         private readonly ILogger<CompatibilityModeService> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private CompatibilityConfig _configuration;
 
         // Mapping of feature names to compatibility modes where they should be disabled
         private readonly Dictionary<string, List<CompatibilityMode>> _featureCompatibility = new Dictionary<string, List<CompatibilityMode>>
@@ -26,40 +24,56 @@ namespace MdExplorer.Features.Configuration
             ["emoji-camera-versioning"] = new List<CompatibilityMode> { CompatibilityMode.GitHub, CompatibilityMode.CommonMark }
         };
 
-        public CompatibilityModeService(
-            ILogger<CompatibilityModeService> logger,
-            FileSystemWatcher fileSystemWatcher)
+        public CompatibilityModeService(ILogger<CompatibilityModeService> logger)
         {
             _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            LoadConfiguration();
+        }
+
+        public CompatibilityMode GetMode(string projectPath)
+        {
+            var config = LoadConfigurationFromPath(projectPath);
+            return ParseMode(config);
         }
 
         public CompatibilityMode GetMode()
         {
-            if (_configuration == null || string.IsNullOrEmpty(_configuration.Mode))
-            {
-                return CompatibilityMode.MdExplorer;
-            }
+            // Default mode when project path is not available
+            return CompatibilityMode.MdExplorer;
+        }
 
-            return _configuration.Mode.ToLowerInvariant() switch
-            {
-                "github" => CompatibilityMode.GitHub,
-                "commonmark" => CompatibilityMode.CommonMark,
-                "mdexplorer" => CompatibilityMode.MdExplorer,
-                _ => CompatibilityMode.MdExplorer
-            };
+        public CompatibilityConfig GetConfiguration(string projectPath)
+        {
+            return LoadConfigurationFromPath(projectPath);
         }
 
         public CompatibilityConfig GetConfiguration()
         {
-            return _configuration ?? new CompatibilityConfig();
+            // Return default configuration when project path is not available
+            return GetDefaultConfiguration();
+        }
+
+        public bool IsFeatureEnabled(string featureName, string projectPath)
+        {
+            var currentMode = GetMode(projectPath);
+            return CheckFeatureCompatibility(featureName, currentMode);
         }
 
         public bool IsFeatureEnabled(string featureName)
         {
+            // Use default mode (MdExplorer) when path not available
             var currentMode = GetMode();
+            return CheckFeatureCompatibility(featureName, currentMode);
+        }
 
+        public void ReloadConfiguration()
+        {
+            // No-op: method kept for backward compatibility
+            // In multi-client scenarios, configuration is loaded per-request
+            _logger.LogDebug("ReloadConfiguration called - no-op in multi-client mode");
+        }
+
+        private bool CheckFeatureCompatibility(string featureName, CompatibilityMode currentMode)
+        {
             // In MdExplorer mode, all features are enabled
             if (currentMode == CompatibilityMode.MdExplorer)
             {
@@ -77,17 +91,17 @@ namespace MdExplorer.Features.Configuration
             return true;
         }
 
-        public void ReloadConfiguration()
+        private CompatibilityConfig LoadConfigurationFromPath(string projectPath)
         {
-            LoadConfiguration();
-        }
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                _logger.LogWarning("LoadConfigurationFromPath called with null/empty projectPath. Using default configuration.");
+                return GetDefaultConfiguration();
+            }
 
-        private void LoadConfiguration()
-        {
-            // Always get the current path from FileSystemWatcher (it changes when project changes)
-            var configFilePath = Path.Combine(_fileSystemWatcher.Path, ".development.yml");
+            var configFilePath = Path.Combine(projectPath, ".development.yml");
 
-            _logger.LogInformation($"Loading compatibility configuration from: {configFilePath}");
+            _logger.LogDebug($"Loading compatibility configuration from: {configFilePath}");
 
             if (File.Exists(configFilePath))
             {
@@ -108,32 +122,49 @@ namespace MdExplorer.Features.Configuration
                             .Build()
                             .Serialize(fullConfig["compatibility"]);
 
-                        _configuration = deserializer.Deserialize<CompatibilityConfig>(compatibilityYaml);
+                        var configuration = deserializer.Deserialize<CompatibilityConfig>(compatibilityYaml);
 
-                        _logger.LogInformation($"Loaded compatibility configuration: Mode={_configuration.Mode}");
+                        _logger.LogDebug($"Loaded compatibility configuration for {projectPath}: Mode={configuration.Mode}");
+                        return configuration;
                     }
                     else
                     {
-                        _logger.LogInformation(".development.yml found but no compatibility section. Using default MdExplorer mode.");
-                        LoadDefaultConfiguration();
+                        _logger.LogDebug($".development.yml found at {configFilePath} but no compatibility section. Using default MdExplorer mode.");
+                        return GetDefaultConfiguration();
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to load compatibility configuration from .development.yml. Using default MdExplorer mode.");
-                    LoadDefaultConfiguration();
+                    _logger.LogError(ex, $"Failed to load compatibility configuration from {configFilePath}. Using default MdExplorer mode.");
+                    return GetDefaultConfiguration();
                 }
             }
             else
             {
-                _logger.LogInformation($".development.yml file not found at {configFilePath}. Using default MdExplorer mode.");
-                LoadDefaultConfiguration();
+                _logger.LogDebug($".development.yml file not found at {configFilePath}. Using default MdExplorer mode.");
+                return GetDefaultConfiguration();
             }
         }
 
-        private void LoadDefaultConfiguration()
+        private CompatibilityMode ParseMode(CompatibilityConfig config)
         {
-            _configuration = new CompatibilityConfig
+            if (config == null || string.IsNullOrEmpty(config.Mode))
+            {
+                return CompatibilityMode.MdExplorer;
+            }
+
+            return config.Mode.ToLowerInvariant() switch
+            {
+                "github" => CompatibilityMode.GitHub,
+                "commonmark" => CompatibilityMode.CommonMark,
+                "mdexplorer" => CompatibilityMode.MdExplorer,
+                _ => CompatibilityMode.MdExplorer
+            };
+        }
+
+        private CompatibilityConfig GetDefaultConfiguration()
+        {
+            return new CompatibilityConfig
             {
                 Mode = "mdexplorer",
                 GitHubOptions = new GitHubCompatibilityOptions

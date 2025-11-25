@@ -1849,6 +1849,26 @@ class GITService {
         }));
     }
     /**
+     * Delete an untracked/new file from disk
+     */
+    deleteFile(projectPath, filePath) {
+        const url = '../api/ModernGitToolbar/delete-file';
+        const request = {
+            projectPath: projectPath,
+            filePath: filePath,
+            isNew: true
+        };
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error deleting file:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                success: false,
+                errorMessage: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.errorMessage) || error.message || 'Failed to delete file',
+                filePath: filePath
+            });
+        }));
+    }
+    /**
      * Adapts modern Git response to legacy format for backward compatibility
      */
     adaptModernResponseToLegacy(response) {
@@ -3497,8 +3517,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.25.9',
-    buildTime: '2025.11.25 16:09:25'
+    version: '2025.11.25.15',
+    buildTime: '2025.11.25 18:18:14'
 };
 
 

@@ -1,7 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Interfaces;
-using MdExplorer.Features.Configuration;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -21,9 +20,8 @@ namespace MdExplorer.Features.Commands
             IDALFactory<IUserSettingsDB> dalFactory,
             PlantumlServer plantumlServer,
             IHelper helper,
-            IServerCache serverCache,
-            ICompatibilityModeService compatibilityService)
-            : base(server, serviceProvider, dalFactory, plantumlServer, helper, serverCache, compatibilityService)
+            IServerCache serverCache)
+            : base(server, serviceProvider, dalFactory, plantumlServer, helper, serverCache)
         {
         }
     }

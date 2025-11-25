@@ -294,6 +294,14 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     Console.WriteLine($"Created folders ignore configuration file: {mdFoldersIgnorePath}");
                 }
 
+                // Copy .development.yml file
+                var developmentConfigPath = Path.Combine(projectPath, ".development.yml");
+                if (!File.Exists(developmentConfigPath))
+                {
+                    FileUtil.ExtractResFile("MdExplorer.Service..development.yml", developmentConfigPath);
+                    Console.WriteLine($"Created development configuration file: {developmentConfigPath}");
+                }
+
                 // Create .github folder and copy copilot-instructions.md only if requested
                 if (addCopilotInstructions)
                 {

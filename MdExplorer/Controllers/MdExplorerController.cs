@@ -171,8 +171,10 @@ namespace MdExplorer.Controllers
             var descriptor = _yamlDocumentDescriptor.GetDescriptor(markdownTxt);
             if (descriptor == null || descriptor.WordSection == null)
             {
-                // Check if project is in GitHub Compatible Mode
-                var isGitHubMode = false;
+                // Check if YAML auto-generation should be skipped for this file
+                var shouldSkipYamlGeneration = false;
+                var skipReason = string.Empty;
+
                 try
                 {
                     var devConfigPath = Path.Combine(GetProjectPath(), ".development.yml");
@@ -182,27 +184,61 @@ namespace MdExplorer.Controllers
                         var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
                             .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
                             .Build();
-                        var fullConfig = deserializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(yamlContent);
+                        var devConfig = deserializer.Deserialize<MdExplorer.Service.Models.DevelopmentConfig>(yamlContent);
 
-                        if (fullConfig != null && fullConfig.ContainsKey("compatibility"))
+                        // Check GitHub Compatible Mode
+                        if (devConfig?.Compatibility?.Mode?.ToLowerInvariant() == "github")
                         {
-                            var compatibilityYaml = new YamlDotNet.Serialization.SerializerBuilder()
-                                .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
-                                .Build()
-                                .Serialize(fullConfig["compatibility"]);
-                            var compatConfig = deserializer.Deserialize<MdExplorer.Features.Configuration.Models.CompatibilityConfig>(compatibilityYaml);
-                            isGitHubMode = compatConfig.Mode?.ToLowerInvariant() == "github";
+                            shouldSkipYamlGeneration = true;
+                            skipReason = "Project is in GitHub Compatible Mode";
+                        }
+                        // Check YAML auto-generation configuration
+                        else
+                        {
+                            // Use default configuration if yamlAutoGeneration section is missing
+                            var yamlConfig = devConfig?.YamlAutoGeneration ?? new MdExplorer.Service.Models.YamlAutoGenerationConfig();
+
+                            // Check if YAML auto-generation is globally disabled
+                            if (!yamlConfig.Enabled)
+                            {
+                                shouldSkipYamlGeneration = true;
+                                skipReason = "YAML auto-generation is disabled in configuration";
+                            }
+                            // Check if file is in an excluded path
+                            else if (yamlConfig.ExcludePaths != null && yamlConfig.ExcludePaths.Count > 0)
+                            {
+                                var projectPath = GetProjectPath();
+                                var relativePath = fullPathFile.Replace(projectPath, string.Empty)
+                                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                                foreach (var excludePath in yamlConfig.ExcludePaths)
+                                {
+                                    // Normalize path separators for comparison
+                                    var normalizedExcludePath = excludePath.Replace('/', Path.DirectorySeparatorChar)
+                                        .Replace('\\', Path.DirectorySeparatorChar);
+
+                                    // Check if file is inside the excluded path
+                                    if (relativePath.StartsWith(normalizedExcludePath + Path.DirectorySeparatorChar,
+                                        StringComparison.OrdinalIgnoreCase) ||
+                                        relativePath.Equals(normalizedExcludePath, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        shouldSkipYamlGeneration = true;
+                                        skipReason = $"File is in excluded path: {excludePath}";
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error checking GitHub compatibility mode, assuming not GitHub mode");
+                    _logger.LogWarning(ex, "Error checking YAML auto-generation configuration, proceeding with default behavior");
                 }
 
-                if (isGitHubMode)
+                if (shouldSkipYamlGeneration)
                 {
-                    _logger.LogInformation($"⏭️ [MdExplorer] Project is in GitHub Compatible Mode - skipping auto-YAML addition for {fullPathFile}");
+                    _logger.LogInformation($"⏭️ [MdExplorer] {skipReason} - skipping auto-YAML addition for {fullPathFile}");
                 }
                 else
                 {
