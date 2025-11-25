@@ -137,6 +137,22 @@ namespace MdExplorer.Services.DatabaseManager
             return _contexts.TryGetValue(connectionId, out var context) ? context.ProjectPath : null;
         }
 
+        public IEngineDB CreateIsolatedEngineDB(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+                throw new ArgumentException("ConnectionId cannot be null or empty", nameof(connectionId));
+
+            if (!_contexts.TryGetValue(connectionId, out var context))
+                throw new InvalidOperationException($"No database context found for connection {connectionId}");
+
+            var hash = Helper.HGetHashString(context.ProjectPath);
+            var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
+
+            _logger.LogDebug($"🔧 Creating isolated EngineDB for connection {connectionId}");
+
+            return CreateEngineDB(engineDbPath);
+        }
+
         private IEngineDB CreateEngineDB(string connectionString)
         {
             try

@@ -43,6 +43,15 @@ namespace MdExplorer.Services.DatabaseManager
         /// <param name="connectionId">SignalR ConnectionId</param>
         /// <returns>Project path or null if not found</returns>
         string GetProjectPath(string connectionId);
+
+        /// <summary>
+        /// Creates an isolated EngineDB instance for background operations (like FileSystemWatcher).
+        /// This instance has its own session and won't conflict with the main session.
+        /// IMPORTANT: Caller is responsible for disposing the returned instance.
+        /// </summary>
+        /// <param name="connectionId">SignalR ConnectionId to get project path</param>
+        /// <returns>New isolated EngineDB instance</returns>
+        IEngineDB CreateIsolatedEngineDB(string connectionId);
     }
 
     /// <summary>

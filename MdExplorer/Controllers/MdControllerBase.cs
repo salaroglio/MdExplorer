@@ -23,6 +23,7 @@ using System.Web;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using NHibernate.Util;
 
 namespace MdExplorer.Service.Controllers
@@ -38,6 +39,7 @@ namespace MdExplorer.Service.Controllers
         protected readonly IWorkLink[] _getModifiers;
         protected readonly IHelper _helper;
         protected readonly IDatabaseManager _databaseManager;
+        protected readonly IFileSystemWatcherManager _fileSystemWatcherManager;
 
         public MdControllerBase(ILogger<T> logger,
             FileSystemWatcher fileSystemWatcher,
@@ -48,7 +50,8 @@ namespace MdExplorer.Service.Controllers
             ICommandRunner commandRunner = null,
             IWorkLink[] getModifiers = null,
             IHelper helper = null,
-            IDatabaseManager databaseManager = null)
+            IDatabaseManager databaseManager = null,
+            IFileSystemWatcherManager fileSystemWatcherManager = null)
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
@@ -60,6 +63,7 @@ namespace MdExplorer.Service.Controllers
             _getModifiers = getModifiers;
             _helper = helper;
             _databaseManager = databaseManager;
+            _fileSystemWatcherManager = fileSystemWatcherManager;
         }
 
         public IEngineDB _engineDB { get; }
@@ -181,6 +185,29 @@ namespace MdExplorer.Service.Controllers
 
             // Fallback to global FileSystemWatcher (backward compatibility)
             return _fileSystemWatcher?.Path;
+        }
+
+        /// <summary>
+        /// Enables or disables file system monitoring for the current client.
+        /// Uses per-client FileSystemWatcherManager if available, otherwise falls back to global FileSystemWatcher.
+        /// </summary>
+        /// <param name="enabled">True to enable monitoring, false to disable</param>
+        protected void SetFileSystemWatcherEnabled(bool enabled)
+        {
+            var connectionId = Request.Query["ConnectionId"].ToString();
+
+            if (!string.IsNullOrEmpty(connectionId) && _fileSystemWatcherManager != null)
+            {
+                _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);
+            }
+            else
+            {
+                // Fallback to global FileSystemWatcher (backward compatibility)
+                if (_fileSystemWatcher != null)
+                {
+                    _fileSystemWatcher.EnableRaisingEvents = enabled;
+                }
+            }
         }
 
         protected string GetRelativePathFileSystem(string controllerName)

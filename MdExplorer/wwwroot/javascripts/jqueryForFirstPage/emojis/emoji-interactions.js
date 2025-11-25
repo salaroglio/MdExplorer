@@ -62,7 +62,8 @@ window.dynamicEmojiForProcess = function(el, index, pathfile) {
     }
 
     var currentIndex = el.attributes['data-md-process-index'].value;
-    $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText.trim(), function (data) {
+    var connectionId = $('body').attr('connectionid') || '';
+    $.get("/api/WriteMD/SetEmojiProcess?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText.trim() + "&ConnectionId=" + connectionId, function (data) {
         $(".result").html(data);
         var oldData$ = $('div.hiddendataforeditorh1');
         for (i = 0; i < oldData$.length; i++) {
@@ -83,13 +84,31 @@ window.dynamicEmojiForProcess = function(el, index, pathfile) {
  * @param {HTMLElement} el - The emoji element
  */
 window.setTooltipProcess = function(dataToSet, el) {
-    let $el = $(el);
-    let attributeValue = $el.attr("data-tippy-process-id");
-    let current = window.tippyDictProcess[attributeValue];
-    current.setContent(dataToSet);
-    current.reference.setAttribute('data-tippy-content', dataToSet)
-    setTippyTypeProcess(current.reference, current);
-    current.show();
+    // Try to get tippy instance directly from element (Tippy.js stores it on _tippy property)
+    let current = el._tippy;
+
+    // Fallback: try to find by index in array
+    if (!current) {
+        let $el = $(el);
+        let attributeValue = $el.attr("data-tippy-process-id");
+        current = window.tippyDictProcess && window.tippyDictProcess[attributeValue];
+    }
+
+    if (current) {
+        current.setContent(dataToSet);
+        current.reference.setAttribute('data-tippy-content', dataToSet);
+        setTippyTypeProcess(current.reference, current);
+        current.show();
+    } else {
+        // Last resort: update attribute and try to reinitialize tippy on this element
+        el.setAttribute('data-tippy-content', dataToSet);
+        if (typeof tippy !== 'undefined') {
+            let newTippy = tippy(el, { placement: 'left' });
+            newTippy.setContent(dataToSet);
+            setTippyTypeProcess(el, newTippy);
+            newTippy.show();
+        }
+    }
 }
 
 /**
@@ -103,23 +122,23 @@ window.setTooltipProcess = function(dataToSet, el) {
 window.dynamicEmojiForPriority = function(el, index, pathfile) {
     let dataToSet;
 
-    if (el.innerText == '❓') {
+    if (el.innerText.trim() == '❓') {
         el.innerText = '❔';
         dataToSet = 'da valutare';
-    } else if (el.innerText == '❔') {
+    } else if (el.innerText.trim() == '❔') {
         el.innerText = '❕';
         dataToSet = 'obbligatorio';
-    } else if (el.innerText == '❕') {
+    } else if (el.innerText.trim() == '❕') {
         el.innerText = '❗';
         dataToSet = 'urgente';
-    } else if (el.innerText == '❗') {
+    } else if (el.innerText.trim() == '❗') {
         el.innerText = '❌';
         dataToSet = 'annullata';
-    } else if (el.innerText == '❌') {
+    } else if (el.innerText.trim() == '❌') {
         el.innerText = '⛔';
         dataToSet = 'fermata';
         var element = $('#' + el.id).parent();
-    } else if (el.innerText == '⛔') {
+    } else if (el.innerText.trim() == '⛔') {
         el.innerText = '❎';
         dataToSet = 'conclusa';
         var element = $('#' + el.id).parent();
@@ -127,7 +146,7 @@ window.dynamicEmojiForPriority = function(el, index, pathfile) {
         if (check) {
             element = element.parent();
         }
-    } else if (el.innerText == '❎') {
+    } else if (el.innerText.trim() == '❎') {
         el.innerText = '❓';
         dataToSet = 'dubbio urgente';
         var element = $('#' + el.id).parent();
@@ -140,7 +159,8 @@ window.dynamicEmojiForPriority = function(el, index, pathfile) {
     }
 
     var currentIndex = el.attributes['data-md-priority-index'].value;
-    $.get("/api/WriteMD/SetEmojiPriority?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText, function (data) {
+    var connectionId = $('body').attr('connectionid') || '';
+    $.get("/api/WriteMD/SetEmojiPriority?index=" + currentIndex + "&pathFile=" + pathfile + "&toReplace=" + el.innerText.trim() + "&ConnectionId=" + connectionId, function (data) {
         $(".result").html(data);
 
         var oldData$ = $('div.hiddendataforeditorh1');
@@ -162,13 +182,31 @@ window.dynamicEmojiForPriority = function(el, index, pathfile) {
  * @param {HTMLElement} el - The emoji element
  */
 window.setTooltipPriority = function(dataToSet, el) {
-    let $el = $(el);
-    let attributeValue = $el.attr("data-tippy-priority-id");
-    let currentPriority = window.tippyDictPriority[attributeValue];
-    currentPriority.setContent(dataToSet);
-    currentPriority.reference.setAttribute('data-tippy-content', dataToSet)
-    setTippyTypePriority(currentPriority.reference, currentPriority);
-    currentPriority.show();
+    // Try to get tippy instance directly from element (Tippy.js stores it on _tippy property)
+    let currentPriority = el._tippy;
+
+    // Fallback: try to find by index in array
+    if (!currentPriority) {
+        let $el = $(el);
+        let attributeValue = $el.attr("data-tippy-priority-id");
+        currentPriority = window.tippyDictPriority && window.tippyDictPriority[attributeValue];
+    }
+
+    if (currentPriority) {
+        currentPriority.setContent(dataToSet);
+        currentPriority.reference.setAttribute('data-tippy-content', dataToSet);
+        setTippyTypePriority(currentPriority.reference, currentPriority);
+        currentPriority.show();
+    } else {
+        // Last resort: update attribute and try to reinitialize tippy on this element
+        el.setAttribute('data-tippy-content', dataToSet);
+        if (typeof tippy !== 'undefined') {
+            let newTippy = tippy(el, { placement: 'left' });
+            newTippy.setContent(dataToSet);
+            setTippyTypePriority(el, newTippy);
+            newTippy.show();
+        }
+    }
 }
 
 // Verification logs - MUST be at end of file after all function definitions

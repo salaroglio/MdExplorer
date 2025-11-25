@@ -10,6 +10,7 @@ import {
   ValidateDocumentResponse
 } from '../models/compatibility-mode.model';
 import { ProjectsService } from '../md-explorer/services/projects.service';
+import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
 @Injectable({
   providedIn: 'root'
@@ -26,7 +27,8 @@ export class CompatibilityModeService {
 
   constructor(
     private http: HttpClient,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private serverMessages: MdServerMessagesService
   ) {
     // Load initial mode
     this.loadCurrentMode();
@@ -47,7 +49,14 @@ export class CompatibilityModeService {
     // Reset to default before loading to avoid keeping old project's mode
     this.currentModeSubject.next(CompatibilityMode.MdExplorer);
 
-    this.http.get<CompatibilityConfig>(`${this.apiUrl}/mode`)
+    // Skip if connectionId not yet available (will be called again when project changes)
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      console.log('ConnectionId not yet available, skipping compatibility mode load');
+      return;
+    }
+
+    this.http.get<CompatibilityConfig>(`${this.apiUrl}/mode?ConnectionId=${connectionId}`)
       .subscribe({
         next: (config) => {
           console.log('Loaded compatibility config from backend:', config);
@@ -74,10 +83,16 @@ export class CompatibilityModeService {
 
   /**
    * Get current compatibility mode
-   * @param projectPath Optional project path. If not provided, uses current project.
+   * @param projectPath Optional project path (for project settings dialog)
    */
   getCurrentMode(projectPath?: string): Observable<CompatibilityConfig> {
-    const params = projectPath ? { projectPath } : {};
+    const connectionId = this.serverMessages.connectionId;
+    const params: any = {};
+    if (projectPath) {
+      params.projectPath = projectPath;
+    } else if (connectionId) {
+      params.ConnectionId = connectionId;
+    }
     return this.http.get<CompatibilityConfig>(`${this.apiUrl}/mode`, { params });
   }
 
@@ -85,7 +100,9 @@ export class CompatibilityModeService {
    * Set compatibility mode
    */
   setCompatibilityMode(request: SetCompatibilityModeRequest): Observable<any> {
-    return this.http.post(`${this.apiUrl}/mode`, request).pipe(
+    const connectionId = this.serverMessages.connectionId;
+    const url = connectionId ? `${this.apiUrl}/mode?ConnectionId=${connectionId}` : `${this.apiUrl}/mode`;
+    return this.http.post(url, request).pipe(
       tap(() => {
         // Reload mode after setting
         this.loadCurrentMode();
@@ -97,7 +114,9 @@ export class CompatibilityModeService {
    * Validate document for GitHub compatibility
    */
   validateDocument(request: ValidateDocumentRequest): Observable<ValidateDocumentResponse> {
-    return this.http.post<ValidateDocumentResponse>(`${this.apiUrl}/validate`, request);
+    const connectionId = this.serverMessages.connectionId;
+    const url = connectionId ? `${this.apiUrl}/validate?ConnectionId=${connectionId}` : `${this.apiUrl}/validate`;
+    return this.http.post<ValidateDocumentResponse>(url, request);
   }
 
   /**

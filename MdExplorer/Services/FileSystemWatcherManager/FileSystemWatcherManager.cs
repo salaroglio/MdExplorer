@@ -142,6 +142,25 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             return _watchers.TryGetValue(connectionId, out var context) ? context.ProjectPath : null;
         }
 
+        public void SetWatcherEnabled(string connectionId, bool enabled)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                _logger.LogWarning("SetWatcherEnabled called with null/empty connectionId");
+                return;
+            }
+
+            if (_watchers.TryGetValue(connectionId, out var context))
+            {
+                context.Watcher.EnableRaisingEvents = enabled;
+                _logger.LogDebug($"[{connectionId}] FileSystemWatcher EnableRaisingEvents set to {enabled}");
+            }
+            else
+            {
+                _logger.LogWarning($"SetWatcherEnabled: No watcher found for connection {connectionId}");
+            }
+        }
+
         private FileChangeIgnoreConfiguration LoadIgnoreConfiguration(string projectPath)
         {
             var configFilePath = Path.Combine(projectPath, ".mdchangeignore");

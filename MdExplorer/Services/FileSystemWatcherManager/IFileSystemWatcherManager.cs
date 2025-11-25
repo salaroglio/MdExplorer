@@ -34,6 +34,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// <param name="connectionId">SignalR ConnectionId</param>
         /// <returns>Project path or null if not found</returns>
         string GetProjectPath(string connectionId);
+
+        /// <summary>
+        /// Enables or disables file system monitoring for a specific connection.
+        /// Use this to temporarily disable monitoring during file write operations
+        /// to prevent the watcher from triggering on our own changes.
+        /// </summary>
+        /// <param name="connectionId">SignalR ConnectionId</param>
+        /// <param name="enabled">True to enable monitoring, false to disable</param>
+        void SetWatcherEnabled(string connectionId, bool enabled);
     }
 
     /// <summary>

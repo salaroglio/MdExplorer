@@ -21,6 +21,7 @@ using MdExplorer.Service.Controllers.WriteMD.dto;
 using MdExplorer.Service.Controllers.WriteMDDto;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -51,8 +52,9 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             IHubContext<MonitorMDHub> hubContext,
             IWorkLink[] modifiers,
             IHelper helper,
-            IDatabaseManager databaseManager = null
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
+            IDatabaseManager databaseManager = null,
+            IFileSystemWatcherManager fileSystemWatcherManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
 
@@ -68,7 +70,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         [HttpPost]
         public IActionResult SaveImgPositionAndSize([FromBody] SaveImgPostionAndSizeDto dto)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             CSSSavedOnPageInfo cssInfo;
             var systePathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
@@ -100,7 +102,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
             }
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new { Message = "Done", cssInfo.CSSHash });
         }
 
@@ -127,7 +129,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     string pathFile,
                     int tableGameIndex)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             EmojiPriorityOrderInfo info = null;
 
@@ -159,7 +161,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
 
                 // write
             }
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(info);
         }
 
@@ -168,7 +170,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         {
 
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -193,7 +195,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     .Where(_ => _.Name == "EditH1").FirstOrDefault();
             var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(indexItemMatchArray);
         }
 
@@ -202,7 +204,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         {
 
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -227,7 +229,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                    .Where(_ => _.Name == "EditH1").FirstOrDefault();
             var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(indexItemMatchArray);
         }
 
@@ -235,7 +237,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         public IActionResult SetCalendar(int index, string pathFile, string toReplace)
         {
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -257,7 +259,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 // write
             }
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok("done");
         }
 
@@ -274,7 +276,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         [HttpPost]
         async public Task<IActionResult> SetEditorH1([FromBody] SetEditorH1Request dto)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             // Sign ont RefactoringSourceAction 
             // read from LinkInsideMarkdown the list of links affected from this changes
             // then get the mdFiles you have to change in order to re-link the MdShowH2 command
@@ -372,7 +374,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 FullDirectoryPath = Path.GetDirectoryName(systemPathFile)
             };
             await _hubContext.Clients.Client(connectionId: dto.connectionId).SendAsync("markdownfileischanged", monitoredMd);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok();
         }
     }
