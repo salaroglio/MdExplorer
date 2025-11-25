@@ -204,6 +204,14 @@ namespace MdExplorer.Services.Git.Interfaces
         Task<GitOperationResult> UnstageFileAsync(string repositoryPath, string filePath);
 
         /// <summary>
+        /// Deletes an untracked file from disk
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="filePath">Relative path to the file to delete</param>
+        /// <returns>Result of the delete operation</returns>
+        Task<GitOperationResult> DeleteUntrackedFileAsync(string repositoryPath, string filePath);
+
+        /// <summary>
         /// Gets detailed information about all changed files in the repository
         /// </summary>
         /// <param name="repositoryPath">Path to the local repository</param>

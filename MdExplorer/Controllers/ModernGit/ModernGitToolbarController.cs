@@ -710,6 +710,74 @@ namespace MdExplorer.Controllers.ModernGit
                 });
             }
         }
+
+        /// <summary>
+        /// Deletes an untracked/new file from disk
+        /// </summary>
+        /// <param name="request">Request with file path</param>
+        /// <returns>Result of the delete operation</returns>
+        [HttpPost("delete-file")]
+        public async Task<IActionResult> DeleteFile([FromBody] DiscardFileRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request?.ProjectPath))
+                {
+                    return BadRequest("Project path is required");
+                }
+
+                if (string.IsNullOrEmpty(request.FilePath))
+                {
+                    return BadRequest("File path is required");
+                }
+
+                _logger.LogInformation("DeleteFile request for file: {FilePath} in project: {ProjectPath}",
+                    request.FilePath, request.ProjectPath);
+
+                // Disable file watcher during Git operations
+                _fileSystemWatcher.EnableRaisingEvents = false;
+
+                try
+                {
+                    var result = await _modernGitService.DeleteUntrackedFileAsync(request.ProjectPath, request.FilePath);
+
+                    var response = new DiscardFileResponse
+                    {
+                        Success = result.Success,
+                        Message = result.Message,
+                        ErrorMessage = result.ErrorMessage,
+                        FilePath = request.FilePath
+                    };
+
+                    if (result.Success)
+                    {
+                        _logger.LogInformation("Successfully deleted file: {FilePath}", request.FilePath);
+                        return Ok(response);
+                    }
+
+                    _logger.LogWarning("Failed to delete file: {FilePath}, Error: {Error}",
+                        request.FilePath, result.ErrorMessage);
+                    return BadRequest(response);
+                }
+                finally
+                {
+                    // Re-enable file watcher
+                    _fileSystemWatcher.EnableRaisingEvents = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting file: {FilePath} in project: {ProjectPath}",
+                    request?.FilePath, request?.ProjectPath);
+
+                return StatusCode(500, new DiscardFileResponse
+                {
+                    Success = false,
+                    ErrorMessage = "Internal server error during delete operation",
+                    FilePath = request?.FilePath
+                });
+            }
+        }
     }
 
     /// <summary>

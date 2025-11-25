@@ -690,6 +690,29 @@ export class GITService implements OnDestroy {
   }
 
   /**
+   * Delete an untracked/new file from disk
+   */
+  deleteFile(projectPath: string, filePath: string): Observable<DiscardFileResponse> {
+    const url = '../api/ModernGitToolbar/delete-file';
+    const request = {
+      projectPath: projectPath,
+      filePath: filePath,
+      isNew: true
+    };
+
+    return this.http.post<DiscardFileResponse>(url, request).pipe(
+      catchError(error => {
+        console.error('Error deleting file:', error);
+        return of({
+          success: false,
+          errorMessage: error.error?.errorMessage || error.message || 'Failed to delete file',
+          filePath: filePath
+        });
+      })
+    );
+  }
+
+  /**
    * Adapts modern Git response to legacy format for backward compatibility
    */
   private adaptModernResponseToLegacy(response: ModernGitResponse): ModernResponsePull {

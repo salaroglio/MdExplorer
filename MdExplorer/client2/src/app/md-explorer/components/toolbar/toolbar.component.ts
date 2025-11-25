@@ -31,6 +31,7 @@ import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
 import { GitChangedFile } from '../../../git/models/modern-git-models';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import _ from 'lodash';
 
 
@@ -877,51 +878,107 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Discard changes to a file (restore from HEAD) or remove from staging (for new files)
+   * Discard changes to a file (restore from HEAD) or delete new files from disk
    */
   discardFile(file: GitChangedFile): void {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
 
-    // Show confirmation only for modified files (destructive operation)
-    if (!file.isNew) {
-      const confirmed = confirm(`Vuoi scartare le modifiche a "${file.fileName}"? Questa azione non può essere annullata.`);
-      if (!confirmed) return;
-    }
+    if (file.isNew) {
+      // For new files, show dialog to confirm DELETE from disk
+      const dialogData: ConfirmDialogData = {
+        title: 'Elimina file',
+        message: `Vuoi eliminare definitivamente il file "${file.fileName}"? Questa azione non può essere annullata.`,
+        confirmText: 'Elimina',
+        cancelText: 'Annulla'
+      };
 
-    this.gitservice.discardFile(projectPath, file.relativePath, file.isNew).subscribe(
-      response => {
-        if (response.success) {
-          // Remove from local list
-          this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
-          // Update counters
-          this.checkConnection();
+      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        width: '400px',
+        data: dialogData
+      });
 
-          const action = file.isNew ? 'rimosso dallo staging' : 'ripristinato';
-          this._snackBar.open(`File "${file.fileName}" ${action}`, 'OK', {
-            duration: 3000,
-            horizontalPosition: 'right',
-            verticalPosition: 'bottom'
-          });
-        } else {
-          this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
-            duration: 5000,
-            horizontalPosition: 'right',
-            verticalPosition: 'bottom',
-            panelClass: ['error-snackbar']
-          });
+      dialogRef.afterClosed().subscribe(confirmed => {
+        if (confirmed) {
+          this.gitservice.deleteFile(projectPath, file.relativePath).subscribe(
+            response => {
+              if (response.success) {
+                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
+                this.checkConnection();
+                this._snackBar.open(`File "${file.fileName}" eliminato`, 'OK', {
+                  duration: 3000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom'
+                });
+              } else {
+                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
+                  duration: 5000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom',
+                  panelClass: ['error-snackbar']
+                });
+              }
+            },
+            error => {
+              console.error('Error deleting file:', error);
+              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
+                duration: 5000,
+                horizontalPosition: 'right',
+                verticalPosition: 'bottom',
+                panelClass: ['error-snackbar']
+              });
+            }
+          );
         }
-      },
-      error => {
-        console.error('Error discarding file:', error);
-        this._snackBar.open(`Errore: ${error.message}`, 'OK', {
-          duration: 5000,
-          horizontalPosition: 'right',
-          verticalPosition: 'bottom',
-          panelClass: ['error-snackbar']
-        });
-      }
-    );
+      });
+    } else {
+      // For modified files, show dialog to confirm discard changes
+      const dialogData: ConfirmDialogData = {
+        title: 'Scarta modifiche',
+        message: `Vuoi scartare le modifiche a "${file.fileName}"? Questa azione non può essere annullata.`,
+        confirmText: 'Scarta',
+        cancelText: 'Annulla'
+      };
+
+      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        width: '400px',
+        data: dialogData
+      });
+
+      dialogRef.afterClosed().subscribe(confirmed => {
+        if (confirmed) {
+          this.gitservice.discardFile(projectPath, file.relativePath, false).subscribe(
+            response => {
+              if (response.success) {
+                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
+                this.checkConnection();
+                this._snackBar.open(`File "${file.fileName}" ripristinato`, 'OK', {
+                  duration: 3000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom'
+                });
+              } else {
+                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
+                  duration: 5000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom',
+                  panelClass: ['error-snackbar']
+                });
+              }
+            },
+            error => {
+              console.error('Error discarding file:', error);
+              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
+                duration: 5000,
+                horizontalPosition: 'right',
+                verticalPosition: 'bottom',
+                panelClass: ['error-snackbar']
+              });
+            }
+          );
+        }
+      });
+    }
   }
 
   isTocDirectoryFile(): boolean {
