@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MdExplorer.Features.Configuration;
 using MdExplorer.Features.Configuration.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using System;
 using System.IO;
 using YamlDotNet.Serialization;
@@ -16,28 +17,70 @@ namespace MdExplorer.Service.Controllers
     {
         private readonly ILogger<CompatibilityController> _logger;
         private readonly ICompatibilityModeService _compatibilityService;
+        private readonly IDatabaseManager _databaseManager;
         private readonly FileSystemWatcher _fileSystemWatcher;
 
         public CompatibilityController(
             ILogger<CompatibilityController> logger,
             ICompatibilityModeService compatibilityService,
+            IDatabaseManager databaseManager,
             FileSystemWatcher fileSystemWatcher)
         {
             _logger = logger;
             _compatibilityService = compatibilityService;
+            _databaseManager = databaseManager;
             _fileSystemWatcher = fileSystemWatcher;
+        }
+
+        /// <summary>
+        /// Gets the project path for the current client based on ConnectionId.
+        /// Falls back to global FileSystemWatcher if ConnectionId not provided.
+        /// </summary>
+        private string GetProjectPath(string connectionId)
+        {
+            if (!string.IsNullOrEmpty(connectionId) && _databaseManager != null)
+            {
+                try
+                {
+                    var context = _databaseManager.GetContext(connectionId);
+                    if (context != null && !string.IsNullOrEmpty(context.ProjectPath))
+                    {
+                        _logger.LogDebug($"GetProjectPath from DatabaseManager for {connectionId}: {context.ProjectPath}");
+                        return context.ProjectPath;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Failed to get project path from DatabaseManager for connection {connectionId}");
+                }
+            }
+
+            // Fallback to global FileSystemWatcher (backward compatibility)
+            _logger.LogDebug($"GetProjectPath fallback to FileSystemWatcher: {_fileSystemWatcher?.Path}");
+            return _fileSystemWatcher?.Path;
         }
 
         /// <summary>
         /// Get current compatibility mode configuration
         /// </summary>
-        /// <param name="projectPath">Optional project path. If not provided, uses current FileSystemWatcher path.</param>
+        /// <param name="ConnectionId">Client connection ID to identify the project.</param>
+        /// <param name="projectPath">Optional explicit project path (overrides ConnectionId, used by project settings dialog).</param>
         [HttpGet("mode")]
-        public IActionResult GetCompatibilityMode([FromQuery] string projectPath = null)
+        public IActionResult GetCompatibilityMode([FromQuery] string ConnectionId = null, [FromQuery] string projectPath = null)
         {
             try
             {
-                var targetPath = string.IsNullOrEmpty(projectPath) ? _fileSystemWatcher.Path : projectPath;
+                // projectPath has priority over ConnectionId (for project settings dialog)
+                var targetPath = !string.IsNullOrEmpty(projectPath) ? projectPath : GetProjectPath(ConnectionId);
+                if (string.IsNullOrEmpty(targetPath))
+                {
+                    _logger.LogWarning("GetCompatibilityMode - No project path available, using default MdExplorer mode");
+                    return Ok(new
+                    {
+                        mode = "mdexplorer",
+                        config = new { githubOptions = new GitHubCompatibilityOptions() }
+                    });
+                }
                 var devConfigPath = Path.Combine(targetPath, ".development.yml");
 
                 _logger.LogInformation($"GetCompatibilityMode - Reading from: {devConfigPath}");
@@ -112,11 +155,17 @@ namespace MdExplorer.Service.Controllers
         /// Update compatibility mode in .development.yml
         /// </summary>
         [HttpPost("mode")]
-        public IActionResult SetCompatibilityMode([FromBody] SetCompatibilityModeRequest request)
+        public IActionResult SetCompatibilityMode([FromBody] SetCompatibilityModeRequest request, [FromQuery] string ConnectionId = null)
         {
             try
             {
-                var targetPath = string.IsNullOrEmpty(request.ProjectPath) ? _fileSystemWatcher.Path : request.ProjectPath;
+                // ProjectPath in body has priority over ConnectionId (for project settings dialog)
+                var targetPath = !string.IsNullOrEmpty(request.ProjectPath) ? request.ProjectPath : GetProjectPath(ConnectionId);
+                if (string.IsNullOrEmpty(targetPath))
+                {
+                    _logger.LogWarning("SetCompatibilityMode - No project path available");
+                    return BadRequest(new { error = "No project path available. Please open a project first." });
+                }
                 var devConfigPath = Path.Combine(targetPath, ".development.yml");
 
                 _logger.LogInformation($"SetCompatibilityMode - Writing to: {devConfigPath}, Mode: {request.Mode}");
@@ -154,11 +203,8 @@ namespace MdExplorer.Service.Controllers
 
                 _logger.LogInformation($"SetCompatibilityMode - Successfully saved to: {devConfigPath}");
 
-                // Reload configuration in service only if we're writing to the current project
-                if (string.IsNullOrEmpty(request.ProjectPath))
-                {
-                    _compatibilityService.ReloadConfiguration();
-                }
+                // Reload configuration in service (no-op in multi-client mode, but kept for backward compatibility)
+                _compatibilityService.ReloadConfiguration();
 
                 _logger.LogInformation($"Compatibility mode updated to: {request.Mode}");
                 return Ok(new { message = "Compatibility mode updated successfully", mode = request.Mode });
@@ -174,11 +220,12 @@ namespace MdExplorer.Service.Controllers
         /// Check if current document uses incompatible features in GitHub mode
         /// </summary>
         [HttpPost("validate")]
-        public IActionResult ValidateDocument([FromBody] ValidateDocumentRequest request)
+        public IActionResult ValidateDocument([FromBody] ValidateDocumentRequest request, [FromQuery] string ConnectionId = null)
         {
             try
             {
-                var mode = _compatibilityService.GetMode();
+                var targetPath = GetProjectPath(ConnectionId);
+                var mode = _compatibilityService.GetMode(targetPath);
                 if (mode != CompatibilityMode.GitHub)
                 {
                     return Ok(new { compatible = true, warnings = new string[0] });
@@ -225,7 +272,7 @@ namespace MdExplorer.Service.Controllers
     {
         public string Mode { get; set; }
         public GitHubCompatibilityOptions GitHubOptions { get; set; }
-        public string ProjectPath { get; set; }
+        public string ProjectPath { get; set; }  // Optional: overrides ConnectionId for project settings dialog
     }
 
     public class ValidateDocumentRequest

@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using MdExplorer.Features.GIT.models;
 using MdExplorer.Service.Controllers.GIT.models;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Service.Controllers.GIT
 {
@@ -33,7 +34,7 @@ namespace MdExplorer.Service.Controllers.GIT
     {
         private readonly IGitService _gitService;                                                   
         public GitFeatureController(IGitService gitService,
-        FileSystemWatcher fileSystemWatcher,        
+        FileSystemWatcher fileSystemWatcher,
         IOptions<MdExplorerAppSettings> options,
         ILogger<GitFeatureController> logger,
         IHubContext<MonitorMDHub> hubContext,
@@ -41,9 +42,10 @@ namespace MdExplorer.Service.Controllers.GIT
         ICommandRunnerHtml commandRunner,
          IHelper helper,
          IWorkLink[] modifiers,
-        IEngineDB engineDB) : base(logger, fileSystemWatcher, options, 
-            hubContext, session, engineDB, commandRunner, 
-            modifiers, helper)
+        IEngineDB engineDB,
+        IDatabaseManager databaseManager = null) : base(logger, fileSystemWatcher, options,
+            hubContext, session, engineDB, commandRunner,
+            modifiers, helper, databaseManager)
         {
             _gitService = gitService;            
         }
@@ -65,7 +67,7 @@ namespace MdExplorer.Service.Controllers.GIT
             _fileSystemWatcher.EnableRaisingEvents = false;
 
 
-            var filesToBeChanged = _gitService.CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path, pullInfo);
+            var filesToBeChanged = _gitService.CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(GetProjectPath(), pullInfo);
             var filesMdo = filesToBeChanged.Select(_ => {
                 var myData = new FilesAndAuthorsChangedMdo
                 {
@@ -81,7 +83,7 @@ namespace MdExplorer.Service.Controllers.GIT
 
             foreach (var fileMdo in filesMdo)
             {
-                var splittedFullPath = fileMdo.FullPath.Replace(_fileSystemWatcher.Path, string.Empty).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
+                var splittedFullPath = fileMdo.FullPath.Replace(GetProjectPath(), string.Empty).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
                 var currentPathName = string.Empty;
                 var currentLevel = 0;
                 foreach (var item in splittedFullPath)
@@ -90,7 +92,7 @@ namespace MdExplorer.Service.Controllers.GIT
                     var myNewMd = new FileInfoNode
                     {
                         Name = item,
-                        FullPath = _fileSystemWatcher.Path + currentPathName,
+                        FullPath = GetProjectPath() + currentPathName,
                         Level = currentLevel,
                         Path = currentPathName,
                         RelativePath = currentPathName,
@@ -117,7 +119,7 @@ namespace MdExplorer.Service.Controllers.GIT
             // prepare multiple data for client
 
 
-            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            pullInfo.ProjectPath = GetProjectPath();
 
             var pullResult = _gitService.Pull(pullInfo);
             RefreshDatabase(filesToBeChanged);            
@@ -140,11 +142,11 @@ namespace MdExplorer.Service.Controllers.GIT
 
         private void RefreshDatabase(IEnumerable<FileNameAndAuthor> filesToBeChanged)
         {
-            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var relDal = GetEngineDB().GetDal<MarkdownFile>();
             foreach (var item in filesToBeChanged)
             {
                 var mdFile = relDal.GetList().FirstOrDefault(_ => _.Path == item.FullPath);
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
                 if (mdFile == null)
                 {
                     relDal.Save(new MarkdownFile
@@ -158,7 +160,7 @@ namespace MdExplorer.Service.Controllers.GIT
                 {
                     SaveLinksFromMarkdown(mdFile);
                 }
-                _engineDB.Commit();
+                GetEngineDB().Commit();
             }
         }
 
@@ -173,7 +175,7 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult CommitAndPush(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-             pullInfo.ProjectPath = _fileSystemWatcher.Path;
+             pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
@@ -193,7 +195,7 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult Commit(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
@@ -213,7 +215,7 @@ namespace MdExplorer.Service.Controllers.GIT
         public IActionResult Push(PullInfo pullInfo)
         {
             _fileSystemWatcher.EnableRaisingEvents = false;
-            pullInfo.ProjectPath = _fileSystemWatcher.Path;
+            pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,

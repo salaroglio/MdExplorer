@@ -185,6 +185,38 @@ namespace MdExplorer.Services.Git.Interfaces
         /// </summary>
         /// <param name="repositoryPath">Path to the local repository</param>
         void ClearProjectCache(string repositoryPath);
+
+        /// <summary>
+        /// Discards changes to a specific file (equivalent to git restore/checkout -- file)
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="filePath">Relative path to the file to discard</param>
+        /// <returns>Result of the discard operation</returns>
+        Task<GitOperationResult> DiscardFileChangesAsync(string repositoryPath, string filePath);
+
+        /// <summary>
+        /// Removes a file from staging area (equivalent to git reset HEAD file)
+        /// The file remains on disk as untracked
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="filePath">Relative path to the file to unstage</param>
+        /// <returns>Result of the unstage operation</returns>
+        Task<GitOperationResult> UnstageFileAsync(string repositoryPath, string filePath);
+
+        /// <summary>
+        /// Deletes an untracked file from disk
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <param name="filePath">Relative path to the file to delete</param>
+        /// <returns>Result of the delete operation</returns>
+        Task<GitOperationResult> DeleteUntrackedFileAsync(string repositoryPath, string filePath);
+
+        /// <summary>
+        /// Gets detailed information about all changed files in the repository
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <returns>Detailed status with file information</returns>
+        Task<GitDetailedStatus> GetDetailedStatusAsync(string repositoryPath);
     }
 
     /// <summary>
@@ -200,6 +232,53 @@ namespace MdExplorer.Services.Git.Interfaces
         public bool IsDirty => HasChanges || (Untracked?.Any() ?? false);
         public int CommitsAhead { get; set; }
         public int CommitsBehind { get; set; }
+    }
+
+    /// <summary>
+    /// Detailed repository status with full file information
+    /// </summary>
+    public class GitDetailedStatus
+    {
+        /// <summary>
+        /// List of all changed files with detailed information
+        /// </summary>
+        public IEnumerable<GitChangedFileInfo> Files { get; set; }
+
+        /// <summary>
+        /// Total count of changed files
+        /// </summary>
+        public int TotalCount => Files?.Count() ?? 0;
+    }
+
+    /// <summary>
+    /// Detailed information about a changed file
+    /// </summary>
+    public class GitChangedFileInfo
+    {
+        /// <summary>
+        /// File name only
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
+        /// Relative path from repository root
+        /// </summary>
+        public string RelativePath { get; set; }
+
+        /// <summary>
+        /// Full absolute path
+        /// </summary>
+        public string FullPath { get; set; }
+
+        /// <summary>
+        /// Status of the file: Modified, Added, Deleted, Untracked
+        /// </summary>
+        public string Status { get; set; }
+
+        /// <summary>
+        /// True if the file is new (Untracked or Added)
+        /// </summary>
+        public bool IsNew { get; set; }
     }
 
     /// <summary>

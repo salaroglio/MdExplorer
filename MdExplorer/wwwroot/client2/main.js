@@ -386,6 +386,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ "fXoL");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
 /* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ "vUCT");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ "+dpY");
+
 
 
 
@@ -393,9 +395,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class CompatibilityModeService {
-    constructor(http, projectsService) {
+    constructor(http, projectsService, serverMessages) {
         this.http = http;
         this.projectsService = projectsService;
+        this.serverMessages = serverMessages;
         this.apiUrl = '/api/compatibility';
         // Observable per il mode corrente
         this.currentModeSubject = new rxjs__WEBPACK_IMPORTED_MODULE_0__["BehaviorSubject"](_models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__["CompatibilityMode"].MdExplorer);
@@ -418,7 +421,13 @@ class CompatibilityModeService {
     loadCurrentMode() {
         // Reset to default before loading to avoid keeping old project's mode
         this.currentModeSubject.next(_models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__["CompatibilityMode"].MdExplorer);
-        this.http.get(`${this.apiUrl}/mode`)
+        // Skip if connectionId not yet available (will be called again when project changes)
+        const connectionId = this.serverMessages.connectionId;
+        if (!connectionId) {
+            console.log('ConnectionId not yet available, skipping compatibility mode load');
+            return;
+        }
+        this.http.get(`${this.apiUrl}/mode?ConnectionId=${connectionId}`)
             .subscribe({
             next: (config) => {
                 var _a;
@@ -441,17 +450,26 @@ class CompatibilityModeService {
     }
     /**
      * Get current compatibility mode
-     * @param projectPath Optional project path. If not provided, uses current project.
+     * @param projectPath Optional project path (for project settings dialog)
      */
     getCurrentMode(projectPath) {
-        const params = projectPath ? { projectPath } : {};
+        const connectionId = this.serverMessages.connectionId;
+        const params = {};
+        if (projectPath) {
+            params.projectPath = projectPath;
+        }
+        else if (connectionId) {
+            params.ConnectionId = connectionId;
+        }
         return this.http.get(`${this.apiUrl}/mode`, { params });
     }
     /**
      * Set compatibility mode
      */
     setCompatibilityMode(request) {
-        return this.http.post(`${this.apiUrl}/mode`, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(() => {
+        const connectionId = this.serverMessages.connectionId;
+        const url = connectionId ? `${this.apiUrl}/mode?ConnectionId=${connectionId}` : `${this.apiUrl}/mode`;
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(() => {
             // Reload mode after setting
             this.loadCurrentMode();
         }));
@@ -460,7 +478,9 @@ class CompatibilityModeService {
      * Validate document for GitHub compatibility
      */
     validateDocument(request) {
-        return this.http.post(`${this.apiUrl}/validate`, request);
+        const connectionId = this.serverMessages.connectionId;
+        const url = connectionId ? `${this.apiUrl}/validate?ConnectionId=${connectionId}` : `${this.apiUrl}/validate`;
+        return this.http.post(url, request);
     }
     /**
      * Check if current mode is GitHub
@@ -530,7 +550,7 @@ class CompatibilityModeService {
         }
     }
 }
-CompatibilityModeService.ɵfac = function CompatibilityModeService_Factory(t) { return new (t || CompatibilityModeService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_5__["ProjectsService"])); };
+CompatibilityModeService.ɵfac = function CompatibilityModeService_Factory(t) { return new (t || CompatibilityModeService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_5__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_6__["MdServerMessagesService"])); };
 CompatibilityModeService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: CompatibilityModeService, factory: CompatibilityModeService.ɵfac, providedIn: 'root' });
 
 
@@ -1796,6 +1816,56 @@ class GITService {
         return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
             console.error('Error getting repository status:', error);
             return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({ hasChanges: false, files: [] });
+        }));
+    }
+    /**
+     * Get list of all changed files in the repository
+     */
+    getChangedFiles(projectPath) {
+        const url = `../api/ModernGitToolbar/changed-files?projectPath=${encodeURIComponent(projectPath)}`;
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error getting changed files:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({ files: [], totalCount: 0 });
+        }));
+    }
+    /**
+     * Discard changes to a file (restore from HEAD) or unstage a new file
+     */
+    discardFile(projectPath, filePath, isNew) {
+        const url = '../api/ModernGitToolbar/discard-file';
+        const request = {
+            projectPath: projectPath,
+            filePath: filePath,
+            isNew: isNew
+        };
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error discarding file:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                success: false,
+                errorMessage: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.errorMessage) || error.message || 'Failed to discard file',
+                filePath: filePath
+            });
+        }));
+    }
+    /**
+     * Delete an untracked/new file from disk
+     */
+    deleteFile(projectPath, filePath) {
+        const url = '../api/ModernGitToolbar/delete-file';
+        const request = {
+            projectPath: projectPath,
+            filePath: filePath,
+            isNew: true
+        };
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error deleting file:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                success: false,
+                errorMessage: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.errorMessage) || error.message || 'Failed to delete file',
+                filePath: filePath
+            });
         }));
     }
     /**
@@ -3447,8 +3517,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.15.30',
-    buildTime: '2025.11.15 19:10:55'
+    version: '2025.11.25.15',
+    buildTime: '2025.11.25 18:18:14'
 };
 
 
@@ -3469,15 +3539,18 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ "25Jb");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ "fXoL");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ "+dpY");
+
 
 
 
 
 
 class ProjectsService {
-    constructor(http, injector) {
+    constructor(http, injector, monitorMDService) {
         this.http = http;
         this.injector = injector;
+        this.monitorMDService = monitorMDService;
         this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
         this.dataStore = { mdProjects: [] };
         this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
@@ -3502,7 +3575,7 @@ class ProjectsService {
         });
     }
     setNewFolderProject(path) {
-        const url = '../api/MdProjects/SetFolderProject';
+        const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
         this.http.post(url, { path: path }).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
             // Update compatibility mode from response
@@ -3519,7 +3592,7 @@ class ProjectsService {
         }));
     }
     createProjectWithConfig(config) {
-        const url = '../api/MdProjects/SetFolderProject';
+        const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
         const request = {
             path: config.projectPath,
             initializeGit: config.initializeGit,
@@ -3555,7 +3628,7 @@ class ProjectsService {
         });
     }
 }
-ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"])); };
+ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__["MdServerMessagesService"])); };
 ProjectsService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: ProjectsService, factory: ProjectsService.ɵfac, providedIn: 'root' });
 
 

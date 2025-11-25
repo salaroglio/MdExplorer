@@ -32,8 +32,10 @@ namespace MdExplorer.Features.Commands.html
         }
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
+            _logger.LogInformation($"🔍 [FromEmojiToDynamicProcessHtml] TransformInNewMDFromMD called for file: {requestInfo.AbsolutePathFile}");
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);
+            _logger.LogInformation($"🔍 [FromEmojiToDynamicProcessHtml] Found {matches.Count} process emoji matches");
             var currentIncrement = 0;
             for (int i = 0; i < matches.Count; i++)
             {

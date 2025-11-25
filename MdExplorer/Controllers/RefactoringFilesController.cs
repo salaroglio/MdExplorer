@@ -10,7 +10,9 @@ using MdExplorer.Features.Refactoring.Analysis;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using MdExplorer.Service.Utilities;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,26 +29,59 @@ namespace MdExplorer.Service.Controllers
         private readonly IEngineDB _engineDB;
         private readonly IMapper _mapper;
         private readonly RefactoringManager _refactoringManager;
-        private ProcessUtil _visualStudioCode;
-
-
+        private readonly ProcessUtil _visualStudioCode;
+        private readonly IDatabaseManager _databaseManager;
+        private readonly ILogger<RefactoringFilesController> _logger;
 
         public RefactoringFilesController(IEngineDB engineDB,
                     IMapper mapper,
                     RefactoringManager refactoringManager,
-                    ProcessUtil visualStudioCode)
+                    ProcessUtil visualStudioCode,
+                    IDatabaseManager databaseManager = null,
+                    ILogger<RefactoringFilesController> logger = null)
         {
             _engineDB = engineDB;
             _mapper = mapper;
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
+            _databaseManager = databaseManager;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Gets EngineDB for current client. Uses DatabaseManager if available, otherwise falls back to injected _engineDB.
+        /// </summary>
+        protected IEngineDB GetEngineDB()
+        {
+            if (_databaseManager == null)
+            {
+                return _engineDB;
+            }
+
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                _logger?.LogWarning("⚠️ ConnectionId not provided in RefactoringFilesController request");
+                return _engineDB;
+            }
+
+            try
+            {
+                var context = _databaseManager.GetContext(connectionId);
+                return context?.EngineDB ?? _engineDB;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Failed to get database context for connection {connectionId}");
+                return _engineDB;
+            }
         }
 
         [HttpGet]
         public IActionResult GetRefactoringSourceActionList(Guid RefactoringSourceActionId)
         {
-            _engineDB.BeginTransaction();            
-            var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
+            GetEngineDB().BeginTransaction();            
+            var sourceActionDal = GetEngineDB().GetDal<RefactoringSourceAction>();
             var theAction = sourceActionDal.GetList().Where(_=>_.Id == RefactoringSourceActionId).First();
 
             var listToReturn = new List<dynamic>();
@@ -60,7 +95,7 @@ namespace MdExplorer.Service.Controllers
                                     involvedAction.NewLinkToReplace });
             }
             
-            _engineDB.Commit();
+            GetEngineDB().Commit();
             return Ok(listToReturn);
 
         }
@@ -86,7 +121,7 @@ namespace MdExplorer.Service.Controllers
                 // Step 1: Rinomina il file nel filesystem
                 RenameFileOnFilesystem(fileData);
 
-                _engineDB.BeginTransaction();            
+                GetEngineDB().BeginTransaction();            
                 var refSourceAct = _refactoringManager
                     .SaveRefactoringActionForRenameFile(fileData.FullPath,
                     fileData.FromFileName, fileData.ToFileName); // Save the concept of change
@@ -100,7 +135,7 @@ namespace MdExplorer.Service.Controllers
                     .RenameTheMdFileIntoEngineDB(fileData.FullPath,
                     fileData.FromFileName, fileData.ToFileName);
 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
 
                 var toReturn = new ChangeFileData
                 {
@@ -119,7 +154,7 @@ namespace MdExplorer.Service.Controllers
             catch (Exception ex)
             {
                 // Log the error and rollback transaction
-                try { _engineDB.Rollback(); } catch { }
+                try { GetEngineDB().Rollback(); } catch { }
                 
                 // Return detailed error for debugging
                 return StatusCode(500, new { 

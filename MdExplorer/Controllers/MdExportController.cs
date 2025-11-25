@@ -63,7 +63,7 @@ namespace MdExplorer.Service.Controllers
         {
             try
             {
-                var filePath = _fileSystemWatcher.Path;
+                var filePath = GetProjectPath();
                 var relativePath = GetRelativePathFileSystem("mdexport");
                 var relativePathExtension = Path.GetExtension(relativePath);
 
@@ -94,7 +94,7 @@ namespace MdExplorer.Service.Controllers
                 var requestInfo = new RequestInfo()
                 {
                     CurrentQueryRequest = relativePath,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     AbsolutePathFile = filePath,
                     BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
 
@@ -112,21 +112,21 @@ namespace MdExplorer.Service.Controllers
                     readText = await _wordTemplateService.InsertPredefinedPagesAsync(
                         readText, 
                         docDesc, 
-                        _fileSystemWatcher.Path
+                        GetProjectPath()
                     );
                     
                     _logger.LogInformation("Pagine predefinite inserite per il documento {0}", filePath);
                 }
 
                 // Verifica che la directory .md esista prima di cambiare directory
-                var mdTempDir = Path.Combine(_fileSystemWatcher.Path, ".md");
+                var mdTempDir = Path.Combine(GetProjectPath(), ".md");
                 
                 if (!Directory.Exists(mdTempDir))
                 {
                     Directory.CreateDirectory(mdTempDir);
                 }
                 
-                Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+                Directory.SetCurrentDirectory(GetProjectPath());
 
                 // TODO: Use Pandoc to create document
                 string currentFilePdfPath;
@@ -134,14 +134,14 @@ namespace MdExplorer.Service.Controllers
 
                 //StartNewProcess(filePath, readText, "pdf", out currentFilePdfPath, out processStarted);
                 var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf, _yamlDocumentManager, _logger);
-                pandoc.StartNewPandoc(filePath,_fileSystemWatcher.Path , readText, out currentFilePdfPath, out processStarted);
+                pandoc.StartNewPandoc(filePath,GetProjectPath() , readText, out currentFilePdfPath, out processStarted);
 
                 processStarted.EnableRaisingEvents = true;
                 monitoredMd = new MonitoredMDModel
                 {
                     Path = currentFilePdfPath,
                     Name = Path.GetFileName(currentFilePdfPath),
-                    RelativePath = currentFilePdfPath.Replace(_fileSystemWatcher.Path, string.Empty),
+                    RelativePath = currentFilePdfPath.Replace(GetProjectPath(), string.Empty),
                     ConnectionId = connectionId,
                     StartExportTime = DateTime.Now
                 };

@@ -67,6 +67,7 @@ using MdExplorer.Abstractions.Services;
 using MdExplorer.Service.Services;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Service.Controllers.MdFiles
 {
@@ -109,8 +110,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
         ProcessUtil visualStudioCode,
         IMdIgnoreService mdIgnoreService,
         FoldersIgnoreService foldersIgnoreService,
-        IServiceScopeFactory serviceScopeFactory
-            ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper)
+        IServiceScopeFactory serviceScopeFactory,
+        IDatabaseManager databaseManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager)
         {
 
             _goodRules = GoodRules;
@@ -177,7 +179,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             try
             {
-                var projectBasePath = _fileSystemWatcher.Path;
+                var projectBasePath = GetProjectPath();
                 var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath.Substring(1);
                 var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
 
@@ -185,15 +187,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 var fileName = requestMoveMdFile.MdFile.Name;
                 var relativeDestinationPath = requestMoveMdFile.DestinationPath
-                                        .Replace(_fileSystemWatcher.Path, "").Substring(1);
+                                        .Replace(GetProjectPath(), "").Substring(1);
                 var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
-                var toFullPathFileName = Path.Combine(_fileSystemWatcher.Path, toRelativePathFileName);
+                var toFullPathFileName = Path.Combine(GetProjectPath(), toRelativePathFileName);
 
                 _logger.LogInformation($"[MoveMdFile] To: {toFullPathFileName}");
 
                 MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
                 _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
                     fromRelativePathFileName, toRelativePathFileName);
 
@@ -214,14 +216,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 // After save, get back the list of links inside involved files
                 _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 _logger.LogInformation("[MoveMdFile] Completed successfully");
                 return Ok(new { message = "done" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[MoveMdFile] Error during move operation");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 return StatusCode(500, new { error = ex.Message });
             }
         }
@@ -240,7 +242,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult OpenInheritingTemplateWord([FromBody] RequestOpenInheritingTemplateWord request)
         {
-            var templatePath = Path.Combine(_fileSystemWatcher.Path, ".md", "templates", "word",
+            var templatePath = Path.Combine(GetProjectPath(), ".md", "templates", "word",
                 $"{request.TemplateName}.docx");
             
             // Open Word template with default application
@@ -277,7 +279,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var folderContainintMdFile = Path.GetDirectoryName(request.MdFile.FullPath);
             var destinationDirectory = Directory.CreateDirectory(folderContainintMdFile + Path.DirectorySeparatorChar + "assets");
             
-            var trueFileName = Path.GetFileNameWithoutExtension(request.FullPath.Replace(" ", "-")) + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(request.FullPath);
+            var originalFileName = Path.GetFileNameWithoutExtension(request.FullPath);
+            var sanitizedFileName = SanitizeFileName(originalFileName);
+            var trueFileName = sanitizedFileName + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(request.FullPath);
             var fullPathFileName = destinationDirectory.FullName 
                 + Path.DirectorySeparatorChar + trueFileName
                 ;
@@ -293,8 +297,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
            
             _fileSystemWatcher.EnableRaisingEvents = true;
             var allText = System.IO.File.ReadAllText(request.MdFile.FullPath);
-            //We have to set an absolute path
-            var relativePathMDE = fullPathFileName.Replace(_fileSystemWatcher.Path, string.Empty).Replace("\\", "/");
+            // Normalize both paths to forward slashes before replacing to get relative path
+            var projectPathNormalized = GetProjectPath().Replace("\\", "/");
+            var fullPathNormalized = fullPathFileName.Replace("\\", "/");
+            // Use case-insensitive replace for Windows compatibility
+            var relativePathMDE = ReplaceCaseInsensitive(fullPathNormalized, projectPathNormalized, string.Empty);
             var newLineTextToAdd = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
             allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
             System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
@@ -396,7 +403,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult OpenCustomWordTemplate([FromBody] FileInfoNode fileData)
         {
             // copy reference.docx
-            var fromReference = _fileSystemWatcher.Path +
+            var fromReference = GetProjectPath() +
                 Path.DirectorySeparatorChar +
                 ".md" +
                 Path.DirectorySeparatorChar +
@@ -725,7 +732,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult GetDynFoldersDocument([FromQuery] string path, string level)
         {
             var currentPath = path == "root" ? GetSystemRootPath() : path;
-            currentPath = path == "project" ? _fileSystemWatcher.Path : currentPath;
+            currentPath = path == "project" ? GetProjectPath() : currentPath;
             currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
 
             var currentLevel = Convert.ToInt32(level);
@@ -774,7 +781,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult GetDynFoldersAndFilesDocument([FromQuery] string path, string level)
         {
             var currentPath = path == "root" ? GetSystemRootPath() : path;
-            currentPath = path == "project" ? _fileSystemWatcher.Path : currentPath;
+            currentPath = path == "project" ? GetProjectPath() : currentPath;
             currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
 
             var currentLevel = Convert.ToInt32(level);
@@ -1091,15 +1098,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 _logger.LogInformation("[IndexAllMarkdownFiles] Starting initial indexing of all markdown files");
                 
-                var currentPath = _fileSystemWatcher.Path;
+                var currentPath = GetProjectPath();
                 if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
                 {
                     _logger.LogWarning("[IndexAllMarkdownFiles] Invalid path, skipping indexing");
                     return;
                 }
                 
-                _engineDB.BeginTransaction();
-                var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
+                GetEngineDB().BeginTransaction();
+                var markdownFileDal = GetEngineDB().GetDal<MarkdownFile>();
                 
                 // Trova tutti i file .md ricorsivamente, escludendo i path ignorati
                 var allMdFiles = Directory.GetFiles(currentPath, "*.md", SearchOption.AllDirectories)
@@ -1130,13 +1137,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     }
                 }
                 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 _logger.LogInformation($"[IndexAllMarkdownFiles] Initial indexing completed - {allMdFiles.Count} files indexed");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during initial indexing - rolling back");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 throw;
             }
         }
@@ -1147,20 +1154,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup - removing ALL records");
                 
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
                 
                 // IMPORTANTE: Cancella TUTTO il contenuto delle due tabelle
                 // Prima i link (hanno foreign key verso MarkdownFile)
                 _logger.LogInformation("[CleanupDatabase] Step 1: Deleting all LinkInsideMarkdown records");
-                _engineDB.Delete("from LinkInsideMarkdown");
-                _engineDB.Flush();
+                GetEngineDB().Delete("from LinkInsideMarkdown");
+                GetEngineDB().Flush();
                 
                 // Poi i file (dopo che i link sono stati eliminati)
                 _logger.LogInformation("[CleanupDatabase] Step 2: Deleting all MarkdownFile records");
-                _engineDB.Delete("from MarkdownFile");
-                _engineDB.Flush();
+                GetEngineDB().Delete("from MarkdownFile");
+                GetEngineDB().Flush();
                 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 
                 _logger.LogInformation("[CleanupDatabase] Database cleanup completed - both tables are now empty");
                 _logger.LogInformation("[CleanupDatabase] Ready for fresh indexing from filesystem");
@@ -1168,7 +1175,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup - rolling back");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 throw; // Rilancia l'eccezione per fermare il processo
             }
         }
@@ -1179,7 +1186,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             signalRConnectionId = connectionId;
             
             var list = new List<IFileInfoNode>();
-            var currentPath = _fileSystemWatcher.Path;
+            var currentPath = GetProjectPath();
             
             if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
@@ -1222,12 +1229,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // File nella root
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
             {
-                if (_mdIgnoreService.ShouldIgnorePath(itemFile, _fileSystemWatcher.Path))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, GetProjectPath()))
                 {
                     continue;
                 }
                 
-                var relativePath = itemFile.Substring(_fileSystemWatcher.Path.Length);
+                var relativePath = itemFile.Substring(GetProjectPath().Length);
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, relativePath);
                 nodeFile.IsIndexed = false;
                 nodeFile.IndexingStatus = "idle";
@@ -1277,7 +1284,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("parsingProjectStart", "process started");
 
             var list = new List<IFileInfoNode>();
-            var currentPath = _fileSystemWatcher.Path;
+            var currentPath = GetProjectPath();
             if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
                 return Ok(list);
@@ -1292,13 +1299,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 _userSettingsDB.BeginTransaction();
                 var projectDal = _userSettingsDB.GetDal<Project>();
-                if (_fileSystemWatcher.Path != string.Empty)
+                if (GetProjectPath() != string.Empty)
                 {
-                    var currentProject = projectDal.GetList().Where(_ => _.Path == _fileSystemWatcher.Path).FirstOrDefault();
+                    var currentProject = projectDal.GetList().Where(_ => _.Path == GetProjectPath()).FirstOrDefault();
                     if (currentProject == null)
                     {
-                        var projectName = System.IO.Path.GetFileName(_fileSystemWatcher.Path);
-                        currentProject = new Project { Name = projectName, Path = _fileSystemWatcher.Path };
+                        var projectName = System.IO.Path.GetFileName(GetProjectPath());
+                        currentProject = new Project { Name = projectName, Path = GetProjectPath() };
                         projectDal.Save(currentProject);
                     }
                 }
@@ -1308,7 +1315,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
                 {
                     // Check if folder should be ignored
-                    if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
+                    if (_mdIgnoreService.ShouldIgnorePath(itemFolder, GetProjectPath()))
                     {
                         continue;
                     }
@@ -1326,7 +1333,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
                 {
-                    var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+                    var patchedItemFile = itemFile.Substring(GetProjectPath().Length);
                     var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                     list.Add(node);
                 }
@@ -1334,16 +1341,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _hubContext.Clients.Client(connectionId: connectionId)
                         .SendAsync("indexingFolder", "deleting database").Wait();
                 // nettificazione dei folder che non contengono md            
-                _engineDB.BeginTransaction();
-                _engineDB.Delete("from LinkInsideMarkdown");
-                _engineDB.Flush();
-                _engineDB.Delete("from MarkdownFile");
-                _engineDB.Flush();
+                GetEngineDB().BeginTransaction();
+                GetEngineDB().Delete("from LinkInsideMarkdown");
+                GetEngineDB().Flush();
+                GetEngineDB().Delete("from MarkdownFile");
+                GetEngineDB().Flush();
 
                 _hubContext.Clients.Client(connectionId: connectionId)
                         .SendAsync("indexingFolder", "creating database").Wait();
                 SaveRealationships(list);
-                _engineDB.Commit();
+                GetEngineDB().Commit();
 
                 GC.Collect();
                 var nodeempty = new FileInfoNode
@@ -1436,7 +1443,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + title;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
-                fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + title;
+                fullPath = GetProjectPath() + Path.DirectorySeparatorChar + title;
             }
 
             // Text Document Management            
@@ -1444,7 +1451,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var snippetTextDocument = _snippets.Where(_ => _.Id == 0).FirstOrDefault();
             var dictParam = new DictionarySnippetParam();
             dictParam.Add(ParameterName.StringDocumentTitle, fileData.Title);
-            dictParam.Add(ParameterName.ProjectPath, _fileSystemWatcher.Path);
+            dictParam.Add(ParameterName.ProjectPath, GetProjectPath());
             dictParam.Add(ParameterName.DocumentType, fileData.DocumentType);
             templateContent = snippetTextDocument.GetSnippet(dictParam);
 
@@ -1459,7 +1466,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             // write content
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
+            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty);
             System.IO.File.WriteAllText(fullPath, templateContent);
 
 
@@ -1527,7 +1534,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var node = new FileInfoNode
                 {
                     Name = item,
-                    FullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + dynamicRelativePath,
+                    FullPath = GetProjectPath() + Path.DirectorySeparatorChar + dynamicRelativePath,
                     RelativePath = dynamicRelativePath,
                     Path = dynamicRelativePath,
                     Type = "folder",
@@ -1555,7 +1562,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _fileSystemWatcher.EnableRaisingEvents = false;
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
 
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
+            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty);
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -1571,7 +1578,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var node = new FileInfoNode
                 {
                     Name = item,
-                    FullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + dynamicRelativePath,
+                    FullPath = GetProjectPath() + Path.DirectorySeparatorChar + dynamicRelativePath,
                     RelativePath = dynamicRelativePath,
                     Path = dynamicRelativePath,
                     Type = "folder",
@@ -1656,11 +1663,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 fileData.DirectoryName.Replace(" ", "-"); ;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
-                fullPath = _fileSystemWatcher.Path + Path.DirectorySeparatorChar + fileData.DirectoryName;
+                fullPath = GetProjectPath() + Path.DirectorySeparatorChar + fileData.DirectoryName;
             }
 
             Directory.CreateDirectory(fullPath);
-            var relativePath = fullPath.Replace(_fileSystemWatcher.Path, string.Empty);
+            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty);
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -1676,7 +1683,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var node = new FileInfoNode
                 {
                     Name = item,
-                    FullPath = _fileSystemWatcher.Path + dynamicRelativePath,
+                    FullPath = GetProjectPath() + dynamicRelativePath,
                     RelativePath =  dynamicRelativePath,
                     Path = dynamicRelativePath,
                     Type = "folder",
@@ -1703,7 +1710,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             // clean all data
            
-            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var relDal = GetEngineDB().GetDal<MarkdownFile>();
 
             foreach (var item in list)
             {
@@ -1729,7 +1736,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         //private void SaveLinksFromMarkdown(IFileInfoNode item,
         //    MarkdownFile relationship)
         //{
-        //    var linkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+        //    var linkInsideMarkdownDal = GetEngineDB().GetDal<LinkInsideMarkdown>();
         //    foreach (var getModifier in _getModifiers)
         //    {
         //        var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(item.FullPath) : new List<LinkDetail>().ToArray();
@@ -1743,14 +1750,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
         //            // manage absolute path in link
         //            if (singleLink.LinkPath.StartsWith("/"))
         //            {
-        //                fullPath = _fileSystemWatcher.Path
+        //                fullPath = GetProjectPath()
         //                    + singleLink.LinkPath.Replace('/', Path.DirectorySeparatorChar);
         //            }
 
         //            var normalizedFullPath = _helper.NormalizePath(fullPath);
                     
         //            var context = Path.GetDirectoryName(relationship.Path)
-        //                .Replace(_fileSystemWatcher.Path, string.Empty)
+        //                .Replace(GetProjectPath(), string.Empty)
         //                .Replace(Path.DirectorySeparatorChar, '/');
         //            var linkToStore = new LinkInsideMarkdown
         //            {
@@ -1772,7 +1779,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         //private FileInfoNode CreateNodeMdFile(string itemFile)
         //{
-        //    var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+        //    var patchedItemFile = itemFile.Substring(GetProjectPath().Length);
         //    var node = new FileInfoNode
         //    {
         //        Name = Path.GetFileName(itemFile),
@@ -1787,7 +1794,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder)
         {
 
-            var patchedItemFolfer = itemFolder.Substring(_fileSystemWatcher.Path.Length);
+            var patchedItemFolfer = itemFolder.Substring(GetProjectPath().Length);
             var node = new FileInfoNode
             {
                 Name = Path.GetFileName(itemFolder),
@@ -1799,6 +1806,24 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 DevelopmentTags = LoadDevelopmentTags(itemFolder)
             };
             var isEmpty = await ExploreNodes(node, itemFolder);
+            return (node, isEmpty);
+        }
+
+        private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder, string connectionId)
+        {
+            var projectPath = GetProjectPath(connectionId);
+            var patchedItemFolfer = itemFolder.Substring(projectPath.Length);
+            var node = new FileInfoNode
+            {
+                Name = Path.GetFileName(itemFolder),
+                FullPath = itemFolder,
+                RelativePath =
+                    patchedItemFolfer,
+                Path = patchedItemFolfer,
+                Type = "folder",
+                DevelopmentTags = LoadDevelopmentTags(itemFolder)
+            };
+            var isEmpty = await ExploreNodes(node, itemFolder, connectionId);
             return (node, isEmpty);
         }
 
@@ -1901,6 +1926,48 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        private static string SanitizeFileName(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return fileName;
+
+            // Replace spaces and problematic characters with dash
+            var invalidChars = new[] { ' ', '\'', '"', '(', ')', '[', ']', '{', '}', '&', '#', '%', '!', '@', '$', '^', '+', '=', '`', '~' };
+
+            foreach (var c in invalidChars)
+            {
+                fileName = fileName.Replace(c, '-');
+            }
+
+            // Also remove invalid file system characters
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(c.ToString(), string.Empty);
+            }
+
+            // Remove consecutive dashes
+            while (fileName.Contains("--"))
+            {
+                fileName = fileName.Replace("--", "-");
+            }
+
+            // Remove leading/trailing dashes
+            fileName = fileName.Trim('-');
+
+            return fileName;
+        }
+
+        private static string ReplaceCaseInsensitive(string input, string search, string replacement)
+        {
+            if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(search))
+                return input;
+
+            int index = input.IndexOf(search, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+                return input;
+            return input.Substring(0, index) + replacement + input.Substring(index + search.Length);
+        }
+
         private void ExploreNodesFolderOnly(FileInfoNode fileInfoNode, string pathFile)
         {
             try
@@ -1939,22 +2006,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     _logger.LogWarning($"[ExploreNodes] ❌ IGNORING subfolder: '{itemFolder}'");
                     continue;
                 }
-                
+
                 // Send folderIndexingStart event for subfolder
                 await _hubContext.Clients.Client(signalRConnectionId)
                     .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
-                
+
                 var result = await CreateNodeFolder(itemFolder);
                 var node = result.Item1;
                 var isempty = result.Item2;
                 if (!isempty)
                 {
                     fileInfoNode.Childrens.Add(node);
-                    
+
                     // Send folderIndexingComplete event for subfolder
                     await _hubContext.Clients.Client(signalRConnectionId)
                         .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
-                        
+
                     // Small delay to make progress visible
                     await Task.Delay(50);
                 }
@@ -1964,12 +2031,63 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
             {
                 // Check if file should be ignored
-                if (_mdIgnoreService.ShouldIgnorePath(itemFile, _fileSystemWatcher.Path))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, GetProjectPath()))
                 {
                     continue;
                 }
-                
-                var patchedItemFile = itemFile.Substring(_fileSystemWatcher.Path.Length);
+
+                var patchedItemFile = itemFile.Substring(GetProjectPath().Length);
+                var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
+                fileInfoNode.Childrens.Add(node);
+                isEmpty = false;
+            }
+            return isEmpty;
+        }
+
+        private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile, string connectionId)
+        {
+            var isEmpty = true;
+            var projectPath = GetProjectPath(connectionId);
+
+            foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
+            {
+                // Check if folder should be ignored using FoldersIgnoreService
+                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                {
+                    _logger.LogWarning($"[ExploreNodes] ❌ IGNORING subfolder: '{itemFolder}'");
+                    continue;
+                }
+
+                // Send folderIndexingStart event for subfolder
+                await _hubContext.Clients.Client(connectionId)
+                    .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
+
+                var result = await CreateNodeFolder(itemFolder, connectionId);
+                var node = result.Item1;
+                var isempty = result.Item2;
+                if (!isempty)
+                {
+                    fileInfoNode.Childrens.Add(node);
+
+                    // Send folderIndexingComplete event for subfolder
+                    await _hubContext.Clients.Client(connectionId)
+                        .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
+
+                    // Small delay to make progress visible
+                    await Task.Delay(50);
+                }
+                isEmpty = isEmpty && isempty;
+            }
+
+            foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
+            {
+                // Check if file should be ignored
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, projectPath))
+                {
+                    continue;
+                }
+
+                var patchedItemFile = itemFile.Substring(projectPath.Length);
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
@@ -1981,46 +2099,46 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             // Per questa implementazione, saltiamo la gestione del database
             // e ci concentriamo solo sulle notifiche SignalR per il feedback visivo
-            
+
             // Carica la struttura completa per l'indicizzazione
             var fullStructure = new List<IFileInfoNode>();
-            var currentPath = _fileSystemWatcher.Path;
-            
+            var currentPath = GetProjectPath(connectionId);
+
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
-                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, _fileSystemWatcher.Path))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFolder, currentPath))
                     continue;
-                
+
                 // Notifica inizio indicizzazione cartella
                 await _hubContext.Clients.Client(connectionId)
                     .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
-                    
-                var result = await CreateNodeFolder(itemFolder);
+
+                var result = await CreateNodeFolder(itemFolder, connectionId);
                 var folderNode = result.Item1;
                 var isEmpty = result.Item2;
                 if (!isEmpty)
                 {
                     fullStructure.Add(folderNode);
-                    
+
                     // Notifica fine indicizzazione cartella
                     await _hubContext.Clients.Client(connectionId)
                         .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
                 }
             }
-            
+
             // File nella root
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
             {
-                if (_mdIgnoreService.ShouldIgnorePath(itemFile, _fileSystemWatcher.Path))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, currentPath))
                     continue;
-                    
+
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, currentPath);
                 fullStructure.Add(nodeFile);
             }
-            
+
             // Parse links for all markdown files
             _logger.LogInformation("[IndexLinksInBackground] Starting link parsing for all files");
-            await ParseAllLinks();
+            await ParseAllLinks(connectionId);
             _logger.LogInformation("[IndexLinksInBackground] Link parsing completed");
 
             // Notifica che i file sono stati indicizzati
@@ -2100,6 +2218,97 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "[ParseAllLinks] Error during link parsing - rolling back");
+                        engineDB.Rollback();
+                        throw;
+                    }
+                }
+            });
+        }
+
+        private async Task ParseAllLinks(string connectionId)
+        {
+            await Task.Run(() =>
+            {
+                // Create a new service scope for background task
+                using (var serviceScope = _serviceScopeFactory.CreateScope())
+                {
+                    // Get per-client database and project path using DatabaseManager
+                    var databaseManager = serviceScope.ServiceProvider.GetService<IDatabaseManager>();
+                    var helper = serviceScope.ServiceProvider.GetService<IHelper>();
+                    var getModifiers = serviceScope.ServiceProvider.GetService<IWorkLink[]>();
+
+                    // Get client-specific context
+                    var context = databaseManager?.GetContext(connectionId);
+                    if (context == null)
+                    {
+                        _logger.LogError($"[ParseAllLinks] No database context found for connection {connectionId}");
+                        return;
+                    }
+
+                    var engineDB = context.EngineDB;
+                    var projectPath = context.ProjectPath;
+
+                    try
+                    {
+                        engineDB.BeginTransaction();
+
+                        var markdownFileDal = engineDB.GetDal<MarkdownFile>();
+                        var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
+
+                        // Get all markdown files from database
+                        var allFiles = markdownFileDal.GetList().ToList();
+                        _logger.LogInformation($"[{connectionId}] [ParseAllLinks] Processing {allFiles.Count} files with base path: {projectPath}");
+
+                        foreach (var mdf in allFiles)
+                        {
+                            try
+                            {
+                                // Delete existing links for this file
+                                var existingLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf).ToList();
+                                foreach (var link in existingLinks)
+                                {
+                                    linkDal.Delete(link);
+                                }
+
+                                // Parse links using all IWorkLink parsers
+                                foreach (var getModifier in getModifiers)
+                                {
+                                    var linksToStore = getModifier.GetLinksFromFile(mdf.Path);
+                                    foreach (var singleLink in linksToStore)
+                                    {
+                                        var fullPath = Path.GetDirectoryName(mdf.Path) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
+
+                                        // Calculate MdContext: relative path from project root
+                                        var mdContext = Path.GetDirectoryName(mdf.Path)
+                                            .Replace(projectPath, string.Empty)
+                                            .Replace(Path.DirectorySeparatorChar, '/');
+
+                                        var linkToStore = new LinkInsideMarkdown
+                                        {
+                                            FullPath = helper.NormalizePath(fullPath),
+                                            Path = singleLink.FullPath,
+                                            Source = getModifier.GetType().Name,
+                                            LinkedCommand = singleLink.LinkedCommand,
+                                            SectionIndex = singleLink.SectionIndex,
+                                            MarkdownFile = mdf,
+                                            MdContext = mdContext
+                                        };
+                                        linkDal.Save(linkToStore);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, $"[{connectionId}] [ParseAllLinks] Error parsing links for file: {mdf.Path}");
+                            }
+                        }
+
+                        engineDB.Commit();
+                        _logger.LogInformation($"[{connectionId}] [ParseAllLinks] Successfully parsed links for {allFiles.Count} files");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"[{connectionId}] [ParseAllLinks] Error during link parsing - rolling back");
                         engineDB.Rollback();
                         throw;
                     }

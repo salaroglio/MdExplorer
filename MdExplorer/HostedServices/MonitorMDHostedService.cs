@@ -129,22 +129,18 @@ namespace MdExplorer.Service.HostedServices
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"monitored path: { _fileSystemWatcher.Path}");
-            _fileSystemWatcher.NotifyFilter = NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.FileName
-                                 //| NotifyFilters.LastAccess
-                                 | NotifyFilters.LastWrite
-                                 //| NotifyFilters.Security
-                                 | NotifyFilters.Size;
-            //_fileSystemWatcher.Filter = "*.md";
-            _fileSystemWatcher.IncludeSubdirectories = true;
-            _fileSystemWatcher.EnableRaisingEvents = true;
-            _fileSystemWatcher.Changed += _fileSystemWatcher_Changed;
-            _fileSystemWatcher.Created += _fileSystemWatcher_Created;
-            _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
-            //_fileSystemWatcher.Deleted += _fileSystemWatcher_Deleted;
+            _logger.LogInformation($"MonitorMDHostedService started (console closing handler only)");
+            _logger.LogInformation($"FileSystemWatcher events are handled by FileSystemWatcherManager for multi-client support");
+
+            // DISABLED: FileSystemWatcher event handlers are now managed by FileSystemWatcherManager
+            // This service only handles console closing events to notify all clients
+            // The global FileSystemWatcher singleton is kept for backward compatibility in controllers
+
+            // DO NOT attach event handlers to the global FileSystemWatcher:
+            // _fileSystemWatcher.Changed += _fileSystemWatcher_Changed;
+            // _fileSystemWatcher.Created += _fileSystemWatcher_Created;
+            // _fileSystemWatcher.Renamed += _fileSystemWatcher_Renamed;
+
             return Task.CompletedTask;
         }
 

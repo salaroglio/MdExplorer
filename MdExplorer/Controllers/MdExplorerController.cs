@@ -34,6 +34,7 @@ using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using Microsoft.Extensions.DependencyInjection;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Controllers
 {
@@ -56,8 +57,9 @@ namespace MdExplorer.Controllers
             IHelper helper,
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor,
             IYamlDefaultGenerator yamlDefaultGenerator,
-            IWorkLink[] modifiers            
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper)
+            IWorkLink[] modifiers,
+            IDatabaseManager databaseManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
             _goodRules = GoodRules;
             
@@ -76,7 +78,7 @@ namespace MdExplorer.Controllers
             var currentCultureInfo = CultureInfo.CurrentCulture;
             var test = Encoding.Default;
             
-            var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
+            var rootPathSystem = $"{GetProjectPath()}{Path.DirectorySeparatorChar}";
             var relativePathFile = GetRelativePathFileSystem("mdexplorer");
             var relativePathExtension = Path.GetExtension(relativePathFile);
 
@@ -115,7 +117,7 @@ namespace MdExplorer.Controllers
             _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
 
             // Calculate relative path properly
-            var calculatedRelativePath = fullPathFile.Replace(_fileSystemWatcher.Path, string.Empty);
+            var calculatedRelativePath = fullPathFile.Replace(GetProjectPath(), string.Empty);
             if (calculatedRelativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
             {
                 calculatedRelativePath = calculatedRelativePath.Substring(1);
@@ -142,7 +144,7 @@ namespace MdExplorer.Controllers
                 var directoryName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(fullPathFile));
                 
                 // Genera il contenuto iniziale con YAML front matter e titolo
-                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(GetProjectPath());
                 var initialContent = $"{defaultYaml}# {directoryName}\n\n";
                 
                 try
@@ -169,45 +171,81 @@ namespace MdExplorer.Controllers
             var descriptor = _yamlDocumentDescriptor.GetDescriptor(markdownTxt);
             if (descriptor == null || descriptor.WordSection == null)
             {
-                // Check if project is in GitHub Compatible Mode
-                var isGitHubMode = false;
+                // Check if YAML auto-generation should be skipped for this file
+                var shouldSkipYamlGeneration = false;
+                var skipReason = string.Empty;
+
                 try
                 {
-                    var devConfigPath = Path.Combine(_fileSystemWatcher.Path, ".development.yml");
+                    var devConfigPath = Path.Combine(GetProjectPath(), ".development.yml");
                     if (System.IO.File.Exists(devConfigPath))
                     {
                         var yamlContent = System.IO.File.ReadAllText(devConfigPath);
                         var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
                             .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
                             .Build();
-                        var fullConfig = deserializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(yamlContent);
+                        var devConfig = deserializer.Deserialize<MdExplorer.Service.Models.DevelopmentConfig>(yamlContent);
 
-                        if (fullConfig != null && fullConfig.ContainsKey("compatibility"))
+                        // Check GitHub Compatible Mode
+                        if (devConfig?.Compatibility?.Mode?.ToLowerInvariant() == "github")
                         {
-                            var compatibilityYaml = new YamlDotNet.Serialization.SerializerBuilder()
-                                .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
-                                .Build()
-                                .Serialize(fullConfig["compatibility"]);
-                            var compatConfig = deserializer.Deserialize<MdExplorer.Features.Configuration.Models.CompatibilityConfig>(compatibilityYaml);
-                            isGitHubMode = compatConfig.Mode?.ToLowerInvariant() == "github";
+                            shouldSkipYamlGeneration = true;
+                            skipReason = "Project is in GitHub Compatible Mode";
+                        }
+                        // Check YAML auto-generation configuration
+                        else
+                        {
+                            // Use default configuration if yamlAutoGeneration section is missing
+                            var yamlConfig = devConfig?.YamlAutoGeneration ?? new MdExplorer.Service.Models.YamlAutoGenerationConfig();
+
+                            // Check if YAML auto-generation is globally disabled
+                            if (!yamlConfig.Enabled)
+                            {
+                                shouldSkipYamlGeneration = true;
+                                skipReason = "YAML auto-generation is disabled in configuration";
+                            }
+                            // Check if file is in an excluded path
+                            else if (yamlConfig.ExcludePaths != null && yamlConfig.ExcludePaths.Count > 0)
+                            {
+                                var projectPath = GetProjectPath();
+                                var relativePath = fullPathFile.Replace(projectPath, string.Empty)
+                                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                                foreach (var excludePath in yamlConfig.ExcludePaths)
+                                {
+                                    // Normalize path separators for comparison
+                                    var normalizedExcludePath = excludePath.Replace('/', Path.DirectorySeparatorChar)
+                                        .Replace('\\', Path.DirectorySeparatorChar);
+
+                                    // Check if file is inside the excluded path
+                                    if (relativePath.StartsWith(normalizedExcludePath + Path.DirectorySeparatorChar,
+                                        StringComparison.OrdinalIgnoreCase) ||
+                                        relativePath.Equals(normalizedExcludePath, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        shouldSkipYamlGeneration = true;
+                                        skipReason = $"File is in excluded path: {excludePath}";
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error checking GitHub compatibility mode, assuming not GitHub mode");
+                    _logger.LogWarning(ex, "Error checking YAML auto-generation configuration, proceeding with default behavior");
                 }
 
-                if (isGitHubMode)
+                if (shouldSkipYamlGeneration)
                 {
-                    _logger.LogInformation($"⏭️ [MdExplorer] Project is in GitHub Compatible Mode - skipping auto-YAML addition for {fullPathFile}");
+                    _logger.LogInformation($"⏭️ [MdExplorer] {skipReason} - skipping auto-YAML addition for {fullPathFile}");
                 }
                 else
                 {
                     _logger.LogInformation($"🔍 [MdExplorer] YAML front matter mancante per {fullPathFile}, aggiunta automatica...");
 
                     // YAML mancante o invalido - aggiungiamolo automaticamente
-                    var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(_fileSystemWatcher.Path);
+                    var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(GetProjectPath());
                     var updatedContent = defaultYaml + markdownTxt;
 
                     // Salva il file evitando il trigger del FileSystemWatcher
@@ -306,22 +344,23 @@ namespace MdExplorer.Controllers
 
             }
             // Refresh database
-            var relDal = _engineDB.GetDal<MarkdownFile>();
+            var engineDB = GetEngineDB();
+            var relDal = engineDB.GetDal<MarkdownFile>();
             var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
-            _engineDB.BeginTransaction();
+            engineDB.BeginTransaction();
             if (mdFile == null)
             {
-                var markdownFile = new MarkdownFile
+                mdFile = new MarkdownFile
                 {
                     FileName = Path.GetFileName(fullPathFile),
                     Path = fullPathFile,
                     FileType = "File"
                 };
-                relDal.Save(markdownFile);
+                relDal.Save(mdFile);
             }
 
             SaveLinksFromMarkdown(mdFile);
-            _engineDB.Commit();
+            engineDB.Commit();
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
@@ -444,7 +483,7 @@ namespace MdExplorer.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = _fileSystemWatcher.Path,
+                CurrentRoot = GetProjectPath(),
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
                 ConnectionId = connectionId,
@@ -536,7 +575,7 @@ namespace MdExplorer.Controllers
                 .Build();
 
             var result = Markdown.ToHtml(readText, pipeline);
-            Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+            Directory.SetCurrentDirectory(GetProjectPath());
 
             
 
@@ -577,7 +616,7 @@ namespace MdExplorer.Controllers
 
 
 
-            //Directory.SetCurrentDirectory(_fileSystemWatcher.Path);
+            //Directory.SetCurrentDirectory(GetProjectPath());
             result = _commandRunner.TransformAfterConversion(result, requestInfo);
 
             var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();

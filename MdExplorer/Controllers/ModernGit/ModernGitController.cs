@@ -14,6 +14,12 @@ using MdExplorer.Hubs;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Services;
 using System.IO;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Models;
+using MdExplorer.Abstractions.Models;
+using Microsoft.Extensions.Options;
+using MdExplorer.Features.Utilities;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Controllers.ModernGit
 {
@@ -22,16 +28,11 @@ namespace MdExplorer.Controllers.ModernGit
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class ModernGitController : ControllerBase
+    public class ModernGitController : MdControllerBase<ModernGitController>
     {
         private readonly IModernGitService _gitService;
         private readonly IGitHubService _gitHubService;
-        private readonly ILogger<ModernGitController> _logger;
-        private readonly IUserSettingsDB _userSettingsDb;
-        private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly IEngineDB _engineDB;
         private readonly IMdIgnoreService _mdIgnoreService;
-        private readonly FileSystemWatcher _fileSystemWatcher;
 
         public ModernGitController(
             IModernGitService gitService,
@@ -41,16 +42,14 @@ namespace MdExplorer.Controllers.ModernGit
             IHubContext<MonitorMDHub> hubContext,
             IEngineDB engineDB,
             IMdIgnoreService mdIgnoreService,
-            FileSystemWatcher fileSystemWatcher)
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
         {
             _gitService = gitService;
             _gitHubService = gitHubService;
-            _logger = logger;
-            _userSettingsDb = userSettingsDb;
-            _hubContext = hubContext;
-            _engineDB = engineDB;
             _mdIgnoreService = mdIgnoreService;
-            _fileSystemWatcher = fileSystemWatcher;
         }
 
         /// <summary>
@@ -706,7 +705,7 @@ namespace MdExplorer.Controllers.ModernGit
         {
             try
             {
-                var dal = _userSettingsDb.GetDal<Setting>();
+                var dal = _userSettingsDB.GetDal<Setting>();
                 var setting = dal.GetList().Where(s => s.Name == "GitHubOrganization").FirstOrDefault();
 
                 return Ok(new
@@ -824,10 +823,10 @@ namespace MdExplorer.Controllers.ModernGit
         {
             await Task.Run(() =>
             {
-                _userSettingsDb.BeginTransaction();
+                _userSettingsDB.BeginTransaction();
                 try
                 {
-                    var dal = _userSettingsDb.GetDal<Setting>();
+                    var dal = _userSettingsDB.GetDal<Setting>();
                     var setting = dal.GetList().Where(s => s.Name == "GitHubOrganization").FirstOrDefault();
 
                     if (setting != null)
@@ -844,12 +843,12 @@ namespace MdExplorer.Controllers.ModernGit
                     }
 
                     dal.Save(setting);
-                    _userSettingsDb.Commit();
+                    _userSettingsDB.Commit();
                     _logger.LogInformation("GitHub organization saved: {Organization}", organization);
                 }
                 catch (Exception ex)
                 {
-                    _userSettingsDb.Rollback();
+                    _userSettingsDB.Rollback();
                     throw;
                 }
             });
@@ -946,26 +945,26 @@ namespace MdExplorer.Controllers.ModernGit
             {
                 _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup");
 
-                _engineDB.BeginTransaction();
+                GetEngineDB().BeginTransaction();
 
                 // Step 1: Delete all LinkInsideMarkdown records (foreign key to MarkdownFile)
                 _logger.LogInformation("[CleanupDatabase] Deleting all LinkInsideMarkdown records");
-                _engineDB.Delete("from LinkInsideMarkdown");
-                _engineDB.Flush();
+                GetEngineDB().Delete("from LinkInsideMarkdown");
+                GetEngineDB().Flush();
 
                 // Step 2: Delete all MarkdownFile records
                 _logger.LogInformation("[CleanupDatabase] Deleting all MarkdownFile records");
-                _engineDB.Delete("from MarkdownFile");
-                _engineDB.Flush();
+                GetEngineDB().Delete("from MarkdownFile");
+                GetEngineDB().Flush();
 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
 
                 _logger.LogInformation("[CleanupDatabase] Database cleanup completed");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 throw;
             }
         }
@@ -986,8 +985,8 @@ namespace MdExplorer.Controllers.ModernGit
                     return 0;
                 }
 
-                _engineDB.BeginTransaction();
-                var markdownFileDal = _engineDB.GetDal<MarkdownFile>();
+                GetEngineDB().BeginTransaction();
+                var markdownFileDal = GetEngineDB().GetDal<MarkdownFile>();
 
                 // Find all .md files recursively, excluding ignored paths
                 var allMdFiles = Directory.GetFiles(projectPath, "*.md", SearchOption.AllDirectories)
@@ -1016,7 +1015,7 @@ namespace MdExplorer.Controllers.ModernGit
                     }
                 }
 
-                _engineDB.Commit();
+                GetEngineDB().Commit();
                 _logger.LogInformation("[IndexAllMarkdownFiles] Indexing completed: {FileCount} files", allMdFiles.Count);
 
                 return allMdFiles.Count;
@@ -1024,7 +1023,7 @@ namespace MdExplorer.Controllers.ModernGit
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during indexing");
-                _engineDB.Rollback();
+                GetEngineDB().Rollback();
                 throw;
             }
         }

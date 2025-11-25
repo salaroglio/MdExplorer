@@ -4,6 +4,7 @@ import { MdProject } from '../models/md-project';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
+import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 
 @Injectable({
   providedIn: 'root'
@@ -19,7 +20,8 @@ export class ProjectsService {
 
   constructor(
     private http: HttpClient,
-    private injector: Injector
+    private injector: Injector,
+    private monitorMDService: MdServerMessagesService
   ) {
     this.dataStore = { mdProjects: [] };
     this._mdProjects = new BehaviorSubject<MdProject[]>([]);
@@ -47,7 +49,7 @@ export class ProjectsService {
   }
 
   setNewFolderProject(path: string):void {
-    const url = '../api/MdProjects/SetFolderProject';
+    const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
     this.http.post<any>(url, { path: path }).subscribe(async response => {
       this.currentProjects$.next(response);
 
@@ -68,7 +70,7 @@ export class ProjectsService {
   }
 
   createProjectWithConfig(config: ProjectCreateConfigOptions): void {
-    const url = '../api/MdProjects/SetFolderProject';
+    const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,

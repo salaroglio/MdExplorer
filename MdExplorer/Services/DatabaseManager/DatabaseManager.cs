@@ -23,13 +23,11 @@ namespace MdExplorer.Services.DatabaseManager
         private readonly ConcurrentDictionary<string, ConnectionDatabaseContext> _contexts = new();
         private readonly ILogger<DatabaseManager> _logger;
         private readonly string _appDataPath;
-        private readonly IUserSettingsDB _sharedUserSettingsDB;
 
-        public DatabaseManager(ILogger<DatabaseManager> logger, IUserSettingsDB userSettingsDB)
+        public DatabaseManager(ILogger<DatabaseManager> logger)
         {
             _logger = logger;
             _appDataPath = CrossPlatformPath.GetAppDataPath();
-            _sharedUserSettingsDB = userSettingsDB; // UserSettingsDB is shared across all clients
         }
 
         public void RegisterConnection(string connectionId, string projectPath)
@@ -46,6 +44,14 @@ namespace MdExplorer.Services.DatabaseManager
             // Create connection strings
             var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
             var projectDbPath = $"Data Source={Path.Combine(normalizedPath, ".md", $"MdProject_{hash}.db")}";
+
+            // Ensure .md folder exists before attempting to create the database
+            var mdFolder = Path.Combine(normalizedPath, ".md");
+            if (!Directory.Exists(mdFolder))
+            {
+                Directory.CreateDirectory(mdFolder);
+                _logger.LogInformation($"📁 Created .md folder at: {mdFolder}");
+            }
 
             _logger.LogInformation($"📁 Registering connection {connectionId} for project: {normalizedPath}");
             _logger.LogDebug($"   Engine DB: MdEngine_{hash}.db");
@@ -64,7 +70,6 @@ namespace MdExplorer.Services.DatabaseManager
                     ProjectId = Guid.NewGuid(), // TODO: Get actual project ID from database
                     EngineDB = engineDB,
                     ProjectDB = projectDB,
-                    UserSettingsDB = _sharedUserSettingsDB, // Shared across all connections
                     RegisteredAt = DateTime.UtcNow
                 };
 
@@ -138,6 +143,22 @@ namespace MdExplorer.Services.DatabaseManager
                 return null;
 
             return _contexts.TryGetValue(connectionId, out var context) ? context.ProjectPath : null;
+        }
+
+        public IEngineDB CreateIsolatedEngineDB(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+                throw new ArgumentException("ConnectionId cannot be null or empty", nameof(connectionId));
+
+            if (!_contexts.TryGetValue(connectionId, out var context))
+                throw new InvalidOperationException($"No database context found for connection {connectionId}");
+
+            var hash = Helper.HGetHashString(context.ProjectPath);
+            var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
+
+            _logger.LogDebug($"🔧 Creating isolated EngineDB for connection {connectionId}");
+
+            return CreateEngineDB(engineDbPath);
         }
 
         private IEngineDB CreateEngineDB(string connectionString)

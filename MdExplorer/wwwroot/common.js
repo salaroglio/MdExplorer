@@ -84,7 +84,7 @@ if (window.commonJsLoaded) {
     // jqueryForFirstPage.js Loading Strategy
     // ============================================================================
     // Feature flag: Set to true to use new modular structure, false for monolithic file
-    const USE_MODULAR_STRUCTURE = false; // Change to true after testing
+    const USE_MODULAR_STRUCTURE = true; // Modular structure activated
 
     if (USE_MODULAR_STRUCTURE) {
         console.log('=== LOADING MODULAR jqueryForFirstPage FILES ===');
@@ -94,9 +94,18 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/globals.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/utilities.js');
 
-        // EMOJIS: Tippy tooltips and sortable functionality
+        // TIPPY: Must load BEFORE emoji modules (emoji-tooltips.js depends on tippy())
+        console.log('🔍 [COMMON.JS] Loading Tippy.js libraries...');
+        loadScriptOnce('/tippy/popper.js');
+        loadScriptOnce('/tippy/tippy.js');
+        console.log('🔍 [COMMON.JS] Tippy.js loading queued');
+
+        // EMOJIS: Tippy tooltips, sortable, and interactions
+        console.log('🔍 [COMMON.JS] Loading emoji modules...');
         loadScriptOnce('/javascripts/jqueryForFirstPage/emojis/emoji-tooltips.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/emojis/emoji-sortable.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/emojis/emoji-interactions.js');
+        console.log('🔍 [COMMON.JS] Emoji modules loading queued');
 
         // IMAGES: Readability, magnifier, transform (move/resize)
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-readability.js');
@@ -124,7 +133,7 @@ if (window.commonJsLoaded) {
 
         // DIAGRAMS: PlantUML, Mermaid, and syntax highlighting
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/plantuml-integration.js');
-        loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/syntax-highlighting.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/highlighting/syntax-highlighting.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/mermaid-rendering.js');
 
         // CORE: Initialization coordinator (MUST BE LAST)
@@ -139,8 +148,12 @@ if (window.commonJsLoaded) {
     loadScriptOnce('/TocBot/tocbot.min.js');
     loadScriptOnce('/jspreadsheet_ce/jsuites.js');
     loadScriptOnce('/jspreadsheet_ce/jexcel.js');
-    loadScriptOnce('/tippy/popper.js');
-    loadScriptOnce('/tippy/tippy.js');
+    // Tippy.js moved earlier in modular structure loading (lines 98-99)
+    // Still load here for backward compatibility if modular structure is disabled
+    if (!USE_MODULAR_STRUCTURE) {
+        loadScriptOnce('/tippy/popper.js');
+        loadScriptOnce('/tippy/tippy.js');
+    }
     loadScriptOnce('/highlight_within_textarea/highlight-within-textarea.js');
 
     console.log('=== COMMON.JS END ===');

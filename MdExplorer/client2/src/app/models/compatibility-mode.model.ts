@@ -14,7 +14,7 @@ export interface GitHubCompatibilityOptions {
 export interface SetCompatibilityModeRequest {
   mode: string;
   githubOptions?: GitHubCompatibilityOptions;
-  projectPath?: string;
+  projectPath?: string;  // Optional: for project settings dialog (overrides ConnectionId)
 }
 
 export interface ValidateDocumentRequest {

@@ -52,11 +52,17 @@ export class AddNewFileToMDEComponent implements OnInit {
   }
 
   add() {
-    this.mdFileService.addExistingFileToMDEProject(this.data, this.fullPath).subscribe(data => {
-      
-      this.snackBar.open("File added", null, { duration: 5000 })
-    });
-    this.dialogRef.close();
+    this.mdFileService.addExistingFileToMDEProject(this.data, this.fullPath).subscribe(
+      data => {
+        this.snackBar.open("File added", null, { duration: 5000 });
+        // Reload the file to show the new link
+        this.mdFileService.setSelectedMdFileFromSideNav(this.data);
+        this.dialogRef.close();
+      },
+      error => {
+        this.snackBar.open("Error: " + error.message, null, { duration: 5000 });
+      }
+    );
   }
 
   dismiss() {

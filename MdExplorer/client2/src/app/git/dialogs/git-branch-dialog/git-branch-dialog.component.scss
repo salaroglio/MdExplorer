@@ -152,11 +152,53 @@ h2.mat-dialog-title {
     font-weight: 500;
   }
 
-  .branch-list {
-    padding: 0;
+  .branch-tabs {
     border: 1px solid #e0e0e0;
     border-top: none;
     border-radius: 0 0 4px 4px;
+
+    ::ng-deep {
+      .mat-tab-header {
+        background-color: #fafafa;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .mat-tab-label {
+        min-width: 120px;
+        padding: 0 16px;
+        opacity: 0.8;
+
+        &.mat-tab-label-active {
+          opacity: 1;
+        }
+      }
+
+      .mat-tab-body-wrapper {
+        max-height: calc(70vh - 300px);
+        overflow-y: auto;
+      }
+    }
+
+    .tab-icon {
+      margin-right: 8px;
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+
+    .tab-label {
+      font-weight: 500;
+    }
+
+    .tab-count {
+      margin-left: 4px;
+      font-size: 0.85em;
+      color: #666;
+    }
+  }
+
+  .branch-list {
+    padding: 0;
   }
 }
 

@@ -30,6 +30,8 @@ import { Subscription, forkJoin } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
+import { GitChangedFile } from '../../../git/models/modern-git-models';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import _ from 'lodash';
 
 
@@ -65,6 +67,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
   public showMenu: boolean = false;
+  public showCommitMenu: boolean = false;
+  public changedFiles: GitChangedFile[] = [];
+  public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
   public isUsingNativeGit: boolean = false; // True when Git native credentials are working
@@ -397,8 +402,12 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   OpenEditor() {
-    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
-    return this.http.get(url)
+    this.monitorMDService.getConnectionId(this.sendOpenFileRequest, this);
+  }
+
+  private sendOpenFileRequest(data, objectThis: ToolbarComponent) {
+    const url = '../api/AppSettings/OpenFile?path=' + objectThis.absolutePath + '&ConnectionId=' + data;
+    return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });
   }
 
@@ -845,6 +854,131 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   openAiChat(): void {
     // Navigate to AI chat within the application
     this.router.navigate(['/main/navigation/ai-chat']);
+  }
+
+  /**
+   * Load the list of changed files for the commit panel hover
+   */
+  loadChangedFiles(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    this.isLoadingChangedFiles = true;
+    this.gitservice.getChangedFiles(projectPath).subscribe(
+      response => {
+        this.changedFiles = response.files || [];
+        this.isLoadingChangedFiles = false;
+      },
+      error => {
+        console.error('Error loading changed files:', error);
+        this.changedFiles = [];
+        this.isLoadingChangedFiles = false;
+      }
+    );
+  }
+
+  /**
+   * Discard changes to a file (restore from HEAD) or delete new files from disk
+   */
+  discardFile(file: GitChangedFile): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    if (file.isNew) {
+      // For new files, show dialog to confirm DELETE from disk
+      const dialogData: ConfirmDialogData = {
+        title: 'Elimina file',
+        message: `Vuoi eliminare definitivamente il file "${file.fileName}"? Questa azione non può essere annullata.`,
+        confirmText: 'Elimina',
+        cancelText: 'Annulla'
+      };
+
+      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        width: '400px',
+        data: dialogData
+      });
+
+      dialogRef.afterClosed().subscribe(confirmed => {
+        if (confirmed) {
+          this.gitservice.deleteFile(projectPath, file.relativePath).subscribe(
+            response => {
+              if (response.success) {
+                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
+                this.checkConnection();
+                this._snackBar.open(`File "${file.fileName}" eliminato`, 'OK', {
+                  duration: 3000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom'
+                });
+              } else {
+                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
+                  duration: 5000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom',
+                  panelClass: ['error-snackbar']
+                });
+              }
+            },
+            error => {
+              console.error('Error deleting file:', error);
+              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
+                duration: 5000,
+                horizontalPosition: 'right',
+                verticalPosition: 'bottom',
+                panelClass: ['error-snackbar']
+              });
+            }
+          );
+        }
+      });
+    } else {
+      // For modified files, show dialog to confirm discard changes
+      const dialogData: ConfirmDialogData = {
+        title: 'Scarta modifiche',
+        message: `Vuoi scartare le modifiche a "${file.fileName}"? Questa azione non può essere annullata.`,
+        confirmText: 'Scarta',
+        cancelText: 'Annulla'
+      };
+
+      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        width: '400px',
+        data: dialogData
+      });
+
+      dialogRef.afterClosed().subscribe(confirmed => {
+        if (confirmed) {
+          this.gitservice.discardFile(projectPath, file.relativePath, false).subscribe(
+            response => {
+              if (response.success) {
+                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
+                this.checkConnection();
+                this._snackBar.open(`File "${file.fileName}" ripristinato`, 'OK', {
+                  duration: 3000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom'
+                });
+              } else {
+                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
+                  duration: 5000,
+                  horizontalPosition: 'right',
+                  verticalPosition: 'bottom',
+                  panelClass: ['error-snackbar']
+                });
+              }
+            },
+            error => {
+              console.error('Error discarding file:', error);
+              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
+                duration: 5000,
+                horizontalPosition: 'right',
+                verticalPosition: 'bottom',
+                panelClass: ['error-snackbar']
+              });
+            }
+          );
+        }
+      });
+    }
   }
 
   isTocDirectoryFile(): boolean {

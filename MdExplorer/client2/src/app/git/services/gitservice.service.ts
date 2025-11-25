@@ -20,7 +20,10 @@ import {
   GitHistoryResponse,
   RemoteStatus,
   SetupRemoteRequest,
-  SetupRemoteResponse
+  SetupRemoteResponse,
+  ChangedFilesResponse,
+  GitChangedFile,
+  DiscardFileResponse
 } from '../models/modern-git-models';
 
 
@@ -645,6 +648,66 @@ export class GITService implements OnDestroy {
       catchError(error => {
         console.error('Error getting repository status:', error);
         return of({ hasChanges: false, files: [] });
+      })
+    );
+  }
+
+  /**
+   * Get list of all changed files in the repository
+   */
+  getChangedFiles(projectPath: string): Observable<ChangedFilesResponse> {
+    const url = `../api/ModernGitToolbar/changed-files?projectPath=${encodeURIComponent(projectPath)}`;
+
+    return this.http.get<ChangedFilesResponse>(url).pipe(
+      catchError(error => {
+        console.error('Error getting changed files:', error);
+        return of({ files: [], totalCount: 0 });
+      })
+    );
+  }
+
+  /**
+   * Discard changes to a file (restore from HEAD) or unstage a new file
+   */
+  discardFile(projectPath: string, filePath: string, isNew: boolean): Observable<DiscardFileResponse> {
+    const url = '../api/ModernGitToolbar/discard-file';
+    const request = {
+      projectPath: projectPath,
+      filePath: filePath,
+      isNew: isNew
+    };
+
+    return this.http.post<DiscardFileResponse>(url, request).pipe(
+      catchError(error => {
+        console.error('Error discarding file:', error);
+        return of({
+          success: false,
+          errorMessage: error.error?.errorMessage || error.message || 'Failed to discard file',
+          filePath: filePath
+        });
+      })
+    );
+  }
+
+  /**
+   * Delete an untracked/new file from disk
+   */
+  deleteFile(projectPath: string, filePath: string): Observable<DiscardFileResponse> {
+    const url = '../api/ModernGitToolbar/delete-file';
+    const request = {
+      projectPath: projectPath,
+      filePath: filePath,
+      isNew: true
+    };
+
+    return this.http.post<DiscardFileResponse>(url, request).pipe(
+      catchError(error => {
+        console.error('Error deleting file:', error);
+        return of({
+          success: false,
+          errorMessage: error.error?.errorMessage || error.message || 'Failed to delete file',
+          filePath: filePath
+        });
       })
     );
   }

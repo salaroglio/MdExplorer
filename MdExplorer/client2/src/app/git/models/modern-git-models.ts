@@ -113,3 +113,30 @@ export interface ModernResponsePull {
   errorMessage?: string;
   whatFilesWillBeChanged: any[];
 }
+
+// Changed Files Models for Commit Panel
+export interface ChangedFilesResponse {
+  files: GitChangedFile[];
+  totalCount: number;
+}
+
+export interface GitChangedFile {
+  fileName: string;
+  relativePath: string;
+  fullPath: string;
+  status: string;  // "Modified" | "Added" | "Deleted" | "Untracked"
+  isNew: boolean;
+}
+
+export interface DiscardFileRequest {
+  projectPath: string;
+  filePath: string;
+  isNew: boolean;
+}
+
+export interface DiscardFileResponse {
+  success: boolean;
+  message?: string;
+  errorMessage?: string;
+  filePath: string;
+}

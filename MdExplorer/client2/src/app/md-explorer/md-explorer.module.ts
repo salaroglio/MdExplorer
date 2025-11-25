@@ -32,6 +32,7 @@ import { DocumentShowComponent } from './components/document-show/document-show.
 import { AiChatModule } from '../ai-chat/ai-chat.module';
 import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
 import { TocProgressService } from './services/toc-progress.service';
+import { ConfirmDialogComponent } from '../commons/components/confirm-dialog/confirm-dialog.component';
 
 
 
@@ -85,7 +86,8 @@ const routes: Routes = [
     MoveMdFileComponent, AddNewFileToMDEComponent,
     MilkdownReactHostComponent,
     DocumentShowComponent, // Added to declarations
-    TocProgressDialogComponent
+    TocProgressDialogComponent,
+    ConfirmDialogComponent
   ],
   imports: [
     CommonModule,

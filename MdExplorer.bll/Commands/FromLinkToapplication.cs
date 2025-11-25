@@ -89,14 +89,28 @@ namespace MdExplorer.Features.Commands
                     var matches1 = rx.Matches(item.Groups[0].Value);
                     if (matches1.Count == 0)
                     {
-                        return html;
+                        continue;
                     }
                     var item1 = matches1[0];
 
-                    var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
+                    var hrefValue = item1.Groups[3].Value.ToString();
+                    string fullPath;
 
-                    var relativePath = documentRelativePath + Path.DirectorySeparatorChar + item1.Groups[3].Value.ToString();
-                    var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{requestInfo.CurrentRoot + Path.DirectorySeparatorChar + relativePath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
+                    // Check if href is already an absolute path (Windows or Unix)
+                    if (hrefValue.Length > 1 && hrefValue[1] == ':' || hrefValue.StartsWith("/"))
+                    {
+                        // Already absolute path, use it directly
+                        fullPath = hrefValue;
+                    }
+                    else
+                    {
+                        // Relative path, build full path
+                        var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
+                        var relativePath = documentRelativePath + Path.DirectorySeparatorChar + hrefValue;
+                        fullPath = requestInfo.CurrentRoot + Path.DirectorySeparatorChar + relativePath;
+                    }
+
+                    var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{fullPath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
                     html = html.Replace(item1.Groups[0].Value, openApplication);
                 }
             }

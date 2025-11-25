@@ -29,6 +29,11 @@ namespace MdExplorer.Service.Utilities
         }
         public void OpenFileWithVisualStudioCode(string path, string editorPath)
         {
+            OpenFileWithVisualStudioCode(path, editorPath, _fileSystemWatcher.Path);
+        }
+
+        public void OpenFileWithVisualStudioCode(string path, string editorPath, string projectPath)
+        {
             _editorPath = editorPath;
             _lastDocumentOpened = path;
 
@@ -43,7 +48,7 @@ namespace MdExplorer.Service.Utilities
             var startInfo = new ProcessStartInfo
             {
                 FileName = editorPath,
-                Arguments = $"--reuse-window \"{_fileSystemWatcher.Path}\" --goto \"{currentPath}:1\"",
+                Arguments = $"--reuse-window \"{projectPath}\" --goto \"{currentPath}:1\"",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
@@ -65,6 +70,7 @@ namespace MdExplorer.Service.Utilities
                 Console.WriteLine($"Error opening file with VS Code: {ex.Message}");
                 Console.WriteLine($"Editor path: {editorPath}");
                 Console.WriteLine($"File path: {currentPath}");
+                Console.WriteLine($"Project path: {projectPath}");
             }
         }
 

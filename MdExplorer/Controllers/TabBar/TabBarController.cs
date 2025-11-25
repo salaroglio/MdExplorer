@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using AutoMapper;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Service.Controllers.TabBar
 {
@@ -31,19 +32,19 @@ namespace MdExplorer.Service.Controllers.TabBar
         private readonly IOptions<MdExplorerAppSettings> _options;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IUserSettingsDB _sessionDB;
-        private readonly IEngineDB _engineDB;
         private readonly ICommandRunner _commandRunner;
 
-        public TabBarController(ILogger<TabBarController> logger, 
+        public TabBarController(ILogger<TabBarController> logger,
                                     FileSystemWatcher fileSystemWatcher,
                                     IMapper mapper,
-                                    IOptions<MdExplorerAppSettings> options, 
-                                    IHubContext<MonitorMDHub> hubContext, 
-                                    IUserSettingsDB session, 
+                                    IOptions<MdExplorerAppSettings> options,
+                                    IHubContext<MonitorMDHub> hubContext,
+                                    IUserSettingsDB session,
                                     IEngineDB engineDB,
                                     IWorkLink[] modifiers,
                                     IHelper helper,
-                                    ICommandRunnerHtml commandRunner) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper)
+                                    ICommandRunnerHtml commandRunner,
+                                    IDatabaseManager databaseManager = null) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper, databaseManager)
         {
             _logger = logger;
             _fileSystemWatcher = fileSystemWatcher;
@@ -51,7 +52,6 @@ namespace MdExplorer.Service.Controllers.TabBar
             _options = options;
             _hubContext = hubContext;
             _sessionDB = session;
-            _engineDB = engineDB;
             _commandRunner = commandRunner;
         }
 
@@ -113,7 +113,7 @@ namespace MdExplorer.Service.Controllers.TabBar
             var normalizedPath = fullPathFile.Replace("\\\\", "\\");
             _logger.LogInformation($"[GetRefsData] Normalized path: '{normalizedPath}'");
 
-            var docLinkInsideMarkdownDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var docLinkInsideMarkdownDal = GetEngineDB().GetDal<LinkInsideMarkdown>();
             var allLinks = docLinkInsideMarkdownDal.GetList().ToList();
 
             _logger.LogInformation($"[GetRefsData] Total links in database: {allLinks.Count}");

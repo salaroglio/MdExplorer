@@ -225,4 +225,98 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         public string Author { get; set; }
     }
+
+    /// <summary>
+    /// Response model for changed files list
+    /// </summary>
+    public class ChangedFilesResponse
+    {
+        /// <summary>
+        /// List of all changed files with detailed information
+        /// </summary>
+        public List<GitChangedFile> Files { get; set; } = new List<GitChangedFile>();
+
+        /// <summary>
+        /// Total count of changed files
+        /// </summary>
+        public int TotalCount { get; set; }
+    }
+
+    /// <summary>
+    /// Detailed information about a changed file for the commit panel
+    /// </summary>
+    public class GitChangedFile
+    {
+        /// <summary>
+        /// File name only
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
+        /// Relative path from repository root
+        /// </summary>
+        public string RelativePath { get; set; }
+
+        /// <summary>
+        /// Full absolute path
+        /// </summary>
+        public string FullPath { get; set; }
+
+        /// <summary>
+        /// Status of the file: Modified, Added, Deleted, Untracked
+        /// </summary>
+        public string Status { get; set; }
+
+        /// <summary>
+        /// True if the file is new (Untracked or Added)
+        /// </summary>
+        public bool IsNew { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for discarding file changes
+    /// </summary>
+    public class DiscardFileRequest
+    {
+        /// <summary>
+        /// Path to the Git repository/project
+        /// </summary>
+        public string ProjectPath { get; set; }
+
+        /// <summary>
+        /// Relative path of the file to discard
+        /// </summary>
+        public string FilePath { get; set; }
+
+        /// <summary>
+        /// True if the file is new (should be unstaged instead of discarded)
+        /// </summary>
+        public bool IsNew { get; set; }
+    }
+
+    /// <summary>
+    /// Response model for discard file operation
+    /// </summary>
+    public class DiscardFileResponse
+    {
+        /// <summary>
+        /// Whether the operation was successful
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// Success or error message
+        /// </summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        /// Error details if operation failed
+        /// </summary>
+        public string ErrorMessage { get; set; }
+
+        /// <summary>
+        /// Path of the file that was discarded/unstaged
+        /// </summary>
+        public string FilePath { get; set; }
+    }
 }

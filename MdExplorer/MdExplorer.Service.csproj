@@ -146,6 +146,7 @@
     <EmbeddedResource Include=".mdapplicationtoopen" />
     <EmbeddedResource Include=".mdchangeignore" />
     <EmbeddedResource Include=".mdFoldersIgnore" />
+    <EmbeddedResource Include=".development.yml" />
     <EmbeddedResource Include="copilot-instructions.md" />
     </ItemGroup>
 

@@ -20,6 +20,8 @@ using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Controllers.WriteMD.dto;
 using MdExplorer.Service.Controllers.WriteMDDto;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -49,8 +51,10 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             ICommandRunnerMD commandRunner,
             IHubContext<MonitorMDHub> hubContext,
             IWorkLink[] modifiers,
-            IHelper helper
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
+            IHelper helper,
+            IDatabaseManager databaseManager = null,
+            IFileSystemWatcherManager fileSystemWatcherManager = null
+            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
 
@@ -66,7 +70,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         [HttpPost]
         public IActionResult SaveImgPositionAndSize([FromBody] SaveImgPostionAndSizeDto dto)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             CSSSavedOnPageInfo cssInfo;
             var systePathFile = dto.PathFile.Replace('/', Path.DirectorySeparatorChar);
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
@@ -76,7 +80,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = dto.PathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     CurrentQueryRequest = dto.CurrentQueryRequest
                 };
                 var param = new CSSSavedOnPageInfo
@@ -98,7 +102,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 System.IO.File.WriteAllText(systePathFile, markdown);
 
             }
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new { Message = "Done", cssInfo.CSSHash });
         }
 
@@ -125,7 +129,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     string pathFile,
                     int tableGameIndex)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
             EmojiPriorityOrderInfo info = null;
 
@@ -137,7 +141,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                 };
 
                 var param = new EmojiPriorityOrderInfo
@@ -157,7 +161,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
 
                 // write
             }
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(info);
         }
 
@@ -166,7 +170,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         {
 
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -175,7 +179,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                 };
                 // transform
                 var replace = (IReplaceSingleItemMD<Features.Commands.Markdown.EmojiReplaceInfo>)_commandRunner.GetAllCommands()
@@ -191,7 +195,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                     .Where(_ => _.Name == "EditH1").FirstOrDefault();
             var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(indexItemMatchArray);
         }
 
@@ -200,7 +204,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         {
 
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiToPng").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -209,7 +213,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     CurrentQueryRequest = ""
                 };
                 // transform
@@ -225,7 +229,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                    .Where(_ => _.Name == "EditH1").FirstOrDefault();
             var indexItemMatchArray = editorH1.RenewEditorH1Index(systePathFile);
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(indexItemMatchArray);
         }
 
@@ -233,7 +237,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         public IActionResult SetCalendar(int index, string pathFile, string toReplace)
         {
             var systePathFile = pathFile.Replace('/', Path.DirectorySeparatorChar);
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             //var emojiCommand = _commands.Where(_ => _.Name == "FromEmojiCalendarToDatepicker").FirstOrDefault();
             lock (lockAccessToFileMD) // così evito accesso multiplo allo stesso file ma sequenzializzo
             {
@@ -242,7 +246,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 var requestInfo = new RequestInfo
                 {
                     AbsolutePathFile = pathFile,
-                    CurrentRoot = _fileSystemWatcher.Path,
+                    CurrentRoot = GetProjectPath(),
                     CurrentQueryRequest = ""
                 };
                 // transform
@@ -255,7 +259,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
                 // write
             }
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok("done");
         }
 
@@ -272,7 +276,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
         [HttpPost]
         async public Task<IActionResult> SetEditorH1([FromBody] SetEditorH1Request dto)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             // Sign ont RefactoringSourceAction 
             // read from LinkInsideMarkdown the list of links affected from this changes
             // then get the mdFiles you have to change in order to re-link the MdShowH2 command
@@ -288,7 +292,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             var editorH1Engine = (IEditorH1Context)_commandRunner.GetAllCommands()
                        .Where(_ => _.Name == "EditH1").FirstOrDefault();
 
-            var limDal = _engineDB.GetDal<LinkInsideMarkdown>();
+            var limDal = GetEngineDB().GetDal<LinkInsideMarkdown>();
             var listOfLinksTochangeFromDB = limDal.GetList()
                 .Where(_ => _.FullPath == dto.PathFile && _.Source == "WorkLinkMdShowH2")                
                 .Select(_=> new LinkInsideMarkdownDto { 
@@ -360,17 +364,17 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             // 
 
             System.IO.File.WriteAllText(systemPathFile, markdown);
-            var relativePath = dto.PathFile.Replace(_fileSystemWatcher.Path, string.Empty).Replace(Path.DirectorySeparatorChar, '/');
+            var relativePath = dto.PathFile.Replace(GetProjectPath(), string.Empty).Replace(Path.DirectorySeparatorChar, '/');
             var monitoredMd = new MonitoredMDModel
             {
                 Path = relativePath,
                 Name = Path.GetFileName(systemPathFile),
-                RelativePath = systemPathFile.Replace(_fileSystemWatcher.Path, string.Empty),
+                RelativePath = systemPathFile.Replace(GetProjectPath(), string.Empty),
                 FullPath = systemPathFile,
                 FullDirectoryPath = Path.GetDirectoryName(systemPathFile)
             };
             await _hubContext.Clients.Client(connectionId: dto.connectionId).SendAsync("markdownfileischanged", monitoredMd);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok();
         }
     }

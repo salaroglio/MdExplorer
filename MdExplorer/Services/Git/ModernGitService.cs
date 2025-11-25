@@ -2034,5 +2034,299 @@ namespace MdExplorer.Services.Git
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Discards changes to a specific file (equivalent to git restore/checkout -- file)
+        /// </summary>
+        public async Task<GitOperationResult> DiscardFileChangesAsync(string repositoryPath, string filePath)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("Discarding changes for file: {FilePath} in repository: {RepositoryPath}", filePath, repositoryPath);
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                using var repo = new Repository(repositoryPath);
+
+                // Check if the file exists in the current commit (HEAD)
+                var treeEntry = repo.Head.Tip?.Tree[filePath];
+                if (treeEntry == null)
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"File '{filePath}' does not exist in the current commit. Use UnstageFileAsync for new files.",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                // Restore the file from HEAD using CheckoutPaths
+                var checkoutOptions = new CheckoutOptions
+                {
+                    CheckoutModifiers = CheckoutModifiers.Force
+                };
+
+                repo.CheckoutPaths(repo.Head.FriendlyName, new[] { filePath }, checkoutOptions);
+
+                stopwatch.Stop();
+
+                _logger.LogInformation("Successfully discarded changes for file: {FilePath}, Duration: {Duration}ms",
+                    filePath, stopwatch.ElapsedMilliseconds);
+
+                return new GitOperationResult
+                {
+                    Success = true,
+                    Message = $"Successfully discarded changes for '{filePath}'",
+                    Changes = new[] { filePath },
+                    Duration = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error discarding changes for file: {FilePath} in repository: {RepositoryPath}",
+                    filePath, repositoryPath);
+
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to discard changes: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Removes a file from staging area (equivalent to git reset HEAD file)
+        /// The file remains on disk as untracked
+        /// </summary>
+        public async Task<GitOperationResult> UnstageFileAsync(string repositoryPath, string filePath)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("Unstaging file: {FilePath} in repository: {RepositoryPath}", filePath, repositoryPath);
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                using var repo = new Repository(repositoryPath);
+
+                // Unstage the file (removes it from the index)
+                Commands.Unstage(repo, filePath);
+
+                stopwatch.Stop();
+
+                _logger.LogInformation("Successfully unstaged file: {FilePath}, Duration: {Duration}ms",
+                    filePath, stopwatch.ElapsedMilliseconds);
+
+                return new GitOperationResult
+                {
+                    Success = true,
+                    Message = $"Successfully removed '{filePath}' from staging",
+                    Changes = new[] { filePath },
+                    Duration = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error unstaging file: {FilePath} in repository: {RepositoryPath}",
+                    filePath, repositoryPath);
+
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to unstage file: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Deletes an untracked file from disk
+        /// </summary>
+        public async Task<GitOperationResult> DeleteUntrackedFileAsync(string repositoryPath, string filePath)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("Deleting untracked file: {FilePath} in repository: {RepositoryPath}", filePath, repositoryPath);
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                var fullPath = Path.Combine(repositoryPath, filePath);
+
+                if (!File.Exists(fullPath))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"File does not exist: {filePath}",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                // Verify the file is untracked or newly added (not part of HEAD)
+                using var repo = new Repository(repositoryPath);
+                var status = repo.RetrieveStatus(filePath);
+
+                // Allow deletion only for untracked or newly added files
+                if (status != FileStatus.NewInIndex && status != FileStatus.NewInWorkdir &&
+                    !status.HasFlag(FileStatus.NewInIndex) && !status.HasFlag(FileStatus.NewInWorkdir))
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"File '{filePath}' is not a new/untracked file and cannot be deleted this way.",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                // First unstage if it's staged
+                if (status.HasFlag(FileStatus.NewInIndex))
+                {
+                    Commands.Unstage(repo, filePath);
+                }
+
+                // Delete the file
+                File.Delete(fullPath);
+
+                stopwatch.Stop();
+
+                _logger.LogInformation("Successfully deleted file: {FilePath}, Duration: {Duration}ms",
+                    filePath, stopwatch.ElapsedMilliseconds);
+
+                return new GitOperationResult
+                {
+                    Success = true,
+                    Message = $"Successfully deleted '{filePath}'",
+                    Changes = new[] { filePath },
+                    Duration = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error deleting file: {FilePath} in repository: {RepositoryPath}",
+                    filePath, repositoryPath);
+
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to delete file: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets detailed information about all changed files in the repository
+        /// </summary>
+        public async Task<GitDetailedStatus> GetDetailedStatusAsync(string repositoryPath)
+        {
+            try
+            {
+                _logger.LogInformation("Getting detailed status for repository: {RepositoryPath}", repositoryPath);
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return new GitDetailedStatus { Files = new List<GitChangedFileInfo>() };
+                }
+
+                using var repo = new Repository(repositoryPath);
+                var status = repo.RetrieveStatus();
+
+                var files = new List<GitChangedFileInfo>();
+
+                // Process Modified files
+                foreach (var item in status.Modified)
+                {
+                    files.Add(new GitChangedFileInfo
+                    {
+                        FileName = Path.GetFileName(item.FilePath),
+                        RelativePath = item.FilePath,
+                        FullPath = Path.Combine(repositoryPath, item.FilePath),
+                        Status = "Modified",
+                        IsNew = false
+                    });
+                }
+
+                // Process Added (staged new files)
+                foreach (var item in status.Added)
+                {
+                    files.Add(new GitChangedFileInfo
+                    {
+                        FileName = Path.GetFileName(item.FilePath),
+                        RelativePath = item.FilePath,
+                        FullPath = Path.Combine(repositoryPath, item.FilePath),
+                        Status = "Added",
+                        IsNew = true
+                    });
+                }
+
+                // Process Removed files
+                foreach (var item in status.Removed)
+                {
+                    files.Add(new GitChangedFileInfo
+                    {
+                        FileName = Path.GetFileName(item.FilePath),
+                        RelativePath = item.FilePath,
+                        FullPath = Path.Combine(repositoryPath, item.FilePath),
+                        Status = "Deleted",
+                        IsNew = false
+                    });
+                }
+
+                // Process Untracked files
+                foreach (var item in status.Untracked)
+                {
+                    files.Add(new GitChangedFileInfo
+                    {
+                        FileName = Path.GetFileName(item.FilePath),
+                        RelativePath = item.FilePath,
+                        FullPath = Path.Combine(repositoryPath, item.FilePath),
+                        Status = "Untracked",
+                        IsNew = true
+                    });
+                }
+
+                _logger.LogInformation("Found {Count} changed files in repository", files.Count);
+
+                return new GitDetailedStatus { Files = files };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting detailed status for repository: {RepositoryPath}", repositoryPath);
+                return new GitDetailedStatus { Files = new List<GitChangedFileInfo>() };
+            }
+        }
+
     }
 }
