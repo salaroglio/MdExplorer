@@ -279,7 +279,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var folderContainintMdFile = Path.GetDirectoryName(request.MdFile.FullPath);
             var destinationDirectory = Directory.CreateDirectory(folderContainintMdFile + Path.DirectorySeparatorChar + "assets");
             
-            var trueFileName = Path.GetFileNameWithoutExtension(request.FullPath.Replace(" ", "-")) + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(request.FullPath);
+            var originalFileName = Path.GetFileNameWithoutExtension(request.FullPath);
+            var sanitizedFileName = SanitizeFileName(originalFileName);
+            var trueFileName = sanitizedFileName + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(request.FullPath);
             var fullPathFileName = destinationDirectory.FullName 
                 + Path.DirectorySeparatorChar + trueFileName
                 ;
@@ -295,8 +297,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
            
             _fileSystemWatcher.EnableRaisingEvents = true;
             var allText = System.IO.File.ReadAllText(request.MdFile.FullPath);
-            //We have to set an absolute path
-            var relativePathMDE = fullPathFileName.Replace(GetProjectPath(), string.Empty).Replace("\\", "/");
+            // Normalize both paths to forward slashes before replacing to get relative path
+            var projectPathNormalized = GetProjectPath().Replace("\\", "/");
+            var fullPathNormalized = fullPathFileName.Replace("\\", "/");
+            // Use case-insensitive replace for Windows compatibility
+            var relativePathMDE = ReplaceCaseInsensitive(fullPathNormalized, projectPathNormalized, string.Empty);
             var newLineTextToAdd = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
             allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
             System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
@@ -1919,6 +1924,48 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _logger.LogWarning(ex, $"Error finding project root for {startPath}");
                 return startPath;
             }
+        }
+
+        private static string SanitizeFileName(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return fileName;
+
+            // Replace spaces and problematic characters with dash
+            var invalidChars = new[] { ' ', '\'', '"', '(', ')', '[', ']', '{', '}', '&', '#', '%', '!', '@', '$', '^', '+', '=', '`', '~' };
+
+            foreach (var c in invalidChars)
+            {
+                fileName = fileName.Replace(c, '-');
+            }
+
+            // Also remove invalid file system characters
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(c.ToString(), string.Empty);
+            }
+
+            // Remove consecutive dashes
+            while (fileName.Contains("--"))
+            {
+                fileName = fileName.Replace("--", "-");
+            }
+
+            // Remove leading/trailing dashes
+            fileName = fileName.Trim('-');
+
+            return fileName;
+        }
+
+        private static string ReplaceCaseInsensitive(string input, string search, string replacement)
+        {
+            if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(search))
+                return input;
+
+            int index = input.IndexOf(search, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+                return input;
+            return input.Substring(0, index) + replacement + input.Substring(index + search.Length);
         }
 
         private void ExploreNodesFolderOnly(FileInfoNode fileInfoNode, string pathFile)
