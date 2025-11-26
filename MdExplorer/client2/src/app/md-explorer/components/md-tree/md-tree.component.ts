@@ -22,6 +22,8 @@ import { MoveMdFileComponent } from '../dialogs/move-md-file/move-md-file.compon
 import { AddNewFileToMDEComponent } from '../dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
+import { ProjectsService } from '../../services/projects.service';
+import { UrlHandlerService } from '../../../services/url-handler.service';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -104,7 +106,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private mdServerMessages: MdServerMessagesService,
     private tocService: TocGenerationService,
-    private tocProgressService: TocProgressService
+    private tocProgressService: TocProgressService,
+    private projectsService: ProjectsService,
+    private urlHandlerService: UrlHandlerService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -246,17 +250,23 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   deferredOpenProject(data, objectThis: MdTreeComponent): void {
+    // Check if URL handler is opening a specific document - skip landing page in that case
+    if (objectThis.urlHandlerService.skipLandingPage) {
+      console.log('🚫 [deferredOpenProject] Skipping landing page - URL handler is opening a specific document');
+      return;
+    }
+
     objectThis.mdFileService.getLandingPage().subscribe(node => {
       if (node != null) {
         console.log('🏠 Landing page trovata:', node.name, 'Path:', node.fullPath);
-        
+
         // Aspetta che l'albero sia completamente renderizzato
         setTimeout(() => {
           console.log('🌳 TreeControl dataNodes count:', objectThis.treeControl.dataNodes?.length);
-          
+
           // Espandi manualmente l'albero fino al file
           objectThis.expandToLandingPage(node);
-          
+
           // Usa setSelectedMdFileFromServer per attivare l'espansione dell'albero
           objectThis.mdFileService.setSelectedMdFileFromServer(node);
           objectThis.mdFileService.setSelectedMdFileFromSideNav(node);
@@ -644,9 +654,35 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getLinkFromNode(node: MdFile) {
-    let finalPath = node.relativePath.replace(/\\/g, "/");  
+    let finalPath = node.relativePath.replace(/\\/g, "/");
     this.clipboard.copy(finalPath);
 
+  }
+
+  /**
+   * Copy the mdexplorer:// URL for this document to the clipboard.
+   * Format: mdexplorer://opendocument/<project-name>/<relative-path>
+   */
+  copyMdExplorerLink(node: MdFile) {
+    const currentProject = this.projectsService.currentProjects$.value;
+    if (!currentProject) {
+      this.snackBar.open('No project currently open', 'OK', { duration: 3000 });
+      return;
+    }
+
+    // Build the relative path (use forward slashes)
+    let relativePath = node.relativePath.replace(/\\/g, '/');
+    // Remove leading slash if present
+    if (relativePath.startsWith('/')) {
+      relativePath = relativePath.substring(1);
+    }
+
+    // Build the mdexplorer:// URL
+    // Format: mdexplorer://opendocument/<project-name>/<relative-path>
+    const mdExplorerUrl = `mdexplorer://opendocument/${encodeURIComponent(currentProject.name)}/${relativePath}`;
+
+    this.clipboard.copy(mdExplorerUrl);
+    this.snackBar.open('MdExplorer link copied to clipboard', 'OK', { duration: 2000 });
   }
 
   deleteFile(node: MdFile) {

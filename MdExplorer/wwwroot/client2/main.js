@@ -308,7 +308,13 @@ class MdServerMessagesService {
     getCurrentConnectionId(objectThis) {
         this.hubConnection.invoke('GetConnectionId')
             .then(function (connectionId) {
+            var _a;
             objectThis.connectionId = connectionId;
+            // Notify Electron that connectionId is ready (for URL handler feature)
+            if ((_a = window.electronAPI) === null || _a === void 0 ? void 0 : _a.notifyConnectionIdReady) {
+                console.log('[SignalR] Notifying Electron of connectionId:', connectionId);
+                window.electronAPI.notifyConnectionIdReady(connectionId);
+            }
         });
     }
     // TOC Generation listeners
@@ -328,6 +334,25 @@ class MdServerMessagesService {
     addAiFileOperationListener(callback, objectThis) {
         this.hubConnection.on('aiFileOperation', (data) => {
             console.log('[SignalR] AI File Operation:', data);
+            callback(data, objectThis);
+        });
+    }
+    // URL Handler listeners
+    addUrlHandlerOpenDocumentListener(callback, objectThis) {
+        this.hubConnection.on('urlHandlerOpenDocument', (data) => {
+            console.log('[SignalR] URL Handler Open Document:', data);
+            callback(data, objectThis);
+        });
+    }
+    addUrlHandlerOpenCloneDialogListener(callback, objectThis) {
+        this.hubConnection.on('urlHandlerOpenCloneDialog', (data) => {
+            console.log('[SignalR] URL Handler Open Clone Dialog:', data);
+            callback(data, objectThis);
+        });
+    }
+    addUrlHandlerErrorListener(callback, objectThis) {
+        this.hubConnection.on('urlHandlerError', (data) => {
+            console.log('[SignalR] URL Handler Error:', data);
             callback(data, objectThis);
         });
     }
@@ -1160,6 +1185,265 @@ class LayoutService {
 }
 LayoutService.ɵfac = function LayoutService_Factory(t) { return new (t || LayoutService)(); };
 LayoutService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: LayoutService, factory: LayoutService.ɵfac, providedIn: 'root' });
+
+
+/***/ }),
+
+/***/ "Ivbh":
+/*!*************************************************!*\
+  !*** ./src/app/services/url-handler.service.ts ***!
+  \*************************************************/
+/*! exports provided: UrlHandlerService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "UrlHandlerService", function() { return UrlHandlerService; });
+/* harmony import */ var _projects_dialogs_modern_clone_project_modern_clone_project_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../projects/dialogs/modern-clone-project/modern-clone-project.component */ "zabz");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/router */ "tyNb");
+/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
+/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/snack-bar */ "dNgK");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ "+dpY");
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ "vUCT");
+/* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../md-explorer/services/md-file.service */ "xmhS");
+
+
+
+
+
+
+
+
+/**
+ * Service to handle mdexplorer:// URL commands received via SignalR
+ */
+class UrlHandlerService {
+    constructor(router, dialog, snackBar, mdServerMessages, projectsService, mdFileService) {
+        this.router = router;
+        this.dialog = dialog;
+        this.snackBar = snackBar;
+        this.mdServerMessages = mdServerMessages;
+        this.projectsService = projectsService;
+        this.mdFileService = mdFileService;
+        this.initialized = false;
+        /**
+         * Flag to indicate that a URL handler command is pending.
+         * When true, the landing page should NOT be opened automatically.
+         */
+        this.skipLandingPage = false;
+    }
+    /**
+     * Initialize the URL handler listeners. Should be called once on app startup.
+     */
+    initialize() {
+        if (this.initialized) {
+            return;
+        }
+        console.log('[UrlHandler] Initializing URL handler service');
+        // Listen for open document commands
+        this.mdServerMessages.addUrlHandlerOpenDocumentListener((data, _) => {
+            this.handleOpenDocument(data);
+        }, this);
+        // Listen for clone dialog commands
+        this.mdServerMessages.addUrlHandlerOpenCloneDialogListener((data, _) => {
+            this.handleOpenCloneDialog(data);
+        }, this);
+        // Listen for error messages
+        this.mdServerMessages.addUrlHandlerErrorListener((data, _) => {
+            this.handleError(data);
+        }, this);
+        this.initialized = true;
+        console.log('[UrlHandler] URL handler service initialized');
+    }
+    /**
+     * Handle open document command
+     */
+    handleOpenDocument(data) {
+        var _a;
+        console.log('[UrlHandler] ========== handleOpenDocument called ==========');
+        console.log('[UrlHandler] Data received:', JSON.stringify(data));
+        // Set flag to skip landing page - we're opening a specific document
+        this.skipLandingPage = true;
+        console.log('[UrlHandler] skipLandingPage set to true');
+        // Data structure from backend:
+        // {
+        //   projectId: string,
+        //   projectName: string,
+        //   projectPath: string,
+        //   filePath: string (relative),
+        //   fullPath: string (absolute),
+        //   section: string (optional anchor)
+        // }
+        // Normalize paths for comparison (replace backslashes with forward slashes)
+        const normalizedProjectPath = (_a = data.projectPath) === null || _a === void 0 ? void 0 : _a.replace(/\\/g, '/').toLowerCase();
+        // Set up listener for indexing complete BEFORE setting the project
+        // This ensures we catch the event even if indexing is fast
+        let indexingCompleteReceived = false;
+        const indexingCompleteHandler = (indexData, _) => {
+            console.log('[UrlHandler] folderIndexingComplete received:', indexData);
+            indexingCompleteReceived = true;
+        };
+        this.mdServerMessages.addFolderIndexingCompleteListener(indexingCompleteHandler, this);
+        // First, set the project as current
+        console.log('[UrlHandler] Setting project:', data.projectPath);
+        this.projectsService.setNewFolderProject(data.projectPath);
+        // Wait for project to be set, then navigate to the document
+        console.log('[UrlHandler] Subscribing to currentProjects$...');
+        const subscription = this.projectsService.currentProjects$.subscribe(project => {
+            var _a;
+            console.log('[UrlHandler] currentProjects$ emitted:', project ? project.path : 'null');
+            if (project) {
+                const normalizedCurrentPath = (_a = project.path) === null || _a === void 0 ? void 0 : _a.replace(/\\/g, '/').toLowerCase();
+                console.log('[UrlHandler] Comparing paths:');
+                console.log('[UrlHandler]   - Current project path (normalized):', normalizedCurrentPath);
+                console.log('[UrlHandler]   - Expected project path (normalized):', normalizedProjectPath);
+                console.log('[UrlHandler]   - Match:', normalizedCurrentPath === normalizedProjectPath);
+                if (normalizedCurrentPath === normalizedProjectPath) {
+                    console.log('[UrlHandler] Project matched! Navigating to document view...');
+                    subscription.unsubscribe();
+                    console.log('[UrlHandler] Unsubscribed from currentProjects$');
+                    // Navigate to the document view
+                    this.router.navigate(['/main/navigation/document']).then(() => {
+                        console.log('[UrlHandler] Navigation complete, waiting for indexing to complete...');
+                        // Wait for indexing to complete before selecting the file
+                        this.waitForIndexingComplete(indexingCompleteReceived, () => {
+                            console.log('[UrlHandler] Indexing complete, selecting file...');
+                            this.selectFile(data.fullPath, data.section);
+                        });
+                    });
+                }
+            }
+        });
+        this.snackBar.open(`Opening ${data.filePath}...`, 'OK', {
+            duration: 3000
+        });
+    }
+    /**
+     * Wait for indexing to complete, with timeout fallback
+     */
+    waitForIndexingComplete(alreadyComplete, callback) {
+        if (alreadyComplete) {
+            console.log('[UrlHandler] Indexing already complete');
+            setTimeout(callback, 500); // Small delay to ensure UI is ready
+            return;
+        }
+        console.log('[UrlHandler] Waiting for folderIndexingComplete event...');
+        let completed = false;
+        // Set up one-time listener for indexing complete
+        const handler = (_data, _) => {
+            if (!completed) {
+                completed = true;
+                console.log('[UrlHandler] folderIndexingComplete event received');
+                setTimeout(callback, 500); // Small delay to ensure UI is ready
+            }
+        };
+        this.mdServerMessages.addFolderIndexingCompleteListener(handler, this);
+        // Timeout fallback after 10 seconds
+        setTimeout(() => {
+            if (!completed) {
+                completed = true;
+                console.log('[UrlHandler] Timeout waiting for indexing, proceeding anyway...');
+                callback();
+            }
+        }, 10000);
+    }
+    /**
+     * Select a file in the tree and optionally scroll to a section
+     */
+    selectFile(fullPath, section) {
+        console.log('[UrlHandler] Selecting file:', fullPath, 'section:', section);
+        // Create a minimal MdFile object to search for in the dataStore
+        const searchFile = {
+            fullPath: fullPath,
+            path: '',
+            name: fullPath.split(/[/\\]/).pop() || '',
+            relativePath: '',
+            level: 0,
+            expandable: false,
+            type: 'mdFile',
+            childrens: [],
+            index: 0,
+            isLoading: false,
+            fullDirectoryPath: ''
+        };
+        // Try to find the file in the dataStore to get the complete MdFile object
+        const foundFile = this.mdFileService.getMdFileFromDataStore(searchFile);
+        if (foundFile) {
+            console.log('[UrlHandler] Found file in dataStore:', foundFile.fullPath);
+            // Set the file as selected - this will trigger the document to load
+            this.mdFileService.setSelectedMdFileFromSideNav(foundFile);
+            this.mdFileService.setSelectedMdFileFromServer(foundFile);
+        }
+        else {
+            console.log('[UrlHandler] File not found in dataStore, using search file');
+            // Fallback: use the minimal object (may not work perfectly)
+            this.mdFileService.setSelectedMdFileFromSideNav(searchFile);
+            this.mdFileService.setSelectedMdFileFromServer(searchFile);
+        }
+        // Reset skipLandingPage flag after file selection
+        this.skipLandingPage = false;
+        console.log('[UrlHandler] skipLandingPage reset to false');
+        // If there's a section anchor, scroll to it after the document loads
+        if (section) {
+            setTimeout(() => {
+                this.scrollToSection(section);
+            }, 1000); // Give time for the document to render
+        }
+    }
+    /**
+     * Scroll to a section anchor in the document
+     */
+    scrollToSection(section) {
+        console.log('[UrlHandler] Scrolling to section:', section);
+        // Try to find the element by id
+        const element = document.getElementById(section);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        else {
+            console.log('[UrlHandler] Section not found:', section);
+        }
+    }
+    /**
+     * Handle clone dialog command
+     */
+    handleOpenCloneDialog(data) {
+        console.log('[UrlHandler] Opening clone dialog:', data);
+        // Data structure from backend:
+        // {
+        //   repo: string (repository URL),
+        //   branch: string (optional branch name),
+        //   user: string (optional username)
+        // }
+        // Open the clone dialog with pre-filled data
+        const dialogRef = this.dialog.open(_projects_dialogs_modern_clone_project_modern_clone_project_component__WEBPACK_IMPORTED_MODULE_0__["ModernCloneProjectComponent"], {
+            width: '600px',
+            data: {
+                prefilledUrl: data.repo,
+                prefilledBranch: data.branch,
+                prefilledUser: data.user
+            }
+        });
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                console.log('[UrlHandler] Clone dialog closed with result:', result);
+            }
+        });
+    }
+    /**
+     * Handle error messages from backend
+     */
+    handleError(data) {
+        console.error('[UrlHandler] Error:', data);
+        this.snackBar.open(data.error || 'An error occurred', 'OK', {
+            duration: 5000,
+            panelClass: ['error-snackbar']
+        });
+    }
+}
+UrlHandlerService.ɵfac = function UrlHandlerService_Factory(t) { return new (t || UrlHandlerService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_2__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__["MatSnackBar"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__["MdServerMessagesService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_6__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_7__["MdFileService"])); };
+UrlHandlerService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: UrlHandlerService, factory: UrlHandlerService.ɵfac, providedIn: 'root' });
 
 
 /***/ }),
@@ -2033,7 +2317,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./services/app-current-metadata.service */ "QI1B");
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _services_ai_notification_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./services/ai-notification.service */ "+Jvq");
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ "89FR");
+/* harmony import */ var _services_url_handler_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./services/url-handler.service */ "Ivbh");
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ "89FR");
+
 
 
 
@@ -2042,17 +2328,20 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class AppComponent {
-    constructor(titleService, currentFolder, route, router, aiNotificationService) {
+    constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService) {
         this.titleService = titleService;
         this.currentFolder = currentFolder;
         this.route = route;
         this.router = router;
         this.aiNotificationService = aiNotificationService;
+        this.urlHandlerService = urlHandlerService;
         this.title = 'client2';
         currentFolder.folderName.subscribe((data) => {
             this.titleService.setTitle(data.currentFolder);
         });
         currentFolder.loadFolderName();
+        // Initialize URL handler service for mdexplorer:// protocol
+        this.urlHandlerService.initialize();
     }
     unloadHandler(event) {
         // E' stato dato il comando di chiusura del tab o di chrome
@@ -2063,7 +2352,7 @@ class AppComponent {
         //
     }
 }
-AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_2__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_3__["AppCurrentMetadataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_5__["AiNotificationService"])); };
+AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_2__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_3__["AppCurrentMetadataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_5__["AiNotificationService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_6__["UrlHandlerService"])); };
 AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: AppComponent, selectors: [["app-root"]], hostBindings: function AppComponent_HostBindings(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) { return ctx.unloadHandler($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresolveWindow"]);
     } }, decls: 4, vars: 1, consts: [[1, "container", "app-content"], ["o", "outlet"]], template: function AppComponent_Template(rf, ctx) { if (rf & 1) {
@@ -2075,7 +2364,7 @@ AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineCompo
         const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵreference"](3);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
-    } }, directives: [_components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_6__["TitleBarComponent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwiZmlsZSI6ImFwcC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5mbGV4LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWZsb3c6IHJvdyB3cmFwO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgZmxleC13cmFwOiB3cmFwOyAgXHJcbn1cclxuXHJcbi5mbGV4LWl0ZW0ge1xyXG4gIGJhY2tncm91bmQ6IHRvbWF0bztcclxufVxyXG5cclxuLmFwcC1jb250ZW50IHtcclxuICBtYXJnaW4tdG9wOiAzMHB4OyAvLyBTcGFjZSBmb3IgdGl0bGUgYmFyXHJcbiAgaGVpZ2h0OiBjYWxjKDEwMHZoIC0gMzBweCk7IC8vIEltcG9zdGEgbCdhbHRlenphIHBlciBvY2N1cGFyZSB0dXR0byBsbyBzcGF6aW8gZGlzcG9uaWJpbGVcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbiJdfQ== */"], data: { animation: [
+    } }, directives: [_components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_7__["TitleBarComponent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwiZmlsZSI6ImFwcC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5mbGV4LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWZsb3c6IHJvdyB3cmFwO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgZmxleC13cmFwOiB3cmFwOyAgXHJcbn1cclxuXHJcbi5mbGV4LWl0ZW0ge1xyXG4gIGJhY2tncm91bmQ6IHRvbWF0bztcclxufVxyXG5cclxuLmFwcC1jb250ZW50IHtcclxuICBtYXJnaW4tdG9wOiAzMHB4OyAvLyBTcGFjZSBmb3IgdGl0bGUgYmFyXHJcbiAgaGVpZ2h0OiBjYWxjKDEwMHZoIC0gMzBweCk7IC8vIEltcG9zdGEgbCdhbHRlenphIHBlciBvY2N1cGFyZSB0dXR0byBsbyBzcGF6aW8gZGlzcG9uaWJpbGVcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbiJdfQ== */"], data: { animation: [
             _shared_animations__WEBPACK_IMPORTED_MODULE_0__["slideInAnimation"]
         ] } });
 
@@ -3207,6 +3496,43 @@ class MdFile {
 
 /***/ }),
 
+/***/ "eAi6":
+/*!*****************************************************************!*\
+  !*** ./src/app/commons/waitingdialog/waiting-dialog.service.ts ***!
+  \*****************************************************************/
+/*! exports provided: WaitingDialogService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "WaitingDialogService", function() { return WaitingDialogService; });
+/* harmony import */ var _waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./waiting-dialog/waiting-dialog.component */ "S2pp");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
+
+
+
+class WaitingDialogService {
+    constructor(dialog) {
+        this.dialog = dialog;
+    }
+    showMessageBox(info) {
+        this.dialogRef = this.dialog.open(_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_0__["WaitingDialogComponent"], {
+            width: '300px',
+            height: '300px',
+            data: info
+        });
+    }
+    closeMessageBox() {
+        this.dialogRef.close();
+    }
+}
+WaitingDialogService.ɵfac = function WaitingDialogService_Factory(t) { return new (t || WaitingDialogService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__["MatDialog"])); };
+WaitingDialogService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: WaitingDialogService, factory: WaitingDialogService.ɵfac, providedIn: 'root' });
+
+
+/***/ }),
+
 /***/ "ggj0":
 /*!********************************************************************************!*\
   !*** ./src/app/signalR/dialogs/plantuml-working/plantuml-working.component.ts ***!
@@ -3339,6 +3665,45 @@ class ConnectionLostProvider {
 }
 ConnectionLostProvider.ɵfac = function ConnectionLostProvider_Factory(t) { return new (t || ConnectionLostProvider)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__["MatDialog"])); };
 ConnectionLostProvider.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: ConnectionLostProvider, factory: ConnectionLostProvider.ɵfac });
+
+
+/***/ }),
+
+/***/ "jwHG":
+/*!***********************************************************************!*\
+  !*** ./src/app/git/components/git-messages/git-messages.component.ts ***!
+  \***********************************************************************/
+/*! exports provided: GitMessagesComponent */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GitMessagesComponent", function() { return GitMessagesComponent; });
+/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
+
+class GitMessagesComponent {
+    constructor(data) {
+        this.data = data;
+    }
+    ngOnInit() {
+    }
+}
+GitMessagesComponent.ɵfac = function GitMessagesComponent_Factory(t) { return new (t || GitMessagesComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MAT_DIALOG_DATA"])); };
+GitMessagesComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: GitMessagesComponent, selectors: [["app-git-messages"]], decls: 4, vars: 2, template: function GitMessagesComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h1");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "p");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    } if (rf & 2) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx.data.message);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx.data.description);
+    } }, styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJnaXQtbWVzc2FnZXMuY29tcG9uZW50LnNjc3MifQ== */"] });
 
 
 /***/ }),
@@ -3517,8 +3882,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.25.16',
-    buildTime: '2025.11.25 18:48:50'
+    version: '2025.11.26.8',
+    buildTime: '2025.11.26 14:15:22'
 };
 
 
@@ -5331,6 +5696,422 @@ if (_environments_environment__WEBPACK_IMPORTED_MODULE_3__["environment"].produc
 }
 _angular_platform_browser__WEBPACK_IMPORTED_MODULE_0__["platformBrowser"]().bootstrapModule(_app_app_module__WEBPACK_IMPORTED_MODULE_2__["AppModule"])
     .catch(err => console.error(err));
+
+
+/***/ }),
+
+/***/ "zabz":
+/*!*****************************************************************************************!*\
+  !*** ./src/app/projects/dialogs/modern-clone-project/modern-clone-project.component.ts ***!
+  \*****************************************************************************************/
+/*! exports provided: ModernCloneProjectComponent */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ModernCloneProjectComponent", function() { return ModernCloneProjectComponent; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/material/dialog */ "0IaG");
+/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../commons/components/show-file-system/show-file-system.component */ "yrD1");
+/* harmony import */ var _commons_waitingdialog_waiting_dialog_models_WaitingDialogInfo__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo */ "N+BC");
+/* harmony import */ var _git_components_git_messages_git_messages_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../git/components/git-messages/git-messages.component */ "jwHG");
+/* harmony import */ var _commons_components_show_file_system_show_file_metadata__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../../commons/components/show-file-system/show-file-metadata */ "DEjE");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../../md-explorer/services/md-file.service */ "xmhS");
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../../../git/services/gitservice.service */ "N73s");
+/* harmony import */ var _commons_waitingdialog_waiting_dialog_service__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../../../commons/waitingdialog/waiting-dialog.service */ "eAi6");
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ../../../md-explorer/services/projects.service */ "vUCT");
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/router */ "tyNb");
+/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/form-field */ "kmnG");
+/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/input */ "qFsG");
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/forms */ "3Pt+");
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/common */ "ofXK");
+/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+/* harmony import */ var _angular_material_card__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/material/card */ "Wp6s");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function ModernCloneProjectComponent_mat_hint_9_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "mat-hint");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](1, "GitHub repository detected");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} }
+function ModernCloneProjectComponent_div_10_div_6_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](1, "mat-icon", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](2, "check_circle");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](3, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx_r3.tokenStatus);
+} }
+function ModernCloneProjectComponent_div_10_div_7_Template(rf, ctx) { if (rf & 1) {
+    const _r6 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](1, "mat-icon", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](2, "warning");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](3, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](5, "button", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function ModernCloneProjectComponent_div_10_div_7_Template_button_click_5_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵrestoreView"](_r6); const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](2); return ctx_r5.openTokenSettings(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](6, " Configure Token ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](ctx_r4.tokenStatus);
+} }
+function ModernCloneProjectComponent_div_10_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](1, "mat-card", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](2, "mat-card-header");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](3, "mat-card-title");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](4, "Authentication");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](5, "mat-card-content");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](6, ModernCloneProjectComponent_div_10_div_6_Template, 5, 1, "div", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](7, ModernCloneProjectComponent_div_10_div_7_Template, 7, 1, "div", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](6);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx_r1.hasGitHubToken);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", !ctx_r1.hasGitHubToken);
+} }
+function ModernCloneProjectComponent_div_11_Template(rf, ctx) { if (rf & 1) {
+    const _r8 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](1, "mat-card", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](2, "mat-card-header");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](3, "mat-card-title");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](4, "Authentication");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](5, "mat-card-content");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](6, "mat-form-field", 3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](7, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](8, "Username");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](9, "input", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("ngModelChange", function ModernCloneProjectComponent_div_11_Template_input_ngModelChange_9_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵrestoreView"](_r8); const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](); return ctx_r7.manualCredentials.username = $event; });
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](10, "mat-form-field", 3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](11, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](12, "Password / Token");
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](13, "input", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("ngModelChange", function ModernCloneProjectComponent_div_11_Template_input_ngModelChange_13_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵrestoreView"](_r8); const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"](); return ctx_r9.manualCredentials.password = $event; });
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](9);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx_r2.manualCredentials.username);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx_r2.manualCredentials.password);
+} }
+class ModernCloneProjectComponent {
+    constructor(dialog, mdFileService, gitService, dialogRef, waitingDialog, projectService, router, data) {
+        this.dialog = dialog;
+        this.mdFileService = mdFileService;
+        this.gitService = gitService;
+        this.dialogRef = dialogRef;
+        this.waitingDialog = waitingDialog;
+        this.projectService = projectService;
+        this.router = router;
+        this.data = data;
+        this.cloneRequest = {
+            url: '',
+            localPath: '',
+            branchName: '',
+            useToken: true,
+            useSSH: false
+        };
+        this.hasGitHubToken = false;
+        this.tokenStatus = '';
+        this.isGitHubRepo = false;
+        this.authMethod = 'automatic';
+        // For manual authentication (non-GitHub repos)
+        this.manualCredentials = {
+            username: '',
+            password: ''
+        };
+    }
+    ngOnInit() {
+        var _a;
+        // Check if we have prefilled data from URL handler
+        if ((_a = this.data) === null || _a === void 0 ? void 0 : _a.prefilledUrl) {
+            console.log('[ModernClone] Using prefilled URL from URL handler:', this.data.prefilledUrl);
+            this.cloneRequest.url = this.data.prefilledUrl;
+            if (this.data.prefilledBranch) {
+                this.cloneRequest.branchName = this.data.prefilledBranch;
+            }
+            if (this.data.prefilledUser) {
+                this.manualCredentials.username = this.data.prefilledUser;
+            }
+            this.checkIfGitHubRepo();
+        }
+        else {
+            // Get URL from clipboard (default behavior)
+            this.mdFileService.getTextFromClipboard().subscribe(clipboard => {
+                if (clipboard === null || clipboard === void 0 ? void 0 : clipboard.url) {
+                    this.cloneRequest.url = clipboard.url;
+                    this.checkIfGitHubRepo();
+                }
+            });
+        }
+        // Check GitHub token status
+        this.checkGitHubToken();
+        // When the project changes, navigate to the main environment
+        this.projectService.currentProjects$.subscribe(project => {
+            if (project != null && project != undefined) {
+                this.router.navigate(['/main/navigation/document']);
+                this.dialogRef.close();
+            }
+        });
+    }
+    checkGitHubToken() {
+        this.gitService.getGitHubToken().subscribe(response => {
+            this.hasGitHubToken = response.hasToken;
+            if (response.hasToken) {
+                this.tokenStatus = `Token configured: ${response.maskedToken}`;
+            }
+            else {
+                this.tokenStatus = 'No GitHub token configured';
+            }
+        });
+    }
+    onUrlChange() {
+        this.checkIfGitHubRepo();
+    }
+    checkIfGitHubRepo() {
+        const url = this.cloneRequest.url.toLowerCase();
+        this.isGitHubRepo = url.includes('github.com');
+        // Auto-select authentication method based on URL
+        if (this.isGitHubRepo && this.hasGitHubToken) {
+            this.authMethod = 'automatic';
+        }
+        else if (!this.isGitHubRepo) {
+            this.authMethod = 'manual';
+        }
+    }
+    openFileSystem() {
+        let data = new _commons_components_show_file_system_show_file_metadata__WEBPACK_IMPORTED_MODULE_5__["ShowFileMetadata"]();
+        data.start = null;
+        data.title = "Select Clone Destination";
+        data.typeOfSelection = "Folders";
+        data.buttonText = "Select folder";
+        const dialogRef = this.dialog.open(_commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_2__["ShowFileSystemComponent"], {
+            width: '800px',
+            height: '600px',
+            panelClass: 'resizable-dialog-container',
+            data: data
+        });
+        dialogRef.afterClosed().subscribe(result => {
+            if (result === null || result === void 0 ? void 0 : result.data) {
+                // Add repository name to the path
+                const repoName = this.extractRepoName(this.cloneRequest.url);
+                if (repoName) {
+                    this.cloneRequest.localPath = `${result.data}\\${repoName}`;
+                }
+                else {
+                    this.cloneRequest.localPath = result.data;
+                }
+            }
+        });
+    }
+    extractRepoName(url) {
+        var _a, _b;
+        if (!url)
+            return '';
+        // Handle various Git URL formats
+        let repoName = url;
+        // Remove .git extension if present
+        repoName = repoName.replace(/\.git$/, '');
+        // Extract from HTTPS URL: https://github.com/user/repo
+        if (repoName.includes('github.com/')) {
+            const parts = (_a = repoName.split('github.com/')[1]) === null || _a === void 0 ? void 0 : _a.split('/');
+            if (parts && parts.length >= 2) {
+                return parts[1];
+            }
+        }
+        // Extract from SSH URL: git@github.com:user/repo
+        if (repoName.includes('git@github.com:')) {
+            const parts = (_b = repoName.split(':')[1]) === null || _b === void 0 ? void 0 : _b.split('/');
+            if (parts && parts.length >= 2) {
+                return parts[1];
+            }
+        }
+        // Fallback: get last part of URL
+        const parts = repoName.split('/');
+        return parts[parts.length - 1] || 'repository';
+    }
+    performClone() {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (!this.cloneRequest.url || !this.cloneRequest.localPath) {
+                this.showMessage('Please fill in all required fields');
+                return;
+            }
+            const info = new _commons_waitingdialog_waiting_dialog_models_WaitingDialogInfo__WEBPACK_IMPORTED_MODULE_3__["WaitingDialogInfo"]();
+            info.message = "Cloning repository...";
+            this.waitingDialog.showMessageBox(info);
+            try {
+                // Use modern clone endpoint
+                const request = {
+                    url: this.cloneRequest.url,
+                    localPath: this.cloneRequest.localPath,
+                    branchName: this.cloneRequest.branchName || null
+                };
+                // Log the request for debugging
+                console.log('[ModernClone] Sending clone request:', request);
+                // Call the modern Git service clone method
+                this.gitService.modernClone(request).subscribe(response => {
+                    this.waitingDialog.closeMessageBox();
+                    if (response.success) {
+                        // Set the new project folder
+                        this.projectService.setNewFolderProject(this.cloneRequest.localPath);
+                        this.showMessage('Repository cloned successfully!');
+                        this.dialogRef.close(this.cloneRequest);
+                    }
+                    else {
+                        this.showMessage(response.error || 'Clone failed');
+                    }
+                }, error => {
+                    var _a;
+                    this.waitingDialog.closeMessageBox();
+                    this.showMessage(((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || 'Clone failed: ' + error.message);
+                });
+            }
+            catch (error) {
+                this.waitingDialog.closeMessageBox();
+                this.showMessage('Unexpected error during clone');
+            }
+        });
+    }
+    showMessage(message) {
+        const dialogRef = this.dialog.open(_git_components_git_messages_git_messages_component__WEBPACK_IMPORTED_MODULE_4__["GitMessagesComponent"], {
+            width: '400px',
+            data: { message: message }
+        });
+    }
+    openTokenSettings() {
+        // TODO: Open settings dialog to configure GitHub token
+        this.showMessage('Please configure your GitHub Personal Access Token in Settings');
+    }
+    cancel() {
+        this.dialogRef.close();
+    }
+}
+ModernCloneProjectComponent.ɵfac = function ModernCloneProjectComponent_Factory(t) { return new (t || ModernCloneProjectComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_7__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_8__["GITService"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__["MatDialogRef"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_commons_waitingdialog_waiting_dialog_service__WEBPACK_IMPORTED_MODULE_9__["WaitingDialogService"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_10__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_11__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__["MAT_DIALOG_DATA"])); };
+ModernCloneProjectComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineComponent"]({ type: ModernCloneProjectComponent, selectors: [["app-modern-clone-project"]], decls: 32, vars: 7, consts: [[1, "modern-clone-dialog"], ["mat-dialog-title", ""], [1, "clone-form"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "https://github.com/user/repository.git", "required", "", 3, "ngModel", "ngModelChange"], [4, "ngIf"], ["class", "auth-section", 4, "ngIf"], ["matInput", "", "placeholder", "Select destination folder", "required", "", "readonly", "", 3, "ngModel", "ngModelChange"], ["mat-icon-button", "", "matSuffix", "", 3, "click"], ["matInput", "", "placeholder", "main", 3, "ngModel", "ngModelChange"], ["align", "end"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], [1, "auth-section"], [1, "auth-card"], ["class", "token-status", 4, "ngIf"], ["class", "token-status warn", 4, "ngIf"], [1, "token-status"], ["color", "primary"], [1, "token-status", "warn"], ["color", "warn"], ["mat-button", "", "color", "primary", 3, "click"], ["matInput", "", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "password", 3, "ngModel", "ngModelChange"]], template: function ModernCloneProjectComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 0);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](1, "h2", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](2, "Clone Repository");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](3, "mat-dialog-content");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](4, "div", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](5, "mat-form-field", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](6, "mat-label");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](7, "Repository URL");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](8, "input", 4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("ngModelChange", function ModernCloneProjectComponent_Template_input_ngModelChange_8_listener($event) { return ctx.cloneRequest.url = $event; })("ngModelChange", function ModernCloneProjectComponent_Template_input_ngModelChange_8_listener() { return ctx.onUrlChange(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](9, ModernCloneProjectComponent_mat_hint_9_Template, 2, 0, "mat-hint", 5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](10, ModernCloneProjectComponent_div_10_Template, 8, 2, "div", 6);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](11, ModernCloneProjectComponent_div_11_Template, 14, 2, "div", 6);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](12, "mat-form-field", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](13, "mat-label");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](14, "Clone to");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](15, "input", 7);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("ngModelChange", function ModernCloneProjectComponent_Template_input_ngModelChange_15_listener($event) { return ctx.cloneRequest.localPath = $event; });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](16, "button", 8);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function ModernCloneProjectComponent_Template_button_click_16_listener() { return ctx.openFileSystem(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](17, "mat-icon");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](18, "folder_open");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](19, "mat-hint");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](20, "The repository will be cloned to this location");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](21, "mat-form-field", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](22, "mat-label");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](23, "Branch (optional)");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](24, "input", 9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("ngModelChange", function ModernCloneProjectComponent_Template_input_ngModelChange_24_listener($event) { return ctx.cloneRequest.branchName = $event; });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](25, "mat-hint");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](26, "Leave empty to clone the default branch");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](27, "mat-dialog-actions", 10);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](28, "button", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function ModernCloneProjectComponent_Template_button_click_28_listener() { return ctx.cancel(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](29, "Cancel");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](30, "button", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function ModernCloneProjectComponent_Template_button_click_30_listener() { return ctx.performClone(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](31, " Clone Repository ");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+    } if (rf & 2) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](8);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx.cloneRequest.url);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.isGitHubRepo);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.isGitHubRepo);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", !ctx.isGitHubRepo && ctx.authMethod === "manual");
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx.cloneRequest.localPath);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx.cloneRequest.branchName);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](6);
+        _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", !ctx.cloneRequest.url || !ctx.cloneRequest.localPath);
+    } }, directives: [_angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__["MatDialogTitle"], _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__["MatDialogContent"], _angular_material_form_field__WEBPACK_IMPORTED_MODULE_12__["MatFormField"], _angular_material_form_field__WEBPACK_IMPORTED_MODULE_12__["MatLabel"], _angular_material_input__WEBPACK_IMPORTED_MODULE_13__["MatInput"], _angular_forms__WEBPACK_IMPORTED_MODULE_14__["DefaultValueAccessor"], _angular_forms__WEBPACK_IMPORTED_MODULE_14__["RequiredValidator"], _angular_forms__WEBPACK_IMPORTED_MODULE_14__["NgControlStatus"], _angular_forms__WEBPACK_IMPORTED_MODULE_14__["NgModel"], _angular_common__WEBPACK_IMPORTED_MODULE_15__["NgIf"], _angular_material_button__WEBPACK_IMPORTED_MODULE_16__["MatButton"], _angular_material_form_field__WEBPACK_IMPORTED_MODULE_12__["MatSuffix"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_17__["MatIcon"], _angular_material_form_field__WEBPACK_IMPORTED_MODULE_12__["MatHint"], _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__["MatDialogActions"], _angular_material_card__WEBPACK_IMPORTED_MODULE_18__["MatCard"], _angular_material_card__WEBPACK_IMPORTED_MODULE_18__["MatCardHeader"], _angular_material_card__WEBPACK_IMPORTED_MODULE_18__["MatCardTitle"], _angular_material_card__WEBPACK_IMPORTED_MODULE_18__["MatCardContent"]], styles: [".modern-clone-dialog[_ngcontent-%COMP%] {\n  min-width: 500px;\n  max-width: 700px;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   mat-dialog-content[_ngcontent-%COMP%] {\n  padding: 20px;\n  max-height: 70vh;\n  overflow-y: auto;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .clone-form[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 16px;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .full-width[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .auth-section[_ngcontent-%COMP%] {\n  margin: 8px 0;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .auth-section[_ngcontent-%COMP%]   .auth-card[_ngcontent-%COMP%] {\n  background-color: #f5f5f5;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .auth-section[_ngcontent-%COMP%]   .auth-card[_ngcontent-%COMP%]   mat-card-header[_ngcontent-%COMP%] {\n  padding-bottom: 8px;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .auth-section[_ngcontent-%COMP%]   .auth-card[_ngcontent-%COMP%]   mat-card-header[_ngcontent-%COMP%]   mat-card-title[_ngcontent-%COMP%] {\n  font-size: 16px;\n  font-weight: 500;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .auth-section[_ngcontent-%COMP%]   .auth-card[_ngcontent-%COMP%]   mat-card-content[_ngcontent-%COMP%] {\n  padding-top: 8px;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .token-status[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 8px;\n  border-radius: 4px;\n  background-color: rgba(33, 150, 243, 0.1);\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .token-status[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  width: 20px;\n  height: 20px;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .token-status.warn[_ngcontent-%COMP%] {\n  background-color: rgba(255, 152, 0, 0.1);\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   .token-status[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  margin-left: auto;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   mat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n  border-top: 1px solid #e0e0e0;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   mat-dialog-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  margin-left: 8px;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   mat-form-field[_ngcontent-%COMP%]   .mat-form-field-wrapper[_ngcontent-%COMP%] {\n  padding-bottom: 1.25em;\n}\n.modern-clone-dialog[_ngcontent-%COMP%]   mat-hint[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #666;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFwuLlxcbW9kZXJuLWNsb25lLXByb2plY3QuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0FBQ0Y7QUFDRTtFQUNFLGFBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0FBQ0o7QUFFRTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLFNBQUE7QUFBSjtBQUdFO0VBQ0UsV0FBQTtBQURKO0FBSUU7RUFDRSxhQUFBO0FBRko7QUFJSTtFQUNFLHlCQUFBO0FBRk47QUFJTTtFQUNFLG1CQUFBO0FBRlI7QUFJUTtFQUNFLGVBQUE7RUFDQSxnQkFBQTtBQUZWO0FBTU07RUFDRSxnQkFBQTtBQUpSO0FBU0U7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsWUFBQTtFQUNBLGtCQUFBO0VBQ0EseUNBQUE7QUFQSjtBQVNJO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBUE47QUFVSTtFQUNFLHdDQUFBO0FBUk47QUFXSTtFQUNFLGlCQUFBO0FBVE47QUFhRTtFQUNFLGtCQUFBO0VBQ0EsNkJBQUE7QUFYSjtBQWFJO0VBQ0UsZ0JBQUE7QUFYTjtBQWdCSTtFQUNFLHNCQUFBO0FBZE47QUFrQkU7RUFDRSxlQUFBO0VBQ0EsV0FBQTtBQWhCSiIsImZpbGUiOiJtb2Rlcm4tY2xvbmUtcHJvamVjdC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5tb2Rlcm4tY2xvbmUtZGlhbG9nIHtcclxuICBtaW4td2lkdGg6IDUwMHB4O1xyXG4gIG1heC13aWR0aDogNzAwcHg7XHJcblxyXG4gIG1hdC1kaWFsb2ctY29udGVudCB7XHJcbiAgICBwYWRkaW5nOiAyMHB4O1xyXG4gICAgbWF4LWhlaWdodDogNzB2aDtcclxuICAgIG92ZXJmbG93LXk6IGF1dG87XHJcbiAgfVxyXG5cclxuICAuY2xvbmUtZm9ybSB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGdhcDogMTZweDtcclxuICB9XHJcblxyXG4gIC5mdWxsLXdpZHRoIHtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gIH1cclxuXHJcbiAgLmF1dGgtc2VjdGlvbiB7XHJcbiAgICBtYXJnaW46IDhweCAwO1xyXG5cclxuICAgIC5hdXRoLWNhcmQge1xyXG4gICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG5cclxuICAgICAgbWF0LWNhcmQtaGVhZGVyIHtcclxuICAgICAgICBwYWRkaW5nLWJvdHRvbTogOHB4O1xyXG5cclxuICAgICAgICBtYXQtY2FyZC10aXRsZSB7XHJcbiAgICAgICAgICBmb250LXNpemU6IDE2cHg7XHJcbiAgICAgICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgICAgIH1cclxuICAgICAgfVxyXG5cclxuICAgICAgbWF0LWNhcmQtY29udGVudCB7XHJcbiAgICAgICAgcGFkZGluZy10b3A6IDhweDtcclxuICAgICAgfVxyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgLnRva2VuLXN0YXR1cyB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogOHB4O1xyXG4gICAgcGFkZGluZzogOHB4O1xyXG4gICAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgzMywgMTUwLCAyNDMsIDAuMSk7XHJcblxyXG4gICAgbWF0LWljb24ge1xyXG4gICAgICBmb250LXNpemU6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICB9XHJcblxyXG4gICAgJi53YXJuIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgyNTUsIDE1MiwgMCwgMC4xKTtcclxuICAgIH1cclxuXHJcbiAgICBidXR0b24ge1xyXG4gICAgICBtYXJnaW4tbGVmdDogYXV0bztcclxuICAgIH1cclxuICB9XHJcblxyXG4gIG1hdC1kaWFsb2ctYWN0aW9ucyB7XHJcbiAgICBwYWRkaW5nOiAxNnB4IDI0cHg7XHJcbiAgICBib3JkZXItdG9wOiAxcHggc29saWQgI2UwZTBlMDtcclxuXHJcbiAgICBidXR0b24ge1xyXG4gICAgICBtYXJnaW4tbGVmdDogOHB4O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgbWF0LWZvcm0tZmllbGQge1xyXG4gICAgLm1hdC1mb3JtLWZpZWxkLXdyYXBwZXIge1xyXG4gICAgICBwYWRkaW5nLWJvdHRvbTogMS4yNWVtO1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgbWF0LWhpbnQge1xyXG4gICAgZm9udC1zaXplOiAxMnB4O1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgfVxyXG59Il19 */"] });
 
 
 /***/ }),

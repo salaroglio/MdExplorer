@@ -268,8 +268,14 @@ export class MdServerMessagesService {
 
   public getCurrentConnectionId(objectThis: MdServerMessagesService): void {
     this.hubConnection.invoke('GetConnectionId')
-      .then(function (connectionId) {        
-        objectThis.connectionId = connectionId;        
+      .then(function (connectionId) {
+        objectThis.connectionId = connectionId;
+
+        // Notify Electron that connectionId is ready (for URL handler feature)
+        if ((window as any).electronAPI?.notifyConnectionIdReady) {
+          console.log('[SignalR] Notifying Electron of connectionId:', connectionId);
+          (window as any).electronAPI.notifyConnectionIdReady(connectionId);
+        }
       });
   }
 
@@ -292,6 +298,28 @@ export class MdServerMessagesService {
   public addAiFileOperationListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('aiFileOperation', (data) => {
       console.log('[SignalR] AI File Operation:', data);
+      callback(data, objectThis);
+    });
+  }
+
+  // URL Handler listeners
+  public addUrlHandlerOpenDocumentListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('urlHandlerOpenDocument', (data) => {
+      console.log('[SignalR] URL Handler Open Document:', data);
+      callback(data, objectThis);
+    });
+  }
+
+  public addUrlHandlerOpenCloneDialogListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('urlHandlerOpenCloneDialog', (data) => {
+      console.log('[SignalR] URL Handler Open Clone Dialog:', data);
+      callback(data, objectThis);
+    });
+  }
+
+  public addUrlHandlerErrorListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('urlHandlerError', (data) => {
+      console.log('[SignalR] URL Handler Error:', data);
       callback(data, objectThis);
     });
   }

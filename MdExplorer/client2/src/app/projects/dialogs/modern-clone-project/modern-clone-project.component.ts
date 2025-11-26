@@ -55,13 +55,26 @@ export class ModernCloneProjectComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    // Get URL from clipboard
-    this.mdFileService.getTextFromClipboard().subscribe(clipboard => {
-      if (clipboard?.url) {
-        this.cloneRequest.url = clipboard.url;
-        this.checkIfGitHubRepo();
+    // Check if we have prefilled data from URL handler
+    if (this.data?.prefilledUrl) {
+      console.log('[ModernClone] Using prefilled URL from URL handler:', this.data.prefilledUrl);
+      this.cloneRequest.url = this.data.prefilledUrl;
+      if (this.data.prefilledBranch) {
+        this.cloneRequest.branchName = this.data.prefilledBranch;
       }
-    });
+      if (this.data.prefilledUser) {
+        this.manualCredentials.username = this.data.prefilledUser;
+      }
+      this.checkIfGitHubRepo();
+    } else {
+      // Get URL from clipboard (default behavior)
+      this.mdFileService.getTextFromClipboard().subscribe(clipboard => {
+        if (clipboard?.url) {
+          this.cloneRequest.url = clipboard.url;
+          this.checkIfGitHubRepo();
+        }
+      });
+    }
 
     // Check GitHub token status
     this.checkGitHubToken();

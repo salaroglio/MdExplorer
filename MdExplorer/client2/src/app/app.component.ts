@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { slideInAnimation } from './shared/animations';
 import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 import { AiNotificationService } from './services/ai-notification.service';
+import { UrlHandlerService } from './services/url-handler.service';
 
 @Component({
   selector: 'app-root',
@@ -29,12 +30,15 @@ export class AppComponent {
     private currentFolder: AppCurrentMetadataService,
     private route: ActivatedRoute,
     private router: Router,
-    private aiNotificationService: AiNotificationService) { // Initialize AI notification service
+    private aiNotificationService: AiNotificationService,
+    private urlHandlerService: UrlHandlerService) { // Initialize AI notification service
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);
     });
     currentFolder.loadFolderName();
 
+    // Initialize URL handler service for mdexplorer:// protocol
+    this.urlHandlerService.initialize();
   }
 }
