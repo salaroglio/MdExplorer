@@ -22792,11 +22792,18 @@ class SidenavComponent {
     stopResizeWidth() {
     }
     openProject() {
-        var mdFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__["MdFile"]("Welcome to MDExplorer", '/../welcome.html', 0, false);
-        mdFile.relativePath = '/../../welcome.html';
-        this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
-        this.router.navigate(['/projects']);
-        this.projectService.currentProjects$.next(null);
+        // Close current project resources on backend BEFORE navigating
+        this.projectService.closeCurrentProject().subscribe({
+            next: () => console.log('Project closed successfully'),
+            error: (err) => console.error('Error closing project:', err),
+            complete: () => {
+                var mdFile = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__["MdFile"]("Welcome to MDExplorer", '/../welcome.html', 0, false);
+                mdFile.relativePath = '/../../welcome.html';
+                this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
+                this.router.navigate(['/projects']);
+                this.projectService.currentProjects$.next(null);
+            }
+        });
     }
     ngOnInit() {
         this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])

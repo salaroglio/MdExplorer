@@ -84,5 +84,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// Tracks processing count per file to prevent infinite loops
         /// </summary>
         public System.Collections.Generic.Dictionary<string, int> FileProcessingCount { get; set; }
+
+        /// <summary>
+        /// Event handler delegate for Changed events (for proper cleanup before Dispose)
+        /// </summary>
+        public System.IO.FileSystemEventHandler ChangedHandler { get; set; }
+
+        /// <summary>
+        /// Event handler delegate for Created events (for proper cleanup before Dispose)
+        /// </summary>
+        public System.IO.FileSystemEventHandler CreatedHandler { get; set; }
+
+        /// <summary>
+        /// Event handler delegate for Renamed events (for proper cleanup before Dispose)
+        /// </summary>
+        public System.IO.RenamedEventHandler RenamedHandler { get; set; }
     }
 }

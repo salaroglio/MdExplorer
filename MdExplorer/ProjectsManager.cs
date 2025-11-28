@@ -48,7 +48,9 @@ namespace MdExplorer.Service
             var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
             var databasePathProject = $"Data Source = {Path.Combine(currentDirectory, ".md", $"MdProject_{hash}.db")}";
 
-            UpgradeDatabases(databasePath, databasePathEngine, databasePathProject);
+            // NOTE: Don't migrate MdExplorer.db here - it's already migrated at startup in SetProjectInitialization
+            // Only migrate the project-specific databases (Engine and Project)
+            UpgradeDatabases(null, databasePathEngine, databasePathProject);
 
             serviceProvider.ReplaceDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
@@ -99,25 +101,30 @@ namespace MdExplorer.Service
         /// <summary>
         /// Migrate database is done using "custom" serviceCollection.
         /// </summary>
-        /// <param name="databasePath"></param>
-        /// <param name="databasePathEngine"></param>
+        /// <param name="databasePath">Main MdExplorer.db path (can be null to skip migration)</param>
+        /// <param name="databasePathEngine">Engine database path (optional)</param>
+        /// <param name="databaseProject">Project database path (optional)</param>
         private static void UpgradeDatabases(string databasePath, string databasePathEngine = null, string databaseProject = null)
         {
-            IServiceCollection localServices = new ServiceCollection();
-            localServices.AddFluentMigratorFeatures(
-                                            (rb) =>
-                                            {
-                                                rb.AddSQLite()
-                                                .WithGlobalConnectionString(databasePath)
-                                                .ScanIn(typeof(M2021_06_23_001).Assembly)
-                                                .For.Migrations();
-                                            }, "SQLite");
-            var builder = localServices.BuildServiceProvider();            
-            Migrate(builder);
+            // Migrate main database (MdExplorer.db) only if path is provided
+            if (databasePath != null)
+            {
+                IServiceCollection localServices = new ServiceCollection();
+                localServices.AddFluentMigratorFeatures(
+                                                (rb) =>
+                                                {
+                                                    rb.AddSQLite()
+                                                    .WithGlobalConnectionString(databasePath)
+                                                    .ScanIn(typeof(M2021_06_23_001).Assembly)
+                                                    .For.Migrations();
+                                                }, "SQLite");
+                var builder = localServices.BuildServiceProvider();
+                Migrate(builder);
+            }
             if (databasePathEngine!=null)
             {
-                localServices = new ServiceCollection();
-                localServices.AddFluentMigratorFeatures(
+                IServiceCollection engineServices = new ServiceCollection();
+                engineServices.AddFluentMigratorFeatures(
                                               (rb) =>
                                               {
                                                   rb.AddSQLite()
@@ -125,13 +132,13 @@ namespace MdExplorer.Service
                                                   .ScanIn(typeof(ME2021_07_23_001).Assembly)
                                                   .For.Migrations();
                                               }, "SQLite");
-                builder = localServices.BuildServiceProvider();
-                Migrate(builder);
+                var engineBuilder = engineServices.BuildServiceProvider();
+                Migrate(engineBuilder);
             }
             if (databaseProject != null)
             {
-                localServices = new ServiceCollection();
-                localServices.AddFluentMigratorFeatures(
+                IServiceCollection projectServices = new ServiceCollection();
+                projectServices.AddFluentMigratorFeatures(
                                               (rb) =>
                                               {
                                                   rb.AddSQLite()
@@ -139,8 +146,8 @@ namespace MdExplorer.Service
                                                   .ScanIn(typeof(MP2022_10_09_001).Assembly)
                                                   .For.Migrations();
                                               }, "SQLite");
-                builder = localServices.BuildServiceProvider();
-                Migrate(builder);
+                var projectBuilder = projectServices.BuildServiceProvider();
+                Migrate(projectBuilder);
             }
 
         }
@@ -154,6 +161,12 @@ namespace MdExplorer.Service
             builder.Dispose();
         }
 
+/// <summary>
+/// DEPRECATED: This method registers a legacy global FileSystemWatcher singleton.
+/// For multi-client support, use IFileSystemWatcherManager instead which provides
+/// per-connection FileSystemWatcher instances.
+/// This singleton is kept for backward compatibility but should not be used.
+/// </summary>
 private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
 {
     string effectivePath = pathFromParameter;
@@ -166,11 +179,18 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         // This ensures FileSystemWatcher always gets a valid directory.
         effectivePath = AppDomain.CurrentDomain.BaseDirectory;
     }
-    
-    // It's generally better to register a factory or a configured instance once.
-    // Registering FileSystemWatcher as a singleton that gets configured here.
-    services.AddSingleton<FileSystemWatcher>(sp => new FileSystemWatcher(effectivePath));
-    
+
+    // DEPRECATED: Legacy singleton FileSystemWatcher
+    // Multi-client support now uses IFileSystemWatcherManager for per-connection watchers.
+    // This singleton is kept for backward compatibility but is NOT used for file monitoring.
+    // EnableRaisingEvents is set to false to prevent duplicate notifications.
+    services.AddSingleton<FileSystemWatcher>(sp =>
+    {
+        var logger = sp.GetService<ILogger<FileSystemWatcher>>();
+        logger?.LogWarning("⚠️ Legacy FileSystemWatcher singleton is deprecated. Use IFileSystemWatcherManager for multi-client support.");
+        return new FileSystemWatcher(effectivePath) { EnableRaisingEvents = false };
+    });
+
     return effectivePath; // Return the path that was actually used.
 }
 

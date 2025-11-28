@@ -1,7 +1,7 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -109,6 +109,20 @@ export class ProjectsService {
     this.http.post<any>(url, project).subscribe(data => {
       callback(data, objectThis);
     });
+  }
+
+  /**
+   * Closes the current project and deallocates backend resources (FileSystemWatcher, database contexts).
+   * Should be called when navigating back to the projects list.
+   */
+  closeCurrentProject(): Observable<any> {
+    const connectionId = this.monitorMDService.connectionId;
+    if (!connectionId) {
+      console.warn('closeCurrentProject called without connectionId');
+      return of({ message: 'No connection' });
+    }
+    const url = `../api/MdProjects/CloseProject?ConnectionId=${connectionId}`;
+    return this.http.post<any>(url, {});
   }
 
 }

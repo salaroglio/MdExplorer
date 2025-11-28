@@ -3882,8 +3882,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.26.8',
-    buildTime: '2025.11.26 14:15:22'
+    version: '2025.11.28.2',
+    buildTime: '2025.11.28 17:09:47'
 };
 
 
@@ -3991,6 +3991,19 @@ class ProjectsService {
         this.http.post(url, project).subscribe(data => {
             callback(data, objectThis);
         });
+    }
+    /**
+     * Closes the current project and deallocates backend resources (FileSystemWatcher, database contexts).
+     * Should be called when navigating back to the projects list.
+     */
+    closeCurrentProject() {
+        const connectionId = this.monitorMDService.connectionId;
+        if (!connectionId) {
+            console.warn('closeCurrentProject called without connectionId');
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_1__["of"])({ message: 'No connection' });
+        }
+        const url = `../api/MdProjects/CloseProject?ConnectionId=${connectionId}`;
+        return this.http.post(url, {});
     }
 }
 ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__["MdServerMessagesService"])); };

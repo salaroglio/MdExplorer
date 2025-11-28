@@ -30,7 +30,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
     public class MdProjectsController : ControllerBase
     {
         private readonly IUserSettingsDB _userSettingsDB;
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IServiceProvider _services;
         private readonly ProcessUtil _processUtil;
         private readonly IMapper _mapper;
@@ -38,7 +37,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
-                FileSystemWatcher fileSystemWatcher,
                 IServiceProvider services,
                 ProcessUtil processUtil,
                 IMapper mapper,
@@ -46,7 +44,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IFileSystemWatcherManager fileSystemWatcherManager)
         {
             _userSettingsDB = userSettingsDB;
-            _fileSystemWatcher = fileSystemWatcher;
             _services = services;
             _processUtil = processUtil;
             _mapper = mapper;
@@ -135,7 +132,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
-                // Register database contexts for this connection
+                // IMPORTANT: Run migrations FIRST, before opening database sessions
+                // This prevents "database is locked" errors because NHibernate holds the file open
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
+                logger?.LogInformation($"✅ Database migrations completed for project: {request.Path}");
+
+                // NOW register database contexts (after migrations are complete)
                 _databaseManager.RegisterConnection(connectionId, request.Path);
                 logger?.LogInformation($"✅ Database contexts registered for connection {connectionId}");
 
@@ -155,16 +157,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     project = new Project
                     {
                         Path = request.Path,
-                        Name = System.IO.Path.GetFileName(_fileSystemWatcher.Path)
+                        Name = System.IO.Path.GetFileName(request.Path)
                     };
                 }
                 project.LastUpdate = DateTime.Now;
                 projectDal.Save(project);
                 _userSettingsDB.Commit();
-
-                // Configura i database per il nuovo progetto e inizializza Git
-                // TODO: In futuro, rimuovere ReplaceDalFeatures da SetNewProject per evitare conflitti
-                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
 
                 // Log Git initialization status
                 if (gitInitialized)
@@ -238,6 +236,49 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
             _userSettingsDB.Commit();
             return Ok();
+        }
+
+        /// <summary>
+        /// Closes the current project and deallocates resources (FileSystemWatcher, database contexts).
+        /// Called when the user navigates back to the projects list.
+        /// </summary>
+        [HttpPost]
+        public IActionResult CloseProject()
+        {
+            var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+            var connectionId = Request.Query["ConnectionId"].ToString();
+
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                logger?.LogWarning("⚠️ CloseProject called without ConnectionId");
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+
+            logger?.LogInformation($"📁 Closing project for connection {connectionId}");
+
+            try
+            {
+                // Unregister FileSystemWatcher for this connection
+                if (_fileSystemWatcherManager.HasWatcher(connectionId))
+                {
+                    _fileSystemWatcherManager.UnregisterWatcher(connectionId);
+                    logger?.LogInformation($"✅ FileSystemWatcher unregistered for connection {connectionId}");
+                }
+
+                // Unregister database contexts for this connection
+                if (_databaseManager.HasConnection(connectionId))
+                {
+                    _databaseManager.UnregisterConnection(connectionId);
+                    logger?.LogInformation($"✅ Database contexts unregistered for connection {connectionId}");
+                }
+
+                return Ok(new { message = "Project closed successfully" });
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, $"❌ Error closing project for connection {connectionId}");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         [HttpPost]

@@ -85,10 +85,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     FileProcessingCount = new Dictionary<string, int>()
                 };
 
+                // Create named event handlers (instead of inline lambdas) for proper cleanup
+                FileSystemEventHandler changedHandler = (sender, e) => OnFileChanged(context, e);
+                FileSystemEventHandler createdHandler = (sender, e) => OnFileCreated(context, e);
+                RenamedEventHandler renamedHandler = (sender, e) => OnFileRenamed(context, e);
+
+                // Store handlers in context for removal before Dispose
+                context.ChangedHandler = changedHandler;
+                context.CreatedHandler = createdHandler;
+                context.RenamedHandler = renamedHandler;
+
                 // Attach event handlers
-                watcher.Changed += (sender, e) => OnFileChanged(context, e);
-                watcher.Created += (sender, e) => OnFileCreated(context, e);
-                watcher.Renamed += (sender, e) => OnFileRenamed(context, e);
+                watcher.Changed += changedHandler;
+                watcher.Created += createdHandler;
+                watcher.Renamed += renamedHandler;
 
                 _watchers[connectionId] = context;
 
@@ -115,7 +125,25 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 try
                 {
-                    context.Watcher?.Dispose();
+                    if (context.Watcher != null)
+                    {
+                        // Disable events first to prevent any pending callbacks
+                        context.Watcher.EnableRaisingEvents = false;
+
+                        // Remove event handlers BEFORE disposing to prevent memory leaks
+                        if (context.ChangedHandler != null)
+                            context.Watcher.Changed -= context.ChangedHandler;
+                        if (context.CreatedHandler != null)
+                            context.Watcher.Created -= context.CreatedHandler;
+                        if (context.RenamedHandler != null)
+                            context.Watcher.Renamed -= context.RenamedHandler;
+
+                        context.Watcher.Dispose();
+                    }
+
+                    // Clear FileProcessingCount to prevent memory leak
+                    context.FileProcessingCount?.Clear();
+
                     _logger.LogInformation($"✅ FileSystemWatcher disposed for connection {connectionId}");
                 }
                 catch (Exception ex)
@@ -238,6 +266,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 var lastWriteTime = File.GetLastWriteTime(e.FullPath);
+
+                // Periodic cleanup of FileProcessingCount to prevent memory leak
+                if (context.FileProcessingCount.Count > 100)
+                {
+                    context.FileProcessingCount.Clear();
+                    _logger.LogDebug($"[{context.ConnectionId}] FileProcessingCount cleaned up (exceeded 100 entries)");
+                }
 
                 // Loop detection
                 if (!context.FileProcessingCount.ContainsKey(e.FullPath))

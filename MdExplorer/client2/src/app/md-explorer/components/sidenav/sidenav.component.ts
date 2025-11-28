@@ -141,11 +141,18 @@ export class SidenavComponent implements OnInit, OnDestroy {
   }
 
   openProject(): void {
-    var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html',0,false);
-    mdFile.relativePath = '/../../welcome.html';
-    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
-    this.router.navigate(['/projects']);
-    this.projectService.currentProjects$.next(null);
+    // Close current project resources on backend BEFORE navigating
+    this.projectService.closeCurrentProject().subscribe({
+      next: () => console.log('Project closed successfully'),
+      error: (err) => console.error('Error closing project:', err),
+      complete: () => {
+        var mdFile = new MdFile("Welcome to MDExplorer", '/../welcome.html', 0, false);
+        mdFile.relativePath = '/../../welcome.html';
+        this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
+        this.router.navigate(['/projects']);
+        this.projectService.currentProjects$.next(null);
+      }
+    });
   }
 
 
