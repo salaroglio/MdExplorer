@@ -1570,15 +1570,25 @@ namespace MdExplorer.Services.Git
                             _logger.LogInformation("Remote found: {RemoteName} -> {RemoteUrl}", origin.Name, origin.Url);
 
                             // Test authentication by attempting a lightweight fetch
-                            status.CanAuthenticate = TestRemoteAuthentication(repo, origin, repositoryPath);
+                            var authResult = TestRemoteAuthentication(repo, origin, repositoryPath);
+                            status.CanAuthenticate = authResult.Success;
+                            status.AuthenticationMissing = authResult.CredentialsMissing;
+                            status.AuthenticationFailed = authResult.AuthFailed;
+                            status.AuthenticationFailureReason = authResult.FailureReason;
+
                             if (status.CanAuthenticate)
                             {
                                 status.AuthenticationMethod = _lastUsedAuthMethod.ToString();
                                 _logger.LogInformation("Authentication test successful using method: {Method}", status.AuthenticationMethod);
                             }
+                            else if (status.AuthenticationMissing)
+                            {
+                                _logger.LogWarning("⚠️ No credentials configured for remote: {RemoteUrl}", origin.Url);
+                            }
                             else
                             {
-                                _logger.LogWarning("Authentication test failed for remote: {RemoteUrl}", origin.Url);
+                                _logger.LogWarning("❌ Authentication failed for remote: {RemoteUrl} - Reason: {Reason}",
+                                    origin.Url, status.AuthenticationFailureReason);
                             }
                         }
                         else
@@ -1599,10 +1609,24 @@ namespace MdExplorer.Services.Git
         }
 
         /// <summary>
+        /// Result of authentication test with detailed failure information
+        /// </summary>
+        private class AuthTestResult
+        {
+            public bool Success { get; set; }
+            public bool CredentialsMissing { get; set; }
+            public bool AuthFailed { get; set; }
+            public string FailureReason { get; set; }
+        }
+
+        /// <summary>
         /// Tests if authentication to the remote works by attempting a lightweight fetch
         /// </summary>
-        private bool TestRemoteAuthentication(Repository repo, Remote remote, string repositoryPath)
+        private AuthTestResult TestRemoteAuthentication(Repository repo, Remote remote, string repositoryPath)
         {
+            var result = new AuthTestResult();
+            bool credentialsWereResolved = false;
+
             try
             {
                 _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Testing authentication for remote: {RemoteUrl}", remote.Url);
@@ -1617,25 +1641,89 @@ namespace MdExplorer.Services.Git
                 {
                     _logger.LogWarning("🔐 [CHECK REMOTE STATUS - CREDENTIAL CALLBACK] Resolving credentials for: {Url}", url);
                     var task = ResolveCredentials(url, usernameFromUrl, types);
-                    var result = task.GetAwaiter().GetResult();
+                    var creds = task.GetAwaiter().GetResult();
+                    credentialsWereResolved = creds != null;
                     _logger.LogWarning("🔐 [CHECK REMOTE STATUS - CREDENTIAL CALLBACK] Resolved: {HasCreds}, Method: {Method}",
-                        result != null, _lastUsedAuthMethod);
-                    return result;
+                        creds != null, _lastUsedAuthMethod);
+                    return creds;
                 });
 
                 // If we get here without exception, authentication worked
                 _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Authentication test successful - {RefCount} references found", refs.Count());
-                return true;
+                result.Success = true;
+                return result;
             }
             catch (LibGit2SharpException ex)
             {
                 _logger.LogWarning(ex, "🔐 [CHECK REMOTE STATUS] Authentication test failed: {Message}", ex.Message);
-                return false;
+
+                // Check if this is a network/connection error (VPN disconnected, server unreachable)
+                var errorMsg = ex.Message.ToLowerInvariant();
+                var isNetworkError = errorMsg.Contains("failed to resolve")
+                    || errorMsg.Contains("could not resolve")
+                    || errorMsg.Contains("connection refused")
+                    || errorMsg.Contains("network is unreachable")
+                    || errorMsg.Contains("timed out")
+                    || errorMsg.Contains("timeout")
+                    || errorMsg.Contains("no route to host")
+                    || errorMsg.Contains("connection reset")
+                    || errorMsg.Contains("socket")
+                    || errorMsg.Contains("ssl")
+                    || errorMsg.Contains("certificate");
+
+                if (isNetworkError)
+                {
+                    // Network/VPN issue - credentials might be fine, but can't reach server
+                    result.AuthFailed = true;
+                    result.FailureReason = "Cannot connect to remote server (check VPN or network)";
+                    _logger.LogWarning("🌐 Network error detected: {Message}", ex.Message);
+                }
+                else if (!credentialsWereResolved)
+                {
+                    // Credential callback was never called - no credentials configured
+                    result.CredentialsMissing = true;
+                    result.FailureReason = "No credentials configured for this repository";
+                }
+                else
+                {
+                    // Credentials were provided but rejected (wrong password, expired token)
+                    result.AuthFailed = true;
+                    result.FailureReason = ex.Message;
+                }
+                return result;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "🔐 [CHECK REMOTE STATUS] Authentication test error: {Message}", ex.Message);
-                return false;
+
+                // Check for network errors
+                var errorMsg = ex.Message.ToLowerInvariant();
+                var isNetworkError = errorMsg.Contains("failed to resolve")
+                    || errorMsg.Contains("could not resolve")
+                    || errorMsg.Contains("connection refused")
+                    || errorMsg.Contains("network is unreachable")
+                    || errorMsg.Contains("timed out")
+                    || errorMsg.Contains("timeout")
+                    || errorMsg.Contains("no route to host")
+                    || errorMsg.Contains("connection reset")
+                    || errorMsg.Contains("socket");
+
+                if (isNetworkError)
+                {
+                    result.AuthFailed = true;
+                    result.FailureReason = "Cannot connect to remote server (check VPN or network)";
+                }
+                else if (!credentialsWereResolved)
+                {
+                    result.CredentialsMissing = true;
+                    result.FailureReason = "No credentials configured for this repository";
+                }
+                else
+                {
+                    result.AuthFailed = true;
+                    result.FailureReason = ex.Message;
+                }
+                return result;
             }
         }
 

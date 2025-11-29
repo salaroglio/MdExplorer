@@ -85,6 +85,12 @@ export interface RemoteStatus {
   errorMessage?: string;
   canAuthenticate: boolean;
   authenticationMethod?: string;
+  /** True when no credentials are configured for this repository */
+  authenticationMissing?: boolean;
+  /** True when credentials exist but authentication failed (VPN, token expired, network issue) */
+  authenticationFailed?: boolean;
+  /** Detailed reason for authentication failure */
+  authenticationFailureReason?: string;
 }
 
 export interface SetupRemoteRequest {

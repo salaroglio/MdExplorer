@@ -22,8 +22,26 @@
 
 
     <span class="flexExpand"></span>
-    <button *ngIf="isGitRepository && !connectionIsActive" mat-icon-button matTooltip="missing connection to remote" (click)="checkConnection()">
-      <mat-icon style="color:yellow">warning</mat-icon>
+    <!-- Git Account Missing: show button to configure credentials -->
+    <button *ngIf="isGitRepository && authenticationMissing && !isCheckingConnection"
+            mat-icon-button
+            matTooltip="Git account not configured - click to set up credentials"
+            (click)="openManageRemote()">
+      <mat-icon style="color: orange">person_add</mat-icon>
+    </button>
+    <!-- Auth Failed (VPN/network): show warning -->
+    <button *ngIf="isGitRepository && authenticationFailed && !authenticationMissing && !isCheckingConnection"
+            mat-icon-button
+            [matTooltip]="'Connection failed: ' + (authenticationFailureReason || 'check VPN or network')"
+            (click)="checkConnection()">
+      <mat-icon style="color: yellow">warning</mat-icon>
+    </button>
+    <!-- Connection not active (generic case) -->
+    <button *ngIf="isGitRepository && !connectionIsActive && !authenticationMissing && !authenticationFailed && !isCheckingConnection"
+            mat-icon-button
+            matTooltip="Missing connection to remote"
+            (click)="checkConnection()">
+      <mat-icon style="color: yellow">warning</mat-icon>
     </button>
     <span *ngIf="isGitRepository && isCheckingConnection"><img src="/assets/connecting.gif" /></span>
 

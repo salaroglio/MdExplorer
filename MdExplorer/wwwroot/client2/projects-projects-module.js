@@ -1365,7 +1365,7 @@ class ProjectsComponent {
         }));
         this.projectService.currentProjects$.subscribe(_ => {
             if (_ != null && _ != undefined) {
-                this.router.navigate(['/main/navigation/document']); //main
+                this.router.navigate(['/main/navigation/document']);
             }
         });
     }

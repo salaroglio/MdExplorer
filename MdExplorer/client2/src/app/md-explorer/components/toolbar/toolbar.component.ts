@@ -75,6 +75,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public isUsingNativeGit: boolean = false; // True when Git native credentials are working
   public needsRemoteManagement: boolean = false; // True when using app-stored credentials
   public isGitRepository: boolean = true; // False for non-Git projects (hides Git UI elements)
+  public authenticationMissing: boolean = false; // True when no credentials are configured
+  public authenticationFailed: boolean = false; // True when credentials exist but auth failed (VPN, token expired)
+  public authenticationFailureReason: string = ''; // Detailed reason for auth failure
 
   //@Output() toggleSidenav = new EventEmitter<void>();
   constructor(
@@ -258,6 +261,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.currentRemoteUrl = '';
     this.isUsingNativeGit = false;
     this.needsRemoteManagement = false;
+    this.authenticationMissing = false;
+    this.authenticationFailed = false;
+    this.authenticationFailureReason = '';
 
     // Reset connection state
     this.connectionIsActive = false;
@@ -284,6 +290,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       remoteStatus => {
         console.log('Remote status:', remoteStatus);
 
+        // Track authentication status details
+        this.authenticationMissing = remoteStatus.authenticationMissing || false;
+        this.authenticationFailed = remoteStatus.authenticationFailed || false;
+        this.authenticationFailureReason = remoteStatus.authenticationFailureReason || '';
+
         // Remote is considered configured if it exists AND authentication works
         // IMPORTANT: Hide menu when native Git authentication is working
         // Native Git methods: 'Default', 'GitCredentialHelper', 'SystemCredentialStore'
@@ -303,12 +314,23 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.currentRemoteUrl = remoteStatus.remoteUrl || '';
 
         // Log authentication status for debugging
-        if (remoteStatus.hasRemote && !remoteStatus.canAuthenticate) {
-          console.warn('⚠️ Remote is configured but authentication failed. Showing "Setup Remote" menu.');
+        if (remoteStatus.hasRemote && this.authenticationMissing) {
+          console.warn('⚠️ No credentials configured for remote. Show "Configure Git Account" button.');
+          this.isCheckingConnection = false;
+          this.connectionIsActive = false;
+        } else if (remoteStatus.hasRemote && this.authenticationFailed) {
+          console.warn('❌ Authentication failed (VPN/network issue). Show connection warning.');
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
         } else if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
           console.log('✅ Remote configured and authentication successful using:', remoteStatus.authenticationMethod);
+
+          // Reset auth failure flags on successful connection
+          this.authenticationMissing = false;
+          this.authenticationFailed = false;
+          this.authenticationFailureReason = '';
+          this.connectionIsActive = true;
+
           if (this.isUsingNativeGit) {
             console.log('🎯 Native Git credentials working - hiding remote setup menu');
           } else {

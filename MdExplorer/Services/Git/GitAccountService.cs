@@ -18,13 +18,16 @@ namespace MdExplorer.Services.Git
     {
         private readonly IUserSettingsDB _userSettingsDB;
         private readonly ILogger<GitAccountService> _logger;
+        private readonly IGitConfigHelper _gitConfigHelper;
 
         public GitAccountService(
             IUserSettingsDB userSettingsDB,
-            ILogger<GitAccountService> logger)
+            ILogger<GitAccountService> logger,
+            IGitConfigHelper gitConfigHelper)
         {
             _userSettingsDB = userSettingsDB;
             _logger = logger;
+            _gitConfigHelper = gitConfigHelper;
         }
 
         public async Task<GitRepositoryAccount> GetAccountForRepositoryAsync(string repositoryPath)
@@ -135,6 +138,9 @@ namespace MdExplorer.Services.Git
                         _logger.LogInformation("Created Git account '{AccountName}' for repository: {RepoPath}",
                             account.AccountName, account.RepositoryPath);
 
+                        // Write credential configuration to .git/config
+                        WriteCredentialToGitConfig(account);
+
                         return account;
                     }
                     catch
@@ -191,6 +197,9 @@ namespace MdExplorer.Services.Git
                         _logger.LogInformation("Updated Git account '{AccountName}' (ID: {AccountId})",
                             account.AccountName, account.Id);
 
+                        // Update credential configuration in .git/config
+                        WriteCredentialToGitConfig(account);
+
                         return account;
                     }
                     catch
@@ -231,11 +240,17 @@ namespace MdExplorer.Services.Git
                             return false;
                         }
 
+                        // Store repository path before deletion for cleanup
+                        var repositoryPath = account.RepositoryPath;
+
                         dal.Delete(account);
                         _userSettingsDB.Commit();
 
                         _logger.LogInformation("Deleted Git account '{AccountName}' (ID: {AccountId})",
                             account.AccountName, accountId);
+
+                        // Remove credential configuration from .git/config
+                        RemoveCredentialFromGitConfig(repositoryPath);
 
                         return true;
                     }
@@ -297,5 +312,83 @@ namespace MdExplorer.Services.Git
                 }
             });
         }
+
+        #region Private Helper Methods
+
+        /// <summary>
+        /// Writes credential configuration to the repository's .git/config
+        /// </summary>
+        private void WriteCredentialToGitConfig(GitRepositoryAccount account)
+        {
+            try
+            {
+                if (account == null || string.IsNullOrEmpty(account.RepositoryPath))
+                {
+                    return;
+                }
+
+                // Determine the username to use
+                var username = account.Username;
+                if (string.IsNullOrEmpty(username))
+                {
+                    // For GitHub, the username for token auth is typically "git" or the account name
+                    username = account.AccountName ?? "git";
+                }
+
+                var success = _gitConfigHelper.WriteCredentialConfig(account.RepositoryPath, username);
+
+                if (success)
+                {
+                    _logger.LogInformation("Successfully wrote credential config to .git/config for repository: {RepoPath}",
+                        account.RepositoryPath);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to write credential config to .git/config for repository: {RepoPath}",
+                        account.RepositoryPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - database operation succeeded, git config is optional
+                _logger.LogError(ex, "Error writing credential config to .git/config for repository: {RepoPath}",
+                    account?.RepositoryPath);
+            }
+        }
+
+        /// <summary>
+        /// Removes credential configuration from the repository's .git/config
+        /// </summary>
+        private void RemoveCredentialFromGitConfig(string repositoryPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(repositoryPath))
+                {
+                    return;
+                }
+
+                var success = _gitConfigHelper.RemoveCredentialConfig(repositoryPath);
+
+                if (success)
+                {
+                    _logger.LogInformation("Successfully removed credential config from .git/config for repository: {RepoPath}",
+                        repositoryPath);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to remove credential config from .git/config for repository: {RepoPath}",
+                        repositoryPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - database operation succeeded, git config cleanup is optional
+                _logger.LogError(ex, "Error removing credential config from .git/config for repository: {RepoPath}",
+                    repositoryPath);
+            }
+        }
+
+        #endregion
     }
 }

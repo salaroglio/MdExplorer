@@ -392,6 +392,22 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Authentication method that was used successfully (SSH, Token, System, etc.)
         /// </summary>
         public string AuthenticationMethod { get; set; }
+
+        /// <summary>
+        /// True when no credentials are configured for this repository.
+        /// This is different from auth failure - it means there's no account set up at all.
+        /// </summary>
+        public bool AuthenticationMissing { get; set; }
+
+        /// <summary>
+        /// True when credentials exist but authentication failed (e.g., VPN not connected, token expired, network issue).
+        /// </summary>
+        public bool AuthenticationFailed { get; set; }
+
+        /// <summary>
+        /// Detailed reason for authentication failure (for debugging/display)
+        /// </summary>
+        public string AuthenticationFailureReason { get; set; }
     }
 
     /// <summary>

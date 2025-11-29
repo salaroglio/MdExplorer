@@ -25,6 +25,9 @@ namespace MdExplorer.Services.Git
             // Register GitHub service for repository management
             services.AddScoped<IGitHubService, GitHubService>();
 
+            // Register Git config helper for managing .git/config files
+            services.AddScoped<IGitConfigHelper, GitConfigHelper>();
+
             // Register Git account management service
             services.AddScoped<IGitAccountService, GitAccountService>();
 
@@ -64,6 +67,7 @@ namespace MdExplorer.Services.Git
             // The credential cache is managed with a static/shared cache
             services.AddScoped<IModernGitService, ModernGitService>();
             services.AddScoped<IGitHubService, GitHubService>();
+            services.AddScoped<IGitConfigHelper, GitConfigHelper>();
             services.AddScoped<IGitAccountService, GitAccountService>();
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
 
@@ -142,7 +146,7 @@ namespace MdExplorer.Services.Git
         /// <summary>
         /// Timeout for credential helper execution in seconds
         /// </summary>
-        public int CredentialHelperTimeoutSeconds { get; set; } = 30;
+        public int CredentialHelperTimeoutSeconds { get; set; } = 5;
 
         /// <summary>
         /// Whether to cache resolved credentials

@@ -22,6 +22,7 @@ using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
+using MdExplorer.Services.Git.Interfaces;
 
 namespace MdExplorer.Service.Controllers.MdProjects
 {
@@ -35,13 +36,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IMapper _mapper;
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
+        private readonly IGitAccountService _gitAccountService;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
                 ProcessUtil processUtil,
                 IMapper mapper,
                 IDatabaseManager databaseManager,
-                IFileSystemWatcherManager fileSystemWatcherManager)
+                IFileSystemWatcherManager fileSystemWatcherManager,
+                IGitAccountService gitAccountService)
         {
             _userSettingsDB = userSettingsDB;
             _services = services;
@@ -49,6 +52,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _mapper = mapper;
             _databaseManager = databaseManager;
             _fileSystemWatcherManager = fileSystemWatcherManager;
+            _gitAccountService = gitAccountService;
         }
 
         [HttpGet]
@@ -208,13 +212,32 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     logger?.LogInformation($"📖 No .development.yml file found at {devConfigPath}, using default mode: {compatibilityMode}");
                 }
 
+                // Check if it's a Git repository and if it has an account configured
+                var isGitRepository = Directory.Exists(Path.Combine(request.Path, ".git"));
+                var hasGitAccount = false;
+
+                if (isGitRepository)
+                {
+                    try
+                    {
+                        hasGitAccount = _gitAccountService.HasAccountForRepositoryAsync(request.Path).GetAwaiter().GetResult();
+                        logger?.LogInformation($"🔐 Git account check for {request.Path}: hasAccount={hasGitAccount}");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Could not check Git account status");
+                    }
+                }
+
                 return Ok(new {
                     id = project.Id,
                     name = project.Name,
                     path = project.Path,
                     sidenavWidth = project.SidenavWidth,
                     gitInitialized = gitInitialized,
-                    compatibilityMode = compatibilityMode
+                    compatibilityMode = compatibilityMode,
+                    isGitRepository = isGitRepository,
+                    hasGitAccount = hasGitAccount
                 });
             }
             catch (Exception ex)
