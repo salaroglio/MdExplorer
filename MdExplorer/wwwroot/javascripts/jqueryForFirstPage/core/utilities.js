@@ -74,6 +74,16 @@ function openApplication(fullpath) {
         dataType: "json",
         success: function (data) {
             console.log(data);
+        },
+        error: function (xhr, status, error) {
+            if (xhr.status === 404) {
+                var response = xhr.responseJSON;
+                var path = response && response.path ? response.path : fullpath;
+                alert("File non trovato:\n" + path);
+            } else {
+                console.error("Error opening file:", error);
+                alert("Errore nell'apertura del file: " + error);
+            }
         }
     });
 }

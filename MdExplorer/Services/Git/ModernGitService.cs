@@ -390,6 +390,15 @@ namespace MdExplorer.Services.Git
             {
                 _logger.LogInformation("Starting clone operation: {Url} to {LocalPath}", url, localPath);
 
+                // Auto-create parent directories if they don't exist
+                // This supports the Share Project feature where basePath may include nested folders
+                var parentDirectory = System.IO.Path.GetDirectoryName(localPath);
+                if (!string.IsNullOrEmpty(parentDirectory) && !Directory.Exists(parentDirectory))
+                {
+                    _logger.LogInformation("Creating parent directories: {ParentDirectory}", parentDirectory);
+                    Directory.CreateDirectory(parentDirectory);
+                }
+
                 if (Directory.Exists(localPath) && Directory.GetFileSystemEntries(localPath).Length > 0)
                 {
                     return new GitOperationResult
@@ -2413,6 +2422,60 @@ namespace MdExplorer.Services.Git
             {
                 _logger.LogError(ex, "Error getting detailed status for repository: {RepositoryPath}", repositoryPath);
                 return new GitDetailedStatus { Files = new List<GitChangedFileInfo>() };
+            }
+        }
+
+        /// <summary>
+        /// Validates if a remote Git URL is reachable by performing a lightweight ls-remote check
+        /// </summary>
+        public async Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url)
+        {
+            try
+            {
+                _logger.LogInformation("Validating remote URL reachability: {Url}", url);
+
+                // Use LibGit2Sharp to attempt to list remote references (lightweight ls-remote equivalent)
+                var refs = Repository.ListRemoteReferences(url, (repoUrl, usernameFromUrl, types) =>
+                {
+                    // Try to resolve credentials using existing mechanism
+                    return ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
+                });
+
+                var refCount = refs.Count();
+                _logger.LogInformation("Remote URL validation successful: {Url}, found {RefCount} references", url, refCount);
+
+                return new RemoteUrlValidationResult
+                {
+                    IsReachable = true,
+                    ReferenceCount = refCount
+                };
+            }
+            catch (LibGit2SharpException ex)
+            {
+                _logger.LogWarning(ex, "Remote URL validation failed: {Url}", url);
+
+                // Determine if it's an auth issue or connectivity issue
+                var errorMsg = ex.Message.ToLowerInvariant();
+                var isAuthError = errorMsg.Contains("authentication") ||
+                                  errorMsg.Contains("unauthorized") ||
+                                  errorMsg.Contains("401") ||
+                                  errorMsg.Contains("403");
+
+                return new RemoteUrlValidationResult
+                {
+                    IsReachable = false,
+                    Error = ex.Message,
+                    IsAuthenticationError = isAuthError
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating remote URL: {Url}", url);
+                return new RemoteUrlValidationResult
+                {
+                    IsReachable = false,
+                    Error = ex.Message
+                };
             }
         }
 

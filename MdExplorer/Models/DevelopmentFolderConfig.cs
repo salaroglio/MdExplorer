@@ -24,6 +24,12 @@ namespace MdExplorer.Service.Models
         /// YAML auto-generation configuration
         /// </summary>
         public YamlAutoGenerationConfig YamlAutoGeneration { get; set; } = new YamlAutoGenerationConfig();
+
+        /// <summary>
+        /// External browser configuration (reserved for future use)
+        /// Allows backward compatibility with .development.yml files that contain this section
+        /// </summary>
+        public ExternalBrowserConfig ExternalBrowser { get; set; } = new ExternalBrowserConfig();
     }
 
     /// <summary>
@@ -62,5 +68,27 @@ namespace MdExplorer.Service.Models
         /// Uses exact path matching (e.g., ".github", "docs/external")
         /// </summary>
         public List<string> ExcludePaths { get; set; } = new List<string> { ".github" };
+    }
+
+    /// <summary>
+    /// Configuration for external browser URL handling (reserved for future use)
+    /// Allows backward compatibility with .development.yml files that contain this section
+    /// </summary>
+    public class ExternalBrowserConfig
+    {
+        /// <summary>
+        /// Enable or disable external browser handling
+        /// </summary>
+        public bool Enabled { get; set; } = false;
+
+        /// <summary>
+        /// If true, ALL external https:// links open in system browser
+        /// </summary>
+        public bool OpenAllExternal { get; set; } = false;
+
+        /// <summary>
+        /// URL patterns to open in external browser
+        /// </summary>
+        public List<string> UrlPatterns { get; set; } = new List<string>();
     }
 }

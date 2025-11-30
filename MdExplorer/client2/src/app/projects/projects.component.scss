@@ -441,6 +441,13 @@
     .action-btn {
       transition: all 0.2s ease;
 
+      &.share-btn:hover {
+        background-color: rgba(76, 175, 80, 0.1);
+        mat-icon {
+          color: #4caf50;
+        }
+      }
+
       &.settings-btn:hover {
         background-color: rgba(102, 126, 234, 0.1);
         mat-icon {

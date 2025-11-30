@@ -344,9 +344,15 @@ class MdServerMessagesService {
             callback(data, objectThis);
         });
     }
-    addUrlHandlerOpenCloneDialogListener(callback, objectThis) {
+    addUrlHandlerOpenConfigProjectDialogListener(callback, objectThis) {
+        // Listen for new configproject event
+        this.hubConnection.on('urlHandlerOpenConfigProjectDialog', (data) => {
+            console.log('[SignalR] URL Handler Open ConfigProject Dialog:', data);
+            callback(data, objectThis);
+        });
+        // Also listen for legacy clone event for backward compatibility
         this.hubConnection.on('urlHandlerOpenCloneDialog', (data) => {
-            console.log('[SignalR] URL Handler Open Clone Dialog:', data);
+            console.log('[SignalR] URL Handler Open Clone Dialog (legacy):', data);
             callback(data, objectThis);
         });
     }
@@ -1245,9 +1251,9 @@ class UrlHandlerService {
         this.mdServerMessages.addUrlHandlerOpenDocumentListener((data, _) => {
             this.handleOpenDocument(data);
         }, this);
-        // Listen for clone dialog commands
-        this.mdServerMessages.addUrlHandlerOpenCloneDialogListener((data, _) => {
-            this.handleOpenCloneDialog(data);
+        // Listen for configproject dialog commands (formerly clone)
+        this.mdServerMessages.addUrlHandlerOpenConfigProjectDialogListener((data, _) => {
+            this.handleOpenConfigProjectDialog(data);
         }, this);
         // Listen for error messages
         this.mdServerMessages.addUrlHandlerErrorListener((data, _) => {
@@ -1406,15 +1412,17 @@ class UrlHandlerService {
         }
     }
     /**
-     * Handle clone dialog command
+     * Handle configproject dialog command (formerly clone)
+     * Opens the clone/configproject dialog with pre-filled data from the shared URL
      */
-    handleOpenCloneDialog(data) {
-        console.log('[UrlHandler] Opening clone dialog:', data);
+    handleOpenConfigProjectDialog(data) {
+        console.log('[UrlHandler] Opening configproject dialog:', data);
         // Data structure from backend:
         // {
         //   repo: string (repository URL),
         //   branch: string (optional branch name),
-        //   user: string (optional username)
+        //   user: string (optional username),
+        //   basePath: string (optional parent folder for clone destination)
         // }
         // Open the clone dialog with pre-filled data
         const dialogRef = this.dialog.open(_projects_dialogs_modern_clone_project_modern_clone_project_component__WEBPACK_IMPORTED_MODULE_0__["ModernCloneProjectComponent"], {
@@ -1422,12 +1430,13 @@ class UrlHandlerService {
             data: {
                 prefilledUrl: data.repo,
                 prefilledBranch: data.branch,
-                prefilledUser: data.user
+                prefilledUser: data.user,
+                prefilledBasePath: data.basePath
             }
         });
         dialogRef.afterClosed().subscribe(result => {
             if (result) {
-                console.log('[UrlHandler] Clone dialog closed with result:', result);
+                console.log('[UrlHandler] ConfigProject dialog closed with result:', result);
             }
         });
     }
@@ -1959,6 +1968,34 @@ class GITService {
                 isGitRepository: false,
                 errorMessage: error.message || 'Failed to check remote status',
                 canAuthenticate: false
+            });
+        }));
+    }
+    /**
+     * Get the remote URL for a repository (typically origin)
+     * Used by Share Project feature to generate shareable URLs
+     */
+    getRemoteUrl(projectPath) {
+        const url = `../api/ModernGit/remote-url?repositoryPath=${encodeURIComponent(projectPath)}`;
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error getting remote URL:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                hasRemote: false,
+                error: error.message || 'Failed to get remote URL'
+            });
+        }));
+    }
+    /**
+     * Validate if a remote Git URL is reachable
+     * Used before cloning to verify URL is accessible
+     */
+    validateRemoteUrl(gitUrl) {
+        const url = `../api/ModernGit/validate-remote-url?url=${encodeURIComponent(gitUrl)}`;
+        return this.http.get(url).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            console.error('Error validating remote URL:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                isReachable: false,
+                error: error.message || 'Failed to validate remote URL'
             });
         }));
     }
@@ -3882,8 +3919,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.29.4',
-    buildTime: '2025.11.29 11:37:14'
+    version: '2025.11.30.1',
+    buildTime: '2025.11.30 16:38:06'
 };
 
 
@@ -5883,10 +5920,15 @@ class ModernCloneProjectComponent {
             username: '',
             password: ''
         };
+        // For Share Project feature: when basePath is provided, the path is auto-computed
+        this.isPrefilledFromShare = false;
+        // URL validation state
+        this.isValidatingUrl = false;
+        this.urlValidationResult = null;
     }
     ngOnInit() {
         var _a;
-        // Check if we have prefilled data from URL handler
+        // Check if we have prefilled data from URL handler (Share Project feature)
         if ((_a = this.data) === null || _a === void 0 ? void 0 : _a.prefilledUrl) {
             console.log('[ModernClone] Using prefilled URL from URL handler:', this.data.prefilledUrl);
             this.cloneRequest.url = this.data.prefilledUrl;
@@ -5895,6 +5937,20 @@ class ModernCloneProjectComponent {
             }
             if (this.data.prefilledUser) {
                 this.manualCredentials.username = this.data.prefilledUser;
+            }
+            // Handle basePath from Share Project feature
+            if (this.data.prefilledBasePath) {
+                console.log('[ModernClone] Using prefilled basePath:', this.data.prefilledBasePath);
+                this.isPrefilledFromShare = true;
+                // Auto-compute the full path: basePath + repoName
+                const repoName = this.extractRepoName(this.data.prefilledUrl);
+                if (repoName) {
+                    this.cloneRequest.localPath = `${this.data.prefilledBasePath}\\${repoName}`;
+                }
+                else {
+                    this.cloneRequest.localPath = this.data.prefilledBasePath;
+                }
+                console.log('[ModernClone] Auto-computed localPath:', this.cloneRequest.localPath);
             }
             this.checkIfGitHubRepo();
         }
@@ -5999,10 +6055,30 @@ class ModernCloneProjectComponent {
                 this.showMessage('Please fill in all required fields');
                 return;
             }
+            // Step 1: Validate URL reachability before cloning
             const info = new _commons_waitingdialog_waiting_dialog_models_WaitingDialogInfo__WEBPACK_IMPORTED_MODULE_3__["WaitingDialogInfo"]();
-            info.message = "Cloning repository...";
+            info.message = "Validating repository URL...";
             this.waitingDialog.showMessageBox(info);
+            this.isValidatingUrl = true;
             try {
+                // Validate URL first
+                const validationResult = yield this.gitService.validateRemoteUrl(this.cloneRequest.url).toPromise();
+                if (!(validationResult === null || validationResult === void 0 ? void 0 : validationResult.isReachable)) {
+                    this.waitingDialog.closeMessageBox();
+                    this.isValidatingUrl = false;
+                    this.urlValidationResult = { isValid: false, error: (validationResult === null || validationResult === void 0 ? void 0 : validationResult.error) || 'Repository not reachable' };
+                    if (validationResult === null || validationResult === void 0 ? void 0 : validationResult.isAuthenticationError) {
+                        this.showMessage('Authentication required. Please check your credentials.');
+                    }
+                    else {
+                        this.showMessage(`Repository URL not reachable: ${(validationResult === null || validationResult === void 0 ? void 0 : validationResult.error) || 'Unknown error'}`);
+                    }
+                    return;
+                }
+                this.urlValidationResult = { isValid: true };
+                console.log('[ModernClone] URL validation passed, proceeding with clone');
+                // Step 2: Proceed with clone
+                info.message = "Cloning repository...";
                 // Use modern clone endpoint
                 const request = {
                     url: this.cloneRequest.url,
@@ -6014,6 +6090,7 @@ class ModernCloneProjectComponent {
                 // Call the modern Git service clone method
                 this.gitService.modernClone(request).subscribe(response => {
                     this.waitingDialog.closeMessageBox();
+                    this.isValidatingUrl = false;
                     if (response.success) {
                         // Set the new project folder
                         this.projectService.setNewFolderProject(this.cloneRequest.localPath);
@@ -6026,12 +6103,14 @@ class ModernCloneProjectComponent {
                 }, error => {
                     var _a;
                     this.waitingDialog.closeMessageBox();
+                    this.isValidatingUrl = false;
                     this.showMessage(((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || 'Clone failed: ' + error.message);
                 });
             }
             catch (error) {
                 this.waitingDialog.closeMessageBox();
-                this.showMessage('Unexpected error during clone');
+                this.isValidatingUrl = false;
+                this.showMessage('Unexpected error: ' + ((error === null || error === void 0 ? void 0 : error.message) || 'Unknown error'));
             }
         });
     }

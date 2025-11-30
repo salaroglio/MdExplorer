@@ -466,6 +466,42 @@ export class GITService implements OnDestroy {
   }
 
   /**
+   * Get the remote URL for a repository (typically origin)
+   * Used by Share Project feature to generate shareable URLs
+   */
+  getRemoteUrl(projectPath: string): Observable<{ hasRemote: boolean; remoteUrl?: string; error?: string }> {
+    const url = `../api/ModernGit/remote-url?repositoryPath=${encodeURIComponent(projectPath)}`;
+
+    return this.http.get<{ hasRemote: boolean; remoteUrl?: string; error?: string }>(url).pipe(
+      catchError(error => {
+        console.error('Error getting remote URL:', error);
+        return of({
+          hasRemote: false,
+          error: error.message || 'Failed to get remote URL'
+        });
+      })
+    );
+  }
+
+  /**
+   * Validate if a remote Git URL is reachable
+   * Used before cloning to verify URL is accessible
+   */
+  validateRemoteUrl(gitUrl: string): Observable<{ isReachable: boolean; referenceCount?: number; error?: string; isAuthenticationError?: boolean }> {
+    const url = `../api/ModernGit/validate-remote-url?url=${encodeURIComponent(gitUrl)}`;
+
+    return this.http.get<{ isReachable: boolean; referenceCount?: number; error?: string; isAuthenticationError?: boolean }>(url).pipe(
+      catchError(error => {
+        console.error('Error validating remote URL:', error);
+        return of({
+          isReachable: false,
+          error: error.message || 'Failed to validate remote URL'
+        });
+      })
+    );
+  }
+
+  /**
    * Initialize a new Git repository
    */
   initRepository(request: any): Observable<any> {

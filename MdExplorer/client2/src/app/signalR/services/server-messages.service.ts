@@ -310,9 +310,15 @@ export class MdServerMessagesService {
     });
   }
 
-  public addUrlHandlerOpenCloneDialogListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+  public addUrlHandlerOpenConfigProjectDialogListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    // Listen for new configproject event
+    this.hubConnection.on('urlHandlerOpenConfigProjectDialog', (data) => {
+      console.log('[SignalR] URL Handler Open ConfigProject Dialog:', data);
+      callback(data, objectThis);
+    });
+    // Also listen for legacy clone event for backward compatibility
     this.hubConnection.on('urlHandlerOpenCloneDialog', (data) => {
-      console.log('[SignalR] URL Handler Open Clone Dialog:', data);
+      console.log('[SignalR] URL Handler Open Clone Dialog (legacy):', data);
       callback(data, objectThis);
     });
   }

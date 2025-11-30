@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.FileSystemWatcherManager;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -11,34 +14,33 @@ namespace MdExplorer.Service.Services
     public class FoldersIgnoreService
     {
         private readonly ILogger<FoldersIgnoreService> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private FoldersIgnoreConfiguration _configuration;
-        private string _currentProjectPath;
+        private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
+
+        // Cache configurations per project path to avoid re-reading file on every call
+        private readonly ConcurrentDictionary<string, FoldersIgnoreConfiguration> _configurationCache = new();
 
         public FoldersIgnoreService(
             ILogger<FoldersIgnoreService> logger,
-            FileSystemWatcher fileSystemWatcher)
+            IFileSystemWatcherManager fileSystemWatcherManager)
         {
             _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-
-            LoadConfiguration();
-
-            // Reload configuration when project changes
-            _fileSystemWatcher.Changed += (sender, e) =>
-            {
-                if (e.FullPath.EndsWith(".mdFoldersIgnore"))
-                {
-                    LoadConfiguration();
-                }
-            };
+            _fileSystemWatcherManager = fileSystemWatcherManager;
         }
 
-        public void LoadConfiguration()
+        /// <summary>
+        /// Load configuration for a specific project path
+        /// </summary>
+        public FoldersIgnoreConfiguration LoadConfiguration(string projectPath)
         {
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                _logger.LogWarning("LoadConfiguration called with null/empty projectPath");
+                return new FoldersIgnoreConfiguration();
+            }
+
             try
             {
-                var configFilePath = Path.Combine(_fileSystemWatcher.Path, ".mdFoldersIgnore");
+                var configFilePath = Path.Combine(projectPath, ".mdFoldersIgnore");
 
                 if (File.Exists(configFilePath))
                 {
@@ -48,35 +50,77 @@ namespace MdExplorer.Service.Services
                         .WithNamingConvention(CamelCaseNamingConvention.Instance)
                         .Build();
 
-                    _configuration = deserializer.Deserialize<FoldersIgnoreConfiguration>(yamlContent);
-                    _currentProjectPath = _fileSystemWatcher.Path;
+                    var config = deserializer.Deserialize<FoldersIgnoreConfiguration>(yamlContent);
 
-                    if (_configuration == null)
+                    if (config == null)
                     {
-                        _configuration = new FoldersIgnoreConfiguration();
+                        config = new FoldersIgnoreConfiguration();
                     }
+
+                    _logger.LogDebug($"Loaded FoldersIgnore configuration from {configFilePath}");
+                    return config;
                 }
                 else
                 {
-                    _configuration = new FoldersIgnoreConfiguration();
+                    _logger.LogDebug($".mdFoldersIgnore file not found at {configFilePath}");
+                    return new FoldersIgnoreConfiguration();
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading folders ignore configuration");
-                _configuration = new FoldersIgnoreConfiguration();
+                _logger.LogError(ex, $"Error loading folders ignore configuration from {projectPath}");
+                return new FoldersIgnoreConfiguration();
             }
         }
 
-        public bool ShouldIgnoreFolder(string folderPath)
+        /// <summary>
+        /// Get or load configuration for a project, with caching
+        /// </summary>
+        private FoldersIgnoreConfiguration GetConfiguration(string projectPath)
         {
-            // Reload configuration if project path has changed
-            if (_currentProjectPath != _fileSystemWatcher.Path)
+            if (string.IsNullOrEmpty(projectPath))
             {
-                LoadConfiguration();
+                return new FoldersIgnoreConfiguration();
             }
 
-            if (_configuration == null)
+            return _configurationCache.GetOrAdd(projectPath, path => LoadConfiguration(path));
+        }
+
+        /// <summary>
+        /// Invalidate cached configuration for a project (call when .mdFoldersIgnore changes)
+        /// </summary>
+        public void InvalidateCache(string projectPath)
+        {
+            if (!string.IsNullOrEmpty(projectPath))
+            {
+                _configurationCache.TryRemove(projectPath, out _);
+                _logger.LogDebug($"Invalidated FoldersIgnore cache for {projectPath}");
+            }
+        }
+
+        /// <summary>
+        /// Check if a folder should be ignored for a specific connection
+        /// </summary>
+        /// <param name="folderPath">Full path to the folder to check</param>
+        /// <param name="connectionId">SignalR connection ID</param>
+        /// <returns>True if folder should be ignored</returns>
+        public bool ShouldIgnoreFolder(string folderPath, string connectionId)
+        {
+            var projectPath = _fileSystemWatcherManager.GetProjectPath(connectionId);
+            return ShouldIgnoreFolderForProject(folderPath, projectPath);
+        }
+
+        /// <summary>
+        /// Check if a folder should be ignored for a specific project path
+        /// </summary>
+        /// <param name="folderPath">Full path to the folder to check</param>
+        /// <param name="projectPath">Project root path</param>
+        /// <returns>True if folder should be ignored</returns>
+        public bool ShouldIgnoreFolderForProject(string folderPath, string projectPath)
+        {
+            var configuration = GetConfiguration(projectPath);
+
+            if (configuration == null)
             {
                 return false;
             }
@@ -84,9 +128,9 @@ namespace MdExplorer.Service.Services
             var folderName = Path.GetFileName(folderPath);
 
             // Check exact folder name matches
-            if (_configuration.IgnoredFolders != null)
+            if (configuration.IgnoredFolders != null)
             {
-                foreach (var ignored in _configuration.IgnoredFolders)
+                foreach (var ignored in configuration.IgnoredFolders)
                 {
                     if (string.Equals(folderName, ignored, StringComparison.OrdinalIgnoreCase))
                     {
@@ -96,9 +140,9 @@ namespace MdExplorer.Service.Services
             }
 
             // Check pattern matches
-            if (_configuration.IgnoredPatterns != null)
+            if (configuration.IgnoredPatterns != null)
             {
-                foreach (var pattern in _configuration.IgnoredPatterns)
+                foreach (var pattern in configuration.IgnoredPatterns)
                 {
                     if (MatchesPattern(folderName, pattern))
                     {

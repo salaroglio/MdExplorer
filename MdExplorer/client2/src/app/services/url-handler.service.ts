@@ -48,9 +48,9 @@ export class UrlHandlerService {
       this.handleOpenDocument(data);
     }, this);
 
-    // Listen for clone dialog commands
-    this.mdServerMessages.addUrlHandlerOpenCloneDialogListener((data, _) => {
-      this.handleOpenCloneDialog(data);
+    // Listen for configproject dialog commands (formerly clone)
+    this.mdServerMessages.addUrlHandlerOpenConfigProjectDialogListener((data, _) => {
+      this.handleOpenConfigProjectDialog(data);
     }, this);
 
     // Listen for error messages
@@ -232,16 +232,18 @@ export class UrlHandlerService {
   }
 
   /**
-   * Handle clone dialog command
+   * Handle configproject dialog command (formerly clone)
+   * Opens the clone/configproject dialog with pre-filled data from the shared URL
    */
-  private handleOpenCloneDialog(data: any): void {
-    console.log('[UrlHandler] Opening clone dialog:', data);
+  private handleOpenConfigProjectDialog(data: any): void {
+    console.log('[UrlHandler] Opening configproject dialog:', data);
 
     // Data structure from backend:
     // {
     //   repo: string (repository URL),
     //   branch: string (optional branch name),
-    //   user: string (optional username)
+    //   user: string (optional username),
+    //   basePath: string (optional parent folder for clone destination)
     // }
 
     // Open the clone dialog with pre-filled data
@@ -250,13 +252,14 @@ export class UrlHandlerService {
       data: {
         prefilledUrl: data.repo,
         prefilledBranch: data.branch,
-        prefilledUser: data.user
+        prefilledUser: data.user,
+        prefilledBasePath: data.basePath
       }
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        console.log('[UrlHandler] Clone dialog closed with result:', result);
+        console.log('[UrlHandler] ConfigProject dialog closed with result:', result);
       }
     });
   }

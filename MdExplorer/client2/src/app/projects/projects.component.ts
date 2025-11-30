@@ -1,12 +1,15 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { MdProject } from '../md-explorer/models/md-project';
 import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
+import { GITService } from '../git/services/gitservice.service';
 import { NewProjectComponent } from './new-project/new-project.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
@@ -30,11 +33,17 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public searchQuery: string = '';
   public lastOpenedProjectId: string = null;
 
+  // Cache for remote URL status per project path
+  private remoteUrlCache: Map<string, { hasRemote: boolean; remoteUrl?: string; loading?: boolean }> = new Map();
+
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
     private router: Router,
     private signalRService: MdServerMessagesService,
     private dialogAn: NgDialogAnimationService,
+    private gitService: GITService,
+    private clipboard: Clipboard,
+    private snackBar: MatSnackBar
   ) { }
 
     ngOnDestroy(): void {
@@ -77,7 +86,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     this.projectService.currentProjects$.subscribe(_ => {
       if (_ != null && _!= undefined) {
-        this.router.navigate(['/main/navigation/document']); //main
+        this.router.navigate(['/main/navigation/document']);
       }
     });
   }
@@ -164,5 +173,59 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       width: '600px',
       animation: {},
     });
+  }
+
+  /**
+   * Check if project has a Git remote configured (cached)
+   * Used to show/hide the Share button
+   */
+  projectHasRemote(project: MdProject): boolean {
+    const cached = this.remoteUrlCache.get(project.path);
+
+    if (cached !== undefined) {
+      return cached.hasRemote;
+    }
+
+    // Mark as loading to prevent duplicate requests
+    this.remoteUrlCache.set(project.path, { hasRemote: false, loading: true });
+
+    // Fetch asynchronously and update cache
+    this.gitService.getRemoteUrl(project.path).subscribe(result => {
+      this.remoteUrlCache.set(project.path, {
+        hasRemote: result.hasRemote,
+        remoteUrl: result.remoteUrl,
+        loading: false
+      });
+    });
+
+    return false; // Return false initially, will update on next change detection
+  }
+
+  /**
+   * Share project URL to clipboard
+   * Generates: mdexplorer://configproject?repo=<url>&basePath=<parent-folder>
+   */
+  shareProject(project: MdProject, event: Event): void {
+    event.stopPropagation(); // Prevent opening the project
+
+    const cached = this.remoteUrlCache.get(project.path);
+    if (!cached?.hasRemote || !cached?.remoteUrl) {
+      this.snackBar.open('No Git remote configured for this project', 'OK', { duration: 3000 });
+      return;
+    }
+
+    // Extract base path (parent folder of project)
+    // e.g., C:\Progetti\myrepo -> C:\Progetti
+    const lastSeparator = project.path.lastIndexOf('\\');
+    const basePath = lastSeparator > 0 ? project.path.substring(0, lastSeparator) : project.path;
+
+    // Build mdexplorer:// URL
+    const shareUrl = `mdexplorer://configproject?repo=${encodeURIComponent(cached.remoteUrl)}&basePath=${encodeURIComponent(basePath)}`;
+
+    // Copy to clipboard
+    this.clipboard.copy(shareUrl);
+
+    this.snackBar.open('Share URL copied to clipboard!', 'OK', { duration: 3000 });
+    console.log('[Projects] Share URL copied:', shareUrl);
   }
 }

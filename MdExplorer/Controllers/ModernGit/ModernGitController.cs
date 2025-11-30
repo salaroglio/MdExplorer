@@ -541,6 +541,78 @@ namespace MdExplorer.Controllers.ModernGit
         }
 
         /// <summary>
+        /// Gets the remote URL for a repository (typically origin)
+        /// Used by Share Project feature to generate shareable URLs
+        /// </summary>
+        /// <param name="repositoryPath">Path to the repository</param>
+        /// <returns>Remote URL or null if not configured</returns>
+        [HttpGet("remote-url")]
+        public async Task<IActionResult> GetRemoteUrl([FromQuery] [Required] string repositoryPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(repositoryPath))
+                {
+                    return BadRequest(new { hasRemote = false, error = "Repository path is required" });
+                }
+
+                if (!Directory.Exists(repositoryPath))
+                {
+                    return Ok(new { hasRemote = false, error = "Directory does not exist" });
+                }
+
+                var gitPath = Path.Combine(repositoryPath, ".git");
+                if (!Directory.Exists(gitPath))
+                {
+                    return Ok(new { hasRemote = false, error = "Not a Git repository" });
+                }
+
+                using (var repo = new LibGit2Sharp.Repository(repositoryPath))
+                {
+                    var origin = repo.Network.Remotes["origin"];
+                    if (origin != null)
+                    {
+                        return Ok(new { hasRemote = true, remoteUrl = origin.Url });
+                    }
+                    else
+                    {
+                        return Ok(new { hasRemote = false });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting remote URL for repository: {RepositoryPath}", repositoryPath);
+                return Ok(new { hasRemote = false, error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Validates if a remote Git URL is reachable (performs ls-remote check)
+        /// Used before cloning to verify URL is accessible
+        /// </summary>
+        /// <param name="url">Git repository URL to validate</param>
+        /// <returns>Whether the URL is reachable</returns>
+        [HttpGet("validate-remote-url")]
+        public async Task<IActionResult> ValidateRemoteUrl([FromQuery] [Required] string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return BadRequest(new { isReachable = false, error = "URL is required" });
+            }
+
+            var result = await _gitService.ValidateRemoteUrlAsync(url);
+
+            return Ok(new
+            {
+                isReachable = result.IsReachable,
+                referenceCount = result.ReferenceCount,
+                error = result.Error,
+                isAuthenticationError = result.IsAuthenticationError
+            });
+        }
+
+        /// <summary>
         /// Checks if the repository has a remote configured
         /// </summary>
         /// <param name="repositoryPath">Path to the repository</param>

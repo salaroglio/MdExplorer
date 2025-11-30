@@ -50,6 +50,13 @@
             </div>
             <div class="project-actions">
               <button mat-icon-button
+                      matTooltip="Share Project URL"
+                      *ngIf="projectHasRemote(project)"
+                      (click)="shareProject(project, $event)"
+                      class="action-btn share-btn">
+                <mat-icon>share</mat-icon>
+              </button>
+              <button mat-icon-button
                       matTooltip="Project Settings"
                       (click)="openProjectSettings(project)"
                       class="action-btn settings-btn">

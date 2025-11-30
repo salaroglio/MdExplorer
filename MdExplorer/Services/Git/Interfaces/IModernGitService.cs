@@ -217,6 +217,39 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="repositoryPath">Path to the local repository</param>
         /// <returns>Detailed status with file information</returns>
         Task<GitDetailedStatus> GetDetailedStatusAsync(string repositoryPath);
+
+        /// <summary>
+        /// Validates if a remote Git URL is reachable by performing a lightweight ls-remote check
+        /// </summary>
+        /// <param name="url">Git repository URL to validate</param>
+        /// <returns>Validation result with reachability status</returns>
+        Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url);
+    }
+
+    /// <summary>
+    /// Result of remote URL validation
+    /// </summary>
+    public class RemoteUrlValidationResult
+    {
+        /// <summary>
+        /// Whether the URL is reachable
+        /// </summary>
+        public bool IsReachable { get; set; }
+
+        /// <summary>
+        /// Number of references found (branches, tags)
+        /// </summary>
+        public int ReferenceCount { get; set; }
+
+        /// <summary>
+        /// Error message if validation failed
+        /// </summary>
+        public string Error { get; set; }
+
+        /// <summary>
+        /// Whether the error is related to authentication
+        /// </summary>
+        public bool IsAuthenticationError { get; set; }
     }
 
     /// <summary>

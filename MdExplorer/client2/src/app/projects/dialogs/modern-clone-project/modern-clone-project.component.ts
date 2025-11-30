@@ -43,6 +43,13 @@ export class ModernCloneProjectComponent implements OnInit {
     password: ''
   };
 
+  // For Share Project feature: when basePath is provided, the path is auto-computed
+  public isPrefilledFromShare = false;
+
+  // URL validation state
+  public isValidatingUrl = false;
+  public urlValidationResult: { isValid: boolean; error?: string } | null = null;
+
   constructor(
     private dialog: MatDialog,
     private mdFileService: MdFileService,
@@ -55,7 +62,7 @@ export class ModernCloneProjectComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    // Check if we have prefilled data from URL handler
+    // Check if we have prefilled data from URL handler (Share Project feature)
     if (this.data?.prefilledUrl) {
       console.log('[ModernClone] Using prefilled URL from URL handler:', this.data.prefilledUrl);
       this.cloneRequest.url = this.data.prefilledUrl;
@@ -65,6 +72,21 @@ export class ModernCloneProjectComponent implements OnInit {
       if (this.data.prefilledUser) {
         this.manualCredentials.username = this.data.prefilledUser;
       }
+
+      // Handle basePath from Share Project feature
+      if (this.data.prefilledBasePath) {
+        console.log('[ModernClone] Using prefilled basePath:', this.data.prefilledBasePath);
+        this.isPrefilledFromShare = true;
+        // Auto-compute the full path: basePath + repoName
+        const repoName = this.extractRepoName(this.data.prefilledUrl);
+        if (repoName) {
+          this.cloneRequest.localPath = `${this.data.prefilledBasePath}\\${repoName}`;
+        } else {
+          this.cloneRequest.localPath = this.data.prefilledBasePath;
+        }
+        console.log('[ModernClone] Auto-computed localPath:', this.cloneRequest.localPath);
+      }
+
       this.checkIfGitHubRepo();
     } else {
       // Get URL from clipboard (default behavior)
@@ -178,11 +200,35 @@ export class ModernCloneProjectComponent implements OnInit {
       return;
     }
 
+    // Step 1: Validate URL reachability before cloning
     const info = new WaitingDialogInfo();
-    info.message = "Cloning repository...";
+    info.message = "Validating repository URL...";
     this.waitingDialog.showMessageBox(info);
+    this.isValidatingUrl = true;
 
     try {
+      // Validate URL first
+      const validationResult = await this.gitService.validateRemoteUrl(this.cloneRequest.url).toPromise();
+
+      if (!validationResult?.isReachable) {
+        this.waitingDialog.closeMessageBox();
+        this.isValidatingUrl = false;
+        this.urlValidationResult = { isValid: false, error: validationResult?.error || 'Repository not reachable' };
+
+        if (validationResult?.isAuthenticationError) {
+          this.showMessage('Authentication required. Please check your credentials.');
+        } else {
+          this.showMessage(`Repository URL not reachable: ${validationResult?.error || 'Unknown error'}`);
+        }
+        return;
+      }
+
+      this.urlValidationResult = { isValid: true };
+      console.log('[ModernClone] URL validation passed, proceeding with clone');
+
+      // Step 2: Proceed with clone
+      info.message = "Cloning repository...";
+
       // Use modern clone endpoint
       const request = {
         url: this.cloneRequest.url,
@@ -197,6 +243,7 @@ export class ModernCloneProjectComponent implements OnInit {
       this.gitService.modernClone(request).subscribe(
         response => {
           this.waitingDialog.closeMessageBox();
+          this.isValidatingUrl = false;
 
           if (response.success) {
             // Set the new project folder
@@ -209,12 +256,14 @@ export class ModernCloneProjectComponent implements OnInit {
         },
         error => {
           this.waitingDialog.closeMessageBox();
+          this.isValidatingUrl = false;
           this.showMessage(error.error?.error || 'Clone failed: ' + error.message);
         }
       );
-    } catch (error) {
+    } catch (error: any) {
       this.waitingDialog.closeMessageBox();
-      this.showMessage('Unexpected error during clone');
+      this.isValidatingUrl = false;
+      this.showMessage('Unexpected error: ' + (error?.message || 'Unknown error'));
     }
   }
 

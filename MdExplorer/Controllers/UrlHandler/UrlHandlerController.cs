@@ -53,8 +53,12 @@ namespace MdExplorer.Controllers.UrlHandler
                     case "opendocument":
                         return await HandleOpenDocument(request);
 
+                    case "configproject":
+                        return await HandleConfigProject(request);
+
+                    // Keep "clone" as alias for backward compatibility
                     case "clone":
-                        return await HandleClone(request);
+                        return await HandleConfigProject(request);
 
                     default:
                         return BadRequest(new { error = $"Unknown command: {request.Command}" });
@@ -142,23 +146,26 @@ namespace MdExplorer.Controllers.UrlHandler
         }
 
         /// <summary>
-        /// Handle clone command: open clone dialog with pre-filled data
+        /// Handle configproject command: open config/clone dialog with pre-filled data
+        /// The basePath is the parent folder where the repository will be cloned
+        /// (the repo name will be appended automatically by the dialog)
         /// </summary>
-        private async Task<IActionResult> HandleClone(UrlCommandRequest request)
+        private async Task<IActionResult> HandleConfigProject(UrlCommandRequest request)
         {
             if (string.IsNullOrEmpty(request.Repo))
             {
-                return BadRequest(new { error = "Repository URL is required for clone command" });
+                return BadRequest(new { error = "Repository URL is required for configproject command" });
             }
 
-            _logger.LogInformation($"[UrlHandler] Opening clone dialog: Repo={request.Repo}, Branch={request.Branch}, User={request.User}");
+            _logger.LogInformation($"[UrlHandler] Opening config project dialog: Repo={request.Repo}, Branch={request.Branch}, User={request.User}, BasePath={request.BasePath}");
 
             // Send command to the specific client via SignalR
-            await _hubContext.Clients.Client(request.ConnectionId).SendAsync("urlHandlerOpenCloneDialog", new
+            await _hubContext.Clients.Client(request.ConnectionId).SendAsync("urlHandlerOpenConfigProjectDialog", new
             {
                 repo = request.Repo,
                 branch = request.Branch,
-                user = request.User
+                user = request.User,
+                basePath = request.BasePath
             });
 
             return Ok(new { success = true });
@@ -178,9 +185,14 @@ namespace MdExplorer.Controllers.UrlHandler
         public string? Path { get; set; }
         public string? Section { get; set; }
 
-        // For clone
+        // For configproject (formerly clone)
         public string? Repo { get; set; }
         public string? Branch { get; set; }
         public string? User { get; set; }
+        /// <summary>
+        /// Base path (parent folder) where the repository will be cloned.
+        /// The repository name will be appended automatically.
+        /// </summary>
+        public string? BasePath { get; set; }
     }
 }

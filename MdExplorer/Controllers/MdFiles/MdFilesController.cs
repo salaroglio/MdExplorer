@@ -158,9 +158,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var fullpath = HttpUtility.UrlDecode(data.FullPath).Replace('/', Path.DirectorySeparatorChar);
             fullpath = CrossPlatformPath.NormalizePath(fullpath);
 
+            // Check if file exists before trying to open it
+            if (!System.IO.File.Exists(fullpath))
+            {
+                _logger.LogWarning($"[OpenFileInApplication] File not found: {fullpath}");
+                return NotFound(new { error = "File not found", path = fullpath });
+            }
+
             // Open file with default application
             CrossPlatformProcess.OpenFile(fullpath);
-            _hubContext.Clients.Client(connectionId: data.ConnectionId).SendAsync("openingApplication", Path.GetFileName(fullpath)).Wait();            
+            _hubContext.Clients.Client(connectionId: data.ConnectionId).SendAsync("openingApplication", Path.GetFileName(fullpath)).Wait();
             return Ok(new { message = "done" });
         }
 
@@ -738,10 +745,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 
+            var projectPath = GetProjectPath();
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_=>!Path.GetFileName(_).StartsWith(".")))
             {
                 // Check if folder should be ignored based on .mdFoldersIgnore configuration
-                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
                 {
                     continue;
                 }
@@ -781,7 +789,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult GetDynFoldersAndFilesDocument([FromQuery] string path, string level)
         {
             var currentPath = path == "root" ? GetSystemRootPath() : path;
-            currentPath = path == "project" ? GetProjectPath() : currentPath;
+            var projectPath = GetProjectPath();
+            currentPath = path == "project" ? projectPath : currentPath;
             currentPath = path == "documents" ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : currentPath;
 
             var currentLevel = Convert.ToInt32(level);
@@ -790,7 +799,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !Path.GetFileName(_).StartsWith(".")))
             {
                 // Check if folder should be ignored based on .mdFoldersIgnore configuration
-                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
                 {
                     continue;
                 }
@@ -1112,6 +1121,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var allMdFiles = Directory.GetFiles(currentPath, "*.md", SearchOption.AllDirectories)
                     .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar)) // Esclude la cartella .md
                     .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, currentPath)) // Esclude i file/cartelle ignorati da .mdignore
+                    .Where(f => !IsInIgnoredFolder(f, currentPath)) // Esclude i file in cartelle ignorate da .mdFoldersIgnore
                     .ToList();
                 
                 _logger.LogInformation($"[IndexAllMarkdownFiles] Found {allMdFiles.Count} markdown files to index");
@@ -1147,7 +1157,26 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 throw;
             }
         }
-        
+
+        /// <summary>
+        /// Checks if a file is inside a folder that should be ignored according to .mdFoldersIgnore
+        /// </summary>
+        private bool IsInIgnoredFolder(string filePath, string projectPath)
+        {
+            // Get all parent folders of the file
+            var directory = Path.GetDirectoryName(filePath);
+            while (!string.IsNullOrEmpty(directory) && directory.Length > projectPath.Length)
+            {
+                // Check if this folder should be ignored
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(directory, projectPath))
+                {
+                    return true;
+                }
+                directory = Path.GetDirectoryName(directory);
+            }
+            return false;
+        }
+
         private void CleanupDatabaseDuplicates()
         {
             try
@@ -1202,9 +1231,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
             {
                 // Usa FoldersIgnoreService per filtrare le cartelle da nascondere nell'UI
-                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, currentPath))
                 {
-                    _logger.LogWarning($"[GetShallowStructure] ❌ IGNORING folder: '{itemFolder}'");
+                    _logger.LogDebug($"[GetShallowStructure] Ignoring folder: '{itemFolder}'");
                     continue;
                 }
                 
@@ -1997,13 +2026,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
         {
             var isEmpty = true;
+            var projectPath = GetProjectPath();
 
             foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
             {
                 // Check if folder should be ignored using FoldersIgnoreService
-                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
                 {
-                    _logger.LogWarning($"[ExploreNodes] ❌ IGNORING subfolder: '{itemFolder}'");
+                    _logger.LogDebug($"[ExploreNodes] Ignoring subfolder: '{itemFolder}'");
                     continue;
                 }
 
@@ -2031,12 +2061,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
             {
                 // Check if file should be ignored
-                if (_mdIgnoreService.ShouldIgnorePath(itemFile, GetProjectPath()))
+                if (_mdIgnoreService.ShouldIgnorePath(itemFile, projectPath))
                 {
                     continue;
                 }
 
-                var patchedItemFile = itemFile.Substring(GetProjectPath().Length);
+                var patchedItemFile = itemFile.Substring(projectPath.Length);
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
@@ -2052,9 +2082,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
             {
                 // Check if folder should be ignored using FoldersIgnoreService
-                if (_foldersIgnoreService.ShouldIgnoreFolder(itemFolder))
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
                 {
-                    _logger.LogWarning($"[ExploreNodes] ❌ IGNORING subfolder: '{itemFolder}'");
+                    _logger.LogDebug($"[ExploreNodes] Ignoring subfolder: '{itemFolder}'");
                     continue;
                 }
 
@@ -2159,19 +2189,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     try
                     {
-                        engineDB.BeginTransaction();
-
                         var markdownFileDal = engineDB.GetDal<MarkdownFile>();
                         var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
 
-                        // Get all markdown files from database
+                        // Get all markdown files from database (read outside transaction)
                         var allFiles = markdownFileDal.GetList().ToList();
                         _logger.LogInformation($"[ParseAllLinks] Processing {allFiles.Count} files with base path: {fileSystemWatcher.Path}");
 
+                        var processedCount = 0;
                         foreach (var mdf in allFiles)
                         {
                             try
                             {
+                                // Short transaction per file to avoid locking the database for too long
+                                engineDB.BeginTransaction();
+
                                 // Delete existing links for this file
                                 var existingLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf).ToList();
                                 foreach (var link in existingLinks)
@@ -2205,20 +2237,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
                                         linkDal.Save(linkToStore);
                                     }
                                 }
+
+                                engineDB.Commit();
+                                processedCount++;
                             }
                             catch (Exception ex)
                             {
                                 _logger.LogError(ex, $"[ParseAllLinks] Error parsing links for file: {mdf.Path}");
+                                try { engineDB.Rollback(); } catch { }
                             }
                         }
 
-                        engineDB.Commit();
-                        _logger.LogInformation($"[ParseAllLinks] Successfully parsed links for {allFiles.Count} files");
+                        _logger.LogInformation($"[ParseAllLinks] Successfully parsed links for {processedCount}/{allFiles.Count} files");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "[ParseAllLinks] Error during link parsing - rolling back");
-                        engineDB.Rollback();
+                        _logger.LogError(ex, "[ParseAllLinks] Error during link parsing");
                         throw;
                     }
                 }
@@ -2250,19 +2284,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     try
                     {
-                        engineDB.BeginTransaction();
-
                         var markdownFileDal = engineDB.GetDal<MarkdownFile>();
                         var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
 
-                        // Get all markdown files from database
+                        // Get all markdown files from database (read outside transaction)
                         var allFiles = markdownFileDal.GetList().ToList();
                         _logger.LogInformation($"[{connectionId}] [ParseAllLinks] Processing {allFiles.Count} files with base path: {projectPath}");
 
+                        var processedCount = 0;
                         foreach (var mdf in allFiles)
                         {
                             try
                             {
+                                // Short transaction per file to avoid locking the database for too long
+                                engineDB.BeginTransaction();
+
                                 // Delete existing links for this file
                                 var existingLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf).ToList();
                                 foreach (var link in existingLinks)
@@ -2296,20 +2332,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
                                         linkDal.Save(linkToStore);
                                     }
                                 }
+
+                                engineDB.Commit();
+                                processedCount++;
                             }
                             catch (Exception ex)
                             {
                                 _logger.LogError(ex, $"[{connectionId}] [ParseAllLinks] Error parsing links for file: {mdf.Path}");
+                                try { engineDB.Rollback(); } catch { }
                             }
                         }
 
-                        engineDB.Commit();
-                        _logger.LogInformation($"[{connectionId}] [ParseAllLinks] Successfully parsed links for {allFiles.Count} files");
+                        _logger.LogInformation($"[{connectionId}] [ParseAllLinks] Successfully parsed links for {processedCount}/{allFiles.Count} files");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, $"[{connectionId}] [ParseAllLinks] Error during link parsing - rolling back");
-                        engineDB.Rollback();
+                        _logger.LogError(ex, $"[{connectionId}] [ParseAllLinks] Error during link parsing");
                         throw;
                     }
                 }
