@@ -2024,7 +2024,7 @@ class GITService {
         }));
     }
     /**
-     * Setup GitHub remote for repository
+     * Setup GitHub remote for repository (legacy - GitHub specific)
      */
     setupGitHubRemote(projectPath, organization, repositoryName, saveOrganization = true, pushAfterAdd = true, repositoryDescription, isPrivate) {
         const request = {
@@ -2046,6 +2046,51 @@ class GITService {
             });
         }));
     }
+    // #region Generic Remote Setup Methods
+    /**
+     * Parse a remote URL and detect provider
+     */
+    parseRemoteUrl(url) {
+        const apiUrl = '../api/ModernGit/parse-remote-url';
+        return this.http.post(apiUrl, { url: url }).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error parsing remote URL:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                isValid: false,
+                error: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || error.message || 'Failed to parse URL'
+            });
+        }));
+    }
+    /**
+     * Validate remote with credentials
+     */
+    validateRemoteAuth(request) {
+        const url = '../api/ModernGit/validate-remote-auth';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error validating remote auth:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                isReachable: false,
+                credentialsValid: false,
+                error: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || error.message || 'Failed to validate credentials'
+            });
+        }));
+    }
+    /**
+     * Setup generic remote (supports any Git provider)
+     */
+    setupRemoteGeneric(request) {
+        const url = '../api/ModernGit/setup-remote-generic';
+        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["catchError"])(error => {
+            var _a;
+            console.error('Error setting up generic remote:', error);
+            return Object(rxjs__WEBPACK_IMPORTED_MODULE_0__["of"])({
+                success: false,
+                error: ((_a = error.error) === null || _a === void 0 ? void 0 : _a.error) || error.message || 'Failed to setup remote'
+            });
+        }));
+    }
+    // #endregion
     /**
      * Get saved GitHub organization
      */
@@ -3919,8 +3964,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.11.30.1',
-    buildTime: '2025.11.30 16:38:06'
+    version: '2025.12.01.4',
+    buildTime: '2025.12.01 11:17:14'
 };
 
 

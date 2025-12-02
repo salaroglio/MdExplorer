@@ -20,7 +20,7 @@ import { GitMessagesComponent } from '../../../git/components/git-messages/git-m
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
-import { GitSetupRemoteDialogComponent } from '../../../git/dialogs/git-setup-remote-dialog/git-setup-remote-dialog.component';
+import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
 import { GitAccountManagementDialogComponent } from '../../../git/dialogs/git-account-management-dialog/git-account-management-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
@@ -46,7 +46,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   public currentBranch: string;
   @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;
-  @ViewChild('tagsAndBranches') matMenuTrigger: MatMenuTrigger;
+  @ViewChild('branchMenuTrigger') matMenuTrigger: MatMenuTrigger;
   @ViewChild(MatTabGroup) tabGroup: MatTabGroup;
 
   TitleToShow: string;
@@ -595,7 +595,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           console.log('[DEBUG] Commit response received:', response);
           this.handleGitResponse(response, 'commit');
           this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
+          this.matMenuTrigger?.closeMenu();
         },
         error => {
           console.error('[DEBUG] Commit error:', error);
@@ -633,7 +633,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         console.log('[DEBUG] Push response received:', response);
         this.handleGitResponse(response, 'push');
         this.waitingDialogService.closeMessageBox();
-        this.matMenuTrigger.closeMenu();
+        this.matMenuTrigger?.closeMenu();
       },
       error => {
         console.error('[DEBUG] Push error:', error);
@@ -682,7 +682,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           console.log('[DEBUG] Commit and push response received:', response);
           this.handleGitResponse(response, 'commit and push');
           this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger.closeMenu();
+          this.matMenuTrigger?.closeMenu();
         },
         error => {
           console.error('[DEBUG] Commit and push error:', error);
@@ -713,7 +713,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.projectService.setNewFolderProject(_.fullPath);
 
     });
-    this.matMenuTrigger.closeMenu();
+    this.matMenuTrigger?.closeMenu();
   }
 
   openHistory(): void {
@@ -737,7 +737,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       console.log('History dialog closed');
     });
 
-    this.matMenuTrigger.closeMenu();
+    this.matMenuTrigger?.closeMenu();
   }
 
   openBranchDialog(): void {
@@ -760,7 +760,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       console.log('Branch dialog closed');
     });
 
-    this.matMenuTrigger.closeMenu();
+    this.matMenuTrigger?.closeMenu();
   }
 
   openSetupRemote(): void {
@@ -770,8 +770,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const currentProject = this.projectService.currentProjects$.value;
     const projectName = projectPath.split(/[/\\]/).pop() || 'repository';
 
-    const dialogRef = this.dialog.open(GitSetupRemoteDialogComponent, {
-      width: '600px',
+    const dialogRef = this.dialog.open(GitSetupRemoteGenericDialogComponent, {
+      width: '650px',
       data: {
         projectPath: projectPath,
         projectName: projectName
@@ -786,7 +786,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       console.log('Setup remote dialog closed');
     });
 
-    this.matMenuTrigger.closeMenu();
+    this.matMenuTrigger?.closeMenu();
   }
 
   openManageRemote(): void {
@@ -812,7 +812,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       console.log('Git account management dialog closed');
     });
 
-    this.matMenuTrigger.closeMenu();
+    this.matMenuTrigger?.closeMenu();
   }
 
   openGitInitWizard(): void {

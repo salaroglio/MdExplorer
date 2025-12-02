@@ -532,7 +532,7 @@ export class GITService implements OnDestroy {
   }
 
   /**
-   * Setup GitHub remote for repository
+   * Setup GitHub remote for repository (legacy - GitHub specific)
    */
   setupGitHubRemote(projectPath: string, organization: string, repositoryName: string,
                     saveOrganization: boolean = true, pushAfterAdd: boolean = true,
@@ -558,6 +558,80 @@ export class GITService implements OnDestroy {
       })
     );
   }
+
+  // #region Generic Remote Setup Methods
+
+  /**
+   * Parse a remote URL and detect provider
+   */
+  parseRemoteUrl(url: string): Observable<any> {
+    const apiUrl = '../api/ModernGit/parse-remote-url';
+
+    return this.http.post<any>(apiUrl, { url: url }).pipe(
+      catchError(error => {
+        console.error('Error parsing remote URL:', error);
+        return of({
+          isValid: false,
+          error: error.error?.error || error.message || 'Failed to parse URL'
+        });
+      })
+    );
+  }
+
+  /**
+   * Validate remote with credentials
+   */
+  validateRemoteAuth(request: {
+    remoteUrl: string;
+    username?: string;
+    password?: string;
+    authMethod?: string;
+  }): Observable<any> {
+    const url = '../api/ModernGit/validate-remote-auth';
+
+    return this.http.post<any>(url, request).pipe(
+      catchError(error => {
+        console.error('Error validating remote auth:', error);
+        return of({
+          isReachable: false,
+          credentialsValid: false,
+          error: error.error?.error || error.message || 'Failed to validate credentials'
+        });
+      })
+    );
+  }
+
+  /**
+   * Setup generic remote (supports any Git provider)
+   */
+  setupRemoteGeneric(request: {
+    repositoryPath: string;
+    remoteUrl: string;
+    remoteName?: string;
+    authMethod?: string;
+    username?: string;
+    password?: string;
+    token?: string;
+    saveCredentials?: boolean;
+    pushAfterAdd?: boolean;
+    createRemoteRepo?: boolean;
+    repoDescription?: string;
+    isPrivate?: boolean;
+  }): Observable<any> {
+    const url = '../api/ModernGit/setup-remote-generic';
+
+    return this.http.post<any>(url, request).pipe(
+      catchError(error => {
+        console.error('Error setting up generic remote:', error);
+        return of({
+          success: false,
+          error: error.error?.error || error.message || 'Failed to setup remote'
+        });
+      })
+    );
+  }
+
+  // #endregion
 
   /**
    * Get saved GitHub organization

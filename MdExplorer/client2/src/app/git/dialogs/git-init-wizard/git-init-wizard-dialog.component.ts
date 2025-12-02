@@ -3,7 +3,7 @@ import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dial
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GITService } from '../../services/gitservice.service';
 import { InitRepositoryRequest, InitRepositoryResponse, GITIGNORE_TEMPLATES, GitignoreTemplate } from '../../models/git-init.models';
-import { GitSetupRemoteDialogComponent } from '../git-setup-remote-dialog/git-setup-remote-dialog.component';
+import { GitSetupRemoteGenericDialogComponent } from '../git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
 
 @Component({
   selector: 'app-git-init-wizard-dialog',
@@ -105,10 +105,13 @@ export class GitInitWizardDialogComponent implements OnInit {
    * Open remote setup dialog (Step 2)
    */
   setupRemote(): void {
-    const remoteDialogRef = this.dialog.open(GitSetupRemoteDialogComponent, {
-      width: '600px',
+    const projectName = this.repositoryPath.split(/[/\\]/).pop() || 'repository';
+
+    const remoteDialogRef = this.dialog.open(GitSetupRemoteGenericDialogComponent, {
+      width: '650px',
       data: {
-        repositoryPath: this.repositoryPath
+        projectPath: this.repositoryPath,
+        projectName: projectName
       }
     });
 

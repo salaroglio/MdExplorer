@@ -128,7 +128,7 @@ namespace MdExplorer.Controllers.ModernGit
     }
 
     /// <summary>
-    /// Request model for setting up a remote repository
+    /// Request model for setting up a remote repository (GitHub-specific, legacy)
     /// </summary>
     public class SetupRemoteRequest : GitOperationRequest
     {
@@ -161,4 +161,238 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         public bool PushAfterAdd { get; set; } = true;
     }
+
+    #region Generic Remote Setup Models
+
+    /// <summary>
+    /// Request model for parsing a remote URL
+    /// </summary>
+    public class ParseRemoteUrlRequest
+    {
+        [Required]
+        [StringLength(500, MinimumLength = 5, ErrorMessage = "URL must be between 5 and 500 characters")]
+        public string Url { get; set; }
+    }
+
+    /// <summary>
+    /// Response model for parsed remote URL
+    /// </summary>
+    public class ParseRemoteUrlResponse
+    {
+        /// <summary>
+        /// Whether the URL is valid
+        /// </summary>
+        public bool IsValid { get; set; }
+
+        /// <summary>
+        /// Detected provider: github, gitlab, bitbucket, gitea, azure, generic
+        /// </summary>
+        public string Provider { get; set; }
+
+        /// <summary>
+        /// Host/domain of the remote
+        /// </summary>
+        public string Host { get; set; }
+
+        /// <summary>
+        /// Repository owner (organization or username)
+        /// </summary>
+        public string Owner { get; set; }
+
+        /// <summary>
+        /// Repository name
+        /// </summary>
+        public string RepoName { get; set; }
+
+        /// <summary>
+        /// Protocol used: https, ssh, git
+        /// </summary>
+        public string Protocol { get; set; }
+
+        /// <summary>
+        /// Whether this provider supports automatic repository creation via API
+        /// </summary>
+        public bool SupportsAutoCreate { get; set; }
+
+        /// <summary>
+        /// URL for creating a new token for this provider
+        /// </summary>
+        public string TokenCreationUrl { get; set; }
+
+        /// <summary>
+        /// Error message if URL is invalid
+        /// </summary>
+        public string Error { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for validating remote with credentials
+    /// </summary>
+    public class ValidateRemoteAuthRequest
+    {
+        [Required]
+        [StringLength(500, MinimumLength = 5, ErrorMessage = "URL must be between 5 and 500 characters")]
+        public string RemoteUrl { get; set; }
+
+        /// <summary>
+        /// Username for authentication
+        /// </summary>
+        [StringLength(100)]
+        public string Username { get; set; }
+
+        /// <summary>
+        /// Password or token for authentication
+        /// </summary>
+        [StringLength(500)]
+        public string Password { get; set; }
+
+        /// <summary>
+        /// Authentication method: username_password, pat, ssh
+        /// </summary>
+        [StringLength(50)]
+        public string AuthMethod { get; set; } = "username_password";
+    }
+
+    /// <summary>
+    /// Response model for remote validation
+    /// </summary>
+    public class ValidateRemoteAuthResponse
+    {
+        /// <summary>
+        /// Whether the remote is reachable
+        /// </summary>
+        public bool IsReachable { get; set; }
+
+        /// <summary>
+        /// Whether the remote requires authentication
+        /// </summary>
+        public bool RequiresAuth { get; set; }
+
+        /// <summary>
+        /// Whether the provided credentials are valid
+        /// </summary>
+        public bool CredentialsValid { get; set; }
+
+        /// <summary>
+        /// Whether the repository exists on the remote
+        /// </summary>
+        public bool RepositoryExists { get; set; }
+
+        /// <summary>
+        /// Detected provider from URL
+        /// </summary>
+        public string Provider { get; set; }
+
+        /// <summary>
+        /// Error message if validation failed
+        /// </summary>
+        public string Error { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for setting up a generic remote (any Git provider)
+    /// </summary>
+    public class GenericSetupRemoteRequest : GitOperationRequest
+    {
+        /// <summary>
+        /// Remote URL (any Git provider)
+        /// </summary>
+        [Required]
+        [StringLength(500, MinimumLength = 5, ErrorMessage = "Remote URL must be between 5 and 500 characters")]
+        public string RemoteUrl { get; set; }
+
+        /// <summary>
+        /// Remote name (default: origin)
+        /// </summary>
+        [StringLength(50)]
+        public string RemoteName { get; set; } = "origin";
+
+        /// <summary>
+        /// Authentication method: username_password, pat, ssh
+        /// </summary>
+        [StringLength(50)]
+        public string AuthMethod { get; set; } = "username_password";
+
+        /// <summary>
+        /// Username for authentication
+        /// </summary>
+        [StringLength(100)]
+        public string Username { get; set; }
+
+        /// <summary>
+        /// Password for authentication (for username/password method)
+        /// </summary>
+        [StringLength(500)]
+        public string Password { get; set; }
+
+        /// <summary>
+        /// Personal Access Token (for PAT method)
+        /// </summary>
+        [StringLength(500)]
+        public string Token { get; set; }
+
+        /// <summary>
+        /// Whether to save credentials for future use
+        /// </summary>
+        public bool SaveCredentials { get; set; } = true;
+
+        /// <summary>
+        /// Whether to push existing commits after adding the remote
+        /// </summary>
+        public bool PushAfterAdd { get; set; } = true;
+
+        /// <summary>
+        /// Whether to create the remote repository automatically (if supported by provider)
+        /// </summary>
+        public bool CreateRemoteRepo { get; set; } = false;
+
+        /// <summary>
+        /// Repository description (for auto-creation)
+        /// </summary>
+        [StringLength(500)]
+        public string RepoDescription { get; set; }
+
+        /// <summary>
+        /// Whether repository should be private (for auto-creation)
+        /// </summary>
+        public bool IsPrivate { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Response model for generic remote setup
+    /// </summary>
+    public class GenericSetupRemoteResponse
+    {
+        /// <summary>
+        /// Whether the operation succeeded
+        /// </summary>
+        public bool Success { get; set; }
+
+        /// <summary>
+        /// Success or informational message
+        /// </summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        /// Error message if failed
+        /// </summary>
+        public string Error { get; set; }
+
+        /// <summary>
+        /// Whether the repository was created automatically
+        /// </summary>
+        public bool RepositoryCreated { get; set; }
+
+        /// <summary>
+        /// Final remote URL
+        /// </summary>
+        public string RemoteUrl { get; set; }
+
+        /// <summary>
+        /// Duration in milliseconds
+        /// </summary>
+        public long DurationMs { get; set; }
+    }
+
+    #endregion
 }

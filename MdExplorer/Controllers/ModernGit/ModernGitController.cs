@@ -33,6 +33,8 @@ namespace MdExplorer.Controllers.ModernGit
         private readonly IModernGitService _gitService;
         private readonly IGitHubService _gitHubService;
         private readonly IMdIgnoreService _mdIgnoreService;
+        private readonly IGitRemoteUrlParser _urlParser;
+        private readonly IGenericRemoteService _genericRemoteService;
 
         public ModernGitController(
             IModernGitService gitService,
@@ -44,12 +46,16 @@ namespace MdExplorer.Controllers.ModernGit
             IMdIgnoreService mdIgnoreService,
             FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
+            IGitRemoteUrlParser urlParser,
+            IGenericRemoteService genericRemoteService,
             IDatabaseManager databaseManager = null)
             : base(logger, fileSystemWatcher, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
         {
             _gitService = gitService;
             _gitHubService = gitHubService;
             _mdIgnoreService = mdIgnoreService;
+            _urlParser = urlParser;
+            _genericRemoteService = genericRemoteService;
         }
 
         /// <summary>
@@ -722,6 +728,166 @@ namespace MdExplorer.Controllers.ModernGit
                 });
             }
         }
+
+        #region Generic Remote Setup Endpoints
+
+        /// <summary>
+        /// Parses a remote URL and detects the provider
+        /// </summary>
+        /// <param name="request">URL to parse</param>
+        /// <returns>Parsed URL information including provider detection</returns>
+        [HttpPost("parse-remote-url")]
+        public IActionResult ParseRemoteUrl([FromBody] ParseRemoteUrlRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("Parsing remote URL: {Url}", request.Url);
+
+                var urlInfo = _urlParser.ParseUrl(request.Url);
+                var tokenUrl = _urlParser.GetTokenCreationUrl(urlInfo.Provider, urlInfo.Host);
+
+                return Ok(new ParseRemoteUrlResponse
+                {
+                    IsValid = urlInfo.IsValid,
+                    Provider = urlInfo.Provider,
+                    Host = urlInfo.Host,
+                    Owner = urlInfo.Owner,
+                    RepoName = urlInfo.RepoName,
+                    Protocol = urlInfo.Protocol,
+                    SupportsAutoCreate = urlInfo.SupportsAutoCreate,
+                    TokenCreationUrl = tokenUrl,
+                    Error = urlInfo.Error
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error parsing remote URL: {Url}", request.Url);
+                return StatusCode(500, new ParseRemoteUrlResponse
+                {
+                    IsValid = false,
+                    Error = "Internal server error parsing URL"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Validates remote URL with provided credentials
+        /// </summary>
+        /// <param name="request">Validation request with URL and credentials</param>
+        /// <returns>Validation result</returns>
+        [HttpPost("validate-remote-auth")]
+        public async Task<IActionResult> ValidateRemoteAuth([FromBody] ValidateRemoteAuthRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("Validating remote auth for: {Url}", request.RemoteUrl);
+
+                var result = await _genericRemoteService.ValidateRemoteWithCredentialsAsync(
+                    new Services.Git.Interfaces.ValidateRemoteRequest
+                    {
+                        RemoteUrl = request.RemoteUrl,
+                        Username = request.Username,
+                        Password = request.Password,
+                        AuthMethod = request.AuthMethod
+                    });
+
+                return Ok(new ValidateRemoteAuthResponse
+                {
+                    IsReachable = result.IsReachable,
+                    RequiresAuth = result.RequiresAuth,
+                    CredentialsValid = result.CredentialsValid,
+                    RepositoryExists = result.RepositoryExists,
+                    Provider = result.Provider,
+                    Error = result.Error
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating remote auth: {Url}", request.RemoteUrl);
+                return StatusCode(500, new ValidateRemoteAuthResponse
+                {
+                    IsReachable = false,
+                    Error = "Internal server error during validation"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Sets up a generic remote (supports any Git provider)
+        /// </summary>
+        /// <param name="request">Generic remote setup parameters</param>
+        /// <returns>Result of the setup operation</returns>
+        [HttpPost("setup-remote-generic")]
+        public async Task<IActionResult> SetupRemoteGeneric([FromBody] GenericSetupRemoteRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("Setting up generic remote: {RemoteUrl} for repository: {RepositoryPath}",
+                    request.RemoteUrl, request.RepositoryPath);
+
+                var result = await _genericRemoteService.SetupRemoteGenericAsync(
+                    new Services.Git.Interfaces.SetupRemoteGenericRequest
+                    {
+                        RepositoryPath = request.RepositoryPath,
+                        RemoteUrl = request.RemoteUrl,
+                        RemoteName = request.RemoteName,
+                        AuthMethod = request.AuthMethod,
+                        Username = request.Username,
+                        Password = request.Password,
+                        Token = request.Token,
+                        SaveCredentials = request.SaveCredentials,
+                        PushAfterAdd = request.PushAfterAdd,
+                        CreateRemoteRepo = request.CreateRemoteRepo,
+                        RepoDescription = request.RepoDescription,
+                        IsPrivate = request.IsPrivate
+                    });
+
+                if (result.Success)
+                {
+                    return Ok(new GenericSetupRemoteResponse
+                    {
+                        Success = true,
+                        Message = result.Message,
+                        RepositoryCreated = result.RepositoryCreated,
+                        RemoteUrl = result.RemoteUrl,
+                        DurationMs = result.DurationMs
+                    });
+                }
+
+                return BadRequest(new GenericSetupRemoteResponse
+                {
+                    Success = false,
+                    Error = result.Error,
+                    DurationMs = result.DurationMs
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting up generic remote: {RemoteUrl}", request.RemoteUrl);
+                return StatusCode(500, new GenericSetupRemoteResponse
+                {
+                    Success = false,
+                    Error = "Internal server error during remote setup"
+                });
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Remove a remote from the repository

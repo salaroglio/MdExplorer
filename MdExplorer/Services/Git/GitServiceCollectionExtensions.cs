@@ -25,6 +25,10 @@ namespace MdExplorer.Services.Git
             // Register GitHub service for repository management
             services.AddScoped<IGitHubService, GitHubService>();
 
+            // Register generic remote services for multi-provider support
+            services.AddScoped<IGitRemoteUrlParser, GitRemoteUrlParser>();
+            services.AddScoped<IGenericRemoteService, GenericRemoteService>();
+
             // Register Git config helper for managing .git/config files
             services.AddScoped<IGitConfigHelper, GitConfigHelper>();
 
@@ -70,6 +74,10 @@ namespace MdExplorer.Services.Git
             services.AddScoped<IGitConfigHelper, GitConfigHelper>();
             services.AddScoped<IGitAccountService, GitAccountService>();
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
+
+            // Register generic remote services for multi-provider support
+            services.AddScoped<IGitRemoteUrlParser, GitRemoteUrlParser>();
+            services.AddScoped<IGenericRemoteService, GenericRemoteService>();
 
             // Register credential resolvers as SCOPED
             // Repository-specific resolver has highest priority for multi-account support

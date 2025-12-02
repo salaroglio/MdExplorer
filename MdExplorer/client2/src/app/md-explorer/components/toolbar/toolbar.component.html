@@ -29,11 +29,11 @@
             (click)="openManageRemote()">
       <mat-icon style="color: orange">person_add</mat-icon>
     </button>
-    <!-- Auth Failed (VPN/network): show warning -->
+    <!-- Auth Failed (VPN/network): show warning with menu -->
     <button *ngIf="isGitRepository && authenticationFailed && !authenticationMissing && !isCheckingConnection"
             mat-icon-button
-            [matTooltip]="'Connection failed: ' + (authenticationFailureReason || 'check VPN or network')"
-            (click)="checkConnection()">
+            [matMenuTriggerFor]="authFailedMenu"
+            [matTooltip]="'Connection failed: ' + (authenticationFailureReason || 'click to fix')">
       <mat-icon style="color: yellow">warning</mat-icon>
     </button>
     <!-- Connection not active (generic case) -->
@@ -108,7 +108,7 @@
         </div>
         <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{howManyCommitAreToPush}} to push</button>
       </div>
-      <button mat-button [matMenuTriggerFor]="tagsAndBranches"
+      <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />
       </button>
@@ -173,4 +173,21 @@
       </button>
     </div>
   </div>
+</mat-menu>
+
+<!-- Auth Failed Menu -->
+<mat-menu #authFailedMenu="matMenu">
+  <div class="auth-failed-header" style="padding: 8px 16px; color: #f57c00; font-size: 12px;">
+    <mat-icon style="vertical-align: middle; font-size: 16px; margin-right: 4px;">warning</mat-icon>
+    {{ authenticationFailureReason || 'Authentication failed' }}
+  </div>
+  <mat-divider></mat-divider>
+  <button mat-menu-item (click)="openSetupRemote()">
+    <mat-icon color="primary">vpn_key</mat-icon>
+    <span>Reconfigure Credentials</span>
+  </button>
+  <button mat-menu-item (click)="checkConnection()">
+    <mat-icon>refresh</mat-icon>
+    <span>Retry Connection</span>
+  </button>
 </mat-menu>

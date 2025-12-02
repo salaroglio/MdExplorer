@@ -5,6 +5,7 @@ import { CommitMessageDialogComponent } from './dialogs/commit-message-dialog/co
 import { GitHistoryDialogComponent } from './dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from './dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteDialogComponent } from './dialogs/git-setup-remote-dialog/git-setup-remote-dialog.component';
+import { GitSetupRemoteGenericDialogComponent } from './dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
 import { GitTokenDialogComponent } from './dialogs/git-token-dialog/git-token-dialog.component';
 import { GitAccountManagementDialogComponent } from './dialogs/git-account-management-dialog/git-account-management-dialog.component';
 import { GitInitWizardDialogComponent } from './dialogs/git-init-wizard/git-init-wizard-dialog.component';
@@ -20,6 +21,7 @@ import { FormsModule } from '@angular/forms';
     GitHistoryDialogComponent,
     GitBranchDialogComponent,
     GitSetupRemoteDialogComponent,
+    GitSetupRemoteGenericDialogComponent,
     GitTokenDialogComponent,
     GitAccountManagementDialogComponent,
     GitInitWizardDialogComponent
@@ -34,6 +36,7 @@ import { FormsModule } from '@angular/forms';
     GitHistoryDialogComponent,
     GitBranchDialogComponent,
     GitSetupRemoteDialogComponent,
+    GitSetupRemoteGenericDialogComponent,
     GitTokenDialogComponent,
     GitAccountManagementDialogComponent,
     GitInitWizardDialogComponent
