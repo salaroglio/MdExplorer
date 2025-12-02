@@ -38,6 +38,21 @@ namespace MdExplorer.Services.Git
         /// Tests the GitHub token validity
         /// </summary>
         Task<bool> TestTokenAsync();
+
+        /// <summary>
+        /// Clears the stored GitHub personal access token and associated username
+        /// </summary>
+        Task ClearTokenAsync();
+
+        /// <summary>
+        /// Gets the GitHub username associated with the stored token
+        /// </summary>
+        Task<string> GetTokenUsernameAsync();
+
+        /// <summary>
+        /// Gets the raw token (for internal use with saved credentials)
+        /// </summary>
+        Task<string> GetTokenAsync();
     }
 
     /// <summary>
@@ -57,6 +72,7 @@ namespace MdExplorer.Services.Git
         private readonly ILogger<GitHubService> _logger;
         private readonly IUserSettingsDB _userSettingsDb;
         private const string TOKEN_SETTING_KEY = "GitHubPersonalAccessToken";
+        private const string USERNAME_SETTING_KEY = "GitHubTokenUsername";
 
         public GitHubService(ILogger<GitHubService> logger, IUserSettingsDB userSettingsDb)
         {
@@ -191,6 +207,7 @@ namespace MdExplorer.Services.Git
 
         public async Task SetTokenAsync(string token)
         {
+            // First save the token
             await Task.Run(() =>
             {
                 _userSettingsDb.BeginTransaction();
@@ -223,6 +240,22 @@ namespace MdExplorer.Services.Git
                     throw;
                 }
             });
+
+            // After saving, test the token and save the username
+            try
+            {
+                var client = new GitHubClient(new ProductHeaderValue("MdExplorer"));
+                client.Credentials = new Credentials(token);
+                var user = await client.User.Current();
+                await SaveTokenUsernameAsync(user.Login);
+                _logger.LogInformation("GitHub username saved: {Username}", user.Login);
+            }
+            catch (Exception ex)
+            {
+                // If test fails, clear the username
+                _logger.LogWarning(ex, "Could not get GitHub username for token");
+                await SaveTokenUsernameAsync(null);
+            }
         }
 
         public async Task<string> GetMaskedTokenAsync()
@@ -266,13 +299,110 @@ namespace MdExplorer.Services.Git
             }
         }
 
-        private async Task<string> GetTokenAsync()
+        public async Task<string> GetTokenAsync()
+        {
+            _logger.LogWarning("[CLONE DEBUG] GitHubService.GetTokenAsync called");
+            return await Task.Run(() =>
+            {
+                var dal = _userSettingsDb.GetDal<Setting>();
+                var settings = dal.GetList().ToList();
+                _logger.LogWarning("[CLONE DEBUG] GitHubService.GetTokenAsync - Total settings in DB: {Count}", settings.Count);
+
+                var setting = settings.Where(s => s.Name == TOKEN_SETTING_KEY).FirstOrDefault();
+                var hasToken = setting != null && !string.IsNullOrEmpty(setting.ValueString);
+
+                if (hasToken)
+                {
+                    var maskedToken = setting.ValueString.Length > 10
+                        ? $"{setting.ValueString.Substring(0, 7)}...{setting.ValueString.Substring(setting.ValueString.Length - 4)}"
+                        : "***";
+                    _logger.LogWarning("[CLONE DEBUG] GitHubService.GetTokenAsync returning: HasToken=True, MaskedToken={MaskedToken}", maskedToken);
+                }
+                else
+                {
+                    _logger.LogWarning("[CLONE DEBUG] GitHubService.GetTokenAsync returning: HasToken=False");
+                }
+
+                return setting?.ValueString;
+            });
+        }
+
+        public async Task<string> GetTokenUsernameAsync()
         {
             return await Task.Run(() =>
             {
                 var dal = _userSettingsDb.GetDal<Setting>();
-                var setting = dal.GetList().Where(s => s.Name == TOKEN_SETTING_KEY).FirstOrDefault();
+                var setting = dal.GetList().Where(s => s.Name == USERNAME_SETTING_KEY).FirstOrDefault();
                 return setting?.ValueString;
+            });
+        }
+
+        public async Task ClearTokenAsync()
+        {
+            await Task.Run(() =>
+            {
+                _userSettingsDb.BeginTransaction();
+                try
+                {
+                    var dal = _userSettingsDb.GetDal<Setting>();
+
+                    // Delete token
+                    var tokenSetting = dal.GetList().Where(s => s.Name == TOKEN_SETTING_KEY).FirstOrDefault();
+                    if (tokenSetting != null) dal.Delete(tokenSetting);
+
+                    // Delete associated username
+                    var usernameSetting = dal.GetList().Where(s => s.Name == USERNAME_SETTING_KEY).FirstOrDefault();
+                    if (usernameSetting != null) dal.Delete(usernameSetting);
+
+                    _userSettingsDb.Commit();
+                    _logger.LogInformation("GitHub token and username cleared successfully");
+                }
+                catch
+                {
+                    _userSettingsDb.Rollback();
+                    throw;
+                }
+            });
+        }
+
+        private async Task SaveTokenUsernameAsync(string username)
+        {
+            await Task.Run(() =>
+            {
+                _userSettingsDb.BeginTransaction();
+                try
+                {
+                    var dal = _userSettingsDb.GetDal<Setting>();
+                    var setting = dal.GetList().Where(s => s.Name == USERNAME_SETTING_KEY).FirstOrDefault();
+
+                    if (string.IsNullOrEmpty(username))
+                    {
+                        if (setting != null) dal.Delete(setting);
+                    }
+                    else
+                    {
+                        if (setting != null)
+                        {
+                            setting.ValueString = username;
+                        }
+                        else
+                        {
+                            setting = new Setting
+                            {
+                                Name = USERNAME_SETTING_KEY,
+                                ValueString = username,
+                                Description = "GitHub username associated with the token"
+                            };
+                        }
+                        dal.Save(setting);
+                    }
+                    _userSettingsDb.Commit();
+                }
+                catch
+                {
+                    _userSettingsDb.Rollback();
+                    throw;
+                }
             });
         }
     }

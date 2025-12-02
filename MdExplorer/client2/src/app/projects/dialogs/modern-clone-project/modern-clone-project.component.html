@@ -21,17 +21,64 @@
             <mat-card-title>Authentication</mat-card-title>
           </mat-card-header>
           <mat-card-content>
-            <!-- Token Status -->
-            <div class="token-status" *ngIf="hasGitHubToken">
-              <mat-icon color="primary">check_circle</mat-icon>
-              <span>{{ tokenStatus }}</span>
+            <!-- Token Status when token exists -->
+            <div class="saved-token-option" *ngIf="hasGitHubToken">
+              <div class="token-header">
+                <mat-checkbox [(ngModel)]="useSavedToken">
+                  Usa token GitHub salvato
+                </mat-checkbox>
+              </div>
+
+              <div class="token-info" *ngIf="useSavedToken">
+                <mat-icon [class.valid]="tokenValid" [class.invalid]="!tokenValid">
+                  {{ tokenValid ? 'check_circle' : 'error' }}
+                </mat-icon>
+                <div class="token-details">
+                  <span class="username" *ngIf="tokenUsername">
+                    <mat-icon>person</mat-icon>
+                    <strong>{{ tokenUsername }}</strong>
+                  </span>
+                  <span class="token-mask">{{ tokenStatus }}</span>
+                  <span class="status" [class.valid]="tokenValid" [class.invalid]="!tokenValid">
+                    ({{ tokenValid ? 'Valido' : 'Non valido o scaduto' }})
+                  </span>
+                </div>
+                <button mat-icon-button
+                        color="warn"
+                        (click)="deleteToken()"
+                        [disabled]="isDeleting"
+                        matTooltip="Elimina token">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+
+              <div class="token-warning" *ngIf="useSavedToken && !tokenValid">
+                <mat-icon color="warn">warning</mat-icon>
+                <span>Il token salvato non è valido. Considera di eliminarlo o inserire credenziali diverse.</span>
+              </div>
             </div>
+
+            <!-- No token configured -->
             <div class="token-status warn" *ngIf="!hasGitHubToken">
               <mat-icon color="warn">warning</mat-icon>
               <span>{{ tokenStatus }}</span>
               <button mat-button color="primary" (click)="openTokenSettings()">
                 Configure Token
               </button>
+            </div>
+
+            <!-- Manual credentials when not using saved token OR no token exists -->
+            <div class="manual-credentials" *ngIf="!useSavedToken || !hasGitHubToken">
+              <p class="manual-hint">{{ hasGitHubToken ? 'Inserisci credenziali diverse:' : 'Oppure inserisci le credenziali manualmente:' }}</p>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Username</mat-label>
+                <input matInput [(ngModel)]="manualCredentials.username">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Password / Token</mat-label>
+                <input matInput [(ngModel)]="manualCredentials.password" type="password">
+                <mat-hint>Per GitHub usa un Personal Access Token</mat-hint>
+              </mat-form-field>
             </div>
           </mat-card-content>
         </mat-card>

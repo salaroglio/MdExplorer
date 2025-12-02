@@ -282,9 +282,22 @@ namespace MdExplorer.Controllers.ModernGit
                     return BadRequest(ModelState);
                 }
 
-                _logger.LogInformation("Clone request received: {Url} to {LocalPath}", request.Url, request.LocalPath);
+                _logger.LogInformation("Clone request received: {Url} to {LocalPath} (useSavedToken={UseSavedToken})",
+                    request.Url, request.LocalPath, request.UseSavedToken);
 
-                var result = await _gitService.CloneAsync(request.Url, request.LocalPath, request.BranchName);
+                // DEBUG: Log all parameters to trace clone failure
+                _logger.LogWarning("[CLONE DEBUG] Controller received: Url={Url}, UseSavedToken={UseSavedToken}, HasUsername={HasUsername}, HasPassword={HasPassword}",
+                    request.Url, request.UseSavedToken,
+                    !string.IsNullOrEmpty(request.Username),
+                    !string.IsNullOrEmpty(request.Password));
+
+                var result = await _gitService.CloneAsync(
+                    request.Url,
+                    request.LocalPath,
+                    request.BranchName,
+                    request.UseSavedToken,
+                    request.Username,
+                    request.Password);
 
                 if (result.Success)
                 {
@@ -854,7 +867,8 @@ namespace MdExplorer.Controllers.ModernGit
                         PushAfterAdd = request.PushAfterAdd,
                         CreateRemoteRepo = request.CreateRemoteRepo,
                         RepoDescription = request.RepoDescription,
-                        IsPrivate = request.IsPrivate
+                        IsPrivate = request.IsPrivate,
+                        UseSavedToken = request.UseSavedToken
                     });
 
                 if (result.Success)
@@ -1018,19 +1032,21 @@ namespace MdExplorer.Controllers.ModernGit
             try
             {
                 var maskedToken = await _gitHubService.GetMaskedTokenAsync();
+                var username = await _gitHubService.GetTokenUsernameAsync();
                 var isValid = !string.IsNullOrEmpty(maskedToken) ? await _gitHubService.TestTokenAsync() : false;
 
                 return Ok(new
                 {
                     hasToken = !string.IsNullOrEmpty(maskedToken),
                     maskedToken = maskedToken,
-                    tokenValid = isValid
+                    tokenValid = isValid,
+                    username = username
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting GitHub token");
-                return Ok(new { hasToken = false, maskedToken = "", tokenValid = false });
+                return Ok(new { hasToken = false, maskedToken = "", tokenValid = false, username = (string)null });
             }
         }
 
@@ -1054,6 +1070,25 @@ namespace MdExplorer.Controllers.ModernGit
             {
                 _logger.LogError(ex, "Error testing GitHub token");
                 return Ok(new { success = false, tokenValid = false });
+            }
+        }
+
+        /// <summary>
+        /// Deletes the stored GitHub personal access token
+        /// </summary>
+        [HttpDelete("github-token")]
+        public async Task<IActionResult> DeleteGitHubToken()
+        {
+            try
+            {
+                await _gitHubService.ClearTokenAsync();
+                _logger.LogInformation("GitHub token deleted successfully");
+                return Ok(new { success = true, message = "Token deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting GitHub token");
+                return StatusCode(500, new { success = false, error = "Failed to delete token" });
             }
         }
 

@@ -382,13 +382,15 @@ namespace MdExplorer.Services.Git
             }
         }
 
-        public async Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null)
+        public async Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null,
+            bool useSavedToken = true, string username = null, string password = null)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                _logger.LogInformation("Starting clone operation: {Url} to {LocalPath}", url, localPath);
+                _logger.LogInformation("Starting clone operation: {Url} to {LocalPath} (useSavedToken={UseSavedToken}, hasManualCredentials={HasManual})",
+                    url, localPath, useSavedToken, !string.IsNullOrEmpty(username));
 
                 // Auto-create parent directories if they don't exist
                 // This supports the Share Project feature where basePath may include nested folders
@@ -417,8 +419,30 @@ namespace MdExplorer.Services.Git
                     BranchName = branchName
                 };
 
-                cloneOptions.FetchOptions.CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
-                    ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
+                // DEBUG: Log credential decision parameters
+                _logger.LogWarning("[CLONE DEBUG] CloneAsync params: useSavedToken={UseSavedToken}, hasUsername={HasUsername}, hasPassword={HasPassword}",
+                    useSavedToken, !string.IsNullOrEmpty(username), !string.IsNullOrEmpty(password));
+
+                // Use manual credentials if provided, otherwise use credential resolver
+                if (!useSavedToken && !string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+                {
+                    _logger.LogInformation("Using manual credentials for clone: {Username}", username);
+                    // DEBUG: Confirm MANUAL path
+                    _logger.LogWarning("[CLONE DEBUG] Using credential path: MANUAL");
+                    cloneOptions.FetchOptions.CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
+                        new UsernamePasswordCredentials
+                        {
+                            Username = username,
+                            Password = password
+                        };
+                }
+                else
+                {
+                    // DEBUG: Confirm RESOLVER path
+                    _logger.LogWarning("[CLONE DEBUG] Using credential path: RESOLVER (will call ResolveCredentials)");
+                    cloneOptions.FetchOptions.CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
+                        ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
+                }
 
                 var clonedRepoPath = Repository.Clone(url, localPath, cloneOptions);
 

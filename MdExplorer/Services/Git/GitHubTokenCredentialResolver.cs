@@ -18,6 +18,7 @@ namespace MdExplorer.Services.Git
         private readonly ILogger<GitHubTokenCredentialResolver> _logger;
         private readonly IUserSettingsDB _userSettingsDB;
         private const string GitHubTokenSettingName = "GitHubPersonalAccessToken";
+        private const string GitHubUsernameSettingName = "GitHubTokenUsername";
 
         public GitHubTokenCredentialResolver(
             ILogger<GitHubTokenCredentialResolver> logger,
@@ -52,10 +53,27 @@ namespace MdExplorer.Services.Git
                 var maskedToken = token.Length > 10 ? $"{token.Substring(0, 7)}...{token.Substring(token.Length - 4)}" : "***";
                 _logger.LogInformation("[GitHubTokenResolver] Found GitHub PAT in database: {MaskedToken}", maskedToken);
 
-                // For GitHub HTTPS with PAT, the username should be the token itself
-                // and password should be empty (or x-oauth-basic)
-                // OR username can be anything and password is the token
-                var username = !string.IsNullOrEmpty(usernameFromUrl) ? usernameFromUrl : "git";
+                // Get the stored GitHub username for this token
+                var storedUsername = GetStoredGitHubUsername();
+
+                // For GitHub HTTPS with PAT:
+                // - Use stored username if available (most reliable)
+                // - Otherwise use "x-access-token" (GitHub recommended for PAT)
+                // - usernameFromUrl is usually empty for HTTPS
+                string username;
+                if (!string.IsNullOrEmpty(usernameFromUrl))
+                {
+                    username = usernameFromUrl;
+                }
+                else if (!string.IsNullOrEmpty(storedUsername))
+                {
+                    username = storedUsername;
+                }
+                else
+                {
+                    // Fallback to x-access-token which GitHub accepts for PAT auth
+                    username = "x-access-token";
+                }
 
                 var credentials = new UsernamePasswordCredentials
                 {
@@ -63,7 +81,7 @@ namespace MdExplorer.Services.Git
                     Password = token
                 };
 
-                _logger.LogInformation("[GitHubTokenResolver] Created UsernamePasswordCredentials with Username: {Username}, Password: {MaskedPassword}",
+                _logger.LogWarning("[CLONE DEBUG] Created credentials - Username: {Username}, Token: {MaskedToken}",
                     username, maskedToken);
 
                 return credentials;
@@ -127,24 +145,58 @@ namespace MdExplorer.Services.Git
         {
             try
             {
+                _logger.LogWarning("[CLONE DEBUG] GetStoredGitHubToken called - looking for setting: {SettingName}", GitHubTokenSettingName);
+
                 using var tx = _userSettingsDB.BeginTransaction();
                 var dal = _userSettingsDB.GetDal<Setting>();
 
                 var settings = dal.GetList().Where(s => s.Name == GitHubTokenSettingName).ToList();
+                _logger.LogWarning("[CLONE DEBUG] Query returned {Count} settings with name '{Name}'", settings.Count, GitHubTokenSettingName);
+
                 var tokenSetting = settings.FirstOrDefault();
 
                 if (tokenSetting != null && !string.IsNullOrEmpty(tokenSetting.ValueString))
                 {
-                    _logger.LogDebug("Found GitHub token in database");
+                    var maskedToken = tokenSetting.ValueString.Length > 10
+                        ? $"{tokenSetting.ValueString.Substring(0, 7)}...{tokenSetting.ValueString.Substring(tokenSetting.ValueString.Length - 4)}"
+                        : "***";
+                    _logger.LogWarning("[CLONE DEBUG] GetStoredGitHubToken returned: HasToken=True, MaskedToken={MaskedToken}", maskedToken);
                     return tokenSetting.ValueString;
                 }
 
-                _logger.LogDebug("No GitHub token found in database");
+                _logger.LogError("[CLONE DEBUG] GetStoredGitHubToken returned: HasToken=False - TOKEN IS NULL! This is why clone fails!");
                 return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving GitHub token from database");
+                _logger.LogError(ex, "[CLONE DEBUG] GetStoredGitHubToken EXCEPTION: {Message}", ex.Message);
+                return null;
+            }
+        }
+
+        private string GetStoredGitHubUsername()
+        {
+            try
+            {
+                using var tx = _userSettingsDB.BeginTransaction();
+                var dal = _userSettingsDB.GetDal<Setting>();
+
+                var usernameSetting = dal.GetList()
+                    .Where(s => s.Name == GitHubUsernameSettingName)
+                    .FirstOrDefault();
+
+                if (usernameSetting != null && !string.IsNullOrEmpty(usernameSetting.ValueString))
+                {
+                    _logger.LogWarning("[CLONE DEBUG] GetStoredGitHubUsername returned: {Username}", usernameSetting.ValueString);
+                    return usernameSetting.ValueString;
+                }
+
+                _logger.LogWarning("[CLONE DEBUG] GetStoredGitHubUsername returned: null (no username stored)");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CLONE DEBUG] GetStoredGitHubUsername EXCEPTION: {Message}", ex.Message);
                 return null;
             }
         }

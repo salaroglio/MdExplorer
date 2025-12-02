@@ -5,6 +5,7 @@ import { ShowFileSystemComponent } from '../../../commons/components/show-file-s
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
+import { GitTokenDialogComponent } from '../../../git/dialogs/git-token-dialog/git-token-dialog.component';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
@@ -34,6 +35,10 @@ export class ModernCloneProjectComponent implements OnInit {
 
   public hasGitHubToken = false;
   public tokenStatus = '';
+  public tokenUsername = '';
+  public tokenValid = false;
+  public useSavedToken = true;
+  public isDeleting = false;
   public isGitHubRepo = false;
   public authMethod: 'automatic' | 'manual' = 'automatic';
 
@@ -113,10 +118,47 @@ export class ModernCloneProjectComponent implements OnInit {
   checkGitHubToken(): void {
     this.gitService.getGitHubToken().subscribe(response => {
       this.hasGitHubToken = response.hasToken;
+      this.tokenUsername = response.username || '';
+      this.tokenValid = response.tokenValid;
+
       if (response.hasToken) {
-        this.tokenStatus = `Token configured: ${response.maskedToken}`;
+        if (this.tokenUsername) {
+          this.tokenStatus = `${response.maskedToken}`;
+        } else {
+          this.tokenStatus = `Token: ${response.maskedToken}`;
+        }
       } else {
         this.tokenStatus = 'No GitHub token configured';
+      }
+
+      // Default to using saved token only if valid
+      this.useSavedToken = response.hasToken && response.tokenValid;
+    });
+  }
+
+  deleteToken(): void {
+    const message = this.tokenUsername
+      ? `Vuoi eliminare il token GitHub dell'account "${this.tokenUsername}"?`
+      : 'Vuoi davvero eliminare il token GitHub salvato?';
+
+    const confirmed = confirm(message);
+    if (!confirmed) return;
+
+    this.isDeleting = true;
+    this.gitService.deleteGitHubToken().subscribe({
+      next: () => {
+        this.showMessage('Token eliminato con successo');
+        this.hasGitHubToken = false;
+        this.tokenStatus = 'No GitHub token configured';
+        this.tokenUsername = '';
+        this.tokenValid = false;
+        this.useSavedToken = false;
+        this.isDeleting = false;
+      },
+      error: (err) => {
+        console.error('Error deleting token:', err);
+        this.showMessage('Errore nell\'eliminazione del token');
+        this.isDeleting = false;
       }
     });
   }
@@ -229,11 +271,22 @@ export class ModernCloneProjectComponent implements OnInit {
       // Step 2: Proceed with clone
       info.message = "Cloning repository...";
 
+      // Validate manual credentials if not using saved token
+      if (this.isGitHubRepo && !this.useSavedToken && (!this.manualCredentials.username || !this.manualCredentials.password)) {
+        this.waitingDialog.closeMessageBox();
+        this.isValidatingUrl = false;
+        this.showMessage('Inserisci username e password/token per l\'autenticazione');
+        return;
+      }
+
       // Use modern clone endpoint
       const request = {
         url: this.cloneRequest.url,
         localPath: this.cloneRequest.localPath,
-        branchName: this.cloneRequest.branchName || null
+        branchName: this.cloneRequest.branchName || null,
+        useSavedToken: this.isGitHubRepo ? this.useSavedToken : true,
+        username: (!this.useSavedToken && this.manualCredentials.username) ? this.manualCredentials.username : null,
+        password: (!this.useSavedToken && this.manualCredentials.password) ? this.manualCredentials.password : null
       };
 
       // Log the request for debugging
@@ -275,8 +328,17 @@ export class ModernCloneProjectComponent implements OnInit {
   }
 
   openTokenSettings(): void {
-    // TODO: Open settings dialog to configure GitHub token
-    this.showMessage('Please configure your GitHub Personal Access Token in Settings');
+    const dialogRef = this.dialog.open(GitTokenDialogComponent, {
+      width: '500px',
+      disableClose: false
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Token was saved successfully, refresh token status
+        this.checkGitHubToken();
+      }
+    });
   }
 
   cancel(): void {
