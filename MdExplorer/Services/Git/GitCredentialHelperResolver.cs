@@ -18,6 +18,12 @@ namespace MdExplorer.Services.Git
         private readonly IGitAccountService _gitAccountService;
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
 
+        // Cache to avoid prompting multiple times for the same URL in a session
+        private static readonly Dictionary<string, (UsernamePasswordCredentials Credentials, DateTime CachedAt)> _credentialCache
+            = new Dictionary<string, (UsernamePasswordCredentials, DateTime)>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _cacheLock = new object();
+        private static readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(5);
+
         public GitCredentialHelperResolver(
             ILogger<GitCredentialHelperResolver> logger,
             IGitAccountService gitAccountService)
@@ -38,6 +44,26 @@ namespace MdExplorer.Services.Git
                     return null;
                 }
 
+                // Generate cache key from URL host (to avoid caching per-path)
+                var cacheKey = GetCacheKeyFromUrl(url);
+
+                // Check cache first to avoid prompting twice
+                lock (_cacheLock)
+                {
+                    if (_credentialCache.TryGetValue(cacheKey, out var cached))
+                    {
+                        if (DateTime.UtcNow - cached.CachedAt < _cacheExpiry)
+                        {
+                            _logger.LogDebug("[CredentialCache] Using cached credentials for: {CacheKey}", cacheKey);
+                            return cached.Credentials;
+                        }
+                        else
+                        {
+                            _credentialCache.Remove(cacheKey);
+                        }
+                    }
+                }
+
                 // Try to get credentials using git credential fill
                 var credentialData = await ExecuteGitCredentialFillAsync(url);
                 if (credentialData == null)
@@ -50,6 +76,13 @@ namespace MdExplorer.Services.Git
                 if (credentials != null)
                 {
                     _logger.LogInformation("Successfully retrieved credentials from Git credential helper for URL: {Url}", url);
+
+                    // Cache the credentials to avoid prompting again
+                    lock (_cacheLock)
+                    {
+                        _credentialCache[cacheKey] = (credentials, DateTime.UtcNow);
+                        _logger.LogDebug("[CredentialCache] Cached credentials for: {CacheKey}", cacheKey);
+                    }
                 }
 
                 return credentials;
@@ -58,6 +91,22 @@ namespace MdExplorer.Services.Git
             {
                 _logger.LogError(ex, "Error resolving credentials using Git credential helper for URL: {Url}", url);
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Generates a cache key from a URL (uses host only to match same provider)
+        /// </summary>
+        private string GetCacheKeyFromUrl(string url)
+        {
+            try
+            {
+                var uri = new Uri(url);
+                return $"{uri.Scheme}://{uri.Host}";
+            }
+            catch
+            {
+                return url;
             }
         }
 
@@ -161,6 +210,19 @@ namespace MdExplorer.Services.Git
                 };
 
                 await _gitAccountService.CreateAccountAsync(account);
+
+                // Also cache the credentials to avoid prompting again in this session
+                var cacheKey = GetCacheKeyFromUrl(remoteUrl);
+                var cachedCredentials = new UsernamePasswordCredentials
+                {
+                    Username = username,
+                    Password = password
+                };
+                lock (_cacheLock)
+                {
+                    _credentialCache[cacheKey] = (cachedCredentials, DateTime.UtcNow);
+                    _logger.LogDebug("[CredentialCache] Cached credentials from auto-detect for: {CacheKey}", cacheKey);
+                }
 
                 _logger.LogInformation("[CredentialAutoDetect] Successfully saved credentials for repository: {RepoPath}, User: {Username}",
                     repositoryPath, username);
