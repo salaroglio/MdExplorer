@@ -45,6 +45,9 @@ namespace MdExplorer.Services.Git
             services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
 
+            // Register GitCredentialHelperResolver as itself for direct injection (used by MdProjectsController for auto-detection)
+            services.AddScoped<GitCredentialHelperResolver>();
+
             // Add platform-specific credential stores
             AddPlatformSpecificServices(services);
 
@@ -86,12 +89,15 @@ namespace MdExplorer.Services.Git
             services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
             services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
 
+            // Register GitCredentialHelperResolver as itself for direct injection (used by MdProjectsController for auto-detection)
+            services.AddScoped<GitCredentialHelperResolver>();
+
             // Add platform-specific services
             AddPlatformSpecificServices(services);
 
             // System credential resolver - lowest priority fallback (delegates to OS/Git)
             services.AddScoped<ICredentialResolver, SystemCredentialResolver>();
-            
+
             // Configure options
             if (configureOptions != null)
             {

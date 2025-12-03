@@ -22,6 +22,7 @@ using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
+using MdExplorer.Services.Git;
 using MdExplorer.Services.Git.Interfaces;
 
 namespace MdExplorer.Service.Controllers.MdProjects
@@ -37,6 +38,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
         private readonly IGitAccountService _gitAccountService;
+        private readonly GitCredentialHelperResolver _gitCredentialHelper;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
@@ -44,7 +46,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IMapper mapper,
                 IDatabaseManager databaseManager,
                 IFileSystemWatcherManager fileSystemWatcherManager,
-                IGitAccountService gitAccountService)
+                IGitAccountService gitAccountService,
+                GitCredentialHelperResolver gitCredentialHelper)
         {
             _userSettingsDB = userSettingsDB;
             _services = services;
@@ -53,6 +56,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _databaseManager = databaseManager;
             _fileSystemWatcherManager = fileSystemWatcherManager;
             _gitAccountService = gitAccountService;
+            _gitCredentialHelper = gitCredentialHelper;
         }
 
         [HttpGet]
@@ -227,6 +231,36 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     {
                         logger?.LogWarning(ex, "Could not check Git account status");
                     }
+
+                    // Auto-detect credentials from Git Credential Manager if no account configured
+                    if (!hasGitAccount)
+                    {
+                        try
+                        {
+                            var remoteUrl = GetRemoteUrlFromRepository(request.Path);
+                            if (!string.IsNullOrEmpty(remoteUrl))
+                            {
+                                logger?.LogInformation($"🔍 [CredentialAutoDetect] Attempting auto-detection for {request.Path}, remote: {remoteUrl}");
+                                hasGitAccount = _gitCredentialHelper.DetectAndSaveCredentialsForRepository(request.Path, remoteUrl).GetAwaiter().GetResult();
+                                if (hasGitAccount)
+                                {
+                                    logger?.LogInformation($"✅ [CredentialAutoDetect] Credentials auto-detected and saved for {request.Path}");
+                                }
+                                else
+                                {
+                                    logger?.LogInformation($"⚠️ [CredentialAutoDetect] No credentials found in Git Credential Manager for {remoteUrl}");
+                                }
+                            }
+                            else
+                            {
+                                logger?.LogInformation($"ℹ️ [CredentialAutoDetect] No remote URL configured for {request.Path}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger?.LogWarning(ex, "[CredentialAutoDetect] Auto-credential detection failed (non-fatal)");
+                        }
+                    }
                 }
 
                 return Ok(new {
@@ -301,6 +335,44 @@ namespace MdExplorer.Service.Controllers.MdProjects
             {
                 logger?.LogError(ex, $"❌ Error closing project for connection {connectionId}");
                 return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Gets the remote URL (origin) from a Git repository using git command
+        /// </summary>
+        private string GetRemoteUrlFromRepository(string repositoryPath)
+        {
+            try
+            {
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = "config --get remote.origin.url",
+                        WorkingDirectory = repositoryPath,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                var output = process.StandardOutput.ReadToEnd().Trim();
+                process.WaitForExit(5000);
+
+                if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
+                {
+                    return output;
+                }
+
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 

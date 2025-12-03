@@ -1,6 +1,7 @@
 using LibGit2Sharp;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
+using MdExplorer.Abstractions.Entities.UserDB;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,11 +15,15 @@ namespace MdExplorer.Services.Git
     public class GitCredentialHelperResolver : ICredentialResolver
     {
         private readonly ILogger<GitCredentialHelperResolver> _logger;
+        private readonly IGitAccountService _gitAccountService;
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
 
-        public GitCredentialHelperResolver(ILogger<GitCredentialHelperResolver> logger)
+        public GitCredentialHelperResolver(
+            ILogger<GitCredentialHelperResolver> logger,
+            IGitAccountService gitAccountService)
         {
             _logger = logger;
+            _gitAccountService = gitAccountService;
         }
 
         public async Task<Credentials> ResolveCredentialsAsync(string url, string usernameFromUrl, SupportedCredentialTypes types)
@@ -92,6 +97,103 @@ namespace MdExplorer.Services.Git
         public int GetPriority()
         {
             return 3; // Medium priority
+        }
+
+        /// <summary>
+        /// Auto-detects credentials from Git Credential Manager and saves them to GitRepositoryAccount
+        /// for the specified repository. This enables automatic per-project credential association.
+        /// </summary>
+        /// <param name="repositoryPath">The local path of the Git repository</param>
+        /// <param name="remoteUrl">The remote URL to get credentials for</param>
+        /// <returns>True if credentials were detected and saved, false otherwise</returns>
+        public async Task<bool> DetectAndSaveCredentialsForRepository(string repositoryPath, string remoteUrl)
+        {
+            try
+            {
+                _logger.LogInformation("[CredentialAutoDetect] Starting auto-detection for repository: {RepoPath}, URL: {Url}",
+                    repositoryPath, remoteUrl);
+
+                if (string.IsNullOrEmpty(repositoryPath) || string.IsNullOrEmpty(remoteUrl))
+                {
+                    _logger.LogWarning("[CredentialAutoDetect] Missing repositoryPath or remoteUrl");
+                    return false;
+                }
+
+                // Check if credentials already exist for this repository
+                var existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(repositoryPath);
+                if (existingAccount != null)
+                {
+                    _logger.LogInformation("[CredentialAutoDetect] Repository already has credentials configured: {AccountName}",
+                        existingAccount.AccountName);
+                    return true; // Already configured
+                }
+
+                // Get credentials from Git Credential Manager
+                var credentialData = await ExecuteGitCredentialFillAsync(remoteUrl);
+                if (credentialData == null || credentialData.Count == 0)
+                {
+                    _logger.LogInformation("[CredentialAutoDetect] Git Credential Manager returned no credentials for URL: {Url}", remoteUrl);
+                    return false;
+                }
+
+                credentialData.TryGetValue("username", out var username);
+                credentialData.TryGetValue("password", out var password);
+
+                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                {
+                    _logger.LogInformation("[CredentialAutoDetect] Git Credential Manager returned incomplete credentials");
+                    return false;
+                }
+
+                // Determine account type from URL
+                var accountType = DetermineAccountType(remoteUrl);
+
+                // Create and save the account
+                var account = new GitRepositoryAccount
+                {
+                    RepositoryPath = Path.GetFullPath(repositoryPath),
+                    AccountName = $"Auto-detected ({username})",
+                    AccountType = accountType,
+                    AuthUsername = username,
+                    HttpsPassword = password,
+                    PreferredAuthMethod = "auto",
+                    IsActive = true
+                };
+
+                await _gitAccountService.CreateAccountAsync(account);
+
+                _logger.LogInformation("[CredentialAutoDetect] Successfully saved credentials for repository: {RepoPath}, User: {Username}",
+                    repositoryPath, username);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[CredentialAutoDetect] Failed to auto-detect credentials for repository: {RepoPath}", repositoryPath);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determines the account type based on the remote URL
+        /// </summary>
+        private string DetermineAccountType(string remoteUrl)
+        {
+            if (string.IsNullOrEmpty(remoteUrl))
+                return "Generic";
+
+            var urlLower = remoteUrl.ToLowerInvariant();
+
+            if (urlLower.Contains("github.com"))
+                return "GitHub";
+            if (urlLower.Contains("gitlab.com") || urlLower.Contains("gitlab"))
+                return "GitLab";
+            if (urlLower.Contains("bitbucket.org") || urlLower.Contains("bitbucket"))
+                return "Bitbucket";
+            if (urlLower.Contains("dev.azure.com") || urlLower.Contains("visualstudio.com"))
+                return "Azure";
+
+            return "Generic";
         }
 
         #region Private Helper Methods
