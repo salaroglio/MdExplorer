@@ -7,6 +7,7 @@ using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
+using MdExplorer.Abstractions.Entities.UserDB;
 
 namespace MdExplorer.Services.Git
 {
@@ -19,17 +20,20 @@ namespace MdExplorer.Services.Git
         private readonly IGitRemoteUrlParser _urlParser;
         private readonly IGitHubService _gitHubService;
         private readonly IModernGitService _modernGitService;
+        private readonly IGitAccountService _gitAccountService;
 
         public GenericRemoteService(
             ILogger<GenericRemoteService> logger,
             IGitRemoteUrlParser urlParser,
             IGitHubService gitHubService,
-            IModernGitService modernGitService)
+            IModernGitService modernGitService,
+            IGitAccountService gitAccountService)
         {
             _logger = logger;
             _urlParser = urlParser;
             _gitHubService = gitHubService;
             _modernGitService = modernGitService;
+            _gitAccountService = gitAccountService;
         }
 
         public async Task<ValidateRemoteResult> ValidateRemoteWithCredentialsAsync(ValidateRemoteRequest request)
@@ -153,6 +157,35 @@ namespace MdExplorer.Services.Git
                     };
                 }
 
+                // Handle saved GitHub token
+                string effectiveUsername = request.Username;
+                string effectivePassword = GetEffectivePassword(request);
+                string effectiveToken = request.Token;
+
+                if (request.UseSavedToken && urlInfo.Provider == "github")
+                {
+                    _logger.LogInformation("Using saved GitHub token for authentication");
+                    var savedToken = await _gitHubService.GetTokenAsync();
+                    if (!string.IsNullOrEmpty(savedToken))
+                    {
+                        var savedUsername = await _gitHubService.GetTokenUsernameAsync();
+                        effectiveUsername = !string.IsNullOrEmpty(savedUsername) ? savedUsername : "git";
+                        effectiveToken = savedToken;
+                        effectivePassword = savedToken; // GitHub uses token as password
+                        _logger.LogInformation("Using saved token for user: {Username}", effectiveUsername);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("UseSavedToken was true but no saved token found");
+                        return new SetupRemoteGenericResult
+                        {
+                            Success = false,
+                            Error = "No saved GitHub token found. Please configure a token first.",
+                            DurationMs = stopwatch.ElapsedMilliseconds
+                        };
+                    }
+                }
+
                 // Validate repository path
                 if (!Directory.Exists(request.RepositoryPath))
                 {
@@ -192,10 +225,14 @@ namespace MdExplorer.Services.Git
                 }
 
                 // Step 2: Save credentials if requested
-                if (request.SaveCredentials && !string.IsNullOrEmpty(request.Username))
+                if (request.SaveCredentials && !string.IsNullOrEmpty(effectiveUsername))
                 {
-                    var effectivePassword = GetEffectivePassword(request);
-                    await StoreCredentialsAsync(request.RemoteUrl, request.Username, effectivePassword);
+                    // Store in OS credential helper (for git.exe compatibility)
+                    await StoreCredentialsAsync(request.RemoteUrl, effectiveUsername, effectivePassword);
+
+                    // Also persist to database for MdExplorer's credential resolver
+                    // When using saved token, we still want to save the association for this repo
+                    await SaveAccountCredentialsAsync(request, urlInfo, effectiveUsername, effectiveToken, effectivePassword);
                 }
 
                 // Step 3: Add remote to local repository
@@ -389,6 +426,100 @@ namespace MdExplorer.Services.Git
                 return request.Token;
             }
             return request.Password ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Saves credentials to the GitRepositoryAccount table for persistent storage
+        /// </summary>
+        private async Task SaveAccountCredentialsAsync(SetupRemoteGenericRequest request, RemoteUrlInfo urlInfo,
+            string effectiveUsername, string effectiveToken, string effectivePassword)
+        {
+            try
+            {
+                var accountType = MapProviderToAccountType(urlInfo.Provider);
+                var existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(request.RepositoryPath);
+                var useToken = request.AuthMethod == "pat" || request.UseSavedToken;
+
+                if (existingAccount != null)
+                {
+                    // Update existing account
+                    existingAccount.AuthUsername = effectiveUsername;
+                    existingAccount.PreferredAuthMethod = useToken ? "pat" : request.AuthMethod;
+                    existingAccount.UpdatedAt = DateTime.UtcNow;
+
+                    if (useToken && !string.IsNullOrEmpty(effectiveToken))
+                    {
+                        SetTokenByAccountType(existingAccount, accountType, effectiveToken);
+                    }
+                    else
+                    {
+                        existingAccount.HttpsPassword = effectivePassword;
+                    }
+
+                    await _gitAccountService.UpdateAccountAsync(existingAccount);
+                    _logger.LogInformation("Updated credentials in database for repository: {RepoPath}", request.RepositoryPath);
+                }
+                else
+                {
+                    // Create new account
+                    var newAccount = new GitRepositoryAccount
+                    {
+                        RepositoryPath = request.RepositoryPath,
+                        AccountName = $"{accountType} - {urlInfo.RepoName ?? "Repository"}",
+                        AccountType = accountType,
+                        AuthUsername = effectiveUsername,
+                        PreferredAuthMethod = useToken ? "pat" : request.AuthMethod,
+                        IsActive = true
+                    };
+
+                    if (useToken && !string.IsNullOrEmpty(effectiveToken))
+                    {
+                        SetTokenByAccountType(newAccount, accountType, effectiveToken);
+                    }
+                    else
+                    {
+                        newAccount.HttpsPassword = effectivePassword;
+                    }
+
+                    await _gitAccountService.CreateAccountAsync(newAccount);
+                    _logger.LogInformation("Created new account in database for repository: {RepoPath}", request.RepositoryPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to save credentials to database for: {RepoPath}. OS credential store was used.", request.RepositoryPath);
+            }
+        }
+
+        private string MapProviderToAccountType(string provider)
+        {
+            return provider?.ToLowerInvariant() switch
+            {
+                "github" => "GitHub",
+                "gitlab" => "GitLab",
+                "bitbucket" => "Bitbucket",
+                _ => "Generic"
+            };
+        }
+
+        private void SetTokenByAccountType(GitRepositoryAccount account, string accountType, string token)
+        {
+            switch (accountType)
+            {
+                case "GitHub":
+                    account.GitHubPAT = token;
+                    break;
+                case "GitLab":
+                    account.GitLabToken = token;
+                    break;
+                case "Bitbucket":
+                    account.BitbucketAppPassword = token;
+                    break;
+                default:
+                    // For generic, treat token as password
+                    account.HttpsPassword = token;
+                    break;
+            }
         }
 
         private async Task<(bool success, bool alreadyExists, string error)> CreateRemoteRepositoryAsync(

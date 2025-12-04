@@ -35,6 +35,7 @@ namespace MdExplorer.Controllers.ModernGit
         private readonly IMdIgnoreService _mdIgnoreService;
         private readonly IGitRemoteUrlParser _urlParser;
         private readonly IGenericRemoteService _genericRemoteService;
+        private readonly IGitAccountService _gitAccountService;
 
         public ModernGitController(
             IModernGitService gitService,
@@ -48,6 +49,7 @@ namespace MdExplorer.Controllers.ModernGit
             IOptions<MdExplorerAppSettings> options,
             IGitRemoteUrlParser urlParser,
             IGenericRemoteService genericRemoteService,
+            IGitAccountService gitAccountService,
             IDatabaseManager databaseManager = null)
             : base(logger, fileSystemWatcher, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
         {
@@ -56,6 +58,7 @@ namespace MdExplorer.Controllers.ModernGit
             _mdIgnoreService = mdIgnoreService;
             _urlParser = urlParser;
             _genericRemoteService = genericRemoteService;
+            _gitAccountService = gitAccountService;
         }
 
         /// <summary>
@@ -301,6 +304,21 @@ namespace MdExplorer.Controllers.ModernGit
 
                 if (result.Success)
                 {
+                    // Save per-repository credentials if provided manually (not using saved token)
+                    if (!request.UseSavedToken && !string.IsNullOrEmpty(request.Username))
+                    {
+                        try
+                        {
+                            await SaveCloneCredentialsAsync(request);
+                            _logger.LogInformation("Saved credentials for cloned repository: {LocalPath}", request.LocalPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Non-fatal: clone succeeded, credential saving is best-effort
+                            _logger.LogWarning(ex, "Failed to save clone credentials (non-fatal)");
+                        }
+                    }
+
                     return Ok(new
                     {
                         success = true,
@@ -326,6 +344,38 @@ namespace MdExplorer.Controllers.ModernGit
                     error = "Internal server error during clone operation"
                 });
             }
+        }
+
+        /// <summary>
+        /// Saves credentials used during clone to the GitRepositoryAccount table
+        /// for future authentication with this repository.
+        /// </summary>
+        private async Task SaveCloneCredentialsAsync(CloneRequest request)
+        {
+            var urlInfo = _urlParser.ParseUrl(request.Url);
+
+            var accountType = urlInfo.Provider?.ToLower() switch
+            {
+                "github" => "GitHub",
+                "gitlab" => "GitLab",
+                "bitbucket" => "Bitbucket",
+                _ => "Generic"
+            };
+
+            var account = new GitRepositoryAccount
+            {
+                RepositoryPath = Path.GetFullPath(request.LocalPath),
+                AccountName = $"{accountType} - {urlInfo.RepoName ?? "repository"}",
+                AccountType = accountType,
+                AuthUsername = request.Username,
+                HttpsPassword = request.Password,
+                PreferredAuthMethod = "username_password",
+                IsActive = true
+            };
+
+            await _gitAccountService.CreateAccountAsync(account);
+            _logger.LogInformation("Created GitRepositoryAccount for {RepoPath} with type {AccountType}",
+                account.RepositoryPath, account.AccountType);
         }
 
         /// <summary>

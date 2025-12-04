@@ -26,11 +26,25 @@
       <mat-icon [class.valid]="tokenValid" [class.invalid]="!tokenValid">
         {{ tokenValid ? 'check_circle' : 'error' }}
       </mat-icon>
-      <div>
-        <strong>Token esistente:</strong> {{ existingMaskedToken }}
-        <br>
-        <span class="status">Stato: {{ tokenValid ? 'Valido' : 'Non valido o scaduto' }}</span>
+      <div class="token-info">
+        <div *ngIf="tokenUsername" class="username">
+          <mat-icon>person</mat-icon>
+          <strong>{{ tokenUsername }}</strong>
+        </div>
+        <div class="token-details">
+          Token: {{ existingMaskedToken }}
+          <span class="status" [class.valid]="tokenValid" [class.invalid]="!tokenValid">
+            ({{ tokenValid ? 'Valido' : 'Non valido o scaduto' }})
+          </span>
+        </div>
       </div>
+      <button mat-icon-button
+              color="warn"
+              (click)="deleteToken()"
+              [disabled]="isDeleting"
+              matTooltip="Elimina token">
+        <mat-icon>delete</mat-icon>
+      </button>
     </div>
 
     <!-- Token input -->

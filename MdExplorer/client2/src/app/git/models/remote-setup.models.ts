@@ -88,6 +88,7 @@ export interface GenericSetupRemoteResponse {
 export interface GitSetupRemoteGenericDialogData {
   projectPath: string;
   projectName: string;
+  prefilledRemoteUrl?: string;  // Pre-filled URL when reconfiguring existing remote
 }
 
 /**

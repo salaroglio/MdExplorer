@@ -149,6 +149,11 @@ namespace MdExplorer.Services.Git.Interfaces
         /// Whether repository should be private (for auto-creation)
         /// </summary>
         public bool IsPrivate { get; set; } = true;
+
+        /// <summary>
+        /// Whether to use the saved GitHub token instead of provided credentials
+        /// </summary>
+        public bool UseSavedToken { get; set; } = false;
     }
 
     /// <summary>

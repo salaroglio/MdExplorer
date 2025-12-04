@@ -91,8 +91,12 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="url">URL of the remote repository</param>
         /// <param name="localPath">Local directory path for the clone</param>
         /// <param name="branchName">Specific branch to clone (optional)</param>
+        /// <param name="useSavedToken">Whether to use saved GitHub token (default: true)</param>
+        /// <param name="username">Optional username for manual authentication</param>
+        /// <param name="password">Optional password/token for manual authentication</param>
         /// <returns>Result of the clone operation</returns>
-        Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null);
+        Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null,
+            bool useSavedToken = true, string username = null, string password = null);
 
         /// <summary>
         /// Gets information about the current branch

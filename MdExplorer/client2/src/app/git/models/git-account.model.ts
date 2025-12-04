@@ -9,6 +9,10 @@ export interface GitAccount {
   hasGitHubPAT?: boolean;
   hasGitLabToken?: boolean;
   hasSSHKeyPath?: boolean;
+  hasBitbucketAppPassword?: boolean;
+  hasHttpsPassword?: boolean;
+  authUsername?: string;
+  preferredAuthMethod?: 'token' | 'username_password' | 'ssh';
   username?: string;
   email?: string;
   notes?: string;
@@ -27,6 +31,10 @@ export interface CreateGitAccountRequest {
   gitHubPAT?: string;
   gitLabToken?: string;
   sshKeyPath?: string;
+  bitbucketAppPassword?: string;
+  httpsPassword?: string;
+  authUsername?: string;
+  preferredAuthMethod?: string;
   username?: string;
   email?: string;
   notes?: string;
@@ -43,6 +51,10 @@ export interface UpdateGitAccountRequest {
   gitHubPAT?: string;
   gitLabToken?: string;
   sshKeyPath?: string;
+  bitbucketAppPassword?: string;
+  httpsPassword?: string;
+  authUsername?: string;
+  preferredAuthMethod?: string;
   username?: string;
   email?: string;
   notes?: string;

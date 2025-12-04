@@ -3510,12 +3510,26 @@ class ToolbarComponent {
             this.gitservice.setProjectPath(currentProject.path);
         }
         // Subscribe to project changes to update Git service
-        this.projectService.currentProjects$.subscribe(project => {
+        this.projectService.currentProjects$.subscribe((project) => {
+            var _a;
             if (project && project.path) {
                 // Reset Git state immediately when switching projects
                 this.resetGitState();
                 // Then set new project path and trigger poll
                 this.gitservice.setProjectPath(project.path);
+                // Check if manual credentials are needed (auto-detection failed)
+                // Only show dialog for non-OAuth providers - OAuth providers (GitHub, GitLab, Azure, Bitbucket)
+                // are handled by GCM which opens browser for authentication
+                const oauthProviders = ['github', 'gitlab', 'azure', 'bitbucket'];
+                const isOAuthProvider = oauthProviders.includes(((_a = project.detectedProvider) === null || _a === void 0 ? void 0 : _a.toLowerCase()) || '');
+                if (project.needsManualCredentials && project.remoteUrl && !isOAuthProvider) {
+                    console.log('[Toolbar] Manual credentials needed for:', project.remoteUrl, 'provider:', project.detectedProvider);
+                    // Open the credential setup dialog
+                    this.openCredentialSetupDialog(project.path, project.remoteUrl);
+                }
+                else if (project.needsManualCredentials && isOAuthProvider) {
+                    console.log('[Toolbar] OAuth provider detected, GCM will handle authentication via browser:', project.detectedProvider);
+                }
             }
         });
         this.checkConnection();
@@ -4062,7 +4076,8 @@ class ToolbarComponent {
             width: '650px',
             data: {
                 projectPath: projectPath,
-                projectName: projectName
+                projectName: projectName,
+                prefilledRemoteUrl: this.currentRemoteUrl // Pre-fill URL if available (from remote-status)
             }
         });
         dialogRef.afterClosed().subscribe(result => {
@@ -4073,6 +4088,44 @@ class ToolbarComponent {
             console.log('Setup remote dialog closed');
         });
         (_a = this.matMenuTrigger) === null || _a === void 0 ? void 0 : _a.closeMenu();
+    }
+    /**
+     * Opens the credential setup dialog when auto-detection fails.
+     * Called automatically when a project is opened and needs manual credentials.
+     */
+    openCredentialSetupDialog(projectPath, remoteUrl) {
+        const projectName = projectPath.split(/[/\\]/).pop() || 'repository';
+        // Small delay to let the UI settle after project open
+        setTimeout(() => {
+            const dialogRef = this.dialog.open(_git_dialogs_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_9__["GitSetupRemoteGenericDialogComponent"], {
+                width: '650px',
+                data: {
+                    projectPath: projectPath,
+                    projectName: projectName,
+                    prefilledRemoteUrl: remoteUrl,
+                    isCredentialRecovery: true // Flag to indicate this is a credential recovery flow
+                }
+            });
+            dialogRef.afterClosed().subscribe(result => {
+                if (result === true) {
+                    // Credentials were successfully configured
+                    console.log('[Toolbar] Credentials configured successfully');
+                    this.checkConnection();
+                    this._snackBar.open('Credenziali configurate con successo', 'OK', {
+                        duration: 3000,
+                        verticalPosition: 'top'
+                    });
+                }
+                else {
+                    // User cancelled - show warning
+                    this._snackBar.open('Credenziali Git non configurate. Alcune funzionalità potrebbero non funzionare.', 'OK', {
+                        duration: 5000,
+                        verticalPosition: 'top',
+                        panelClass: ['warning-snackbar']
+                    });
+                }
+            });
+        }, 500);
     }
     openManageRemote() {
         var _a;

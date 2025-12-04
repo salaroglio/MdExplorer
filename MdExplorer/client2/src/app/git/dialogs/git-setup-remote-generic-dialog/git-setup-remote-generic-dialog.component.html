@@ -44,6 +44,40 @@
       Autenticazione
     </h3>
 
+    <!-- Saved GitHub Token Option -->
+    <div class="saved-token-section" *ngIf="urlInfo?.provider === 'github' && hasSavedGitHubToken">
+      <div class="saved-token-card" [class.selected]="useSavedToken">
+        <div class="saved-token-header">
+          <mat-checkbox [(ngModel)]="useSavedToken" [disabled]="isSetting">
+            Usa token GitHub salvato
+          </mat-checkbox>
+        </div>
+        <div class="saved-token-info" *ngIf="useSavedToken">
+          <mat-icon [class.valid]="savedTokenValid" [class.invalid]="!savedTokenValid">
+            {{ savedTokenValid ? 'check_circle' : 'error' }}
+          </mat-icon>
+          <div class="token-details">
+            <span class="username" *ngIf="savedTokenUsername">
+              <mat-icon>person</mat-icon>
+              <strong>{{ savedTokenUsername }}</strong>
+            </span>
+            <span class="status" [class.valid]="savedTokenValid" [class.invalid]="!savedTokenValid">
+              {{ savedTokenValid ? 'Token valido' : 'Token non valido o scaduto' }}
+            </span>
+          </div>
+        </div>
+        <div class="saved-token-warning" *ngIf="useSavedToken && !savedTokenValid">
+          <mat-icon color="warn">warning</mat-icon>
+          <span>Il token salvato potrebbe non essere valido. Considera di inserire nuove credenziali.</span>
+        </div>
+      </div>
+      <p class="or-divider" *ngIf="!useSavedToken">
+        <span>oppure inserisci credenziali diverse:</span>
+      </p>
+    </div>
+
+    <!-- Username input (hidden when using saved token) -->
+    <ng-container *ngIf="!useSavedToken || !hasSavedGitHubToken || urlInfo?.provider !== 'github'">
     <!-- Username input -->
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Username</mat-label>
@@ -95,6 +129,7 @@
         </a>
       </mat-hint>
     </mat-form-field>
+    </ng-container>
 
     <!-- Validate connection button -->
     <button mat-stroked-button

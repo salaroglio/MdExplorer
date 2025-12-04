@@ -40,9 +40,20 @@
           <mat-icon>vpn_key</mat-icon>
           <span *ngIf="currentAccount.hasGitHubPAT">GitHub Token configurato</span>
           <span *ngIf="currentAccount.hasGitLabToken">GitLab Token configurato</span>
-          <mat-icon class="credential-status" [class.success]="currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken">
-            {{ (currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken) ? 'verified' : 'error' }}
+          <span *ngIf="currentAccount.hasBitbucketAppPassword">Bitbucket App Password configurata</span>
+          <span *ngIf="currentAccount.hasHttpsPassword">Password HTTPS configurata</span>
+          <span *ngIf="!currentAccount.hasGitHubPAT && !currentAccount.hasGitLabToken && !currentAccount.hasBitbucketAppPassword && !currentAccount.hasHttpsPassword">Nessuna credenziale configurata</span>
+          <mat-icon class="credential-status" [class.success]="currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken || currentAccount.hasBitbucketAppPassword || currentAccount.hasHttpsPassword">
+            {{ (currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken || currentAccount.hasBitbucketAppPassword || currentAccount.hasHttpsPassword) ? 'verified' : 'error' }}
           </mat-icon>
+        </div>
+        <div class="account-detail" *ngIf="currentAccount.authUsername">
+          <mat-icon>account_circle</mat-icon>
+          <span>Auth Username: {{ currentAccount.authUsername }}</span>
+        </div>
+        <div class="account-detail" *ngIf="currentAccount.preferredAuthMethod">
+          <mat-icon>security</mat-icon>
+          <span>Metodo: {{ currentAccount.preferredAuthMethod === 'username_password' ? 'Username/Password' : 'Token' }}</span>
         </div>
         <div class="account-detail" *ngIf="currentAccount.notes">
           <mat-icon>note</mat-icon>
@@ -123,6 +134,74 @@
       <mat-hint>
         <a (click)="openTokenCreationPage()" class="link">Crea un nuovo token su GitLab</a>
       </mat-hint>
+    </mat-form-field>
+
+    <!-- Bitbucket Auth Method Selector -->
+    <div class="auth-method-section" *ngIf="accountType === 'Bitbucket'">
+      <mat-label class="field-label">Metodo di autenticazione:</mat-label>
+      <mat-radio-group [(ngModel)]="preferredAuthMethod" class="auth-radio-group">
+        <mat-radio-button value="token">
+          <mat-icon>token</mat-icon>
+          App Password
+        </mat-radio-button>
+        <mat-radio-button value="username_password">
+          <mat-icon>vpn_key</mat-icon>
+          Username / Password
+        </mat-radio-button>
+      </mat-radio-group>
+    </div>
+
+    <!-- Bitbucket App Password Field -->
+    <mat-form-field appearance="outline" class="full-width" *ngIf="accountType === 'Bitbucket' && preferredAuthMethod === 'token'">
+      <mat-label>Bitbucket App Password</mat-label>
+      <input matInput
+             [(ngModel)]="bitbucketAppPassword"
+             [type]="hideToken ? 'password' : 'text'"
+             placeholder="App Password generata da Bitbucket"
+             required>
+      <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
+        <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
+      </button>
+      <mat-hint>
+        <a (click)="openTokenCreationPage()" class="link">Crea App Password su Bitbucket</a>
+      </mat-hint>
+    </mat-form-field>
+
+    <!-- Auth Username (for Bitbucket username_password and Generic) -->
+    <mat-form-field appearance="outline" class="full-width"
+                    *ngIf="accountType === 'Generic' || (accountType === 'Bitbucket' && preferredAuthMethod === 'username_password')">
+      <mat-label>Username per Autenticazione</mat-label>
+      <input matInput
+             [(ngModel)]="authUsername"
+             placeholder="Username per HTTPS"
+             required>
+      <mat-icon matSuffix>account_circle</mat-icon>
+      <mat-hint>Username usato per l'autenticazione HTTPS</mat-hint>
+    </mat-form-field>
+
+    <!-- HTTPS Password (for Generic and Bitbucket username_password) -->
+    <mat-form-field appearance="outline" class="full-width"
+                    *ngIf="accountType === 'Generic' || (accountType === 'Bitbucket' && preferredAuthMethod === 'username_password')">
+      <mat-label>Password</mat-label>
+      <input matInput
+             [(ngModel)]="httpsPassword"
+             [type]="hideToken ? 'password' : 'text'"
+             placeholder="Password per HTTPS"
+             required>
+      <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
+        <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <!-- Bitbucket username for App Password -->
+    <mat-form-field appearance="outline" class="full-width"
+                    *ngIf="accountType === 'Bitbucket' && preferredAuthMethod === 'token'">
+      <mat-label>Username Bitbucket</mat-label>
+      <input matInput
+             [(ngModel)]="authUsername"
+             placeholder="Il tuo username Bitbucket">
+      <mat-icon matSuffix>account_circle</mat-icon>
+      <mat-hint>Username associato all'App Password</mat-hint>
     </mat-form-field>
 
     <mat-divider></mat-divider>

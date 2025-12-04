@@ -340,13 +340,23 @@ export class GITService implements OnDestroy {
   /**
    * Clone repository using modern Git service with native authentication
    */
-  modernClone(request: { url: string; localPath: string; branchName?: string }): Observable<{ success: boolean; error?: string }> {
+  modernClone(request: {
+    url: string;
+    localPath: string;
+    branchName?: string;
+    useSavedToken?: boolean;
+    username?: string;
+    password?: string;
+  }): Observable<{ success: boolean; error?: string }> {
     const url = '../api/ModernGit/clone';
     // Convert to PascalCase for C# backend
     const requestBody = {
       Url: request.url,
       LocalPath: request.localPath,
-      BranchName: request.branchName || null
+      BranchName: request.branchName || null,
+      UseSavedToken: request.useSavedToken !== false, // default to true
+      Username: request.username || null,
+      Password: request.password || null
     };
     console.log('[GITService.modernClone] Sending to backend:', requestBody);
     return this.http.post<{ success: boolean; error?: string }>(url, requestBody).pipe(
@@ -688,6 +698,21 @@ export class GITService implements OnDestroy {
       catchError(error => {
         console.error('Error testing GitHub token:', error);
         return of({ success: false, tokenValid: false });
+      })
+    );
+  }
+
+  /**
+   * Deletes the stored GitHub token
+   */
+  deleteGitHubToken(): Observable<any> {
+    const url = '../api/ModernGit/github-token';
+
+    return this.http.delete<any>(url).pipe(
+      map(response => response),
+      catchError(error => {
+        console.error('Error deleting GitHub token:', error);
+        throw error;
       })
     );
   }

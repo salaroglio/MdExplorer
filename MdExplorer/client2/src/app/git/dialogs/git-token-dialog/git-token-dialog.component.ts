@@ -13,9 +13,11 @@ export class GitTokenDialogComponent implements OnInit {
   hideToken: boolean = true;
   isLoading: boolean = false;
   isSaving: boolean = false;
+  isDeleting: boolean = false;
   hasExistingToken: boolean = false;
   existingMaskedToken: string = '';
   tokenValid: boolean = false;
+  tokenUsername: string = '';
 
   constructor(
     public dialogRef: MatDialogRef<GitTokenDialogComponent>,
@@ -35,11 +37,45 @@ export class GitTokenDialogComponent implements OnInit {
         this.hasExistingToken = result.hasToken;
         this.existingMaskedToken = result.maskedToken || '';
         this.tokenValid = result.tokenValid;
+        this.tokenUsername = result.username || '';
         this.isLoading = false;
       },
       error: (err) => {
         console.error('Error checking token:', err);
         this.isLoading = false;
+      }
+    });
+  }
+
+  deleteToken(): void {
+    const message = this.tokenUsername
+      ? `Vuoi eliminare il token GitHub dell'account "${this.tokenUsername}"?`
+      : 'Vuoi davvero eliminare il token GitHub salvato?';
+
+    const confirmed = confirm(message);
+    if (!confirmed) return;
+
+    this.isDeleting = true;
+    this.gitService.deleteGitHubToken().subscribe({
+      next: () => {
+        this.snackBar.open('Token eliminato con successo', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+        this.hasExistingToken = false;
+        this.existingMaskedToken = '';
+        this.tokenValid = false;
+        this.tokenUsername = '';
+        this.isDeleting = false;
+      },
+      error: (err) => {
+        console.error('Error deleting token:', err);
+        this.snackBar.open('Errore nell\'eliminazione del token', 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+        this.isDeleting = false;
       }
     });
   }

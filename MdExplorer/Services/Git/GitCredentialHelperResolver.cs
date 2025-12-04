@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
 using MdExplorer.Abstractions.Entities.UserDB;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -27,6 +28,10 @@ namespace MdExplorer.Services.Git
 
         // Counter for debugging duplicate calls
         private static int _callCounter = 0;
+
+        // Lock per repository to prevent race conditions when multiple calls try to save the same account
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _repositoryLocks
+            = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
 
         public GitCredentialHelperResolver(
             ILogger<GitCredentialHelperResolver> logger,
@@ -170,24 +175,46 @@ namespace MdExplorer.Services.Git
         public async Task<bool> DetectAndSaveCredentialsForRepository(string repositoryPath, string remoteUrl)
         {
             var callId = Interlocked.Increment(ref _callCounter);
+
+            if (string.IsNullOrEmpty(repositoryPath) || string.IsNullOrEmpty(remoteUrl))
+            {
+                _logger.LogWarning("[CredentialAutoDetect] Missing repositoryPath or remoteUrl");
+                return false;
+            }
+
+            // Normalize path and get lock for this repository to prevent race conditions
+            var normalizedPath = Path.GetFullPath(repositoryPath);
+            var lockObj = _repositoryLocks.GetOrAdd(normalizedPath, _ => new SemaphoreSlim(1, 1));
+
+            _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] Waiting for lock on: {RepoPath}", callId, normalizedPath);
+            await lockObj.WaitAsync();
+            _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] Acquired lock on: {RepoPath}", callId, normalizedPath);
+
             try
             {
                 _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] DetectAndSaveCredentialsForRepository CALLED for: {RepoPath}, URL: {Url}",
                     callId, repositoryPath, remoteUrl);
 
-                if (string.IsNullOrEmpty(repositoryPath) || string.IsNullOrEmpty(remoteUrl))
-                {
-                    _logger.LogWarning("[CredentialAutoDetect] Missing repositoryPath or remoteUrl");
-                    return false;
-                }
-
                 // Check if credentials already exist for this repository
                 var existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(repositoryPath);
                 if (existingAccount != null)
                 {
-                    _logger.LogInformation("[CredentialAutoDetect] Repository already has credentials configured: {AccountName}",
-                        existingAccount.AccountName);
-                    return true; // Already configured
+                    // Check if the existing account has valid credentials
+                    var hasValidCredentials = !string.IsNullOrEmpty(existingAccount.AuthUsername) &&
+                                              !string.IsNullOrEmpty(existingAccount.HttpsPassword);
+
+                    if (hasValidCredentials)
+                    {
+                        _logger.LogInformation("[CredentialAutoDetect] Repository already has valid credentials configured: {AccountName}",
+                            existingAccount.AccountName);
+                        return true; // Already configured with valid credentials
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[CredentialAutoDetect] Repository has incomplete account '{AccountName}', will attempt to update credentials",
+                            existingAccount.AccountName);
+                        // Continue to auto-detect and update the existing account
+                    }
                 }
 
                 // Get credentials from Git Credential Manager
@@ -212,21 +239,8 @@ namespace MdExplorer.Services.Git
                 // Determine account type from URL
                 var accountType = DetermineAccountType(remoteUrl);
 
-                // Create and save the account
-                var account = new GitRepositoryAccount
-                {
-                    RepositoryPath = Path.GetFullPath(repositoryPath),
-                    AccountName = $"Auto-detected ({username})",
-                    AccountType = accountType,
-                    AuthUsername = username,
-                    HttpsPassword = password,
-                    PreferredAuthMethod = "auto",
-                    IsActive = true
-                };
-
-                await _gitAccountService.CreateAccountAsync(account);
-
-                // Also cache the credentials to avoid prompting again in this session
+                // IMPORTANT: Cache credentials FIRST, before attempting DB save
+                // This ensures credentials are available even if DB save fails
                 var cacheKey = GetCacheKeyFromUrl(remoteUrl);
                 var cachedCredentials = new UsernamePasswordCredentials
                 {
@@ -236,18 +250,59 @@ namespace MdExplorer.Services.Git
                 lock (_cacheLock)
                 {
                     _credentialCache[cacheKey] = (cachedCredentials, DateTime.UtcNow);
-                    _logger.LogDebug("[CredentialCache] Cached credentials from auto-detect for: {CacheKey}", cacheKey);
+                    _logger.LogInformation("[CredentialCache] Cached credentials BEFORE DB save for: {CacheKey}", cacheKey);
                 }
 
-                _logger.LogInformation("[CredentialAutoDetect] Successfully saved credentials for repository: {RepoPath}, User: {Username}",
-                    repositoryPath, username);
+                // Re-check existing account (may have been created by parallel call that finished first)
+                existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(repositoryPath);
 
+                // Update existing account or create new one
+                if (existingAccount != null)
+                {
+                    // Update the existing incomplete account with detected credentials
+                    existingAccount.AuthUsername = username;
+                    existingAccount.HttpsPassword = password;
+                    existingAccount.AccountType = accountType;
+                    existingAccount.PreferredAuthMethod = "auto";
+                    existingAccount.IsActive = true;
+                    if (string.IsNullOrEmpty(existingAccount.AccountName) || existingAccount.AccountName.StartsWith("Auto-detected"))
+                    {
+                        existingAccount.AccountName = $"Auto-detected ({username})";
+                    }
+
+                    await _gitAccountService.UpdateAccountAsync(existingAccount);
+                    _logger.LogInformation("[CredentialAutoDetect] Updated existing account with detected credentials: {AccountName}", existingAccount.AccountName);
+                }
+                else
+                {
+                    // Create new account
+                    var account = new GitRepositoryAccount
+                    {
+                        RepositoryPath = normalizedPath,
+                        AccountName = $"Auto-detected ({username})",
+                        AccountType = accountType,
+                        AuthUsername = username,
+                        HttpsPassword = password,
+                        PreferredAuthMethod = "auto",
+                        IsActive = true
+                    };
+
+                    await _gitAccountService.CreateAccountAsync(account);
+                    _logger.LogInformation("[CredentialAutoDetect] Created new account with detected credentials: {AccountName}", account.AccountName);
+                }
+
+                // Credentials were already cached above before DB save
                 return true;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[CredentialAutoDetect] Failed to auto-detect credentials for repository: {RepoPath}", repositoryPath);
                 return false;
+            }
+            finally
+            {
+                lockObj.Release();
+                _logger.LogDebug("🔐 [GCM-AUTODETECT #{CallId}] Released lock on: {RepoPath}", callId, normalizedPath);
             }
         }
 

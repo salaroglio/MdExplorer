@@ -46,6 +46,12 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
   urlInfo: ParseRemoteUrlResponse | null = null;
   validationResult: ValidateRemoteAuthResponse | null = null;
 
+  // Saved GitHub token info
+  hasSavedGitHubToken: boolean = false;
+  savedTokenUsername: string = '';
+  savedTokenValid: boolean = false;
+  useSavedToken: boolean = true;
+
   // Provider info for display
   readonly providerInfo = PROVIDER_INFO;
 
@@ -57,7 +63,11 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // No initial loading needed for generic dialog
+    // Use pre-filled URL if available (from toolbar when reconfiguring credentials)
+    if (this.data?.prefilledRemoteUrl) {
+      this.remoteUrl = this.data.prefilledRemoteUrl;
+      this.onUrlChange();  // Trigger provider detection and GitHub token check
+    }
   }
 
   /**
@@ -69,6 +79,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
 
     if (!this.remoteUrl || this.remoteUrl.trim().length < 10) {
       this.urlInfo = null;
+      this.hasSavedGitHubToken = false;
       return;
     }
 
@@ -81,11 +92,37 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
         if (!result.isValid) {
           this.error = result.error || 'URL non valido';
         }
+
+        // If GitHub detected, check for saved token
+        if (result.provider === 'github') {
+          this.checkSavedGitHubToken();
+        } else {
+          this.hasSavedGitHubToken = false;
+        }
       },
       error: (err) => {
         console.error('Error parsing URL:', err);
         this.isValidating = false;
         this.urlInfo = null;
+        this.hasSavedGitHubToken = false;
+      }
+    });
+  }
+
+  /**
+   * Check if there's a saved GitHub token
+   */
+  checkSavedGitHubToken(): void {
+    this.gitService.getGitHubToken().subscribe({
+      next: (result) => {
+        this.hasSavedGitHubToken = result.hasToken;
+        this.savedTokenUsername = result.username || '';
+        this.savedTokenValid = result.tokenValid;
+        // Default to using saved token if it exists and is valid
+        this.useSavedToken = result.hasToken && result.tokenValid;
+      },
+      error: () => {
+        this.hasSavedGitHubToken = false;
       }
     });
   }
@@ -166,6 +203,11 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
       return false;
     }
 
+    // If using saved GitHub token, no need for manual credentials
+    if (this.urlInfo?.provider === 'github' && this.useSavedToken && this.hasSavedGitHubToken) {
+      return true;
+    }
+
     // Must have credentials (username + password/token)
     const hasCredentials = this.username &&
       (this.authMethod === 'pat' ? this.token : this.password);
@@ -200,20 +242,22 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
     this.error = null;
 
     const effectivePassword = this.getEffectivePassword();
+    const shouldUseSavedToken = this.urlInfo?.provider === 'github' && this.useSavedToken && this.hasSavedGitHubToken;
 
     const request = {
       repositoryPath: this.data.projectPath,
       remoteUrl: this.remoteUrl,
       remoteName: this.remoteName || 'origin',
       authMethod: this.authMethod || 'username_password',
-      username: this.username || '',
-      password: this.authMethod === 'username_password' ? (this.password || '') : '',
-      token: this.authMethod === 'pat' ? (this.token || '') : '',
+      username: shouldUseSavedToken ? '' : (this.username || ''),
+      password: shouldUseSavedToken ? '' : (this.authMethod === 'username_password' ? (this.password || '') : ''),
+      token: shouldUseSavedToken ? '' : (this.authMethod === 'pat' ? (this.token || '') : ''),
       saveCredentials: this.saveCredentials === true,
       pushAfterAdd: this.pushAfterAdd === true,
       createRemoteRepo: this.createRemoteRepo === true && this.urlInfo?.supportsAutoCreate === true,
       repoDescription: this.repoDescription || '',
-      isPrivate: this.isPrivate !== false
+      isPrivate: this.isPrivate !== false,
+      useSavedToken: shouldUseSavedToken
     };
 
     console.log('Setup remote request:', request);

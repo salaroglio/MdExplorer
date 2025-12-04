@@ -33,6 +33,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public searchQuery: string = '';
   public lastOpenedProjectId: string = null;
 
+  // Flag to prevent multiple clicks when opening a project
+  private isOpeningProject = false;
+
   // Cache for remote URL status per project path
   private remoteUrlCache: Map<string, { hasRemote: boolean; remoteUrl?: string; loading?: boolean }> = new Map();
 
@@ -101,7 +104,21 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   openProject(path: string): void {
+    // Prevent multiple clicks while project is opening
+    if (this.isOpeningProject) {
+      console.log('[Projects] Ignoring click - project opening already in progress');
+      return;
+    }
+
+    this.isOpeningProject = true;
+    console.log('[Projects] Opening project:', path);
+
     this.projectService.setNewFolderProject(path);
+
+    // Reset flag after a timeout (in case navigation doesn't happen)
+    setTimeout(() => {
+      this.isOpeningProject = false;
+    }, 10000); // 10 second safety timeout
   }
 
   deleteProject(project: MdProject): void {

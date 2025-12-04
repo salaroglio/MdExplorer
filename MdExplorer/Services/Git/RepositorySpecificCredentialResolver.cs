@@ -204,11 +204,12 @@ namespace MdExplorer.Services.Git
                 using var tx = _userSettingsDB.BeginTransaction();
                 var dal = _userSettingsDB.GetDal<GitRepositoryAccount>();
 
-                var accounts = dal.GetList()
-                    .Where(a => System.IO.Path.GetFullPath(a.RepositoryPath) == normalizedPath)
-                    .ToList();
-
-                var account = accounts.FirstOrDefault();
+                // Fetch all accounts first, then filter in memory
+                // (Path.GetFullPath cannot be translated to SQL by NHibernate)
+                var allAccounts = dal.GetList().ToList();
+                var account = allAccounts.FirstOrDefault(a =>
+                    !string.IsNullOrEmpty(a.RepositoryPath) &&
+                    System.IO.Path.GetFullPath(a.RepositoryPath).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
 
                 if (account != null)
                 {

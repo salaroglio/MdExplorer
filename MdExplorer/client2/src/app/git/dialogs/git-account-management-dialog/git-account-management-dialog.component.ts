@@ -24,6 +24,10 @@ export class GitAccountManagementDialogComponent implements OnInit {
   accountType: 'GitHub' | 'GitLab' | 'Bitbucket' | 'Generic' = 'GitHub';
   gitHubPAT = '';
   gitLabToken = '';
+  bitbucketAppPassword = '';
+  httpsPassword = '';
+  authUsername = '';
+  preferredAuthMethod: 'token' | 'username_password' = 'token';
   username = '';
   email = '';
   notes = '';
@@ -78,6 +82,10 @@ export class GitAccountManagementDialogComponent implements OnInit {
     this.accountType = 'GitHub';
     this.gitHubPAT = '';
     this.gitLabToken = '';
+    this.bitbucketAppPassword = '';
+    this.httpsPassword = '';
+    this.authUsername = '';
+    this.preferredAuthMethod = 'token';
     this.username = '';
     this.email = '';
     this.notes = '';
@@ -109,12 +117,47 @@ export class GitAccountManagementDialogComponent implements OnInit {
       return;
     }
 
+    if (this.accountType === 'Bitbucket') {
+      if (this.preferredAuthMethod === 'token' && !this.bitbucketAppPassword.trim()) {
+        this.snackBar.open('Bitbucket App Password richiesta', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+        return;
+      }
+      if (this.preferredAuthMethod === 'username_password' &&
+          (!this.authUsername.trim() || !this.httpsPassword.trim())) {
+        this.snackBar.open('Username e Password richiesti', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+        return;
+      }
+    }
+
+    if (this.accountType === 'Generic' && (!this.authUsername.trim() || !this.httpsPassword.trim())) {
+      this.snackBar.open('Username e Password richiesti per server Git generico', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+
     const request: CreateGitAccountRequest = {
       repositoryPath: this.data.repositoryPath,
       accountName: this.accountName.trim(),
       accountType: this.accountType,
       gitHubPAT: this.accountType === 'GitHub' ? this.gitHubPAT.trim() : undefined,
       gitLabToken: this.accountType === 'GitLab' ? this.gitLabToken.trim() : undefined,
+      bitbucketAppPassword: this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'token'
+        ? this.bitbucketAppPassword.trim() : undefined,
+      httpsPassword: (this.accountType === 'Generic' ||
+        (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'username_password'))
+        ? this.httpsPassword.trim() : undefined,
+      authUsername: (this.accountType === 'Generic' || this.accountType === 'Bitbucket')
+        ? this.authUsername.trim() : undefined,
+      preferredAuthMethod: (this.accountType === 'Bitbucket' || this.accountType === 'Generic')
+        ? this.preferredAuthMethod : undefined,
       username: this.username.trim() || undefined,
       email: this.email.trim() || undefined,
       notes: this.notes.trim() || undefined,
@@ -183,10 +226,14 @@ export class GitAccountManagementDialogComponent implements OnInit {
     // Fill form with current account data
     this.accountName = this.currentAccount.accountName;
     this.accountType = this.currentAccount.accountType;
+    this.authUsername = this.currentAccount.authUsername || '';
+    // SSH is handled automatically, so default to 'token' if ssh is set
+    const method = this.currentAccount.preferredAuthMethod;
+    this.preferredAuthMethod = (method === 'token' || method === 'username_password') ? method : 'token';
     this.username = this.currentAccount.username || '';
     this.email = this.currentAccount.email || '';
     this.notes = this.currentAccount.notes || '';
-    // Don't pre-fill tokens for security
+    // Don't pre-fill tokens/passwords for security
     this.showCreateForm = true;
   }
 
@@ -206,18 +253,28 @@ export class GitAccountManagementDialogComponent implements OnInit {
       repositoryPath: this.data.repositoryPath,
       accountName: this.accountName.trim(),
       accountType: this.accountType,
+      authUsername: this.authUsername.trim() || undefined,
+      preferredAuthMethod: (this.accountType === 'Bitbucket' || this.accountType === 'Generic')
+        ? this.preferredAuthMethod : undefined,
       username: this.username.trim() || undefined,
       email: this.email.trim() || undefined,
       notes: this.notes.trim() || undefined,
       isActive: true
     };
 
-    // Only include token if user provided a new one
+    // Only include credentials if user provided new ones
     if (this.accountType === 'GitHub' && this.gitHubPAT.trim()) {
       request.gitHubPAT = this.gitHubPAT.trim();
     }
     if (this.accountType === 'GitLab' && this.gitLabToken.trim()) {
       request.gitLabToken = this.gitLabToken.trim();
+    }
+    if (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'token' && this.bitbucketAppPassword.trim()) {
+      request.bitbucketAppPassword = this.bitbucketAppPassword.trim();
+    }
+    if ((this.accountType === 'Generic' || (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'username_password'))
+        && this.httpsPassword.trim()) {
+      request.httpsPassword = this.httpsPassword.trim();
     }
 
     this.isLoading = true;
@@ -251,6 +308,8 @@ export class GitAccountManagementDialogComponent implements OnInit {
       window.open('https://github.com/settings/tokens/new?scopes=repo', '_blank');
     } else if (this.accountType === 'GitLab') {
       window.open('https://gitlab.com/-/profile/personal_access_tokens', '_blank');
+    } else if (this.accountType === 'Bitbucket') {
+      window.open('https://bitbucket.org/account/settings/app-passwords/', '_blank');
     }
   }
 

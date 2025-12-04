@@ -28,13 +28,87 @@
         padding-bottom: 8px;
 
         mat-card-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           font-size: 16px;
           font-weight: 500;
+
+          mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+          }
         }
       }
 
       mat-card-content {
         padding-top: 8px;
+      }
+    }
+
+    .oauth-section {
+      .oauth-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+        background-color: rgba(33, 150, 243, 0.1);
+        border-radius: 8px;
+        margin-bottom: 16px;
+
+        mat-icon {
+          font-size: 32px;
+          width: 32px;
+          height: 32px;
+          flex-shrink: 0;
+        }
+
+        .oauth-text {
+          flex: 1;
+
+          strong {
+            display: block;
+            margin-bottom: 4px;
+          }
+
+          p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #666;
+          }
+        }
+      }
+
+      .toggle-manual-btn {
+        width: 100%;
+        margin-bottom: 16px;
+
+        mat-icon {
+          margin-right: 8px;
+        }
+      }
+    }
+
+    .basic-auth-section {
+      .basic-auth-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        background-color: rgba(156, 39, 176, 0.1);
+        border-radius: 8px;
+        margin-bottom: 16px;
+
+        mat-icon {
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+        }
+
+        span {
+          font-size: 0.9em;
+        }
       }
     }
   }
@@ -59,6 +133,113 @@
 
     button {
       margin-left: auto;
+    }
+  }
+
+  .saved-token-option {
+    .token-header {
+      margin-bottom: 12px;
+
+      mat-checkbox {
+        font-weight: 500;
+      }
+    }
+
+    .token-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background-color: rgba(33, 150, 243, 0.1);
+      border-radius: 8px;
+      margin-bottom: 8px;
+
+      > mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+
+        &.valid {
+          color: #4caf50;
+        }
+
+        &.invalid {
+          color: #f44336;
+        }
+      }
+
+      .token-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .username {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 1em;
+
+          mat-icon {
+            font-size: 18px;
+            height: 18px;
+            width: 18px;
+            color: #666;
+          }
+        }
+
+        .token-mask {
+          font-size: 0.85em;
+          color: #666;
+        }
+
+        .status {
+          font-size: 0.85em;
+
+          &.valid {
+            color: #4caf50;
+          }
+
+          &.invalid {
+            color: #f44336;
+          }
+        }
+      }
+    }
+
+    .token-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 12px;
+      background-color: rgba(255, 152, 0, 0.1);
+      border-radius: 4px;
+      margin-bottom: 12px;
+
+      mat-icon {
+        font-size: 18px;
+        height: 18px;
+        width: 18px;
+        flex-shrink: 0;
+      }
+
+      span {
+        font-size: 0.85em;
+        color: #5d4037;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .manual-credentials {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed #ccc;
+
+    .manual-hint {
+      font-size: 0.9em;
+      color: #666;
+      margin-bottom: 12px;
     }
   }
 

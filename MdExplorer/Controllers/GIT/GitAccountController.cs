@@ -61,6 +61,10 @@ namespace MdExplorer.Controllers.Git
                     hasGitHubPAT = !string.IsNullOrEmpty(account.GitHubPAT),
                     hasGitLabToken = !string.IsNullOrEmpty(account.GitLabToken),
                     hasSSHKeyPath = !string.IsNullOrEmpty(account.SSHKeyPath),
+                    hasBitbucketAppPassword = !string.IsNullOrEmpty(account.BitbucketAppPassword),
+                    hasHttpsPassword = !string.IsNullOrEmpty(account.HttpsPassword),
+                    authUsername = account.AuthUsername,
+                    preferredAuthMethod = account.PreferredAuthMethod,
                     username = account.Username,
                     email = account.Email,
                     notes = account.Notes,
@@ -99,6 +103,10 @@ namespace MdExplorer.Controllers.Git
                     hasGitHubPAT = !string.IsNullOrEmpty(account.GitHubPAT),
                     hasGitLabToken = !string.IsNullOrEmpty(account.GitLabToken),
                     hasSSHKeyPath = !string.IsNullOrEmpty(account.SSHKeyPath),
+                    hasBitbucketAppPassword = !string.IsNullOrEmpty(account.BitbucketAppPassword),
+                    hasHttpsPassword = !string.IsNullOrEmpty(account.HttpsPassword),
+                    authUsername = account.AuthUsername,
+                    preferredAuthMethod = account.PreferredAuthMethod,
                     username = account.Username,
                     email = account.Email,
                     notes = account.Notes,
@@ -141,6 +149,10 @@ namespace MdExplorer.Controllers.Git
                     GitHubPAT = request.GitHubPAT,
                     GitLabToken = request.GitLabToken,
                     SSHKeyPath = request.SSHKeyPath,
+                    BitbucketAppPassword = request.BitbucketAppPassword,
+                    HttpsPassword = request.HttpsPassword,
+                    AuthUsername = request.AuthUsername,
+                    PreferredAuthMethod = request.PreferredAuthMethod,
                     Username = request.Username,
                     Email = request.Email,
                     Notes = request.Notes,
@@ -161,6 +173,10 @@ namespace MdExplorer.Controllers.Git
                         hasGitHubPAT = !string.IsNullOrEmpty(createdAccount.GitHubPAT),
                         hasGitLabToken = !string.IsNullOrEmpty(createdAccount.GitLabToken),
                         hasSSHKeyPath = !string.IsNullOrEmpty(createdAccount.SSHKeyPath),
+                        hasBitbucketAppPassword = !string.IsNullOrEmpty(createdAccount.BitbucketAppPassword),
+                        hasHttpsPassword = !string.IsNullOrEmpty(createdAccount.HttpsPassword),
+                        authUsername = createdAccount.AuthUsername,
+                        preferredAuthMethod = createdAccount.PreferredAuthMethod,
                         username = createdAccount.Username,
                         email = createdAccount.Email,
                         notes = createdAccount.Notes,
@@ -208,6 +224,10 @@ namespace MdExplorer.Controllers.Git
                     GitHubPAT = request.GitHubPAT,
                     GitLabToken = request.GitLabToken,
                     SSHKeyPath = request.SSHKeyPath,
+                    BitbucketAppPassword = request.BitbucketAppPassword,
+                    HttpsPassword = request.HttpsPassword,
+                    AuthUsername = request.AuthUsername,
+                    PreferredAuthMethod = request.PreferredAuthMethod,
                     Username = request.Username,
                     Email = request.Email,
                     Notes = request.Notes,
@@ -225,6 +245,10 @@ namespace MdExplorer.Controllers.Git
                     hasGitHubPAT = !string.IsNullOrEmpty(updatedAccount.GitHubPAT),
                     hasGitLabToken = !string.IsNullOrEmpty(updatedAccount.GitLabToken),
                     hasSSHKeyPath = !string.IsNullOrEmpty(updatedAccount.SSHKeyPath),
+                    hasBitbucketAppPassword = !string.IsNullOrEmpty(updatedAccount.BitbucketAppPassword),
+                    hasHttpsPassword = !string.IsNullOrEmpty(updatedAccount.HttpsPassword),
+                    authUsername = updatedAccount.AuthUsername,
+                    preferredAuthMethod = updatedAccount.PreferredAuthMethod,
                     username = updatedAccount.Username,
                     email = updatedAccount.Email,
                     notes = updatedAccount.Notes,
@@ -317,6 +341,10 @@ namespace MdExplorer.Controllers.Git
         public string GitHubPAT { get; set; }
         public string GitLabToken { get; set; }
         public string SSHKeyPath { get; set; }
+        public string BitbucketAppPassword { get; set; }
+        public string HttpsPassword { get; set; }
+        public string AuthUsername { get; set; }
+        public string PreferredAuthMethod { get; set; }
         public string Username { get; set; }
         public string Email { get; set; }
         public string Notes { get; set; }
@@ -340,6 +368,10 @@ namespace MdExplorer.Controllers.Git
         public string GitHubPAT { get; set; }
         public string GitLabToken { get; set; }
         public string SSHKeyPath { get; set; }
+        public string BitbucketAppPassword { get; set; }
+        public string HttpsPassword { get; set; }
+        public string AuthUsername { get; set; }
+        public string PreferredAuthMethod { get; set; }
         public string Username { get; set; }
         public string Email { get; set; }
         public string Notes { get; set; }

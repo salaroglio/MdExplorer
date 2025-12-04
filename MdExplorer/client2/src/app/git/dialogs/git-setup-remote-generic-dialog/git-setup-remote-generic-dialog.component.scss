@@ -104,6 +104,122 @@
   }
 }
 
+.saved-token-section {
+  margin-bottom: 16px;
+
+  .saved-token-card {
+    padding: 16px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, background-color 0.2s;
+
+    &.selected {
+      border-color: #1976d2;
+      background-color: #e3f2fd;
+    }
+
+    .saved-token-header {
+      margin-bottom: 8px;
+
+      mat-checkbox {
+        font-weight: 500;
+      }
+    }
+
+    .saved-token-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 4px;
+      margin-top: 8px;
+
+      > mat-icon {
+        font-size: 24px;
+        height: 24px;
+        width: 24px;
+
+        &.valid {
+          color: #4caf50;
+        }
+
+        &.invalid {
+          color: #f44336;
+        }
+      }
+
+      .token-details {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .username {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 1em;
+
+          mat-icon {
+            font-size: 18px;
+            height: 18px;
+            width: 18px;
+            color: #666;
+          }
+        }
+
+        .status {
+          font-size: 0.85em;
+
+          &.valid {
+            color: #4caf50;
+          }
+
+          &.invalid {
+            color: #f44336;
+          }
+        }
+      }
+    }
+
+    .saved-token-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 12px;
+      background-color: #fff3e0;
+      border-radius: 4px;
+      margin-top: 12px;
+
+      mat-icon {
+        font-size: 18px;
+        height: 18px;
+        width: 18px;
+        flex-shrink: 0;
+      }
+
+      span {
+        font-size: 0.85em;
+        color: #5d4037;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .or-divider {
+    text-align: center;
+    margin: 16px 0;
+    color: #666;
+    font-size: 0.9em;
+
+    span {
+      background-color: white;
+      padding: 0 12px;
+    }
+  }
+}
+
 .validate-button {
   margin-bottom: 16px;
 

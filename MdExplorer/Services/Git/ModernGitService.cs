@@ -53,8 +53,13 @@ namespace MdExplorer.Services.Git
                 var normalizedPath = Path.GetFullPath(repositoryPath);
                 using var tx = _userSettingsDB.BeginTransaction();
                 var dal = _userSettingsDB.GetDal<GitRepositoryAccount>();
-                var account = dal.GetList()
-                    .FirstOrDefault(a => Path.GetFullPath(a.RepositoryPath) == normalizedPath && a.IsActive);
+
+                // Fetch all active accounts first, then filter in memory
+                // (Path.GetFullPath cannot be translated to SQL by NHibernate)
+                var allAccounts = dal.GetList().Where(a => a.IsActive).ToList();
+                var account = allAccounts.FirstOrDefault(a =>
+                    !string.IsNullOrEmpty(a.RepositoryPath) &&
+                    Path.GetFullPath(a.RepositoryPath).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
 
                 if (account != null && !string.IsNullOrEmpty(account.AuthUsername))
                 {

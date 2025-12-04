@@ -1356,6 +1356,8 @@ class ProjectsComponent {
         this.buildTime = _environments_version__WEBPACK_IMPORTED_MODULE_7__["versionInfo"].buildTime; // Rendi il timestamp di build disponibile nel template
         this.searchQuery = '';
         this.lastOpenedProjectId = null;
+        // Flag to prevent multiple clicks when opening a project
+        this.isOpeningProject = false;
         // Cache for remote URL status per project path
         this.remoteUrlCache = new Map();
         this.dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }];
@@ -1400,7 +1402,18 @@ class ProjectsComponent {
         return project.id === this.lastOpenedProjectId;
     }
     openProject(path) {
+        // Prevent multiple clicks while project is opening
+        if (this.isOpeningProject) {
+            console.log('[Projects] Ignoring click - project opening already in progress');
+            return;
+        }
+        this.isOpeningProject = true;
+        console.log('[Projects] Opening project:', path);
         this.projectService.setNewFolderProject(path);
+        // Reset flag after a timeout (in case navigation doesn't happen)
+        setTimeout(() => {
+            this.isOpeningProject = false;
+        }, 10000); // 10 second safety timeout
     }
     deleteProject(project) {
         this.projectService.deleteProject(project, () => {

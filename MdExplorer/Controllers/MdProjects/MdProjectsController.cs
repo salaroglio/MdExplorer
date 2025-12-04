@@ -219,6 +219,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 // Check if it's a Git repository and if it has an account configured
                 var isGitRepository = Directory.Exists(Path.Combine(request.Path, ".git"));
                 var hasGitAccount = false;
+                string detectedRemoteUrl = null;
+                string detectedProvider = null;
+                bool needsManualCredentials = false;
 
                 if (isGitRepository)
                 {
@@ -237,18 +240,23 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     {
                         try
                         {
-                            var remoteUrl = GetRemoteUrlFromRepository(request.Path);
-                            if (!string.IsNullOrEmpty(remoteUrl))
+                            detectedRemoteUrl = GetRemoteUrlFromRepository(request.Path);
+                            if (!string.IsNullOrEmpty(detectedRemoteUrl))
                             {
-                                logger?.LogInformation($"🔍 [CredentialAutoDetect] Attempting auto-detection for {request.Path}, remote: {remoteUrl}");
-                                hasGitAccount = _gitCredentialHelper.DetectAndSaveCredentialsForRepository(request.Path, remoteUrl).GetAwaiter().GetResult();
+                                // Detect provider type
+                                detectedProvider = DetectProviderFromUrl(detectedRemoteUrl);
+                                logger?.LogInformation($"🔍 [CredentialAutoDetect] Attempting auto-detection for {request.Path}, remote: {detectedRemoteUrl}, provider: {detectedProvider}");
+
+                                hasGitAccount = _gitCredentialHelper.DetectAndSaveCredentialsForRepository(request.Path, detectedRemoteUrl).GetAwaiter().GetResult();
                                 if (hasGitAccount)
                                 {
                                     logger?.LogInformation($"✅ [CredentialAutoDetect] Credentials auto-detected and saved for {request.Path}");
                                 }
                                 else
                                 {
-                                    logger?.LogInformation($"⚠️ [CredentialAutoDetect] No credentials found in Git Credential Manager for {remoteUrl}");
+                                    logger?.LogInformation($"⚠️ [CredentialAutoDetect] No credentials found in Git Credential Manager for {detectedRemoteUrl}");
+                                    // Signal frontend that manual credentials are needed
+                                    needsManualCredentials = true;
                                 }
                             }
                             else
@@ -259,6 +267,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                         catch (Exception ex)
                         {
                             logger?.LogWarning(ex, "[CredentialAutoDetect] Auto-credential detection failed (non-fatal)");
+                            needsManualCredentials = !string.IsNullOrEmpty(detectedRemoteUrl);
                         }
                     }
                 }
@@ -271,7 +280,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     gitInitialized = gitInitialized,
                     compatibilityMode = compatibilityMode,
                     isGitRepository = isGitRepository,
-                    hasGitAccount = hasGitAccount
+                    hasGitAccount = hasGitAccount,
+                    needsManualCredentials = needsManualCredentials,
+                    remoteUrl = detectedRemoteUrl,
+                    detectedProvider = detectedProvider
                 });
             }
             catch (Exception ex)
@@ -374,6 +386,32 @@ namespace MdExplorer.Service.Controllers.MdProjects
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Detects the Git provider type from a remote URL
+        /// </summary>
+        private string DetectProviderFromUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return "generic";
+
+            var urlLower = url.ToLowerInvariant();
+
+            if (urlLower.Contains("github.com"))
+                return "github";
+            if (urlLower.Contains("gitlab.com") || urlLower.Contains("gitlab"))
+                return "gitlab";
+            if (urlLower.Contains("dev.azure.com") || urlLower.Contains("visualstudio.com"))
+                return "azure";
+            if (urlLower.Contains("bitbucket.org") || urlLower.Contains("bitbucket"))
+                return "bitbucket";
+            if (urlLower.Contains("scm-manager") || urlLower.Contains("/scm/"))
+                return "scm-manager";
+            if (urlLower.Contains("gitea") || urlLower.Contains(":3000/"))
+                return "gitea";
+
+            return "generic";
         }
 
         [HttpPost]

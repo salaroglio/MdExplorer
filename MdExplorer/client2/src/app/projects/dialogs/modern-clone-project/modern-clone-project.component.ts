@@ -19,6 +19,15 @@ interface ModernCloneRequest {
   useSSH?: boolean;
 }
 
+// Provider types for authentication
+type GitProvider = 'github' | 'gitlab' | 'azure' | 'bitbucket' | 'scm-manager' | 'gitea' | 'generic';
+type AuthType = 'oauth' | 'basic';
+
+// OAuth providers: GCM handles authentication via browser
+const OAUTH_PROVIDERS: GitProvider[] = ['github', 'gitlab', 'azure', 'bitbucket'];
+// Basic Auth providers: always require manual credentials
+const BASIC_AUTH_PROVIDERS: GitProvider[] = ['scm-manager', 'gitea', 'generic'];
+
 @Component({
   selector: 'app-modern-clone-project',
   templateUrl: './modern-clone-project.component.html',
@@ -41,6 +50,11 @@ export class ModernCloneProjectComponent implements OnInit {
   public isDeleting = false;
   public isGitHubRepo = false;
   public authMethod: 'automatic' | 'manual' = 'automatic';
+
+  // Provider-based authentication
+  public detectedProvider: GitProvider = 'generic';
+  public authType: AuthType = 'basic';
+  public showCredentialForm = true;  // Show form for basic auth providers
 
   // For manual authentication (non-GitHub repos)
   public manualCredentials = {
@@ -164,19 +178,54 @@ export class ModernCloneProjectComponent implements OnInit {
   }
 
   onUrlChange(): void {
-    this.checkIfGitHubRepo();
+    this.detectProviderFromUrl();
   }
 
-  checkIfGitHubRepo(): void {
+  /**
+   * Detects the Git provider from URL and sets authentication type accordingly.
+   * OAuth providers (GitHub, GitLab, Azure, Bitbucket): GCM handles auth via browser
+   * Basic Auth providers (SCM-Manager, Gitea, Generic): Manual credentials required
+   */
+  detectProviderFromUrl(): void {
     const url = this.cloneRequest.url.toLowerCase();
-    this.isGitHubRepo = url.includes('github.com');
 
-    // Auto-select authentication method based on URL
-    if (this.isGitHubRepo && this.hasGitHubToken) {
+    // Detect provider from URL
+    if (url.includes('github.com')) {
+      this.detectedProvider = 'github';
+    } else if (url.includes('gitlab.com') || url.includes('gitlab')) {
+      this.detectedProvider = 'gitlab';
+    } else if (url.includes('dev.azure.com') || url.includes('visualstudio.com')) {
+      this.detectedProvider = 'azure';
+    } else if (url.includes('bitbucket.org') || url.includes('bitbucket')) {
+      this.detectedProvider = 'bitbucket';
+    } else if (url.includes('scm-manager') || url.includes('/scm/')) {
+      this.detectedProvider = 'scm-manager';
+    } else if (url.includes('gitea') || url.includes(':3000/')) {
+      this.detectedProvider = 'gitea';
+    } else {
+      this.detectedProvider = 'generic';
+    }
+
+    // Set legacy flag for backward compatibility
+    this.isGitHubRepo = this.detectedProvider === 'github';
+
+    // Determine auth type based on provider
+    if (OAUTH_PROVIDERS.includes(this.detectedProvider)) {
+      this.authType = 'oauth';
+      this.showCredentialForm = false;  // GCM handles OAuth via browser
       this.authMethod = 'automatic';
-    } else if (!this.isGitHubRepo) {
+    } else {
+      this.authType = 'basic';
+      this.showCredentialForm = true;   // Always show form for basic auth
       this.authMethod = 'manual';
     }
+
+    console.log(`[ModernClone] Detected provider: ${this.detectedProvider}, authType: ${this.authType}, showForm: ${this.showCredentialForm}`);
+  }
+
+  // Keep old method name for backward compatibility
+  checkIfGitHubRepo(): void {
+    this.detectProviderFromUrl();
   }
 
   openFileSystem(): void {
@@ -269,28 +318,38 @@ export class ModernCloneProjectComponent implements OnInit {
       console.log('[ModernClone] URL validation passed, proceeding with clone');
 
       // Step 2: Proceed with clone
-      info.message = "Cloning repository...";
+      const useAutomaticAuth = this.authType === 'oauth' && !this.showCredentialForm;
+      if (useAutomaticAuth) {
+        info.message = `Cloning repository... (${this.getProviderDisplayName()} may open browser for authentication)`;
+      } else {
+        info.message = "Cloning repository...";
+      }
 
-      // Validate manual credentials if not using saved token
-      if (this.isGitHubRepo && !this.useSavedToken && (!this.manualCredentials.username || !this.manualCredentials.password)) {
+      // Determine if we need manual credentials
+      const needsManualCredentials = this.showCredentialForm || this.authType === 'basic';
+
+      // Validate manual credentials when required
+      if (needsManualCredentials && (!this.manualCredentials.username || !this.manualCredentials.password)) {
         this.waitingDialog.closeMessageBox();
         this.isValidatingUrl = false;
         this.showMessage('Inserisci username e password/token per l\'autenticazione');
         return;
       }
 
-      // Use modern clone endpoint
+      // Build clone request based on auth type
       const request = {
         url: this.cloneRequest.url,
         localPath: this.cloneRequest.localPath,
         branchName: this.cloneRequest.branchName || null,
-        useSavedToken: this.isGitHubRepo ? this.useSavedToken : true,
-        username: (!this.useSavedToken && this.manualCredentials.username) ? this.manualCredentials.username : null,
-        password: (!this.useSavedToken && this.manualCredentials.password) ? this.manualCredentials.password : null
+        // For OAuth providers without manual override, let GCM handle authentication
+        useSavedToken: useAutomaticAuth || (this.isGitHubRepo && this.useSavedToken),
+        // Pass credentials if manual auth is required
+        username: needsManualCredentials ? this.manualCredentials.username : null,
+        password: needsManualCredentials ? this.manualCredentials.password : null
       };
 
       // Log the request for debugging
-      console.log('[ModernClone] Sending clone request:', request);
+      console.log(`[ModernClone] Sending clone request (provider: ${this.detectedProvider}, authType: ${this.authType}, manual: ${needsManualCredentials}):`, request);
 
       // Call the modern Git service clone method
       this.gitService.modernClone(request).subscribe(
@@ -343,5 +402,34 @@ export class ModernCloneProjectComponent implements OnInit {
 
   cancel(): void {
     this.dialogRef.close();
+  }
+
+  /**
+   * Gets a user-friendly display name for the detected provider
+   */
+  getProviderDisplayName(): string {
+    const names: Record<GitProvider, string> = {
+      'github': 'GitHub',
+      'gitlab': 'GitLab',
+      'azure': 'Azure DevOps',
+      'bitbucket': 'Bitbucket',
+      'scm-manager': 'SCM-Manager',
+      'gitea': 'Gitea',
+      'generic': 'Git Server'
+    };
+    return names[this.detectedProvider] || 'Git Server';
+  }
+
+  /**
+   * Toggle credential form visibility for OAuth providers
+   * (Allows manual override if user wants to enter credentials manually)
+   */
+  toggleCredentialForm(): void {
+    this.showCredentialForm = !this.showCredentialForm;
+    if (this.showCredentialForm) {
+      this.authMethod = 'manual';
+    } else {
+      this.authMethod = 'automatic';
+    }
   }
 }

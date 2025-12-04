@@ -15,6 +15,10 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.GitHubPAT).Length(500).Nullable();
             Map(x => x.GitLabToken).Length(500).Nullable();
             Map(x => x.SSHKeyPath).Length(500).Nullable();
+            Map(x => x.BitbucketAppPassword).Length(500).Nullable();
+            Map(x => x.HttpsPassword).Length(500).Nullable();
+            Map(x => x.AuthUsername).Length(100).Nullable();
+            Map(x => x.PreferredAuthMethod).Length(50).Nullable();
             Map(x => x.Username).Length(100).Nullable();
             Map(x => x.Email).Length(200).Nullable();
             Map(x => x.Notes).Length(1000).Nullable();

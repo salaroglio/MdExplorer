@@ -70,6 +70,23 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         [StringLength(100, ErrorMessage = "Branch name cannot exceed 100 characters")]
         public string? BranchName { get; set; }
+
+        /// <summary>
+        /// Whether to use the saved GitHub token for authentication (default: true)
+        /// </summary>
+        public bool UseSavedToken { get; set; } = true;
+
+        /// <summary>
+        /// Optional username for manual authentication (when UseSavedToken is false)
+        /// </summary>
+        [StringLength(100)]
+        public string? Username { get; set; }
+
+        /// <summary>
+        /// Optional password/token for manual authentication (when UseSavedToken is false)
+        /// </summary>
+        [StringLength(500)]
+        public string? Password { get; set; }
     }
 
     /// <summary>
@@ -356,6 +373,11 @@ namespace MdExplorer.Controllers.ModernGit
         /// Whether repository should be private (for auto-creation)
         /// </summary>
         public bool IsPrivate { get; set; } = true;
+
+        /// <summary>
+        /// Whether to use the saved GitHub token instead of provided credentials
+        /// </summary>
+        public bool UseSavedToken { get; set; } = false;
     }
 
     /// <summary>
