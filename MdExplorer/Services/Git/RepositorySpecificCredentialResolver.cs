@@ -60,35 +60,60 @@ namespace MdExplorer.Services.Git
                 var isSSH = url.StartsWith("git@", StringComparison.OrdinalIgnoreCase) ||
                            url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase);
 
-                // For HTTPS URLs, use token if available
+                // For HTTPS URLs, resolve credentials based on preferred method
                 if (isHTTPS)
                 {
-                    string token = null;
+                    var authMethod = account.PreferredAuthMethod ?? "auto";
+                    string effectiveUsername = null;
+                    string effectivePassword = null;
 
-                    // Select token based on account type
-                    if (account.AccountType == "GitHub" && !string.IsNullOrEmpty(account.GitHubPAT))
+                    // Method 1: Username/Password (explicit or auto-detect)
+                    if ((authMethod == "username_password" || authMethod == "auto") &&
+                        !string.IsNullOrEmpty(account.AuthUsername) &&
+                        !string.IsNullOrEmpty(account.HttpsPassword))
                     {
-                        token = account.GitHubPAT;
-                        _logger.LogInformation("[RepoSpecificResolver] Using GitHub PAT for account: {AccountName}", account.AccountName);
+                        effectiveUsername = account.AuthUsername;
+                        effectivePassword = account.HttpsPassword;
+                        _logger.LogInformation("[RepoSpecificResolver] Using username/password for account: {AccountName}", account.AccountName);
                     }
-                    else if (account.AccountType == "GitLab" && !string.IsNullOrEmpty(account.GitLabToken))
+
+                    // Method 2: Token-based (if username/password not available or explicit token method)
+                    if (effectivePassword == null && (authMethod == "token" || authMethod == "auto"))
                     {
-                        token = account.GitLabToken;
-                        _logger.LogInformation("[RepoSpecificResolver] Using GitLab token for account: {AccountName}", account.AccountName);
+                        if (account.AccountType == "GitHub" && !string.IsNullOrEmpty(account.GitHubPAT))
+                        {
+                            effectiveUsername = !string.IsNullOrEmpty(usernameFromUrl) ? usernameFromUrl : "git";
+                            effectivePassword = account.GitHubPAT;
+                            _logger.LogInformation("[RepoSpecificResolver] Using GitHub PAT for account: {AccountName}", account.AccountName);
+                        }
+                        else if (account.AccountType == "GitLab" && !string.IsNullOrEmpty(account.GitLabToken))
+                        {
+                            effectiveUsername = !string.IsNullOrEmpty(usernameFromUrl) ? usernameFromUrl : "git";
+                            effectivePassword = account.GitLabToken;
+                            _logger.LogInformation("[RepoSpecificResolver] Using GitLab token for account: {AccountName}", account.AccountName);
+                        }
+                        else if (account.AccountType == "Bitbucket" && !string.IsNullOrEmpty(account.BitbucketAppPassword))
+                        {
+                            effectiveUsername = account.AuthUsername ?? account.Username;
+                            effectivePassword = account.BitbucketAppPassword;
+                            _logger.LogInformation("[RepoSpecificResolver] Using Bitbucket App Password for account: {AccountName}", account.AccountName);
+                        }
                     }
 
-                    if (!string.IsNullOrEmpty(token))
+                    if (!string.IsNullOrEmpty(effectivePassword))
                     {
-                        var username = !string.IsNullOrEmpty(usernameFromUrl) ? usernameFromUrl : "git";
-                        var maskedToken = token.Length > 10 ? $"{token.Substring(0, 7)}...{token.Substring(token.Length - 4)}" : "***";
+                        var username = effectiveUsername ?? "git";
+                        var maskedPassword = effectivePassword.Length > 10
+                            ? $"{effectivePassword.Substring(0, 4)}...{effectivePassword.Substring(effectivePassword.Length - 4)}"
+                            : "***";
 
-                        _logger.LogInformation("[RepoSpecificResolver] Created credentials with Username: {Username}, Token: {MaskedToken}",
-                            username, maskedToken);
+                        _logger.LogInformation("[RepoSpecificResolver] Created credentials with Username: {Username}, Password: {MaskedPassword}",
+                            username, maskedPassword);
 
                         return new UsernamePasswordCredentials
                         {
                             Username = username,
-                            Password = token
+                            Password = effectivePassword
                         };
                     }
                 }
@@ -130,12 +155,19 @@ namespace MdExplorer.Services.Git
 
             // Check if we have credentials for this URL type
             var isHTTPS = url?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ?? false;
+
+            // Check for username/password credentials
+            var hasUsernamePassword = !string.IsNullOrEmpty(account.AuthUsername) &&
+                                      !string.IsNullOrEmpty(account.HttpsPassword);
+
+            // Check for token-based credentials
             var hasTokenForHTTPS = isHTTPS && (
                 (!string.IsNullOrEmpty(account.GitHubPAT) && account.AccountType == "GitHub") ||
-                (!string.IsNullOrEmpty(account.GitLabToken) && account.AccountType == "GitLab")
+                (!string.IsNullOrEmpty(account.GitLabToken) && account.AccountType == "GitLab") ||
+                (!string.IsNullOrEmpty(account.BitbucketAppPassword) && account.AccountType == "Bitbucket")
             );
 
-            return hasTokenForHTTPS;
+            return isHTTPS && (hasUsernamePassword || hasTokenForHTTPS);
         }
 
         public int GetPriority()
@@ -205,6 +237,7 @@ namespace MdExplorer.Services.Git
     public static class GitExecutionContext
     {
         private static readonly System.Threading.AsyncLocal<string> _currentRepositoryPath = new System.Threading.AsyncLocal<string>();
+        private static readonly System.Threading.AsyncLocal<string> _currentUsername = new System.Threading.AsyncLocal<string>();
 
         /// <summary>
         /// Gets or sets the current repository path for this async execution context
@@ -213,6 +246,15 @@ namespace MdExplorer.Services.Git
         {
             get => _currentRepositoryPath.Value;
             set => _currentRepositoryPath.Value = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the known username for this repository (used to avoid GCM prompts)
+        /// </summary>
+        public static string CurrentUsername
+        {
+            get => _currentUsername.Value;
+            set => _currentUsername.Value = value;
         }
     }
 }

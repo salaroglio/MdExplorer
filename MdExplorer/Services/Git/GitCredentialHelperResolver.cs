@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MdExplorer.Services.Git
@@ -16,13 +17,16 @@ namespace MdExplorer.Services.Git
     {
         private readonly ILogger<GitCredentialHelperResolver> _logger;
         private readonly IGitAccountService _gitAccountService;
-        private readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
+        private readonly TimeSpan _timeout = TimeSpan.FromSeconds(60); // Increased for OAuth browser flow
 
         // Cache to avoid prompting multiple times for the same URL in a session
         private static readonly Dictionary<string, (UsernamePasswordCredentials Credentials, DateTime CachedAt)> _credentialCache
             = new Dictionary<string, (UsernamePasswordCredentials, DateTime)>(StringComparer.OrdinalIgnoreCase);
         private static readonly object _cacheLock = new object();
         private static readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(5);
+
+        // Counter for debugging duplicate calls
+        private static int _callCounter = 0;
 
         public GitCredentialHelperResolver(
             ILogger<GitCredentialHelperResolver> logger,
@@ -34,13 +38,14 @@ namespace MdExplorer.Services.Git
 
         public async Task<Credentials> ResolveCredentialsAsync(string url, string usernameFromUrl, SupportedCredentialTypes types)
         {
+            var callId = Interlocked.Increment(ref _callCounter);
             try
             {
-                _logger.LogDebug("Attempting Git credential helper authentication for URL: {Url}", url);
+                _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] ResolveCredentialsAsync CALLED for URL: {Url}", callId, url);
 
                 if (!CanResolveCredentials(url, types))
                 {
-                    _logger.LogDebug("Git credential helper cannot handle URL: {Url} with types: {Types}", url, types);
+                    _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Cannot handle URL, returning null", callId);
                     return null;
                 }
 
@@ -54,34 +59,41 @@ namespace MdExplorer.Services.Git
                     {
                         if (DateTime.UtcNow - cached.CachedAt < _cacheExpiry)
                         {
-                            _logger.LogDebug("[CredentialCache] Using cached credentials for: {CacheKey}", cacheKey);
+                            _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] CACHE HIT for: {CacheKey}, returning cached credentials", callId, cacheKey);
                             return cached.Credentials;
                         }
                         else
                         {
+                            _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Cache EXPIRED for: {CacheKey}", callId, cacheKey);
                             _credentialCache.Remove(cacheKey);
                         }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] CACHE MISS for: {CacheKey}", callId, cacheKey);
                     }
                 }
 
                 // Try to get credentials using git credential fill
-                var credentialData = await ExecuteGitCredentialFillAsync(url);
+                // Use known username from context to avoid GCM prompting for account selection
+                var knownUsername = GitExecutionContext.CurrentUsername ?? usernameFromUrl;
+                _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Calling ExecuteGitCredentialFillAsync (knownUsername={Username})...", callId, knownUsername ?? "(none)");
+                var credentialData = await ExecuteGitCredentialFillAsync(url, knownUsername);
                 if (credentialData == null)
                 {
-                    _logger.LogDebug("Git credential helper returned no credentials for URL: {Url}", url);
+                    _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] git credential fill returned NULL", callId);
                     return null;
                 }
 
                 var credentials = ParseCredentialHelperOutput(credentialData);
                 if (credentials != null)
                 {
-                    _logger.LogInformation("Successfully retrieved credentials from Git credential helper for URL: {Url}", url);
+                    _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Got credentials, caching...", callId);
 
                     // Cache the credentials to avoid prompting again
                     lock (_cacheLock)
                     {
                         _credentialCache[cacheKey] = (credentials, DateTime.UtcNow);
-                        _logger.LogDebug("[CredentialCache] Cached credentials for: {CacheKey}", cacheKey);
                     }
                 }
 
@@ -89,7 +101,7 @@ namespace MdExplorer.Services.Git
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error resolving credentials using Git credential helper for URL: {Url}", url);
+                _logger.LogError(ex, "🔐 [GCM-RESOLVE #{CallId}] EXCEPTION", callId);
                 return null;
             }
         }
@@ -157,10 +169,11 @@ namespace MdExplorer.Services.Git
         /// <returns>True if credentials were detected and saved, false otherwise</returns>
         public async Task<bool> DetectAndSaveCredentialsForRepository(string repositoryPath, string remoteUrl)
         {
+            var callId = Interlocked.Increment(ref _callCounter);
             try
             {
-                _logger.LogInformation("[CredentialAutoDetect] Starting auto-detection for repository: {RepoPath}, URL: {Url}",
-                    repositoryPath, remoteUrl);
+                _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] DetectAndSaveCredentialsForRepository CALLED for: {RepoPath}, URL: {Url}",
+                    callId, repositoryPath, remoteUrl);
 
                 if (string.IsNullOrEmpty(repositoryPath) || string.IsNullOrEmpty(remoteUrl))
                 {
@@ -178,12 +191,14 @@ namespace MdExplorer.Services.Git
                 }
 
                 // Get credentials from Git Credential Manager
+                _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] Calling ExecuteGitCredentialFillAsync...", callId);
                 var credentialData = await ExecuteGitCredentialFillAsync(remoteUrl);
                 if (credentialData == null || credentialData.Count == 0)
                 {
-                    _logger.LogInformation("[CredentialAutoDetect] Git Credential Manager returned no credentials for URL: {Url}", remoteUrl);
+                    _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] git credential fill returned NULL/empty", callId);
                     return false;
                 }
+                _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] git credential fill returned data", callId);
 
                 credentialData.TryGetValue("username", out var username);
                 credentialData.TryGetValue("password", out var password);
@@ -260,12 +275,12 @@ namespace MdExplorer.Services.Git
 
         #region Private Helper Methods
 
-        private async Task<Dictionary<string, string>> ExecuteGitCredentialFillAsync(string url)
+        private async Task<Dictionary<string, string>> ExecuteGitCredentialFillAsync(string url, string knownUsername = null)
         {
             try
             {
                 var uri = new Uri(url);
-                
+
                 var process = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -276,7 +291,7 @@ namespace MdExplorer.Services.Git
                         RedirectStandardInput = true,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
-                        CreateNoWindow = true
+                        CreateNoWindow = false  // Allow GCM to open browser for OAuth
                     }
                 };
 
@@ -288,12 +303,19 @@ namespace MdExplorer.Services.Git
                 var input = new StringBuilder();
                 input.AppendLine($"protocol={uri.Scheme}");
                 input.AppendLine($"host={uri.Host}");
-                
+
+                // If we know the username, pass it to GCM to avoid account selection prompt
+                if (!string.IsNullOrEmpty(knownUsername))
+                {
+                    input.AppendLine($"username={knownUsername}");
+                    _logger.LogInformation("[GCM] Using known username to avoid prompt: {Username}", knownUsername);
+                }
+
                 if (uri.Port != -1 && uri.Port != 80 && uri.Port != 443)
                 {
                     input.AppendLine($"port={uri.Port}");
                 }
-                
+
                 if (!string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath != "/")
                 {
                     input.AppendLine($"path={uri.AbsolutePath.TrimStart('/')}");

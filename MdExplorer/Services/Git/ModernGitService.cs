@@ -38,6 +38,41 @@ namespace MdExplorer.Services.Git
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
         }
 
+        /// <summary>
+        /// Sets the Git execution context with repository path and known username.
+        /// This allows credential resolvers to use the correct account without prompting.
+        /// </summary>
+        private void SetGitExecutionContext(string repositoryPath)
+        {
+            GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+            GitExecutionContext.CurrentUsername = null; // Reset first
+
+            try
+            {
+                // Look up saved account for this repository
+                var normalizedPath = Path.GetFullPath(repositoryPath);
+                using var tx = _userSettingsDB.BeginTransaction();
+                var dal = _userSettingsDB.GetDal<GitRepositoryAccount>();
+                var account = dal.GetList()
+                    .FirstOrDefault(a => Path.GetFullPath(a.RepositoryPath) == normalizedPath && a.IsActive);
+
+                if (account != null && !string.IsNullOrEmpty(account.AuthUsername))
+                {
+                    GitExecutionContext.CurrentUsername = account.AuthUsername;
+                    _logger.LogInformation("[GitContext] Set username for {RepoPath}: {Username}",
+                        repositoryPath, account.AuthUsername);
+                }
+                else
+                {
+                    _logger.LogDebug("[GitContext] No saved account for {RepoPath}", repositoryPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GitContext] Failed to lookup account for {RepoPath}", repositoryPath);
+            }
+        }
+
         public async Task<GitOperationResult> PullAsync(string repositoryPath)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -57,11 +92,11 @@ namespace MdExplorer.Services.Git
                     };
                 }
 
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+                // Set repository path and username in execution context for credential resolvers
+                SetGitExecutionContext(repositoryPath);
 
                 using var repo = new Repository(repositoryPath);
-                
+
                 var pullOptions = new PullOptions
                 {
                     FetchOptions = new FetchOptions
@@ -154,11 +189,11 @@ namespace MdExplorer.Services.Git
                     };
                 }
 
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+                // Set repository path and username in execution context for credential resolvers
+                SetGitExecutionContext(repositoryPath);
 
                 using var repo = new Repository(repositoryPath);
-                
+
                 var remote = repo.Network.Remotes[remoteName];
                 if (remote == null)
                 {
@@ -749,8 +784,8 @@ namespace MdExplorer.Services.Git
                 _logger.LogInformation("Starting checkout operation for repository: {RepositoryPath}, Branch: {Branch}",
                     repositoryPath, branchName);
 
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+                // Set repository path and username in execution context for credential resolvers
+                SetGitExecutionContext(repositoryPath);
 
                 using var repo = new Repository(repositoryPath);
 
@@ -919,11 +954,11 @@ namespace MdExplorer.Services.Git
                 _logger.LogInformation("Starting fetch operation for repository: {RepositoryPath}, Remote: {Remote}",
                     repositoryPath, remoteName);
 
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+                // Set repository path and username in execution context for credential resolvers
+                SetGitExecutionContext(repositoryPath);
 
                 using var repo = new Repository(repositoryPath);
-                
+
                 var remote = repo.Network.Remotes[remoteName];
                 if (remote == null)
                 {
@@ -1267,8 +1302,8 @@ namespace MdExplorer.Services.Git
             {
                 _logger.LogInformation("🟢 [GET PULL PUSH DATA {CallId}] Getting pull/push data for repository: {RepositoryPath}", callId, repositoryPath);
 
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+                // Set repository path and username in execution context for credential resolvers
+                SetGitExecutionContext(repositoryPath);
 
                 using var repo = new Repository(repositoryPath);
                 var currentBranch = repo.Head;
@@ -1664,8 +1699,8 @@ namespace MdExplorer.Services.Git
             {
                 _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Testing authentication for remote: {RemoteUrl}", remote.Url);
 
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = repositoryPath;
+                // Set repository path and username in execution context for credential resolvers
+                SetGitExecutionContext(repositoryPath);
 
                 // Attempt to list remote references (lightweight operation that tests authentication)
                 // Using inline delegate for credentials provider
