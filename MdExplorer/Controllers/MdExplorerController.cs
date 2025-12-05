@@ -208,7 +208,7 @@ namespace MdExplorer.Controllers
                             else if (yamlConfig.ExcludePaths != null && yamlConfig.ExcludePaths.Count > 0)
                             {
                                 var projectPath = GetProjectPath();
-                                var relativePath = fullPathFile.Replace(projectPath, string.Empty)
+                                var relativePath = fullPathFile.Replace(projectPath, string.Empty, StringComparison.OrdinalIgnoreCase)
                                     .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
                                 foreach (var excludePath in yamlConfig.ExcludePaths)
@@ -225,6 +225,35 @@ namespace MdExplorer.Controllers
                                         shouldSkipYamlGeneration = true;
                                         skipReason = $"File is in excluded path: {excludePath}";
                                         break;
+                                    }
+                                }
+                            }
+
+                            // Check if file is in a folder marked with "program" tag (development environment)
+                            if (!shouldSkipYamlGeneration && devConfig?.Folders != null && devConfig.Folders.Count > 0)
+                            {
+                                var projectPath = GetProjectPath();
+                                var relativePath = fullPathFile.Replace(projectPath, string.Empty, StringComparison.OrdinalIgnoreCase)
+                                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                                foreach (var folder in devConfig.Folders)
+                                {
+                                    // Check if folder has "program" tag
+                                    if (folder.Tags != null && folder.Tags.Contains("program", StringComparer.OrdinalIgnoreCase))
+                                    {
+                                        // Normalize path separators for comparison
+                                        var normalizedFolderPath = folder.Path.Replace('/', Path.DirectorySeparatorChar)
+                                            .Replace('\\', Path.DirectorySeparatorChar);
+
+                                        // Check if file is inside the program folder
+                                        if (relativePath.StartsWith(normalizedFolderPath + Path.DirectorySeparatorChar,
+                                            StringComparison.OrdinalIgnoreCase) ||
+                                            relativePath.Equals(normalizedFolderPath, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            shouldSkipYamlGeneration = true;
+                                            skipReason = $"File is in development environment folder: {folder.Path}";
+                                            break;
+                                        }
                                     }
                                 }
                             }

@@ -1228,7 +1228,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             IndexAllMarkdownFiles();
             
             // Carica solo primo livello di cartelle che contengono file markdown
-            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")))
+            // Ordina: .github primo, poi folder "program", poi alfabetico
+            var sortedFolders = SortFoldersWithPriority(
+                Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")),
+                isRootLevel: true);
+            foreach (var itemFolder in sortedFolders)
             {
                 // Usa FoldersIgnoreService per filtrare le cartelle da nascondere nell'UI
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, currentPath))
@@ -1696,7 +1700,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             Directory.CreateDirectory(fullPath);
-            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty);
+            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase);
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -1921,6 +1925,33 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Ordina i folder: .github primo (solo root), poi folder "program", poi alfabetico
+        /// </summary>
+        private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel)
+        {
+            return folders.OrderBy(f => GetFolderSortPriority(f, isRootLevel))
+                          .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                          .ToList();
+        }
+
+        private int GetFolderSortPriority(string folderPath, bool isRootLevel)
+        {
+            var folderName = Path.GetFileName(folderPath);
+
+            // .github sempre primo (solo a livello root)
+            if (isRootLevel && folderName.Equals(".github", StringComparison.OrdinalIgnoreCase))
+                return 0;
+
+            // Folder con tag "program"
+            var tags = LoadDevelopmentTags(folderPath);
+            if (tags.Contains("program", StringComparer.OrdinalIgnoreCase))
+                return isRootLevel ? 1 : 0;
+
+            // Tutti gli altri
+            return 2;
+        }
+
         private string FindProjectRoot(string startPath)
         {
             try
@@ -2009,7 +2040,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     return;
                 }
-                foreach (var itemFolder in Directory.GetDirectories(pathFile))
+                // Ordina: folder "program" primi, poi alfabetico
+                var sortedFolders = SortFoldersWithPriority(Directory.GetDirectories(pathFile), isRootLevel: false);
+                foreach (var itemFolder in sortedFolders)
                 {
                     FileInfoNode node = CreateNodeFolderOnly(itemFolder);
                     fileInfoNode.Childrens.Add(node);
@@ -2028,7 +2061,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var isEmpty = true;
             var projectPath = GetProjectPath();
 
-            foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
+            // Ordina: folder "program" primi, poi alfabetico
+            var sortedFolders = SortFoldersWithPriority(
+                Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")),
+                isRootLevel: false);
+            foreach (var itemFolder in sortedFolders)
             {
                 // Check if folder should be ignored using FoldersIgnoreService
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
@@ -2079,7 +2116,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var isEmpty = true;
             var projectPath = GetProjectPath(connectionId);
 
-            foreach (var itemFolder in Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")))
+            // Ordina: folder "program" primi, poi alfabetico
+            var sortedFolders = SortFoldersWithPriority(
+                Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")),
+                isRootLevel: false);
+            foreach (var itemFolder in sortedFolders)
             {
                 // Check if folder should be ignored using FoldersIgnoreService
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
