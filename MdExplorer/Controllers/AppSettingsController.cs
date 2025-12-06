@@ -36,14 +36,13 @@ namespace MdExplorer.Service.Controllers
 
         public AppSettingsController(
                 ILogger<AppSettingsController> logger,
-                FileSystemWatcher fileSystemWatcher,
                 IOptions<MdExplorerAppSettings> options,
                 IHubContext<MonitorMDHub> hubContext,
                 IUserSettingsDB userSettingDB,
                 IEngineDB engineDB,
                 ProcessUtil processUtil,
                 IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingDB, engineDB, databaseManager: databaseManager)
+            : base(logger, options, hubContext, userSettingDB, engineDB, databaseManager: databaseManager)
         {
             _session = userSettingDB;
             _processUtil = processUtil;
@@ -95,6 +94,10 @@ namespace MdExplorer.Service.Controllers
             var settingDal = _session.GetDal<Setting>();
             var projectDal = _session.GetDal<Project>();
             var projectPath = GetProjectPath();
+
+            // Debug logging
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            _logger.LogInformation($"[OpenFile] ConnectionId: '{connectionId}', ProjectPath: '{projectPath}', FilePath: '{path}'");
 
             // Read IDE selection from Project database
             string selectedIde = "vscode"; // Default to VS Code

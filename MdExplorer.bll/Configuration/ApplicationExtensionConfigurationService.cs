@@ -13,17 +13,33 @@ namespace MdExplorer.Features.Configuration.Services
     public class ApplicationExtensionConfigurationService : IApplicationExtensionConfiguration
     {
         private readonly ILogger<ApplicationExtensionConfigurationService> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private ApplicationExtensionConfigurationModel _configuration;
-        private readonly string _configFilePath;
+        private string _projectPath;
+        private string _configFilePath;
 
         public ApplicationExtensionConfigurationService(
-            ILogger<ApplicationExtensionConfigurationService> logger,
-            FileSystemWatcher fileSystemWatcher)
+            ILogger<ApplicationExtensionConfigurationService> logger)
         {
             _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            _configFilePath = Path.Combine(_fileSystemWatcher.Path, ".mdapplicationtoopen");
+            // Load default configuration initially
+            // Configuration will be reloaded when project path is set
+            LoadDefaultConfiguration();
+        }
+
+        /// <summary>
+        /// Sets the current project path and reloads configuration.
+        /// Called when a project is opened.
+        /// </summary>
+        public void SetProjectPath(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(projectPath))
+            {
+                _logger.LogWarning($"Invalid project path provided: {projectPath}");
+                return;
+            }
+
+            _projectPath = projectPath;
+            _configFilePath = Path.Combine(_projectPath, ".mdapplicationtoopen");
             LoadConfiguration();
         }
 
@@ -52,6 +68,13 @@ namespace MdExplorer.Features.Configuration.Services
 
         private void LoadConfiguration()
         {
+            // If no project path set yet, use defaults
+            if (string.IsNullOrEmpty(_configFilePath))
+            {
+                LoadDefaultConfiguration();
+                return;
+            }
+
             if (File.Exists(_configFilePath))
             {
                 try
@@ -60,7 +83,7 @@ namespace MdExplorer.Features.Configuration.Services
                     var deserializer = new DeserializerBuilder()
                         .WithNamingConvention(CamelCaseNamingConvention.Instance)
                         .Build();
-                    
+
                     _configuration = deserializer.Deserialize<ApplicationExtensionConfigurationModel>(yamlContent);
                     _logger.LogInformation($"Loaded application extension configuration from {_configFilePath} with {_configuration.SupportedExtensions?.Count ?? 0} extensions");
                 }

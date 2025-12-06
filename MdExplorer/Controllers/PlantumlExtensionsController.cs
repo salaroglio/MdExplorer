@@ -28,13 +28,12 @@ namespace MdExplorer.Service.Controllers
         public PlantumlExtensionsController(
             ICommandFactoryHtml commandFactory,
             ILogger<PlantumlExtensionsController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+            : base(logger, options, hubContext, userSettingsDB, engineDB,
                   databaseManager: databaseManager)
         {
             _commandFactory = commandFactory;

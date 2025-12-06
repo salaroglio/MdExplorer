@@ -20,13 +20,12 @@ namespace MdExplorer.Service.Controllers
     {
         public IdeConfigurationController(
             ILogger<IdeConfigurationController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+            : base(logger, options, hubContext, userSettingsDB, engineDB,
                   databaseManager: databaseManager)
         {
         }

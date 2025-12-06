@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Configuration;
 using MdExplorer.Features.Configuration.Models;
+using MdExplorer.Hubs;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.DatabaseManager;
 using System;
@@ -13,51 +17,35 @@ namespace MdExplorer.Service.Controllers
 {
     [ApiController]
     [Route("api/compatibility")]
-    public class CompatibilityController : ControllerBase
+    public class CompatibilityController : MdControllerBase<CompatibilityController>
     {
-        private readonly ILogger<CompatibilityController> _logger;
         private readonly ICompatibilityModeService _compatibilityService;
-        private readonly IDatabaseManager _databaseManager;
-        private readonly FileSystemWatcher _fileSystemWatcher;
 
         public CompatibilityController(
             ILogger<CompatibilityController> logger,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
             ICompatibilityModeService compatibilityService,
-            IDatabaseManager databaseManager,
-            FileSystemWatcher fileSystemWatcher)
+            IDatabaseManager databaseManager = null)
+            : base(logger, options, hubContext, userSettingsDB, engineDB, databaseManager: databaseManager)
         {
-            _logger = logger;
             _compatibilityService = compatibilityService;
-            _databaseManager = databaseManager;
-            _fileSystemWatcher = fileSystemWatcher;
         }
 
         /// <summary>
-        /// Gets the project path for the current client based on ConnectionId.
-        /// Falls back to global FileSystemWatcher if ConnectionId not provided.
+        /// Gets the project path - uses base class method or explicit projectPath parameter
         /// </summary>
-        private string GetProjectPath(string connectionId)
+        private string ResolveProjectPath(string connectionId, string projectPath = null)
         {
-            if (!string.IsNullOrEmpty(connectionId) && _databaseManager != null)
+            // Explicit projectPath has priority (for project settings dialog)
+            if (!string.IsNullOrEmpty(projectPath))
             {
-                try
-                {
-                    var context = _databaseManager.GetContext(connectionId);
-                    if (context != null && !string.IsNullOrEmpty(context.ProjectPath))
-                    {
-                        _logger.LogDebug($"GetProjectPath from DatabaseManager for {connectionId}: {context.ProjectPath}");
-                        return context.ProjectPath;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, $"Failed to get project path from DatabaseManager for connection {connectionId}");
-                }
+                return projectPath;
             }
-
-            // Fallback to global FileSystemWatcher (backward compatibility)
-            _logger.LogDebug($"GetProjectPath fallback to FileSystemWatcher: {_fileSystemWatcher?.Path}");
-            return _fileSystemWatcher?.Path;
+            // Use base class method which uses ConnectionId from query
+            return GetProjectPath();
         }
 
         /// <summary>
@@ -71,7 +59,7 @@ namespace MdExplorer.Service.Controllers
             try
             {
                 // projectPath has priority over ConnectionId (for project settings dialog)
-                var targetPath = !string.IsNullOrEmpty(projectPath) ? projectPath : GetProjectPath(ConnectionId);
+                var targetPath = ResolveProjectPath(ConnectionId, projectPath);
                 if (string.IsNullOrEmpty(targetPath))
                 {
                     _logger.LogWarning("GetCompatibilityMode - No project path available, using default MdExplorer mode");
@@ -160,7 +148,7 @@ namespace MdExplorer.Service.Controllers
             try
             {
                 // ProjectPath in body has priority over ConnectionId (for project settings dialog)
-                var targetPath = !string.IsNullOrEmpty(request.ProjectPath) ? request.ProjectPath : GetProjectPath(ConnectionId);
+                var targetPath = ResolveProjectPath(ConnectionId, request.ProjectPath);
                 if (string.IsNullOrEmpty(targetPath))
                 {
                     _logger.LogWarning("SetCompatibilityMode - No project path available");
@@ -224,7 +212,7 @@ namespace MdExplorer.Service.Controllers
         {
             try
             {
-                var targetPath = GetProjectPath(ConnectionId);
+                var targetPath = ResolveProjectPath(ConnectionId, null);
                 var mode = _compatibilityService.GetMode(targetPath);
                 if (mode != CompatibilityMode.GitHub)
                 {

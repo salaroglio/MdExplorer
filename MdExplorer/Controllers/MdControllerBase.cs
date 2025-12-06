@@ -31,7 +31,6 @@ namespace MdExplorer.Service.Controllers
     public class MdControllerBase<T>: ControllerBase
     {
         protected readonly ILogger<T> _logger;
-        protected readonly FileSystemWatcher _fileSystemWatcher; // DEPRECATED: kept as fallback
         protected readonly IOptions<MdExplorerAppSettings> _options;
         protected readonly IHubContext<MonitorMDHub> _hubContext;
         protected readonly IUserSettingsDB _userSettingsDB;
@@ -42,7 +41,6 @@ namespace MdExplorer.Service.Controllers
         protected readonly IFileSystemWatcherManager _fileSystemWatcherManager;
 
         public MdControllerBase(ILogger<T> logger,
-            FileSystemWatcher fileSystemWatcher, // DEPRECATED: kept as fallback when DatabaseManager context is unavailable
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingDB,
@@ -54,7 +52,6 @@ namespace MdExplorer.Service.Controllers
             IFileSystemWatcherManager fileSystemWatcherManager = null)
         {
             _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher; // Keep as fallback
             this._options = options;
             _hubContext = hubContext;
             _userSettingsDB = userSettingDB;
@@ -76,23 +73,31 @@ namespace MdExplorer.Service.Controllers
         {
             if (_databaseManager == null)
             {
-                // Backward compatibility: use injected _engineDB
+                _logger?.LogWarning("⚠️ DatabaseManager is null");
                 return null;
             }
 
             var connectionId = Request.Query["ConnectionId"].ToString();
             if (string.IsNullOrEmpty(connectionId))
             {
-                _logger?.LogWarning("⚠️ ConnectionId not provided in request query");
+                _logger?.LogWarning($"⚠️ ConnectionId not provided in request. URL: {Request.Path}{Request.QueryString}");
+                // Log all registered connections for debugging
+                var registeredIds = _databaseManager.GetRegisteredConnectionIds();
+                _logger?.LogWarning($"⚠️ Registered connectionIds: [{string.Join(", ", registeredIds)}]");
                 return null;
             }
 
             try
             {
-                return _databaseManager.GetContext(connectionId);
+                var context = _databaseManager.GetContext(connectionId);
+                _logger?.LogDebug($"✅ Got context for {connectionId}: ProjectPath={context?.ProjectPath}");
+                return context;
             }
             catch (Exception ex)
             {
+                // Log all registered connections for debugging
+                var registeredIds = _databaseManager.GetRegisteredConnectionIds();
+                _logger?.LogError($"❌ ConnectionId '{connectionId}' not found. Registered: [{string.Join(", ", registeredIds)}]");
                 _logger?.LogError(ex, $"Failed to get database context for connection {connectionId}");
                 return null;
             }
@@ -158,7 +163,6 @@ namespace MdExplorer.Service.Controllers
 
         /// <summary>
         /// Gets the project path for current client from DatabaseManager.
-        /// Falls back to FileSystemWatcher.Path if DatabaseManager context is unavailable.
         /// </summary>
         protected string GetProjectPath()
         {
@@ -168,13 +172,7 @@ namespace MdExplorer.Service.Controllers
                 return context.ProjectPath;
             }
 
-            // Fallback to global FileSystemWatcher (backward compatibility)
-            if (_fileSystemWatcher != null && !string.IsNullOrEmpty(_fileSystemWatcher.Path))
-            {
-                return _fileSystemWatcher.Path;
-            }
-
-            _logger?.LogWarning("⚠️ Unable to get project path - both DatabaseManager and FileSystemWatcher unavailable");
+            _logger?.LogWarning("⚠️ Unable to get project path - DatabaseManager context unavailable");
             return string.Empty;
         }
 
@@ -190,19 +188,13 @@ namespace MdExplorer.Service.Controllers
                 return context.ProjectPath;
             }
 
-            // Fallback to global FileSystemWatcher (backward compatibility)
-            if (_fileSystemWatcher != null && !string.IsNullOrEmpty(_fileSystemWatcher.Path))
-            {
-                return _fileSystemWatcher.Path;
-            }
-
             _logger?.LogWarning($"⚠️ Unable to get project path for connection {connectionId}");
             return string.Empty;
         }
 
         /// <summary>
         /// Enables or disables file system monitoring for the current client.
-        /// Uses per-client FileSystemWatcherManager, falls back to global FileSystemWatcher.
+        /// Uses per-client FileSystemWatcherManager.
         /// </summary>
         /// <param name="enabled">True to enable monitoring, false to disable</param>
         protected void SetFileSystemWatcherEnabled(bool enabled)
@@ -213,10 +205,9 @@ namespace MdExplorer.Service.Controllers
             {
                 _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);
             }
-            else if (_fileSystemWatcher != null)
+            else
             {
-                // Fallback to global FileSystemWatcher (backward compatibility)
-                _fileSystemWatcher.EnableRaisingEvents = enabled;
+                _logger?.LogWarning("⚠️ Unable to set FileSystemWatcher - connectionId or manager unavailable");
             }
         }
 

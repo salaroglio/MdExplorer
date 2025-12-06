@@ -47,7 +47,6 @@ namespace MdExplorer.Controllers
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB session,
@@ -59,7 +58,7 @@ namespace MdExplorer.Controllers
             IYamlDefaultGenerator yamlDefaultGenerator,
             IWorkLink[] modifiers,
             IDatabaseManager databaseManager = null
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
             _goodRules = GoodRules;
             

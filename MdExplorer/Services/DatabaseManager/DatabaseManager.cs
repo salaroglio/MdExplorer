@@ -14,6 +14,7 @@ using NHibernate;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace MdExplorer.Services.DatabaseManager
@@ -159,6 +160,11 @@ namespace MdExplorer.Services.DatabaseManager
             _logger.LogDebug($"🔧 Creating isolated EngineDB for connection {connectionId}");
 
             return CreateEngineDB(engineDbPath);
+        }
+
+        public string[] GetRegisteredConnectionIds()
+        {
+            return _contexts.Keys.ToArray();
         }
 
         private IEngineDB CreateEngineDB(string connectionString)

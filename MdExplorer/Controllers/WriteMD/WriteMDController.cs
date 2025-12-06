@@ -43,7 +43,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
     {
         private static object lockAccessToFileMD = new object();
 
-        public WriteMDController(FileSystemWatcher fileSystemWatcher,
+        public WriteMDController(
             ILogger<WriteMDController> logger,
             IUserSettingsDB session,
             IEngineDB engineDB,
@@ -54,7 +54,7 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             IHelper helper,
             IDatabaseManager databaseManager = null,
             IFileSystemWatcherManager fileSystemWatcherManager = null
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager, fileSystemWatcherManager)
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
 

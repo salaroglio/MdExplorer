@@ -30,13 +30,13 @@ namespace MdExplorer.Service.Controllers
     [Route("/api/mdcreatemd/{*url}")]
     public class MdCreateMdController : MdControllerBase<MdCreateMdController>
     {
-        public MdCreateMdController(ILogger<MdCreateMdController> logger, 
-            FileSystemWatcher fileSystemWatcher, IOptions<MdExplorerAppSettings> options, 
+        public MdCreateMdController(ILogger<MdCreateMdController> logger,
+            IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext, IUserSettingsDB session, IEngineDB engineDB,
             ICommandRunnerPdf commandRunner,
             IWorkLink[] modifiers,
             IHelper helper
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers,helper)
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers,helper)
         {
         }
 

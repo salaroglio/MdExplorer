@@ -46,14 +46,13 @@ namespace MdExplorer.Controllers
         // private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor; // Field removed
 
         public MdExplorerReactEditorController(ILogger<MdExplorerReactEditorController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IUserSettingsDB session,
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IHelper helper,
             IWorkLink[] modifiers
-            ) : base(logger, fileSystemWatcher, options, null, session, null, commandRunner, modifiers, helper) // hubContext and engineDB passed as null to base
+            ) : base(logger, options, null, session, null, commandRunner, modifiers, helper) // hubContext and engineDB passed as null to base
         {
             _goodRules = GoodRules;
             // _yamlDocumentDescriptor assignment removed

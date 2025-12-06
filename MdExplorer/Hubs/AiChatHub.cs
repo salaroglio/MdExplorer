@@ -24,7 +24,6 @@ namespace MdExplorer.Hubs
         private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly ToolExecutor _toolExecutor;
         private readonly Features.Services.ChatInteractionLogger _chatLogger;
-        private readonly System.IO.FileSystemWatcher _fileSystemWatcher;
         private readonly IDatabaseManager _databaseManager;
 
         // Static dictionary to store chat mode per connection
@@ -67,8 +66,7 @@ namespace MdExplorer.Hubs
             IEnumerable<IAiProvider> aiProviders,
             ToolExecutor toolExecutor,
             Features.Services.ChatInteractionLogger chatLogger,
-            System.IO.FileSystemWatcher fileSystemWatcher,
-            IDatabaseManager databaseManager = null)
+            IDatabaseManager databaseManager)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -77,13 +75,11 @@ namespace MdExplorer.Hubs
             _aiProviders = aiProviders;
             _toolExecutor = toolExecutor;
             _chatLogger = chatLogger;
-            _fileSystemWatcher = fileSystemWatcher;
             _databaseManager = databaseManager;
         }
 
         /// <summary>
-        /// Gets the project path for the current connection.
-        /// Uses DatabaseManager if available, otherwise falls back to FileSystemWatcher.
+        /// Gets the project path for the current connection via DatabaseManager.
         /// </summary>
         private string GetProjectPath()
         {
@@ -96,8 +92,8 @@ namespace MdExplorer.Hubs
                     return projectPath;
                 }
             }
-            // Fallback to FileSystemWatcher (backward compatibility)
-            return _fileSystemWatcher?.Path ?? string.Empty;
+            _logger.LogWarning("⚠️ Unable to get project path - DatabaseManager context unavailable");
+            return string.Empty;
         }
 
         public async Task SendMessage(string message)

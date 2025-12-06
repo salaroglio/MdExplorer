@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { MdExplorerComponent } from './md-explorer.component';
 import { Routes, RouterModule } from '@angular/router';
 import { MdFileService } from './services/md-file.service';
-import { HttpClientModule } from '@angular/common/http';
+// HttpClientModule is imported in AppModule - DO NOT import here or interceptors won't work
 import { SafePipe } from './pipes/safePipe';
 import { SettingsComponent } from './components/dialogs/settings/settings.component';
 import { RenameFileComponent } from './components/refactoring/rename-file/rename-file.component';
@@ -92,7 +92,6 @@ const routes: Routes = [
   imports: [
     CommonModule,
     MaterialModule,
-    HttpClientModule,
     FormsModule,
     GitModule,
     AiChatModule,

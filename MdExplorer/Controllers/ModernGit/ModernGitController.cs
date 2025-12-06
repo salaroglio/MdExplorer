@@ -45,13 +45,12 @@ namespace MdExplorer.Controllers.ModernGit
             IHubContext<MonitorMDHub> hubContext,
             IEngineDB engineDB,
             IMdIgnoreService mdIgnoreService,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IGitRemoteUrlParser urlParser,
             IGenericRemoteService genericRemoteService,
             IGitAccountService gitAccountService,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
+            : base(logger, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
         {
             _gitService = gitService;
             _gitHubService = gitHubService;

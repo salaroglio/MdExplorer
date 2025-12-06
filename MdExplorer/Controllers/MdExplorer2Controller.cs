@@ -34,7 +34,6 @@ namespace MdExplorer.Service.Controllers
     public class MdExplorer2Controller : MdControllerBase<MdExplorer2Controller>
     {
         public MdExplorer2Controller(ILogger<MdExplorer2Controller> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB session,
@@ -43,7 +42,7 @@ namespace MdExplorer.Service.Controllers
             IWorkLink[] modifiers,
             IHelper helper,
             IDatabaseManager databaseManager = null) :
-            base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
+            base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
         }      
 

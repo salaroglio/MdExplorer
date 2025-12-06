@@ -52,6 +52,12 @@ namespace MdExplorer.Services.DatabaseManager
         /// <param name="connectionId">SignalR ConnectionId to get project path</param>
         /// <returns>New isolated EngineDB instance</returns>
         IEngineDB CreateIsolatedEngineDB(string connectionId);
+
+        /// <summary>
+        /// Gets all registered connection IDs (for debugging purposes).
+        /// </summary>
+        /// <returns>List of registered connection IDs</returns>
+        string[] GetRegisteredConnectionIds();
     }
 
     /// <summary>

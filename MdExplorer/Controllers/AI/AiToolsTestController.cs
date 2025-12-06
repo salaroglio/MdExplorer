@@ -33,13 +33,12 @@ namespace MdExplorer.Controllers.AI
             ILogger<AiToolsTestController> logger,
             IServiceProvider serviceProvider,
             ToolExecutor toolExecutor,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+            : base(logger, options, hubContext, userSettingsDB, engineDB,
                   databaseManager: databaseManager)
         {
             _serviceProvider = serviceProvider;

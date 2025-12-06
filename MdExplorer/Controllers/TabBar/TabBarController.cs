@@ -27,7 +27,6 @@ namespace MdExplorer.Service.Controllers.TabBar
     public class TabBarController : MdControllerBase<TabBarController>
     {
         private readonly ILogger<TabBarController> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly IMapper _mapper;
         private readonly IOptions<MdExplorerAppSettings> _options;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -35,7 +34,6 @@ namespace MdExplorer.Service.Controllers.TabBar
         private readonly ICommandRunner _commandRunner;
 
         public TabBarController(ILogger<TabBarController> logger,
-                                    FileSystemWatcher fileSystemWatcher,
                                     IMapper mapper,
                                     IOptions<MdExplorerAppSettings> options,
                                     IHubContext<MonitorMDHub> hubContext,
@@ -44,10 +42,9 @@ namespace MdExplorer.Service.Controllers.TabBar
                                     IWorkLink[] modifiers,
                                     IHelper helper,
                                     ICommandRunnerHtml commandRunner,
-                                    IDatabaseManager databaseManager = null) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner,modifiers,helper, databaseManager)
+                                    IDatabaseManager databaseManager = null) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers,helper, databaseManager)
         {
             _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
             _mapper = mapper;
             _options = options;
             _hubContext = hubContext;

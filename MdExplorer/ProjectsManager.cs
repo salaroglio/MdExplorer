@@ -62,6 +62,10 @@ namespace MdExplorer.Service
                                    new DatabaseSQLite(), typeof(IProjectDB),
                                    databasePathProject);
 
+            // Update application extension configuration with new project path
+            var extensionConfig = serviceProvider.GetService<Features.Configuration.Interfaces.IApplicationExtensionConfiguration>();
+            extensionConfig?.SetProjectPath(pathFromParameter);
+
             // Migration complete
             return gitInitialized;
         }
@@ -162,11 +166,12 @@ namespace MdExplorer.Service
         }
 
 /// <summary>
-/// DEPRECATED: This method registers a legacy global FileSystemWatcher singleton.
-/// For multi-client support, use IFileSystemWatcherManager instead which provides
-/// per-connection FileSystemWatcher instances.
-/// This singleton is kept for backward compatibility but should not be used.
+/// Validates and resolves the effective project path.
+/// If the provided path is invalid, defaults to the application's base directory.
 /// </summary>
+/// <param name="services">Service collection (kept for backward compatibility but no longer used)</param>
+/// <param name="pathFromParameter">The path parameter to validate</param>
+/// <returns>The validated effective path</returns>
 private static string ConfigFileSystemWatchers(IServiceCollection services, string pathFromParameter)
 {
     string effectivePath = pathFromParameter;
@@ -176,20 +181,12 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     if (string.IsNullOrEmpty(effectivePath) || !Directory.Exists(effectivePath))
     {
         // If pathFromParameter is not a valid directory, default to the application's base directory.
-        // This ensures FileSystemWatcher always gets a valid directory.
         effectivePath = AppDomain.CurrentDomain.BaseDirectory;
     }
 
-    // DEPRECATED: Legacy singleton FileSystemWatcher
+    // NOTE: Legacy FileSystemWatcher singleton has been removed.
     // Multi-client support now uses IFileSystemWatcherManager for per-connection watchers.
-    // This singleton is kept for backward compatibility but is NOT used for file monitoring.
-    // EnableRaisingEvents is set to false to prevent duplicate notifications.
-    services.AddSingleton<FileSystemWatcher>(sp =>
-    {
-        var logger = sp.GetService<ILogger<FileSystemWatcher>>();
-        logger?.LogWarning("⚠️ Legacy FileSystemWatcher singleton is deprecated. Use IFileSystemWatcherManager for multi-client support.");
-        return new FileSystemWatcher(effectivePath) { EnableRaisingEvents = false };
-    });
+    // The FileSystemWatcherManager is registered in Startup.cs.
 
     return effectivePath; // Return the path that was actually used.
 }

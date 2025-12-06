@@ -35,14 +35,13 @@ namespace MdExplorer.Controllers.ModernGit
         public ModernGitToolbarController(
             IModernGitService modernGitService,
             ILogger<ModernGitToolbarController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IMdIgnoreService mdIgnoreService,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+            : base(logger, options, hubContext, userSettingsDB, engineDB,
                   databaseManager: databaseManager)
         {
             _modernGitService = modernGitService;

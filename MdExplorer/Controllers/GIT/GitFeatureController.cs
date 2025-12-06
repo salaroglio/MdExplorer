@@ -34,7 +34,6 @@ namespace MdExplorer.Service.Controllers.GIT
     {
         private readonly IGitService _gitService;                                                   
         public GitFeatureController(IGitService gitService,
-        FileSystemWatcher fileSystemWatcher,
         IOptions<MdExplorerAppSettings> options,
         ILogger<GitFeatureController> logger,
         IHubContext<MonitorMDHub> hubContext,
@@ -43,7 +42,7 @@ namespace MdExplorer.Service.Controllers.GIT
          IHelper helper,
          IWorkLink[] modifiers,
         IEngineDB engineDB,
-        IDatabaseManager databaseManager = null) : base(logger, fileSystemWatcher, options,
+        IDatabaseManager databaseManager = null) : base(logger, options,
             hubContext, session, engineDB, commandRunner,
             modifiers, helper, databaseManager)
         {

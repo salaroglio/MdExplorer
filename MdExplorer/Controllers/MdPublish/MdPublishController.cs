@@ -26,13 +26,12 @@ namespace MdExplorer.Service.Controllers.MdPublish
         public MdPublishController(
             ProjectBodyEngine projectBodyEngine,
             ILogger<MdPublishController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IDatabaseManager databaseManager = null)
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+            : base(logger, options, hubContext, userSettingsDB, engineDB,
                   databaseManager: databaseManager)
         {
             _projectBodyEngine = projectBodyEngine;

@@ -91,7 +91,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IServiceScopeFactory _serviceScopeFactory;
 
 
-        public MdFilesController(FileSystemWatcher fileSystemWatcher,
+        public MdFilesController(
             IOptions<MdExplorerAppSettings> options,
             ILogger<MdFilesController> logger,
             IEngineDB engineDB,
@@ -112,7 +112,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         FoldersIgnoreService foldersIgnoreService,
         IServiceScopeFactory serviceScopeFactory,
         IDatabaseManager databaseManager = null
-            ) : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager)
+            ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager)
         {
 
             _goodRules = GoodRules;

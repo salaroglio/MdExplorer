@@ -28,7 +28,6 @@ namespace MdExplorer.Service.Controllers.Search
 
         public SearchController(
             ILogger<SearchController> logger,
-            FileSystemWatcher fileSystemWatcher,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
@@ -37,8 +36,8 @@ namespace MdExplorer.Service.Controllers.Search
             IWorkLink[] modifiers,
             IHelper helper,
             ISearchService searchService,
-            IMapper mapper) 
-            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB, commandRunner, modifiers, helper)
+            IMapper mapper)
+            : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, modifiers, helper)
         {
             _logger = logger;
             _searchService = searchService;

@@ -35,7 +35,8 @@ export class ConnectionIdInterceptor implements HttpInterceptor {
 
     // Skip if connectionId is not yet available
     if (!connectionId) {
-      console.warn('[ConnectionIdInterceptor] connectionId not available yet for request:', req.url);
+      console.error('[ConnectionIdInterceptor] ❌ connectionId is NULL for request:', req.url);
+      console.error('[ConnectionIdInterceptor] mdServerMessages:', this.mdServerMessages);
       return next.handle(req);
     }
 
@@ -46,6 +47,7 @@ export class ConnectionIdInterceptor implements HttpInterceptor {
       },
     });
 
+    console.log('[ConnectionIdInterceptor] ✅ Added connectionId to:', req.url);
     return next.handle(modifiedReq);
   }
 }

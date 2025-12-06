@@ -13,29 +13,22 @@ namespace MdExplorer.Service.Utilities
 {
     public class ProcessUtil
     {
-
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private Process _currentVisualStudio;
         private string _lastDocumentOpened;
         private string _editorPath;
+        private string _lastProjectPath;
         public Process CurrentVisualStudio { get { return _currentVisualStudio; } }
         public bool IKilled { get; set; }
 
-        public ProcessUtil(
-            FileSystemWatcher fileSystemWatcher)
+        public ProcessUtil()
         {
-
-            _fileSystemWatcher = fileSystemWatcher;
-        }
-        public void OpenFileWithVisualStudioCode(string path, string editorPath)
-        {
-            OpenFileWithVisualStudioCode(path, editorPath, _fileSystemWatcher.Path);
         }
 
         public void OpenFileWithVisualStudioCode(string path, string editorPath, string projectPath)
         {
             _editorPath = editorPath;
             _lastDocumentOpened = path;
+            _lastProjectPath = projectPath;
 
             // Clean up the path
             var currentPath = path.Replace(@"\\", System.IO.Path.DirectorySeparatorChar.ToString())
@@ -118,9 +111,9 @@ namespace MdExplorer.Service.Utilities
 
         public void ReopenVisualStudioCode(string newDocument)
         {
-            if (!string.IsNullOrEmpty(newDocument))
+            if (!string.IsNullOrEmpty(newDocument) && !string.IsNullOrEmpty(_lastProjectPath))
             {
-                OpenFileWithVisualStudioCode(newDocument, _editorPath);
+                OpenFileWithVisualStudioCode(newDocument, _editorPath, _lastProjectPath);
             }
         }
     }

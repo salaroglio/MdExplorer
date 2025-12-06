@@ -27,16 +27,17 @@ namespace MdExplorer.Service.Controllers
     /// </summary>
     [ApiController]
     [Route("/api/mdexportemail/{*url}")]
-    public class MdExportEmailController : ControllerBase
+    public class MdExportEmailController : MdControllerBase<MdExportEmailController>
     {
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly ICommandRunnerHtml _commandRunner;
-
-        public MdExportEmailController(FileSystemWatcher fileSystemWatcher,
+        public MdExportEmailController(
+            ILogger<MdExportEmailController> logger,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
             ICommandRunnerHtml commandRunner)
+            : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner)
         {
-            _fileSystemWatcher = fileSystemWatcher;
-            _commandRunner = commandRunner;
         }
 
         //[HttpGet]

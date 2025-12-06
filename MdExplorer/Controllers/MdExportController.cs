@@ -38,7 +38,6 @@ namespace MdExplorer.Service.Controllers
         /// </summary>
         private MonitoredMDModel monitoredMd;
         public MdExportController(ILogger<MdExportController> logger,
-                FileSystemWatcher fileSystemWatcher,
                 IOptions<MdExplorerAppSettings> options,
                 IHubContext<MonitorMDHub> hubContext,
                 IUserSettingsDB session,
@@ -50,7 +49,7 @@ namespace MdExplorer.Service.Controllers
                 IWorkLink[] modifiers,
                 IHelper helper,
                 IWordTemplateService wordTemplateService
-            ) : base(logger, fileSystemWatcher, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
         {
             _helperPdf = helperPdf;
             _yamlDocumentManager = yamlDocumentManager;

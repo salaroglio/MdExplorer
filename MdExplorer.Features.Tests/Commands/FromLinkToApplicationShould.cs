@@ -55,6 +55,11 @@ namespace MdExplorer.Features.Tests.Commands
             {
                 // No-op for testing
             }
+
+            public void SetProjectPath(string projectPath)
+            {
+                // No-op for testing
+            }
         }
 
 
