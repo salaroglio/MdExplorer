@@ -1,11 +1,18 @@
-﻿using MdExplorer;
+using MdExplorer;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models.GIT;
 using MdExplorer.Features.GIT;
 using MdExplorer.Features.GIT.models;
+using MdExplorer.Hubs;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.GIT;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,49 +24,61 @@ namespace MdExplorer.Service.Controllers.GIT
 {
     [ApiController]
     [Route("/api/gitservice/branches")]
-    public class BranchesController : ControllerBase
+    [Obsolete("This controller is deprecated. Use ModernGitToolbarController for SSH-based operations.")]
+    public class BranchesController : MdControllerBase<BranchesController>
     {
         private readonly IGitService _gitService;
-        private readonly FileSystemWatcher _fileSystemWatcher;
 
-        public BranchesController(IGitService gitService,
-            FileSystemWatcher fileSystemWatcher)
+        public BranchesController(
+            IGitService gitService,
+            FileSystemWatcher fileSystemWatcher,
+            ILogger<BranchesController> logger,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
             _gitService = gitService;
-            _fileSystemWatcher = fileSystemWatcher;
         }
+
         [HttpGet("feat/GetCurrentBranch")]
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/branch-status for SSH-based operations.")]
         public IActionResult GetCurrentBranch()
         {
-            var toReturn = _gitService.GetCurrentBranch(_fileSystemWatcher.Path);
-            var howManyFilesAreChanged = _gitService.HowManyFilesAreChanged(_fileSystemWatcher.Path);
+            var projectPath = GetProjectPath();
+            var toReturn = _gitService.GetCurrentBranch(projectPath);
+            var howManyFilesAreChanged = _gitService.HowManyFilesAreChanged(projectPath);
 
             return Ok(new
             {
                 name = toReturn,
                 somethingIsChangedInTheBranch = howManyFilesAreChanged > 0,
                 howManyFilesAreChanged = howManyFilesAreChanged
-            });//classe branch lato angular
+            });
         }
+
         [HttpGet("feat/getdatatopull")]
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/get-data-to-pull for SSH-based operations.")]
         public IActionResult GetDataToPull()
         {
+            var projectPath = GetProjectPath();
             var howManyFilesAreToPull = 0;
             var howManyCommitAreToPush = 0;
             var connectionIsActive = true;
             IList<FileNameAndAuthor> whatFilesAreChanged = new List<FileNameAndAuthor>();
             try
             {
-                howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(_fileSystemWatcher.Path);
-                howManyCommitAreToPush = _gitService.CountCommitsBehindTrackedBranch(_fileSystemWatcher.Path);
-                whatFilesAreChanged = _gitService.GetFilesAndAuthorsToBeChanged(_fileSystemWatcher.Path);
+                howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(projectPath);
+                howManyCommitAreToPush = _gitService.CountCommitsBehindTrackedBranch(projectPath);
+                whatFilesAreChanged = _gitService.GetFilesAndAuthorsToBeChanged(projectPath);
             }
             catch (Exception ex)
             {
-                connectionIsActive = false;                
-            }            
+                connectionIsActive = false;
+            }
             return Ok(new
             {
                 somethingIsToPull = howManyFilesAreToPull > 0,
@@ -74,35 +93,33 @@ namespace MdExplorer.Service.Controllers.GIT
         [Obsolete("This endpoint uses legacy Git service. Consider using modern Git operations.")]
         public IActionResult CheckoutBranch([FromBody] GitBranch branch)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
-            var toReturn = _gitService.CheckoutBranch(branch, _fileSystemWatcher.Path, GitCallBackForCheckout);
+            SetFileSystemWatcherEnabled(false);
+            var projectPath = GetProjectPath();
+            var toReturn = _gitService.CheckoutBranch(branch, projectPath, GitCallBackForCheckout);
 
             return Ok(new
             {
                 name = toReturn.Name,
                 somethingIsChangedInTheBranch = false,
                 howManyFilesAreChanged = 0,
-                FullPath = _fileSystemWatcher.Path,
-            });//classe branch lato angular
+                FullPath = projectPath,
+            });
         }
 
         private void GitCallBackForCheckout(string path, int a, int b)
         {
             if (a == b)
             {
-                _fileSystemWatcher.EnableRaisingEvents = true;
+                SetFileSystemWatcherEnabled(true);
             }
-
         }
-
 
         [HttpGet]
         [Obsolete("This endpoint uses legacy Git service. Consider using modern Git operations.")]
         public IActionResult GetBranches()
         {
-            var toReturn = _gitService.GetBranches(_fileSystemWatcher.Path);
+            var toReturn = _gitService.GetBranches(GetProjectPath());
             return Ok(toReturn);
         }
-
     }
 }

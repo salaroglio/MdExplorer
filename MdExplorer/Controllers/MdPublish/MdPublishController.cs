@@ -1,34 +1,48 @@
-﻿using MdExplorer.Abstractions.Interfaces;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.ProjectBody;
+using MdExplorer.Hubs;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Collections.Generic;
 using System.IO;
 using System;
 using System.Linq;
-using MdExplorer.Features.ProjectBody;
 
 namespace MdExplorer.Service.Controllers.MdPublish
 {
     [ApiController]
     [Route("api/mdPublishNodes")]
-    public class MdPublishController:ControllerBase
+    public class MdPublishController : MdControllerBase<MdPublishController>
     {
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ProjectBodyEngine _projectBodyEngine;
 
         public MdPublishController(
+            ProjectBodyEngine projectBodyEngine,
+            ILogger<MdPublishController> logger,
             FileSystemWatcher fileSystemWatcher,
-            ProjectBodyEngine projectBodyEngine
-            )
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
-            _fileSystemWatcher = fileSystemWatcher;
             _projectBodyEngine = projectBodyEngine;
         }
 
         [HttpGet]
         public IActionResult GetPublishDocuments([FromQuery] string path, string level)
         {
-            var publishBaseFolder =  $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}mdPublish";
+            var projectPath = GetProjectPath();
+            var publishBaseFolder = $"{projectPath}{Path.DirectorySeparatorChar}mdPublish";
             Directory.CreateDirectory(publishBaseFolder);
             var currentPath = path == "root" ? publishBaseFolder : path;
             var currentLevel = Convert.ToInt32(level);
@@ -50,10 +64,10 @@ namespace MdExplorer.Service.Controllers.MdPublish
                 listToReturn.Add(nodeempty);
                 return Ok(listToReturn);
             }
-            
 
-       
-            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel, _fileSystemWatcher.Path);
+
+
+            var list = _projectBodyEngine.GetPusblishDocuments(currentPath, currentLevel, projectPath);
             listToReturn.AddRange(list);
             return Ok(listToReturn);
         }

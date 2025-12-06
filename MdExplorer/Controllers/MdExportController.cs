@@ -141,7 +141,7 @@ namespace MdExplorer.Service.Controllers
                 {
                     Path = currentFilePdfPath,
                     Name = Path.GetFileName(currentFilePdfPath),
-                    RelativePath = currentFilePdfPath.Replace(GetProjectPath(), string.Empty),
+                    RelativePath = currentFilePdfPath.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase),
                     ConnectionId = connectionId,
                     StartExportTime = DateTime.Now
                 };

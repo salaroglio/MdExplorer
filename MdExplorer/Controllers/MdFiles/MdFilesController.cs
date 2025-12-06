@@ -292,7 +292,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var fullPathFileName = destinationDirectory.FullName 
                 + Path.DirectorySeparatorChar + trueFileName
                 ;
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             try
             {
                 System.IO.File.Copy(request.FullPath, fullPathFileName);
@@ -301,8 +301,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 _logger.LogInformation(ex.Message);
             }
-           
-            _fileSystemWatcher.EnableRaisingEvents = true;
+
+            SetFileSystemWatcherEnabled(true);
             var allText = System.IO.File.ReadAllText(request.MdFile.FullPath);
             // Normalize both paths to forward slashes before replacing to get relative path
             var projectPathNormalized = GetProjectPath().Replace("\\", "/");
@@ -338,7 +338,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 }
                 
                 // Common code for all platforms to save the image
-                _fileSystemWatcher.EnableRaisingEvents = false;
+                SetFileSystemWatcherEnabled(false);
                 
                 try
                 {
@@ -395,7 +395,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 }
                 finally
                 {
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -547,9 +547,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         return BadRequest(new { error = "Invalid file data or path" });
                     }
                     
-                    _fileSystemWatcher.EnableRaisingEvents = false;
+                    SetFileSystemWatcherEnabled(false);
                     System.IO.File.Delete(fileData.FullPath);
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                     Console.WriteLine($"[MdFilesController] File deleted successfully: {fileData.FullPath}");
                     return Ok(new { message = "done" });
                 }
@@ -558,7 +558,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 Console.WriteLine($"[MdFilesController] DeleteFile EXCEPTION: {ex.GetType().Name}: {ex.Message}");
                 // In caso di errore, assicurati di riabilitare il FileSystemWatcher
-                _fileSystemWatcher.EnableRaisingEvents = true;
+                SetFileSystemWatcherEnabled(true);
                 return StatusCode(500, new { message = $"Error deleting file: {ex.Message}" });
             }
         }
@@ -1324,9 +1324,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             // IMPORTANTE: Disabilita il FileSystemWatcher per prevenire duplicati durante l'indicizzazione
-            bool wasWatcherEnabled = _fileSystemWatcher.EnableRaisingEvents;
-            _fileSystemWatcher.EnableRaisingEvents = false;
-            _logger.LogInformation($"[GetAllMdFiles] FileSystemWatcher disabled for indexing. Was enabled: {wasWatcherEnabled}");
+            SetFileSystemWatcherEnabled(false);
+            _logger.LogInformation("[GetAllMdFiles] FileSystemWatcher disabled for indexing");
 
             try
             {
@@ -1410,18 +1409,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
             finally
             {
                 // IMPORTANTE: Riabilita sempre il FileSystemWatcher alla fine
-                if (wasWatcherEnabled)
-                {
-                    _fileSystemWatcher.EnableRaisingEvents = true;
-                    _logger.LogInformation("[GetAllMdFiles] FileSystemWatcher re-enabled after indexing");
-                }
+                SetFileSystemWatcherEnabled(true);
+                _logger.LogInformation("[GetAllMdFiles] FileSystemWatcher re-enabled after indexing");
             }
         }
 
         [HttpPost]
         public IActionResult CloneTimerMd([FromBody] FileInfoNode fileData)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
 
             var allText = System.IO.File.ReadAllText(fileData.FullPath);
             string destFullPath, destRelativePath;
@@ -1429,7 +1425,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             System.IO.File.WriteAllText(destFullPath, allText);
             // Devo preparare il nuovo file di risposta
             List<IFileInfoNode> list = PrepareListToGetBack(Path.GetFileName(destFullPath), destFullPath, destRelativePath);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(list);
         }
 
@@ -1467,19 +1463,36 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult CreateNewMd([FromBody] NewFile fileData)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
+
+            // DEBUG LOGGING
+            _logger.LogWarning("=== CreateNewMd DEBUG START ===");
+            _logger.LogWarning("fileData.DirectoryPath: [{DirectoryPath}]", fileData.DirectoryPath);
+            _logger.LogWarning("fileData.DirectoryLevel: [{DirectoryLevel}]", fileData.DirectoryLevel);
+            _logger.LogWarning("fileData.Title: [{Title}]", fileData.Title);
+            _logger.LogWarning("GetProjectPath(): [{ProjectPath}]", GetProjectPath());
+
             var goodMdRuleFileNameShouldBeSameAsTitle =
                     _goodRules.First(_ => _.GetType() ==
                         typeof(GoodMdRuleFileNameShouldBeSameAsTitle)) as GoodMdRuleFileNameShouldBeSameAsTitle;
 
             var title = goodMdRuleFileNameShouldBeSameAsTitle.GetTitle(fileData.Title) + ".md";
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + title;
+
+            _logger.LogWarning("title: [{Title}]", title);
+            _logger.LogWarning("fullPath (before root check): [{FullPath}]", fullPath);
+
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
                 fullPath = GetProjectPath() + Path.DirectorySeparatorChar + title;
+                _logger.LogWarning("fullPath (after root check - CHANGED): [{FullPath}]", fullPath);
+            }
+            else
+            {
+                _logger.LogWarning("fullPath (after root check - NOT changed, condition was false)");
             }
 
-            // Text Document Management            
+            // Text Document Management
             var templateContent = string.Empty;
             var snippetTextDocument = _snippets.Where(_ => _.Id == 0).FirstOrDefault();
             var dictParam = new DictionarySnippetParam();
@@ -1489,7 +1502,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             templateContent = snippetTextDocument.GetSnippet(dictParam);
 
 
-            // Additional Template 
+            // Additional Template
             var snippet = _snippets.Where(_ => _.Id == fileData.documentTypeId && _.Id != 0).FirstOrDefault();
             if (snippet != null)
             {
@@ -1499,14 +1512,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             // write content
-            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty);
+            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase);
+            _logger.LogWarning("relativePath (after Replace): [{RelativePath}]", relativePath);
+
             System.IO.File.WriteAllText(fullPath, templateContent);
 
 
             // prepare data to raise back
             List<IFileInfoNode> list = PrepareListToGetBack(title, fullPath, relativePath);
-            _fileSystemWatcher.EnableRaisingEvents = true;
-            
+            SetFileSystemWatcherEnabled(true);
+
             // Invia evento SignalR per il nuovo file creato
             var newFileNode = new
             {
@@ -1553,8 +1568,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private List<IFileInfoNode> PrepareListToGetBack(string title, string fullPath, string relativePath)
         {
+            _logger.LogWarning("=== PrepareListToGetBack DEBUG ===");
+            _logger.LogWarning("INPUT - title: [{Title}]", title);
+            _logger.LogWarning("INPUT - fullPath: [{FullPath}]", fullPath);
+            _logger.LogWarning("INPUT - relativePath: [{RelativePath}]", relativePath);
+
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
+
+            _logger.LogWarning("relativeSplitted (after Split and SkipLast): [{Splitted}]", string.Join(" | ", relativeSplitted));
+            _logger.LogWarning("relativeSplitted count: [{Count}]", relativeSplitted.Count());
 
             var dynamicRelativePath = string.Empty;
             var currentLevel = 0;
@@ -1563,6 +1586,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 dynamicRelativePath =
                         relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
                 dynamicRelativePath += item;
+
+                _logger.LogWarning("FOLDER NODE - Name: [{Name}], dynamicRelativePath: [{DynamicPath}], Level: [{Level}]",
+                    item, dynamicRelativePath, currentLevel);
 
                 var node = new FileInfoNode
                 {
@@ -1586,16 +1612,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Level = currentLevel,
             };
             list.Add(nodeFile);
+
+            _logger.LogWarning("FILE NODE - Name: [{Name}], Path: [{Path}], Level: [{Level}]", title, relativePath, currentLevel);
+            _logger.LogWarning("TOTAL NODES RETURNED: [{Count}]", list.Count);
+            _logger.LogWarning("=== PrepareListToGetBack DEBUG END ===");
+
             return list;
         }
 
         [HttpPost]
         public IActionResult RenameDirectory([FromBody] RenameDirectory fileData)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
 
-            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty);
+            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase);
 
             var list = new List<IFileInfoNode>();
             var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
@@ -1630,19 +1661,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Level = currentLevel,
             };
             list.Add(nodeFile);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(list);
         }
 
         [HttpPost]
         public IActionResult CreateNewDirectoryEx([FromBody] NewDirectory fileData)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
-            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + 
+            SetFileSystemWatcherEnabled(false);
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar +
                 fileData.DirectoryName.Replace(" ","-");
             Directory.CreateDirectory(fullPath);
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(fileData);
         }
 
@@ -1690,9 +1721,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpPost]
         public IActionResult CreateNewDirectory([FromBody] NewDirectory fileData)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
 
-            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + 
+            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar +
                 fileData.DirectoryName.Replace(" ", "-"); ;
             if (fileData.DirectoryLevel == 0 && fileData.DirectoryPath == "root")
             {
@@ -1710,14 +1741,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
             foreach (var item in relativeSplitted)
             {
                 dynamicRelativePath =
-                        relativeSplitted.First() == item ? "\\" : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
+                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
                 dynamicRelativePath += item;
 
                 var node = new FileInfoNode
                 {
                     Name = item,
-                    FullPath = GetProjectPath() + dynamicRelativePath,
-                    RelativePath =  dynamicRelativePath,
+                    FullPath = GetProjectPath() + Path.DirectorySeparatorChar + dynamicRelativePath,
+                    RelativePath = dynamicRelativePath,
                     Path = dynamicRelativePath,
                     Type = "folder",
                     Level = currentLevel,
@@ -1735,7 +1766,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Level = currentLevel,
             };
             list.Add(nodeFile);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(list);
         }
 

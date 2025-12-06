@@ -117,7 +117,7 @@ namespace MdExplorer.Controllers
             _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
 
             // Calculate relative path properly
-            var calculatedRelativePath = fullPathFile.Replace(GetProjectPath(), string.Empty);
+            var calculatedRelativePath = fullPathFile.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase);
             if (calculatedRelativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
             {
                 calculatedRelativePath = calculatedRelativePath.Substring(1);
@@ -278,7 +278,7 @@ namespace MdExplorer.Controllers
                     var updatedContent = defaultYaml + markdownTxt;
 
                     // Salva il file evitando il trigger del FileSystemWatcher
-                    _fileSystemWatcher.EnableRaisingEvents = false;
+                    SetFileSystemWatcherEnabled(false);
                     try
                     {
                         System.IO.File.WriteAllText(fullPathFile, updatedContent);
@@ -298,7 +298,7 @@ namespace MdExplorer.Controllers
                     }
                     finally
                     {
-                        _fileSystemWatcher.EnableRaisingEvents = true;
+                        SetFileSystemWatcherEnabled(true);
                     }
 
                     // Usa il contenuto aggiornato per il processing

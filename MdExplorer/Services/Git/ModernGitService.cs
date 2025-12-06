@@ -2490,18 +2490,144 @@ namespace MdExplorer.Services.Git
         }
 
         /// <summary>
-        /// Validates if a remote Git URL is reachable by performing a lightweight ls-remote check
+        /// Validates if a remote Git URL is reachable by performing a lightweight ls-remote check.
+        /// Uses different approaches based on provider type:
+        /// - OAuth providers (GitHub, GitLab, Azure, Bitbucket): uses git command to allow GCM to open browser
+        /// - Basic auth providers (SCM Manager, Gitea, etc.): uses LibGit2Sharp with existing credential resolution
         /// </summary>
         public async Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url)
         {
+            _logger.LogInformation("Validating remote URL reachability: {Url}", url);
+
+            if (IsOAuthProvider(url))
+            {
+                _logger.LogInformation("Detected OAuth provider, using git ls-remote with GCM support");
+                return await ValidateWithGitCommandAsync(url);
+            }
+            else
+            {
+                _logger.LogInformation("Detected Basic Auth provider, using LibGit2Sharp");
+                return await ValidateWithLibGit2SharpAsync(url);
+            }
+        }
+
+        /// <summary>
+        /// Determines if the URL belongs to an OAuth provider (GitHub, GitLab, Azure DevOps, Bitbucket).
+        /// These providers support GCM browser-based authentication.
+        /// </summary>
+        private bool IsOAuthProvider(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+
+            var urlLower = url.ToLowerInvariant();
+            return urlLower.Contains("github.com") ||
+                   urlLower.Contains("gitlab.com") ||
+                   urlLower.Contains("bitbucket.org") ||
+                   urlLower.Contains("dev.azure.com") ||
+                   urlLower.Contains("visualstudio.com");
+        }
+
+        /// <summary>
+        /// Validates URL using real git command, allowing GCM to handle OAuth authentication
+        /// (opens browser for login, shows account selection dialog, etc.)
+        /// </summary>
+        private async Task<RemoteUrlValidationResult> ValidateWithGitCommandAsync(string url)
+        {
             try
             {
-                _logger.LogInformation("Validating remote URL reachability: {Url}", url);
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"ls-remote --heads \"{url}\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = false  // Allow GCM to open browser/dialogs for authentication
+                    }
+                };
 
-                // Use LibGit2Sharp to attempt to list remote references (lightweight ls-remote equivalent)
+                _logger.LogInformation("Starting git ls-remote process (GCM may open browser for authentication)");
+                process.Start();
+
+                // Use longer timeout to allow for browser authentication (2 minutes)
+                var timeoutMs = 120000;
+                var completed = await Task.Run(() => process.WaitForExit(timeoutMs));
+
+                if (!completed)
+                {
+                    _logger.LogWarning("git ls-remote timed out after {Timeout}ms for URL: {Url}", timeoutMs, url);
+                    try { process.Kill(); } catch { }
+                    return new RemoteUrlValidationResult
+                    {
+                        IsReachable = false,
+                        Error = "Timeout waiting for authentication. Please try again."
+                    };
+                }
+
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
+
+                if (process.ExitCode == 0)
+                {
+                    var refCount = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+                    _logger.LogInformation("Remote URL validation successful: {Url}, found {RefCount} references", url, refCount);
+
+                    return new RemoteUrlValidationResult
+                    {
+                        IsReachable = true,
+                        ReferenceCount = refCount
+                    };
+                }
+                else
+                {
+                    _logger.LogWarning("git ls-remote failed for URL: {Url}, ExitCode: {ExitCode}, Error: {Error}",
+                        url, process.ExitCode, error);
+
+                    var errorMsg = error.ToLowerInvariant();
+                    var isAuthError = errorMsg.Contains("authentication") ||
+                                      errorMsg.Contains("unauthorized") ||
+                                      errorMsg.Contains("401") ||
+                                      errorMsg.Contains("403") ||
+                                      errorMsg.Contains("could not read username") ||
+                                      errorMsg.Contains("terminal prompts disabled");
+
+                    // GitHub returns 404 for private repos without auth
+                    var isPotentialAuthError = errorMsg.Contains("404") ||
+                                               errorMsg.Contains("not found") ||
+                                               errorMsg.Contains("repository not found");
+
+                    return new RemoteUrlValidationResult
+                    {
+                        IsReachable = false,
+                        Error = string.IsNullOrWhiteSpace(error) ? "Repository not accessible" : error.Trim(),
+                        IsAuthenticationError = isAuthError || isPotentialAuthError
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating remote URL with git command: {Url}", url);
+                return new RemoteUrlValidationResult
+                {
+                    IsReachable = false,
+                    Error = ex.Message
+                };
+            }
+        }
+
+        /// <summary>
+        /// Validates URL using LibGit2Sharp with existing credential resolution.
+        /// Used for Basic Auth providers (SCM Manager, Gitea, on-premises Git servers).
+        /// </summary>
+        private async Task<RemoteUrlValidationResult> ValidateWithLibGit2SharpAsync(string url)
+        {
+            try
+            {
+                // Use LibGit2Sharp to attempt to list remote references
                 var refs = Repository.ListRemoteReferences(url, (repoUrl, usernameFromUrl, types) =>
                 {
-                    // Try to resolve credentials using existing mechanism
                     return ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
                 });
 
@@ -2518,7 +2644,6 @@ namespace MdExplorer.Services.Git
             {
                 _logger.LogWarning(ex, "Remote URL validation failed: {Url}", url);
 
-                // Determine if it's an auth issue or connectivity issue
                 var errorMsg = ex.Message.ToLowerInvariant();
                 var isAuthError = errorMsg.Contains("authentication") ||
                                   errorMsg.Contains("unauthorized") ||

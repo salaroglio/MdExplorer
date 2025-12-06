@@ -9,6 +9,16 @@ using MdExplorer.Abstractions.Models;
 using System.Linq;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.SignalR;
+using MdExplorer.Hubs;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.EngineDB;
+using MdExplorer.Abstractions.Services;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
+using Microsoft.Extensions.Options;
 
 namespace MdExplorer.Controllers.ModernGit
 {
@@ -17,21 +27,27 @@ namespace MdExplorer.Controllers.ModernGit
     /// </summary>
     [ApiController]
     [Route("api/ModernGitToolbar")]
-    public class ModernGitToolbarController : ControllerBase
+    public class ModernGitToolbarController : MdControllerBase<ModernGitToolbarController>
     {
         private readonly IModernGitService _modernGitService;
-        private readonly ILogger<ModernGitToolbarController> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
+        private readonly IMdIgnoreService _mdIgnoreService;
 
         public ModernGitToolbarController(
-            IModernGitService modernGitService, 
+            IModernGitService modernGitService,
             ILogger<ModernGitToolbarController> logger,
-            FileSystemWatcher fileSystemWatcher)
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IMdIgnoreService mdIgnoreService,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
             _modernGitService = modernGitService;
-            _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            
+            _mdIgnoreService = mdIgnoreService;
+
             _logger.LogInformation("ModernGitToolbarController instantiated successfully");
         }
 
@@ -49,8 +65,8 @@ namespace MdExplorer.Controllers.ModernGit
                 _logger.LogInformation("Pull request received for path: {Path}", request.ProjectPath);
 
                 // Disable file watcher during Git operations to prevent conflicts
-                _fileSystemWatcher.EnableRaisingEvents = false;
-                
+                SetFileSystemWatcherEnabled(false);
+
                 try
                 {
                     var result = await _modernGitService.PullAsync(request.ProjectPath);
@@ -70,6 +86,12 @@ namespace MdExplorer.Controllers.ModernGit
 
                     if (result.Success)
                     {
+                        // Perform full tree refresh after successful pull with changes
+                        if (response.ChangedFiles?.Any() == true)
+                        {
+                            _logger.LogInformation("Pull successful with {FileCount} changed files, triggering tree refresh", response.ChangedFiles.Count);
+                            await PerformFullTreeRefreshAsync(request.ProjectPath);
+                        }
                         return Ok(response);
                     }
 
@@ -78,7 +100,7 @@ namespace MdExplorer.Controllers.ModernGit
                 finally
                 {
                     // Re-enable file watcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -100,8 +122,8 @@ namespace MdExplorer.Controllers.ModernGit
         [HttpPost("commit-and-push")]
         public async Task<IActionResult> CommitAndPush([FromBody] ToolbarGitRequest request)
         {
-            _logger.LogInformation("🚀 CommitAndPush method entered with request: {@Request}", request);
-            
+            _logger.LogInformation("CommitAndPush method entered with request: {@Request}", request);
+
             try
             {
                 if (string.IsNullOrEmpty(request?.ProjectPath))
@@ -119,13 +141,13 @@ namespace MdExplorer.Controllers.ModernGit
                 _logger.LogInformation("Commit and push request received for path: {Path}", request.ProjectPath);
 
                 // Disable file watcher during Git operations
-                _fileSystemWatcher.EnableRaisingEvents = false;
-                
+                SetFileSystemWatcherEnabled(false);
+
                 try
                 {
                     // Use current git user for author info
                     var author = await GetGitAuthorAsync(request.ProjectPath);
-                    
+
                     // Use commit message directly (author info is already in Git metadata)
                     var commitMessage = string.IsNullOrEmpty(request.CommitMessage)
                         ? $"Commit {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
@@ -155,7 +177,7 @@ namespace MdExplorer.Controllers.ModernGit
                 finally
                 {
                     // Re-enable file watcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -183,12 +205,12 @@ namespace MdExplorer.Controllers.ModernGit
                 _logger.LogInformation("Commit request received for path: {Path}", request.ProjectPath);
 
                 // Disable file watcher during Git operations
-                _fileSystemWatcher.EnableRaisingEvents = false;
-                
+                SetFileSystemWatcherEnabled(false);
+
                 try
                 {
                     var author = await GetGitAuthorAsync(request.ProjectPath);
-                    
+
                     // Use commit message directly (author info is already in Git metadata)
                     var commitMessage = string.IsNullOrEmpty(request.CommitMessage)
                         ? $"Commit {DateTime.Now:yyyy-MM-dd HH:mm:ss}"
@@ -216,7 +238,7 @@ namespace MdExplorer.Controllers.ModernGit
                 finally
                 {
                     // Re-enable file watcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -239,8 +261,8 @@ namespace MdExplorer.Controllers.ModernGit
         [HttpPost("push-v2")] // Add alternative route for testing
         public async Task<IActionResult> Push([FromBody] PushOnlyRequest request)
         {
-            _logger.LogInformation("🚀 TOOLBAR CONTROLLER Push method entered - request is null: {IsNull}", request == null);
-            
+            _logger.LogInformation("TOOLBAR CONTROLLER Push method entered - request is null: {IsNull}", request == null);
+
             try
             {
                 if (request == null)
@@ -258,8 +280,8 @@ namespace MdExplorer.Controllers.ModernGit
                 _logger.LogInformation("Push request received for path: {Path}", request.ProjectPath);
 
                 // Disable file watcher during Git operations
-                _fileSystemWatcher.EnableRaisingEvents = false;
-                
+                SetFileSystemWatcherEnabled(false);
+
                 try
                 {
                     var result = await _modernGitService.PushAsync(request.ProjectPath);
@@ -284,7 +306,7 @@ namespace MdExplorer.Controllers.ModernGit
                 finally
                 {
                     // Re-enable file watcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -315,17 +337,17 @@ namespace MdExplorer.Controllers.ModernGit
         public IActionResult TestCommit([FromQuery] string projectPath, [FromQuery] string commitMessage = null)
         {
             _logger.LogInformation("TestCommit called with projectPath: {ProjectPath}, commitMessage: {CommitMessage}", projectPath, commitMessage);
-            
+
             if (string.IsNullOrEmpty(projectPath))
             {
                 return BadRequest("ProjectPath is required");
             }
-            
-            return Ok(new { 
-                message = "Test commit endpoint reached successfully", 
+
+            return Ok(new {
+                message = "Test commit endpoint reached successfully",
                 projectPath = projectPath,
                 commitMessage = commitMessage,
-                timestamp = DateTime.Now 
+                timestamp = DateTime.Now
             });
         }
 
@@ -335,7 +357,7 @@ namespace MdExplorer.Controllers.ModernGit
         [HttpPost("test-simple")]
         public IActionResult TestSimple()
         {
-            _logger.LogInformation("🎯 TestSimple method called successfully!");
+            _logger.LogInformation("TestSimple method called successfully!");
             return Ok(new { message = "Simple POST test successful", timestamp = DateTime.Now });
         }
 
@@ -346,21 +368,21 @@ namespace MdExplorer.Controllers.ModernGit
         public IActionResult TestPushRequest([FromBody] ToolbarGitRequest request)
         {
             _logger.LogInformation("TestPushRequest method entered - request is null: {IsNull}", request == null);
-            
+
             if (request == null)
             {
                 _logger.LogError("TestPushRequest - request is null");
                 return BadRequest("Request is null");
             }
-            
-            _logger.LogInformation("TestPushRequest - ProjectPath: {ProjectPath}, CommitMessage: {CommitMessage}", 
+
+            _logger.LogInformation("TestPushRequest - ProjectPath: {ProjectPath}, CommitMessage: {CommitMessage}",
                 request.ProjectPath, request.CommitMessage);
-            
-            return Ok(new { 
-                message = "Request deserialized successfully", 
+
+            return Ok(new {
+                message = "Request deserialized successfully",
                 projectPath = request.ProjectPath,
                 commitMessage = request.CommitMessage,
-                timestamp = DateTime.Now 
+                timestamp = DateTime.Now
             });
         }
 
@@ -370,7 +392,7 @@ namespace MdExplorer.Controllers.ModernGit
         [HttpPost("test-push")]
         public IActionResult TestPush([FromBody] ToolbarGitRequest request)
         {
-            _logger.LogInformation("🔥 TestPush method entered - request is null: {IsNull}", request == null);
+            _logger.LogInformation("TestPush method entered - request is null: {IsNull}", request == null);
             return Ok(new { message = "TestPush method reached", timestamp = DateTime.Now });
         }
 
@@ -468,7 +490,7 @@ namespace MdExplorer.Controllers.ModernGit
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting pull/push data for path: {Path}", projectPath);
-                
+
                 // Return a response indicating connection failure
                 return Ok(new DataToPullResponse
                 {
@@ -544,11 +566,11 @@ namespace MdExplorer.Controllers.ModernGit
         {
             if (changes == null) return new List<ChangedFileInfo>();
 
-            return changes.Select(change => 
+            return changes.Select(change =>
             {
                 var fullPath = Path.Combine(projectPath, change);
                 var relativePath = change.Replace('\\', '/');
-                
+
                 return new ChangedFileInfo
                 {
                     FullPath = fullPath,
@@ -569,12 +591,12 @@ namespace MdExplorer.Controllers.ModernGit
             var nodes = new List<FileStructureNode>();
             var parts = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
             var currentPath = "";
-            
+
             for (int i = 0; i < parts.Length; i++)
             {
                 currentPath = Path.Combine(currentPath, parts[i]);
                 var fullPath = Path.Combine(projectPath, currentPath);
-                
+
                 nodes.Add(new FileStructureNode
                 {
                     Name = parts[i],
@@ -585,7 +607,7 @@ namespace MdExplorer.Controllers.ModernGit
                     Expandable = i < parts.Length - 1
                 });
             }
-            
+
             return nodes;
         }
 
@@ -656,7 +678,7 @@ namespace MdExplorer.Controllers.ModernGit
                     request.FilePath, request.ProjectPath, request.IsNew);
 
                 // Disable file watcher during Git operations
-                _fileSystemWatcher.EnableRaisingEvents = false;
+                SetFileSystemWatcherEnabled(false);
 
                 try
                 {
@@ -694,7 +716,7 @@ namespace MdExplorer.Controllers.ModernGit
                 finally
                 {
                     // Re-enable file watcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -735,7 +757,7 @@ namespace MdExplorer.Controllers.ModernGit
                     request.FilePath, request.ProjectPath);
 
                 // Disable file watcher during Git operations
-                _fileSystemWatcher.EnableRaisingEvents = false;
+                SetFileSystemWatcherEnabled(false);
 
                 try
                 {
@@ -762,7 +784,7 @@ namespace MdExplorer.Controllers.ModernGit
                 finally
                 {
                     // Re-enable file watcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)
@@ -778,6 +800,140 @@ namespace MdExplorer.Controllers.ModernGit
                 });
             }
         }
+
+        #region MD-Tree Refresh for Git Pull
+
+        /// <summary>
+        /// Performs full tree refresh after Git pull:
+        /// 1. DELETE all LinkInsideMarkdown records
+        /// 2. DELETE all MarkdownFile records
+        /// 3. RE-INDEX all .md files from filesystem
+        /// 4. Emit SignalR event to notify client
+        /// </summary>
+        private async Task<int> PerformFullTreeRefreshAsync(string projectPath)
+        {
+            try
+            {
+                _logger.LogInformation("[PerformFullTreeRefresh] Starting full tree refresh after pull for path: {Path}", projectPath);
+
+                var engineDB = GetEngineDB();
+
+                // Step 1: Clean database (DELETE all records)
+                CleanupDatabase(engineDB);
+
+                // Step 2: Re-index all markdown files from filesystem
+                int fileCount = IndexAllMarkdownFiles(projectPath, engineDB);
+
+                // Step 3: Emit SignalR event to notify all clients
+                await _hubContext.Clients.All.SendAsync("gitPullRefreshed", new
+                {
+                    fileCount = fileCount,
+                    message = "Tree refresh completed after pull"
+                });
+
+                _logger.LogInformation("[PerformFullTreeRefresh] Full tree refresh completed: {FileCount} files indexed", fileCount);
+                return fileCount;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[PerformFullTreeRefresh] Error during full tree refresh");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Cleans database by deleting ALL records from LinkInsideMarkdown and MarkdownFile tables.
+        /// </summary>
+        private void CleanupDatabase(IEngineDB engineDB)
+        {
+            try
+            {
+                _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup after pull");
+
+                engineDB.BeginTransaction();
+
+                // Step 1: Delete all LinkInsideMarkdown records (foreign key to MarkdownFile)
+                _logger.LogInformation("[CleanupDatabase] Deleting all LinkInsideMarkdown records");
+                engineDB.Delete("from LinkInsideMarkdown");
+                engineDB.Flush();
+
+                // Step 2: Delete all MarkdownFile records
+                _logger.LogInformation("[CleanupDatabase] Deleting all MarkdownFile records");
+                engineDB.Delete("from MarkdownFile");
+                engineDB.Flush();
+
+                engineDB.Commit();
+
+                _logger.LogInformation("[CleanupDatabase] Database cleanup completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup");
+                engineDB.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Indexes all markdown files from the filesystem into the MarkdownFile table.
+        /// Respects .mdignore rules and excludes .md folder.
+        /// </summary>
+        private int IndexAllMarkdownFiles(string projectPath, IEngineDB engineDB)
+        {
+            try
+            {
+                _logger.LogInformation("[IndexAllMarkdownFiles] Starting indexing for path: {Path}", projectPath);
+
+                if (string.IsNullOrEmpty(projectPath) || projectPath == AppDomain.CurrentDomain.BaseDirectory)
+                {
+                    _logger.LogWarning("[IndexAllMarkdownFiles] Invalid path, skipping indexing");
+                    return 0;
+                }
+
+                engineDB.BeginTransaction();
+                var markdownFileDal = engineDB.GetDal<MarkdownFile>();
+
+                // Find all .md files recursively, excluding ignored paths
+                var allMdFiles = Directory.GetFiles(projectPath, "*.md", SearchOption.AllDirectories)
+                    .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar))
+                    .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, projectPath))
+                    .ToList();
+
+                _logger.LogInformation("[IndexAllMarkdownFiles] Found {FileCount} markdown files to index", allMdFiles.Count);
+
+                foreach (var filePath in allMdFiles)
+                {
+                    try
+                    {
+                        var markdownFile = new MarkdownFile
+                        {
+                            FileName = Path.GetFileName(filePath),
+                            Path = filePath,
+                            FileType = "file"
+                        };
+
+                        markdownFileDal.Save(markdownFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[IndexAllMarkdownFiles] Error indexing file: {FilePath}", filePath);
+                    }
+                }
+
+                engineDB.Commit();
+                _logger.LogInformation("[IndexAllMarkdownFiles] Indexing completed: {FileCount} files", allMdFiles.Count);
+
+                return allMdFiles.Count;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during indexing");
+                engineDB.Rollback();
+                throw;
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>

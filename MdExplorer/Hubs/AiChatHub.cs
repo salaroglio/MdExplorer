@@ -11,6 +11,7 @@ using MdExplorer.Abstractions.Services;
 using MdExplorer.bll.Services.AI;
 using MdExplorer.bll.Models.AI;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Hubs
 {
@@ -24,6 +25,7 @@ namespace MdExplorer.Hubs
         private readonly ToolExecutor _toolExecutor;
         private readonly Features.Services.ChatInteractionLogger _chatLogger;
         private readonly System.IO.FileSystemWatcher _fileSystemWatcher;
+        private readonly IDatabaseManager _databaseManager;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -65,7 +67,8 @@ namespace MdExplorer.Hubs
             IEnumerable<IAiProvider> aiProviders,
             ToolExecutor toolExecutor,
             Features.Services.ChatInteractionLogger chatLogger,
-            System.IO.FileSystemWatcher fileSystemWatcher)
+            System.IO.FileSystemWatcher fileSystemWatcher,
+            IDatabaseManager databaseManager = null)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -75,6 +78,26 @@ namespace MdExplorer.Hubs
             _toolExecutor = toolExecutor;
             _chatLogger = chatLogger;
             _fileSystemWatcher = fileSystemWatcher;
+            _databaseManager = databaseManager;
+        }
+
+        /// <summary>
+        /// Gets the project path for the current connection.
+        /// Uses DatabaseManager if available, otherwise falls back to FileSystemWatcher.
+        /// </summary>
+        private string GetProjectPath()
+        {
+            var connectionId = Context?.ConnectionId;
+            if (!string.IsNullOrEmpty(connectionId) && _databaseManager != null)
+            {
+                var projectPath = _databaseManager.GetProjectPath(connectionId);
+                if (!string.IsNullOrEmpty(projectPath))
+                {
+                    return projectPath;
+                }
+            }
+            // Fallback to FileSystemWatcher (backward compatibility)
+            return _fileSystemWatcher?.Path ?? string.Empty;
         }
 
         public async Task SendMessage(string message)
@@ -136,7 +159,7 @@ namespace MdExplorer.Hubs
 
                     // Create tool executor delegate that captures connectionId, currentDocument, and workspaceRoot
                     var connectionId = Context.ConnectionId;
-                    var workspaceRoot = _fileSystemWatcher.Path; // Get current workspace root dynamically
+                    var workspaceRoot = GetProjectPath(); // Get current workspace root from DatabaseManager
 
                     _logger.LogInformation($"[SendMessage] Using workspace root: {workspaceRoot}");
 

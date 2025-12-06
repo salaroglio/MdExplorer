@@ -1,4 +1,4 @@
-﻿using Ad.Tools.Dal.Abstractions.Interfaces;
+using Ad.Tools.Dal.Abstractions.Interfaces;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Interfaces;
@@ -31,7 +31,7 @@ namespace MdExplorer.Service.Controllers
     public class MdControllerBase<T>: ControllerBase
     {
         protected readonly ILogger<T> _logger;
-        protected readonly FileSystemWatcher _fileSystemWatcher;
+        protected readonly FileSystemWatcher _fileSystemWatcher; // DEPRECATED: kept as fallback
         protected readonly IOptions<MdExplorerAppSettings> _options;
         protected readonly IHubContext<MonitorMDHub> _hubContext;
         protected readonly IUserSettingsDB _userSettingsDB;
@@ -42,7 +42,7 @@ namespace MdExplorer.Service.Controllers
         protected readonly IFileSystemWatcherManager _fileSystemWatcherManager;
 
         public MdControllerBase(ILogger<T> logger,
-            FileSystemWatcher fileSystemWatcher,
+            FileSystemWatcher fileSystemWatcher, // DEPRECATED: kept as fallback when DatabaseManager context is unavailable
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingDB,
@@ -54,7 +54,7 @@ namespace MdExplorer.Service.Controllers
             IFileSystemWatcherManager fileSystemWatcherManager = null)
         {
             _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
+            _fileSystemWatcher = fileSystemWatcher; // Keep as fallback
             this._options = options;
             _hubContext = hubContext;
             _userSettingsDB = userSettingDB;
@@ -157,7 +157,8 @@ namespace MdExplorer.Service.Controllers
         }
 
         /// <summary>
-        /// Gets the project path for current client. Uses DatabaseManager if available, otherwise falls back to global FileSystemWatcher.
+        /// Gets the project path for current client from DatabaseManager.
+        /// Falls back to FileSystemWatcher.Path if DatabaseManager context is unavailable.
         /// </summary>
         protected string GetProjectPath()
         {
@@ -168,7 +169,13 @@ namespace MdExplorer.Service.Controllers
             }
 
             // Fallback to global FileSystemWatcher (backward compatibility)
-            return _fileSystemWatcher?.Path;
+            if (_fileSystemWatcher != null && !string.IsNullOrEmpty(_fileSystemWatcher.Path))
+            {
+                return _fileSystemWatcher.Path;
+            }
+
+            _logger?.LogWarning("⚠️ Unable to get project path - both DatabaseManager and FileSystemWatcher unavailable");
+            return string.Empty;
         }
 
         /// <summary>
@@ -184,12 +191,18 @@ namespace MdExplorer.Service.Controllers
             }
 
             // Fallback to global FileSystemWatcher (backward compatibility)
-            return _fileSystemWatcher?.Path;
+            if (_fileSystemWatcher != null && !string.IsNullOrEmpty(_fileSystemWatcher.Path))
+            {
+                return _fileSystemWatcher.Path;
+            }
+
+            _logger?.LogWarning($"⚠️ Unable to get project path for connection {connectionId}");
+            return string.Empty;
         }
 
         /// <summary>
         /// Enables or disables file system monitoring for the current client.
-        /// Uses per-client FileSystemWatcherManager if available, otherwise falls back to global FileSystemWatcher.
+        /// Uses per-client FileSystemWatcherManager, falls back to global FileSystemWatcher.
         /// </summary>
         /// <param name="enabled">True to enable monitoring, false to disable</param>
         protected void SetFileSystemWatcherEnabled(bool enabled)
@@ -200,13 +213,10 @@ namespace MdExplorer.Service.Controllers
             {
                 _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);
             }
-            else
+            else if (_fileSystemWatcher != null)
             {
                 // Fallback to global FileSystemWatcher (backward compatibility)
-                if (_fileSystemWatcher != null)
-                {
-                    _fileSystemWatcher.EnableRaisingEvents = enabled;
-                }
+                _fileSystemWatcher.EnableRaisingEvents = enabled;
             }
         }
 
@@ -248,10 +258,10 @@ namespace MdExplorer.Service.Controllers
                         .Replace(projectPath2, string.Empty)
                         .Replace(Path.DirectorySeparatorChar, '/');
                     LinkInsideMarkdown linkToStore = linkInsideMarkdownDal.GetList()
-                        .Where(_=>_.FullPath == normalizedFullPath 
-                            && _.Source == getModifier.GetType().Name 
+                        .Where(_=>_.FullPath == normalizedFullPath
+                            && _.Source == getModifier.GetType().Name
                             && _.HTMLTitle == singleLink.HTMLTitle
-                            && _.MdTitle == singleLink.MdTitle 
+                            && _.MdTitle == singleLink.MdTitle
                             && _.LinkedCommand == singleLink.LinkedCommand
                             && _.MarkdownFile.Id == relationship.Id).FirstOrDefault();
                     if (linkToStore == null)
@@ -276,7 +286,7 @@ namespace MdExplorer.Service.Controllers
                         linkToStore.LinkedCommand = singleLink.LinkedCommand;
                         linkToStore.SectionIndex = singleLink.SectionIndex;
                     }
-                     
+
                     linkInsideMarkdownDal.Save(linkToStore);
                 }
             }

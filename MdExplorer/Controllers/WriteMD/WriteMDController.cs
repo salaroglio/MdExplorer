@@ -364,12 +364,12 @@ namespace MdExplorer.Service.Controllers.WriteMDDto
             // 
 
             System.IO.File.WriteAllText(systemPathFile, markdown);
-            var relativePath = dto.PathFile.Replace(GetProjectPath(), string.Empty).Replace(Path.DirectorySeparatorChar, '/');
+            var relativePath = dto.PathFile.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase).Replace(Path.DirectorySeparatorChar, '/');
             var monitoredMd = new MonitoredMDModel
             {
                 Path = relativePath,
                 Name = Path.GetFileName(systemPathFile),
-                RelativePath = systemPathFile.Replace(GetProjectPath(), string.Empty),
+                RelativePath = systemPathFile.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase),
                 FullPath = systemPathFile,
                 FullDirectoryPath = Path.GetDirectoryName(systemPathFile)
             };

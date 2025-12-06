@@ -91,7 +91,7 @@ namespace MdExplorer.Service.Controllers
             {
                 Path = filePathSystem1,
                 Name = Path.GetFileName(filePathSystem1),
-                RelativePath = filePathSystem1.Replace(GetProjectPath(), string.Empty)
+                RelativePath = filePathSystem1.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase)
             };
 
             var readText = string.Empty;

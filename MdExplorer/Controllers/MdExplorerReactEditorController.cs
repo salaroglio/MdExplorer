@@ -515,7 +515,7 @@ namespace MdExplorer.Controllers
                 }
 
                 // Disabilita temporaneamente il FileSystemWatcher per evitare doppi eventi
-                _fileSystemWatcher.EnableRaisingEvents = false;
+                SetFileSystemWatcherEnabled(false);
                 try
                 {
                     await System.IO.File.WriteAllTextAsync(filePathToAccessOnServer, finalContentToWrite, Encoding.UTF8);
@@ -525,7 +525,7 @@ namespace MdExplorer.Controllers
                 finally
                 {
                     // Riabilita sempre il FileSystemWatcher
-                    _fileSystemWatcher.EnableRaisingEvents = true;
+                    SetFileSystemWatcherEnabled(true);
                 }
             }
             catch (Exception ex)

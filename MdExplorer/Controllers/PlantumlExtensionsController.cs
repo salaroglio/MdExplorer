@@ -1,7 +1,14 @@
-﻿using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
+using MdExplorer.Hubs;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,21 +21,23 @@ namespace MdExplorer.Service.Controllers
 {
     [ApiController]
     [Route("/api/plantumlextensions/{action}")]
-    public class PlantumlExtensionsController : ControllerBase
+    public class PlantumlExtensionsController : MdControllerBase<PlantumlExtensionsController>
     {
-        private readonly FileSystemWatcher _fileSystemWatcher;
         private readonly ICommandFactoryHtml _commandFactory;
 
-        public PlantumlExtensionsController(FileSystemWatcher fileSystemWatcher, ICommandFactoryHtml commandFactory)
+        public PlantumlExtensionsController(
+            ICommandFactoryHtml commandFactory,
+            ILogger<PlantumlExtensionsController> logger,
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
-            _fileSystemWatcher = fileSystemWatcher;
             _commandFactory = commandFactory;
-        }
-
-        protected string GetRelativePathFileSystem(string controllerName)
-        {
-            //mdexplorer
-            return HttpUtility.UrlDecode(Request.Path.ToString().Replace($"/api/{controllerName}/", string.Empty).Replace('/', Path.DirectorySeparatorChar));
         }
 
         [HttpGet]
@@ -44,8 +53,8 @@ namespace MdExplorer.Service.Controllers
 
         private (RequestInfo, string) GetMarkDown(string pathFile)
         {
-
-            var rootPathSystem = $"{_fileSystemWatcher.Path}{Path.DirectorySeparatorChar}";
+            var projectPath = GetProjectPath();
+            var rootPathSystem = $"{projectPath}{Path.DirectorySeparatorChar}";
             var relativePathFileSystem = pathFile;
             var relativePathExtension = Path.GetExtension(relativePathFileSystem);
             var filePathSystem1 = string.Empty;
@@ -62,7 +71,7 @@ namespace MdExplorer.Service.Controllers
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = _fileSystemWatcher.Path,
+                CurrentRoot = projectPath,
                 AbsolutePathFile = filePathSystem1,
             };
 

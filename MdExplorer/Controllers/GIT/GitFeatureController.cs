@@ -54,9 +54,9 @@ namespace MdExplorer.Service.Controllers.GIT
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar for SSH-based operations.")]
         public IActionResult CloneRepository(CloneInfo request)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             var areCredentialsCorrect = _gitService.CloneRepository(request);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new { areCredentialsCorrect = areCredentialsCorrect, message = "done" });
         }
 
@@ -64,7 +64,7 @@ namespace MdExplorer.Service.Controllers.GIT
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/pull for SSH-based operations.")]
         public IActionResult Pull(PullInfo pullInfo)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
 
 
             var filesToBeChanged = _gitService.CheckExistenceAccountAndGetFilesAndAuthorsToBeChanged(GetProjectPath(), pullInfo);
@@ -83,7 +83,7 @@ namespace MdExplorer.Service.Controllers.GIT
 
             foreach (var fileMdo in filesMdo)
             {
-                var splittedFullPath = fileMdo.FullPath.Replace(GetProjectPath(), string.Empty).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
+                var splittedFullPath = fileMdo.FullPath.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase).Split("\\", System.StringSplitOptions.RemoveEmptyEntries).ToList();
                 var currentPathName = string.Empty;
                 var currentLevel = 0;
                 foreach (var item in splittedFullPath)
@@ -124,7 +124,7 @@ namespace MdExplorer.Service.Controllers.GIT
             var pullResult = _gitService.Pull(pullInfo);
             RefreshDatabase(filesToBeChanged);            
 
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new
             {
                 isConnectionMissing = pullResult.IsConnectionMissing,
@@ -174,13 +174,13 @@ namespace MdExplorer.Service.Controllers.GIT
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/commit-and-push for SSH-based operations.")]
         public IActionResult CommitAndPush(PullInfo pullInfo)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
              pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
                string errorMessage) = _gitService.CommitAndPush(pullInfo);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new
             {
                 isConnectionMissing = isConnectionMissing,
@@ -194,13 +194,13 @@ namespace MdExplorer.Service.Controllers.GIT
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/commit for SSH-based operations.")]
         public IActionResult Commit(PullInfo pullInfo)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
                string errorMessage) = _gitService.Commit(pullInfo);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new
             {
                 isConnectionMissing = isConnectionMissing,
@@ -214,13 +214,13 @@ namespace MdExplorer.Service.Controllers.GIT
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/push for SSH-based operations.")]
         public IActionResult Push(PullInfo pullInfo)
         {
-            _fileSystemWatcher.EnableRaisingEvents = false;
+            SetFileSystemWatcherEnabled(false);
             pullInfo.ProjectPath = GetProjectPath();
             (bool isConnectionMissing,
                bool isAuthenticationMissing,
                bool thereAreConflicts,
                string errorMessage) = _gitService.Push(pullInfo);
-            _fileSystemWatcher.EnableRaisingEvents = true;
+            SetFileSystemWatcherEnabled(true);
             return Ok(new
             {
                 isConnectionMissing = isConnectionMissing,

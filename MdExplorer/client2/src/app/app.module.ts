@@ -3,7 +3,8 @@ import { BrowserModule } from '@angular/platform-browser';
 import { Routes, RouterModule } from '@angular/router';
 import { FlexLayoutModule } from '@angular/flex-layout';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { ConnectionIdInterceptor } from './interceptors/connection-id.interceptor';
 
 
 //import { AppRoutingModule } from './app-routing.module';
@@ -60,10 +61,17 @@ const routes: Routes = [
     HttpClientModule,    
     
   ],
-  providers: [ParsingProjectProvider,
+  providers: [
+    ParsingProjectProvider,
     ConnectionLostProvider,
     PlantumlWorkingProvider,
-    OpeningApplicationProvider],
+    OpeningApplicationProvider,
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: ConnectionIdInterceptor,
+      multi: true
+    }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule {

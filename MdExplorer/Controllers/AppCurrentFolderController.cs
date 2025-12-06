@@ -1,4 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Hubs;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,19 +17,25 @@ namespace MdExplorer.Service.Controllers
 {
     [ApiController]
     [Route("api/AppCurrentFolder")]
-    public class AppCurrentFolderController:ControllerBase
+    public class AppCurrentFolderController : MdControllerBase<AppCurrentFolderController>
     {
-        private readonly FileSystemWatcher _fileSystemWatcher;
-
-        public AppCurrentFolderController(FileSystemWatcher fileSystemWatcher)
+        public AppCurrentFolderController(
+            ILogger<AppCurrentFolderController> logger,
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
-            _fileSystemWatcher = fileSystemWatcher;            
         }
 
         [HttpGet]
         public IActionResult GetCurrentFolder()
         {
-            var currentFolder = _fileSystemWatcher.Path;
+            var currentFolder = GetProjectPath();
             string lastFolder = Path.GetFileName(currentFolder);
             return Ok(new { currentFolder = lastFolder });
         }

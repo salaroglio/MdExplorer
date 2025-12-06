@@ -2,6 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Hubs;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.Linq;
@@ -11,37 +16,36 @@ namespace MdExplorer.Service.Controllers
 {
     [ApiController]
     [Route("api/ideConfiguration")]
-    public class IdeConfigurationController : ControllerBase
+    public class IdeConfigurationController : MdControllerBase<IdeConfigurationController>
     {
-        private readonly ILogger<IdeConfigurationController> _logger;
-        private readonly FileSystemWatcher _fileSystemWatcher;
-        private readonly IUserSettingsDB _session;
-
         public IdeConfigurationController(
             ILogger<IdeConfigurationController> logger,
             FileSystemWatcher fileSystemWatcher,
-            IUserSettingsDB session)
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
-            _logger = logger;
-            _fileSystemWatcher = fileSystemWatcher;
-            _session = session;
         }
 
         /// <summary>
         /// Get current IDE configuration from Project database
         /// </summary>
-        /// <param name="projectPath">Optional project path. If not provided, uses current FileSystemWatcher path.</param>
+        /// <param name="projectPath">Optional project path. If not provided, uses current project path.</param>
         [HttpGet("config")]
         public IActionResult GetIdeConfiguration([FromQuery] string projectPath = null)
         {
             try
             {
-                var targetPath = string.IsNullOrEmpty(projectPath) ? _fileSystemWatcher.Path : projectPath;
+                var targetPath = string.IsNullOrEmpty(projectPath) ? GetProjectPath() : projectPath;
 
                 _logger.LogInformation($"GetIdeConfiguration - Reading for project path: {targetPath}");
 
                 // Get project from database
-                var projectDal = _session.GetDal<Project>();
+                var projectDal = _userSettingsDB.GetDal<Project>();
                 var project = projectDal.GetList().FirstOrDefault(p => p.Path == targetPath);
 
                 string selectedIde = "vscode"; // Default
@@ -57,7 +61,7 @@ namespace MdExplorer.Service.Controllers
                 }
 
                 // Get IDE paths from database
-                var settingsDal = _session.GetDal<Setting>();
+                var settingsDal = _userSettingsDB.GetDal<Setting>();
                 var vscodePathSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "EditorPath");
                 var intellijPathSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "IntelliJPath");
 
@@ -83,12 +87,12 @@ namespace MdExplorer.Service.Controllers
         {
             try
             {
-                var targetPath = string.IsNullOrEmpty(request.ProjectPath) ? _fileSystemWatcher.Path : request.ProjectPath;
+                var targetPath = string.IsNullOrEmpty(request.ProjectPath) ? GetProjectPath() : request.ProjectPath;
 
                 _logger.LogInformation($"SetIdeConfiguration - Saving for project path: {targetPath}, SelectedIde: {request.SelectedIde}");
 
                 // Get project from database
-                var projectDal = _session.GetDal<Project>();
+                var projectDal = _userSettingsDB.GetDal<Project>();
                 var project = projectDal.GetList().FirstOrDefault(p => p.Path == targetPath);
 
                 if (project == null)
@@ -98,10 +102,10 @@ namespace MdExplorer.Service.Controllers
                 }
 
                 // Update SelectedIde
-                _session.BeginTransaction();
+                _userSettingsDB.BeginTransaction();
                 project.SelectedIde = request.SelectedIde;
                 projectDal.Save(project);
-                _session.Commit();
+                _userSettingsDB.Commit();
 
                 _logger.LogInformation($"SetIdeConfiguration - Successfully saved SelectedIde: {request.SelectedIde}");
 
@@ -126,7 +130,7 @@ namespace MdExplorer.Service.Controllers
         public string SelectedIde { get; set; }
 
         /// <summary>
-        /// Optional project path. If not provided, uses current FileSystemWatcher path.
+        /// Optional project path. If not provided, uses current project path.
         /// </summary>
         public string ProjectPath { get; set; }
     }

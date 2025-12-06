@@ -1,12 +1,20 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.bll.Services.AI;
 using MdExplorer.bll.Models.AI;
 using MdExplorer.Abstractions.Models.AI;
+using MdExplorer.Hubs;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Controllers.AI
 {
@@ -16,23 +24,26 @@ namespace MdExplorer.Controllers.AI
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class AiToolsTestController : ControllerBase
+    public class AiToolsTestController : MdControllerBase<AiToolsTestController>
     {
-        private readonly ILogger<AiToolsTestController> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly ToolExecutor _toolExecutor;
-        private readonly System.IO.FileSystemWatcher _fileSystemWatcher;
 
         public AiToolsTestController(
             ILogger<AiToolsTestController> logger,
             IServiceProvider serviceProvider,
             ToolExecutor toolExecutor,
-            System.IO.FileSystemWatcher fileSystemWatcher)
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
-            _logger = logger;
             _serviceProvider = serviceProvider;
             _toolExecutor = toolExecutor;
-            _fileSystemWatcher = fileSystemWatcher;
         }
 
         /// <summary>
@@ -76,7 +87,7 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 // Execute with tools
-                var workspaceRoot = _fileSystemWatcher.Path;
+                var workspaceRoot = GetProjectPath();
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
                     tools.Cast<object>().ToList(),
@@ -147,7 +158,7 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 // Execute with tools
-                var workspaceRoot = _fileSystemWatcher.Path;
+                var workspaceRoot = GetProjectPath();
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
                     tools.Cast<object>().ToList(),
@@ -186,7 +197,7 @@ namespace MdExplorer.Controllers.AI
         {
             try
             {
-                var workspaceRoot = _fileSystemWatcher.Path;
+                var workspaceRoot = GetProjectPath();
                 var pathValidator = new PathValidator(workspaceRoot);
                 var validatedPath = pathValidator.ValidateAndResolvePath(path);
                 return Ok(new
@@ -235,7 +246,7 @@ namespace MdExplorer.Controllers.AI
         [HttpGet("workspace-info")]
         public IActionResult GetWorkspaceInfo()
         {
-            var workspaceRoot = _fileSystemWatcher.Path;
+            var workspaceRoot = GetProjectPath();
             return Ok(new
             {
                 workspaceRoot = workspaceRoot,
@@ -284,7 +295,7 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 // Execute with tools
-                var workspaceRoot = _fileSystemWatcher.Path;
+                var workspaceRoot = GetProjectPath();
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
                     tools.Cast<object>().ToList(),
@@ -355,7 +366,7 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 // Execute with tools
-                var workspaceRoot = _fileSystemWatcher.Path;
+                var workspaceRoot = GetProjectPath();
                 var response = await concreteProvider.ChatWithToolsAsync(
                     request.Prompt,
                     tools.Cast<object>().ToList(),

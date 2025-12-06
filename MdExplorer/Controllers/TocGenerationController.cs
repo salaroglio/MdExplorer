@@ -3,27 +3,37 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Services;
+using MdExplorer.Hubs;
+using MdExplorer.Service.Controllers;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 
 namespace MdExplorer.Controllers
 {
     [ApiController]
     [Route("api/toc")]
-    public class TocGenerationController : ControllerBase
+    public class TocGenerationController : MdControllerBase<TocGenerationController>
     {
-        private readonly ILogger<TocGenerationController> _logger;
         private readonly ITocGenerationService _tocGenerationService;
-        private readonly FileSystemWatcher _fileSystemWatcher;
 
         public TocGenerationController(
             ILogger<TocGenerationController> logger,
             ITocGenerationService tocGenerationService,
-            FileSystemWatcher fileSystemWatcher)
+            FileSystemWatcher fileSystemWatcher,
+            IOptions<MdExplorerAppSettings> options,
+            IHubContext<MonitorMDHub> hubContext,
+            IUserSettingsDB userSettingsDB,
+            IEngineDB engineDB,
+            IDatabaseManager databaseManager = null)
+            : base(logger, fileSystemWatcher, options, hubContext, userSettingsDB, engineDB,
+                  databaseManager: databaseManager)
         {
-            _logger = logger;
             _tocGenerationService = tocGenerationService;
-            _fileSystemWatcher = fileSystemWatcher;
         }
 
         [HttpPost("generate")]
@@ -37,9 +47,9 @@ namespace MdExplorer.Controllers
                 }
 
                 // Convert relative path to absolute
-                var rootPath = _fileSystemWatcher.Path;
+                var rootPath = GetProjectPath();
                 var absoluteDirectoryPath = Path.Combine(rootPath, request.DirectoryPath);
-                
+
                 if (!Directory.Exists(absoluteDirectoryPath))
                 {
                     return NotFound($"Directory not found: {request.DirectoryPath}");
@@ -55,13 +65,13 @@ namespace MdExplorer.Controllers
                 // Generate TOC with AI
                 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
                 var success = await _tocGenerationService.GenerateTocWithAIAsync(
-                    absoluteDirectoryPath, 
-                    tocFilePath, 
+                    absoluteDirectoryPath,
+                    tocFilePath,
                     cts.Token);
 
                 // Check if file already existed (quick return from service)
                 var fileExisted = System.IO.File.Exists(tocFilePath);
-                
+
                 if (success)
                 {
                     return Ok(new
@@ -101,9 +111,9 @@ namespace MdExplorer.Controllers
                 }
 
                 // Convert relative path to absolute
-                var rootPath = _fileSystemWatcher.Path;
+                var rootPath = GetProjectPath();
                 var absoluteTocPath = Path.Combine(rootPath, request.TocFilePath);
-                
+
                 if (!System.IO.File.Exists(absoluteTocPath))
                 {
                     return NotFound($"TOC file not found: {request.TocFilePath}");
@@ -139,9 +149,9 @@ namespace MdExplorer.Controllers
                 }
 
                 // Convert relative path to absolute
-                var rootPath = _fileSystemWatcher.Path;
+                var rootPath = GetProjectPath();
                 var absoluteDirectoryPath = Path.Combine(rootPath, request.DirectoryPath);
-                
+
                 if (!Directory.Exists(absoluteDirectoryPath))
                 {
                     return NotFound($"Directory not found: {request.DirectoryPath}");
@@ -178,9 +188,9 @@ namespace MdExplorer.Controllers
             try
             {
                 // Convert relative path to absolute
-                var rootPath = _fileSystemWatcher.Path;
+                var rootPath = GetProjectPath();
                 var absoluteDirectoryPath = Path.Combine(rootPath, directoryPath);
-                
+
                 if (!Directory.Exists(absoluteDirectoryPath))
                 {
                     return NotFound($"Directory not found: {directoryPath}");
@@ -208,7 +218,7 @@ namespace MdExplorer.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
-        
+
         [HttpPost("force-regenerate")]
         public async Task<IActionResult> ForceRegenerateToc([FromBody] TocGenerationRequest request)
         {
@@ -220,9 +230,9 @@ namespace MdExplorer.Controllers
                 }
 
                 // Convert relative path to absolute
-                var rootPath = _fileSystemWatcher.Path;
+                var rootPath = GetProjectPath();
                 var absoluteDirectoryPath = Path.Combine(rootPath, request.DirectoryPath);
-                
+
                 if (!Directory.Exists(absoluteDirectoryPath))
                 {
                     return NotFound($"Directory not found: {request.DirectoryPath}");
@@ -238,8 +248,8 @@ namespace MdExplorer.Controllers
                 // Force regenerate TOC with AI
                 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
                 var success = await _tocGenerationService.ForceRegenerateTocAsync(
-                    absoluteDirectoryPath, 
-                    tocFilePath, 
+                    absoluteDirectoryPath,
+                    tocFilePath,
                     cts.Token);
 
                 if (success)
@@ -267,14 +277,14 @@ namespace MdExplorer.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
-        
+
         [HttpPost("set-ai-mode")]
         public IActionResult SetAiMode([FromBody] SetAiModeRequest request)
         {
             try
             {
                 _logger.LogInformation($"[TocController] Setting AI mode - UseGemini: {request.UseGemini}, Model: {request.GeminiModel}");
-                
+
                 // Try to cast to TocGenerationHubService first (which is what's actually injected)
                 if (_tocGenerationService is Services.TocGenerationHubService hubService)
                 {
@@ -312,7 +322,7 @@ namespace MdExplorer.Controllers
     {
         public string TocFilePath { get; set; }
     }
-    
+
     public class SetAiModeRequest
     {
         public bool UseGemini { get; set; }
