@@ -227,13 +227,11 @@ export class MdFileService {
 
 
   getShallowStructure(): Observable<MdFile[]> {
-    const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
-    return this.http.get<MdFile[]>(url);
+    return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure');
   }
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
-    const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;    
-    return this.http.get<MdFile[]>(url)
+    return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure')
       .subscribe(data => {
         // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
         this.initializeIndexingProperties(data);

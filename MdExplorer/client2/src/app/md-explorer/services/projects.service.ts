@@ -1,10 +1,9 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
-import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 
 @Injectable({
   providedIn: 'root'
@@ -20,8 +19,7 @@ export class ProjectsService {
 
   constructor(
     private http: HttpClient,
-    private injector: Injector,
-    private monitorMDService: MdServerMessagesService
+    private injector: Injector
   ) {
     this.dataStore = { mdProjects: [] };
     this._mdProjects = new BehaviorSubject<MdProject[]>([]);
@@ -49,8 +47,7 @@ export class ProjectsService {
   }
 
   setNewFolderProject(path: string):void {
-    const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
-    this.http.post<any>(url, { path: path }).subscribe(async response => {
+    this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
       this.currentProjects$.next(response);
 
       // Update compatibility mode from response
@@ -70,14 +67,13 @@ export class ProjectsService {
   }
 
   createProjectWithConfig(config: ProjectCreateConfigOptions): void {
-    const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,
       addCopilotInstructions: config.addCopilotInstructions
     };
 
-    this.http.post<any>(url, request).subscribe(async response => {
+    this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
       this.currentProjects$.next(response);
 
       // Update compatibility mode from response
@@ -116,13 +112,7 @@ export class ProjectsService {
    * Should be called when navigating back to the projects list.
    */
   closeCurrentProject(): Observable<any> {
-    const connectionId = this.monitorMDService.connectionId;
-    if (!connectionId) {
-      console.warn('closeCurrentProject called without connectionId');
-      return of({ message: 'No connection' });
-    }
-    const url = `../api/MdProjects/CloseProject?ConnectionId=${connectionId}`;
-    return this.http.post<any>(url, {});
+    return this.http.post<any>('../api/MdProjects/CloseProject', {});
   }
 
 }

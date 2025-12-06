@@ -408,8 +408,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     objectThis.openRules(data);
   }
 
-  private sendExportRequest(data, objectThis: ToolbarComponent) {
-    const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;
+  private sendExportRequest(objectThis: ToolbarComponent) {
+    const url = '../api/mdexport/' + objectThis.relativePath;
     return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });
   }
@@ -438,18 +438,13 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   OpenEditor() {
-    this.monitorMDService.getConnectionId(this.sendOpenFileRequest, this);
-  }
-
-  private sendOpenFileRequest(data, objectThis: ToolbarComponent) {
-    const url = '../api/AppSettings/OpenFile?path=' + objectThis.absolutePath + '&ConnectionId=' + data;
-    return objectThis.http.get(url)
-      .subscribe(data => { console.log(data) });
+    const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
+    this.http.get(url).subscribe(data => { console.log(data) });
   }
 
   Export() {
     this._snackBar.open("Export request queued!", null, { duration: 2000, verticalPosition: 'top' });
-    this.monitorMDService.getConnectionId(this.sendExportRequest, this);
+    this.sendExportRequest(this);
   }
 
 
