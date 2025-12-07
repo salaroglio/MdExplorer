@@ -292,6 +292,10 @@ namespace MdExplorer.Services.Git
                 }
 
                 // Credentials were already cached above before DB save
+
+                // Update remote URL to include username (prevents GCM confusion with multiple accounts)
+                await UpdateRemoteUrlWithUsernameAsync(repositoryPath, remoteUrl, username);
+
                 return true;
             }
             catch (Exception ex)
@@ -329,6 +333,82 @@ namespace MdExplorer.Services.Git
         }
 
         #region Private Helper Methods
+
+        /// <summary>
+        /// Updates the remote URL to include the username if not already present.
+        /// This prevents GCM confusion when multiple accounts are used for the same host.
+        /// Example: https://github.com/user/repo.git → https://username@github.com/user/repo.git
+        /// </summary>
+        private async Task UpdateRemoteUrlWithUsernameAsync(string repositoryPath, string currentRemoteUrl, string username)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(repositoryPath) || string.IsNullOrEmpty(currentRemoteUrl) || string.IsNullOrEmpty(username))
+                {
+                    return;
+                }
+
+                var uri = new Uri(currentRemoteUrl);
+
+                // Check if URL already has a username
+                if (!string.IsNullOrEmpty(uri.UserInfo))
+                {
+                    _logger.LogDebug("[RemoteUrlUpdate] URL already contains username: {UserInfo}", uri.UserInfo);
+                    return;
+                }
+
+                // Only update HTTPS URLs (not SSH)
+                if (uri.Scheme != "https")
+                {
+                    _logger.LogDebug("[RemoteUrlUpdate] Skipping non-HTTPS URL: {Scheme}", uri.Scheme);
+                    return;
+                }
+
+                // Build new URL with username
+                var newUrl = $"https://{username}@{uri.Host}{uri.PathAndQuery}";
+
+                _logger.LogInformation("[RemoteUrlUpdate] Updating remote URL: {OldUrl} → {NewUrl}", currentRemoteUrl, newUrl);
+
+                // Execute git remote set-url
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"remote set-url origin \"{newUrl}\"",
+                        WorkingDirectory = repositoryPath,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                var completed = await WaitForExitAsync(process, TimeSpan.FromSeconds(10));
+
+                if (!completed)
+                {
+                    _logger.LogWarning("[RemoteUrlUpdate] git remote set-url timed out");
+                    process.Kill();
+                    return;
+                }
+
+                if (process.ExitCode == 0)
+                {
+                    _logger.LogInformation("[RemoteUrlUpdate] Successfully updated remote URL with username: {Username}", username);
+                }
+                else
+                {
+                    var error = await process.StandardError.ReadToEndAsync();
+                    _logger.LogWarning("[RemoteUrlUpdate] Failed to update remote URL: {Error}", error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[RemoteUrlUpdate] Error updating remote URL for: {RepoPath}", repositoryPath);
+            }
+        }
 
         private async Task<Dictionary<string, string>> ExecuteGitCredentialFillAsync(string url, string knownUsername = null)
         {

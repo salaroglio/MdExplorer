@@ -1,13 +1,13 @@
-import { IFileInfoNode } from "./IFileInfoNode";
+import { CompactSegment, IFileInfoNode } from "./IFileInfoNode";
 
 
 export class MdFile implements IFileInfoNode {
-  
+
 
   constructor(public name:string,public path:string, public level: number, public expandable:boolean) {
 
   }
-  
+
   type: string;
   //children: MdFile[];
   isLoading: boolean;
@@ -16,7 +16,7 @@ export class MdFile implements IFileInfoNode {
   relativePath: string;
   fullDirectoryPath: string;
   index: number;
-  
+
   // Nuove proprietà per caricamento incrementale
   isIndexed?: boolean;
   indexingStatus?: 'idle' | 'indexing' | 'completed';
@@ -24,4 +24,9 @@ export class MdFile implements IFileInfoNode {
 
   // Development tags per classificare le cartelle
   developmentTags?: string[];
+
+  // Compact folder properties (VS Code-style)
+  isCompacted?: boolean;
+  compactedPath?: string;
+  compactedSegments?: CompactSegment[];
 }

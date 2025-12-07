@@ -653,9 +653,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return BadRequest(new { error = "Invalid request data - missing FolderPath or ProjectRoot" });
                 }
 
-                // Calculate relative path from project root
-                var relativePath = request.FolderPath.Replace(request.ProjectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                Console.WriteLine($"[MdFilesController] Relative path: {relativePath}");
+                // Calculate relative path from project root (normalized for consistent comparison)
+                var relativePath = NormalizePath(request.FolderPath.Replace(request.ProjectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                Console.WriteLine($"[MdFilesController] Relative path (normalized): {relativePath}");
 
                 // Path to .development.yml in project root
                 var devConfigPath = Path.Combine(request.ProjectRoot, ".development.yml");
@@ -676,8 +676,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     config = new DevelopmentConfig();
                 }
 
-                // Update or add folder entry
-                var existingFolder = config.Folders.FirstOrDefault(f => f.Path == relativePath);
+                // Update or add folder entry (case-insensitive comparison for Windows)
+                var existingFolder = config.Folders.FirstOrDefault(f =>
+                    string.Equals(NormalizePath(f.Path), relativePath, StringComparison.OrdinalIgnoreCase));
                 if (existingFolder != null)
                 {
                     existingFolder.Tags = request.Tags ?? new List<string>();
@@ -1231,7 +1232,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Ordina: .github primo, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")),
-                isRootLevel: true);
+                isRootLevel: true,
+                projectRoot: currentPath);
             foreach (var itemFolder in sortedFolders)
             {
                 // Usa FoldersIgnoreService per filtrare le cartelle da nascondere nell'UI
@@ -1857,8 +1859,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder)
         {
-
-            var patchedItemFolfer = itemFolder.Substring(GetProjectPath().Length);
+            var projectPath = GetProjectPath();
+            var patchedItemFolfer = itemFolder.Substring(projectPath.Length);
             var node = new FileInfoNode
             {
                 Name = Path.GetFileName(itemFolder),
@@ -1867,7 +1869,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath)
             };
             var isEmpty = await ExploreNodes(node, itemFolder);
             return (node, isEmpty);
@@ -1885,14 +1887,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath)
             };
             var isEmpty = await ExploreNodes(node, itemFolder, connectionId);
             return (node, isEmpty);
         }
 
-        private FileInfoNode CreateNodeFolderOnly(string itemFolder)
+        private FileInfoNode CreateNodeFolderOnly(string itemFolder, string projectRoot = null)
         {
+            projectRoot ??= GetProjectPath();
             var patchedItemFolfer = itemFolder;
             var node = new FileInfoNode
             {
@@ -1900,9 +1903,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 FullPath = itemFolder,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectRoot)
             };
-            ExploreNodesFolderOnly(node, itemFolder);
+            ExploreNodesFolderOnly(node, itemFolder, projectRoot);
             return node;
         }
 
@@ -1910,13 +1913,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// Loads development tags from .development.yml file in the specified folder
         /// </summary>
         /// <param name="folderPath">Path to the folder to check for .development.yml</param>
+        /// <param name="projectRoot">Optional project root path. If not provided, will be searched using FindProjectRoot (which may fail for nested git repos)</param>
         /// <returns>List of development tags, empty if file doesn't exist or parsing fails</returns>
-        private List<string> LoadDevelopmentTags(string folderPath)
+        private List<string> LoadDevelopmentTags(string folderPath, string projectRoot = null)
         {
             try
             {
-                // Find project root by looking for .development.yml file going up the directory tree
-                var projectRoot = FindProjectRoot(folderPath);
+                // Use provided project root, or find it (FindProjectRoot may fail for nested git repos)
+                if (string.IsNullOrEmpty(projectRoot))
+                {
+                    projectRoot = FindProjectRoot(folderPath);
+                }
                 if (string.IsNullOrEmpty(projectRoot))
                 {
                     return new List<string>();
@@ -1941,9 +1948,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return new List<string>();
                 }
 
-                // Calculate relative path and find matching folder
-                var relativePath = folderPath.Replace(projectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var folderEntry = config.Folders.FirstOrDefault(f => f.Path == relativePath);
+                // Calculate relative path and find matching folder (case-insensitive for Windows)
+                var relativePath = NormalizePath(folderPath.Replace(projectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+                var folderEntry = config.Folders.FirstOrDefault(f =>
+                    string.Equals(NormalizePath(f.Path), relativePath, StringComparison.OrdinalIgnoreCase));
+
+                // Debug log only when we find a match (to reduce noise)
+                if (folderEntry != null)
+                {
+                    Console.WriteLine($"[LoadDevelopmentTags] MATCH: '{relativePath}' -> Tags: {string.Join(",", folderEntry.Tags)}");
+                }
 
                 return folderEntry?.Tags ?? new List<string>();
             }
@@ -1959,14 +1974,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// <summary>
         /// Ordina i folder: .github primo (solo root), poi folder "program", poi alfabetico
         /// </summary>
-        private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel)
+        private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel, string projectRoot)
         {
-            return folders.OrderBy(f => GetFolderSortPriority(f, isRootLevel))
+            return folders.OrderBy(f => GetFolderSortPriority(f, isRootLevel, projectRoot))
                           .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
                           .ToList();
         }
 
-        private int GetFolderSortPriority(string folderPath, bool isRootLevel)
+        private int GetFolderSortPriority(string folderPath, bool isRootLevel, string projectRoot)
         {
             var folderName = Path.GetFileName(folderPath);
 
@@ -1975,7 +1990,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return 0;
 
             // Folder con tag "program"
-            var tags = LoadDevelopmentTags(folderPath);
+            var tags = LoadDevelopmentTags(folderPath, projectRoot);
             if (tags.Contains("program", StringComparer.OrdinalIgnoreCase))
                 return isRootLevel ? 1 : 0;
 
@@ -2015,6 +2030,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _logger.LogWarning(ex, $"Error finding project root for {startPath}");
                 return startPath;
             }
+        }
+
+        /// <summary>
+        /// Normalizes a path for consistent comparison on Windows.
+        /// Converts all separators to system default and removes trailing separators.
+        /// </summary>
+        private static string NormalizePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
+
+            // Normalize separators to system default and remove trailing separator
+            return path.Replace('/', Path.DirectorySeparatorChar)
+                       .Replace('\\', Path.DirectorySeparatorChar)
+                       .TrimEnd(Path.DirectorySeparatorChar);
         }
 
         private static string SanitizeFileName(string fileName)
@@ -2059,7 +2089,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return input.Substring(0, index) + replacement + input.Substring(index + search.Length);
         }
 
-        private void ExploreNodesFolderOnly(FileInfoNode fileInfoNode, string pathFile)
+        private void ExploreNodesFolderOnly(FileInfoNode fileInfoNode, string pathFile, string projectRoot)
         {
             try
             {
@@ -2072,10 +2102,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return;
                 }
                 // Ordina: folder "program" primi, poi alfabetico
-                var sortedFolders = SortFoldersWithPriority(Directory.GetDirectories(pathFile), isRootLevel: false);
+                var sortedFolders = SortFoldersWithPriority(Directory.GetDirectories(pathFile), isRootLevel: false, projectRoot: projectRoot);
                 foreach (var itemFolder in sortedFolders)
                 {
-                    FileInfoNode node = CreateNodeFolderOnly(itemFolder);
+                    FileInfoNode node = CreateNodeFolderOnly(itemFolder, projectRoot);
                     fileInfoNode.Childrens.Add(node);
                 }
             }
@@ -2095,7 +2125,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Ordina: folder "program" primi, poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")),
-                isRootLevel: false);
+                isRootLevel: false,
+                projectRoot: projectPath);
             foreach (var itemFolder in sortedFolders)
             {
                 // Check if folder should be ignored using FoldersIgnoreService
@@ -2150,7 +2181,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Ordina: folder "program" primi, poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(pathFile).Where(_ => !_.Contains(".md")),
-                isRootLevel: false);
+                isRootLevel: false,
+                projectRoot: projectPath);
             foreach (var itemFolder in sortedFolders)
             {
                 // Check if folder should be ignored using FoldersIgnoreService

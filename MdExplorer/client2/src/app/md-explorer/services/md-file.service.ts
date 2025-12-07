@@ -235,8 +235,10 @@ export class MdFileService {
       .subscribe(data => {
         // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
         this.initializeIndexingProperties(data);
-        this.dataStore.mdFiles = data;        
-        this._mdFiles.next([...this.dataStore.mdFiles]);       
+        // Compatta le cartelle annidate (VS Code-style)
+        this.compactFolders(data);
+        this.dataStore.mdFiles = data;
+        this._mdFiles.next([...this.dataStore.mdFiles]);
         if (callback != null) {
           callback(data, objectThis);
         }
@@ -257,6 +259,50 @@ export class MdFileService {
         this.initializeIndexingProperties(node.childrens);
       }
     });
+  }
+
+  /**
+   * Compatta catene di cartelle con un solo figlio cartella (VS Code-style)
+   * Es: src/main/java/com viene mostrato come "src / main / java / com" su una riga
+   */
+  private compactFolders(nodes: MdFile[]): void {
+    nodes.forEach(node => this.compactSingleNode(node));
+  }
+
+  private compactSingleNode(node: MdFile): void {
+    if (node.type !== 'folder' || !node.childrens?.length) {
+      return;
+    }
+
+    // Raccogli i segmenti della catena
+    const segments: { name: string; fullPath: string; level: number }[] = [
+      { name: node.name, fullPath: node.fullPath, level: node.level }
+    ];
+    let current = node;
+    let lastCompactedLevel = node.level;
+
+    // Segui la catena finché c'è esattamente 1 figlio che è una cartella
+    while (current.childrens?.length === 1 && current.childrens[0].type === 'folder') {
+      current = current.childrens[0] as MdFile;
+      lastCompactedLevel++;
+      segments.push({ name: current.name, fullPath: current.fullPath, level: lastCompactedLevel });
+    }
+
+    // Se abbiamo compresso almeno 2 livelli
+    if (segments.length > 1) {
+      node.isCompacted = true;
+      node.compactedPath = segments.map(s => s.name).join(' / ');
+      node.compactedSegments = segments;
+      // I figli diventano quelli dell'ultimo nodo compresso
+      node.childrens = current.childrens as MdFile[];
+      // Il fullPath del nodo diventa quello dell'ultimo segmento per le operazioni di default
+      // Ma manteniamo il path originale per la visualizzazione
+    }
+
+    // Processa ricorsivamente i figli (che ora sono i figli dell'ultimo nodo compresso se compattato)
+    if (node.childrens?.length) {
+      node.childrens.forEach(child => this.compactSingleNode(child as MdFile));
+    }
   }
 
   updateFileIndexStatus(path: string, isIndexed: boolean): void {

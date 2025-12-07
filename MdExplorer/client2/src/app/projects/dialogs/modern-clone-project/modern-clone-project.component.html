@@ -90,9 +90,36 @@
                 <span>{{ getProviderDisplayName() }} richiede autenticazione manuale</span>
               </div>
 
+              <!-- Username with autocomplete for saved accounts -->
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>Username</mat-label>
-                <input matInput [(ngModel)]="manualCredentials.username">
+                <input matInput
+                       [(ngModel)]="manualCredentials.username"
+                       (ngModelChange)="filterAccounts($event)"
+                       [matAutocomplete]="accountAutocomplete"
+                       placeholder="Seleziona o inserisci nuovo username">
+                <mat-spinner matSuffix *ngIf="isLoadingAccounts" diameter="20"></mat-spinner>
+                <mat-autocomplete #accountAutocomplete="matAutocomplete"
+                                  [displayWith]="displayAccountFn"
+                                  (optionSelected)="selectAccount($event.option.value)">
+                  <mat-option *ngFor="let account of filteredAccounts" [value]="account.username">
+                    <div class="account-option">
+                      <span class="account-username">{{ account.username }}</span>
+                      <button mat-icon-button
+                              class="delete-account-btn"
+                              (click)="deleteAccount(account, $event)"
+                              matTooltip="Elimina account">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </mat-option>
+                  <mat-option *ngIf="filteredAccounts.length === 0 && manualCredentials.username && !isLoadingAccounts" disabled>
+                    <em>Nuovo account: {{ manualCredentials.username }}</em>
+                  </mat-option>
+                </mat-autocomplete>
+                <mat-hint *ngIf="availableAccounts.length > 0">
+                  {{ availableAccounts.length }} account salvati disponibili
+                </mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>Password / Token</mat-label>

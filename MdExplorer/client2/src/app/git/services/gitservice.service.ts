@@ -860,6 +860,35 @@ export class GITService implements OnDestroy {
     };
   }
 
+  // ==================== Git Account Management ====================
+
+  /**
+   * Gets all unique usernames for a specific account type (GitHub, GitLab, etc.)
+   * Used by the clone UI to show available accounts for a provider
+   */
+  getUsernamesByType(accountType: string): Observable<Array<{ id: string; username: string; accountName: string }>> {
+    return this.http.get<Array<{ id: string; username: string; accountName: string }>>(
+      `../api/GitAccount/usernames-by-type?accountType=${encodeURIComponent(accountType)}`
+    ).pipe(
+      catchError(err => {
+        console.error('[GITService] Error getting usernames by type:', err);
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Deletes a git account by ID
+   */
+  deleteGitAccount(id: string): Observable<{ success: boolean; message?: string }> {
+    return this.http.delete<{ success: boolean; message?: string }>(`../api/GitAccount/${id}`).pipe(
+      catchError(err => {
+        console.error('[GITService] Error deleting git account:', err);
+        return of({ success: false, message: err.error?.error || 'Failed to delete account' });
+      })
+    );
+  }
+
   /**
    * Cleanup quando il service viene distrutto
    */

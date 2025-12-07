@@ -134,12 +134,54 @@
 ::ng-deep .success-snackbar {
   background-color: #4caf50 !important;
   color: white !important;
-  
+
   .mat-button {
     color: white !important;
   }
-  
+
   .mat-simple-snackbar-action {
     color: #e8f5e8 !important;
+  }
+}
+
+// ==================== Folder Row Clickable ====================
+.folder-row-clickable {
+  width: 100%;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  &:active {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+}
+
+// ==================== Compact Folders (VS Code-style) ====================
+.compacted-folder {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .compact-segment {
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.15s ease;
+
+    &:hover,
+    &.segment-hover {
+      background-color: rgba(33, 150, 243, 0.15);
+    }
+
+    &:active {
+      background-color: rgba(33, 150, 243, 0.25);
+    }
+  }
+
+  .compact-separator {
+    color: #888;
+    margin: 0 1px;
+    user-select: none;
   }
 }

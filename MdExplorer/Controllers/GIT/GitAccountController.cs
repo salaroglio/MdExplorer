@@ -298,6 +298,48 @@ namespace MdExplorer.Controllers.Git
         }
 
         /// <summary>
+        /// Gets all unique usernames for a specific account type (e.g., GitHub, GitLab)
+        /// Used by the clone UI to show available accounts for a provider
+        /// </summary>
+        /// <param name="accountType">The account type (GitHub, GitLab, Azure, Bitbucket, Generic, etc.)</param>
+        /// <returns>List of unique usernames for the specified provider</returns>
+        [HttpGet("usernames-by-type")]
+        public async Task<IActionResult> GetUsernamesByType([FromQuery] [Required] string accountType)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(accountType))
+                {
+                    return BadRequest(new { error = "Account type is required" });
+                }
+
+                _logger.LogInformation("Getting usernames for account type: {AccountType}", accountType);
+
+                var accounts = await _gitAccountService.GetAllAccountsAsync();
+
+                // Filter by account type and get unique usernames
+                var usernames = accounts
+                    .Where(a => a.AccountType?.Equals(accountType, StringComparison.OrdinalIgnoreCase) == true)
+                    .Where(a => !string.IsNullOrEmpty(a.AuthUsername))
+                    .Select(a => new {
+                        id = a.Id,
+                        username = a.AuthUsername,
+                        accountName = a.AccountName
+                    })
+                    .DistinctBy(a => a.username)
+                    .OrderBy(a => a.username)
+                    .ToList();
+
+                return Ok(usernames);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting usernames for account type: {AccountType}", accountType);
+                return StatusCode(500, new { error = "Internal server error getting usernames" });
+            }
+        }
+
+        /// <summary>
         /// Checks if a Git account exists for a specific repository
         /// </summary>
         /// <param name="repositoryPath">Path to the repository</param>

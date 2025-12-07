@@ -5,7 +5,7 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { Observable, BehaviorSubject } from 'rxjs';
-import { IFileInfoNode } from '../../models/IFileInfoNode';
+import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
@@ -58,6 +58,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // State preservation for tree expansion during branch switch
   private expansionStateBeforeRefresh: Set<string> | null = null;
 
+  // Compact folders - segment hover state
+  hoveredSegment: CompactSegment | null = null;
+  selectedCompactSegment: CompactSegment | null = null;
+
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
 
@@ -77,7 +81,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       isIndexed: node.isIndexed,
       indexingStatus: node.indexingStatus,
       indexingProgress: node.indexingProgress,
-      developmentTags: node.developmentTags
+      developmentTags: node.developmentTags,
+      // Compact folder properties
+      isCompacted: node.isCompacted,
+      compactedPath: node.compactedPath,
+      compactedSegments: node.compactedSegments
     };
   }
   treeControl = new FlatTreeControl<IFileInfoNode>(
@@ -298,6 +306,36 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.matMenuTrigger.openMenu();
 
   }
+
+  // ==================== Compact Folder Segment Methods ====================
+
+  onSegmentHover(segment: CompactSegment): void {
+    this.hoveredSegment = segment;
+  }
+
+  onSegmentLeave(): void {
+    this.hoveredSegment = null;
+  }
+
+  onSegmentRightClick(event: MouseEvent, segment: CompactSegment, node: MdFile): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Store the selected segment for use in create operations
+    this.selectedCompactSegment = segment;
+
+    // Create a temporary item with the segment's path for the context menu
+    const segmentItem = new MdFile(segment.name, segment.fullPath, segment.level, true);
+    segmentItem.fullPath = segment.fullPath;
+    segmentItem.type = 'folder';
+
+    this.menuTopLeftPosition.x = event.clientX;
+    this.menuTopLeftPosition.y = event.clientY;
+    this.matMenuTrigger.menuData = { item: segmentItem };
+    this.matMenuTrigger.openMenu();
+  }
+
+  // ==================== End Compact Folder Methods ====================
 
   public async getNode(node: MdFile) {
     if (this.isFileWaiting(node)) {

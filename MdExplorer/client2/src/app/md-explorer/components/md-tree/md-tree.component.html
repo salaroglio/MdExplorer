@@ -88,9 +88,12 @@
 
   <!-- This is the tree node template for expandable nodes -->
   <mat-tree-node [@fadeInOnEnter] *matTreeNodeDef="let node;when: isFolder"
-                 style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)"
+                 style="cursor:pointer" matTreeNodePadding
+                 (contextmenu)="onRightClick($event, node)"
+                 (click)="treeControl.toggle(node)"
                  [ngClass]="{
                    'folder-node': true,
+                   'folder-row-clickable': true,
                    'indexing': node.indexingStatus === 'indexing',
                    'selected': isNodeSelected(node)
                  }">
@@ -129,7 +132,19 @@
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
     </button>
-    <span class="folder-name node-text">{{node.name}}</span>
+    <!-- Nome cartella normale o path compattato -->
+    <span class="folder-name node-text" *ngIf="!node.isCompacted">{{node.name}}</span>
+    <!-- Path compattato con segmenti cliccabili -->
+    <span class="folder-name node-text compacted-folder" *ngIf="node.isCompacted">
+      <ng-container *ngFor="let segment of node.compactedSegments; let last = last">
+        <span class="compact-segment"
+              [attr.data-fullpath]="segment.fullPath"
+              [class.segment-hover]="hoveredSegment?.fullPath === segment.fullPath"
+              (mouseenter)="onSegmentHover(segment)"
+              (mouseleave)="onSegmentLeave()"
+              (contextmenu)="onSegmentRightClick($event, segment, node)">{{segment.name}}</span><span *ngIf="!last" class="compact-separator"> / </span>
+      </ng-container>
+    </span>
   </mat-tree-node>
   <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
     <button mat-icon-button matTreeNodeToggle></button>
