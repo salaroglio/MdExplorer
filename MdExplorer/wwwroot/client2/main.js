@@ -458,7 +458,7 @@ class CompatibilityModeService {
             console.log('ConnectionId not yet available, skipping compatibility mode load');
             return;
         }
-        this.http.get(`${this.apiUrl}/mode?ConnectionId=${connectionId}`)
+        this.http.get(`${this.apiUrl}/mode`)
             .subscribe({
             next: (config) => {
                 var _a;
@@ -484,13 +484,9 @@ class CompatibilityModeService {
      * @param projectPath Optional project path (for project settings dialog)
      */
     getCurrentMode(projectPath) {
-        const connectionId = this.serverMessages.connectionId;
         const params = {};
         if (projectPath) {
             params.projectPath = projectPath;
-        }
-        else if (connectionId) {
-            params.ConnectionId = connectionId;
         }
         return this.http.get(`${this.apiUrl}/mode`, { params });
     }
@@ -498,9 +494,7 @@ class CompatibilityModeService {
      * Set compatibility mode
      */
     setCompatibilityMode(request) {
-        const connectionId = this.serverMessages.connectionId;
-        const url = connectionId ? `${this.apiUrl}/mode?ConnectionId=${connectionId}` : `${this.apiUrl}/mode`;
-        return this.http.post(url, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(() => {
+        return this.http.post(`${this.apiUrl}/mode`, request).pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(() => {
             // Reload mode after setting
             this.loadCurrentMode();
         }));
@@ -509,9 +503,7 @@ class CompatibilityModeService {
      * Validate document for GitHub compatibility
      */
     validateDocument(request) {
-        const connectionId = this.serverMessages.connectionId;
-        const url = connectionId ? `${this.apiUrl}/validate?ConnectionId=${connectionId}` : `${this.apiUrl}/validate`;
-        return this.http.post(url, request);
+        return this.http.post(`${this.apiUrl}/validate`, request);
     }
     /**
      * Check if current mode is GitHub
@@ -3723,22 +3715,24 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_flex_layout__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/flex-layout */ "YUcS");
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/forms */ "3Pt+");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
-/* harmony import */ var _app_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./app.component */ "Sy1n");
-/* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./shared/material.module */ "5dmV");
-/* harmony import */ var _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/platform-browser/animations */ "R1ws");
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.component */ "ggj0");
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
-/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./commons/components/show-file-system/show-file-system.component */ "yrD1");
-/* harmony import */ var _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./commons/waitingdialog/waiting-dialog/waiting-dialog.component */ "S2pp");
-/* harmony import */ var _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./commons/components/new-directory/new-directory.component */ "TUMs");
-/* harmony import */ var _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.component */ "mLxA");
-/* harmony import */ var _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.provider */ "l94Z");
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ "89FR");
-/* harmony import */ var _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./components/search-box/search-box.component */ "XPJ/");
-/* harmony import */ var _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component */ "ZNV1");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _interceptors_connection_id_interceptor__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./interceptors/connection-id.interceptor */ "n3Jk");
+/* harmony import */ var _app_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./app.component */ "Sy1n");
+/* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./shared/material.module */ "5dmV");
+/* harmony import */ var _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/platform-browser/animations */ "R1ws");
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./signalR/dialogs/parsing-project/parsing-project.provider */ "YG1a");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./signalR/dialogs/connection-lost/connection-lost.provider */ "jX2R");
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.component */ "ggj0");
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.provider */ "CqLH");
+/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./commons/components/show-file-system/show-file-system.component */ "yrD1");
+/* harmony import */ var _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./commons/waitingdialog/waiting-dialog/waiting-dialog.component */ "S2pp");
+/* harmony import */ var _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./commons/components/new-directory/new-directory.component */ "TUMs");
+/* harmony import */ var _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.component */ "mLxA");
+/* harmony import */ var _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.provider */ "l94Z");
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ "89FR");
+/* harmony import */ var _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./components/search-box/search-box.component */ "XPJ/");
+/* harmony import */ var _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component */ "ZNV1");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
 
 
 
@@ -3780,34 +3774,41 @@ class AppModule {
     }
 }
 AppModule.ɵfac = function AppModule_Factory(t) { return new (t || AppModule)(); };
-AppModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_20__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_5__["AppComponent"]] });
-AppModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_20__["ɵɵdefineInjector"]({ providers: [_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_8__["ParsingProjectProvider"],
-        _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_9__["ConnectionLostProvider"],
-        _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_11__["PlantumlWorkingProvider"],
-        _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_16__["OpeningApplicationProvider"]], imports: [[
+AppModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_21__["ɵɵdefineNgModule"]({ type: AppModule, bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_6__["AppComponent"]] });
+AppModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_21__["ɵɵdefineInjector"]({ providers: [
+        _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_9__["ParsingProjectProvider"],
+        _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_10__["ConnectionLostProvider"],
+        _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_12__["PlantumlWorkingProvider"],
+        _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_17__["OpeningApplicationProvider"],
+        {
+            provide: _angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HTTP_INTERCEPTORS"],
+            useClass: _interceptors_connection_id_interceptor__WEBPACK_IMPORTED_MODULE_5__["ConnectionIdInterceptor"],
+            multi: true
+        }
+    ], imports: [[
             _angular_platform_browser__WEBPACK_IMPORTED_MODULE_0__["BrowserModule"],
             _angular_router__WEBPACK_IMPORTED_MODULE_1__["RouterModule"].forRoot(routes),
             _angular_flex_layout__WEBPACK_IMPORTED_MODULE_2__["FlexLayoutModule"],
-            _shared_material_module__WEBPACK_IMPORTED_MODULE_6__["MaterialModule"],
+            _shared_material_module__WEBPACK_IMPORTED_MODULE_7__["MaterialModule"],
             _angular_forms__WEBPACK_IMPORTED_MODULE_3__["FormsModule"],
             _angular_forms__WEBPACK_IMPORTED_MODULE_3__["ReactiveFormsModule"],
-            _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_7__["BrowserAnimationsModule"],
+            _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_8__["BrowserAnimationsModule"],
             _angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClientModule"],
         ]] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_20__["ɵɵsetNgModuleScope"](AppModule, { declarations: [_app_component__WEBPACK_IMPORTED_MODULE_5__["AppComponent"],
-        _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_10__["PlantumlWorkingComponent"],
-        _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_12__["ShowFileSystemComponent"],
-        _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_13__["WaitingDialogComponent"],
-        _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_14__["NewDirectoryComponent"],
-        _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_15__["OpeningApplicationComponent"],
-        _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_17__["TitleBarComponent"],
-        _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_18__["SearchBoxComponent"],
-        _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_19__["CompatibilityModeBadgeComponent"]], imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_0__["BrowserModule"], _angular_router__WEBPACK_IMPORTED_MODULE_1__["RouterModule"], //
+(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_21__["ɵɵsetNgModuleScope"](AppModule, { declarations: [_app_component__WEBPACK_IMPORTED_MODULE_6__["AppComponent"],
+        _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_11__["PlantumlWorkingComponent"],
+        _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_13__["ShowFileSystemComponent"],
+        _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_14__["WaitingDialogComponent"],
+        _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_15__["NewDirectoryComponent"],
+        _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_16__["OpeningApplicationComponent"],
+        _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_18__["TitleBarComponent"],
+        _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_19__["SearchBoxComponent"],
+        _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_20__["CompatibilityModeBadgeComponent"]], imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_0__["BrowserModule"], _angular_router__WEBPACK_IMPORTED_MODULE_1__["RouterModule"], //
         _angular_flex_layout__WEBPACK_IMPORTED_MODULE_2__["FlexLayoutModule"],
-        _shared_material_module__WEBPACK_IMPORTED_MODULE_6__["MaterialModule"],
+        _shared_material_module__WEBPACK_IMPORTED_MODULE_7__["MaterialModule"],
         _angular_forms__WEBPACK_IMPORTED_MODULE_3__["FormsModule"],
         _angular_forms__WEBPACK_IMPORTED_MODULE_3__["ReactiveFormsModule"],
-        _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_7__["BrowserAnimationsModule"],
+        _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_8__["BrowserAnimationsModule"],
         _angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClientModule"]] }); })();
 
 
@@ -4275,6 +4276,61 @@ OpeningApplicationComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_0__["
 
 /***/ }),
 
+/***/ "n3Jk":
+/*!***********************************************************!*\
+  !*** ./src/app/interceptors/connection-id.interceptor.ts ***!
+  \***********************************************************/
+/*! exports provided: ConnectionIdInterceptor */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "ConnectionIdInterceptor", function() { return ConnectionIdInterceptor; });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ "+dpY");
+
+
+/**
+ * HTTP Interceptor that automatically adds connectionId to all API requests.
+ * This ensures that the backend can identify the client and use the correct
+ * per-client DatabaseManager context.
+ */
+class ConnectionIdInterceptor {
+    constructor(mdServerMessages) {
+        this.mdServerMessages = mdServerMessages;
+    }
+    intercept(req, next) {
+        // Only add connectionId to API requests (not external URLs)
+        if (!req.url.startsWith('../api/') && !req.url.startsWith('/api/')) {
+            return next.handle(req);
+        }
+        // Skip if connectionId is already in the URL
+        if (req.url.includes('connectionId=') || req.url.includes('ConnectionId=')) {
+            return next.handle(req);
+        }
+        const connectionId = this.mdServerMessages.connectionId;
+        // Skip if connectionId is not yet available
+        if (!connectionId) {
+            console.error('[ConnectionIdInterceptor] ❌ connectionId is NULL for request:', req.url);
+            console.error('[ConnectionIdInterceptor] mdServerMessages:', this.mdServerMessages);
+            return next.handle(req);
+        }
+        // Add connectionId as query parameter
+        const modifiedReq = req.clone({
+            setParams: {
+                ConnectionId: connectionId,
+            },
+        });
+        console.log('[ConnectionIdInterceptor] ✅ Added connectionId to:', req.url);
+        return next.handle(modifiedReq);
+    }
+}
+ConnectionIdInterceptor.ɵfac = function ConnectionIdInterceptor_Factory(t) { return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__["MdServerMessagesService"])); };
+ConnectionIdInterceptor.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineInjectable"]({ token: ConnectionIdInterceptor, factory: ConnectionIdInterceptor.ɵfac });
+
+
+/***/ }),
+
 /***/ "oPln":
 /*!******************************************************************************!*\
   !*** ./src/app/signalR/dialogs/parsing-project/parsing-project.component.ts ***!
@@ -4327,8 +4383,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.12.04.4',
-    buildTime: '2025.12.04 08:56:05'
+    version: '2025.12.06.4',
+    buildTime: '2025.12.06 22:16:23'
 };
 
 
@@ -4349,18 +4405,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ "25Jb");
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ "fXoL");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ "+dpY");
-
 
 
 
 
 
 class ProjectsService {
-    constructor(http, injector, monitorMDService) {
+    constructor(http, injector) {
         this.http = http;
         this.injector = injector;
-        this.monitorMDService = monitorMDService;
         this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
         this.dataStore = { mdProjects: [] };
         this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
@@ -4385,8 +4438,7 @@ class ProjectsService {
         });
     }
     setNewFolderProject(path) {
-        const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
-        this.http.post(url, { path: path }).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+        this.http.post('../api/MdProjects/SetFolderProject', { path: path }).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
             // Update compatibility mode from response
             if (response.compatibilityMode) {
@@ -4402,13 +4454,12 @@ class ProjectsService {
         }));
     }
     createProjectWithConfig(config) {
-        const url = `../api/MdProjects/SetFolderProject?ConnectionId=${this.monitorMDService.connectionId}`;
         const request = {
             path: config.projectPath,
             initializeGit: config.initializeGit,
             addCopilotInstructions: config.addCopilotInstructions
         };
-        this.http.post(url, request).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+        this.http.post('../api/MdProjects/SetFolderProject', request).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
             // Update compatibility mode from response
             if (response.compatibilityMode) {
@@ -4442,16 +4493,10 @@ class ProjectsService {
      * Should be called when navigating back to the projects list.
      */
     closeCurrentProject() {
-        const connectionId = this.monitorMDService.connectionId;
-        if (!connectionId) {
-            console.warn('closeCurrentProject called without connectionId');
-            return Object(rxjs__WEBPACK_IMPORTED_MODULE_1__["of"])({ message: 'No connection' });
-        }
-        const url = `../api/MdProjects/CloseProject?ConnectionId=${connectionId}`;
-        return this.http.post(url, {});
+        return this.http.post('../api/MdProjects/CloseProject', {});
     }
 }
-ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__["MdServerMessagesService"])); };
+ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"])); };
 ProjectsService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: ProjectsService, factory: ProjectsService.ɵfac, providedIn: 'root' });
 
 
@@ -4639,12 +4684,10 @@ class MdFileService {
         }
     }
     getShallowStructure() {
-        const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
-        return this.http.get(url);
+        return this.http.get('../api/mdfiles/GetShallowStructure');
     }
     loadAll(callback, objectThis) {
-        const url = '../api/mdfiles/GetShallowStructure?connectionId=' + this.mdServerMessages.connectionId;
-        return this.http.get(url)
+        return this.http.get('../api/mdfiles/GetShallowStructure')
             .subscribe(data => {
             // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
             this.initializeIndexingProperties(data);

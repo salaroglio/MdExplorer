@@ -924,32 +924,31 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/forms */ "3Pt+");
 /* harmony import */ var _md_explorer_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./md-explorer.component */ "fX/Y");
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/router */ "tyNb");
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
-/* harmony import */ var _pipes_safePipe__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./pipes/safePipe */ "8Cql");
-/* harmony import */ var _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./components/dialogs/settings/settings.component */ "ATen");
-/* harmony import */ var _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./components/refactoring/rename-file/rename-file.component */ "FboE");
-/* harmony import */ var _signalR_dialogs_rules_rules_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ../signalR/dialogs/rules/rules.component */ "+59A");
-/* harmony import */ var _components_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./components/dialogs/new-markdown/new-markdown.component */ "WxmV");
-/* harmony import */ var _components_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./components/dialogs/new-directory/new-directory.component */ "p8DV");
-/* harmony import */ var _components_md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./components/md-tree/md-tree.component */ "s8RO");
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ../signalR/dialogs/connection-lost/connection-lost.component */ "9LnC");
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ../signalR/dialogs/parsing-project/parsing-project.component */ "oPln");
-/* harmony import */ var _components_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./components/dialogs/change-directory/change-directory.component */ "HotF");
-/* harmony import */ var _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./components/dialogs/delete-markdown/delete-markdown.component */ "BUpo");
-/* harmony import */ var _components_publish_md_tree_publish_md_tree_component__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./components/publish-md-tree/publish-md-tree.component */ "5hcZ");
-/* harmony import */ var _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./components/gitlab-settings/gitlab-settings.component */ "/6Vx");
-/* harmony import */ var _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./components/document-settings/document-settings.component */ "oTTF");
-/* harmony import */ var _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ./components/dialogs/copy-from-clipboard/copy-from-clipboard.component */ "WD3D");
-/* harmony import */ var _git_git_module__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ../git/git.module */ "Trdj");
-/* harmony import */ var _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! ./components/dialogs/move-md-file/move-md-file.component */ "N7Dz");
-/* harmony import */ var _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! ./components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component */ "K6fG");
-/* harmony import */ var _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! ./components/milkdown-react-host/milkdown-react-host.component */ "DfLb");
-/* harmony import */ var _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! ./components/document-show/document-show.component */ "uOUL");
-/* harmony import */ var _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! ../ai-chat/ai-chat.module */ "IOcM");
-/* harmony import */ var _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! ./components/dialogs/toc-progress-dialog/toc-progress-dialog.component */ "5+da");
-/* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! ./services/toc-progress.service */ "lh+x");
-/* harmony import */ var _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! ../commons/components/confirm-dialog/confirm-dialog.component */ "+Qia");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _pipes_safePipe__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./pipes/safePipe */ "8Cql");
+/* harmony import */ var _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./components/dialogs/settings/settings.component */ "ATen");
+/* harmony import */ var _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./components/refactoring/rename-file/rename-file.component */ "FboE");
+/* harmony import */ var _signalR_dialogs_rules_rules_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ../signalR/dialogs/rules/rules.component */ "+59A");
+/* harmony import */ var _components_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./components/dialogs/new-markdown/new-markdown.component */ "WxmV");
+/* harmony import */ var _components_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./components/dialogs/new-directory/new-directory.component */ "p8DV");
+/* harmony import */ var _components_md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./components/md-tree/md-tree.component */ "s8RO");
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ../signalR/dialogs/connection-lost/connection-lost.component */ "9LnC");
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ../signalR/dialogs/parsing-project/parsing-project.component */ "oPln");
+/* harmony import */ var _components_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./components/dialogs/change-directory/change-directory.component */ "HotF");
+/* harmony import */ var _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./components/dialogs/delete-markdown/delete-markdown.component */ "BUpo");
+/* harmony import */ var _components_publish_md_tree_publish_md_tree_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./components/publish-md-tree/publish-md-tree.component */ "5hcZ");
+/* harmony import */ var _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./components/gitlab-settings/gitlab-settings.component */ "/6Vx");
+/* harmony import */ var _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./components/document-settings/document-settings.component */ "oTTF");
+/* harmony import */ var _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./components/dialogs/copy-from-clipboard/copy-from-clipboard.component */ "WD3D");
+/* harmony import */ var _git_git_module__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ../git/git.module */ "Trdj");
+/* harmony import */ var _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ./components/dialogs/move-md-file/move-md-file.component */ "N7Dz");
+/* harmony import */ var _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! ./components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component */ "K6fG");
+/* harmony import */ var _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! ./components/milkdown-react-host/milkdown-react-host.component */ "DfLb");
+/* harmony import */ var _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! ./components/document-show/document-show.component */ "uOUL");
+/* harmony import */ var _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! ../ai-chat/ai-chat.module */ "IOcM");
+/* harmony import */ var _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! ./components/dialogs/toc-progress-dialog/toc-progress-dialog.component */ "5+da");
+/* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! ./services/toc-progress.service */ "lh+x");
+/* harmony import */ var _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! ../commons/components/confirm-dialog/confirm-dialog.component */ "+Qia");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! @angular/core */ "fXoL");
 
 
 
@@ -958,7 +957,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-
+// HttpClientModule is imported in AppModule - DO NOT import here or interceptors won't work
 
 
 
@@ -993,12 +992,12 @@ const routes = [
         children: [
             {
                 path: '',
-                component: _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_28__["DocumentShowComponent"],
+                component: _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_27__["DocumentShowComponent"],
                 children: [
                     { path: 'document', component: _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_3__["MainContentComponent"] },
-                    { path: 'gitlabsettings', component: _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_21__["GitlabSettingsComponent"] },
-                    { path: 'documentsettings', component: _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_22__["DocumentSettingsComponent"] },
-                    { path: 'react-editor', component: _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_27__["MilkdownReactHostComponent"] },
+                    { path: 'gitlabsettings', component: _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_20__["GitlabSettingsComponent"] },
+                    { path: 'documentsettings', component: _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_21__["DocumentSettingsComponent"] },
+                    { path: 'react-editor', component: _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_26__["MilkdownReactHostComponent"] },
                     { path: 'ai-chat', loadChildren: () => Promise.resolve(/*! import() */).then(__webpack_require__.bind(null, /*! ../ai-chat/ai-chat.module */ "IOcM")).then(m => m.AiChatModule) }
                 ]
             },
@@ -1015,48 +1014,46 @@ class MdExplorerModule {
     }
 }
 MdExplorerModule.ɵfac = function MdExplorerModule_Factory(t) { return new (t || MdExplorerModule)(); };
-MdExplorerModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_33__["ɵɵdefineNgModule"]({ type: MdExplorerModule });
-MdExplorerModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_33__["ɵɵdefineInjector"]({ providers: [
+MdExplorerModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵdefineNgModule"]({ type: MdExplorerModule });
+MdExplorerModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵdefineInjector"]({ providers: [
         // MdFileService è già providedIn: 'root', non va qui
-        _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_31__["TocProgressService"]
+        _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_30__["TocProgressService"]
     ], imports: [[
             _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
             _shared_material_module__WEBPACK_IMPORTED_MODULE_4__["MaterialModule"],
-            _angular_common_http__WEBPACK_IMPORTED_MODULE_8__["HttpClientModule"],
             _angular_forms__WEBPACK_IMPORTED_MODULE_5__["FormsModule"],
-            _git_git_module__WEBPACK_IMPORTED_MODULE_24__["GitModule"],
-            _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_29__["AiChatModule"],
+            _git_git_module__WEBPACK_IMPORTED_MODULE_23__["GitModule"],
+            _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_28__["AiChatModule"],
             _angular_router__WEBPACK_IMPORTED_MODULE_7__["RouterModule"].forChild(routes)
         ]] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_33__["ɵɵsetNgModuleScope"](MdExplorerModule, { declarations: [_components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_1__["SidenavComponent"],
+(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵsetNgModuleScope"](MdExplorerModule, { declarations: [_components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_1__["SidenavComponent"],
         _components_toolbar_toolbar_component__WEBPACK_IMPORTED_MODULE_2__["ToolbarComponent"],
-        _pipes_safePipe__WEBPACK_IMPORTED_MODULE_9__["SafePipe"],
+        _pipes_safePipe__WEBPACK_IMPORTED_MODULE_8__["SafePipe"],
         _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_3__["MainContentComponent"],
         _md_explorer_component__WEBPACK_IMPORTED_MODULE_6__["MdExplorerComponent"],
-        _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_10__["SettingsComponent"],
-        _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_11__["RenameFileComponent"],
-        _signalR_dialogs_rules_rules_component__WEBPACK_IMPORTED_MODULE_12__["RulesComponent"],
-        _components_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_13__["NewMarkdownComponent"],
-        _components_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_14__["NewDirectoryComponent"],
-        _components_md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_15__["MdTreeComponent"],
-        _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_16__["ConnectionLostComponent"],
-        _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_17__["ParsingProjectComponent"],
-        _components_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_18__["ChangeDirectoryComponent"],
-        _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_19__["DeleteMarkdownComponent"],
-        _components_publish_md_tree_publish_md_tree_component__WEBPACK_IMPORTED_MODULE_20__["PublishMdTreeComponent"],
-        _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_21__["GitlabSettingsComponent"],
-        _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_22__["DocumentSettingsComponent"],
-        _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_23__["CopyFromClipboardComponent"],
-        _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_25__["MoveMdFileComponent"], _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_26__["AddNewFileToMDEComponent"],
-        _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_27__["MilkdownReactHostComponent"],
-        _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_28__["DocumentShowComponent"],
-        _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_30__["TocProgressDialogComponent"],
-        _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_32__["ConfirmDialogComponent"]], imports: [_angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
+        _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_9__["SettingsComponent"],
+        _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_10__["RenameFileComponent"],
+        _signalR_dialogs_rules_rules_component__WEBPACK_IMPORTED_MODULE_11__["RulesComponent"],
+        _components_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_12__["NewMarkdownComponent"],
+        _components_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_13__["NewDirectoryComponent"],
+        _components_md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_14__["MdTreeComponent"],
+        _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_15__["ConnectionLostComponent"],
+        _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_16__["ParsingProjectComponent"],
+        _components_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_17__["ChangeDirectoryComponent"],
+        _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_18__["DeleteMarkdownComponent"],
+        _components_publish_md_tree_publish_md_tree_component__WEBPACK_IMPORTED_MODULE_19__["PublishMdTreeComponent"],
+        _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_20__["GitlabSettingsComponent"],
+        _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_21__["DocumentSettingsComponent"],
+        _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_22__["CopyFromClipboardComponent"],
+        _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_24__["MoveMdFileComponent"], _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_25__["AddNewFileToMDEComponent"],
+        _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_26__["MilkdownReactHostComponent"],
+        _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_27__["DocumentShowComponent"],
+        _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_29__["TocProgressDialogComponent"],
+        _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_31__["ConfirmDialogComponent"]], imports: [_angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
         _shared_material_module__WEBPACK_IMPORTED_MODULE_4__["MaterialModule"],
-        _angular_common_http__WEBPACK_IMPORTED_MODULE_8__["HttpClientModule"],
         _angular_forms__WEBPACK_IMPORTED_MODULE_5__["FormsModule"],
-        _git_git_module__WEBPACK_IMPORTED_MODULE_24__["GitModule"],
-        _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_29__["AiChatModule"], _angular_router__WEBPACK_IMPORTED_MODULE_7__["RouterModule"]] }); })();
+        _git_git_module__WEBPACK_IMPORTED_MODULE_23__["GitModule"],
+        _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_28__["AiChatModule"], _angular_router__WEBPACK_IMPORTED_MODULE_7__["RouterModule"]] }); })();
 
 
 /***/ }),
@@ -3753,8 +3750,8 @@ class ToolbarComponent {
     showRule1IsBroken(data, objectThis) {
         objectThis.openRules(data);
     }
-    sendExportRequest(data, objectThis) {
-        const url = '../api/mdexport/' + objectThis.relativePath + '?connectionId=' + data;
+    sendExportRequest(objectThis) {
+        const url = '../api/mdexport/' + objectThis.relativePath;
         return objectThis.http.get(url)
             .subscribe(data => { console.log(data); });
     }
@@ -3779,16 +3776,12 @@ class ToolbarComponent {
         objectThis.mdFileService.setSelectedMdFileFromServer(data);
     }
     OpenEditor() {
-        this.monitorMDService.getConnectionId(this.sendOpenFileRequest, this);
-    }
-    sendOpenFileRequest(data, objectThis) {
-        const url = '../api/AppSettings/OpenFile?path=' + objectThis.absolutePath + '&ConnectionId=' + data;
-        return objectThis.http.get(url)
-            .subscribe(data => { console.log(data); });
+        const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
+        this.http.get(url).subscribe(data => { console.log(data); });
     }
     Export() {
         this._snackBar.open("Export request queued!", null, { duration: 2000, verticalPosition: 'top' });
-        this.monitorMDService.getConnectionId(this.sendExportRequest, this);
+        this.sendExportRequest(this);
     }
     FullScreenToggle() {
         if (!document.fullscreenElement) {
