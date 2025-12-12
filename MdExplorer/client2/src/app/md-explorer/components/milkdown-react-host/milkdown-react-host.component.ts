@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, OnDestroy, HostListener, NgZone } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router'; // Per ricevere dati, se necessario
 import { HttpClient } from '@angular/common/http';
@@ -7,12 +7,15 @@ import { MdFile } from '../../models/md-file';
 import { Subscription } from 'rxjs';
 import { filter, switchMap, tap } from 'rxjs/operators';
 
+// Dichiarazione per Zone.js (usato per debug)
+declare const Zone: any;
+
 @Component({
   selector: 'app-milkdown-react-host',
   template: `
     <div class="editor-container">
       <div class="editor-content">
-        <docs-pilot #docsPilotElement [attr.markdown]="markdownContent"></docs-pilot>
+        <docs-pilot #docsPilotElement></docs-pilot>
       </div>
     </div>
     <button class="save-button" (click)="saveMarkdown()">
@@ -74,11 +77,14 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     private location: Location,
     private route: ActivatedRoute, // Lo manteniamo se serve per altro, ma non per filePath
     private http: HttpClient,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
     console.log('MilkdownReactHostComponent initialized');
+    // DEBUG: Log Zone.js info
+    console.log('[MilkdownHost] ngOnInit - Zone.js current zone:', Zone?.current?.name || 'unknown');
     this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(
       filter((file): file is MdFile => file !== null && file !== undefined), // Assicura che file non sia null/undefined
       tap(file => {
@@ -93,10 +99,10 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
       next: (markdown) => {
         if (typeof markdown === 'string') {
           this.markdownContent = markdown;
-          // Forziamo l'aggiornamento dell'attributo nel web component se necessario
-          if (this.docsPilotElementRef?.nativeElement) {
-            this.docsPilotElementRef.nativeElement.setAttribute('markdown', markdown);
-          }
+          // Usa il metodo setMarkdown() per aggiornare il contenuto
+          // Questo evita di distruggere e ricreare l'editor
+          // Aspetta che l'editor sia pronto prima di chiamare setMarkdown
+          this.waitForEditorAndSetMarkdown(markdown);
           console.log('React Host: Markdown caricato.');
         }
       },
@@ -104,7 +110,7 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
         console.error('React Host: Errore nel caricare il markdown:', err);
         this.markdownContent = '# Errore nel caricamento del documento';
         if (this.docsPilotElementRef?.nativeElement) {
-          this.docsPilotElementRef.nativeElement.setAttribute('markdown', this.markdownContent);
+          (this.docsPilotElementRef.nativeElement as any).setMarkdown(this.markdownContent);
         }
       }
     });
@@ -126,13 +132,41 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     // }
   }
 
+  // Aspetta che l'editor sia inizializzato prima di chiamare setMarkdown
+  private waitForEditorAndSetMarkdown(markdown: string, maxAttempts: number = 20): void {
+    // DEBUG: Log quando viene chiamato
+    console.log('[MilkdownHost] waitForEditorAndSetMarkdown called at:', performance.now());
+    let attempts = 0;
+    const checkAndSet = () => {
+      attempts++;
+      const element = this.docsPilotElementRef?.nativeElement as any;
+
+      // Verifica se l'editor è pronto controllando se setMarkdown esiste e se l'editor interno è inizializzato
+      if (element && typeof element.setMarkdown === 'function' && element.editor) {
+        element.setMarkdown(markdown);
+        console.log('React Host: setMarkdown chiamato con successo dopo', attempts, 'tentativi');
+      } else if (attempts < maxAttempts) {
+        // Riprova dopo 100ms
+        setTimeout(checkAndSet, 100);
+      } else {
+        console.error('React Host: Timeout in attesa dell\'editor dopo', maxAttempts, 'tentativi');
+      }
+    };
+    checkAndSet();
+  }
+
   @HostListener('window:keydown', ['$event'])
   handleKeyDown(event: KeyboardEvent): void {
-    // Intercetta Ctrl+S o Cmd+S (per Mac)
-    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-      event.preventDefault(); // Previene il comportamento di default del browser
-      this.saveMarkdown();
+    // IMPORTANTE: Ignora TUTTI gli eventi che non sono Ctrl+S/Cmd+S
+    // per evitare interferenze con l'editor CodeMirror
+    // Non facciamo nemmeno logging per evitare di triggerare Zone.js change detection
+    if (!((event.ctrlKey || event.metaKey) && event.key === 's')) {
+      return; // Exit immediato per tutti i tasti normali
     }
+
+    // Solo Ctrl+S/Cmd+S arriva qui
+    event.preventDefault();
+    this.saveMarkdown();
   }
 
   async saveMarkdown(): Promise<void> {

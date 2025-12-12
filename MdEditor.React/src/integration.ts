@@ -1,7 +1,19 @@
 // File per l'integrazione come WebComponent
+// BUILD VERSION: 2025-12-12T18:30:00 - CRLF fix
+const BUILD_VERSION = "2025-12-12T18:30:00-CRLF-fix";
+
 import { Crepe, CrepeFeature } from "@milkdown/crepe";
 import { languages } from "@codemirror/language-data";
 import { LanguageDescription } from "@codemirror/language";
+import { replaceAll } from "@milkdown/utils";
+
+/**
+ * Normalizza i line endings da CRLF (Windows) a LF (Unix).
+ * CodeMirror/Milkdown ha un bug con CRLF che causa il salto del cursore nei code blocks.
+ */
+function normalizeCRLF(content: string): string {
+  return content.replace(/\r\n/g, '\n');
+}
 
 // Definisce PlantUML come linguaggio riconosciuto per i code blocks
 const plantumlLanguage = LanguageDescription.of({
@@ -21,82 +33,55 @@ export class DocsPilotElement extends HTMLElement {
   editorContainer: HTMLDivElement | null = null;
   shadowRoot: ShadowRoot | null = null;
   defaultMarkdown = '<calc>';
-  
+
   // Osserva gli attributi per reagire ai cambiamenti
   static get observedAttributes() {
     return ['markdown'];
   }
-  
+
   // Useremmo questa proprietà in futuro se avessimo bisogno di una gestione più complessa degli eventi
   // private editorEvents: CustomEvent[] = [];
-  
+
   // Flag per indicare che l'inizializzazione è in corso
   private isInitializing = false;
 
-  // Quando un attributo cambia
+  // Flag per evitare doppie elaborazioni quando setMarkdown() e attributeChangedCallback() vengono chiamati insieme
+  private skipNextAttributeChange = false;
+
+  // Flag per tracciare se il CSS è stato caricato (usato internamente)
+  // @ts-ignore - used in onload callback
+  private cssLoaded = false;
+
+  // Quando un attributo cambia (chiamato dal host Angular quando carica un nuovo file)
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
     if (name === 'markdown' && oldValue !== newValue) {
+      // Salta se il cambiamento è stato già gestito da setMarkdown()
+      // (previene race condition con binding Angular)
+      if (this.skipNextAttributeChange) {
+        this.skipNextAttributeChange = false;
+        return;
+      }
+
       // Non fare nulla durante la fase di inizializzazione o se il valore è undefined o non una stringa
       if (this.isInitializing || typeof newValue !== 'string') {
         return;
       }
-      
+
       // Se l'editor non è ancora inizializzato, non fare nulla
       // Verrà usato il valore dell'attributo durante l'inizializzazione
       if (!this.editor) {
         return;
       }
-      
-      // Poiché non esiste un modo diretto per aggiornare il contenuto dell'editor,
-      // dobbiamo ricreare l'editor preservando gli event listener
-      if (this.editorContainer) {
-        try {
-          this.isInitializing = true;
-          console.log('Aggiornamento del contenuto markdown:', newValue.substring(0, 20) + '...');
-          
-          // Salviamo il contenitore originale prima di distruggere l'editor
-          const parentNode = this.editorContainer.parentNode;
-          
-          // Distruggi l'editor esistente
-          this.editor.destroy();
-          this.editor = null;
-          
-          // Rimuoviamo il vecchio contenitore (sarà ricostruito da Crepe)
-          if (parentNode && this.editorContainer) {
-            parentNode.removeChild(this.editorContainer);
-          }
-          
-          // Crea un nuovo contenitore
-          this.editorContainer = document.createElement('div');
-          this.editorContainer.className = 'docs-pilot-editor';
-          this.shadowRoot?.appendChild(this.editorContainer);
-          
-          // Ricrea l'editor con il nuovo valore
-          this.editor = new Crepe({
-            root: this.editorContainer,
-            defaultValue: newValue,
-            featureConfigs: {
-              [CrepeFeature.CodeMirror]: {
-                languages: [...languages, plantumlLanguage]
-              }
-            }
-          });
-          
-          // Configuriamo gli eventi prima di inizializzare l'editor
-          this.setupEditorListeners();
-          
-          // Inizializza il nuovo editor
-          this.editor.create().then(() => {
-            console.log('Editor ricreato con successo');
-            this.isInitializing = false;
-          }).catch((error: Error) => {
-            console.error('Errore nella ricostruzione dell\'editor:', error);
-            this.isInitializing = false;
-          });
-        } catch (error) {
-          console.error('Errore durante l\'aggiornamento dell\'editor:', error);
-          this.isInitializing = false;
-        }
+
+      // Usa replaceAll per aggiornare il contenuto senza distruggere l'editor
+      // Questo preserva la posizione del cursore e lo stato dell'editor
+      try {
+        // Normalizza CRLF -> LF per evitare bug cursore in CodeMirror
+        const normalizedValue = normalizeCRLF(newValue);
+        console.log('Aggiornamento contenuto via replaceAll:', normalizedValue.substring(0, 20) + '...');
+        this.editor.editor.action(replaceAll(normalizedValue));
+      } catch (error) {
+        console.error('Errore in attributeChangedCallback:', error);
       }
     }
   }
@@ -115,13 +100,34 @@ export class DocsPilotElement extends HTMLElement {
   set markdown(value) {
     this.setAttribute('markdown', value);
   }
+
+  // Metodo per aggiornare il contenuto senza distruggere l'editor
+  // Questo preserva la posizione del cursore e lo stato dell'editor
+  setMarkdown(content: string) {
+    console.log('[DocsPilot] setMarkdown called, content length:', content?.length, '| BUILD:', BUILD_VERSION);
+    if (!this.editor || typeof content !== 'string') return;
+
+    try {
+      // Normalizza CRLF -> LF per evitare bug cursore in CodeMirror
+      const normalizedContent = normalizeCRLF(content);
+
+      // Usa replaceAll per aggiornare il contenuto
+      this.editor.editor.action(replaceAll(normalizedContent));
+
+      // Aggiorna anche il defaultMarkdown per consistenza
+      this.defaultMarkdown = normalizedContent;
+
+    } catch (error) {
+      console.error('Errore in setMarkdown:', error);
+    }
+  }
   
   // Quando l'elemento viene aggiunto al DOM
   connectedCallback() {
     // Imposta il flag di inizializzazione
     this.isInitializing = true;
 
-    // Crea shadow DOM
+    // Crea Shadow DOM per incapsulamento stili
     this.shadowRoot = this.attachShadow({ mode: 'open' });
 
     // Aggiungi stili CSS in modo che il percorso sia relativo allo script stesso
@@ -136,7 +142,6 @@ export class DocsPilotElement extends HTMLElement {
     if (isDevMode) {
       // In dev mode, usa il CSS bundled dalla cartella public
       cssPath = '/css/milkdown-bundled.css';
-      console.log('[DocsPilotElement] Dev mode - CSS Path:', cssPath);
     } else {
       // In produzione, cerca il CSS relativo allo script o usa il fallback
       const currentScript = document.currentScript as HTMLScriptElement;
@@ -144,139 +149,70 @@ export class DocsPilotElement extends HTMLElement {
       if (currentScript && currentScript.src) {
         const scriptFolderURL = new URL('.', currentScript.src).href;
         cssPath = new URL('assets/css/milkdown-all.css', scriptFolderURL).href;
-        console.log('[DocsPilotElement] CSS Path calcolato (da currentScript):', cssPath);
       } else {
         const fixedRelativePath = '../../../milk_react/assets/css/milkdown-all.css';
         cssPath = new URL(fixedRelativePath, window.location.href).href;
-        console.log('[DocsPilotElement] CSS Path (fallback):', cssPath);
       }
     }
 
     linkElem.setAttribute('href', cssPath);
+
+    // Traccia il caricamento del CSS
+    linkElem.onload = () => {
+      this.cssLoaded = true;
+    };
+
+    // Aggiungi al Shadow DOM
     this.shadowRoot.appendChild(linkElem);
-    
+
     // Crea container per l'editor Milkdown
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'docs-pilot-editor';
     this.shadowRoot.appendChild(this.editorContainer);
-    
-    // Inizializza l'editor
+
+    // Inizializza l'editor con un piccolo ritardo per assicurarsi che gli stili siano caricati
     setTimeout(() => {
-      // Inizializza l'editor con un piccolo ritardo per assicurarsi che gli stili siano caricati
       this.initEditor();
     }, 50);
   }
   
   // Configura gli eventi dell'editor
   setupEditorListeners() {
-    if (!this.editor) return;
-    
-    // Configura gli eventi dell'editor usando l'API listener di Crepe
-    this.editor.on((listener: any) => {
-      listener.markdownUpdated((markdown: any) => {
-        // Converti esplicitamente a stringa se non lo è già
-        let markdownText: string;
-        
-        if (typeof markdown === 'string') {
-          markdownText = markdown;
-        } else if (markdown && typeof markdown === 'object') {
-          // Se è un oggetto, prova ad estrarre proprietà rilevanti o a convertirlo in JSON
-          try {
-            if (markdown.toString && typeof markdown.toString === 'function' && 
-                markdown.toString() !== '[object Object]') {
-              markdownText = markdown.toString();
-            } else if (markdown.content && typeof markdown.content === 'string') {
-              markdownText = markdown.content;
-            } else if (markdown.text && typeof markdown.text === 'string') {
-              markdownText = markdown.text;
-            } else {
-              // Fallback - controlla se l'oggetto ha proprietà stringify
-              if (markdown.stringify && typeof markdown.stringify === 'function') {
-                markdownText = markdown.stringify();
-              } else if (markdown.constructor && (
-                markdown.constructor.name === 'Jh' ||
-                markdown.constructor.name.startsWith('_Ctx') ||
-                markdown.constructor.name === 'Ctx'
-              )) {
-                // Questo è un oggetto interno di Milkdown (Ctx), ignoriamolo silenziosamente
-                return; // Esci dalla funzione senza emettere eventi
-              } else if (markdown.produce && markdown.inject && markdown.remove) {
-                // Altro pattern per riconoscere oggetti Ctx di Milkdown
-                return; // Esci dalla funzione senza emettere eventi
-              } else {
-                console.warn('Impossibile convertire l\'oggetto markdown in stringa:', markdown);
-                markdownText = ''; // Valore vuoto come fallback sicuro
-              }
-            }
-          } catch (e) {
-            console.error('Errore durante la conversione dell\'oggetto markdown:', e);
-            markdownText = '';
-          }
-        } else {
-          // Se non è né stringa né oggetto, converti a stringa vuota
-          console.warn('Markdown non è una stringa né un oggetto:', markdown);
-          markdownText = '';
-        }
-        
-        // Evita di aggiornare l'attributo se il valore è uguale
-        // per prevenire loop di aggiornamento
-        const currentAttr = this.getAttribute('markdown');
-        if (currentAttr !== markdownText) {
-          // Imposta un flag per evitare cicli
-          this.isInitializing = true;
-          
-          // Aggiorna l'attributo markdown solo quando è diverso
-          this.setAttribute('markdown', markdownText);
-          
-          // Resetta il flag dopo un piccolo ritardo
-          setTimeout(() => {
-            this.isInitializing = false;
-          }, 10);
-        }
-        
-        // Emetti un evento quando il markdown cambia
-        const event = new CustomEvent('markdownChange', {
-          detail: { markdown: markdownText },
-          bubbles: true,
-          composed: true
-        });
-        this.dispatchEvent(event);
-      });
-    });
+    // Placeholder per eventuali listener futuri
   }
   
   // Inizializza l'editor Milkdown
   async initEditor() {
     if (!this.editorContainer) return;
-    
+
     try {
       this.isInitializing = true;
-      console.log('Inizializzazione editor con markdown:', 
-                 (this.markdown && this.markdown.substring(0, 20) + '...') || 'vuoto');
-      
+
+      // Normalizza CRLF -> LF per evitare bug cursore in CodeMirror
+      const normalizedMarkdown = normalizeCRLF(this.markdown);
+
       // Crea l'istanza dell'editor
       this.editor = new Crepe({
         root: this.editorContainer,
-        defaultValue: this.markdown,
+        defaultValue: normalizedMarkdown,
         featureConfigs: {
           [CrepeFeature.CodeMirror]: {
             languages: [...languages, plantumlLanguage]
           }
         }
       });
-      
+
       // Configura gli eventi dell'editor
       this.setupEditorListeners();
-      
+
       // Inizializza l'editor
       await this.editor.create();
-      console.log('Editor inizializzato con successo');
-      
+
       // Resetta il flag di inizializzazione dopo un piccolo ritardo
       setTimeout(() => {
         this.isInitializing = false;
       }, 50);
-      
+
     } catch (error) {
       console.error('Errore nell\'inizializzazione dell\'editor Milkdown:', error);
       this.isInitializing = false;

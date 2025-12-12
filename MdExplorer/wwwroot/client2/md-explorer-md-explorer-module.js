@@ -1152,16 +1152,20 @@ __webpack_require__.r(__webpack_exports__);
 const _c0 = ["docsPilotElement"];
 class MilkdownReactHostComponent {
     constructor(location, route, // Lo manteniamo se serve per altro, ma non per filePath
-    http, mdFileService) {
+    http, mdFileService, ngZone) {
         this.location = location;
         this.route = route;
         this.http = http;
         this.mdFileService = mdFileService;
+        this.ngZone = ngZone;
         this.markdownContent = '# Benvenuto nell\\\'Editor React (Milkdown)!';
         this.currentFilePath = null; // Per memorizzare il percorso del file corrente
     }
     ngOnInit() {
+        var _a;
         console.log('MilkdownReactHostComponent initialized');
+        // DEBUG: Log Zone.js info
+        console.log('[MilkdownHost] ngOnInit - Zone.js current zone:', ((_a = Zone === null || Zone === void 0 ? void 0 : Zone.current) === null || _a === void 0 ? void 0 : _a.name) || 'unknown');
         this.fileSubscription = this.mdFileService.selectedMdFileFromSideNav.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["filter"])((file) => file !== null && file !== undefined), // Assicura che file non sia null/undefined
         Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_1__["tap"])(file => {
             this.currentFilePath = file.fullPath; // Memorizza il percorso del file
@@ -1171,13 +1175,12 @@ class MilkdownReactHostComponent {
             return this.http.get(`/api/MdExplorerEditorReact/${file.fullPath}`, { responseType: 'text' });
         })).subscribe({
             next: (markdown) => {
-                var _a;
                 if (typeof markdown === 'string') {
                     this.markdownContent = markdown;
-                    // Forziamo l'aggiornamento dell'attributo nel web component se necessario
-                    if ((_a = this.docsPilotElementRef) === null || _a === void 0 ? void 0 : _a.nativeElement) {
-                        this.docsPilotElementRef.nativeElement.setAttribute('markdown', markdown);
-                    }
+                    // Usa il metodo setMarkdown() per aggiornare il contenuto
+                    // Questo evita di distruggere e ricreare l'editor
+                    // Aspetta che l'editor sia pronto prima di chiamare setMarkdown
+                    this.waitForEditorAndSetMarkdown(markdown);
                     console.log('React Host: Markdown caricato.');
                 }
             },
@@ -1186,7 +1189,7 @@ class MilkdownReactHostComponent {
                 console.error('React Host: Errore nel caricare il markdown:', err);
                 this.markdownContent = '# Errore nel caricamento del documento';
                 if ((_a = this.docsPilotElementRef) === null || _a === void 0 ? void 0 : _a.nativeElement) {
-                    this.docsPilotElementRef.nativeElement.setAttribute('markdown', this.markdownContent);
+                    this.docsPilotElementRef.nativeElement.setMarkdown(this.markdownContent);
                 }
             }
         });
@@ -1205,12 +1208,40 @@ class MilkdownReactHostComponent {
         //    this.docsPilotElementRef.nativeElement.markdown = this.markdownContent;
         // }
     }
+    // Aspetta che l'editor sia inizializzato prima di chiamare setMarkdown
+    waitForEditorAndSetMarkdown(markdown, maxAttempts = 20) {
+        // DEBUG: Log quando viene chiamato
+        console.log('[MilkdownHost] waitForEditorAndSetMarkdown called at:', performance.now());
+        let attempts = 0;
+        const checkAndSet = () => {
+            var _a;
+            attempts++;
+            const element = (_a = this.docsPilotElementRef) === null || _a === void 0 ? void 0 : _a.nativeElement;
+            // Verifica se l'editor è pronto controllando se setMarkdown esiste e se l'editor interno è inizializzato
+            if (element && typeof element.setMarkdown === 'function' && element.editor) {
+                element.setMarkdown(markdown);
+                console.log('React Host: setMarkdown chiamato con successo dopo', attempts, 'tentativi');
+            }
+            else if (attempts < maxAttempts) {
+                // Riprova dopo 100ms
+                setTimeout(checkAndSet, 100);
+            }
+            else {
+                console.error('React Host: Timeout in attesa dell\'editor dopo', maxAttempts, 'tentativi');
+            }
+        };
+        checkAndSet();
+    }
     handleKeyDown(event) {
-        // Intercetta Ctrl+S o Cmd+S (per Mac)
-        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-            event.preventDefault(); // Previene il comportamento di default del browser
-            this.saveMarkdown();
+        // IMPORTANTE: Ignora TUTTI gli eventi che non sono Ctrl+S/Cmd+S
+        // per evitare interferenze con l'editor CodeMirror
+        // Non facciamo nemmeno logging per evitare di triggerare Zone.js change detection
+        if (!((event.ctrlKey || event.metaKey) && event.key === 's')) {
+            return; // Exit immediato per tutti i tasti normali
         }
+        // Solo Ctrl+S/Cmd+S arriva qui
+        event.preventDefault();
+        this.saveMarkdown();
     }
     saveMarkdown() {
         var _a;
@@ -1258,7 +1289,7 @@ class MilkdownReactHostComponent {
         });
     }
 }
-MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_3__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"])); };
+MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_3__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["NgZone"])); };
 MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: MilkdownReactHostComponent, selectors: [["app-milkdown-react-host"]], viewQuery: function MilkdownReactHostComponent_Query(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c0, 1);
     } if (rf & 2) {
@@ -1266,7 +1297,7 @@ MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["�
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.docsPilotElementRef = _t.first);
     } }, hostBindings: function MilkdownReactHostComponent_HostBindings(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("keydown", function MilkdownReactHostComponent_keydown_HostBindingHandler($event) { return ctx.handleKeyDown($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresolveWindow"]);
-    } }, decls: 6, vars: 1, consts: [[1, "editor-container"], [1, "editor-content"], ["docsPilotElement", ""], [1, "save-button", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
+    } }, decls: 6, vars: 0, consts: [[1, "editor-container"], [1, "editor-content"], ["docsPilotElement", ""], [1, "save-button", 3, "click"]], template: function MilkdownReactHostComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](1, "div", 1);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](2, "docs-pilot", null, 2);
@@ -1276,9 +1307,6 @@ MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["�
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MilkdownReactHostComponent_Template_button_click_4_listener() { return ctx.saveMarkdown(); });
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](5, " Salva ");
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵattribute"]("markdown", ctx.markdownContent);
     } }, styles: ["[_nghost-%COMP%] {\n      display: block;\n      position: relative;\n      height: 100%;\n    }\n    .editor-container[_ngcontent-%COMP%] {\n      display: flex;\n      flex-direction: column;\n      height: 100%;\n      position: relative;\n    }\n    .editor-content[_ngcontent-%COMP%] {\n      flex: 1;\n      overflow-y: auto;\n      border: 1px solid #ccc;\n    }\n    .save-button[_ngcontent-%COMP%] {\n      position: fixed;  \n      bottom: 40px;     \n      right: 40px;      \n      z-index: 1000;    \n      background-color: #3f51b5;\n      color: white;\n      padding: 12px 28px;  \n      border: none;\n      border-radius: 24px;  \n      font-size: 14px;\n      font-weight: 500;\n      cursor: pointer;\n      box-shadow: 0 4px 8px -2px rgba(0,0,0,.3), 0 8px 16px 0 rgba(0,0,0,.2);\n      text-transform: uppercase;\n      transition: all 0.2s ease;  \n    }\n    .save-button[_ngcontent-%COMP%]:hover {\n      background-color: #303f9f;\n      transform: translateY(-2px);  \n      box-shadow: 0 6px 12px -2px rgba(0,0,0,.4), 0 12px 24px 0 rgba(0,0,0,.3);\n    }\n    .save-button[_ngcontent-%COMP%]:active {\n      transform: translateY(0);  \n    }"] });
 
 
@@ -23116,24 +23144,22 @@ class MainContentComponent {
      */
     handleGlobalKeydown(event) {
         var _a, _b;
-        // Ctrl/Cmd + F: Trigger iframe search
-        if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
-            event.preventDefault();
-            event.stopPropagation();
-            console.log('[MainContent] Ctrl+F intercepted, sending message to iframe');
-            // Communicate with iframe to trigger search
-            const iframeWindow = (_b = (_a = this.iframe) === null || _a === void 0 ? void 0 : _a.nativeElement) === null || _b === void 0 ? void 0 : _b.contentWindow;
-            if (iframeWindow) {
-                try {
-                    iframeWindow.postMessage({ action: 'toggleSearch' }, '*');
-                    console.log('[MainContent] Message sent to iframe');
-                }
-                catch (error) {
-                    console.error('[MainContent] Error communicating with iframe:', error);
-                }
+        // IMPORTANTE: Exit immediato per tutti i tasti che non sono Ctrl+F
+        // per evitare interferenze con l'editor React/CodeMirror
+        if (!((event.ctrlKey || event.metaKey) && event.key === 'f')) {
+            return;
+        }
+        // Solo Ctrl+F arriva qui
+        event.preventDefault();
+        event.stopPropagation();
+        // Communicate with iframe to trigger search
+        const iframeWindow = (_b = (_a = this.iframe) === null || _a === void 0 ? void 0 : _a.nativeElement) === null || _b === void 0 ? void 0 : _b.contentWindow;
+        if (iframeWindow) {
+            try {
+                iframeWindow.postMessage({ action: 'toggleSearch' }, '*');
             }
-            else {
-                console.warn('[MainContent] iframe not available');
+            catch (error) {
+                console.error('[MainContent] Error communicating with iframe:', error);
             }
         }
     }

@@ -183,24 +183,23 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   @HostListener('window:keydown', ['$event'])
   handleGlobalKeydown(event: KeyboardEvent): void {
-    // Ctrl/Cmd + F: Trigger iframe search
-    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
-      event.preventDefault();
-      event.stopPropagation();
+    // IMPORTANTE: Exit immediato per tutti i tasti che non sono Ctrl+F
+    // per evitare interferenze con l'editor React/CodeMirror
+    if (!((event.ctrlKey || event.metaKey) && event.key === 'f')) {
+      return;
+    }
 
-      console.log('[MainContent] Ctrl+F intercepted, sending message to iframe');
+    // Solo Ctrl+F arriva qui
+    event.preventDefault();
+    event.stopPropagation();
 
-      // Communicate with iframe to trigger search
-      const iframeWindow = this.iframe?.nativeElement?.contentWindow;
-      if (iframeWindow) {
-        try {
-          iframeWindow.postMessage({ action: 'toggleSearch' }, '*');
-          console.log('[MainContent] Message sent to iframe');
-        } catch (error) {
-          console.error('[MainContent] Error communicating with iframe:', error);
-        }
-      } else {
-        console.warn('[MainContent] iframe not available');
+    // Communicate with iframe to trigger search
+    const iframeWindow = this.iframe?.nativeElement?.contentWindow;
+    if (iframeWindow) {
+      try {
+        iframeWindow.postMessage({ action: 'toggleSearch' }, '*');
+      } catch (error) {
+        console.error('[MainContent] Error communicating with iframe:', error);
       }
     }
   }
