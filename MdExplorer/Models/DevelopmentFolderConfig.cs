@@ -54,20 +54,23 @@ namespace MdExplorer.Service.Models
     }
 
     /// <summary>
-    /// Configuration for YAML front matter auto-generation
+    /// Configuration for YAML front matter auto-generation.
+    /// NOTA: L'auto-generazione YAML ora avviene on-demand (Export Word, Document Settings)
+    /// e non più automaticamente alla visualizzazione del documento.
+    /// Questa configurazione è mantenuta per backward compatibility e usi futuri.
     /// </summary>
     public class YamlAutoGenerationConfig
     {
         /// <summary>
-        /// If true, automatically add YAML front matter to markdown files that don't have it
+        /// Se true, abilita globalmente l'auto-generazione YAML.
+        /// Default: false (on-demand). Impostare a true per abilitare sempre.
         /// </summary>
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
         /// <summary>
-        /// List of folder paths (relative to project root) where YAML auto-generation should be disabled
-        /// Uses exact path matching (e.g., ".github", "docs/external")
+        /// Lista di path esclusi dall'auto-generazione (legacy, mantenuto per backward compatibility).
         /// </summary>
-        public List<string> ExcludePaths { get; set; } = new List<string> { ".github" };
+        public List<string> ExcludePaths { get; set; } = new List<string>();
     }
 
     /// <summary>

@@ -84,6 +84,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly ISnippet<DictionarySnippetParam>[] _snippets;
         private readonly ProjectBodyEngine _projectBodyEngine;
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
+        private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
         private readonly RefactoringManager _refactoringManager;
         private readonly ProcessUtil _visualStudioCode;
         private readonly IMdIgnoreService _mdIgnoreService;
@@ -106,6 +107,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             ISnippet<DictionarySnippetParam>[] snippets,
             ProjectBodyEngine projectBodyEngine,
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentManager,
+            IYamlDefaultGenerator yamlDefaultGenerator,
         RefactoringManager refactoringManager,
         ProcessUtil visualStudioCode,
         IMdIgnoreService mdIgnoreService,
@@ -120,6 +122,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _snippets = snippets;
             _projectBodyEngine = projectBodyEngine;
             _yamlDocumentManager = yamlDocumentManager;
+            _yamlDefaultGenerator = yamlDefaultGenerator;
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
             _mdIgnoreService = mdIgnoreService;
@@ -132,6 +135,31 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             var text = System.IO.File.ReadAllText(fullPath);
             var document = _yamlDocumentManager.GetDescriptor(text);
+
+            // Se YAML mancante o incompleto, generalo e salvalo (on-demand)
+            if (document == null || document.WordSection == null)
+            {
+                _logger.LogInformation($"[GetDocumentSettings] YAML mancante per: {fullPath}, generazione automatica...");
+
+                var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(GetProjectPath());
+                var updatedContent = defaultYaml + text;
+
+                // Disabilita FileSystemWatcher durante la scrittura
+                SetFileSystemWatcherEnabled(false);
+                try
+                {
+                    System.IO.File.WriteAllText(fullPath, updatedContent);
+                    _logger.LogInformation($"[GetDocumentSettings] YAML auto-generato per: {fullPath}");
+                }
+                finally
+                {
+                    SetFileSystemWatcherEnabled(true);
+                }
+
+                // Rileggi il documento con YAML aggiunto
+                document = _yamlDocumentManager.GetDescriptor(updatedContent);
+            }
+
             return Ok(document);
         }
 
@@ -499,9 +527,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         return BadRequest(new { error = "Invalid file data or path" });
                     }
             
-                    // Open folder containing the file
-                    var folderPath = Path.GetDirectoryName(fileData.FullPath);
-                    Console.WriteLine($"[MdFilesController] Extracted folderPath: {folderPath}");
+                    // Determine the folder to open
+                    string folderPath;
+                    if (Directory.Exists(fileData.FullPath))
+                    {
+                        // It's already a directory, use it directly
+                        folderPath = fileData.FullPath;
+                    }
+                    else
+                    {
+                        // It's a file, get the containing directory
+                        folderPath = Path.GetDirectoryName(fileData.FullPath);
+                    }
+                    Console.WriteLine($"[MdFilesController] Resolved folderPath: {folderPath}");
                     
                     var result = CrossPlatformProcess.OpenFolder(folderPath);
                     Console.WriteLine($"[MdFilesController] CrossPlatformProcess.OpenFolder returned: {result}");

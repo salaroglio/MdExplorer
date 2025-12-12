@@ -1,5 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { MdFile } from '../models/md-file';
@@ -29,7 +29,8 @@ export class MdFileService {
     serverSelectedMdFile: MdFile[]
   }
   constructor(private http: HttpClient,
-    private mdServerMessages: MdServerMessagesService) {
+    private mdServerMessages: MdServerMessagesService,
+    private injector: Injector) {
 
     var defaultSelectedMdFile = [];
     this.dataStore = {
@@ -53,6 +54,18 @@ export class MdFileService {
       // Use loadAll() to properly update dataStore and notify subscribers
       this.loadAll(null, null);
     });
+
+    // Subscribe to project changing events - clear data to show skeleton loader
+    // Use setTimeout to avoid circular dependency issues
+    setTimeout(() => {
+      const { ProjectsService } = require('./projects.service');
+      const projectsService = this.injector.get(ProjectsService);
+      projectsService.projectChanging$.subscribe(() => {
+        console.log('🔄 Project changing - clearing tree data for skeleton');
+        this.dataStore.mdFiles = [];
+        this._mdFiles.next([]);
+      });
+    }, 0);
   }
 
   get whatDisplayForToolbar(): Observable<string> {

@@ -400,31 +400,41 @@ export class ModernCloneProjectComponent implements OnInit {
       return;
     }
 
-    // Step 1: Validate URL reachability before cloning
     const info = new WaitingDialogInfo();
-    info.message = "Validating repository URL...";
-    this.waitingDialog.showMessageBox(info);
     this.isValidatingUrl = true;
 
     try {
-      // Validate URL first
-      const validationResult = await this.gitService.validateRemoteUrl(this.cloneRequest.url).toPromise();
+      // Step 1: Validate URL reachability before cloning
+      // Skip validation for Basic Auth providers (SCM-Manager, Gitea, Generic)
+      // because they require credentials even for ls-remote
+      const skipValidation = this.authType === 'basic';
 
-      if (!validationResult?.isReachable) {
-        this.waitingDialog.closeMessageBox();
-        this.isValidatingUrl = false;
-        this.urlValidationResult = { isValid: false, error: validationResult?.error || 'Repository not reachable' };
+      if (!skipValidation) {
+        info.message = "Validating repository URL...";
+        this.waitingDialog.showMessageBox(info);
 
-        if (validationResult?.isAuthenticationError) {
-          this.showMessage('Authentication required. Please check your credentials.');
-        } else {
-          this.showMessage(`Repository URL not reachable: ${validationResult?.error || 'Unknown error'}`);
+        // Validate URL first (only for OAuth providers)
+        const validationResult = await this.gitService.validateRemoteUrl(this.cloneRequest.url).toPromise();
+
+        if (!validationResult?.isReachable) {
+          this.waitingDialog.closeMessageBox();
+          this.isValidatingUrl = false;
+          this.urlValidationResult = { isValid: false, error: validationResult?.error || 'Repository not reachable' };
+
+          if (validationResult?.isAuthenticationError) {
+            this.showMessage('Authentication required. Please check your credentials.');
+          } else {
+            this.showMessage(`Repository URL not reachable: ${validationResult?.error || 'Unknown error'}`);
+          }
+          return;
         }
-        return;
-      }
 
-      this.urlValidationResult = { isValid: true };
-      console.log('[ModernClone] URL validation passed, proceeding with clone');
+        this.urlValidationResult = { isValid: true };
+        console.log('[ModernClone] URL validation passed, proceeding with clone');
+      } else {
+        console.log('[ModernClone] Skipping URL validation for Basic Auth provider, proceeding directly with clone');
+        this.waitingDialog.showMessageBox(info);
+      }
 
       // Step 2: Proceed with clone
       const useAutomaticAuth = this.authType === 'oauth' && !this.showCredentialForm;

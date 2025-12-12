@@ -1,7 +1,7 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
 
@@ -12,6 +12,10 @@ export class ProjectsService {
 
   private _mdProjects: BehaviorSubject<MdProject[]>;
   currentProjects$: BehaviorSubject<MdProject> = new BehaviorSubject<MdProject>(null);
+
+  // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
+  private projectChangingSubject = new Subject<void>();
+  projectChanging$ = this.projectChangingSubject.asObservable();
 
   get mdProjects() {
     return this._mdProjects.asObservable();
@@ -47,6 +51,7 @@ export class ProjectsService {
   }
 
   setNewFolderProject(path: string):void {
+    this.projectChangingSubject.next(); // Notifica cambio progetto in corso
     this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
       this.currentProjects$.next(response);
 
@@ -67,6 +72,8 @@ export class ProjectsService {
   }
 
   createProjectWithConfig(config: ProjectCreateConfigOptions): void {
+    this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,

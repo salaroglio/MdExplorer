@@ -215,8 +215,10 @@ namespace MdExplorer.Controllers
                     filePathToAccessOnServer,  // Pass the absolute path
                     monitoredMd);
 
-                // Sanitizza il markdown per rimuovere tag HTML problematici per Milkdown
-                processedMarkdownText = SanitizeMarkdownForMilkdown(processedMarkdownText);
+                // NOTA: Sanitizzazione disabilitata - causava corruzione delle tabelle con <br />
+                // La funzione SanitizeMarkdownForMilkdown() convertiva i <br /> in newline,
+                // rompendo la sintassi delle pipe-table GFM quando usate dentro le celle.
+                // processedMarkdownText = SanitizeMarkdownForMilkdown(processedMarkdownText);
 
                 _logger.LogInformation($"Serving markdown file: {filePathToAccessOnServer}");
                 return Content(processedMarkdownText, "text/plain; charset=utf-8");

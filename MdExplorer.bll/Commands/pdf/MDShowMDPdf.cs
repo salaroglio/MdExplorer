@@ -70,7 +70,10 @@ namespace MdExplorer.Features.Commands.pdf
                     fileName = _helper.NormalizePath(fileName);
                     var queryEncoded = HttpUtility.UrlEncode(fileName);
 
-                    var uriUrl = new Uri($@"{_serverAddress}/api/mdcreatemd/{queryEncoded}");
+                    var connectionIdParam = !string.IsNullOrEmpty(requestInfo.ConnectionId)
+                        ? $"?ConnectionId={requestInfo.ConnectionId}"
+                        : "";
+                    var uriUrl = new Uri($@"{_serverAddress}/api/mdcreatemd/{queryEncoded}{connectionIdParam}");
                     _logger.LogInformation($"looking for: {uriUrl.AbsoluteUri}");
                     var response = httpClient.GetAsync(uriUrl);
                     response.Wait();

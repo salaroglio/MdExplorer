@@ -33,6 +33,10 @@ namespace MdExplorer.Services.Git
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _repositoryLocks
             = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
 
+        // Lock per URL host to prevent multiple concurrent authentications for the same provider
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _authenticationLocks
+            = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
+
         public GitCredentialHelperResolver(
             ILogger<GitCredentialHelperResolver> logger,
             IGitAccountService gitAccountService)
@@ -57,7 +61,7 @@ namespace MdExplorer.Services.Git
                 // Generate cache key from URL host (to avoid caching per-path)
                 var cacheKey = GetCacheKeyFromUrl(url);
 
-                // Check cache first to avoid prompting twice
+                // FAST PATH: Check cache first without lock
                 lock (_cacheLock)
                 {
                     if (_credentialCache.TryGetValue(cacheKey, out var cached))
@@ -79,30 +83,58 @@ namespace MdExplorer.Services.Git
                     }
                 }
 
-                // Try to get credentials using git credential fill
-                // Use known username from context to avoid GCM prompting for account selection
-                var knownUsername = GitExecutionContext.CurrentUsername ?? usernameFromUrl;
-                _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Calling ExecuteGitCredentialFillAsync (knownUsername={Username})...", callId, knownUsername ?? "(none)");
-                var credentialData = await ExecuteGitCredentialFillAsync(url, knownUsername);
-                if (credentialData == null)
-                {
-                    _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] git credential fill returned NULL", callId);
-                    return null;
-                }
+                // SLOW PATH: Acquire per-host lock to prevent multiple concurrent GCM prompts
+                var authLock = _authenticationLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
 
-                var credentials = ParseCredentialHelperOutput(credentialData);
-                if (credentials != null)
-                {
-                    _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Got credentials, caching...", callId);
+                _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Waiting for authentication lock on: {CacheKey}", callId, cacheKey);
+                await authLock.WaitAsync();
+                _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Acquired authentication lock on: {CacheKey}", callId, cacheKey);
 
-                    // Cache the credentials to avoid prompting again
+                try
+                {
+                    // DOUBLE-CHECK: Another thread might have populated the cache while we were waiting
                     lock (_cacheLock)
                     {
-                        _credentialCache[cacheKey] = (credentials, DateTime.UtcNow);
+                        if (_credentialCache.TryGetValue(cacheKey, out var cached))
+                        {
+                            if (DateTime.UtcNow - cached.CachedAt < _cacheExpiry)
+                            {
+                                _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] CACHE HIT (after lock) for: {CacheKey}", callId, cacheKey);
+                                return cached.Credentials;
+                            }
+                        }
                     }
-                }
 
-                return credentials;
+                    // Try to get credentials using git credential fill
+                    // Use known username from context to avoid GCM prompting for account selection
+                    var knownUsername = GitExecutionContext.CurrentUsername ?? usernameFromUrl;
+                    _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Calling ExecuteGitCredentialFillAsync (knownUsername={Username})...", callId, knownUsername ?? "(none)");
+                    var credentialData = await ExecuteGitCredentialFillAsync(url, knownUsername);
+                    if (credentialData == null)
+                    {
+                        _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] git credential fill returned NULL", callId);
+                        return null;
+                    }
+
+                    var credentials = ParseCredentialHelperOutput(credentialData);
+                    if (credentials != null)
+                    {
+                        _logger.LogWarning("🔐 [GCM-RESOLVE #{CallId}] Got credentials, caching...", callId);
+
+                        // Cache the credentials to avoid prompting again
+                        lock (_cacheLock)
+                        {
+                            _credentialCache[cacheKey] = (credentials, DateTime.UtcNow);
+                        }
+                    }
+
+                    return credentials;
+                }
+                finally
+                {
+                    authLock.Release();
+                    _logger.LogDebug("🔐 [GCM-RESOLVE #{CallId}] Released authentication lock on: {CacheKey}", callId, cacheKey);
+                }
             }
             catch (Exception ex)
             {
@@ -217,41 +249,60 @@ namespace MdExplorer.Services.Git
                     }
                 }
 
-                // Get credentials from Git Credential Manager
-                _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] Calling ExecuteGitCredentialFillAsync...", callId);
-                var credentialData = await ExecuteGitCredentialFillAsync(remoteUrl);
-                if (credentialData == null || credentialData.Count == 0)
+                // Check if credentials are already in cache (from recent clone/fetch)
+                var cacheKey = GetCacheKeyFromUrl(remoteUrl);
+                string username = null;
+                string password = null;
+
+                lock (_cacheLock)
                 {
-                    _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] git credential fill returned NULL/empty", callId);
-                    return false;
+                    if (_credentialCache.TryGetValue(cacheKey, out var cached))
+                    {
+                        if (DateTime.UtcNow - cached.CachedAt < _cacheExpiry)
+                        {
+                            _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] Using CACHED credentials for: {CacheKey}", callId, cacheKey);
+                            username = cached.Credentials.Username;
+                            password = cached.Credentials.Password;
+                        }
+                    }
                 }
-                _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] git credential fill returned data", callId);
 
-                credentialData.TryGetValue("username", out var username);
-                credentialData.TryGetValue("password", out var password);
-
+                // Only call GCM if not in cache
                 if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
                 {
-                    _logger.LogInformation("[CredentialAutoDetect] Git Credential Manager returned incomplete credentials");
-                    return false;
+                    _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] Calling ExecuteGitCredentialFillAsync...", callId);
+                    var credentialData = await ExecuteGitCredentialFillAsync(remoteUrl);
+                    if (credentialData == null || credentialData.Count == 0)
+                    {
+                        _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] git credential fill returned NULL/empty", callId);
+                        return false;
+                    }
+                    _logger.LogWarning("🔐 [GCM-AUTODETECT #{CallId}] git credential fill returned data", callId);
+
+                    credentialData.TryGetValue("username", out username);
+                    credentialData.TryGetValue("password", out password);
+
+                    if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                    {
+                        _logger.LogInformation("[CredentialAutoDetect] Git Credential Manager returned incomplete credentials");
+                        return false;
+                    }
+
+                    // Cache the credentials we just got from GCM
+                    var cachedCredentials = new UsernamePasswordCredentials
+                    {
+                        Username = username,
+                        Password = password
+                    };
+                    lock (_cacheLock)
+                    {
+                        _credentialCache[cacheKey] = (cachedCredentials, DateTime.UtcNow);
+                        _logger.LogInformation("[CredentialCache] Cached credentials from GCM for: {CacheKey}", cacheKey);
+                    }
                 }
 
                 // Determine account type from URL
                 var accountType = DetermineAccountType(remoteUrl);
-
-                // IMPORTANT: Cache credentials FIRST, before attempting DB save
-                // This ensures credentials are available even if DB save fails
-                var cacheKey = GetCacheKeyFromUrl(remoteUrl);
-                var cachedCredentials = new UsernamePasswordCredentials
-                {
-                    Username = username,
-                    Password = password
-                };
-                lock (_cacheLock)
-                {
-                    _credentialCache[cacheKey] = (cachedCredentials, DateTime.UtcNow);
-                    _logger.LogInformation("[CredentialCache] Cached credentials BEFORE DB save for: {CacheKey}", cacheKey);
-                }
 
                 // Re-check existing account (may have been created by parallel call that finished first)
                 existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(repositoryPath);

@@ -53,7 +53,16 @@
   </ng-template>
 </mat-menu>
 
-<mat-tree [dataSource]="dataSource"
+<!-- Skeleton loader durante il caricamento -->
+<div *ngIf="isLoading" class="md-tree-skeleton">
+  <div class="skeleton-item" *ngFor="let i of [1,2,3,4,5,6,7,8,9,10]" [class]="'indent-' + getSkeletonIndent(i)">
+    <div class="skeleton-icon"></div>
+    <div class="skeleton-text" [style.width.%]="getSkeletonWidth(i)"></div>
+  </div>
+</div>
+
+<!-- Albero reale quando non in caricamento -->
+<mat-tree *ngIf="!isLoading" [dataSource]="dataSource"
           [treeControl]="treeControl"
           (contextmenu)="onRightClick($event, null)">
   <!-- This is the tree node template for leaf nodes -->

@@ -9,6 +9,7 @@ using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -48,8 +49,9 @@ namespace MdExplorer.Service.Controllers
                 IYamlDefaultGenerator yamlDefaultGenerator,
                 IWorkLink[] modifiers,
                 IHelper helper,
-                IWordTemplateService wordTemplateService
-            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper)
+                IWordTemplateService wordTemplateService,
+                IDatabaseManager databaseManager
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
             _helperPdf = helperPdf;
             _yamlDocumentManager = yamlDocumentManager;
@@ -96,14 +98,30 @@ namespace MdExplorer.Service.Controllers
                     CurrentRoot = GetProjectPath(),
                     AbsolutePathFile = filePath,
                     BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
-
+                    ConnectionId = connectionId
                 };
+
+                // Verifica YAML prima dell'export - se mancante, generalo on-demand
+                var docDesc = _yamlDocumentManager.GetDescriptor(readText);
+                if (docDesc == null || docDesc.WordSection == null)
+                {
+                    _logger.LogInformation($"[MdExport] YAML mancante per: {filePath}, generazione automatica...");
+
+                    var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(GetProjectPath());
+                    var updatedContent = defaultYaml + readText;
+
+                    // Salva il file con YAML
+                    System.IO.File.WriteAllText(filePath, updatedContent);
+                    readText = updatedContent;
+
+                    _logger.LogInformation($"[MdExport] YAML auto-generato per: {filePath}");
+                }
 
                 readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
                 readText = _commandRunner.PrepareMetadataBasedOnMD(readText, requestInfo);
 
-                // Ora il documento dovrebbe già avere YAML valido grazie al MdExplorerController
-                var docDesc = _yamlDocumentManager.GetDescriptor(readText);
+                // Rileggi il descriptor dopo le trasformazioni
+                docDesc = _yamlDocumentManager.GetDescriptor(readText);
 
                 // Inserisci pagine predefinite se configurate
                 if (docDesc?.WordSection?.PredefinedPages != null)

@@ -185,3 +185,56 @@
     user-select: none;
   }
 }
+
+// ==================== Skeleton Loader ====================
+.md-tree-skeleton {
+  padding: 8px 0;
+  height: calc(100vh - 128px);
+  overflow: hidden;
+
+  .skeleton-item {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+
+    .skeleton-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+      background-size: 200% 100%;
+      animation: skeleton-pulse 1.5s ease-in-out infinite;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    .skeleton-text {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+      background-size: 200% 100%;
+      animation: skeleton-pulse 1.5s ease-in-out infinite;
+    }
+
+    // Indentazione per simulare gerarchia ad albero
+    &.indent-0 {
+      padding-left: 16px;
+    }
+    &.indent-1 {
+      padding-left: 40px;
+    }
+    &.indent-2 {
+      padding-left: 64px;
+    }
+  }
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

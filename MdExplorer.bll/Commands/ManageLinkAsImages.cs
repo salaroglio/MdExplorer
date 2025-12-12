@@ -53,7 +53,7 @@ namespace MdExplorer.Features.Commands
             _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - CurrentRoot: {requestInfo.CurrentRoot}");
             _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - AbsolutePathFile: {requestInfo.AbsolutePathFile}");
             _logger.LogInformation($"🔍 [ManageLinkAsImages] RequestInfo - BaseUrl: {requestInfo.BaseUrl}");
-            
+
             var matches = GetMatches(markdown);
             _logger.LogInformation($"🔍 [ManageLinkAsImages] Found {matches.Count} image references");
 
@@ -61,34 +61,35 @@ namespace MdExplorer.Features.Commands
             {
                 var originalImagePath = item.Groups[2].Value;
                 _logger.LogInformation($"🔍 [ManageLinkAsImages] Processing image: {originalImagePath}");
-                
-                // here you should compose the path adding missing part
-                // the missing part is the distance from the root folder and the current file
-                // you can build this using requestInfo.currentqueryrequest
-                
-                var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
-                listOfItem.RemoveAt(listOfItem.Count - 1);
-                var currentWebFolder = string.Empty;
-                foreach (var item1 in listOfItem)
+
+                string fileName;
+
+                // Path assoluti (iniziano con /) - rimuovi lo slash iniziale per renderli relativi alla root del progetto
+                if (originalImagePath.StartsWith("/"))
                 {
-                    if (item1 == listOfItem.First())
-                    {
-                        currentWebFolder = item1;
-                    }
-                    else
-                    {
-                        currentWebFolder += "/" + item1;
-                    }
+                    fileName = originalImagePath.TrimStart('/');
+                    _logger.LogInformation($"🔍 [ManageLinkAsImages] Absolute path detected, converted to: {fileName}");
                 }
-                currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                var fileName = currentWebFolder + "/" + item.Groups[2].Value;
-                var allElementToReplace = item.Groups[0].Value.Replace(item.Groups[2].Value, fileName);
-                
+                // Path relativi - componi il path aggiungendo la cartella corrente
+                else
+                {
+                    // here you should compose the path adding missing part
+                    // the missing part is the distance from the root folder and the current file
+                    // you can build this using requestInfo.currentqueryrequest
+
+                    var listOfItem = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
+                    listOfItem.RemoveAt(listOfItem.Count - 1);
+                    var currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
+                    fileName = currentWebFolder + "/" + originalImagePath;
+                    _logger.LogInformation($"🔍 [ManageLinkAsImages] Relative path, currentWebFolder: {currentWebFolder}");
+                }
+
+                var allElementToReplace = item.Groups[0].Value.Replace(originalImagePath, fileName);
+
                 _logger.LogInformation($"🔍 [ManageLinkAsImages] Original: {item.Groups[0].Value}");
                 _logger.LogInformation($"🔍 [ManageLinkAsImages] Transformed: {allElementToReplace}");
-                _logger.LogInformation($"🔍 [ManageLinkAsImages] CurrentWebFolder: {currentWebFolder}");
                 _logger.LogInformation($"🔍 [ManageLinkAsImages] Final fileName: {fileName}");
-                
+
                 markdown = markdown.Replace(item.Groups[0].Value, allElementToReplace);
             }
 

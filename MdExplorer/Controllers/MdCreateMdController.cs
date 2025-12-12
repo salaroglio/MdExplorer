@@ -8,6 +8,7 @@ using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Services.DatabaseManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -35,8 +36,9 @@ namespace MdExplorer.Service.Controllers
             IHubContext<MonitorMDHub> hubContext, IUserSettingsDB session, IEngineDB engineDB,
             ICommandRunnerPdf commandRunner,
             IWorkLink[] modifiers,
-            IHelper helper
-            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers,helper)
+            IHelper helper,
+            IDatabaseManager databaseManager
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
         }
 

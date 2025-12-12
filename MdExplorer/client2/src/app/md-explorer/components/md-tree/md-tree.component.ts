@@ -62,6 +62,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   hoveredSegment: CompactSegment | null = null;
   selectedCompactSegment: CompactSegment | null = null;
 
+  // Skeleton loader state
+  isLoading = true;
+
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
 
@@ -214,28 +217,43 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.expansionStateBeforeRefresh = this.captureExpansionState();
       console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
     });
+
+    // Listener per cambio progetto - mostra skeleton loader
+    this.projectsService.projectChanging$.subscribe(() => {
+      console.log('🔄 Project changing - showing skeleton loader');
+      this.isLoading = true;
+      this.changeDetectorRef.markForCheck();
+    });
   }
  
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
-      // Inizializza ricorsivamente tutte le proprietà
-      this.initializeNodeProperties(data);
-      // Crea una NUOVA array per forzare il change detection con OnPush
-      this.dataSource.data = [...data];
+      // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
+      // Nascondi skeleton solo quando arrivano dati reali
+      if (data && data.length > 0) {
+        // Inizializza ricorsivamente tutte le proprietà
+        this.initializeNodeProperties(data);
+        // Crea una NUOVA array per forzare il change detection con OnPush
+        this.dataSource.data = [...data];
 
-      // Restore expansion state if we have saved state (from branch switch)
-      if (this.expansionStateBeforeRefresh !== null) {
-        console.log('🔄 Restoring expansion state after branch switch');
-        this.restoreExpansionState(this.expansionStateBeforeRefresh);
-        this.expansionStateBeforeRefresh = null; // Clear after use
+        // Restore expansion state if we have saved state (from branch switch)
+        if (this.expansionStateBeforeRefresh !== null) {
+          console.log('🔄 Restoring expansion state after branch switch');
+          this.restoreExpansionState(this.expansionStateBeforeRefresh);
+          this.expansionStateBeforeRefresh = null; // Clear after use
+        }
+
+        // Nascondi skeleton loader quando i dati REALI arrivano
+        this.isLoading = false;
+        console.log('📂 Tree data loaded, hiding skeleton');
+
+        // Con OnPush, forza il re-check del componente
+        this.changeDetectorRef.markForCheck();
+        // Forza anche il detectChanges per sicurezza
+        this.changeDetectorRef.detectChanges();
       }
-
-      // Con OnPush, forza il re-check del componente
-      this.changeDetectorRef.markForCheck();
-      // Forza anche il detectChanges per sicurezza
-      this.changeDetectorRef.detectChanges();
     });
     this.mdFileService.loadAll(this.deferredOpenProject, this);
   }
@@ -1168,6 +1186,26 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         console.log('✅ Expansion state restored');
       }
     }, 100);
+  }
+
+  // ========== Skeleton Loader Helper Methods ==========
+
+  /**
+   * Restituisce l'indentazione per l'elemento skeleton (simula gerarchia ad albero)
+   */
+  getSkeletonIndent(index: number): number {
+    // Pattern: 0, 1, 2, 2, 1, 2, 1, 0, 1, 2 (simula struttura ad albero)
+    const indentPattern = [0, 1, 2, 2, 1, 2, 1, 0, 1, 2];
+    return indentPattern[(index - 1) % indentPattern.length];
+  }
+
+  /**
+   * Restituisce la larghezza per l'elemento skeleton (variazione per aspetto naturale)
+   */
+  getSkeletonWidth(index: number): number {
+    // Larghezze variabili tra 40% e 80%
+    const widthPattern = [65, 55, 45, 70, 60, 40, 75, 50, 80, 55];
+    return widthPattern[(index - 1) % widthPattern.length];
   }
 
   ngOnDestroy(): void {
