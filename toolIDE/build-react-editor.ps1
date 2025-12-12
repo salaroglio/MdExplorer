@@ -64,8 +64,8 @@ try {
 
     $npmCmd = Join-Path (Split-Path $nodeExe) "npm.cmd"
 
-    Write-Host "Running: npm run build"
-    & $npmCmd run build
+    Write-Host "Running: npm run build:vite"
+    & $npmCmd run build:vite
     if ($LASTEXITCODE -ne 0) {
         throw "npm run build failed with exit code $LASTEXITCODE"
     }

@@ -125,6 +125,14 @@ export default defineConfig({
     originalCopyCssPlugin(),
     vitePluginDeployMilkdownCss() // Add the new plugin
   ],
+  define: {
+    // Vue feature flags richiesti da Milkdown/Crepe (che usa Vue internamente)
+    __VUE_OPTIONS_API__: JSON.stringify(true),
+    __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(false),
+    // Polyfill per process.env (richiesto da alcune librerie Node.js)
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   server: {
     fs: {
       // Permetti accesso a file fuori dalla root del progetto (node_modules)

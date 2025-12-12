@@ -20,7 +20,9 @@ const cssFiles = [
   'prosemirror-gapcursor/style/gapcursor.css',
   'prosemirror-tables/style/tables.css',
 
-  // Milkdown Crepe common
+  // Milkdown Crepe common (v7.17+)
+  '@milkdown/crepe/lib/theme/common/reset.css',
+  '@milkdown/crepe/lib/theme/common/style.css',
   '@milkdown/crepe/lib/theme/common/prosemirror.css',
   '@milkdown/crepe/lib/theme/common/block-edit.css',
   '@milkdown/crepe/lib/theme/common/code-mirror.css',
@@ -33,8 +35,7 @@ const cssFiles = [
   '@milkdown/crepe/lib/theme/common/table.css',
   '@milkdown/crepe/lib/theme/common/latex.css',
 
-  // Milkdown Crepe theme (internal + crepe)
-  '@milkdown/crepe/lib/theme/_internal/classic-common.css',
+  // Milkdown Crepe theme
   '@milkdown/crepe/lib/theme/crepe/style.css',
 ];
 
@@ -98,50 +99,34 @@ const customStyles = `
 }
 
 /* === PlantUML Code Block Styles === */
-/* Usa attributo 'language' (non data-language) - settato da Milkdown/atomico */
-.milkdown milkdown-code-block[language="plantuml"],
-.milkdown milkdown-code-block[language="puml"],
-.milkdown milkdown-code-block[language="PlantUML"] {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 2px solid #0ea5e9;
+/* Milkdown 7.17+ usa class-based selectors invece di web components */
+/* Il linguaggio viene mostrato nel button .language-button */
+/* TODO: Verificare se esiste un attributo data-language dopo test runtime */
+.milkdown .milkdown-code-block[data-language="plantuml"],
+.milkdown .milkdown-code-block[data-language="puml"],
+.milkdown .milkdown-code-block[data-language="PlantUML"] {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+  border: 2px solid #0ea5e9 !important;
   border-radius: 8px;
   position: relative;
 }
 
-.milkdown milkdown-code-block[language="plantuml"]::before,
-.milkdown milkdown-code-block[language="puml"]::before,
-.milkdown milkdown-code-block[language="PlantUML"]::before {
-  content: "PlantUML";
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #0284c7;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 2px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  z-index: 10;
-}
-
-.milkdown milkdown-code-block[language="plantuml"] .cm-editor,
-.milkdown milkdown-code-block[language="puml"] .cm-editor,
-.milkdown milkdown-code-block[language="PlantUML"] .cm-editor {
+.milkdown .milkdown-code-block[data-language="plantuml"] .cm-editor,
+.milkdown .milkdown-code-block[data-language="puml"] .cm-editor,
+.milkdown .milkdown-code-block[data-language="PlantUML"] .cm-editor {
   background: transparent !important;
 }
 
-.milkdown milkdown-code-block[language="plantuml"] .cm-gutters,
-.milkdown milkdown-code-block[language="puml"] .cm-gutters,
-.milkdown milkdown-code-block[language="PlantUML"] .cm-gutters {
+.milkdown .milkdown-code-block[data-language="plantuml"] .cm-gutters,
+.milkdown .milkdown-code-block[data-language="puml"] .cm-gutters,
+.milkdown .milkdown-code-block[data-language="PlantUML"] .cm-gutters {
   background: rgba(14, 165, 233, 0.1) !important;
   border-right: 1px solid rgba(14, 165, 233, 0.3) !important;
 }
 
-.milkdown milkdown-code-block[language="plantuml"] .cm-content,
-.milkdown milkdown-code-block[language="puml"] .cm-content,
-.milkdown milkdown-code-block[language="PlantUML"] .cm-content {
+.milkdown .milkdown-code-block[data-language="plantuml"] .cm-content,
+.milkdown .milkdown-code-block[data-language="puml"] .cm-content,
+.milkdown .milkdown-code-block[data-language="PlantUML"] .cm-content {
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 `;

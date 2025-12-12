@@ -1,7 +1,7 @@
-import { bI as o, bL as t, bJ as e, bK as b } from "./integration-DEwUyN3-.js";
+import { K as o, Q as t, M as e, O as i } from "./integration-NwDsw6Fa.js";
 export {
   o as DocsPilotElement,
   t as default,
   e as initDocsPilot,
-  b as usage
+  i as usage
 };

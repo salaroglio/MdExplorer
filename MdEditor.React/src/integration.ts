@@ -137,7 +137,8 @@ export class DocsPilotElement extends HTMLElement {
     let cssPath: string;
 
     // Rileva se siamo in dev mode (Vite dev server)
-    const isDevMode = window.location.port === '5173' || window.location.port === '5174' || (import.meta as any).env?.DEV;
+    const port = window.location.port;
+    const isDevMode = (port >= '5173' && port <= '5180') || (import.meta as any).env?.DEV;
 
     if (isDevMode) {
       // In dev mode, usa il CSS bundled dalla cartella public
