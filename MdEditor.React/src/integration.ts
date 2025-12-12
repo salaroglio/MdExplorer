@@ -90,7 +90,16 @@ export class DocsPilotElement extends HTMLElement {
   get markdown() {
     // Se l'editor è inizializzato, ottieni il valore direttamente dall'editor
     if (this.editor && typeof this.editor.getMarkdown === 'function') {
-      return this.editor.getMarkdown();
+      let md = this.editor.getMarkdown();
+      // Fix: rimuovi escape dagli shortcode emoji per compatibilità con Markdig
+      // Milkdown/remark-stringify escapa underscore e colon che rompono gli emoji
+      // Esempio: :heavy\_check\_mark: → :heavy_check_mark:
+      // Pattern: trova :parola: dove parola può contenere \_ (escaped underscore)
+      md = md.replace(/:([a-zA-Z0-9_+\\-]+):/g, (match: string) => {
+        // Rimuovi i backslash prima degli underscore dentro lo shortcode
+        return match.replace(/\\_/g, '_');
+      });
+      return md;
     }
     // Altrimenti, restituisci il valore dell'attributo
     return this.getAttribute('markdown') || this.defaultMarkdown;
