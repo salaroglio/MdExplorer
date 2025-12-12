@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Fetch vs Inline</title>
+  <link rel="stylesheet" href="/css/milkdown-bundled.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Debug: Fetch vs Inline</h1>
+    <div id="status" style="background: #ffe; padding: 10px; margin-bottom: 10px; font-family: monospace; white-space: pre-wrap;"></div>
+    <div id="editor-container" style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; min-height: 400px;"></div>
+  </div>
+  <script type="module">
+    import { initDocsPilot } from './src/integration.ts'
+
+    // Stesso contenuto inline di index.html
+    const inlineContent = `# Hello from DocsPilot
+
+This is a test markdown content.
+
+## Code Block Example
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello World!");
+}
+\`\`\`
+`;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const container = document.getElementById('editor-container');
+      const status = document.getElementById('status');
+      const editor = initDocsPilot(container);
+
+      try {
+        const response = await fetch('test-index-content.md');
+        const fetchedContent = await response.text();
+
+        // Confronta byte per byte
+        const inlineBytes = [...inlineContent].map(c => c.charCodeAt(0));
+        const fetchedBytes = [...fetchedContent].map(c => c.charCodeAt(0));
+
+        let diff = '';
+        diff += `Inline length: ${inlineContent.length}\n`;
+        diff += `Fetched length: ${fetchedContent.length}\n`;
+        diff += `\nPrimi 20 bytes inline:  ${inlineBytes.slice(0, 20).join(', ')}\n`;
+        diff += `Primi 20 bytes fetched: ${fetchedBytes.slice(0, 20).join(', ')}\n`;
+
+        // Trova prima differenza
+        for (let i = 0; i < Math.max(inlineContent.length, fetchedContent.length); i++) {
+          if (inlineContent[i] !== fetchedContent[i]) {
+            diff += `\nPRIMA DIFFERENZA a posizione ${i}:\n`;
+            diff += `  Inline:  char="${inlineContent[i]}" code=${inlineContent.charCodeAt(i)}\n`;
+            diff += `  Fetched: char="${fetchedContent[i]}" code=${fetchedContent.charCodeAt(i)}\n`;
+            break;
+          }
+        }
+
+        // Verifica line endings
+        const inlineCRLF = (inlineContent.match(/\r\n/g) || []).length;
+        const inlineLF = (inlineContent.match(/(?<!\r)\n/g) || []).length;
+        const fetchedCRLF = (fetchedContent.match(/\r\n/g) || []).length;
+        const fetchedLF = (fetchedContent.match(/(?<!\r)\n/g) || []).length;
+
+        diff += `\nLine endings:\n`;
+        diff += `  Inline:  CRLF=${inlineCRLF}, LF=${inlineLF}\n`;
+        diff += `  Fetched: CRLF=${fetchedCRLF}, LF=${fetchedLF}\n`;
+
+        status.innerHTML = diff;
+
+        // Usa il contenuto INLINE per l'editor
+        setTimeout(() => {
+          editor.setAttribute('markdown', inlineContent);
+        }, 1000);
+
+      } catch (e) {
+        status.innerHTML = 'Error: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -90,13 +90,47 @@ function vitePluginDeployMilkdownCss() {
 }
 
 
+// Plugin per servire node_modules durante lo sviluppo (per gli @import CSS)
+// Il problema: gli @import CSS vengono risolti dal browser, non da Vite
+// Quando il browser richiede /node_modules/..., Vite lo trasforma in JS per HMR
+// Soluzione: servire i CSS raw PRIMA che Vite li trasformi
+function serveNodeModulesPlugin() {
+  return {
+    name: 'serve-node-modules-css',
+    enforce: 'pre' as const,
+    configureServer(server: any) {
+      // Aggiungi middleware PRIMA di tutti gli altri (inclusi quelli di Vite)
+      server.middlewares.use((req: any, res: any, next: any) => {
+        // Intercetta solo richieste a /node_modules/ per file CSS
+        if (req.url && req.url.startsWith('/node_modules/') && req.url.endsWith('.css')) {
+          const filePath = path.join(process.cwd(), req.url);
+          if (fs.existsSync(filePath)) {
+            res.setHeader('Content-Type', 'text/css');
+            res.setHeader('Cache-Control', 'no-cache');
+            fs.createReadStream(filePath).pipe(res);
+            return; // Termina qui, non passare a next()
+          }
+        }
+        next();
+      });
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    serveNodeModulesPlugin(), // Serve node_modules in dev mode
     originalCopyCssPlugin(),
     vitePluginDeployMilkdownCss() // Add the new plugin
   ],
+  server: {
+    fs: {
+      // Permetti accesso a file fuori dalla root del progetto (node_modules)
+      allow: ['..'],
+    },
+  },
   build: {
     lib: {
       entry: path.resolve(process.cwd(), 'src/integration.ts'),

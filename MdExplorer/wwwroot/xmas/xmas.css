@@ -1,0 +1,348 @@
+/* =============================================================================
+   MdExplorer Christmas Edition 2024
+   Animazioni natalizie temporanee
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Slitta volante che attraversa lo schermo
+   ----------------------------------------------------------------------------- */
+.xmas-sleigh {
+  position: fixed;
+  top: 8%;
+  left: -250px;
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.xmas-sleigh.flying {
+  animation: fly-across 8s ease-in-out forwards;
+}
+
+@keyframes fly-across {
+  0% {
+    left: -250px;
+    top: 8%;
+    opacity: 1;
+    transform: rotate(-5deg);
+  }
+  25% {
+    top: 12%;
+    transform: rotate(0deg);
+  }
+  50% {
+    top: 6%;
+    transform: rotate(-3deg);
+  }
+  75% {
+    top: 10%;
+    transform: rotate(2deg);
+  }
+  100% {
+    left: 110%;
+    top: 5%;
+    opacity: 1;
+    transform: rotate(-5deg);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Progress bar con slitta in fondo
+   ----------------------------------------------------------------------------- */
+.xmas-progress-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50px;
+  background: linear-gradient(180deg,
+    rgba(26, 58, 82, 0.95) 0%,
+    rgba(13, 31, 45, 0.98) 100%);
+  z-index: 99998;
+  overflow: visible;
+  border-top: 2px solid rgba(255, 215, 0, 0.3);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Terreno innevato stilizzato */
+.xmas-progress-ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 15px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(200, 220, 240, 0.8) 100%);
+  border-radius: 100% 100% 0 0 / 30px 30px 0 0;
+}
+
+/* Traccia della slitta */
+.xmas-progress-track {
+  position: absolute;
+  bottom: 18px;
+  left: 20px;
+  right: 20px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.xmas-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    #c41e3a 0%,
+    #ff4444 50%,
+    #c41e3a 100%);
+  border-radius: 2px;
+  transition: width 0.15s ease-out;
+  box-shadow: 0 0 8px rgba(196, 30, 58, 0.6);
+}
+
+/* Slitta progress */
+.xmas-progress-sleigh {
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  transition: left 0.15s ease-out;
+  filter: drop-shadow(2px 2px 3px rgba(0, 0, 0, 0.4));
+}
+
+.xmas-progress-sleigh img {
+  transform: scaleX(-1); /* Slitta va verso destra */
+}
+
+/* Percentuale lettura */
+.xmas-progress-percent {
+  position: absolute;
+  right: 15px;
+  bottom: 18px;
+  color: #FFD700;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* Stelle decorative nel progress bar */
+.xmas-star {
+  position: absolute;
+  color: #FFD700;
+  font-size: 10px;
+  animation: twinkle 2s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+.xmas-star:nth-child(1) { top: 8px; left: 10%; animation-delay: 0s; }
+.xmas-star:nth-child(2) { top: 5px; left: 30%; animation-delay: 0.5s; }
+.xmas-star:nth-child(3) { top: 10px; left: 50%; animation-delay: 1s; }
+.xmas-star:nth-child(4) { top: 6px; left: 70%; animation-delay: 1.5s; }
+.xmas-star:nth-child(5) { top: 8px; left: 90%; animation-delay: 0.3s; }
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* -----------------------------------------------------------------------------
+   Fiocchi di neve (opzionale, attivabile via JS)
+   ----------------------------------------------------------------------------- */
+.xmas-snowflake {
+  position: fixed;
+  top: -20px;
+  color: #fff;
+  font-size: 16px;
+  pointer-events: none;
+  z-index: 99997;
+  opacity: 0.8;
+  animation: snowfall linear infinite;
+}
+
+@keyframes snowfall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0.3;
+  }
+}
+
+/* Dimensioni variabili per i fiocchi */
+.xmas-snowflake.small { font-size: 10px; }
+.xmas-snowflake.medium { font-size: 16px; }
+.xmas-snowflake.large { font-size: 22px; }
+
+/* -----------------------------------------------------------------------------
+   Easter Egg: Slitta colpita!
+   ----------------------------------------------------------------------------- */
+
+/* Slitta in fiamme che precipita */
+.xmas-sleigh.hit {
+  animation: sleigh-crash 2s ease-in forwards !important;
+  filter: brightness(1.5) contrast(1.2);
+}
+
+@keyframes sleigh-crash {
+  0% {
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+  20% {
+    transform: rotate(15deg) translateY(20px);
+  }
+  40% {
+    transform: rotate(-10deg) translateY(80px);
+  }
+  60% {
+    transform: rotate(25deg) translateY(200px);
+  }
+  80% {
+    transform: rotate(-5deg) translateY(400px);
+    opacity: 1;
+  }
+  95% {
+    transform: rotate(30deg) translateY(calc(100vh - 150px));
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(25deg) translateY(calc(100vh - 120px));
+    opacity: 1;
+  }
+}
+
+/* Esplosione */
+.xmas-explosion {
+  position: fixed;
+  pointer-events: none;
+  z-index: 100000;
+  font-size: 40px;
+  animation: explosion-pop 0.6s ease-out forwards;
+}
+
+@keyframes explosion-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Fiamme che seguono la slitta */
+.xmas-flame {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99998;
+  font-size: 30px;
+  animation: flame-trail 1s ease-out forwards;
+}
+
+@keyframes flame-trail {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3) translateY(-30px);
+  }
+}
+
+/* Particelle di detriti */
+.xmas-debris {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  font-size: 16px;
+  animation: debris-fall 1.5s ease-in forwards;
+}
+
+@keyframes debris-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(300px) rotate(720deg);
+  }
+}
+
+/* Grinch che ride */
+.xmas-grinch {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  z-index: 100001;
+  font-size: 80px;
+  pointer-events: none;
+  animation: grinch-appear 3s ease-out forwards;
+  filter: drop-shadow(3px 3px 5px rgba(0,0,0,0.5));
+}
+
+@keyframes grinch-appear {
+  0% {
+    transform: translateY(100px) scale(0);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1);
+  }
+  40%, 50%, 60%, 70%, 80% {
+    transform: rotate(-5deg) scale(1.1);
+  }
+  45%, 55%, 65%, 75% {
+    transform: rotate(5deg) scale(1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+}
+
+/* Testo risata del Grinch */
+.xmas-grinch-laugh {
+  position: fixed;
+  bottom: 150px;
+  right: 30px;
+  z-index: 100002;
+  font-size: 24px;
+  font-weight: bold;
+  color: #2d5a27;
+  text-shadow: 1px 1px 2px #000;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  pointer-events: none;
+  animation: laugh-text 3s ease-out forwards;
+}
+
+@keyframes laugh-text {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

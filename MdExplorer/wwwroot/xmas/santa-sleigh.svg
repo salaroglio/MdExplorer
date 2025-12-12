@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">
+  <!-- Renne (stilizzate) -->
+  <g transform="translate(0, 20)">
+    <!-- Renna 1 -->
+    <ellipse cx="25" cy="25" rx="12" ry="8" fill="#8B4513"/>
+    <circle cx="18" cy="20" r="6" fill="#8B4513"/>
+    <path d="M15 14 L12 5 M15 14 L18 5" stroke="#8B4513" stroke-width="2" fill="none"/>
+    <circle cx="16" cy="19" r="1.5" fill="#000"/>
+    <circle cx="18" cy="23" r="2" fill="#ff0000"/>
+    <!-- Gambe -->
+    <line x1="20" y1="33" x2="18" y2="45" stroke="#8B4513" stroke-width="2"/>
+    <line x1="30" y1="33" x2="32" y2="45" stroke="#8B4513" stroke-width="2"/>
+  </g>
+
+  <!-- Redini -->
+  <path d="M37 40 Q60 35 80 42" stroke="#DAA520" stroke-width="2" fill="none"/>
+
+  <!-- Slitta -->
+  <g transform="translate(75, 25)">
+    <!-- Corpo slitta -->
+    <path d="M0 20 Q5 10 20 10 L100 10 Q110 10 110 20 L110 35 Q110 45 100 45 L10 45 Q0 45 0 35 Z" fill="#c41e3a"/>
+    <path d="M5 15 Q10 8 25 8 L95 8 Q105 8 105 15" stroke="#FFD700" stroke-width="2" fill="none"/>
+    <!-- Pattini -->
+    <path d="M-5 50 Q0 45 10 45 L105 45 Q115 45 120 50 L125 52 Q130 55 125 55 L-10 55 Q-15 55 -10 52 Z" fill="#FFD700"/>
+  </g>
+
+  <!-- Babbo Natale -->
+  <g transform="translate(120, 10)">
+    <!-- Corpo -->
+    <ellipse cx="20" cy="35" rx="15" ry="18" fill="#c41e3a"/>
+    <!-- Cintura -->
+    <rect x="5" y="32" width="30" height="6" fill="#000"/>
+    <rect x="17" y="31" width="6" height="8" fill="#FFD700"/>
+    <!-- Testa -->
+    <circle cx="20" cy="12" r="10" fill="#FFDAB9"/>
+    <!-- Cappello -->
+    <path d="M10 12 Q10 2 20 0 Q30 2 30 12" fill="#c41e3a"/>
+    <ellipse cx="20" cy="12" rx="12" ry="3" fill="#fff"/>
+    <circle cx="32" cy="2" r="4" fill="#fff"/>
+    <!-- Barba -->
+    <ellipse cx="20" cy="20" rx="8" ry="6" fill="#fff"/>
+    <!-- Occhi -->
+    <circle cx="16" cy="10" r="1.5" fill="#000"/>
+    <circle cx="24" cy="10" r="1.5" fill="#000"/>
+    <!-- Braccio che saluta -->
+    <path d="M35 25 Q45 15 50 20" stroke="#c41e3a" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="50" cy="20" r="4" fill="#FFDAB9"/>
+  </g>
+
+  <!-- Sacco regali -->
+  <g transform="translate(150, 20)">
+    <ellipse cx="15" cy="20" rx="12" ry="15" fill="#8B0000"/>
+    <path d="M5 8 Q15 0 25 8" stroke="#8B0000" stroke-width="4" fill="none"/>
+  </g>
+
+  <!-- Stelle scintillanti -->
+  <g fill="#FFD700">
+    <polygon points="5,5 6,8 9,8 7,10 8,13 5,11 2,13 3,10 1,8 4,8" transform="scale(0.5) translate(10,10)"/>
+    <polygon points="5,5 6,8 9,8 7,10 8,13 5,11 2,13 3,10 1,8 4,8" transform="scale(0.4) translate(350,20)"/>
+    <polygon points="5,5 6,8 9,8 7,10 8,13 5,11 2,13 3,10 1,8 4,8" transform="scale(0.3) translate(250,150)"/>
+  </g>
+</svg>

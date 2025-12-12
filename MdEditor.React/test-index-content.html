@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Index Content from File</title>
+  <link rel="stylesheet" href="/css/milkdown-bundled.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Test - Stesso contenuto di index.html ma da file</h1>
+    <div id="status" style="background: #ffe; padding: 10px; margin-bottom: 10px;">Loading...</div>
+    <div id="editor-container" style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; min-height: 400px;"></div>
+  </div>
+  <script type="module">
+    import { initDocsPilot } from './src/integration.ts'
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const container = document.getElementById('editor-container');
+      const status = document.getElementById('status');
+      const editor = initDocsPilot(container);
+
+      try {
+        const response = await fetch('test-index-content.md');
+        const content = await response.text();
+        status.innerHTML = `File loaded: ${content.length} bytes.`;
+
+        setTimeout(() => {
+          editor.setAttribute('markdown', content);
+          status.innerHTML = `Ready! Same content as index.html but loaded from file.`;
+        }, 1000);
+
+      } catch (e) {
+        status.innerHTML = 'Error: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

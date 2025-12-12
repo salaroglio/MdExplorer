@@ -3,128 +3,215 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DocsPilot - Test Molto Semplice</title>
-  <!-- Includi lo stile della distribuzione -->
+  <title>DocsPilot - Test WebComponent</title>
+  <!-- CSS per test locale (copiato dalla build) -->
   <link rel="stylesheet" href="dist/css/milkdown-all.css">
-  <!-- Fallback se il primo non carica -->
   <link rel="stylesheet" href="milkdown-all.css">
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      background-color: #f9fafb;
     }
-    
+
+    h1 {
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+
+    .info-box {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
     .container {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
-    
+
     .editor-container {
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 10px;
-      min-height: 400px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 500px;
     }
-    
+
+    .editor-container h2 {
+      margin-top: 0;
+      color: #374151;
+      font-size: 16px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 8px;
+    }
+
     .control-panel {
       margin-top: 20px;
-      padding: 10px;
-      background-color: #f5f5f5;
-      border-radius: 5px;
+      padding: 16px;
+      background-color: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
     }
-    
+
+    .control-panel h3 {
+      margin-top: 0;
+      color: #374151;
+    }
+
     button {
-      padding: 10px;
-      background-color: #4CAF50;
+      padding: 10px 20px;
+      background-color: #3b82f6;
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
       cursor: pointer;
       margin-right: 10px;
+      font-size: 14px;
+      transition: background-color 0.2s;
     }
-    
+
+    button:hover {
+      background-color: #2563eb;
+    }
+
     textarea {
       width: 100%;
       height: 200px;
       margin-top: 10px;
-      padding: 10px;
-      font-family: monospace;
+      padding: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      resize: vertical;
+    }
+
+    #markdown-display {
+      white-space: pre-wrap;
+      overflow: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 6px;
+      max-height: 450px;
     }
   </style>
 </head>
 <body>
-  <h1>Test DocsPilot Web Component con Markdown</h1>
-  
+  <h1>Test DocsPilot WebComponent</h1>
+
+  <div class="info-box">
+    <strong>Istruzioni:</strong> Questo test usa il WebComponent &lt;docs-pilot&gt; senza Angular.
+    Prova a digitare nei code block per verificare se il cursore funziona correttamente.
+    <br><strong>Per avviare:</strong> <code>cd MdEditor.React && npm run dev</code> poi vai su <code>http://localhost:5173/very-simple-test.html</code>
+  </div>
+
   <div class="container">
     <div class="editor-container">
       <h2>Editor DocsPilot</h2>
-      <!-- Utilizziamo il Web Component -->
       <docs-pilot id="editor1"></docs-pilot>
     </div>
-    
+
     <div class="editor-container">
-      <h2>Display del Markdown</h2>
-      <pre id="markdown-display" style="white-space: pre-wrap; overflow: auto;"></pre>
+      <h2>Output Markdown (live)</h2>
+      <pre id="markdown-display">Il markdown apparirà qui quando modifichi l'editor...</pre>
     </div>
   </div>
-  
+
   <div class="control-panel">
     <h3>Controlli</h3>
     <button id="get-markdown">Ottieni Markdown</button>
     <button id="set-markdown">Imposta Markdown</button>
+    <button id="load-test-content">Carica Contenuto di Test</button>
     <textarea id="markdown-text" placeholder="Inserisci il markdown qui per impostarlo nell'editor..."></textarea>
   </div>
-  
-  <!-- Includi lo script principale della distribuzione -->
+
+  <!-- Script del WebComponent -->
   <script type="module" src="dist/docspilot.es.js"></script>
-  
+
   <script>
-    // Attendiamo il caricamento del documento e del Web Component
     document.addEventListener('DOMContentLoaded', () => {
       const editor = document.getElementById('editor1');
       const display = document.getElementById('markdown-display');
       const textarea = document.getElementById('markdown-text');
       const getButton = document.getElementById('get-markdown');
       const setButton = document.getElementById('set-markdown');
-      
-      // Aggiungiamo un listener per il cambio di markdown
+      const loadTestButton = document.getElementById('load-test-content');
+
+      // Contenuto di test con code block
+      const testContent = `# Test Editor Milkdown
+
+Questo è un test del WebComponent DocsPilot.
+
+## Code Block Test
+
+Prova a digitare dentro questo code block JavaScript:
+
+\`\`\`javascript
+function hello() {
+  // Digita qui per testare il cursore
+  console.log("Hello World!");
+}
+\`\`\`
+
+E anche in questo code block C:
+
+\`\`\`c
+int main() {
+  // Digita qui
+  printf("Test");
+  return 0;
+}
+\`\`\`
+
+## Tabella Test
+
+| Colonna 1 | Colonna 2 | Colonna 3 |
+|-----------|-----------|-----------|
+| Cella 1   | Cella 2   | Cella 3   |
+| Cella 4   | Cella 5   | Cella 6   |
+
+## Lista
+
+- Elemento 1
+- Elemento 2
+- Elemento 3
+
+Prova a modificare questo contenuto!`;
+
+      // Listener per il cambio di markdown
       editor.addEventListener('markdownChange', (e) => {
-        // Mostriamo il markdown nel display
         display.textContent = e.detail.markdown;
       });
-      
+
       // Bottone per ottenere il markdown
       getButton.addEventListener('click', () => {
-        // Utilizziamo la proprietà markdown che ora ottiene il valore direttamente dall'editor
         textarea.value = editor.markdown || '';
       });
-      
+
       // Bottone per impostare il markdown
       setButton.addEventListener('click', () => {
         const newMarkdown = textarea.value;
         editor.setAttribute('markdown', newMarkdown);
       });
-      
-      // Impostiamo un valore iniziale di esempio dopo un breve ritardo
+
+      // Bottone per caricare contenuto di test
+      loadTestButton.addEventListener('click', () => {
+        editor.setAttribute('markdown', testContent);
+        textarea.value = testContent;
+      });
+
+      // Carica contenuto di test all'avvio
       setTimeout(() => {
-        const initialMarkdown = `# DocsPilot Test
-        
-> Questo è un test del WebComponent con markdown.
-
-## Funzionalità
-- Riceve markdown dall'esterno
-- Invia il markdown modificato all'esterno
-- Supporta l'editing rich text
-
-Prova a modificare questo testo nell'editor!`;
-        
-        editor.setAttribute('markdown', initialMarkdown);
-      }, 1000);
+        editor.setAttribute('markdown', testContent);
+      }, 500);
     });
   </script>
 </body>

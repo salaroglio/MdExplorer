@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Clean PlantUML - Cursor Bug</title>
+  <link rel="stylesheet" href="dist/css/milkdown-all.css">
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    .editor-container { border: 1px solid #ccc; min-height: 600px; }
+    #status { background: #efe; padding: 10px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Test Clean PlantUML (UTF-8 pulito) - Cursor Bug</h1>
+  <div id="status">Loading...</div>
+  <div class="editor-container">
+    <docs-pilot id="editor"></docs-pilot>
+  </div>
+
+  <script type="module" src="dist/docspilot.es.js"></script>
+  <script type="module">
+    async function loadAndTest() {
+      const status = document.getElementById('status');
+      const editor = document.getElementById('editor');
+
+      try {
+        const response = await fetch('test-clean-plantuml.md');
+        const content = await response.text();
+
+        status.innerHTML = `File loaded: ${content.length} bytes (CLEAN UTF-8). Wait for editor...`;
+
+        let attempts = 0;
+        const waitForEditor = setInterval(() => {
+          attempts++;
+          if (editor.editor || attempts > 50) {
+            clearInterval(waitForEditor);
+            if (editor.editor) {
+              editor.setMarkdown(content);
+              status.innerHTML = `Ready! File: ${content.length} bytes (CLEAN UTF-8). Try typing in the code block - cursor should NOT jump!`;
+            } else {
+              status.innerHTML = 'Editor not ready after 5 seconds';
+            }
+          }
+        }, 100);
+
+      } catch (e) {
+        status.innerHTML = 'Error: ' + e.message;
+      }
+    }
+
+    loadAndTest();
+  </script>
+</body>
+</html>

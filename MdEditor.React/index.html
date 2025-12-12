@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DocsPilot WebComponent Dev</title>
-  <link rel="stylesheet" href="/public/css/milkdown-all.css">
+  <link rel="stylesheet" href="/css/milkdown-bundled.css">
 </head>
 <body>
   <div id="app">
@@ -18,9 +18,55 @@
       const container = document.getElementById('editor-container');
       const editor = initDocsPilot(container);
       
-      // Imposta un valore iniziale
+      // Imposta un valore iniziale con esempio PlantUML
       setTimeout(() => {
-        editor.setAttribute('markdown', '# Hello from DocsPilot\n\nThis is a test markdown content.');
+        editor.setAttribute('markdown', `# Hello from DocsPilot
+
+This is a test markdown content.
+
+## Code Block Example
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello World!");
+}
+\`\`\`
+
+## PlantUML Diagram
+
+\`\`\`plantuml
+@startuml
+actor User
+participant "Frontend" as FE
+participant "Backend" as BE
+database "Database" as DB
+
+User -> FE: Request
+FE -> BE: API Call
+BE -> DB: Query
+DB --> BE: Result
+BE --> FE: Response
+FE --> User: Display
+@enduml
+\`\`\`
+
+## Another PlantUML
+
+\`\`\`puml
+@startuml
+class Document {
+  +title: string
+  +content: string
+  +save()
+}
+class Editor {
+  +open(doc: Document)
+  +close()
+}
+Editor --> Document
+@enduml
+\`\`\`
+`);
       }, 1000);
     });
   </script>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Like Index - Cursor Bug</title>
+  <link rel="stylesheet" href="/css/milkdown-bundled.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Test Like Index (stesso pattern di index.html)</h1>
+    <div id="status" style="background: #ffe; padding: 10px; margin-bottom: 10px;">Loading...</div>
+    <div id="editor-container" style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; min-height: 400px;"></div>
+  </div>
+  <script type="module">
+    import { initDocsPilot } from './src/integration.ts'
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const container = document.getElementById('editor-container');
+      const status = document.getElementById('status');
+      const editor = initDocsPilot(container);
+
+      // Carica il file md
+      try {
+        const response = await fetch('test-clean-plantuml.md');
+        const content = await response.text();
+        status.innerHTML = `File loaded: ${content.length} bytes. Setting with setAttribute...`;
+
+        // Usa setAttribute come in index.html, con stesso timing
+        setTimeout(() => {
+          editor.setAttribute('markdown', content);
+          status.innerHTML = `Ready! Using setAttribute like index.html. Try typing in the code block.`;
+        }, 1000);
+
+      } catch (e) {
+        status.innerHTML = 'Error: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

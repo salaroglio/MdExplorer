@@ -57,6 +57,21 @@ Test the WebComponent integration using `very-simple-test.html` which demonstrat
 ## CSS Management
 
 Milkdown styles require special handling:
-* Development: CSS loaded from `public/css/milkdown-all.css`
-* Production: CSS bundled and path-adjusted in `milkdown-all-deploy.css`
-* Custom build scripts (`copy-missing-milkdown-assets.js`) manage asset copying
+* **Development**: CSS loaded from `public/css/milkdown-bundled.css` (pre-bundled, no @import)
+* **Production**: CSS bundled and path-adjusted in `milkdown-all-deploy.css`
+* Custom build scripts manage asset copying
+
+### IMPORTANTE: Rigenerare CSS dopo aggiornamento dipendenze
+
+Quando aggiorni le dipendenze Milkdown (`@milkdown/crepe`, `@milkdown/prose`, etc.), devi rigenerare il CSS bundled per lo sviluppo:
+
+```shell
+node scripts/bundle-css.cjs
+```
+
+Questo script:
+1. Legge tutti i CSS da `node_modules/@milkdown/...` e `prosemirror-*`
+2. Li concatena in un unico file senza `@import`
+3. Salva in `public/css/milkdown-bundled.css`
+
+**Perché serve?** Vite dev server non serve correttamente i CSS con `@import url('/node_modules/...')` perché li trasforma in JS per HMR. Il bundled CSS risolve questo problema.

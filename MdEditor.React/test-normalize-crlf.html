@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Normalize CRLF</title>
+  <link rel="stylesheet" href="/css/milkdown-bundled.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Test: File fetched con CRLF normalizzato a LF</h1>
+    <div id="status" style="background: #efe; padding: 10px; margin-bottom: 10px;">Loading...</div>
+    <div id="editor-container" style="border: 1px solid #ccc; padding: 20px; border-radius: 5px; min-height: 400px;"></div>
+  </div>
+  <script type="module">
+    import { initDocsPilot } from './src/integration.ts'
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const container = document.getElementById('editor-container');
+      const status = document.getElementById('status');
+      const editor = initDocsPilot(container);
+
+      try {
+        const response = await fetch('test-index-content.md');
+        let content = await response.text();
+
+        // NORMALIZZA CRLF -> LF
+        const originalLength = content.length;
+        content = content.replace(/\r\n/g, '\n');
+        const newLength = content.length;
+
+        status.innerHTML = `File loaded: ${originalLength} bytes -> normalized to ${newLength} bytes (removed ${originalLength - newLength} CR chars). Try typing in code block!`;
+
+        setTimeout(() => {
+          editor.setAttribute('markdown', content);
+        }, 1000);
+
+      } catch (e) {
+        status.innerHTML = 'Error: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

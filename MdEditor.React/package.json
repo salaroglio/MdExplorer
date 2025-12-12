@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:deploy": "powershell -ExecutionPolicy Bypass -File ../toolIDE/build-react-editor.ps1",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bundle-css": "node scripts/bundle-css.cjs",
+    "postinstall": "node scripts/bundle-css.cjs"
   },
   "dependencies": {
     "@milkdown/core": "^7.6.4",
