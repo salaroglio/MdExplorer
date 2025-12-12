@@ -1,0 +1,18 @@
+/* Patched version - removed @import '@milkdown/kit/prose/gapcursor/style/gapcursor.css' */
+/* The gapcursor styles are already included via prosemirror-gapcursor-gapcursor.css in milkdown-all.css */
+
+.milkdown .crepe-drop-cursor {
+    background-color: color-mix(
+      in srgb,
+      var(--crepe-color-outline),
+      transparent 50%
+    );
+    opacity: 0.5;
+    transition: all 0.2s;
+    pointer-events: none;
+  }
+
+.milkdown .ProseMirror-gapcursor:after {
+    box-sizing: border-box;
+    border-top: 1px solid var(--crepe-color-on-background);
+  }
