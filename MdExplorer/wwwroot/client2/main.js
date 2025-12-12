@@ -888,6 +888,8 @@ class TitleBarComponent {
         };
         // Add to navigation history
         objectThis.navService.setNewNavigation(mdFile);
+        // Update the selected file so other components (like React editor) know the current file
+        objectThis.mdFileService.setSelectedMdFileFromSideNav(mdFile);
         console.log('[TitleBar] Added to navigation history:', mdFile);
         console.log('[TitleBar] Navigation stack:', objectThis.navService.navigation);
     }
@@ -4404,8 +4406,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.12.07.5',
-    buildTime: '2025.12.07 10:05:28'
+    version: '2025.12.12.1',
+    buildTime: '2025.12.12 09:13:10'
 };
 
 
@@ -4436,6 +4438,9 @@ class ProjectsService {
         this.http = http;
         this.injector = injector;
         this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
+        // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
+        this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
+        this.projectChanging$ = this.projectChangingSubject.asObservable();
         this.dataStore = { mdProjects: [] };
         this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
     }
@@ -4459,6 +4464,7 @@ class ProjectsService {
         });
     }
     setNewFolderProject(path) {
+        this.projectChangingSubject.next(); // Notifica cambio progetto in corso
         this.http.post('../api/MdProjects/SetFolderProject', { path: path }).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
             // Update compatibility mode from response
@@ -4475,6 +4481,7 @@ class ProjectsService {
         }));
     }
     createProjectWithConfig(config) {
+        this.projectChangingSubject.next(); // Notifica cambio progetto in corso
         const request = {
             path: config.projectPath,
             initializeGit: config.initializeGit,
@@ -4545,9 +4552,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class MdFileService {
-    constructor(http, mdServerMessages) {
+    constructor(http, mdServerMessages, injector) {
         this.http = http;
         this.mdServerMessages = mdServerMessages;
+        this.injector = injector;
         this._navigationArray = []; // deve morire
         var defaultSelectedMdFile = [];
         this.dataStore = {
@@ -4569,6 +4577,17 @@ class MdFileService {
             // Use loadAll() to properly update dataStore and notify subscribers
             this.loadAll(null, null);
         });
+        // Subscribe to project changing events - clear data to show skeleton loader
+        // Use setTimeout to avoid circular dependency issues
+        setTimeout(() => {
+            const { ProjectsService } = __webpack_require__(/*! ./projects.service */ "vUCT");
+            const projectsService = this.injector.get(ProjectsService);
+            projectsService.projectChanging$.subscribe(() => {
+                console.log('🔄 Project changing - clearing tree data for skeleton');
+                this.dataStore.mdFiles = [];
+                this._mdFiles.next([]);
+            });
+        }, 0);
     }
     get whatDisplayForToolbar() {
         return this._whatDisplayForToolbar.asObservable();
@@ -5045,7 +5064,7 @@ class MdFileService {
         return this.http.get(url);
     }
 }
-MdFileService.ɵfac = function MdFileService_Factory(t) { return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_4__["MdServerMessagesService"])); };
+MdFileService.ɵfac = function MdFileService_Factory(t) { return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_4__["MdServerMessagesService"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"])); };
 MdFileService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: MdFileService, factory: MdFileService.ɵfac, providedIn: 'root' });
 
 
@@ -6979,28 +6998,37 @@ class ModernCloneProjectComponent {
                 this.showMessage('Please fill in all required fields');
                 return;
             }
-            // Step 1: Validate URL reachability before cloning
             const info = new _commons_waitingdialog_waiting_dialog_models_WaitingDialogInfo__WEBPACK_IMPORTED_MODULE_3__["WaitingDialogInfo"]();
-            info.message = "Validating repository URL...";
-            this.waitingDialog.showMessageBox(info);
             this.isValidatingUrl = true;
             try {
-                // Validate URL first
-                const validationResult = yield this.gitService.validateRemoteUrl(this.cloneRequest.url).toPromise();
-                if (!(validationResult === null || validationResult === void 0 ? void 0 : validationResult.isReachable)) {
-                    this.waitingDialog.closeMessageBox();
-                    this.isValidatingUrl = false;
-                    this.urlValidationResult = { isValid: false, error: (validationResult === null || validationResult === void 0 ? void 0 : validationResult.error) || 'Repository not reachable' };
-                    if (validationResult === null || validationResult === void 0 ? void 0 : validationResult.isAuthenticationError) {
-                        this.showMessage('Authentication required. Please check your credentials.');
+                // Step 1: Validate URL reachability before cloning
+                // Skip validation for Basic Auth providers (SCM-Manager, Gitea, Generic)
+                // because they require credentials even for ls-remote
+                const skipValidation = this.authType === 'basic';
+                if (!skipValidation) {
+                    info.message = "Validating repository URL...";
+                    this.waitingDialog.showMessageBox(info);
+                    // Validate URL first (only for OAuth providers)
+                    const validationResult = yield this.gitService.validateRemoteUrl(this.cloneRequest.url).toPromise();
+                    if (!(validationResult === null || validationResult === void 0 ? void 0 : validationResult.isReachable)) {
+                        this.waitingDialog.closeMessageBox();
+                        this.isValidatingUrl = false;
+                        this.urlValidationResult = { isValid: false, error: (validationResult === null || validationResult === void 0 ? void 0 : validationResult.error) || 'Repository not reachable' };
+                        if (validationResult === null || validationResult === void 0 ? void 0 : validationResult.isAuthenticationError) {
+                            this.showMessage('Authentication required. Please check your credentials.');
+                        }
+                        else {
+                            this.showMessage(`Repository URL not reachable: ${(validationResult === null || validationResult === void 0 ? void 0 : validationResult.error) || 'Unknown error'}`);
+                        }
+                        return;
                     }
-                    else {
-                        this.showMessage(`Repository URL not reachable: ${(validationResult === null || validationResult === void 0 ? void 0 : validationResult.error) || 'Unknown error'}`);
-                    }
-                    return;
+                    this.urlValidationResult = { isValid: true };
+                    console.log('[ModernClone] URL validation passed, proceeding with clone');
                 }
-                this.urlValidationResult = { isValid: true };
-                console.log('[ModernClone] URL validation passed, proceeding with clone');
+                else {
+                    console.log('[ModernClone] Skipping URL validation for Basic Auth provider, proceeding directly with clone');
+                    this.waitingDialog.showMessageBox(info);
+                }
                 // Step 2: Proceed with clone
                 const useAutomaticAuth = this.authType === 'oauth' && !this.showCredentialForm;
                 if (useAutomaticAuth) {

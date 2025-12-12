@@ -71,6 +71,8 @@ export class TitleBarComponent implements OnInit {
 
     // Add to navigation history
     objectThis.navService.setNewNavigation(mdFile);
+    // Update the selected file so other components (like React editor) know the current file
+    objectThis.mdFileService.setSelectedMdFileFromSideNav(mdFile);
     console.log('[TitleBar] Added to navigation history:', mdFile);
     console.log('[TitleBar] Navigation stack:', objectThis.navService.navigation);
   }
