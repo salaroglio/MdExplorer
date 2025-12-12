@@ -1,5 +1,19 @@
 // File per l'integrazione come WebComponent
-import { Crepe } from "@milkdown/crepe";
+import { Crepe, CrepeFeature } from "@milkdown/crepe";
+import { languages } from "@codemirror/language-data";
+import { LanguageDescription } from "@codemirror/language";
+
+// Definisce PlantUML come linguaggio riconosciuto per i code blocks
+const plantumlLanguage = LanguageDescription.of({
+  name: "PlantUML",
+  alias: ["plantuml", "puml"],
+  extensions: ["puml", "plantuml", "pu"],
+  load() {
+    // Usa Java come base per syntax highlighting (PlantUML ha sintassi simile)
+    return import('@codemirror/lang-java').then(m => m.java());
+  }
+});
+
 
 // Esporta la classe DocsPilotElement
 export class DocsPilotElement extends HTMLElement {
@@ -60,7 +74,12 @@ export class DocsPilotElement extends HTMLElement {
           // Ricrea l'editor con il nuovo valore
           this.editor = new Crepe({
             root: this.editorContainer,
-            defaultValue: newValue
+            defaultValue: newValue,
+            featureConfigs: {
+              [CrepeFeature.CodeMirror]: {
+                languages: [...languages, plantumlLanguage]
+              }
+            }
           });
           
           // Configuriamo gli eventi prima di inizializzare l'editor
@@ -101,31 +120,38 @@ export class DocsPilotElement extends HTMLElement {
   connectedCallback() {
     // Imposta il flag di inizializzazione
     this.isInitializing = true;
-    
+
     // Crea shadow DOM
     this.shadowRoot = this.attachShadow({ mode: 'open' });
 
     // Aggiungi stili CSS in modo che il percorso sia relativo allo script stesso
     const linkElem = document.createElement('link');
     linkElem.setAttribute('rel', 'stylesheet');
-    
-    let cssPath: string; 
-    const currentScript = document.currentScript as HTMLScriptElement;
 
-    if (currentScript && currentScript.src) {
-      const scriptFolderURL = new URL('.', currentScript.src).href;
-      cssPath = new URL('assets/css/milkdown-all.css', scriptFolderURL).href;
-      console.log('[DocsPilotElement] CSS Path calcolato (da currentScript):', cssPath);
-      console.log('[DocsPilotElement] document.currentScript.src:', currentScript.src);
+    let cssPath: string;
+
+    // Rileva se siamo in dev mode (Vite dev server)
+    const isDevMode = window.location.port === '5173' || window.location.port === '5174' || (import.meta as any).env?.DEV;
+
+    if (isDevMode) {
+      // In dev mode, usa il CSS bundled dalla cartella public
+      cssPath = '/css/milkdown-bundled.css';
+      console.log('[DocsPilotElement] Dev mode - CSS Path:', cssPath);
     } else {
-      console.warn('[DocsPilotElement] Impossibile determinare il percorso dello script corrente. Tentativo con percorso fisso relativo alla pagina.');
-      const fixedRelativePath = '../../../milk_react/assets/css/milkdown-all.css';
-      // window.location.href è l'URL della pagina Angular (es. http://.../client2/index.html)
-      // new URL(fixedRelativePath, window.location.href) dovrebbe risolvere a http://.../milk_react/assets/css/milkdown-all.css
-      cssPath = new URL(fixedRelativePath, window.location.href).href;
-      console.log('[DocsPilotElement] CSS Path (fallback con percorso fisso calcolato):', cssPath);
+      // In produzione, cerca il CSS relativo allo script o usa il fallback
+      const currentScript = document.currentScript as HTMLScriptElement;
+
+      if (currentScript && currentScript.src) {
+        const scriptFolderURL = new URL('.', currentScript.src).href;
+        cssPath = new URL('assets/css/milkdown-all.css', scriptFolderURL).href;
+        console.log('[DocsPilotElement] CSS Path calcolato (da currentScript):', cssPath);
+      } else {
+        const fixedRelativePath = '../../../milk_react/assets/css/milkdown-all.css';
+        cssPath = new URL(fixedRelativePath, window.location.href).href;
+        console.log('[DocsPilotElement] CSS Path (fallback):', cssPath);
+      }
     }
-    
+
     linkElem.setAttribute('href', cssPath);
     this.shadowRoot.appendChild(linkElem);
     
@@ -167,9 +193,15 @@ export class DocsPilotElement extends HTMLElement {
               // Fallback - controlla se l'oggetto ha proprietà stringify
               if (markdown.stringify && typeof markdown.stringify === 'function') {
                 markdownText = markdown.stringify();
-              } else if (markdown.constructor && markdown.constructor.name === 'Jh') {
-                // Questo sembra essere un oggetto interno di Milkdown, ignoriamolo silenziosamente
-                markdownText = ''; // Non disturbare l'utente con questi messaggi interni
+              } else if (markdown.constructor && (
+                markdown.constructor.name === 'Jh' ||
+                markdown.constructor.name.startsWith('_Ctx') ||
+                markdown.constructor.name === 'Ctx'
+              )) {
+                // Questo è un oggetto interno di Milkdown (Ctx), ignoriamolo silenziosamente
+                return; // Esci dalla funzione senza emettere eventi
+              } else if (markdown.produce && markdown.inject && markdown.remove) {
+                // Altro pattern per riconoscere oggetti Ctx di Milkdown
                 return; // Esci dalla funzione senza emettere eventi
               } else {
                 console.warn('Impossibile convertire l\'oggetto markdown in stringa:', markdown);
@@ -225,7 +257,12 @@ export class DocsPilotElement extends HTMLElement {
       // Crea l'istanza dell'editor
       this.editor = new Crepe({
         root: this.editorContainer,
-        defaultValue: this.markdown
+        defaultValue: this.markdown,
+        featureConfigs: {
+          [CrepeFeature.CodeMirror]: {
+            languages: [...languages, plantumlLanguage]
+          }
+        }
       });
       
       // Configura gli eventi dell'editor
