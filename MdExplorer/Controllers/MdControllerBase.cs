@@ -213,8 +213,11 @@ namespace MdExplorer.Service.Controllers
 
         protected string GetRelativePathFileSystem(string controllerName)
         {
-            //mdexplorer
-            return HttpUtility.UrlDecode(Request.Path.ToString().Replace($"/api/{controllerName}/", string.Empty).Replace('/', Path.DirectorySeparatorChar));
+            // Use case-insensitive replace since URL paths may have different casing
+            var path = Request.Path.ToString();
+            var prefix = $"/api/{controllerName}/";
+            var relativePath = path.Replace(prefix, string.Empty, StringComparison.OrdinalIgnoreCase);
+            return HttpUtility.UrlDecode(relativePath.Replace('/', Path.DirectorySeparatorChar));
         }
 
         protected void SaveLinksFromMarkdown(MarkdownFile relationship)

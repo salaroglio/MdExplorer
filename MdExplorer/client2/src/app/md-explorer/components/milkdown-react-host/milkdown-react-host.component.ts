@@ -6,6 +6,7 @@ import { MdFileService } from '../../services/md-file.service';
 import { MdFile } from '../../models/md-file';
 import { Subscription } from 'rxjs';
 import { filter, switchMap, tap } from 'rxjs/operators';
+import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 
 // Dichiarazione per Zone.js (usato per debug)
 declare const Zone: any;
@@ -78,7 +79,8 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     private route: ActivatedRoute, // Lo manteniamo se serve per altro, ma non per filePath
     private http: HttpClient,
     private mdFileService: MdFileService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private serverMessages: MdServerMessagesService // Per ottenere connectionId per upload immagini
   ) {}
 
   ngOnInit(): void {
@@ -145,6 +147,14 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
       if (element && typeof element.setMarkdown === 'function' && element.editor) {
         element.setMarkdown(markdown);
         console.log('React Host: setMarkdown chiamato con successo dopo', attempts, 'tentativi');
+
+        // Imposta il contesto per l'upload delle immagini
+        // Il connectionId è necessario per identificare il progetto nelle API
+        if (typeof element.setContext === 'function' && this.currentFilePath) {
+          const connectionId = this.serverMessages.connectionId || '';
+          element.setContext(this.currentFilePath, connectionId);
+          console.log('React Host: setContext chiamato con:', { filePath: this.currentFilePath, connectionId });
+        }
       } else if (attempts < maxAttempts) {
         // Riprova dopo 100ms
         setTimeout(checkAndSet, 100);

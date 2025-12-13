@@ -18,6 +18,8 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.Commands;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using System.Web;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -51,11 +53,12 @@ namespace MdExplorer.Controllers
             ICommandRunnerHtml commandRunner,
             IGoodMdRule<FileInfoNode>[] GoodRules,
             IHelper helper,
-            IWorkLink[] modifiers
-            ) : base(logger, options, null, session, null, commandRunner, modifiers, helper) // hubContext and engineDB passed as null to base
+            IWorkLink[] modifiers,
+            IDatabaseManager databaseManager,
+            IFileSystemWatcherManager fileSystemWatcherManager
+            ) : base(logger, options, null, session, null, commandRunner, modifiers, helper, databaseManager, fileSystemWatcherManager)
         {
             _goodRules = GoodRules;
-            // _yamlDocumentDescriptor assignment removed
         }
 
         /// <summary>
@@ -124,6 +127,9 @@ namespace MdExplorer.Controllers
             // Handle markdown files
             try
             {
+                // Extract connectionId from query for project path resolution
+                var connectionId = Request.Query["ConnectionId"].ToString();
+
                 var markdownTxt = await System.IO.File.ReadAllTextAsync(filePathToAccessOnServer, Encoding.UTF8);
 
                 string contentWithoutYaml = markdownTxt;
@@ -359,11 +365,158 @@ namespace MdExplorer.Controllers
             // HTML Pipeline, HTML Conversion, Post-HTML Conversion, and UI Element creation removed.
             // Directory.SetCurrentDirectory, cache logic, and HTML specific transformations removed.
 
+            // Transform relative image paths to API URLs for Milkdown editor
+            // Pass connectionId to resolve project path correctly
+            var connId = HttpContext.Request.Query["ConnectionId"].ToString();
+            readText = TransformImagePathsForEditor(readText, fullPathFile, connId);
+
             //if (isPlantuml)
-            //{                 
+            //{
             //    // await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd); // Removed
             //}
             return readText; // Return the processed Markdown text
+        }
+
+        /// <summary>
+        /// Transforms relative image paths in markdown to API URLs that can be resolved by MdExplorerController.
+        /// Example: ![alt](./assets/img.png) -> ![alt](/api/MdExplorer/folder/assets/img.png)
+        /// </summary>
+        private string TransformImagePathsForEditor(string markdown, string fullPathFile, string connectionId)
+        {
+            if (string.IsNullOrEmpty(markdown))
+                return markdown;
+
+            try
+            {
+                var documentDirectory = Path.GetDirectoryName(fullPathFile);
+                var projectPath = !string.IsNullOrEmpty(connectionId)
+                    ? GetProjectPath(connectionId)
+                    : GetProjectPath();
+
+                // Fallback: if projectPath is empty, try to find it by looking for .md or .git folder
+                if (string.IsNullOrEmpty(projectPath) && !string.IsNullOrEmpty(documentDirectory))
+                {
+                    projectPath = FindProjectRoot(documentDirectory);
+                    _logger.LogInformation($"[ReactEditor] ProjectPath fallback: found {projectPath}");
+                }
+
+                _logger.LogInformation($"[ReactEditor] TransformImagePaths: connectionId={connectionId}, projectPath={projectPath}, documentDirectory={documentDirectory}");
+
+                if (string.IsNullOrEmpty(documentDirectory) || string.IsNullOrEmpty(projectPath))
+                {
+                    _logger.LogWarning("[ReactEditor] Cannot transform image paths: documentDirectory or projectPath is null/empty");
+                    return markdown;
+                }
+
+                // Pattern to match markdown images: ![alt text](path)
+                // Captures: group 1 = alt text, group 2 = path
+                var imagePattern = new Regex(@"!\[([^\]]*)\]\(([^)]+)\)", RegexOptions.Compiled);
+
+                return imagePattern.Replace(markdown, match =>
+                {
+                    try
+                    {
+                        var altText = match.Groups[1].Value;
+                        var imagePath = match.Groups[2].Value;
+
+                        // Skip if empty, already an API URL, or absolute URL (http/https)
+                        if (string.IsNullOrEmpty(imagePath) ||
+                            imagePath.StartsWith("/api/") ||
+                            imagePath.StartsWith("http://") ||
+                            imagePath.StartsWith("https://"))
+                        {
+                            return match.Value;
+                        }
+
+                        // Calculate the absolute path of the image
+                        string absoluteImagePath;
+                        if (imagePath.StartsWith("./"))
+                        {
+                            // Relative to document: ./assets/img.png
+                            absoluteImagePath = Path.GetFullPath(Path.Combine(documentDirectory, imagePath.Substring(2)));
+                        }
+                        else if (imagePath.StartsWith("/"))
+                        {
+                            // Absolute from project root: /folder/assets/img.png
+                            absoluteImagePath = Path.GetFullPath(Path.Combine(projectPath, imagePath.TrimStart('/')));
+                        }
+                        else
+                        {
+                            // Relative without ./ prefix: assets/img.png
+                            absoluteImagePath = Path.GetFullPath(Path.Combine(documentDirectory, imagePath));
+                        }
+
+                        // Calculate relative path from project root
+                        string relativeFromProject;
+                        if (!string.IsNullOrEmpty(projectPath) && absoluteImagePath.StartsWith(projectPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            relativeFromProject = absoluteImagePath
+                                .Substring(projectPath.Length)
+                                .TrimStart(Path.DirectorySeparatorChar)
+                                .Replace("\\", "/");
+                        }
+                        else
+                        {
+                            // Fallback: just use the image path as-is with forward slashes
+                            relativeFromProject = absoluteImagePath.Replace("\\", "/");
+                        }
+
+                        // Build API URL with connectionId for project resolution
+                        var apiUrl = "/api/MdExplorer/" + relativeFromProject;
+                        if (!string.IsNullOrEmpty(connectionId))
+                        {
+                            apiUrl += "?ConnectionId=" + Uri.EscapeDataString(connectionId);
+                        }
+
+                        _logger.LogInformation($"[ReactEditor] Image path transformed: {imagePath} -> {apiUrl}");
+
+                        return $"![{altText}]({apiUrl})";
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"[ReactEditor] Failed to transform image path in match: {match.Value}");
+                        return match.Value; // Return original on error
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ReactEditor] Error in TransformImagePathsForEditor");
+                return markdown; // Return original markdown on error
+            }
+        }
+
+        /// <summary>
+        /// Finds the project root by looking for .md or .git folder in parent directories.
+        /// </summary>
+        private string FindProjectRoot(string startDirectory)
+        {
+            var currentDir = startDirectory;
+            while (!string.IsNullOrEmpty(currentDir))
+            {
+                // Check for .md folder (MdExplorer project marker)
+                var mdFolder = Path.Combine(currentDir, ".md");
+                if (Directory.Exists(mdFolder))
+                {
+                    return currentDir;
+                }
+
+                // Check for .git folder as fallback
+                var gitFolder = Path.Combine(currentDir, ".git");
+                if (Directory.Exists(gitFolder))
+                {
+                    return currentDir;
+                }
+
+                // Move to parent directory
+                var parentDir = Path.GetDirectoryName(currentDir);
+                if (parentDir == currentDir) // Reached root
+                    break;
+                currentDir = parentDir;
+            }
+
+            // If no project markers found, use the start directory itself
+            return startDirectory;
         }
 
         // private static void CreateHTMLBody(...) // Method removed

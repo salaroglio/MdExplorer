@@ -1142,6 +1142,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
 /* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../services/md-file.service */ "xmhS");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../../signalR/services/server-messages.service */ "+dpY");
+
 
 
 
@@ -1152,12 +1154,14 @@ __webpack_require__.r(__webpack_exports__);
 const _c0 = ["docsPilotElement"];
 class MilkdownReactHostComponent {
     constructor(location, route, // Lo manteniamo se serve per altro, ma non per filePath
-    http, mdFileService, ngZone) {
+    http, mdFileService, ngZone, serverMessages // Per ottenere connectionId per upload immagini
+    ) {
         this.location = location;
         this.route = route;
         this.http = http;
         this.mdFileService = mdFileService;
         this.ngZone = ngZone;
+        this.serverMessages = serverMessages;
         this.markdownContent = '# Benvenuto nell\\\'Editor React (Milkdown)!';
         this.currentFilePath = null; // Per memorizzare il percorso del file corrente
     }
@@ -1221,6 +1225,13 @@ class MilkdownReactHostComponent {
             if (element && typeof element.setMarkdown === 'function' && element.editor) {
                 element.setMarkdown(markdown);
                 console.log('React Host: setMarkdown chiamato con successo dopo', attempts, 'tentativi');
+                // Imposta il contesto per l'upload delle immagini
+                // Il connectionId è necessario per identificare il progetto nelle API
+                if (typeof element.setContext === 'function' && this.currentFilePath) {
+                    const connectionId = this.serverMessages.connectionId || '';
+                    element.setContext(this.currentFilePath, connectionId);
+                    console.log('React Host: setContext chiamato con:', { filePath: this.currentFilePath, connectionId });
+                }
             }
             else if (attempts < maxAttempts) {
                 // Riprova dopo 100ms
@@ -1289,7 +1300,7 @@ class MilkdownReactHostComponent {
         });
     }
 }
-MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_3__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["NgZone"])); };
+MilkdownReactHostComponent.ɵfac = function MilkdownReactHostComponent_Factory(t) { return new (t || MilkdownReactHostComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common__WEBPACK_IMPORTED_MODULE_3__["Location"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["NgZone"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_7__["MdServerMessagesService"])); };
 MilkdownReactHostComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: MilkdownReactHostComponent, selectors: [["app-milkdown-react-host"]], viewQuery: function MilkdownReactHostComponent_Query(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c0, 1);
     } if (rf & 2) {

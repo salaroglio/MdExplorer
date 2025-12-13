@@ -1,6 +1,6 @@
 // File per l'integrazione come WebComponent
-// BUILD VERSION: 2025-12-12T18:30:00 - CRLF fix
-const BUILD_VERSION = "2025-12-12T18:30:00-CRLF-fix";
+// BUILD VERSION: 2025-12-12T21:00:00 - Image upload integration
+const BUILD_VERSION = "2025-12-12T21:00:00-image-upload";
 
 import { Crepe, CrepeFeature } from "@milkdown/crepe";
 import { languages } from "@codemirror/language-data";
@@ -51,6 +51,10 @@ export class DocsPilotElement extends HTMLElement {
   // Flag per tracciare se il CSS è stato caricato (usato internamente)
   // @ts-ignore - used in onload callback
   private cssLoaded = false;
+
+  // Contesto per l'upload delle immagini (path del documento e connectionId per le API)
+  private currentDocumentPath: string = '';
+  private connectionId: string = '';
 
   // Quando un attributo cambia (chiamato dal host Angular quando carica un nuovo file)
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
@@ -130,6 +134,65 @@ export class DocsPilotElement extends HTMLElement {
       console.error('Errore in setMarkdown:', error);
     }
   }
+
+  /**
+   * Imposta il contesto necessario per l'upload delle immagini.
+   * Deve essere chiamato dall'host Angular quando viene caricato un documento.
+   * @param documentPath - Path completo del file markdown corrente
+   * @param connectionId - ID della connessione per identificare il progetto nelle API
+   */
+  setContext(documentPath: string, connectionId: string) {
+    console.log('[DocsPilot] setContext called:', { documentPath, connectionId, BUILD: BUILD_VERSION });
+    this.currentDocumentPath = documentPath;
+    this.connectionId = connectionId;
+  }
+
+  /**
+   * Carica un'immagine sul server MdExplorer.
+   * Chiamato dall'handler onUpload di Milkdown ImageBlock.
+   * @param file - Il file immagine da caricare
+   * @returns Il path relativo dell'immagine salvata (es: "./assets/image.png")
+   */
+  private async uploadImageToServer(file: File): Promise<string> {
+    console.log('[DocsPilot] uploadImageToServer called:', { fileName: file.name, size: file.size });
+
+    if (!this.connectionId) {
+      console.error('[DocsPilot] ConnectionId not set. Call setContext() first.');
+      throw new Error('ConnectionId not set. Cannot upload image.');
+    }
+
+    if (!this.currentDocumentPath) {
+      console.error('[DocsPilot] DocumentPath not set. Call setContext() first.');
+      throw new Error('DocumentPath not set. Cannot upload image.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentPath', this.currentDocumentPath);
+
+    // Aggiungi ConnectionId come query parameter (come fa l'interceptor Angular)
+    const apiUrl = `/api/mdfiles/uploadImage?ConnectionId=${encodeURIComponent(this.connectionId)}`;
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[DocsPilot] Upload failed:', response.status, errorData);
+        throw new Error(errorData.message || `Upload failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[DocsPilot] Upload successful:', result);
+      return result.relativePath; // es: "./assets/image_20231212.png"
+    } catch (error) {
+      console.error('[DocsPilot] Upload error:', error);
+      throw error;
+    }
+  }
   
   // Quando l'elemento viene aggiunto al DOM
   connectedCallback() {
@@ -201,11 +264,22 @@ export class DocsPilotElement extends HTMLElement {
       // Normalizza CRLF -> LF per evitare bug cursore in CodeMirror
       const normalizedMarkdown = normalizeCRLF(this.markdown);
 
-      // Crea l'istanza dell'editor
+      // Crea l'istanza dell'editor con handler per upload immagini
       this.editor = new Crepe({
         root: this.editorContainer,
         defaultValue: normalizedMarkdown,
         featureConfigs: {
+          [CrepeFeature.ImageBlock]: {
+            onUpload: async (file: File): Promise<string> => {
+              // Se il contesto è impostato, carica l'immagine sul server
+              if (this.connectionId && this.currentDocumentPath) {
+                return await this.uploadImageToServer(file);
+              }
+              // Fallback: usa blob URL temporaneo (comportamento originale)
+              console.warn('[DocsPilot] Context not set, using temporary blob URL');
+              return URL.createObjectURL(file);
+            }
+          },
           [CrepeFeature.CodeMirror]: {
             languages: [...languages, plantumlLanguage]
           }

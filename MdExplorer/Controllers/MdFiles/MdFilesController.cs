@@ -32,6 +32,7 @@ using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Models;
 using MdExplorer.Service.Utilities;
 using Microsoft.AspNetCore.Connections.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.SignalR;
@@ -433,6 +434,99 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Upload an image file from Milkdown editor.
+        /// Used by the React editor when user uploads/pastes an image via the ImageBlock feature.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> UploadImage([FromForm] IFormFile file, [FromForm] string documentPath)
+        {
+            _logger.LogInformation("UploadImage called with documentPath: {DocumentPath}, fileName: {FileName}",
+                documentPath, file?.FileName);
+
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest(new { message = "No file provided" });
+                }
+
+                // Validate it's an image
+                var allowedExtensions = new[] { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg" };
+                var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+                if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+                {
+                    // If no extension or not allowed, default to .png
+                    extension = ".png";
+                }
+
+                // Validate documentPath exists
+                if (string.IsNullOrEmpty(documentPath) || !System.IO.File.Exists(documentPath))
+                {
+                    _logger.LogWarning("UploadImage: Invalid documentPath: {DocumentPath}", documentPath);
+                    return BadRequest(new { message = "Invalid document path" });
+                }
+
+                SetFileSystemWatcherEnabled(false);
+
+                try
+                {
+                    // Sanitize filename using same regex as PasteFromClipboard
+                    var ruleReg = new Regex("(^(PRN|AUX|NUL|CON|COM[1-9]|LPT[1-9]|(\\.+)$)(\\..*)?$)|(([\\x00-\\x1f\\?*:\";‌​|/<>])+)|([\\\\.\\s]+)");
+                    var originalName = Path.GetFileNameWithoutExtension(file.FileName) ?? "image";
+                    var sanitizedName = ruleReg.Replace(originalName, "-").Replace(" ", "-");
+
+                    // Add timestamp to ensure uniqueness
+                    var finalFileName = sanitizedName + "_" + DateTime.Now.ToString("yyyyMMddHHmmss") + extension;
+
+                    // Create assets directory next to the document
+                    var assetsDirectory = Path.Combine(
+                        Path.GetDirectoryName(documentPath),
+                        "assets"
+                    );
+                    Directory.CreateDirectory(assetsDirectory);
+
+                    // Save image to file system
+                    var imagePath = Path.Combine(assetsDirectory, finalFileName);
+
+                    using (var stream = new FileStream(imagePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    _logger.LogInformation("UploadImage: Saved image to {ImagePath}", imagePath);
+
+                    // Calculate relative path from project root
+                    var projectPath = GetProjectPath();
+                    var relativeFromProject = imagePath
+                        .Replace(projectPath, "")
+                        .TrimStart(Path.DirectorySeparatorChar)
+                        .Replace("\\", "/");
+
+                    // Use MdExplorer API endpoint which resolves relative paths to project
+                    // Include connectionId for project resolution
+                    var connectionId = Request.Query["ConnectionId"].ToString();
+                    var relativePath = "/api/MdExplorer/" + relativeFromProject;
+                    if (!string.IsNullOrEmpty(connectionId))
+                    {
+                        relativePath += "?ConnectionId=" + Uri.EscapeDataString(connectionId);
+                    }
+
+                    _logger.LogInformation("UploadImage: API path for image: {RelativePath}", relativePath);
+
+                    return Ok(new { relativePath = relativePath, fileName = finalFileName });
+                }
+                finally
+                {
+                    SetFileSystemWatcherEnabled(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in UploadImage");
+                return StatusCode(500, new { message = "Internal error while uploading image", error = ex.Message });
+            }
+        }
 
         [HttpPost]
         public IActionResult OpenCustomWordTemplate([FromBody] FileInfoNode fileData)
