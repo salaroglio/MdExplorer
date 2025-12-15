@@ -24,6 +24,7 @@ using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
 using MdExplorer.Services.Git;
 using MdExplorer.Services.Git.Interfaces;
+using MdExplorer.Service.Services;
 
 namespace MdExplorer.Service.Controllers.MdProjects
 {
@@ -39,6 +40,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
         private readonly IGitAccountService _gitAccountService;
         private readonly GitCredentialHelperResolver _gitCredentialHelper;
+        private readonly FoldersIgnoreService _foldersIgnoreService;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
@@ -47,7 +49,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IDatabaseManager databaseManager,
                 IFileSystemWatcherManager fileSystemWatcherManager,
                 IGitAccountService gitAccountService,
-                GitCredentialHelperResolver gitCredentialHelper)
+                GitCredentialHelperResolver gitCredentialHelper,
+                FoldersIgnoreService foldersIgnoreService)
         {
             _userSettingsDB = userSettingsDB;
             _services = services;
@@ -57,6 +60,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _fileSystemWatcherManager = fileSystemWatcherManager;
             _gitAccountService = gitAccountService;
             _gitCredentialHelper = gitCredentialHelper;
+            _foldersIgnoreService = foldersIgnoreService;
         }
 
         [HttpGet]
@@ -140,6 +144,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
+                // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
+                _foldersIgnoreService.InvalidateCache(request.Path);
+
                 // IMPORTANT: Run migrations FIRST, before opening database sessions
                 // This prevents "database is locked" errors because NHibernate holds the file open
                 bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
