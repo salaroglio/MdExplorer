@@ -77,12 +77,18 @@ namespace MdExplorer.Service
         /// <param name="services"></param>
         /// <param name="pathFromParameter"></param>
         public static void SetProjectInitialization(IServiceCollection services, string pathFromParameter)
-        {            
-            
+        {
+
             var appdata = CrossPlatformPath.GetAppDataPath();
             var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = ConfigFileSystemWatchers(services, pathFromParameter);
-            ConfigTemplates(currentDirectory, services);
+
+            // Only configure templates if we have a valid project path (not the app directory)
+            // This prevents writing to Program Files which requires admin permissions
+            if (!string.IsNullOrEmpty(pathFromParameter) && Directory.Exists(pathFromParameter))
+            {
+                ConfigTemplates(currentDirectory, services);
+            }
             var hash = Helper.HGetHashString(currentDirectory);
             var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
             var databasePathProject = $"Data Source = {Path.Combine(appdata, $"MdProject_{hash}.db")}";
