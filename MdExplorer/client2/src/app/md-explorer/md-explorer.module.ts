@@ -30,6 +30,11 @@ import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-m
 import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
 import { DocumentShowComponent } from './components/document-show/document-show.component'; // Added import
 import { AiChatModule } from '../ai-chat/ai-chat.module';
+// GitChat imports - declared directly to avoid module resolution conflicts
+import { GitChatComponent } from '../git-chat/components/git-chat/git-chat.component';
+import { GitChatService } from '../git-chat/services/git-chat.service';
+import { CHAT_PROVIDER } from '../git-chat/providers/chat-provider.interface';
+import { SignalRChatProvider } from '../git-chat/providers/signalr-chat.provider';
 import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
 import { TocProgressService } from './services/toc-progress.service';
 import { ConfirmDialogComponent } from '../commons/components/confirm-dialog/confirm-dialog.component';
@@ -87,7 +92,8 @@ const routes: Routes = [
     MilkdownReactHostComponent,
     DocumentShowComponent, // Added to declarations
     TocProgressDialogComponent,
-    ConfirmDialogComponent
+    ConfirmDialogComponent,
+    GitChatComponent
   ],
   imports: [
     CommonModule,
@@ -99,7 +105,10 @@ const routes: Routes = [
   ],
   providers: [
     // MdFileService è già providedIn: 'root', non va qui
-    TocProgressService
+    TocProgressService,
+    // GitChat providers
+    { provide: CHAT_PROVIDER, useClass: SignalRChatProvider },
+    GitChatService
   ],
   entryComponents: [
     TocProgressDialogComponent

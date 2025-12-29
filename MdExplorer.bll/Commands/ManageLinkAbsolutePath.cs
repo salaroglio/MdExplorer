@@ -52,10 +52,37 @@ namespace MdExplorer.Features.Commands
             var links = GetMatches(markdown);
             foreach (Match link in links)
             {
-                if (link.Groups[2].Value.StartsWith("/") || link.Groups[2].Value.StartsWith("../"))
-                {
-                    var newlink = "/api/mdexplorer" + link.Groups[2].Value;
+                var linkValue = link.Groups[2].Value;
 
+                // Skip external links, anchors, and non-markdown files
+                if (linkValue.StartsWith("http://") ||
+                    linkValue.StartsWith("https://") ||
+                    linkValue.StartsWith("mailto:") ||
+                    linkValue.StartsWith("#"))
+                {
+                    continue;
+                }
+
+                // Process links that need connectionId: absolute paths, relative paths (..), or .md files
+                bool isAbsoluteOrRelative = linkValue.StartsWith("/") || linkValue.StartsWith("../");
+                bool isMdFile = linkValue.EndsWith(".md") || linkValue.Contains(".md#");
+
+                if (isAbsoluteOrRelative || isMdFile)
+                {
+                    string newlink;
+
+                    if (isAbsoluteOrRelative)
+                    {
+                        // Absolute or parent-relative paths: prepend /api/mdexplorer
+                        newlink = "/api/mdexplorer" + linkValue;
+                    }
+                    else
+                    {
+                        // Simple relative .md links: just add connectionId query param
+                        newlink = linkValue;
+                    }
+
+                    // Handle anchor fragments (#section)
                     Regex rxSharp = new Regex(@"([^#]*)(?:(#.*))?",
                              RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
                     var matchesSharp = rxSharp.Matches(newlink);
@@ -65,8 +92,10 @@ namespace MdExplorer.Features.Commands
 
                     newlink = $@"{firstPart}" + "?connectionId=" + requestInfo.ConnectionId + secondPart;
 
-                    var allElementToReplace = link.Groups[0].Value.Replace(link.Groups[2].Value, newlink);
-                    markdown = markdown.Replace(link.Groups[0].Value, allElementToReplace);
+                    // Build new link preserving original text: [originalText](newUrl)
+                    var linkText = link.Groups[1].Value;
+                    var newFullLink = $"[{linkText}]({newlink})";
+                    markdown = markdown.Replace(link.Groups[0].Value, newFullLink);
                 }
             }
             return markdown;

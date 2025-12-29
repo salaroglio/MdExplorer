@@ -1,0 +1,143 @@
+<div class="git-chat-container">
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="header-left">
+      <mat-icon class="header-icon">chat</mat-icon>
+      <span class="header-title">Team Chat</span>
+    </div>
+
+    <div class="header-right">
+      <!-- Online users badge -->
+      <button mat-button
+              class="online-badge"
+              (click)="toggleOnlineUsers()"
+              [matTooltip]="presence.totalOnline + ' user(s) online'">
+        <span class="online-dot"></span>
+        <span class="online-count">{{ presence.totalOnline }}</span>
+      </button>
+
+      <!-- Settings button (only in Electron) -->
+      <button mat-icon-button
+              *ngIf="isElectron"
+              (click)="toggleSettings()"
+              [matTooltip]="'Notification settings'">
+        <mat-icon>{{ settings.notificationsEnabled ? 'notifications_active' : 'notifications_off' }}</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Online users panel -->
+  <div class="online-users-panel" *ngIf="showOnlineUsers">
+    <div class="panel-header">
+      <span>Online Users</span>
+      <button mat-icon-button (click)="toggleOnlineUsers()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="users-list">
+      <div class="user-item" *ngFor="let user of presence.users">
+        <div class="user-avatar">{{ getAvatarInitial(user.userName) }}</div>
+        <div class="user-info">
+          <span class="user-name">{{ user.userName }}</span>
+          <span class="user-email">{{ user.userEmail }}</span>
+        </div>
+      </div>
+      <div class="no-users" *ngIf="presence.users.length === 0">
+        No users online
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings panel (Electron only) -->
+  <div class="settings-panel" *ngIf="showSettings && isElectron">
+    <div class="panel-header">
+      <span>Notification Settings</span>
+      <button mat-icon-button (click)="toggleSettings()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="settings-content">
+      <mat-slide-toggle
+        [checked]="settings.notificationsEnabled"
+        (change)="updateNotifications($event.checked)">
+        Enable notifications
+      </mat-slide-toggle>
+      <mat-slide-toggle
+        [checked]="settings.soundEnabled"
+        (change)="updateSound($event.checked)"
+        [disabled]="!settings.notificationsEnabled">
+        Play sound
+      </mat-slide-toggle>
+    </div>
+  </div>
+
+  <!-- Connection states -->
+  <div class="connection-status" *ngIf="connectionState !== 'connected'">
+    <div *ngIf="connectionState === 'connecting'" class="status-connecting">
+      <mat-spinner diameter="20"></mat-spinner>
+      <span>Connecting to chat...</span>
+    </div>
+    <div *ngIf="connectionState === 'disconnected'" class="status-disconnected">
+      <mat-icon>cloud_off</mat-icon>
+      <span>No remote repository configured</span>
+      <p class="status-hint">Team chat is available for repositories with a remote origin.</p>
+    </div>
+    <div *ngIf="connectionState === 'error'" class="status-error">
+      <mat-icon>error</mat-icon>
+      <span>Connection error</span>
+      <p class="status-hint">Failed to connect to chat server.</p>
+    </div>
+  </div>
+
+  <!-- Messages container -->
+  <div class="messages-container" #scrollContainer *ngIf="connectionState === 'connected'">
+    <!-- No messages state -->
+    <div class="no-messages" *ngIf="messages.length === 0">
+      <mat-icon>forum</mat-icon>
+      <p>No messages yet</p>
+      <p class="hint">Be the first to say hello to your team!</p>
+    </div>
+
+    <!-- Messages list -->
+    <div *ngFor="let message of messages; trackBy: trackByMessageId"
+         [ngClass]="getMessageClass(message)">
+
+      <!-- System message -->
+      <div class="system-message-content" *ngIf="message.type === 'system'">
+        {{ message.content }}
+      </div>
+
+      <!-- User message -->
+      <ng-container *ngIf="message.type === 'message'">
+        <div class="message-avatar">
+          {{ getAvatarInitial(message.senderName) }}
+        </div>
+        <div class="message-bubble">
+          <div class="message-header">
+            <span class="sender-name">{{ message.senderName }}</span>
+            <span class="message-time">{{ formatTimestamp(message.timestamp) }}</span>
+          </div>
+          <div class="message-text">{{ message.content }}</div>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- Input area -->
+  <div class="input-area" *ngIf="connectionState === 'connected'">
+    <input #messageInput
+           type="text"
+           [(ngModel)]="inputMessage"
+           (keypress)="onKeyPress($event)"
+           placeholder="Type a message..."
+           maxlength="2000"
+           class="message-input">
+    <button mat-icon-button
+            color="primary"
+            (click)="sendMessage()"
+            [disabled]="!inputMessage.trim()"
+            class="send-button">
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>

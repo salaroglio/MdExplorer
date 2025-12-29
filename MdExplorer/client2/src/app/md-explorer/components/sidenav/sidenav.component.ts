@@ -2,6 +2,7 @@
 import { AfterViewInit, ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core'; // Added ChangeDetectionStrategy
 import { Router }                                          from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
+import { HttpClient } from '@angular/common/http';
 import { MdFileService }      from '../../services/md-file.service';
 import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 import { GITService } from '../../../git/services/gitservice.service';
@@ -30,6 +31,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public hooked: boolean = false;
   public titleProject: string;
   public currentBranch: string = null;
+  public hasRemote: boolean = false;
   @ViewChild('sidenav') sidenav: MatSidenav;
   
   // Memory leak prevention
@@ -50,14 +52,22 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private projectService: ProjectsService,
     public navService:MdNavigationService,
     private ref: ChangeDetectorRef, // Injected ChangeDetectorRef
-    private layoutService: LayoutService
+    private layoutService: LayoutService,
+    private http: HttpClient
   ) {
     this.setupResizeListeners();
 
     // Use ProjectsService as source of truth for project name
     this.projectService.currentProjects$.subscribe(project => {
+      console.log('[Sidenav] currentProjects$ emitted:', project);
       if (project && project.name) {
         this.titleProject = project.name;
+        // Check if project has remote for Team Chat
+        console.log('[Sidenav] project.path:', project.path);
+        this.checkRemoteStatus(project.path);
+      } else {
+        console.log('[Sidenav] No project or no name, setting hasRemote=false');
+        this.hasRemote = false;
       }
     });
 
@@ -193,12 +203,12 @@ export class SidenavComponent implements OnInit, OnDestroy {
   
   onSidenavToggle(isOpen: boolean): void {
     this.layoutService.setSidenavOpen(isOpen);
-    
+
     // Log delle dimensioni dopo un breve delay per permettere l'animazione
     setTimeout(() => {
       const sidenavContent = document.querySelector('mat-sidenav-content') as HTMLElement;
       const documentShow = document.querySelector('app-document-show') as HTMLElement;
-      
+
       console.log('Layout dimensions:', {
         sidenavContent: {
           width: sidenavContent?.offsetWidth || 0,
@@ -210,6 +220,33 @@ export class SidenavComponent implements OnInit, OnDestroy {
         }
       });
     }, 300);
+  }
+
+  /**
+   * Check if the project has a remote origin configured
+   * Used to show/hide Team Chat tab
+   */
+  private checkRemoteStatus(projectPath: string): void {
+    if (!projectPath) {
+      console.log('[Sidenav] checkRemoteStatus: no projectPath');
+      this.hasRemote = false;
+      return;
+    }
+
+    console.log('[Sidenav] checkRemoteStatus: checking', projectPath);
+
+    this.http.get<{ hasRemote: boolean }>(`/api/GitChat/room-info?repositoryPath=${encodeURIComponent(projectPath)}`)
+      .subscribe({
+        next: (response) => {
+          console.log('[Sidenav] checkRemoteStatus response:', response);
+          this.hasRemote = response?.hasRemote || false;
+          console.log('[Sidenav] hasRemote set to:', this.hasRemote);
+        },
+        error: (err) => {
+          console.error('[Sidenav] checkRemoteStatus error:', err);
+          this.hasRemote = false;
+        }
+      });
   }
 
 }

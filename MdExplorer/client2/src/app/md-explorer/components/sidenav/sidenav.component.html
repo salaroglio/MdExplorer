@@ -37,6 +37,13 @@
         </ng-template>
         <app-ai-chat [compactMode]="true"></app-ai-chat>
       </mat-tab>
+      <mat-tab *ngIf="hasRemote">
+        <ng-template mat-tab-label>
+          <mat-icon>chat</mat-icon>
+          Team Chat
+        </ng-template>
+        <app-git-chat></app-git-chat>
+      </mat-tab>
     </mat-tab-group>
 
   </mat-sidenav>

@@ -5,6 +5,14 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
 
+interface ProjectOpenedResponse {
+  success: boolean;
+  roomId?: string;
+  oderId?: string;
+  projectUsersCount?: number;
+  error?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -16,6 +24,10 @@ export class ProjectsService {
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
+
+  // Track current project's chat room info for cleanup
+  private currentRoomId: string | null = null;
+  private currentOderId: string | null = null;
 
   get mdProjects() {
     return this._mdProjects.asObservable();
@@ -52,8 +64,15 @@ export class ProjectsService {
 
   setNewFolderProject(path: string):void {
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+
+    // Close previous project if any
+    this.notifyProjectClosed();
+
     this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
       this.currentProjects$.next(response);
+
+      // Register project open for chat presence tracking
+      this.notifyProjectOpened(path);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -74,6 +93,9 @@ export class ProjectsService {
   createProjectWithConfig(config: ProjectCreateConfigOptions): void {
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
 
+    // Close previous project if any
+    this.notifyProjectClosed();
+
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,
@@ -82,6 +104,9 @@ export class ProjectsService {
 
     this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
       this.currentProjects$.next(response);
+
+      // Register project open for chat presence tracking
+      this.notifyProjectOpened(config.projectPath);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -119,7 +144,61 @@ export class ProjectsService {
    * Should be called when navigating back to the projects list.
    */
   closeCurrentProject(): Observable<any> {
+    // Notify chat system that project is being closed
+    this.notifyProjectClosed();
     return this.http.post<any>('../api/MdProjects/CloseProject', {});
+  }
+
+  /**
+   * Notify the chat system that a project has been opened.
+   * This registers the user in the project users count.
+   */
+  private notifyProjectOpened(projectPath: string): void {
+    this.http.post<ProjectOpenedResponse>('../api/GitChat/project-opened', {
+      repositoryPath: projectPath
+    }).subscribe(
+      response => {
+        if (response.success) {
+          this.currentRoomId = response.roomId || null;
+          this.currentOderId = response.oderId || null;
+          console.log('[ProjectsService] Project opened registered, roomId:', response.roomId,
+            'oderId:', response.oderId, 'users:', response.projectUsersCount);
+        } else {
+          // Not a git repo or no remote - this is fine, just don't track
+          console.log('[ProjectsService] Project opened but not tracking (no git remote):', response.error);
+          this.currentRoomId = null;
+          this.currentOderId = null;
+        }
+      },
+      error => {
+        console.warn('[ProjectsService] Failed to register project open:', error);
+        this.currentRoomId = null;
+        this.currentOderId = null;
+      }
+    );
+  }
+
+  /**
+   * Notify the chat system that a project has been closed.
+   * This unregisters the user from the project users count.
+   */
+  private notifyProjectClosed(): void {
+    if (this.currentRoomId && this.currentOderId) {
+      this.http.post<any>('../api/GitChat/project-closed', {
+        roomId: this.currentRoomId,
+        oderId: this.currentOderId
+      }).subscribe(
+        response => {
+          console.log('[ProjectsService] Project closed registered');
+        },
+        error => {
+          console.warn('[ProjectsService] Failed to register project close:', error);
+        }
+      );
+
+      this.currentRoomId = null;
+      this.currentOderId = null;
+    }
   }
 
 }

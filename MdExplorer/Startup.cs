@@ -102,7 +102,18 @@ namespace MdExplorer
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
-            
+
+            // Register Team Chat services
+            services.AddHttpClient("Firebase");
+            services.AddHttpClient("FirebaseStreaming", client =>
+            {
+                // SSE connections need infinite timeout
+                client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
+            });
+            // FirebaseStreamingService handles SSE connections for real-time cross-PC chat
+            services.AddSingleton<Services.TeamChat.FirebaseStreamingService>();
+            services.AddSingleton<Services.TeamChat.ITeamChatService, Services.TeamChat.TeamChatService>();
+
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
             services.AddControllers(config =>
             {
@@ -215,6 +226,7 @@ namespace MdExplorer
                     );
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
                 endpoints.MapHub<AiChatHub>("/signalr/aichat");
+                endpoints.MapHub<TeamChatHub>("/signalr/teamchat");
             });
 
             //#if !DEBUG

@@ -116,11 +116,13 @@ namespace MdExplorer.Controllers
             _logger.LogInformation($"🔍 [MdExplorer] fullPathFile: {fullPathFile}");
 
             // Calculate relative path properly
-            var calculatedRelativePath = fullPathFile.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase);
-            if (calculatedRelativePath.StartsWith(Path.DirectorySeparatorChar.ToString()))
-            {
-                calculatedRelativePath = calculatedRelativePath.Substring(1);
-            }
+            var projectPath = GetProjectPath();
+            var calculatedRelativePath = !string.IsNullOrEmpty(projectPath)
+                ? fullPathFile.Replace(projectPath, string.Empty, StringComparison.OrdinalIgnoreCase)
+                : relativePathFile; // Fallback to URL-extracted path if no project context
+
+            // Remove leading separator if present
+            calculatedRelativePath = calculatedRelativePath.TrimStart(Path.DirectorySeparatorChar, '/');
             
             _logger.LogInformation($"🔍 [MdExplorer] calculatedRelativePath: {calculatedRelativePath}");
             

@@ -217,6 +217,10 @@ namespace MdExplorer.Service.Controllers
             var path = Request.Path.ToString();
             var prefix = $"/api/{controllerName}/";
             var relativePath = path.Replace(prefix, string.Empty, StringComparison.OrdinalIgnoreCase);
+
+            // Fix: Rimuovi leading slashes per gestire URL con doppio slash (es: /api/mdexplorer//.github/...)
+            relativePath = relativePath.TrimStart('/', '\\');
+
             return HttpUtility.UrlDecode(relativePath.Replace('/', Path.DirectorySeparatorChar));
         }
 

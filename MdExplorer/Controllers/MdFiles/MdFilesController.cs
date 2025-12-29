@@ -1401,7 +1401,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     continue;
                 }
                 
-                var relativePath = itemFile.Substring(GetProjectPath().Length);
+                var relativePath = itemFile.Substring(GetProjectPath().Length)
+                    .TrimStart(Path.DirectorySeparatorChar, '/');
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, relativePath);
                 nodeFile.IsIndexed = false;
                 nodeFile.IndexingStatus = "idle";
@@ -1499,7 +1500,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
                 {
-                    var patchedItemFile = itemFile.Substring(GetProjectPath().Length);
+                    var patchedItemFile = itemFile.Substring(GetProjectPath().Length)
+                        .TrimStart(Path.DirectorySeparatorChar, '/');
                     var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                     list.Add(node);
                 }
