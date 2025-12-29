@@ -735,7 +735,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Build the mdexplorer:// URL
     // Format: mdexplorer://opendocument/<project-name>/<relative-path>
-    const mdExplorerUrl = `mdexplorer://opendocument/${encodeURIComponent(currentProject.name)}/${relativePath}`;
+    // Encode each path segment separately (to preserve slashes but encode spaces/special chars)
+    const encodedPath = relativePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    const mdExplorerUrl = `mdexplorer://opendocument/${encodeURIComponent(currentProject.name)}/${encodedPath}`;
 
     this.clipboard.copy(mdExplorerUrl);
     this.snackBar.open('MdExplorer link copied to clipboard', 'OK', { duration: 2000 });

@@ -123,7 +123,7 @@ export class UrlHandlerService {
             // Wait for indexing to complete before selecting the file
             this.waitForIndexingComplete(indexingCompleteReceived, () => {
               console.log('[UrlHandler] Indexing complete, selecting file...');
-              this.selectFile(data.fullPath, data.section);
+              this.selectFile(data.fullPath, data.filePath, data.section);
             });
           });
         }
@@ -171,22 +171,22 @@ export class UrlHandlerService {
   /**
    * Select a file in the tree and optionally scroll to a section
    */
-  private selectFile(fullPath: string, section?: string): void {
-    console.log('[UrlHandler] Selecting file:', fullPath, 'section:', section);
+  private selectFile(fullPath: string, relativePath: string, section?: string): void {
+    console.log('[UrlHandler] Selecting file:', fullPath, 'relativePath:', relativePath, 'section:', section);
 
     // Create a minimal MdFile object to search for in the dataStore
     const searchFile: MdFile = {
       fullPath: fullPath,
-      path: '',
+      path: fullPath,
       name: fullPath.split(/[/\\]/).pop() || '',
-      relativePath: '',
+      relativePath: relativePath,
       level: 0,
       expandable: false,
       type: 'mdFile',
       childrens: [],
       index: 0,
       isLoading: false,
-      fullDirectoryPath: ''
+      fullDirectoryPath: fullPath.substring(0, Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\')))
     };
 
     // Try to find the file in the dataStore to get the complete MdFile object
@@ -198,8 +198,8 @@ export class UrlHandlerService {
       this.mdFileService.setSelectedMdFileFromSideNav(foundFile);
       this.mdFileService.setSelectedMdFileFromServer(foundFile);
     } else {
-      console.log('[UrlHandler] File not found in dataStore, using search file');
-      // Fallback: use the minimal object (may not work perfectly)
+      console.log('[UrlHandler] File not found in dataStore, using search file with relativePath:', relativePath);
+      // Fallback: use the minimal object with the relativePath from the URL
       this.mdFileService.setSelectedMdFileFromSideNav(searchFile);
       this.mdFileService.setSelectedMdFileFromServer(searchFile);
     }

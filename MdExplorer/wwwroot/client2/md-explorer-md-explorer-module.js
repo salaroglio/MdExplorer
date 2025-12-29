@@ -358,6 +358,30 @@ class Bookmark extends _models_md_file__WEBPACK_IMPORTED_MODULE_0__["MdFile"] {
 
 /***/ }),
 
+/***/ "4vaX":
+/*!***************************************************************!*\
+  !*** ./src/app/git-chat/providers/chat-provider.interface.ts ***!
+  \***************************************************************/
+/*! exports provided: CHAT_PROVIDER */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "CHAT_PROVIDER", function() { return CHAT_PROVIDER; });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
+/**
+ * Injection token for the chat provider
+ * Use this to inject the provider in services/components
+ *
+ * @example
+ * constructor(@Inject(CHAT_PROVIDER) private chatProvider: IChatProvider) {}
+ */
+const CHAT_PROVIDER = new _angular_core__WEBPACK_IMPORTED_MODULE_0__["InjectionToken"]('ChatProvider');
+
+
+/***/ }),
+
 /***/ "5+da":
 /*!*****************************************************************************************************!*\
   !*** ./src/app/md-explorer/components/dialogs/toc-progress-dialog/toc-progress-dialog.component.ts ***!
@@ -878,6 +902,27 @@ PublishMdTreeComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵd
 
 /***/ }),
 
+/***/ "7Q97":
+/*!************************************************!*\
+  !*** ./src/app/git-chat/models/chat.models.ts ***!
+  \************************************************/
+/*! exports provided: DEFAULT_CHAT_SETTINGS */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "DEFAULT_CHAT_SETTINGS", function() { return DEFAULT_CHAT_SETTINGS; });
+/**
+ * Default chat settings
+ */
+const DEFAULT_CHAT_SETTINGS = {
+    notificationsEnabled: true,
+    soundEnabled: true
+};
+
+
+/***/ }),
+
 /***/ "8Cql":
 /*!***********************************************!*\
   !*** ./src/app/md-explorer/pipes/safePipe.ts ***!
@@ -945,10 +990,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! ./components/milkdown-react-host/milkdown-react-host.component */ "DfLb");
 /* harmony import */ var _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! ./components/document-show/document-show.component */ "uOUL");
 /* harmony import */ var _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! ../ai-chat/ai-chat.module */ "IOcM");
-/* harmony import */ var _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! ./components/dialogs/toc-progress-dialog/toc-progress-dialog.component */ "5+da");
-/* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! ./services/toc-progress.service */ "lh+x");
-/* harmony import */ var _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! ../commons/components/confirm-dialog/confirm-dialog.component */ "+Qia");
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! ../git-chat/components/git-chat/git-chat.component */ "DYVF");
+/* harmony import */ var _git_chat_services_git_chat_service__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! ../git-chat/services/git-chat.service */ "oFRw");
+/* harmony import */ var _git_chat_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! ../git-chat/providers/chat-provider.interface */ "4vaX");
+/* harmony import */ var _git_chat_providers_signalr_chat_provider__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! ../git-chat/providers/signalr-chat.provider */ "r9BE");
+/* harmony import */ var _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! ./components/dialogs/toc-progress-dialog/toc-progress-dialog.component */ "5+da");
+/* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_34__ = __webpack_require__(/*! ./services/toc-progress.service */ "lh+x");
+/* harmony import */ var _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! ../commons/components/confirm-dialog/confirm-dialog.component */ "+Qia");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_36__ = __webpack_require__(/*! @angular/core */ "fXoL");
 
 
 
@@ -978,6 +1027,11 @@ __webpack_require__.r(__webpack_exports__);
 
 
  // Added import
+
+// GitChat imports - declared directly to avoid module resolution conflicts
+
+
+
 
 
 
@@ -1014,10 +1068,13 @@ class MdExplorerModule {
     }
 }
 MdExplorerModule.ɵfac = function MdExplorerModule_Factory(t) { return new (t || MdExplorerModule)(); };
-MdExplorerModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵdefineNgModule"]({ type: MdExplorerModule });
-MdExplorerModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵdefineInjector"]({ providers: [
+MdExplorerModule.ɵmod = _angular_core__WEBPACK_IMPORTED_MODULE_36__["ɵɵdefineNgModule"]({ type: MdExplorerModule });
+MdExplorerModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_36__["ɵɵdefineInjector"]({ providers: [
         // MdFileService è già providedIn: 'root', non va qui
-        _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_30__["TocProgressService"]
+        _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_34__["TocProgressService"],
+        // GitChat providers
+        { provide: _git_chat_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_31__["CHAT_PROVIDER"], useClass: _git_chat_providers_signalr_chat_provider__WEBPACK_IMPORTED_MODULE_32__["SignalRChatProvider"] },
+        _git_chat_services_git_chat_service__WEBPACK_IMPORTED_MODULE_30__["GitChatService"]
     ], imports: [[
             _angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
             _shared_material_module__WEBPACK_IMPORTED_MODULE_4__["MaterialModule"],
@@ -1026,7 +1083,7 @@ MdExplorerModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵdefine
             _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_28__["AiChatModule"],
             _angular_router__WEBPACK_IMPORTED_MODULE_7__["RouterModule"].forChild(routes)
         ]] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵsetNgModuleScope"](MdExplorerModule, { declarations: [_components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_1__["SidenavComponent"],
+(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_36__["ɵɵsetNgModuleScope"](MdExplorerModule, { declarations: [_components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_1__["SidenavComponent"],
         _components_toolbar_toolbar_component__WEBPACK_IMPORTED_MODULE_2__["ToolbarComponent"],
         _pipes_safePipe__WEBPACK_IMPORTED_MODULE_8__["SafePipe"],
         _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_3__["MainContentComponent"],
@@ -1048,8 +1105,9 @@ MdExplorerModule.ɵinj = _angular_core__WEBPACK_IMPORTED_MODULE_32__["ɵɵdefine
         _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_24__["MoveMdFileComponent"], _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_25__["AddNewFileToMDEComponent"],
         _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_26__["MilkdownReactHostComponent"],
         _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_27__["DocumentShowComponent"],
-        _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_29__["TocProgressDialogComponent"],
-        _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_31__["ConfirmDialogComponent"]], imports: [_angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
+        _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_33__["TocProgressDialogComponent"],
+        _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_35__["ConfirmDialogComponent"],
+        _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_29__["GitChatComponent"]], imports: [_angular_common__WEBPACK_IMPORTED_MODULE_0__["CommonModule"],
         _shared_material_module__WEBPACK_IMPORTED_MODULE_4__["MaterialModule"],
         _angular_forms__WEBPACK_IMPORTED_MODULE_5__["FormsModule"],
         _git_git_module__WEBPACK_IMPORTED_MODULE_23__["GitModule"],
@@ -1121,6 +1179,477 @@ DeleteMarkdownComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵ
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     } }, directives: [_angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogTitle"], _angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogContent"], _angular_material_dialog__WEBPACK_IMPORTED_MODULE_0__["MatDialogActions"], _angular_material_button__WEBPACK_IMPORTED_MODULE_4__["MatButton"]], styles: ["\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsImZpbGUiOiJkZWxldGUtbWFya2Rvd24uY29tcG9uZW50LnNjc3MifQ== */"] });
+
+
+/***/ }),
+
+/***/ "DYVF":
+/*!********************************************************************!*\
+  !*** ./src/app/git-chat/components/git-chat/git-chat.component.ts ***!
+  \********************************************************************/
+/*! exports provided: GitChatComponent */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GitChatComponent", function() { return GitChatComponent; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _services_git_chat_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../services/git-chat.service */ "oFRw");
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../md-explorer/services/projects.service */ "vUCT");
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+/* harmony import */ var _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/tooltip */ "Qu3c");
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common */ "ofXK");
+/* harmony import */ var _angular_material_slide_toggle__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/slide-toggle */ "1jcm");
+/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/progress-spinner */ "Xa2L");
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/forms */ "3Pt+");
+
+
+
+
+
+
+
+
+
+
+
+const _c0 = ["scrollContainer"];
+const _c1 = ["messageInput"];
+function GitChatComponent_button_12_Template(rf, ctx) { if (rf & 1) {
+    const _r7 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitChatComponent_button_12_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r7); const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r6.toggleSettings(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r0 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("matTooltip", "Notification settings");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r0.settings.notificationsEnabled ? "notifications_active" : "notifications_off");
+} }
+function GitChatComponent_div_13_div_8_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "div", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "div", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "span", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "span", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const user_r10 = ctx.$implicit;
+    const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r8.getAvatarInitial(user_r10.userName));
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](user_r10.userName);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](user_r10.userEmail);
+} }
+function GitChatComponent_div_13_div_9_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 27);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " No users online ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} }
+function GitChatComponent_div_13_Template(rf, ctx) { if (rf & 1) {
+    const _r12 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "div", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, "Online Users");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "button", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitChatComponent_div_13_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r12); const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r11.toggleOnlineUsers(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "close");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "div", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](8, GitChatComponent_div_13_div_8_Template, 8, 3, "div", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](9, GitChatComponent_div_13_div_9_Template, 2, 0, "div", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngForOf", ctx_r1.presence.users);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r1.presence.users.length === 0);
+} }
+function GitChatComponent_div_14_Template(rf, ctx) { if (rf & 1) {
+    const _r14 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "div", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, "Notification Settings");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "button", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitChatComponent_div_14_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r14); const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r13.toggleSettings(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "close");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "div", 29);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "mat-slide-toggle", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("change", function GitChatComponent_div_14_Template_mat_slide_toggle_change_8_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r14); const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r15.updateNotifications($event.checked); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, " Enable notifications ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](10, "mat-slide-toggle", 31);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("change", function GitChatComponent_div_14_Template_mat_slide_toggle_change_10_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r14); const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r16.updateSound($event.checked); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11, " Play sound ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("checked", ctx_r2.settings.notificationsEnabled);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("checked", ctx_r2.settings.soundEnabled)("disabled", !ctx_r2.settings.notificationsEnabled);
+} }
+function GitChatComponent_div_15_div_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 36);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "mat-spinner", 37);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, "Connecting to chat...");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} }
+function GitChatComponent_div_15_div_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 38);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "cloud_off");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4, "No remote repository configured");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "p", 39);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "Team chat is available for repositories with a remote origin.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} }
+function GitChatComponent_div_15_div_3_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 40);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4, "Connection error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "p", 39);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "Failed to connect to chat server.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} }
+function GitChatComponent_div_15_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](1, GitChatComponent_div_15_div_1_Template, 4, 0, "div", 33);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](2, GitChatComponent_div_15_div_2_Template, 7, 0, "div", 34);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitChatComponent_div_15_div_3_Template, 7, 0, "div", 35);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r3.connectionState === "connecting");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r3.connectionState === "disconnected");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r3.connectionState === "error");
+} }
+function GitChatComponent_div_16_div_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 45);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "forum");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "p");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4, "No messages yet");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "p", 46);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "Be the first to say hello to your team!");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} }
+function GitChatComponent_div_16_div_3_div_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 50);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const message_r23 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", message_r23.content, " ");
+} }
+function GitChatComponent_div_16_div_3_ng_container_2_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "div", 51);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "div", 52);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "div", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "span", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "span", 55);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](9, "div", 56);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementContainerEnd"]();
+} if (rf & 2) {
+    const message_r23 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
+    const ctx_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", ctx_r25.getAvatarInitial(message_r23.senderName), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](message_r23.senderName);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r25.formatTimestamp(message_r23.timestamp));
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](message_r23.content);
+} }
+function GitChatComponent_div_16_div_3_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 47);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](1, GitChatComponent_div_16_div_3_div_1_Template, 2, 1, "div", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](2, GitChatComponent_div_16_div_3_ng_container_2_Template, 11, 4, "ng-container", 49);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const message_r23 = ctx.$implicit;
+    const ctx_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngClass", ctx_r22.getMessageClass(message_r23));
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", message_r23.type === "system");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", message_r23.type === "message");
+} }
+function GitChatComponent_div_16_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 41, 42);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](2, GitChatComponent_div_16_div_2_Template, 7, 0, "div", 43);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitChatComponent_div_16_div_3_Template, 3, 3, "div", 44);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r4.messages.length === 0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngForOf", ctx_r4.messages)("ngForTrackBy", ctx_r4.trackByMessageId);
+} }
+function GitChatComponent_div_17_Template(rf, ctx) { if (rf & 1) {
+    const _r30 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 57);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "input", 58, 59);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitChatComponent_div_17_Template_input_ngModelChange_1_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r30); const ctx_r29 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r29.inputMessage = $event; })("keypress", function GitChatComponent_div_17_Template_input_keypress_1_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r30); const ctx_r31 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r31.onKeyPress($event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "button", 60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitChatComponent_div_17_Template_button_click_3_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r30); const ctx_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return ctx_r32.sendMessage(); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "send");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} if (rf & 2) {
+    const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r5.inputMessage);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("disabled", !ctx_r5.inputMessage.trim());
+} }
+class GitChatComponent {
+    constructor(chatService, projectsService) {
+        this.chatService = chatService;
+        this.projectsService = projectsService;
+        this.messages = [];
+        this.presence = { users: [], totalOnline: 0 };
+        this.settings = { notificationsEnabled: true, soundEnabled: true };
+        this.connectionState = 'disconnected';
+        this.inputMessage = '';
+        this.showSettings = false;
+        this.showOnlineUsers = false;
+        this.shouldScrollToBottom = true;
+        this.subscriptions = [];
+        // Electron detection
+        this.isElectron = !!(window && window.electronAPI);
+    }
+    ngOnInit() {
+        // Subscribe to messages
+        this.subscriptions.push(this.chatService.messages$.subscribe(messages => {
+            this.messages = messages;
+            this.shouldScrollToBottom = true;
+        }));
+        // Subscribe to presence
+        this.subscriptions.push(this.chatService.presence$.subscribe(presence => {
+            this.presence = presence;
+        }));
+        // Subscribe to settings
+        this.subscriptions.push(this.chatService.settings$.subscribe(settings => {
+            this.settings = settings;
+        }));
+        // Subscribe to connection state
+        this.subscriptions.push(this.chatService.connectionState$.subscribe(state => {
+            this.connectionState = state;
+        }));
+        // Subscribe to project changes
+        this.subscriptions.push(this.projectsService.currentProjects$.subscribe(project => {
+            if (project === null || project === void 0 ? void 0 : project.path) {
+                this.initializeChatForProject(project.path);
+            }
+        }));
+        // Mark chat tab as active
+        this.chatService.setChatTabActive(true);
+    }
+    ngAfterViewChecked() {
+        if (this.shouldScrollToBottom) {
+            this.scrollToBottom();
+            this.shouldScrollToBottom = false;
+        }
+    }
+    ngOnDestroy() {
+        this.subscriptions.forEach(sub => sub.unsubscribe());
+        this.chatService.setChatTabActive(false);
+    }
+    initializeChatForProject(projectPath) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            try {
+                yield this.chatService.joinRoom(projectPath);
+            }
+            catch (error) {
+                console.error('[GitChatComponent] Failed to initialize chat:', error);
+            }
+        });
+    }
+    sendMessage() {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            const content = this.inputMessage.trim();
+            if (!content)
+                return;
+            try {
+                yield this.chatService.sendMessage(content);
+                this.inputMessage = '';
+                // Focus back on input
+                if (this.messageInput) {
+                    this.messageInput.nativeElement.focus();
+                }
+            }
+            catch (error) {
+                console.error('[GitChatComponent] Failed to send message:', error);
+            }
+        });
+    }
+    onKeyPress(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.sendMessage();
+        }
+    }
+    toggleSettings() {
+        this.showSettings = !this.showSettings;
+    }
+    toggleOnlineUsers() {
+        this.showOnlineUsers = !this.showOnlineUsers;
+    }
+    updateNotifications(enabled) {
+        this.chatService.updateSettings({ notificationsEnabled: enabled });
+    }
+    updateSound(enabled) {
+        this.chatService.updateSettings({ soundEnabled: enabled });
+    }
+    scrollToBottom() {
+        try {
+            if (this.scrollContainer) {
+                const element = this.scrollContainer.nativeElement;
+                element.scrollTop = element.scrollHeight;
+            }
+        }
+        catch (err) {
+            // Ignore scroll errors
+        }
+    }
+    getMessageClass(message) {
+        var _a;
+        if (message.type === 'system') {
+            return 'message message-system';
+        }
+        const currentUser = (_a = this.chatService['provider']) === null || _a === void 0 ? void 0 : _a.getCurrentUser();
+        const isOwnMessage = currentUser && message.senderEmail === currentUser.userEmail;
+        return isOwnMessage ? 'message message-own' : 'message message-other';
+    }
+    getAvatarInitial(name) {
+        return name ? name.charAt(0).toUpperCase() : '?';
+    }
+    formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    trackByMessageId(index, message) {
+        return message.id || index.toString();
+    }
+}
+GitChatComponent.ɵfac = function GitChatComponent_Factory(t) { return new (t || GitChatComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_git_chat_service__WEBPACK_IMPORTED_MODULE_2__["GitChatService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_3__["ProjectsService"])); };
+GitChatComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: GitChatComponent, selectors: [["app-git-chat"]], viewQuery: function GitChatComponent_Query(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_c0, 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_c1, 1);
+    } if (rf & 2) {
+        let _t;
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.scrollContainer = _t.first);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.messageInput = _t.first);
+    } }, decls: 18, vars: 8, consts: [[1, "git-chat-container"], [1, "chat-header"], [1, "header-left"], [1, "header-icon"], [1, "header-title"], [1, "header-right"], ["mat-button", "", 1, "online-badge", 3, "matTooltip", "click"], [1, "online-dot"], [1, "online-count"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["class", "online-users-panel", 4, "ngIf"], ["class", "settings-panel", 4, "ngIf"], ["class", "connection-status", 4, "ngIf"], ["class", "messages-container", 4, "ngIf"], ["class", "input-area", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click"], [1, "online-users-panel"], [1, "panel-header"], ["mat-icon-button", "", 3, "click"], [1, "users-list"], ["class", "user-item", 4, "ngFor", "ngForOf"], ["class", "no-users", 4, "ngIf"], [1, "user-item"], [1, "user-avatar"], [1, "user-info"], [1, "user-name"], [1, "user-email"], [1, "no-users"], [1, "settings-panel"], [1, "settings-content"], [3, "checked", "change"], [3, "checked", "disabled", "change"], [1, "connection-status"], ["class", "status-connecting", 4, "ngIf"], ["class", "status-disconnected", 4, "ngIf"], ["class", "status-error", 4, "ngIf"], [1, "status-connecting"], ["diameter", "20"], [1, "status-disconnected"], [1, "status-hint"], [1, "status-error"], [1, "messages-container"], ["scrollContainer", ""], ["class", "no-messages", 4, "ngIf"], [3, "ngClass", 4, "ngFor", "ngForOf", "ngForTrackBy"], [1, "no-messages"], [1, "hint"], [3, "ngClass"], ["class", "system-message-content", 4, "ngIf"], [4, "ngIf"], [1, "system-message-content"], [1, "message-avatar"], [1, "message-bubble"], [1, "message-header"], [1, "sender-name"], [1, "message-time"], [1, "message-text"], [1, "input-area"], ["type", "text", "placeholder", "Type a message...", "maxlength", "2000", 1, "message-input", 3, "ngModel", "ngModelChange", "keypress"], ["messageInput", ""], ["mat-icon-button", "", "color", "primary", 1, "send-button", 3, "disabled", "click"]], template: function GitChatComponent_Template(rf, ctx) { if (rf & 1) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 0);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "div", 1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "div", 2);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "mat-icon", 3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4, "chat");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "span", 4);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "Team Chat");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "div", 5);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "button", 6);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitChatComponent_Template_button_click_8_listener() { return ctx.toggleOnlineUsers(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](9, "span", 7);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](10, "span", 8);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](12, GitChatComponent_button_12_Template, 3, 2, "button", 9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](13, GitChatComponent_div_13_Template, 10, 2, "div", 10);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](14, GitChatComponent_div_14_Template, 12, 3, "div", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](15, GitChatComponent_div_15_Template, 4, 3, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](16, GitChatComponent_div_16_Template, 4, 3, "div", 13);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](17, GitChatComponent_div_17_Template, 6, 2, "div", 14);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    } if (rf & 2) {
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](8);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("matTooltip", ctx.presence.totalOnline + " user(s) online");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx.presence.totalOnline);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.isElectron);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.showOnlineUsers);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.showSettings && ctx.isElectron);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.connectionState !== "connected");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.connectionState === "connected");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.connectionState === "connected");
+    } }, directives: [_angular_material_icon__WEBPACK_IMPORTED_MODULE_4__["MatIcon"], _angular_material_button__WEBPACK_IMPORTED_MODULE_5__["MatButton"], _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_6__["MatTooltip"], _angular_common__WEBPACK_IMPORTED_MODULE_7__["NgIf"], _angular_common__WEBPACK_IMPORTED_MODULE_7__["NgForOf"], _angular_material_slide_toggle__WEBPACK_IMPORTED_MODULE_8__["MatSlideToggle"], _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_9__["MatSpinner"], _angular_common__WEBPACK_IMPORTED_MODULE_7__["NgClass"], _angular_forms__WEBPACK_IMPORTED_MODULE_10__["DefaultValueAccessor"], _angular_forms__WEBPACK_IMPORTED_MODULE_10__["MaxLengthValidator"], _angular_forms__WEBPACK_IMPORTED_MODULE_10__["NgControlStatus"], _angular_forms__WEBPACK_IMPORTED_MODULE_10__["NgModel"]], styles: [".git-chat-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  height: 100%;\n  background: #fafafa;\n}\n\n.chat-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 8px 12px;\n  background: #3f51b5;\n  color: white;\n  min-height: 48px;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-left[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-left[_ngcontent-%COMP%]   .header-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  width: 20px;\n  height: 20px;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-left[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  font-size: 14px;\n  font-weight: 500;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-right[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-right[_ngcontent-%COMP%]   .online-badge[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  padding: 4px 8px;\n  min-width: auto;\n  color: white;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-right[_ngcontent-%COMP%]   .online-badge[_ngcontent-%COMP%]   .online-dot[_ngcontent-%COMP%] {\n  width: 8px;\n  height: 8px;\n  background: #4caf50;\n  border-radius: 50%;\n  animation: pulse 2s infinite;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-right[_ngcontent-%COMP%]   .online-badge[_ngcontent-%COMP%]   .online-count[_ngcontent-%COMP%] {\n  font-size: 12px;\n  font-weight: 500;\n}\n\n.chat-header[_ngcontent-%COMP%]   .header-right[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  color: white;\n}\n\n@keyframes pulse {\n  0%, 100% {\n    opacity: 1;\n  }\n  50% {\n    opacity: 0.5;\n  }\n}\n\n.online-users-panel[_ngcontent-%COMP%], .settings-panel[_ngcontent-%COMP%] {\n  background: white;\n  border-bottom: 1px solid #e0e0e0;\n  padding: 12px;\n}\n\n.online-users-panel[_ngcontent-%COMP%]   .panel-header[_ngcontent-%COMP%], .settings-panel[_ngcontent-%COMP%]   .panel-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  margin-bottom: 8px;\n  font-weight: 500;\n}\n\n.users-list[_ngcontent-%COMP%] {\n  max-height: 150px;\n  overflow-y: auto;\n}\n\n.users-list[_ngcontent-%COMP%]   .user-item[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 0;\n}\n\n.users-list[_ngcontent-%COMP%]   .user-item[_ngcontent-%COMP%]   .user-avatar[_ngcontent-%COMP%] {\n  width: 32px;\n  height: 32px;\n  border-radius: 50%;\n  background: #3f51b5;\n  color: white;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 500;\n  font-size: 14px;\n}\n\n.users-list[_ngcontent-%COMP%]   .user-item[_ngcontent-%COMP%]   .user-info[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n}\n\n.users-list[_ngcontent-%COMP%]   .user-item[_ngcontent-%COMP%]   .user-info[_ngcontent-%COMP%]   .user-name[_ngcontent-%COMP%] {\n  font-size: 13px;\n  font-weight: 500;\n}\n\n.users-list[_ngcontent-%COMP%]   .user-item[_ngcontent-%COMP%]   .user-info[_ngcontent-%COMP%]   .user-email[_ngcontent-%COMP%] {\n  font-size: 11px;\n  color: #666;\n}\n\n.users-list[_ngcontent-%COMP%]   .no-users[_ngcontent-%COMP%] {\n  color: #999;\n  font-style: italic;\n  padding: 8px 0;\n}\n\n.settings-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 12px;\n}\n\n.connection-status[_ngcontent-%COMP%] {\n  flex: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 24px;\n}\n\n.connection-status[_ngcontent-%COMP%]   .status-connecting[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-disconnected[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-error[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  color: #666;\n}\n\n.connection-status[_ngcontent-%COMP%]   .status-connecting[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-disconnected[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-error[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  width: 48px;\n  height: 48px;\n  margin-bottom: 12px;\n  color: #999;\n}\n\n.connection-status[_ngcontent-%COMP%]   .status-connecting[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-disconnected[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-error[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%] {\n  margin-bottom: 12px;\n}\n\n.connection-status[_ngcontent-%COMP%]   .status-connecting[_ngcontent-%COMP%]   span[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-disconnected[_ngcontent-%COMP%]   span[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-error[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  font-size: 14px;\n  font-weight: 500;\n}\n\n.connection-status[_ngcontent-%COMP%]   .status-connecting[_ngcontent-%COMP%]   .status-hint[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-disconnected[_ngcontent-%COMP%]   .status-hint[_ngcontent-%COMP%], .connection-status[_ngcontent-%COMP%]   .status-error[_ngcontent-%COMP%]   .status-hint[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: #999;\n  margin-top: 8px;\n}\n\n.connection-status[_ngcontent-%COMP%]   .status-error[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n\n.messages-container[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow-y: auto;\n  padding: 12px;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n.no-messages[_ngcontent-%COMP%] {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  color: #999;\n}\n\n.no-messages[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  width: 48px;\n  height: 48px;\n  margin-bottom: 12px;\n}\n\n.no-messages[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  font-size: 14px;\n}\n\n.no-messages[_ngcontent-%COMP%]   .hint[_ngcontent-%COMP%] {\n  font-size: 12px;\n  margin-top: 4px;\n}\n\n.message[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n  max-width: 85%;\n}\n\n.message.message-own[_ngcontent-%COMP%] {\n  align-self: flex-end;\n  flex-direction: row-reverse;\n}\n\n.message.message-own[_ngcontent-%COMP%]   .message-bubble[_ngcontent-%COMP%] {\n  background: #3f51b5;\n  color: white;\n  border-radius: 16px 16px 4px 16px;\n}\n\n.message.message-own[_ngcontent-%COMP%]   .message-bubble[_ngcontent-%COMP%]   .sender-name[_ngcontent-%COMP%] {\n  color: rgba(255, 255, 255, 0.8);\n}\n\n.message.message-own[_ngcontent-%COMP%]   .message-bubble[_ngcontent-%COMP%]   .message-time[_ngcontent-%COMP%] {\n  color: rgba(255, 255, 255, 0.6);\n}\n\n.message.message-other[_ngcontent-%COMP%] {\n  align-self: flex-start;\n}\n\n.message.message-other[_ngcontent-%COMP%]   .message-bubble[_ngcontent-%COMP%] {\n  background: white;\n  border: 1px solid #e0e0e0;\n  border-radius: 16px 16px 16px 4px;\n}\n\n.message.message-system[_ngcontent-%COMP%] {\n  align-self: center;\n  max-width: 100%;\n}\n\n.message.message-system[_ngcontent-%COMP%]   .system-message-content[_ngcontent-%COMP%] {\n  font-size: 11px;\n  color: #999;\n  font-style: italic;\n  padding: 4px 12px;\n  background: #f5f5f5;\n  border-radius: 12px;\n}\n\n.message-avatar[_ngcontent-%COMP%] {\n  width: 32px;\n  height: 32px;\n  min-width: 32px;\n  border-radius: 50%;\n  background: #7986cb;\n  color: white;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-weight: 500;\n  font-size: 14px;\n}\n\n.message-bubble[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  max-width: 100%;\n}\n\n.message-bubble[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 4px;\n}\n\n.message-bubble[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .sender-name[_ngcontent-%COMP%] {\n  font-size: 12px;\n  font-weight: 500;\n  color: #666;\n}\n\n.message-bubble[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-time[_ngcontent-%COMP%] {\n  font-size: 10px;\n  color: #999;\n}\n\n.message-bubble[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%] {\n  font-size: 13px;\n  line-height: 1.4;\n  word-wrap: break-word;\n  white-space: pre-wrap;\n}\n\n.input-area[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 8px 12px;\n  background: white;\n  border-top: 1px solid #e0e0e0;\n}\n\n.input-area[_ngcontent-%COMP%]   .message-input[_ngcontent-%COMP%] {\n  flex: 1;\n  padding: 10px 14px;\n  border: 1px solid #e0e0e0;\n  border-radius: 20px;\n  font-size: 13px;\n  outline: none;\n  transition: border-color 0.2s;\n}\n\n.input-area[_ngcontent-%COMP%]   .message-input[_ngcontent-%COMP%]:focus {\n  border-color: #3f51b5;\n}\n\n.input-area[_ngcontent-%COMP%]   .message-input[_ngcontent-%COMP%]::placeholder {\n  color: #999;\n}\n\n.input-area[_ngcontent-%COMP%]   .send-button[disabled][_ngcontent-%COMP%] {\n  opacity: 0.5;\n}\n\n.messages-container[_ngcontent-%COMP%]::-webkit-scrollbar {\n  width: 6px;\n}\n\n.messages-container[_ngcontent-%COMP%]::-webkit-scrollbar-track {\n  background: transparent;\n}\n\n.messages-container[_ngcontent-%COMP%]::-webkit-scrollbar-thumb {\n  background: #ccc;\n  border-radius: 3px;\n}\n\n.messages-container[_ngcontent-%COMP%]::-webkit-scrollbar-thumb:hover {\n  background: #aaa;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFwuLlxcZ2l0LWNoYXQuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxZQUFBO0VBQ0EsbUJBQUE7QUFDRjs7QUFHQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLDhCQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtBQUFGOztBQUVFO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtBQUFKOztBQUVJO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBQU47O0FBR0k7RUFDRSxlQUFBO0VBQ0EsZ0JBQUE7QUFETjs7QUFLRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUFISjs7QUFLSTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0FBSE47O0FBS007RUFDRSxVQUFBO0VBQ0EsV0FBQTtFQUNBLG1CQUFBO0VBQ0Esa0JBQUE7RUFDQSw0QkFBQTtBQUhSOztBQU1NO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0FBSlI7O0FBUUk7RUFDRSxZQUFBO0FBTk47O0FBV0E7RUFDRTtJQUFXLFVBQUE7RUFQWDtFQVFBO0lBQU0sWUFBQTtFQUxOO0FBQ0Y7O0FBUUE7O0VBRUUsaUJBQUE7RUFDQSxnQ0FBQTtFQUNBLGFBQUE7QUFORjs7QUFRRTs7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSw4QkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7QUFMSjs7QUFTQTtFQUNFLGlCQUFBO0VBQ0EsZ0JBQUE7QUFORjs7QUFRRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxjQUFBO0FBTko7O0FBUUk7RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7RUFDQSxZQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7QUFOTjs7QUFTSTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtBQVBOOztBQVNNO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0FBUFI7O0FBVU07RUFDRSxlQUFBO0VBQ0EsV0FBQTtBQVJSOztBQWFFO0VBQ0UsV0FBQTtFQUNBLGtCQUFBO0VBQ0EsY0FBQTtBQVhKOztBQWVBO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsU0FBQTtBQVpGOztBQWdCQTtFQUNFLE9BQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLGFBQUE7QUFiRjs7QUFlRTs7O0VBR0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLFdBQUE7QUFiSjs7QUFlSTs7O0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0FBWE47O0FBY0k7OztFQUNFLG1CQUFBO0FBVk47O0FBYUk7OztFQUNFLGVBQUE7RUFDQSxnQkFBQTtBQVROOztBQVlJOzs7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLGVBQUE7QUFSTjs7QUFZRTtFQUNFLGNBQUE7QUFWSjs7QUFlQTtFQUNFLE9BQUE7RUFDQSxnQkFBQTtFQUNBLGFBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxRQUFBO0FBWkY7O0FBZUE7RUFDRSxPQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFdBQUE7QUFaRjs7QUFjRTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0FBWko7O0FBZUU7RUFDRSxTQUFBO0VBQ0EsZUFBQTtBQWJKOztBQWdCRTtFQUNFLGVBQUE7RUFDQSxlQUFBO0FBZEo7O0FBbUJBO0VBQ0UsYUFBQTtFQUNBLFFBQUE7RUFDQSxjQUFBO0FBaEJGOztBQWtCRTtFQUNFLG9CQUFBO0VBQ0EsMkJBQUE7QUFoQko7O0FBa0JJO0VBQ0UsbUJBQUE7RUFDQSxZQUFBO0VBQ0EsaUNBQUE7QUFoQk47O0FBa0JNO0VBQ0UsK0JBQUE7QUFoQlI7O0FBbUJNO0VBQ0UsK0JBQUE7QUFqQlI7O0FBc0JFO0VBQ0Usc0JBQUE7QUFwQko7O0FBc0JJO0VBQ0UsaUJBQUE7RUFDQSx5QkFBQTtFQUNBLGlDQUFBO0FBcEJOOztBQXdCRTtFQUNFLGtCQUFBO0VBQ0EsZUFBQTtBQXRCSjs7QUF3Qkk7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0FBdEJOOztBQTJCQTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZUFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7RUFDQSxZQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7QUF4QkY7O0FBMkJBO0VBQ0UsaUJBQUE7RUFDQSxlQUFBO0FBeEJGOztBQTBCRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxrQkFBQTtBQXhCSjs7QUEwQkk7RUFDRSxlQUFBO0VBQ0EsZ0JBQUE7RUFDQSxXQUFBO0FBeEJOOztBQTJCSTtFQUNFLGVBQUE7RUFDQSxXQUFBO0FBekJOOztBQTZCRTtFQUNFLGVBQUE7RUFDQSxnQkFBQTtFQUNBLHFCQUFBO0VBQ0EscUJBQUE7QUEzQko7O0FBZ0NBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0VBQ0EsaUJBQUE7RUFDQSw2QkFBQTtBQTdCRjs7QUErQkU7RUFDRSxPQUFBO0VBQ0Esa0JBQUE7RUFDQSx5QkFBQTtFQUNBLG1CQUFBO0VBQ0EsZUFBQTtFQUNBLGFBQUE7RUFDQSw2QkFBQTtBQTdCSjs7QUErQkk7RUFDRSxxQkFBQTtBQTdCTjs7QUFnQ0k7RUFDRSxXQUFBO0FBOUJOOztBQW1DSTtFQUNFLFlBQUE7QUFqQ047O0FBdUNBO0VBQ0UsVUFBQTtBQXBDRjs7QUF1Q0E7RUFDRSx1QkFBQTtBQXBDRjs7QUF1Q0E7RUFDRSxnQkFBQTtFQUNBLGtCQUFBO0FBcENGOztBQXNDRTtFQUNFLGdCQUFBO0FBcENKIiwiZmlsZSI6ImdpdC1jaGF0LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmdpdC1jaGF0LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBiYWNrZ3JvdW5kOiAjZmFmYWZhO1xyXG59XHJcblxyXG4vLyBIZWFkZXJcclxuLmNoYXQtaGVhZGVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBzcGFjZS1iZXR3ZWVuO1xyXG4gIHBhZGRpbmc6IDhweCAxMnB4O1xyXG4gIGJhY2tncm91bmQ6ICMzZjUxYjU7XHJcbiAgY29sb3I6IHdoaXRlO1xyXG4gIG1pbi1oZWlnaHQ6IDQ4cHg7XHJcblxyXG4gIC5oZWFkZXItbGVmdCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogOHB4O1xyXG5cclxuICAgIC5oZWFkZXItaWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgICAgd2lkdGg6IDIwcHg7XHJcbiAgICAgIGhlaWdodDogMjBweDtcclxuICAgIH1cclxuXHJcbiAgICAuaGVhZGVyLXRpdGxlIHtcclxuICAgICAgZm9udC1zaXplOiAxNHB4O1xyXG4gICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgLmhlYWRlci1yaWdodCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogNHB4O1xyXG5cclxuICAgIC5vbmxpbmUtYmFkZ2Uge1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICBnYXA6IDRweDtcclxuICAgICAgcGFkZGluZzogNHB4IDhweDtcclxuICAgICAgbWluLXdpZHRoOiBhdXRvO1xyXG4gICAgICBjb2xvcjogd2hpdGU7XHJcblxyXG4gICAgICAub25saW5lLWRvdCB7XHJcbiAgICAgICAgd2lkdGg6IDhweDtcclxuICAgICAgICBoZWlnaHQ6IDhweDtcclxuICAgICAgICBiYWNrZ3JvdW5kOiAjNGNhZjUwO1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDUwJTtcclxuICAgICAgICBhbmltYXRpb246IHB1bHNlIDJzIGluZmluaXRlO1xyXG4gICAgICB9XHJcblxyXG4gICAgICAub25saW5lLWNvdW50IHtcclxuICAgICAgICBmb250LXNpemU6IDEycHg7XHJcbiAgICAgICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgICAgfVxyXG4gICAgfVxyXG5cclxuICAgIGJ1dHRvbiB7XHJcbiAgICAgIGNvbG9yOiB3aGl0ZTtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbkBrZXlmcmFtZXMgcHVsc2Uge1xyXG4gIDAlLCAxMDAlIHsgb3BhY2l0eTogMTsgfVxyXG4gIDUwJSB7IG9wYWNpdHk6IDAuNTsgfVxyXG59XHJcblxyXG4vLyBQYW5lbHNcclxuLm9ubGluZS11c2Vycy1wYW5lbCxcclxuLnNldHRpbmdzLXBhbmVsIHtcclxuICBiYWNrZ3JvdW5kOiB3aGl0ZTtcclxuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2UwZTBlMDtcclxuICBwYWRkaW5nOiAxMnB4O1xyXG5cclxuICAucGFuZWwtaGVhZGVyIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAganVzdGlmeS1jb250ZW50OiBzcGFjZS1iZXR3ZWVuO1xyXG4gICAgbWFyZ2luLWJvdHRvbTogOHB4O1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICB9XHJcbn1cclxuXHJcbi51c2Vycy1saXN0IHtcclxuICBtYXgtaGVpZ2h0OiAxNTBweDtcclxuICBvdmVyZmxvdy15OiBhdXRvO1xyXG5cclxuICAudXNlci1pdGVtIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgZ2FwOiA4cHg7XHJcbiAgICBwYWRkaW5nOiA2cHggMDtcclxuXHJcbiAgICAudXNlci1hdmF0YXIge1xyXG4gICAgICB3aWR0aDogMzJweDtcclxuICAgICAgaGVpZ2h0OiAzMnB4O1xyXG4gICAgICBib3JkZXItcmFkaXVzOiA1MCU7XHJcbiAgICAgIGJhY2tncm91bmQ6ICMzZjUxYjU7XHJcbiAgICAgIGNvbG9yOiB3aGl0ZTtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICAgIGZvbnQtc2l6ZTogMTRweDtcclxuICAgIH1cclxuXHJcbiAgICAudXNlci1pbmZvIHtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuXHJcbiAgICAgIC51c2VyLW5hbWUge1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMTNweDtcclxuICAgICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgICB9XHJcblxyXG4gICAgICAudXNlci1lbWFpbCB7XHJcbiAgICAgICAgZm9udC1zaXplOiAxMXB4O1xyXG4gICAgICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAubm8tdXNlcnMge1xyXG4gICAgY29sb3I6ICM5OTk7XHJcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XHJcbiAgICBwYWRkaW5nOiA4cHggMDtcclxuICB9XHJcbn1cclxuXHJcbi5zZXR0aW5ncy1jb250ZW50IHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgZ2FwOiAxMnB4O1xyXG59XHJcblxyXG4vLyBDb25uZWN0aW9uIHN0YXRlc1xyXG4uY29ubmVjdGlvbi1zdGF0dXMge1xyXG4gIGZsZXg6IDE7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIHBhZGRpbmc6IDI0cHg7XHJcblxyXG4gIC5zdGF0dXMtY29ubmVjdGluZyxcclxuICAuc3RhdHVzLWRpc2Nvbm5lY3RlZCxcclxuICAuc3RhdHVzLWVycm9yIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiA0OHB4O1xyXG4gICAgICB3aWR0aDogNDhweDtcclxuICAgICAgaGVpZ2h0OiA0OHB4O1xyXG4gICAgICBtYXJnaW4tYm90dG9tOiAxMnB4O1xyXG4gICAgICBjb2xvcjogIzk5OTtcclxuICAgIH1cclxuXHJcbiAgICBtYXQtc3Bpbm5lciB7XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDEycHg7XHJcbiAgICB9XHJcblxyXG4gICAgc3BhbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMTRweDtcclxuICAgICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgIH1cclxuXHJcbiAgICAuc3RhdHVzLWhpbnQge1xyXG4gICAgICBmb250LXNpemU6IDEycHg7XHJcbiAgICAgIGNvbG9yOiAjOTk5O1xyXG4gICAgICBtYXJnaW4tdG9wOiA4cHg7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAuc3RhdHVzLWVycm9yIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiAjZjQ0MzM2O1xyXG4gIH1cclxufVxyXG5cclxuLy8gTWVzc2FnZXMgY29udGFpbmVyXHJcbi5tZXNzYWdlcy1jb250YWluZXIge1xyXG4gIGZsZXg6IDE7XHJcbiAgb3ZlcmZsb3cteTogYXV0bztcclxuICBwYWRkaW5nOiAxMnB4O1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBnYXA6IDhweDtcclxufVxyXG5cclxuLm5vLW1lc3NhZ2VzIHtcclxuICBmbGV4OiAxO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIGNvbG9yOiAjOTk5O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBmb250LXNpemU6IDQ4cHg7XHJcbiAgICB3aWR0aDogNDhweDtcclxuICAgIGhlaWdodDogNDhweDtcclxuICAgIG1hcmdpbi1ib3R0b206IDEycHg7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGZvbnQtc2l6ZTogMTRweDtcclxuICB9XHJcblxyXG4gIC5oaW50IHtcclxuICAgIGZvbnQtc2l6ZTogMTJweDtcclxuICAgIG1hcmdpbi10b3A6IDRweDtcclxuICB9XHJcbn1cclxuXHJcbi8vIE1lc3NhZ2VzXHJcbi5tZXNzYWdlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGdhcDogOHB4O1xyXG4gIG1heC13aWR0aDogODUlO1xyXG5cclxuICAmLm1lc3NhZ2Utb3duIHtcclxuICAgIGFsaWduLXNlbGY6IGZsZXgtZW5kO1xyXG4gICAgZmxleC1kaXJlY3Rpb246IHJvdy1yZXZlcnNlO1xyXG5cclxuICAgIC5tZXNzYWdlLWJ1YmJsZSB7XHJcbiAgICAgIGJhY2tncm91bmQ6ICMzZjUxYjU7XHJcbiAgICAgIGNvbG9yOiB3aGl0ZTtcclxuICAgICAgYm9yZGVyLXJhZGl1czogMTZweCAxNnB4IDRweCAxNnB4O1xyXG5cclxuICAgICAgLnNlbmRlci1uYW1lIHtcclxuICAgICAgICBjb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjgpO1xyXG4gICAgICB9XHJcblxyXG4gICAgICAubWVzc2FnZS10aW1lIHtcclxuICAgICAgICBjb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjYpO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAmLm1lc3NhZ2Utb3RoZXIge1xyXG4gICAgYWxpZ24tc2VsZjogZmxleC1zdGFydDtcclxuXHJcbiAgICAubWVzc2FnZS1idWJibGUge1xyXG4gICAgICBiYWNrZ3JvdW5kOiB3aGl0ZTtcclxuICAgICAgYm9yZGVyOiAxcHggc29saWQgI2UwZTBlMDtcclxuICAgICAgYm9yZGVyLXJhZGl1czogMTZweCAxNnB4IDE2cHggNHB4O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgJi5tZXNzYWdlLXN5c3RlbSB7XHJcbiAgICBhbGlnbi1zZWxmOiBjZW50ZXI7XHJcbiAgICBtYXgtd2lkdGg6IDEwMCU7XHJcblxyXG4gICAgLnN5c3RlbS1tZXNzYWdlLWNvbnRlbnQge1xyXG4gICAgICBmb250LXNpemU6IDExcHg7XHJcbiAgICAgIGNvbG9yOiAjOTk5O1xyXG4gICAgICBmb250LXN0eWxlOiBpdGFsaWM7XHJcbiAgICAgIHBhZGRpbmc6IDRweCAxMnB4O1xyXG4gICAgICBiYWNrZ3JvdW5kOiAjZjVmNWY1O1xyXG4gICAgICBib3JkZXItcmFkaXVzOiAxMnB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLm1lc3NhZ2UtYXZhdGFyIHtcclxuICB3aWR0aDogMzJweDtcclxuICBoZWlnaHQ6IDMycHg7XHJcbiAgbWluLXdpZHRoOiAzMnB4O1xyXG4gIGJvcmRlci1yYWRpdXM6IDUwJTtcclxuICBiYWNrZ3JvdW5kOiAjNzk4NmNiO1xyXG4gIGNvbG9yOiB3aGl0ZTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICBmb250LXNpemU6IDE0cHg7XHJcbn1cclxuXHJcbi5tZXNzYWdlLWJ1YmJsZSB7XHJcbiAgcGFkZGluZzogOHB4IDEycHg7XHJcbiAgbWF4LXdpZHRoOiAxMDAlO1xyXG5cclxuICAubWVzc2FnZS1oZWFkZXIge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIG1hcmdpbi1ib3R0b206IDRweDtcclxuXHJcbiAgICAuc2VuZGVyLW5hbWUge1xyXG4gICAgICBmb250LXNpemU6IDEycHg7XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgfVxyXG5cclxuICAgIC5tZXNzYWdlLXRpbWUge1xyXG4gICAgICBmb250LXNpemU6IDEwcHg7XHJcbiAgICAgIGNvbG9yOiAjOTk5O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgLm1lc3NhZ2UtdGV4dCB7XHJcbiAgICBmb250LXNpemU6IDEzcHg7XHJcbiAgICBsaW5lLWhlaWdodDogMS40O1xyXG4gICAgd29yZC13cmFwOiBicmVhay13b3JkO1xyXG4gICAgd2hpdGUtc3BhY2U6IHByZS13cmFwO1xyXG4gIH1cclxufVxyXG5cclxuLy8gSW5wdXQgYXJlYVxyXG4uaW5wdXQtYXJlYSB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGdhcDogOHB4O1xyXG4gIHBhZGRpbmc6IDhweCAxMnB4O1xyXG4gIGJhY2tncm91bmQ6IHdoaXRlO1xyXG4gIGJvcmRlci10b3A6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICAubWVzc2FnZS1pbnB1dCB7XHJcbiAgICBmbGV4OiAxO1xyXG4gICAgcGFkZGluZzogMTBweCAxNHB4O1xyXG4gICAgYm9yZGVyOiAxcHggc29saWQgI2UwZTBlMDtcclxuICAgIGJvcmRlci1yYWRpdXM6IDIwcHg7XHJcbiAgICBmb250LXNpemU6IDEzcHg7XHJcbiAgICBvdXRsaW5lOiBub25lO1xyXG4gICAgdHJhbnNpdGlvbjogYm9yZGVyLWNvbG9yIDAuMnM7XHJcblxyXG4gICAgJjpmb2N1cyB7XHJcbiAgICAgIGJvcmRlci1jb2xvcjogIzNmNTFiNTtcclxuICAgIH1cclxuXHJcbiAgICAmOjpwbGFjZWhvbGRlciB7XHJcbiAgICAgIGNvbG9yOiAjOTk5O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgLnNlbmQtYnV0dG9uIHtcclxuICAgICZbZGlzYWJsZWRdIHtcclxuICAgICAgb3BhY2l0eTogMC41O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLy8gU2Nyb2xsYmFyIHN0eWxpbmdcclxuLm1lc3NhZ2VzLWNvbnRhaW5lcjo6LXdlYmtpdC1zY3JvbGxiYXIge1xyXG4gIHdpZHRoOiA2cHg7XHJcbn1cclxuXHJcbi5tZXNzYWdlcy1jb250YWluZXI6Oi13ZWJraXQtc2Nyb2xsYmFyLXRyYWNrIHtcclxuICBiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcclxufVxyXG5cclxuLm1lc3NhZ2VzLWNvbnRhaW5lcjo6LXdlYmtpdC1zY3JvbGxiYXItdGh1bWIge1xyXG4gIGJhY2tncm91bmQ6ICNjY2M7XHJcbiAgYm9yZGVyLXJhZGl1czogM3B4O1xyXG5cclxuICAmOmhvdmVyIHtcclxuICAgIGJhY2tncm91bmQ6ICNhYWE7XHJcbiAgfVxyXG59XHJcbiJdfQ== */"] });
 
 
 /***/ }),
@@ -22530,15 +23059,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _services_projects_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../services/projects.service */ "vUCT");
 /* harmony import */ var _services_md_navigation_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../../services/md-navigation.service */ "hFUY");
 /* harmony import */ var _services_layout_service__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../../services/layout.service */ "FGkB");
-/* harmony import */ var _angular_material_sidenav__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/sidenav */ "XhcP");
-/* harmony import */ var _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/toolbar */ "/t3+");
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
-/* harmony import */ var _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/tooltip */ "Qu3c");
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
-/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/tabs */ "wZkO");
-/* harmony import */ var _md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ../md-tree/md-tree.component */ "s8RO");
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/common */ "ofXK");
-/* harmony import */ var _ai_chat_ai_chat_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ../../../ai-chat/ai-chat.component */ "oQrS");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+/* harmony import */ var _angular_material_sidenav__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/sidenav */ "XhcP");
+/* harmony import */ var _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/toolbar */ "/t3+");
+/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/button */ "bTqV");
+/* harmony import */ var _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/tooltip */ "Qu3c");
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/icon */ "NFeN");
+/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/tabs */ "wZkO");
+/* harmony import */ var _md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ../md-tree/md-tree.component */ "s8RO");
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/common */ "ofXK");
+/* harmony import */ var _ai_chat_ai_chat_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ../../../ai-chat/ai-chat.component */ "oQrS");
+/* harmony import */ var _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ../../../git-chat/components/git-chat/git-chat.component */ "DYVF");
+
+
 
 
 
@@ -22578,10 +23111,22 @@ function SidenavComponent_mat_tab_15_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("compactMode", true);
 } }
+function SidenavComponent_mat_tab_16_ng_template_1_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "chat");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, " Team Chat ");
+} }
+function SidenavComponent_mat_tab_16_Template(rf, ctx) { if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-tab");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](1, SidenavComponent_mat_tab_16_ng_template_1_Template, 3, 0, "ng-template", 8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](2, "app-git-chat");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+} }
 const SMALL_WIDTH_BREAKPOINT = 720;
 class SidenavComponent {
     constructor(breakpointObserver, mdFileService, router, currentFolder, gitService, projectService, navService, ref, // Injected ChangeDetectorRef
-    layoutService) {
+    layoutService, http) {
         this.breakpointObserver = breakpointObserver;
         this.mdFileService = mdFileService;
         this.router = router;
@@ -22591,18 +23136,28 @@ class SidenavComponent {
         this.navService = navService;
         this.ref = ref;
         this.layoutService = layoutService;
+        this.http = http;
         this.showText = false;
         this.sideNavWidth = "240px";
         this.hooked = false;
         this.currentBranch = null;
+        this.hasRemote = false;
         // Performance and validation
         this.MIN_WIDTH = 200;
         this.MAX_WIDTH = 800;
         this.setupResizeListeners();
         // Use ProjectsService as source of truth for project name
         this.projectService.currentProjects$.subscribe(project => {
+            console.log('[Sidenav] currentProjects$ emitted:', project);
             if (project && project.name) {
                 this.titleProject = project.name;
+                // Check if project has remote for Team Chat
+                console.log('[Sidenav] project.path:', project.path);
+                this.checkRemoteStatus(project.path);
+            }
+            else {
+                console.log('[Sidenav] No project or no name, setting hasRemote=false');
+                this.hasRemote = false;
             }
         });
         this.gitService.currentBranch$.subscribe(_ => {
@@ -22725,14 +23280,38 @@ class SidenavComponent {
             });
         }, 300);
     }
+    /**
+     * Check if the project has a remote origin configured
+     * Used to show/hide Team Chat tab
+     */
+    checkRemoteStatus(projectPath) {
+        if (!projectPath) {
+            console.log('[Sidenav] checkRemoteStatus: no projectPath');
+            this.hasRemote = false;
+            return;
+        }
+        console.log('[Sidenav] checkRemoteStatus: checking', projectPath);
+        this.http.get(`/api/GitChat/room-info?repositoryPath=${encodeURIComponent(projectPath)}`)
+            .subscribe({
+            next: (response) => {
+                console.log('[Sidenav] checkRemoteStatus response:', response);
+                this.hasRemote = (response === null || response === void 0 ? void 0 : response.hasRemote) || false;
+                console.log('[Sidenav] hasRemote set to:', this.hasRemote);
+            },
+            error: (err) => {
+                console.error('[Sidenav] checkRemoteStatus error:', err);
+                this.hasRemote = false;
+            }
+        });
+    }
 }
-SidenavComponent.ɵfac = function SidenavComponent_Factory(t) { return new (t || SidenavComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_cdk_layout__WEBPACK_IMPORTED_MODULE_2__["BreakpointObserver"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_3__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_5__["AppCurrentMetadataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__["GITService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_7__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_8__["MdNavigationService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_1__["ChangeDetectorRef"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_layout_service__WEBPACK_IMPORTED_MODULE_9__["LayoutService"])); };
+SidenavComponent.ɵfac = function SidenavComponent_Factory(t) { return new (t || SidenavComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_cdk_layout__WEBPACK_IMPORTED_MODULE_2__["BreakpointObserver"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_3__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_5__["AppCurrentMetadataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__["GITService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_7__["ProjectsService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_8__["MdNavigationService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_1__["ChangeDetectorRef"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_layout_service__WEBPACK_IMPORTED_MODULE_9__["LayoutService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_10__["HttpClient"])); };
 SidenavComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: SidenavComponent, selectors: [["app-sidenav"]], viewQuery: function SidenavComponent_Query(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_c0, 1);
     } if (rf & 2) {
         let _t;
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.sidenav = _t.first);
-    } }, decls: 21, vars: 10, consts: [["autosize", "", "fullscreen", "", 1, "app-sidenav-container"], [1, "mat-elevation-z10", 3, "opened", "mode", "openedChange"], ["sidenav", ""], ["color", "primary"], ["mat-icon-button", "", "id", "projectcss", "matTooltip", "projects list", 3, "click"], [1, "flexExpand"], ["headerPosition", "below", 2, "justify-content", "space-between", "height", "calc(100% - 64px)"], [2, "height", "100%"], ["mat-tab-label", ""], [4, "ngIf"], [1, "flex-container"], [1, "drag-overlay"], ["role", "separator", "aria-label", "Ridimensiona pannello di navigazione", "aria-orientation", "vertical", "title", "Trascina per ridimensionare", 1, "resize-handle", 3, "pointerdown", "mouseup"], [1, "router-outlet-wrapper"], ["src", "/assets/project.png", 2, "height", "24px"], [3, "compactMode"]], template: function SidenavComponent_Template(rf, ctx) { if (rf & 1) {
+    } }, decls: 22, vars: 11, consts: [["autosize", "", "fullscreen", "", 1, "app-sidenav-container"], [1, "mat-elevation-z10", 3, "opened", "mode", "openedChange"], ["sidenav", ""], ["color", "primary"], ["mat-icon-button", "", "id", "projectcss", "matTooltip", "projects list", 3, "click"], [1, "flexExpand"], ["headerPosition", "below", 2, "justify-content", "space-between", "height", "calc(100% - 64px)"], [2, "height", "100%"], ["mat-tab-label", ""], [4, "ngIf"], [1, "flex-container"], [1, "drag-overlay"], ["role", "separator", "aria-label", "Ridimensiona pannello di navigazione", "aria-orientation", "vertical", "title", "Trascina per ridimensionare", 1, "resize-handle", 3, "pointerdown", "mouseup"], [1, "router-outlet-wrapper"], ["src", "/assets/project.png", 2, "height", "24px"], [3, "compactMode"]], template: function SidenavComponent_Template(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-sidenav-container", 0);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-sidenav", 1, 2);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("openedChange", function SidenavComponent_Template_mat_sidenav_openedChange_1_listener($event) { return ctx.onSidenavToggle($event); });
@@ -22756,15 +23335,16 @@ SidenavComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineC
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](14, "app-md-tree");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](15, SidenavComponent_mat_tab_15_Template, 3, 1, "mat-tab", 9);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](16, SidenavComponent_mat_tab_16_Template, 3, 0, "mat-tab", 9);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](16, "mat-sidenav-content", 10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](17, "div", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](18, "div", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("pointerdown", function SidenavComponent_Template_div_pointerdown_18_listener() { return ctx.resizeWidth(); })("mouseup", function SidenavComponent_Template_div_mouseup_18_listener() { return ctx.stopResizeWidth(); });
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](17, "mat-sidenav-content", 10);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](18, "div", 11);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](19, "div", 12);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("pointerdown", function SidenavComponent_Template_div_pointerdown_19_listener() { return ctx.resizeWidth(); })("mouseup", function SidenavComponent_Template_div_mouseup_19_listener() { return ctx.stopResizeWidth(); });
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](19, "div", 13);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](20, "router-outlet");
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](20, "div", 13);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](21, "router-outlet");
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
@@ -22776,11 +23356,13 @@ SidenavComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineC
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx.titleProject);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](6);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.currentBranch != null);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.hasRemote);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵclassProp"]("active", ctx.hooked);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵclassProp"]("dragging", ctx.hooked);
-    } }, directives: [_angular_material_sidenav__WEBPACK_IMPORTED_MODULE_10__["MatSidenavContainer"], _angular_material_sidenav__WEBPACK_IMPORTED_MODULE_10__["MatSidenav"], _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_11__["MatToolbar"], _angular_material_button__WEBPACK_IMPORTED_MODULE_12__["MatButton"], _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_13__["MatTooltip"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_14__["MatIcon"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_15__["MatTabGroup"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_15__["MatTab"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_15__["MatTabLabel"], _md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_16__["MdTreeComponent"], _angular_common__WEBPACK_IMPORTED_MODULE_17__["NgIf"], _angular_material_sidenav__WEBPACK_IMPORTED_MODULE_10__["MatSidenavContent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"], _ai_chat_ai_chat_component__WEBPACK_IMPORTED_MODULE_18__["AiChatComponent"]], styles: [".app-sidenav-container[_ngcontent-%COMP%] {\n  flex: 1;\n  width: 100%;\n  height: 100%;\n  -webkit-user-select: none;\n          user-select: none;\n  padding-top: 36px;\n  display: flex !important;\n}\n\n  .mat-drawer-container {\n  display: flex !important;\n  height: 100% !important;\n  width: 100% !important;\n}\n\n  .mat-drawer-content {\n  display: flex !important;\n  flex-direction: row !important;\n  flex: 1 1 auto !important;\n  min-width: 0 !important;\n  overflow: hidden !important;\n}\n\n.app-sidenav-content[_ngcontent-%COMP%] {\n  display: flex;\n  height: 100%;\n  width: auto;\n  flex-direction: column;\n}\n\n.app-sidenav[_ngcontent-%COMP%] {\n  width: 240px;\n}\n\nmat-sidenav[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  padding-top: 30px;\n}\n\n  app-document-show {\n  display: flex !important;\n  flex: 1 1 auto !important;\n  height: 100% !important;\n  width: 100% !important;\n  min-width: 0 !important;\n}\n\n  app-main-content {\n  display: flex !important;\n  flex: 1 1 auto !important;\n  height: 100% !important;\n  width: 100% !important;\n  min-width: 0 !important;\n}\n\n.flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  width: 100%;\n  height: 100%;\n  min-width: 100%;\n  min-height: 100%;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  width: 100%;\n  height: 100%;\n  position: relative;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%]   .router-outlet-wrapper[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n  min-width: 0;\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%]   .router-outlet-wrapper[_ngcontent-%COMP%]   router-outlet[_ngcontent-%COMP%] {\n  display: none;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%]   .router-outlet-wrapper[_ngcontent-%COMP%]   router-outlet[_ngcontent-%COMP%]    + *[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n  min-width: 0;\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: column;\n}\n\n.resize-handle[_ngcontent-%COMP%] {\n  width: 6px;\n  height: 100%;\n  background: transparent;\n  cursor: col-resize;\n  position: relative;\n  transition: background-color 0.2s ease;\n  flex-shrink: 0;\n}\n\n.resize-handle[_ngcontent-%COMP%]:before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  width: 2px;\n  height: 30px;\n  background: #ddd;\n  border-radius: 1px;\n  transition: all 0.2s ease;\n}\n\n.resize-handle[_ngcontent-%COMP%]:hover:before {\n  background: #007acc;\n  height: 50px;\n  box-shadow: 0 0 4px rgba(0, 122, 204, 0.3);\n}\n\n.resize-handle.dragging[_ngcontent-%COMP%] {\n  z-index: 1000;\n}\n\n.resize-handle.dragging[_ngcontent-%COMP%]:before {\n  background: #005a9e;\n  height: 100%;\n  width: 3px;\n  box-shadow: 0 0 8px rgba(0, 122, 204, 0.5);\n}\n\n.drag-overlay[_ngcontent-%COMP%] {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  background: transparent;\n  cursor: col-resize;\n  z-index: 999;\n  pointer-events: none;\n}\n\n.drag-overlay.active[_ngcontent-%COMP%] {\n  pointer-events: all;\n}\n\n.showStartToolbar[_ngcontent-%COMP%] {\n  height: 0px;\n  display: contents;\n}\n\n.showToolbar[_ngcontent-%COMP%] {\n  height: 64px;\n  transition: height 300ms ease-out;\n}\n\n\n\n .mat-tab-label,  .mat-tab-label-active {\n  min-width: 0 !important;\n  padding: 3px !important;\n  margin: 3px !important;\n}\n\n#projectcss[_ngcontent-%COMP%]    .mat-tooltip {\n  \n  \n  color: white;\n  background-color: blue;\n}\n\ndiv.mdbookmark[_ngcontent-%COMP%] {\n  cursor: pointer;\n  white-space: nowrap;\n  text-align: right;\n  background: yellow;\n  transition: all 0.5s ease;\n}\n\ndiv.inner[_ngcontent-%COMP%] {\n  height: 50px;\n  width: 50px;\n  background: red;\n  opacity: 0;\n  visibility: hidden;\n  transition: all 0.5s ease;\n}\n\ndiv.outer[_ngcontent-%COMP%]:hover   .inner[_ngcontent-%COMP%] {\n  visibility: initial;\n  opacity: 1;\n}\n\n.flexExpand[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFwuLlxcc2lkZW5hdi5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLE9BQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7RUFDQSxpQkFBQTtFQUdBLHdCQUFBO0FBREY7O0FBS0E7RUFDRSx3QkFBQTtFQUNBLHVCQUFBO0VBQ0Esc0JBQUE7QUFGRjs7QUFLQTtFQUNFLHdCQUFBO0VBQ0EsOEJBQUE7RUFDQSx5QkFBQTtFQUNBLHVCQUFBO0VBQ0EsMkJBQUE7QUFGRjs7QUFLQTtFQUNFLGFBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLHNCQUFBO0FBRkY7O0FBS0E7RUFDRSxZQUFBO0FBRkY7O0FBTUE7RUFDRSxjQUFBO0VBQ0EsaUJBQUE7QUFIRjs7QUFPQTtFQUNFLHdCQUFBO0VBQ0EseUJBQUE7RUFDQSx1QkFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7QUFKRjs7QUFPQTtFQUNFLHdCQUFBO0VBQ0EseUJBQUE7RUFDQSx1QkFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7QUFKRjs7QUFPQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0FBSkY7O0FBT0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGtCQUFBO0FBSkY7O0FBTUU7RUFDRSxjQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7QUFKSjs7QUFNSTtFQUNFLGFBQUE7QUFKTjs7QUFRSTtFQUNFLGNBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7QUFOTjs7QUFXQTtFQUNFLFVBQUE7RUFDQSxZQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0Esc0NBQUE7RUFDQSxjQUFBO0FBUkY7O0FBVUU7RUFDRSxXQUFBO0VBQ0Esa0JBQUE7RUFDQSxTQUFBO0VBQ0EsUUFBQTtFQUNBLGdDQUFBO0VBQ0EsVUFBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0VBQ0EseUJBQUE7QUFSSjs7QUFXRTtFQUNFLG1CQUFBO0VBQ0EsWUFBQTtFQUNBLDBDQUFBO0FBVEo7O0FBWUU7RUFFRSxhQUFBO0FBWEo7O0FBYUk7RUFDRSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxVQUFBO0VBQ0EsMENBQUE7QUFYTjs7QUFpQkE7RUFDRSxlQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxZQUFBO0VBQ0EsYUFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7RUFDQSxZQUFBO0VBQ0Esb0JBQUE7QUFkRjs7QUFnQkU7RUFDRSxtQkFBQTtBQWRKOztBQWtCQTtFQUNJLFdBQUE7RUFDQSxpQkFBQTtBQWZKOztBQW1CQTtFQUNFLFlBQUE7RUFDQSxpQ0FBQTtBQWhCRjs7QUFtQkE7O0VBQUE7O0FBT0E7RUFDRSx1QkFBQTtFQUNBLHVCQUFBO0VBQ0Esc0JBQUE7QUFwQkY7O0FBd0JFO0VBQ0UsZ0NBQUE7RUFDQSxTQUFBO0VBQ0EsWUFBQTtFQUNBLHNCQUFBO0FBckJKOztBQTBCQTtFQUNFLGVBQUE7RUFDQSxtQkFBQTtFQUNBLGlCQUFBO0VBQ0Esa0JBQUE7RUFDQSx5QkFBQTtBQXZCRjs7QUE2QkE7RUFDRSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGVBQUE7RUFDQSxVQUFBO0VBQ0Esa0JBQUE7RUFDQSx5QkFBQTtBQTFCRjs7QUE2QkE7RUFDRSxtQkFBQTtFQUNBLFVBQUE7QUExQkY7O0FBNkJBO0VBQ0UsY0FBQTtBQTFCRiIsImZpbGUiOiJzaWRlbmF2LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmFwcC1zaWRlbmF2LWNvbnRhaW5lciB7XHJcbiAgZmxleDogMTtcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgdXNlci1zZWxlY3Q6IG5vbmU7XHJcbiAgcGFkZGluZy10b3A6IDM2cHg7IC8vIFNwYXppbyBwZXIgbGEgdGl0bGViYXJcclxuICBcclxuICAvLyBGb3J6YSBtYXQtc2lkZW5hdi1jb250YWluZXIgYSB1c2FyZSBmbGV4Ym94IGNvcnJldHRhbWVudGVcclxuICBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbi8vIEZpeCBwZXIgb3ZlcnJpZGUgZGVsbGUgY2xhc3NpIE1hdGVyaWFsIGNoZSBpbnRlcmZlcmlzY29ubyBjb24gZmxleGJveFxyXG46Om5nLWRlZXAgLm1hdC1kcmF3ZXItY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7XHJcbiAgaGVpZ2h0OiAxMDAlICFpbXBvcnRhbnQ7XHJcbiAgd2lkdGg6IDEwMCUgIWltcG9ydGFudDtcclxufVxyXG5cclxuOjpuZy1kZWVwIC5tYXQtZHJhd2VyLWNvbnRlbnQge1xyXG4gIGRpc3BsYXk6IGZsZXggIWltcG9ydGFudDtcclxuICBmbGV4LWRpcmVjdGlvbjogcm93ICFpbXBvcnRhbnQ7XHJcbiAgZmxleDogMSAxIGF1dG8gIWltcG9ydGFudDtcclxuICBtaW4td2lkdGg6IDAgIWltcG9ydGFudDtcclxuICBvdmVyZmxvdzogaGlkZGVuICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbi5hcHAtc2lkZW5hdi1jb250ZW50IHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGhlaWdodDogMTAwJTtcclxuICB3aWR0aDphdXRvO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbi5hcHAtc2lkZW5hdiB7XHJcbiAgd2lkdGg6IDI0MHB4O1xyXG59XHJcblxyXG4vLyBBc3NpY3VyaWFtb2NpIGNoZSBtYXQtc2lkZW5hdiBub24gaW50ZXJmZXJpc2NhXHJcbm1hdC1zaWRlbmF2IHtcclxuICBmbGV4LXNocmluazogMDsgLy8gSWwgc2lkZW5hdiBub24gZGV2ZSByaWR1cnNpXHJcbiAgcGFkZGluZy10b3A6IDMwcHg7IC8vIFNwYXppbyBwZXIgZXZpdGFyZSBzb3ZyYXBwb3NpemlvbmUgY29uIHRpdGxlYmFyXHJcbn1cclxuXHJcbi8vIEZpeCBhZ2dpdW50aXZpIHBlciBjb21wb25lbnRpIG5pZGlmaWNhdGlcclxuOjpuZy1kZWVwIGFwcC1kb2N1bWVudC1zaG93IHtcclxuICBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7XHJcbiAgZmxleDogMSAxIGF1dG8gIWltcG9ydGFudDtcclxuICBoZWlnaHQ6IDEwMCUgIWltcG9ydGFudDtcclxuICB3aWR0aDogMTAwJSAhaW1wb3J0YW50O1xyXG4gIG1pbi13aWR0aDogMCAhaW1wb3J0YW50O1xyXG59XHJcblxyXG46Om5nLWRlZXAgYXBwLW1haW4tY29udGVudCB7XHJcbiAgZGlzcGxheTogZmxleCAhaW1wb3J0YW50O1xyXG4gIGZsZXg6IDEgMSBhdXRvICFpbXBvcnRhbnQ7XHJcbiAgaGVpZ2h0OiAxMDAlICFpbXBvcnRhbnQ7XHJcbiAgd2lkdGg6IDEwMCUgIWltcG9ydGFudDtcclxuICBtaW4td2lkdGg6IDAgIWltcG9ydGFudDtcclxufVxyXG5cclxuLmZsZXgtY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7ICBcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgbWluLXdpZHRoOiAxMDAlO1xyXG4gIG1pbi1oZWlnaHQ6IDEwMCU7XHJcbn1cclxuXHJcbm1hdC1zaWRlbmF2LWNvbnRlbnQge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gIFxyXG4gIC5yb3V0ZXItb3V0bGV0LXdyYXBwZXIge1xyXG4gICAgZmxleDogMSAxIGF1dG87XHJcbiAgICBtaW4td2lkdGg6IDA7IC8vIEltcG9ydGFudGUgcGVyIHBlcm1ldHRlcmUgYWwgY29udGVudXRvIGRpIHJpZHVyc2lcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgXHJcbiAgICByb3V0ZXItb3V0bGV0IHtcclxuICAgICAgZGlzcGxheTogbm9uZTsgLy8gcm91dGVyLW91dGxldCDDqCBzb2xvIHVuIHBsYWNlaG9sZGVyXHJcbiAgICB9XHJcbiAgICBcclxuICAgIC8vIEFwcGxpY2EgZmxleCBwcm9wZXJ0aWVzIGFpIGNvbXBvbmVudGkgY2FyaWNhdGkgbmVsIHJvdXRlci1vdXRsZXRcclxuICAgIHJvdXRlci1vdXRsZXQgKyAqIHtcclxuICAgICAgZmxleDogMSAxIGF1dG87XHJcbiAgICAgIG1pbi13aWR0aDogMDtcclxuICAgICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5yZXNpemUtaGFuZGxlIHtcclxuICB3aWR0aDogNnB4O1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcclxuICBjdXJzb3I6IGNvbC1yZXNpemU7XHJcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gIHRyYW5zaXRpb246IGJhY2tncm91bmQtY29sb3IgMC4ycyBlYXNlO1xyXG4gIGZsZXgtc2hyaW5rOiAwOyAvLyBOb24gcGVybWV0dGVyZSBhbCByZXNpemUgaGFuZGxlIGRpIHJpZHVyc2lcclxuICBcclxuICAmOmJlZm9yZSB7XHJcbiAgICBjb250ZW50OiAnJztcclxuICAgIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICAgIGxlZnQ6IDUwJTtcclxuICAgIHRvcDogNTAlO1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgLTUwJSk7XHJcbiAgICB3aWR0aDogMnB4O1xyXG4gICAgaGVpZ2h0OiAzMHB4O1xyXG4gICAgYmFja2dyb3VuZDogI2RkZDtcclxuICAgIGJvcmRlci1yYWRpdXM6IDFweDtcclxuICAgIHRyYW5zaXRpb246IGFsbCAwLjJzIGVhc2U7XHJcbiAgfVxyXG4gIFxyXG4gICY6aG92ZXI6YmVmb3JlIHtcclxuICAgIGJhY2tncm91bmQ6ICMwMDdhY2M7XHJcbiAgICBoZWlnaHQ6IDUwcHg7XHJcbiAgICBib3gtc2hhZG93OiAwIDAgNHB4IHJnYmEoMCwgMTIyLCAyMDQsIDAuMyk7XHJcbiAgfVxyXG4gIFxyXG4gICYuZHJhZ2dpbmcge1xyXG4gICAgLy8gTWFudGllbmkgbGEgbGFyZ2hlenphIGZpc3NhIGR1cmFudGUgaWwgdHJhc2NpbmFtZW50b1xyXG4gICAgei1pbmRleDogMTAwMDtcclxuICAgIFxyXG4gICAgJjpiZWZvcmUge1xyXG4gICAgICBiYWNrZ3JvdW5kOiAjMDA1YTllO1xyXG4gICAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICAgIHdpZHRoOiAzcHg7XHJcbiAgICAgIGJveC1zaGFkb3c6IDAgMCA4cHggcmdiYSgwLCAxMjIsIDIwNCwgMC41KTtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vIE92ZXJsYXkgdG8gY2FwdHVyZSBtb3VzZSBldmVudHMgZHVyaW5nIGRyYWdcclxuLmRyYWctb3ZlcmxheSB7XHJcbiAgcG9zaXRpb246IGZpeGVkO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHdpZHRoOiAxMDB2dztcclxuICBoZWlnaHQ6IDEwMHZoO1xyXG4gIGJhY2tncm91bmQ6IHRyYW5zcGFyZW50O1xyXG4gIGN1cnNvcjogY29sLXJlc2l6ZTtcclxuICB6LWluZGV4OiA5OTk7XHJcbiAgcG9pbnRlci1ldmVudHM6IG5vbmU7XHJcbiAgXHJcbiAgJi5hY3RpdmUge1xyXG4gICAgcG9pbnRlci1ldmVudHM6IGFsbDtcclxuICB9XHJcbn1cclxuXHJcbi5zaG93U3RhcnRUb29sYmFye1xyXG4gICAgaGVpZ2h0OjBweDtcclxuICAgIGRpc3BsYXk6Y29udGVudHM7XHJcbn1cclxuXHJcbi8vIE5hc2NvbmRlcmUgZSB2aXN1YWxpenphcmUgbGEgdG9vbGJhclxyXG4uc2hvd1Rvb2xiYXIge1xyXG4gIGhlaWdodDogNjRweDtcclxuICB0cmFuc2l0aW9uOiBoZWlnaHQgMzAwbXMgZWFzZS1vdXQ7XHJcbn1cclxuXHJcbi8qLnNob3dUb29sYmFyQmxvY2t7XHJcbiAgICBkaXNwbGF5OmJsb2NrO1xyXG59Ki9cclxuXHJcblxyXG5cclxuLy8gcGVyIGZhcmUgcGljY29saSBpIHRhYlxyXG46Om5nLWRlZXAubWF0LXRhYi1sYWJlbCwgOjpuZy1kZWVwLm1hdC10YWItbGFiZWwtYWN0aXZlIHtcclxuICBtaW4td2lkdGg6IDAgIWltcG9ydGFudDtcclxuICBwYWRkaW5nOiAzcHggIWltcG9ydGFudDtcclxuICBtYXJnaW46IDNweCAhaW1wb3J0YW50O1xyXG59XHJcblxyXG4jcHJvamVjdGNzcyB7XHJcbiAgOjpuZy1kZWVwLm1hdC10b29sdGlwIHtcclxuICAgIC8qIHlvdXIgb3duIGN1c3RvbSBzdHlsZXMgaGVyZSAqL1xyXG4gICAgLyogZS5nLiAqL1xyXG4gICAgY29sb3I6IHdoaXRlO1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogYmx1ZTtcclxuICB9XHJcbn1cclxuXHJcbi8vIGJvb2ttYXJrIG1hbmFnZW1lbnRcclxuZGl2Lm1kYm9va21hcmsge1xyXG4gIGN1cnNvcjogcG9pbnRlcjsgIFxyXG4gIHdoaXRlLXNwYWNlOiBub3dyYXA7XHJcbiAgdGV4dC1hbGlnbjogcmlnaHQ7ICAgXHJcbiAgYmFja2dyb3VuZDogeWVsbG93O1xyXG4gIHRyYW5zaXRpb246IGFsbCAwLjVzIGVhc2U7XHJcbn1cclxuXHJcbmRpdi5tZGJvb2ttYXJrOmhvdmVyIHsgIFxyXG59XHJcblxyXG5kaXYuaW5uZXIge1xyXG4gIGhlaWdodDogNTBweDtcclxuICB3aWR0aDogNTBweDtcclxuICBiYWNrZ3JvdW5kOiByZWQ7XHJcbiAgb3BhY2l0eTogMDsgLy9vbmx5IGZvciBiZXR0ZXIgZWZmZWN0XHJcbiAgdmlzaWJpbGl0eTogaGlkZGVuO1xyXG4gIHRyYW5zaXRpb246IGFsbCAwLjVzIGVhc2U7XHJcbn1cclxuXHJcbmRpdi5vdXRlcjpob3ZlciAuaW5uZXIge1xyXG4gIHZpc2liaWxpdHk6IGluaXRpYWw7XHJcbiAgb3BhY2l0eTogMTtcclxufVxyXG5cclxuLmZsZXhFeHBhbmQge1xyXG4gIGZsZXg6IDEgMSBhdXRvO1xyXG59XHJcbiJdfQ== */"] });
+    } }, directives: [_angular_material_sidenav__WEBPACK_IMPORTED_MODULE_11__["MatSidenavContainer"], _angular_material_sidenav__WEBPACK_IMPORTED_MODULE_11__["MatSidenav"], _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_12__["MatToolbar"], _angular_material_button__WEBPACK_IMPORTED_MODULE_13__["MatButton"], _angular_material_tooltip__WEBPACK_IMPORTED_MODULE_14__["MatTooltip"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_15__["MatIcon"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_16__["MatTabGroup"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_16__["MatTab"], _angular_material_tabs__WEBPACK_IMPORTED_MODULE_16__["MatTabLabel"], _md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_17__["MdTreeComponent"], _angular_common__WEBPACK_IMPORTED_MODULE_18__["NgIf"], _angular_material_sidenav__WEBPACK_IMPORTED_MODULE_11__["MatSidenavContent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"], _ai_chat_ai_chat_component__WEBPACK_IMPORTED_MODULE_19__["AiChatComponent"], _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_20__["GitChatComponent"]], styles: [".app-sidenav-container[_ngcontent-%COMP%] {\n  flex: 1;\n  width: 100%;\n  height: 100%;\n  -webkit-user-select: none;\n          user-select: none;\n  padding-top: 36px;\n  display: flex !important;\n}\n\n  .mat-drawer-container {\n  display: flex !important;\n  height: 100% !important;\n  width: 100% !important;\n}\n\n  .mat-drawer-content {\n  display: flex !important;\n  flex-direction: row !important;\n  flex: 1 1 auto !important;\n  min-width: 0 !important;\n  overflow: hidden !important;\n}\n\n.app-sidenav-content[_ngcontent-%COMP%] {\n  display: flex;\n  height: 100%;\n  width: auto;\n  flex-direction: column;\n}\n\n.app-sidenav[_ngcontent-%COMP%] {\n  width: 240px;\n}\n\nmat-sidenav[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  padding-top: 30px;\n}\n\n  app-document-show {\n  display: flex !important;\n  flex: 1 1 auto !important;\n  height: 100% !important;\n  width: 100% !important;\n  min-width: 0 !important;\n}\n\n  app-main-content {\n  display: flex !important;\n  flex: 1 1 auto !important;\n  height: 100% !important;\n  width: 100% !important;\n  min-width: 0 !important;\n}\n\n.flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  width: 100%;\n  height: 100%;\n  min-width: 100%;\n  min-height: 100%;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n  width: 100%;\n  height: 100%;\n  position: relative;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%]   .router-outlet-wrapper[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n  min-width: 0;\n  height: 100%;\n  display: flex;\n  flex-direction: column;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%]   .router-outlet-wrapper[_ngcontent-%COMP%]   router-outlet[_ngcontent-%COMP%] {\n  display: none;\n}\n\nmat-sidenav-content[_ngcontent-%COMP%]   .router-outlet-wrapper[_ngcontent-%COMP%]   router-outlet[_ngcontent-%COMP%]    + *[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n  min-width: 0;\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: column;\n}\n\n.resize-handle[_ngcontent-%COMP%] {\n  width: 6px;\n  height: 100%;\n  background: transparent;\n  cursor: col-resize;\n  position: relative;\n  transition: background-color 0.2s ease;\n  flex-shrink: 0;\n}\n\n.resize-handle[_ngcontent-%COMP%]:before {\n  content: \"\";\n  position: absolute;\n  left: 50%;\n  top: 50%;\n  transform: translate(-50%, -50%);\n  width: 2px;\n  height: 30px;\n  background: #ddd;\n  border-radius: 1px;\n  transition: all 0.2s ease;\n}\n\n.resize-handle[_ngcontent-%COMP%]:hover:before {\n  background: #007acc;\n  height: 50px;\n  box-shadow: 0 0 4px rgba(0, 122, 204, 0.3);\n}\n\n.resize-handle.dragging[_ngcontent-%COMP%] {\n  z-index: 1000;\n}\n\n.resize-handle.dragging[_ngcontent-%COMP%]:before {\n  background: #005a9e;\n  height: 100%;\n  width: 3px;\n  box-shadow: 0 0 8px rgba(0, 122, 204, 0.5);\n}\n\n.drag-overlay[_ngcontent-%COMP%] {\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100vw;\n  height: 100vh;\n  background: transparent;\n  cursor: col-resize;\n  z-index: 999;\n  pointer-events: none;\n}\n\n.drag-overlay.active[_ngcontent-%COMP%] {\n  pointer-events: all;\n}\n\n.showStartToolbar[_ngcontent-%COMP%] {\n  height: 0px;\n  display: contents;\n}\n\n.showToolbar[_ngcontent-%COMP%] {\n  height: 64px;\n  transition: height 300ms ease-out;\n}\n\n\n\n .mat-tab-label,  .mat-tab-label-active {\n  min-width: 0 !important;\n  padding: 3px !important;\n  margin: 3px !important;\n}\n\n#projectcss[_ngcontent-%COMP%]    .mat-tooltip {\n  \n  \n  color: white;\n  background-color: blue;\n}\n\ndiv.mdbookmark[_ngcontent-%COMP%] {\n  cursor: pointer;\n  white-space: nowrap;\n  text-align: right;\n  background: yellow;\n  transition: all 0.5s ease;\n}\n\ndiv.inner[_ngcontent-%COMP%] {\n  height: 50px;\n  width: 50px;\n  background: red;\n  opacity: 0;\n  visibility: hidden;\n  transition: all 0.5s ease;\n}\n\ndiv.outer[_ngcontent-%COMP%]:hover   .inner[_ngcontent-%COMP%] {\n  visibility: initial;\n  opacity: 1;\n}\n\n.flexExpand[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFwuLlxcc2lkZW5hdi5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLE9BQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7RUFDQSxpQkFBQTtFQUdBLHdCQUFBO0FBREY7O0FBS0E7RUFDRSx3QkFBQTtFQUNBLHVCQUFBO0VBQ0Esc0JBQUE7QUFGRjs7QUFLQTtFQUNFLHdCQUFBO0VBQ0EsOEJBQUE7RUFDQSx5QkFBQTtFQUNBLHVCQUFBO0VBQ0EsMkJBQUE7QUFGRjs7QUFLQTtFQUNFLGFBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLHNCQUFBO0FBRkY7O0FBS0E7RUFDRSxZQUFBO0FBRkY7O0FBTUE7RUFDRSxjQUFBO0VBQ0EsaUJBQUE7QUFIRjs7QUFPQTtFQUNFLHdCQUFBO0VBQ0EseUJBQUE7RUFDQSx1QkFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7QUFKRjs7QUFPQTtFQUNFLHdCQUFBO0VBQ0EseUJBQUE7RUFDQSx1QkFBQTtFQUNBLHNCQUFBO0VBQ0EsdUJBQUE7QUFKRjs7QUFPQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0FBSkY7O0FBT0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGtCQUFBO0FBSkY7O0FBTUU7RUFDRSxjQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7QUFKSjs7QUFNSTtFQUNFLGFBQUE7QUFKTjs7QUFRSTtFQUNFLGNBQUE7RUFDQSxZQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7QUFOTjs7QUFXQTtFQUNFLFVBQUE7RUFDQSxZQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0Esc0NBQUE7RUFDQSxjQUFBO0FBUkY7O0FBVUU7RUFDRSxXQUFBO0VBQ0Esa0JBQUE7RUFDQSxTQUFBO0VBQ0EsUUFBQTtFQUNBLGdDQUFBO0VBQ0EsVUFBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0VBQ0EseUJBQUE7QUFSSjs7QUFXRTtFQUNFLG1CQUFBO0VBQ0EsWUFBQTtFQUNBLDBDQUFBO0FBVEo7O0FBWUU7RUFFRSxhQUFBO0FBWEo7O0FBYUk7RUFDRSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxVQUFBO0VBQ0EsMENBQUE7QUFYTjs7QUFpQkE7RUFDRSxlQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxZQUFBO0VBQ0EsYUFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7RUFDQSxZQUFBO0VBQ0Esb0JBQUE7QUFkRjs7QUFnQkU7RUFDRSxtQkFBQTtBQWRKOztBQWtCQTtFQUNJLFdBQUE7RUFDQSxpQkFBQTtBQWZKOztBQW1CQTtFQUNFLFlBQUE7RUFDQSxpQ0FBQTtBQWhCRjs7QUFtQkE7O0VBQUE7O0FBT0E7RUFDRSx1QkFBQTtFQUNBLHVCQUFBO0VBQ0Esc0JBQUE7QUFwQkY7O0FBd0JFO0VBQ0UsZ0NBQUE7RUFDQSxTQUFBO0VBQ0EsWUFBQTtFQUNBLHNCQUFBO0FBckJKOztBQTBCQTtFQUNFLGVBQUE7RUFDQSxtQkFBQTtFQUNBLGlCQUFBO0VBQ0Esa0JBQUE7RUFDQSx5QkFBQTtBQXZCRjs7QUE2QkE7RUFDRSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGVBQUE7RUFDQSxVQUFBO0VBQ0Esa0JBQUE7RUFDQSx5QkFBQTtBQTFCRjs7QUE2QkE7RUFDRSxtQkFBQTtFQUNBLFVBQUE7QUExQkY7O0FBNkJBO0VBQ0UsY0FBQTtBQTFCRiIsImZpbGUiOiJzaWRlbmF2LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmFwcC1zaWRlbmF2LWNvbnRhaW5lciB7XHJcbiAgZmxleDogMTtcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgdXNlci1zZWxlY3Q6IG5vbmU7XHJcbiAgcGFkZGluZy10b3A6IDM2cHg7IC8vIFNwYXppbyBwZXIgbGEgdGl0bGViYXJcclxuICBcclxuICAvLyBGb3J6YSBtYXQtc2lkZW5hdi1jb250YWluZXIgYSB1c2FyZSBmbGV4Ym94IGNvcnJldHRhbWVudGVcclxuICBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbi8vIEZpeCBwZXIgb3ZlcnJpZGUgZGVsbGUgY2xhc3NpIE1hdGVyaWFsIGNoZSBpbnRlcmZlcmlzY29ubyBjb24gZmxleGJveFxyXG46Om5nLWRlZXAgLm1hdC1kcmF3ZXItY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7XHJcbiAgaGVpZ2h0OiAxMDAlICFpbXBvcnRhbnQ7XHJcbiAgd2lkdGg6IDEwMCUgIWltcG9ydGFudDtcclxufVxyXG5cclxuOjpuZy1kZWVwIC5tYXQtZHJhd2VyLWNvbnRlbnQge1xyXG4gIGRpc3BsYXk6IGZsZXggIWltcG9ydGFudDtcclxuICBmbGV4LWRpcmVjdGlvbjogcm93ICFpbXBvcnRhbnQ7XHJcbiAgZmxleDogMSAxIGF1dG8gIWltcG9ydGFudDtcclxuICBtaW4td2lkdGg6IDAgIWltcG9ydGFudDtcclxuICBvdmVyZmxvdzogaGlkZGVuICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbi5hcHAtc2lkZW5hdi1jb250ZW50IHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGhlaWdodDogMTAwJTtcclxuICB3aWR0aDphdXRvO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbi5hcHAtc2lkZW5hdiB7XHJcbiAgd2lkdGg6IDI0MHB4O1xyXG59XHJcblxyXG4vLyBBc3NpY3VyaWFtb2NpIGNoZSBtYXQtc2lkZW5hdiBub24gaW50ZXJmZXJpc2NhXHJcbm1hdC1zaWRlbmF2IHtcclxuICBmbGV4LXNocmluazogMDsgLy8gSWwgc2lkZW5hdiBub24gZGV2ZSByaWR1cnNpXHJcbiAgcGFkZGluZy10b3A6IDMwcHg7IC8vIFNwYXppbyBwZXIgZXZpdGFyZSBzb3ZyYXBwb3NpemlvbmUgY29uIHRpdGxlYmFyXHJcbn1cclxuXHJcbi8vIEZpeCBhZ2dpdW50aXZpIHBlciBjb21wb25lbnRpIG5pZGlmaWNhdGlcclxuOjpuZy1kZWVwIGFwcC1kb2N1bWVudC1zaG93IHtcclxuICBkaXNwbGF5OiBmbGV4ICFpbXBvcnRhbnQ7XHJcbiAgZmxleDogMSAxIGF1dG8gIWltcG9ydGFudDtcclxuICBoZWlnaHQ6IDEwMCUgIWltcG9ydGFudDtcclxuICB3aWR0aDogMTAwJSAhaW1wb3J0YW50O1xyXG4gIG1pbi13aWR0aDogMCAhaW1wb3J0YW50O1xyXG59XHJcblxyXG46Om5nLWRlZXAgYXBwLW1haW4tY29udGVudCB7XHJcbiAgZGlzcGxheTogZmxleCAhaW1wb3J0YW50O1xyXG4gIGZsZXg6IDEgMSBhdXRvICFpbXBvcnRhbnQ7XHJcbiAgaGVpZ2h0OiAxMDAlICFpbXBvcnRhbnQ7XHJcbiAgd2lkdGg6IDEwMCUgIWltcG9ydGFudDtcclxuICBtaW4td2lkdGg6IDAgIWltcG9ydGFudDtcclxufVxyXG5cclxuLmZsZXgtY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7ICBcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgbWluLXdpZHRoOiAxMDAlO1xyXG4gIG1pbi1oZWlnaHQ6IDEwMCU7XHJcbn1cclxuXHJcbm1hdC1zaWRlbmF2LWNvbnRlbnQge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gIFxyXG4gIC5yb3V0ZXItb3V0bGV0LXdyYXBwZXIge1xyXG4gICAgZmxleDogMSAxIGF1dG87XHJcbiAgICBtaW4td2lkdGg6IDA7IC8vIEltcG9ydGFudGUgcGVyIHBlcm1ldHRlcmUgYWwgY29udGVudXRvIGRpIHJpZHVyc2lcclxuICAgIGhlaWdodDogMTAwJTtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgXHJcbiAgICByb3V0ZXItb3V0bGV0IHtcclxuICAgICAgZGlzcGxheTogbm9uZTsgLy8gcm91dGVyLW91dGxldCDDqCBzb2xvIHVuIHBsYWNlaG9sZGVyXHJcbiAgICB9XHJcbiAgICBcclxuICAgIC8vIEFwcGxpY2EgZmxleCBwcm9wZXJ0aWVzIGFpIGNvbXBvbmVudGkgY2FyaWNhdGkgbmVsIHJvdXRlci1vdXRsZXRcclxuICAgIHJvdXRlci1vdXRsZXQgKyAqIHtcclxuICAgICAgZmxleDogMSAxIGF1dG87XHJcbiAgICAgIG1pbi13aWR0aDogMDtcclxuICAgICAgaGVpZ2h0OiAxMDAlO1xyXG4gICAgICB3aWR0aDogMTAwJTtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5yZXNpemUtaGFuZGxlIHtcclxuICB3aWR0aDogNnB4O1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcclxuICBjdXJzb3I6IGNvbC1yZXNpemU7XHJcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gIHRyYW5zaXRpb246IGJhY2tncm91bmQtY29sb3IgMC4ycyBlYXNlO1xyXG4gIGZsZXgtc2hyaW5rOiAwOyAvLyBOb24gcGVybWV0dGVyZSBhbCByZXNpemUgaGFuZGxlIGRpIHJpZHVyc2lcclxuICBcclxuICAmOmJlZm9yZSB7XHJcbiAgICBjb250ZW50OiAnJztcclxuICAgIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICAgIGxlZnQ6IDUwJTtcclxuICAgIHRvcDogNTAlO1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgLTUwJSk7XHJcbiAgICB3aWR0aDogMnB4O1xyXG4gICAgaGVpZ2h0OiAzMHB4O1xyXG4gICAgYmFja2dyb3VuZDogI2RkZDtcclxuICAgIGJvcmRlci1yYWRpdXM6IDFweDtcclxuICAgIHRyYW5zaXRpb246IGFsbCAwLjJzIGVhc2U7XHJcbiAgfVxyXG4gIFxyXG4gICY6aG92ZXI6YmVmb3JlIHtcclxuICAgIGJhY2tncm91bmQ6ICMwMDdhY2M7XHJcbiAgICBoZWlnaHQ6IDUwcHg7XHJcbiAgICBib3gtc2hhZG93OiAwIDAgNHB4IHJnYmEoMCwgMTIyLCAyMDQsIDAuMyk7XHJcbiAgfVxyXG4gIFxyXG4gICYuZHJhZ2dpbmcge1xyXG4gICAgLy8gTWFudGllbmkgbGEgbGFyZ2hlenphIGZpc3NhIGR1cmFudGUgaWwgdHJhc2NpbmFtZW50b1xyXG4gICAgei1pbmRleDogMTAwMDtcclxuICAgIFxyXG4gICAgJjpiZWZvcmUge1xyXG4gICAgICBiYWNrZ3JvdW5kOiAjMDA1YTllO1xyXG4gICAgICBoZWlnaHQ6IDEwMCU7XHJcbiAgICAgIHdpZHRoOiAzcHg7XHJcbiAgICAgIGJveC1zaGFkb3c6IDAgMCA4cHggcmdiYSgwLCAxMjIsIDIwNCwgMC41KTtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vIE92ZXJsYXkgdG8gY2FwdHVyZSBtb3VzZSBldmVudHMgZHVyaW5nIGRyYWdcclxuLmRyYWctb3ZlcmxheSB7XHJcbiAgcG9zaXRpb246IGZpeGVkO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHdpZHRoOiAxMDB2dztcclxuICBoZWlnaHQ6IDEwMHZoO1xyXG4gIGJhY2tncm91bmQ6IHRyYW5zcGFyZW50O1xyXG4gIGN1cnNvcjogY29sLXJlc2l6ZTtcclxuICB6LWluZGV4OiA5OTk7XHJcbiAgcG9pbnRlci1ldmVudHM6IG5vbmU7XHJcbiAgXHJcbiAgJi5hY3RpdmUge1xyXG4gICAgcG9pbnRlci1ldmVudHM6IGFsbDtcclxuICB9XHJcbn1cclxuXHJcbi5zaG93U3RhcnRUb29sYmFye1xyXG4gICAgaGVpZ2h0OjBweDtcclxuICAgIGRpc3BsYXk6Y29udGVudHM7XHJcbn1cclxuXHJcbi8vIE5hc2NvbmRlcmUgZSB2aXN1YWxpenphcmUgbGEgdG9vbGJhclxyXG4uc2hvd1Rvb2xiYXIge1xyXG4gIGhlaWdodDogNjRweDtcclxuICB0cmFuc2l0aW9uOiBoZWlnaHQgMzAwbXMgZWFzZS1vdXQ7XHJcbn1cclxuXHJcbi8qLnNob3dUb29sYmFyQmxvY2t7XHJcbiAgICBkaXNwbGF5OmJsb2NrO1xyXG59Ki9cclxuXHJcblxyXG5cclxuLy8gcGVyIGZhcmUgcGljY29saSBpIHRhYlxyXG46Om5nLWRlZXAubWF0LXRhYi1sYWJlbCwgOjpuZy1kZWVwLm1hdC10YWItbGFiZWwtYWN0aXZlIHtcclxuICBtaW4td2lkdGg6IDAgIWltcG9ydGFudDtcclxuICBwYWRkaW5nOiAzcHggIWltcG9ydGFudDtcclxuICBtYXJnaW46IDNweCAhaW1wb3J0YW50O1xyXG59XHJcblxyXG4jcHJvamVjdGNzcyB7XHJcbiAgOjpuZy1kZWVwLm1hdC10b29sdGlwIHtcclxuICAgIC8qIHlvdXIgb3duIGN1c3RvbSBzdHlsZXMgaGVyZSAqL1xyXG4gICAgLyogZS5nLiAqL1xyXG4gICAgY29sb3I6IHdoaXRlO1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogYmx1ZTtcclxuICB9XHJcbn1cclxuXHJcbi8vIGJvb2ttYXJrIG1hbmFnZW1lbnRcclxuZGl2Lm1kYm9va21hcmsge1xyXG4gIGN1cnNvcjogcG9pbnRlcjsgIFxyXG4gIHdoaXRlLXNwYWNlOiBub3dyYXA7XHJcbiAgdGV4dC1hbGlnbjogcmlnaHQ7ICAgXHJcbiAgYmFja2dyb3VuZDogeWVsbG93O1xyXG4gIHRyYW5zaXRpb246IGFsbCAwLjVzIGVhc2U7XHJcbn1cclxuXHJcbmRpdi5tZGJvb2ttYXJrOmhvdmVyIHsgIFxyXG59XHJcblxyXG5kaXYuaW5uZXIge1xyXG4gIGhlaWdodDogNTBweDtcclxuICB3aWR0aDogNTBweDtcclxuICBiYWNrZ3JvdW5kOiByZWQ7XHJcbiAgb3BhY2l0eTogMDsgLy9vbmx5IGZvciBiZXR0ZXIgZWZmZWN0XHJcbiAgdmlzaWJpbGl0eTogaGlkZGVuO1xyXG4gIHRyYW5zaXRpb246IGFsbCAwLjVzIGVhc2U7XHJcbn1cclxuXHJcbmRpdi5vdXRlcjpob3ZlciAuaW5uZXIge1xyXG4gIHZpc2liaWxpdHk6IGluaXRpYWw7XHJcbiAgb3BhY2l0eTogMTtcclxufVxyXG5cclxuLmZsZXhFeHBhbmQge1xyXG4gIGZsZXg6IDEgMSBhdXRvO1xyXG59XHJcbiJdfQ== */"] });
 
 
 /***/ }),
@@ -23179,10 +23761,11 @@ class MainContentComponent {
      */
     loadMarkdownFile(file) {
         if (!(file === null || file === void 0 ? void 0 : file.relativePath)) {
-            console.warn('⚠️ [MainContent] Invalid file provided for loading');
+            const fileInfo = (file === null || file === void 0 ? void 0 : file.fullPath) || (file === null || file === void 0 ? void 0 : file.name) || 'unknown';
+            console.warn('⚠️ [MainContent] Invalid file provided for loading - missing relativePath. File info:', fileInfo);
             this.updateState({
                 status: 'error',
-                errorMessage: 'File non valido selezionato',
+                errorMessage: `Impossibile caricare il file: path relativo mancante. File: ${fileInfo}`,
                 currentPath: undefined
             });
             return;
@@ -23199,12 +23782,20 @@ class MainContentComponent {
         this.callMdExplorerController(file);
     }
     /**
+     * Remove leading slashes/backslashes from path to prevent double slash in URL
+     */
+    cleanRelativePath(path) {
+        var _a;
+        return (_a = path === null || path === void 0 ? void 0 : path.replace(/^[\/\\]+/, '')) !== null && _a !== void 0 ? _a : '';
+    }
+    /**
      * Legacy method maintained for backward compatibility
      */
     callMdExplorerController(node) {
         if (node === null || node === void 0 ? void 0 : node.relativePath) {
             const dateTime = new Date().getTime() / 1000;
-            const newHtmlSource = `../api/mdexplorer/${node.relativePath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+            const cleanPath = this.cleanRelativePath(node.relativePath);
+            const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
             // Only update if URL actually changed to prevent unnecessary reloads
             if (this.htmlSource !== newHtmlSource) {
                 this.htmlSource = newHtmlSource;
@@ -23324,7 +23915,8 @@ class MainContentComponent {
             // Force iframe reload by modifying URL
             if (currentState.currentPath) {
                 const dateTime = new Date().getTime() / 1000;
-                this.htmlSource = `../api/mdexplorer/${currentState.currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
+                const cleanPath = this.cleanRelativePath(currentState.currentPath);
+                this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
             }
         });
     }
@@ -23369,7 +23961,8 @@ class MainContentComponent {
         });
         // Update the URL to point to the new path
         const dateTime = new Date().getTime() / 1000;
-        this.htmlSource = `../api/mdexplorer/${newPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+        const cleanPath = this.cleanRelativePath(newPath);
+        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
     }
     /**
      * Refresh the current file by reloading the iframe
@@ -23383,7 +23976,8 @@ class MainContentComponent {
             });
             // Force reload with new timestamp
             const dateTime = new Date().getTime() / 1000;
-            this.htmlSource = `../api/mdexplorer/${currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
+            const cleanPath = this.cleanRelativePath(currentPath);
+            this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
         }
     }
     /**
@@ -23488,6 +24082,302 @@ MainContentComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdef
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("hidden", ctx._HideIFrame || _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](11, 16, ctx.isLoading$) || _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](12, 18, ctx.hasError$) || ((tmp_5_0 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](13, 20, ctx.currentState$)) == null ? null : tmp_5_0.status) === "indexing" || ((tmp_5_0 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](14, 22, ctx.currentState$)) == null ? null : tmp_5_0.status) === "idle")("src", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](15, 24, ctx.htmlSource), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵsanitizeResourceUrl"]);
         _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵattribute"]("aria-label", "Contenuto del documento: " + (((tmp_7_0 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](16, 26, ctx.currentState$)) == null ? null : tmp_7_0.currentPath) || "documento"));
     } }, directives: [_angular_common__WEBPACK_IMPORTED_MODULE_9__["NgClass"], _angular_common__WEBPACK_IMPORTED_MODULE_9__["NgIf"], _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_10__["MatProgressSpinner"], _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__["MatIcon"], _angular_material_button__WEBPACK_IMPORTED_MODULE_12__["MatButton"]], pipes: [_angular_common__WEBPACK_IMPORTED_MODULE_9__["AsyncPipe"], _pipes_safePipe__WEBPACK_IMPORTED_MODULE_13__["SafePipe"]], styles: ["[_nghost-%COMP%] {\n  height: 100%;\n  width: 100%;\n  border: 1px solid #e0e0e0;\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.main-content-container[_ngcontent-%COMP%] {\n  position: relative;\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.hideToolbar[_ngcontent-%COMP%] {\n  height: 0px;\n  transition: height 300ms ease-out;\n}\n\n.hideToolbarNone[_ngcontent-%COMP%] {\n  display: none;\n}\n\n.hundredPercentContent[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n}\n\n.contentWithToolbar[_ngcontent-%COMP%] {\n  height: calc(100% - 72px);\n  width: 100%;\n}\n\n.loading-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: rgba(255, 255, 255, 0.95);\n  -webkit-backdrop-filter: blur(2px);\n          backdrop-filter: blur(2px);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 1000;\n  animation: fadeIn 0.3s ease-out;\n}\n\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 2rem;\n}\n\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  margin-bottom: 1rem;\n  animation: pulse 2s infinite ease-in-out;\n}\n\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   .loading-text[_ngcontent-%COMP%] {\n  font-size: 1.1rem;\n  font-weight: 500;\n  color: #333;\n  margin: 0.5rem 0;\n  letter-spacing: 0.5px;\n}\n\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   .loading-subtext[_ngcontent-%COMP%] {\n  font-size: 0.9rem;\n  color: #666;\n  margin: 0;\n  opacity: 0.8;\n}\n\n.indexing-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%);\n  -webkit-backdrop-filter: blur(2px);\n          backdrop-filter: blur(2px);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 1000;\n  animation: slideInFromLeft 0.4s ease-out;\n}\n\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 2rem;\n  background: rgba(255, 255, 255, 0.95);\n  border-radius: 12px;\n  box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);\n  border: 1px solid rgba(255, 193, 7, 0.4);\n}\n\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  margin-bottom: 1rem;\n  animation: indexingPulse 2.5s infinite ease-in-out;\n}\n\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-text[_ngcontent-%COMP%] {\n  font-size: 1.1rem;\n  font-weight: 600;\n  color: #ff8f00;\n  margin: 0.5rem 0;\n  letter-spacing: 0.5px;\n}\n\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-subtext[_ngcontent-%COMP%] {\n  font-size: 0.9rem;\n  color: #f57c00;\n  margin: 0 0 1rem 0;\n  opacity: 0.9;\n}\n\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  background: rgba(255, 193, 7, 0.1);\n  padding: 0.5rem 1rem;\n  border-radius: 6px;\n  font-size: 0.85rem;\n  color: #e65100;\n}\n\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%]   .info-icon[_ngcontent-%COMP%] {\n  font-size: 1.1rem;\n  width: 1.1rem;\n  height: 1.1rem;\n  margin-right: 0.5rem;\n  color: #ff9800;\n}\n\n.error-state[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 1000;\n  animation: slideInFromTop 0.4s ease-out;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 2rem;\n  max-width: 400px;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-icon[_ngcontent-%COMP%] {\n  font-size: 3rem;\n  width: 3rem;\n  height: 3rem;\n  margin-bottom: 1rem;\n  animation: shake 0.5s ease-in-out;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-title[_ngcontent-%COMP%] {\n  font-size: 1.3rem;\n  font-weight: 600;\n  color: #d32f2f;\n  margin: 0 0 1rem 0;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-message[_ngcontent-%COMP%] {\n  font-size: 1rem;\n  color: #666;\n  line-height: 1.5;\n  margin: 0 0 1.5rem 0;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-actions[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%] {\n  font-weight: 500;\n  padding: 0.5rem 1.5rem;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-actions[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 0.5rem;\n}\n\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-actions[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%]:hover {\n  transform: translateY(-2px);\n  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);\n  transition: all 0.2s ease;\n}\n\n.empty-state[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 500;\n  animation: fadeIn 0.5s ease-out;\n}\n\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 3rem 2rem;\n  max-width: 500px;\n}\n\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-icon[_ngcontent-%COMP%] {\n  font-size: 4rem;\n  width: 4rem;\n  height: 4rem;\n  color: #90a4ae;\n  margin-bottom: 1.5rem;\n  animation: float 3s ease-in-out infinite;\n}\n\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-title[_ngcontent-%COMP%] {\n  font-size: 1.5rem;\n  font-weight: 600;\n  color: #37474f;\n  margin: 0 0 1rem 0;\n}\n\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-message[_ngcontent-%COMP%] {\n  font-size: 1rem;\n  color: #78909c;\n  line-height: 1.6;\n  margin: 0 0 2rem 0;\n}\n\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-actions[_ngcontent-%COMP%]   .empty-hint[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 0.9rem;\n  color: #90a4ae;\n  margin: 0;\n}\n\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-actions[_ngcontent-%COMP%]   .empty-hint[_ngcontent-%COMP%]   .hint-icon[_ngcontent-%COMP%] {\n  font-size: 1.2rem;\n  width: 1.2rem;\n  height: 1.2rem;\n  margin-right: 0.5rem;\n}\n\n.content-iframe[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  border: none;\n  background: white;\n  flex: 1 1 auto;\n  display: block;\n  transition: opacity 0.3s ease-in-out;\n}\n\n.content-iframe[hidden][_ngcontent-%COMP%] {\n  opacity: 0;\n  display: none;\n}\n\n.content-iframe[_ngcontent-%COMP%]:not([hidden]) {\n  opacity: 1;\n  display: block;\n}\n\n.content-iframe[_ngcontent-%COMP%]:focus {\n  outline: 2px solid #2196f3;\n  outline-offset: -2px;\n}\n\n@keyframes fadeIn {\n  from {\n    opacity: 0;\n    transform: scale(0.95);\n  }\n  to {\n    opacity: 1;\n    transform: scale(1);\n  }\n}\n\n@keyframes slideInFromTop {\n  from {\n    opacity: 0;\n    transform: translateY(-20px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\n\n@keyframes slideInFromLeft {\n  from {\n    opacity: 0;\n    transform: translateX(-30px) scale(0.95);\n  }\n  to {\n    opacity: 1;\n    transform: translateX(0) scale(1);\n  }\n}\n\n@keyframes pulse {\n  0%, 100% {\n    transform: scale(1);\n    opacity: 1;\n  }\n  50% {\n    transform: scale(1.05);\n    opacity: 0.8;\n  }\n}\n\n@keyframes shake {\n  0%, 100% {\n    transform: translateX(0);\n  }\n  25% {\n    transform: translateX(-5px);\n  }\n  75% {\n    transform: translateX(5px);\n  }\n}\n\n@keyframes float {\n  0%, 100% {\n    transform: translateY(0);\n  }\n  50% {\n    transform: translateY(-10px);\n  }\n}\n\n@keyframes indexingPulse {\n  0%, 100% {\n    transform: scale(1);\n    opacity: 1;\n  }\n  50% {\n    transform: scale(1.1);\n    opacity: 0.7;\n  }\n}\n\n@media (max-width: 768px) {\n  .loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%], .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%], .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%] {\n    padding: 1.5rem 1rem;\n  }\n\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-icon[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-icon[_ngcontent-%COMP%] {\n    font-size: 2.5rem;\n    width: 2.5rem;\n    height: 2.5rem;\n  }\n\n  .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-title[_ngcontent-%COMP%] {\n    font-size: 1.3rem;\n  }\n\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-title[_ngcontent-%COMP%] {\n    font-size: 1.1rem;\n  }\n}\n\n@media (max-width: 480px) {\n  .loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   .loading-text[_ngcontent-%COMP%], .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-text[_ngcontent-%COMP%] {\n    font-size: 1rem;\n  }\n\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%], .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%] {\n    padding: 1rem;\n  }\n\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%] {\n    width: 100%;\n    margin-top: 0.5rem;\n  }\n}\n\n@media (prefers-color-scheme: dark) {\n  [_nghost-%COMP%] {\n    border-color: #424242;\n  }\n\n  .loading-overlay[_ngcontent-%COMP%] {\n    background: rgba(33, 33, 33, 0.95);\n  }\n  .loading-overlay[_ngcontent-%COMP%]   .loading-text[_ngcontent-%COMP%] {\n    color: #e0e0e0;\n  }\n  .loading-overlay[_ngcontent-%COMP%]   .loading-subtext[_ngcontent-%COMP%] {\n    color: #bdbdbd;\n  }\n\n  .indexing-overlay[_ngcontent-%COMP%] {\n    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.2) 100%);\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%] {\n    background: rgba(48, 48, 48, 0.95);\n    border-color: rgba(255, 193, 7, 0.6);\n    box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-text[_ngcontent-%COMP%] {\n    color: #ffb74d;\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-subtext[_ngcontent-%COMP%] {\n    color: #ffa726;\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%] {\n    background: rgba(255, 193, 7, 0.2);\n    color: #ffcc02;\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%]   .info-icon[_ngcontent-%COMP%] {\n    color: #ffc107;\n  }\n\n  .error-state[_ngcontent-%COMP%] {\n    background: linear-gradient(135deg, #303030 0%, #424242 100%);\n  }\n  .error-state[_ngcontent-%COMP%]   .error-title[_ngcontent-%COMP%] {\n    color: #f48fb1;\n  }\n  .error-state[_ngcontent-%COMP%]   .error-message[_ngcontent-%COMP%] {\n    color: #bdbdbd;\n  }\n\n  .empty-state[_ngcontent-%COMP%] {\n    background: linear-gradient(135deg, #303030 0%, #424242 100%);\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-title[_ngcontent-%COMP%] {\n    color: #e0e0e0;\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-message[_ngcontent-%COMP%] {\n    color: #bdbdbd;\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-icon[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-hint[_ngcontent-%COMP%] {\n    color: #90a4ae;\n  }\n\n  .content-iframe[_ngcontent-%COMP%] {\n    background: #1e1e1e;\n  }\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcLi5cXC4uXFwuLlxcbWFpbi1jb250ZW50LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsWUFBQTtFQUNBLFdBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsY0FBQTtFQUNBLFlBQUE7QUFDRjs7QUFHQTtFQUNFLGtCQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxjQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUlBO0VBQ0UsV0FBQTtFQUNBLGlDQUFBO0FBREY7O0FBSUE7RUFDRSxhQUFBO0FBREY7O0FBSUE7RUFDRSxZQUFBO0VBQ0EsV0FBQTtBQURGOztBQUlBO0VBQ0UseUJBQUE7RUFDQSxXQUFBO0FBREY7O0FBS0E7RUFDRSxrQkFBQTtFQUNBLE1BQUE7RUFDQSxPQUFBO0VBQ0EsUUFBQTtFQUNBLFNBQUE7RUFDQSxxQ0FBQTtFQUNBLGtDQUFBO1VBQUEsMEJBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLGFBQUE7RUFHQSwrQkFBQTtBQUpGOztBQU1FO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLGFBQUE7QUFKSjs7QUFNSTtFQUNFLG1CQUFBO0VBR0Esd0NBQUE7QUFOTjs7QUFTSTtFQUNFLGlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7RUFDQSxxQkFBQTtBQVBOOztBQVVJO0VBQ0UsaUJBQUE7RUFDQSxXQUFBO0VBQ0EsU0FBQTtFQUNBLFlBQUE7QUFSTjs7QUFjQTtFQUNFLGtCQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLDJGQUFBO0VBQ0Esa0NBQUE7VUFBQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsYUFBQTtFQUdBLHdDQUFBO0FBYkY7O0FBZUU7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLGtCQUFBO0VBQ0EsYUFBQTtFQUNBLHFDQUFBO0VBQ0EsbUJBQUE7RUFDQSw2Q0FBQTtFQUNBLHdDQUFBO0FBYko7O0FBZUk7RUFDRSxtQkFBQTtFQUdBLGtEQUFBO0FBZk47O0FBa0JJO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtFQUNBLHFCQUFBO0FBaEJOOztBQW1CSTtFQUNFLGlCQUFBO0VBQ0EsY0FBQTtFQUNBLGtCQUFBO0VBQ0EsWUFBQTtBQWpCTjs7QUFvQkk7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLGtDQUFBO0VBQ0Esb0JBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EsY0FBQTtBQWxCTjs7QUFvQk07RUFDRSxpQkFBQTtFQUNBLGFBQUE7RUFDQSxjQUFBO0VBQ0Esb0JBQUE7RUFDQSxjQUFBO0FBbEJSOztBQXlCQTtFQUNFLGtCQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLDZEQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBRUEsdUNBQUE7QUF2QkY7O0FBeUJFO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLGFBQUE7RUFDQSxnQkFBQTtBQXZCSjs7QUF5Qkk7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtFQUdBLGlDQUFBO0FBekJOOztBQTRCSTtFQUNFLGlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0Esa0JBQUE7QUExQk47O0FBNkJJO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtFQUNBLG9CQUFBO0FBM0JOOztBQStCTTtFQUNFLGdCQUFBO0VBQ0Esc0JBQUE7QUE3QlI7O0FBK0JRO0VBQ0Usb0JBQUE7QUE3QlY7O0FBaUNRO0VBQ0UsMkJBQUE7RUFDQSx3Q0FBQTtFQUNBLHlCQUFBO0FBL0JWOztBQXVDQTtFQUNFLGtCQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLDZEQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxZQUFBO0VBRUEsK0JBQUE7QUFyQ0Y7O0FBdUNFO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7QUFyQ0o7O0FBdUNJO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsY0FBQTtFQUNBLHFCQUFBO0VBR0Esd0NBQUE7QUF2Q047O0FBMENJO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxrQkFBQTtBQXhDTjs7QUEyQ0k7RUFDRSxlQUFBO0VBQ0EsY0FBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7QUF6Q047O0FBNkNNO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxpQkFBQTtFQUNBLGNBQUE7RUFDQSxTQUFBO0FBM0NSOztBQTZDUTtFQUNFLGlCQUFBO0VBQ0EsYUFBQTtFQUNBLGNBQUE7RUFDQSxvQkFBQTtBQTNDVjs7QUFtREE7RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtFQUNBLGNBQUE7RUFDQSxjQUFBO0VBR0Esb0NBQUE7QUFsREY7O0FBb0RFO0VBQ0UsVUFBQTtFQUNBLGFBQUE7QUFsREo7O0FBcURFO0VBQ0UsVUFBQTtFQUNBLGNBQUE7QUFuREo7O0FBdURFO0VBQ0UsMEJBQUE7RUFDQSxvQkFBQTtBQXJESjs7QUEwREE7RUFDRTtJQUNFLFVBQUE7SUFDQSxzQkFBQTtFQXZERjtFQXlEQTtJQUNFLFVBQUE7SUFDQSxtQkFBQTtFQXZERjtBQUNGOztBQTBEQTtFQUNFO0lBQ0UsVUFBQTtJQUNBLDRCQUFBO0VBeERGO0VBMERBO0lBQ0UsVUFBQTtJQUNBLHdCQUFBO0VBeERGO0FBQ0Y7O0FBMkRBO0VBQ0U7SUFDRSxVQUFBO0lBQ0Esd0NBQUE7RUF6REY7RUEyREE7SUFDRSxVQUFBO0lBQ0EsaUNBQUE7RUF6REY7QUFDRjs7QUE0REE7RUFDRTtJQUNFLG1CQUFBO0lBQ0EsVUFBQTtFQTFERjtFQTREQTtJQUNFLHNCQUFBO0lBQ0EsWUFBQTtFQTFERjtBQUNGOztBQTZEQTtFQUNFO0lBQVcsd0JBQUE7RUExRFg7RUEyREE7SUFBTSwyQkFBQTtFQXhETjtFQXlEQTtJQUFNLDBCQUFBO0VBdEROO0FBQ0Y7O0FBd0RBO0VBQ0U7SUFDRSx3QkFBQTtFQXRERjtFQXdEQTtJQUNFLDRCQUFBO0VBdERGO0FBQ0Y7O0FBeURBO0VBQ0U7SUFDRSxtQkFBQTtJQUNBLFVBQUE7RUF2REY7RUF5REE7SUFDRSxxQkFBQTtJQUNBLFlBQUE7RUF2REY7QUFDRjs7QUEyREE7RUFDRTs7OztJQUlFLG9CQUFBO0VBekRGOztFQTREQTs7SUFFRSxpQkFBQTtJQUNBLGFBQUE7SUFDQSxjQUFBO0VBekRGOztFQTREQTtJQUNFLGlCQUFBO0VBekRGOztFQTREQTtJQUNFLGlCQUFBO0VBekRGO0FBQ0Y7O0FBNERBO0VBQ0U7O0lBRUUsZUFBQTtFQTFERjs7RUE2REE7OztJQUdFLGFBQUE7RUExREY7O0VBNkRBO0lBQ0UsV0FBQTtJQUNBLGtCQUFBO0VBMURGO0FBQ0Y7O0FBOERBO0VBQ0U7SUFDRSxxQkFBQTtFQTVERjs7RUErREE7SUFDRSxrQ0FBQTtFQTVERjtFQThERTtJQUNFLGNBQUE7RUE1REo7RUErREU7SUFDRSxjQUFBO0VBN0RKOztFQWlFQTtJQUNFLDJGQUFBO0VBOURGO0VBZ0VFO0lBQ0Usa0NBQUE7SUFDQSxvQ0FBQTtJQUNBLDZDQUFBO0VBOURKO0VBaUVFO0lBQ0UsY0FBQTtFQS9ESjtFQWtFRTtJQUNFLGNBQUE7RUFoRUo7RUFtRUU7SUFDRSxrQ0FBQTtJQUNBLGNBQUE7RUFqRUo7RUFtRUk7SUFDRSxjQUFBO0VBakVOOztFQXNFQTtJQUNFLDZEQUFBO0VBbkVGO0VBcUVFO0lBQ0UsY0FBQTtFQW5FSjtFQXNFRTtJQUNFLGNBQUE7RUFwRUo7O0VBd0VBO0lBQ0UsNkRBQUE7RUFyRUY7RUF1RUU7SUFDRSxjQUFBO0VBckVKO0VBd0VFO0lBQ0UsY0FBQTtFQXRFSjtFQXlFRTs7SUFFRSxjQUFBO0VBdkVKOztFQTJFQTtJQUNFLG1CQUFBO0VBeEVGO0FBQ0YiLCJmaWxlIjoibWFpbi1jb250ZW50LmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiOmhvc3Qge1xyXG4gIGhlaWdodDogMTAwJTtcclxuICB3aWR0aDogMTAwJTtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG4gIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgZmxleDogMSAxIGF1dG87XHJcbiAgbWluLXdpZHRoOiAwOyAvLyBJbXBvcnRhbnQgZm9yIGZsZXggaXRlbXMgdG8gc2hyaW5rIHByb3Blcmx5XHJcbn1cclxuXHJcbi8vIE1haW4gY29udGFpbmVyIGZvciBhbGwgY29udGVudCBzdGF0ZXNcclxuLm1haW4tY29udGVudC1jb250YWluZXIge1xyXG4gIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGZsZXg6IDEgMSBhdXRvO1xyXG4gIG1pbi13aWR0aDogMDsgLy8gSW1wb3J0YW50IGZvciBmbGV4IGl0ZW1zIHRvIHNocmluayBwcm9wZXJseVxyXG59XHJcblxyXG4vLyBMZWdhY3kgY2xhc3NlcyBtYWludGFpbmVkIGZvciBiYWNrd2FyZCBjb21wYXRpYmlsaXR5XHJcbi5oaWRlVG9vbGJhciB7XHJcbiAgaGVpZ2h0OiAwcHg7XHJcbiAgdHJhbnNpdGlvbjogaGVpZ2h0IDMwMG1zIGVhc2Utb3V0O1xyXG59XHJcblxyXG4uaGlkZVRvb2xiYXJOb25lIHtcclxuICBkaXNwbGF5OiBub25lO1xyXG59XHJcblxyXG4uaHVuZHJlZFBlcmNlbnRDb250ZW50IHtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbn1cclxuXHJcbi5jb250ZW50V2l0aFRvb2xiYXIge1xyXG4gIGhlaWdodDogY2FsYygxMDAlIC0gNzJweCk7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbn1cclxuXHJcbi8vID09PSBMT0FESU5HIFNUQVRFIFNUWUxFUyA9PT1cclxuLmxvYWRpbmctb3ZlcmxheSB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHJpZ2h0OiAwO1xyXG4gIGJvdHRvbTogMDtcclxuICBiYWNrZ3JvdW5kOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuOTUpO1xyXG4gIGJhY2tkcm9wLWZpbHRlcjogYmx1cigycHgpO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICB6LWluZGV4OiAxMDAwO1xyXG4gIFxyXG4gIC8vIFNtb290aCBmYWRlLWluIGFuaW1hdGlvblxyXG4gIGFuaW1hdGlvbjogZmFkZUluIDAuM3MgZWFzZS1vdXQ7XHJcbiAgXHJcbiAgLmxvYWRpbmctY29udGVudCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICBwYWRkaW5nOiAycmVtO1xyXG4gICAgXHJcbiAgICBtYXQtcHJvZ3Jlc3Mtc3Bpbm5lciB7XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDFyZW07XHJcbiAgICAgIFxyXG4gICAgICAvLyBQdWxzZSBhbmltYXRpb24gZm9yIGVuaGFuY2VkIHZpc3VhbCBmZWVkYmFja1xyXG4gICAgICBhbmltYXRpb246IHB1bHNlIDJzIGluZmluaXRlIGVhc2UtaW4tb3V0O1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAubG9hZGluZy10ZXh0IHtcclxuICAgICAgZm9udC1zaXplOiAxLjFyZW07XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICAgIGNvbG9yOiAjMzMzO1xyXG4gICAgICBtYXJnaW46IDAuNXJlbSAwO1xyXG4gICAgICBsZXR0ZXItc3BhY2luZzogMC41cHg7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5sb2FkaW5nLXN1YnRleHQge1xyXG4gICAgICBmb250LXNpemU6IDAuOXJlbTtcclxuICAgICAgY29sb3I6ICM2NjY7XHJcbiAgICAgIG1hcmdpbjogMDtcclxuICAgICAgb3BhY2l0eTogMC44O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLy8gPT09IElOREVYSU5HIFNUQVRFIFNUWUxFUyA9PT1cclxuLmluZGV4aW5nLW92ZXJsYXkge1xyXG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICB0b3A6IDA7XHJcbiAgbGVmdDogMDtcclxuICByaWdodDogMDtcclxuICBib3R0b206IDA7XHJcbiAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDEzNWRlZywgcmdiYSgyNTUsIDE5MywgNywgMC4xKSAwJSwgcmdiYSgyNTUsIDE1MiwgMCwgMC4xKSAxMDAlKTtcclxuICBiYWNrZHJvcC1maWx0ZXI6IGJsdXIoMnB4KTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgei1pbmRleDogMTAwMDtcclxuICBcclxuICAvLyBHZW50bGUgc2xpZGUtaW4gYW5pbWF0aW9uXHJcbiAgYW5pbWF0aW9uOiBzbGlkZUluRnJvbUxlZnQgMC40cyBlYXNlLW91dDtcclxuICBcclxuICAuaW5kZXhpbmctY29udGVudCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICBwYWRkaW5nOiAycmVtO1xyXG4gICAgYmFja2dyb3VuZDogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjk1KTtcclxuICAgIGJvcmRlci1yYWRpdXM6IDEycHg7XHJcbiAgICBib3gtc2hhZG93OiAwIDRweCAyMHB4IHJnYmEoMjU1LCAxOTMsIDcsIDAuMyk7XHJcbiAgICBib3JkZXI6IDFweCBzb2xpZCByZ2JhKDI1NSwgMTkzLCA3LCAwLjQpO1xyXG4gICAgXHJcbiAgICBtYXQtcHJvZ3Jlc3Mtc3Bpbm5lciB7XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDFyZW07XHJcbiAgICAgIFxyXG4gICAgICAvLyBHZW50bGUgcHVsc2luZyBmb3IgaW5kZXhpbmdcclxuICAgICAgYW5pbWF0aW9uOiBpbmRleGluZ1B1bHNlIDIuNXMgaW5maW5pdGUgZWFzZS1pbi1vdXQ7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5pbmRleGluZy10ZXh0IHtcclxuICAgICAgZm9udC1zaXplOiAxLjFyZW07XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA2MDA7XHJcbiAgICAgIGNvbG9yOiAjZmY4ZjAwO1xyXG4gICAgICBtYXJnaW46IDAuNXJlbSAwO1xyXG4gICAgICBsZXR0ZXItc3BhY2luZzogMC41cHg7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5pbmRleGluZy1zdWJ0ZXh0IHtcclxuICAgICAgZm9udC1zaXplOiAwLjlyZW07XHJcbiAgICAgIGNvbG9yOiAjZjU3YzAwO1xyXG4gICAgICBtYXJnaW46IDAgMCAxcmVtIDA7XHJcbiAgICAgIG9wYWNpdHk6IDAuOTtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmluZGV4aW5nLWluZm8ge1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICAgICAgYmFja2dyb3VuZDogcmdiYSgyNTUsIDE5MywgNywgMC4xKTtcclxuICAgICAgcGFkZGluZzogMC41cmVtIDFyZW07XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDZweDtcclxuICAgICAgZm9udC1zaXplOiAwLjg1cmVtO1xyXG4gICAgICBjb2xvcjogI2U2NTEwMDtcclxuICAgICAgXHJcbiAgICAgIC5pbmZvLWljb24ge1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMS4xcmVtO1xyXG4gICAgICAgIHdpZHRoOiAxLjFyZW07XHJcbiAgICAgICAgaGVpZ2h0OiAxLjFyZW07XHJcbiAgICAgICAgbWFyZ2luLXJpZ2h0OiAwLjVyZW07XHJcbiAgICAgICAgY29sb3I6ICNmZjk4MDA7XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBFUlJPUiBTVEFURSBTVFlMRVMgPT09XHJcbi5lcnJvci1zdGF0ZSB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHJpZ2h0OiAwO1xyXG4gIGJvdHRvbTogMDtcclxuICBiYWNrZ3JvdW5kOiBsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjZmFmYWZhIDAlLCAjZjVmNWY1IDEwMCUpO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICB6LWluZGV4OiAxMDAwO1xyXG4gIFxyXG4gIGFuaW1hdGlvbjogc2xpZGVJbkZyb21Ub3AgMC40cyBlYXNlLW91dDtcclxuICBcclxuICAuZXJyb3ItY29udGVudCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICBwYWRkaW5nOiAycmVtO1xyXG4gICAgbWF4LXdpZHRoOiA0MDBweDtcclxuICAgIFxyXG4gICAgLmVycm9yLWljb24ge1xyXG4gICAgICBmb250LXNpemU6IDNyZW07XHJcbiAgICAgIHdpZHRoOiAzcmVtO1xyXG4gICAgICBoZWlnaHQ6IDNyZW07XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDFyZW07XHJcbiAgICAgIFxyXG4gICAgICAvLyBTdWJ0bGUgc2hha2UgYW5pbWF0aW9uIGZvciBhdHRlbnRpb25cclxuICAgICAgYW5pbWF0aW9uOiBzaGFrZSAwLjVzIGVhc2UtaW4tb3V0O1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuZXJyb3ItdGl0bGUge1xyXG4gICAgICBmb250LXNpemU6IDEuM3JlbTtcclxuICAgICAgZm9udC13ZWlnaHQ6IDYwMDtcclxuICAgICAgY29sb3I6ICNkMzJmMmY7XHJcbiAgICAgIG1hcmdpbjogMCAwIDFyZW0gMDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVycm9yLW1lc3NhZ2Uge1xyXG4gICAgICBmb250LXNpemU6IDFyZW07XHJcbiAgICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgICBsaW5lLWhlaWdodDogMS41O1xyXG4gICAgICBtYXJnaW46IDAgMCAxLjVyZW0gMDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVycm9yLWFjdGlvbnMge1xyXG4gICAgICAucmV0cnktYnV0dG9uIHtcclxuICAgICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgICAgIHBhZGRpbmc6IDAuNXJlbSAxLjVyZW07XHJcbiAgICAgICAgXHJcbiAgICAgICAgbWF0LWljb24ge1xyXG4gICAgICAgICAgbWFyZ2luLXJpZ2h0OiAwLjVyZW07XHJcbiAgICAgICAgfVxyXG4gICAgICAgIFxyXG4gICAgICAgIC8vIEhvdmVyIGVmZmVjdCBmb3IgYmV0dGVyIGludGVyYWN0aW9uIGZlZWRiYWNrXHJcbiAgICAgICAgJjpob3ZlciB7XHJcbiAgICAgICAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoLTJweCk7XHJcbiAgICAgICAgICBib3gtc2hhZG93OiAwIDRweCA4cHggcmdiYSgwLCAwLCAwLCAwLjIpO1xyXG4gICAgICAgICAgdHJhbnNpdGlvbjogYWxsIDAuMnMgZWFzZTtcclxuICAgICAgICB9XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBFTVBUWSBTVEFURSBTVFlMRVMgPT09XHJcbi5lbXB0eS1zdGF0ZSB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHJpZ2h0OiAwO1xyXG4gIGJvdHRvbTogMDtcclxuICBiYWNrZ3JvdW5kOiBsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjZjhmOWZhIDAlLCAjZTllY2VmIDEwMCUpO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICB6LWluZGV4OiA1MDA7XHJcbiAgXHJcbiAgYW5pbWF0aW9uOiBmYWRlSW4gMC41cyBlYXNlLW91dDtcclxuICBcclxuICAuZW1wdHktY29udGVudCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICBwYWRkaW5nOiAzcmVtIDJyZW07XHJcbiAgICBtYXgtd2lkdGg6IDUwMHB4O1xyXG4gICAgXHJcbiAgICAuZW1wdHktaWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogNHJlbTtcclxuICAgICAgd2lkdGg6IDRyZW07XHJcbiAgICAgIGhlaWdodDogNHJlbTtcclxuICAgICAgY29sb3I6ICM5MGE0YWU7XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDEuNXJlbTtcclxuICAgICAgXHJcbiAgICAgIC8vIEdlbnRsZSBmbG9hdGluZyBhbmltYXRpb25cclxuICAgICAgYW5pbWF0aW9uOiBmbG9hdCAzcyBlYXNlLWluLW91dCBpbmZpbml0ZTtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVtcHR5LXRpdGxlIHtcclxuICAgICAgZm9udC1zaXplOiAxLjVyZW07XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA2MDA7XHJcbiAgICAgIGNvbG9yOiAjMzc0NzRmO1xyXG4gICAgICBtYXJnaW46IDAgMCAxcmVtIDA7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5lbXB0eS1tZXNzYWdlIHtcclxuICAgICAgZm9udC1zaXplOiAxcmVtO1xyXG4gICAgICBjb2xvcjogIzc4OTA5YztcclxuICAgICAgbGluZS1oZWlnaHQ6IDEuNjtcclxuICAgICAgbWFyZ2luOiAwIDAgMnJlbSAwO1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuZW1wdHktYWN0aW9ucyB7XHJcbiAgICAgIC5lbXB0eS1oaW50IHtcclxuICAgICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgICAgZm9udC1zaXplOiAwLjlyZW07XHJcbiAgICAgICAgY29sb3I6ICM5MGE0YWU7XHJcbiAgICAgICAgbWFyZ2luOiAwO1xyXG4gICAgICAgIFxyXG4gICAgICAgIC5oaW50LWljb24ge1xyXG4gICAgICAgICAgZm9udC1zaXplOiAxLjJyZW07XHJcbiAgICAgICAgICB3aWR0aDogMS4ycmVtO1xyXG4gICAgICAgICAgaGVpZ2h0OiAxLjJyZW07XHJcbiAgICAgICAgICBtYXJnaW4tcmlnaHQ6IDAuNXJlbTtcclxuICAgICAgICB9XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBJRlJBTUUgU1RZTEVTID09PVxyXG4uY29udGVudC1pZnJhbWUge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBib3JkZXI6IG5vbmU7XHJcbiAgYmFja2dyb3VuZDogd2hpdGU7XHJcbiAgZmxleDogMSAxIGF1dG87XHJcbiAgZGlzcGxheTogYmxvY2s7IC8vIEZJWDogZXNwbGljaXRvIHBlciBldml0YXJlIHNwYWNpbmcgaXNzdWVzXHJcbiAgXHJcbiAgLy8gU21vb3RoIHRyYW5zaXRpb24gd2hlbiBzaG93aW5nL2hpZGluZ1xyXG4gIHRyYW5zaXRpb246IG9wYWNpdHkgMC4zcyBlYXNlLWluLW91dDtcclxuICBcclxuICAmW2hpZGRlbl0ge1xyXG4gICAgb3BhY2l0eTogMDtcclxuICAgIGRpc3BsYXk6IG5vbmU7XHJcbiAgfVxyXG4gIFxyXG4gICY6bm90KFtoaWRkZW5dKSB7XHJcbiAgICBvcGFjaXR5OiAxO1xyXG4gICAgZGlzcGxheTogYmxvY2s7XHJcbiAgfVxyXG4gIFxyXG4gIC8vIEZvY3VzIHN0eWxlcyBmb3IgYWNjZXNzaWJpbGl0eVxyXG4gICY6Zm9jdXMge1xyXG4gICAgb3V0bGluZTogMnB4IHNvbGlkICMyMTk2ZjM7XHJcbiAgICBvdXRsaW5lLW9mZnNldDogLTJweDtcclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBBTklNQVRJT05TID09PVxyXG5Aa2V5ZnJhbWVzIGZhZGVJbiB7XHJcbiAgZnJvbSB7XHJcbiAgICBvcGFjaXR5OiAwO1xyXG4gICAgdHJhbnNmb3JtOiBzY2FsZSgwLjk1KTtcclxuICB9XHJcbiAgdG8ge1xyXG4gICAgb3BhY2l0eTogMTtcclxuICAgIHRyYW5zZm9ybTogc2NhbGUoMSk7XHJcbiAgfVxyXG59XHJcblxyXG5Aa2V5ZnJhbWVzIHNsaWRlSW5Gcm9tVG9wIHtcclxuICBmcm9tIHtcclxuICAgIG9wYWNpdHk6IDA7XHJcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoLTIwcHgpO1xyXG4gIH1cclxuICB0byB7XHJcbiAgICBvcGFjaXR5OiAxO1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApO1xyXG4gIH1cclxufVxyXG5cclxuQGtleWZyYW1lcyBzbGlkZUluRnJvbUxlZnQge1xyXG4gIGZyb20ge1xyXG4gICAgb3BhY2l0eTogMDtcclxuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWCgtMzBweCkgc2NhbGUoMC45NSk7XHJcbiAgfVxyXG4gIHRvIHtcclxuICAgIG9wYWNpdHk6IDE7XHJcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoMCkgc2NhbGUoMSk7XHJcbiAgfVxyXG59XHJcblxyXG5Aa2V5ZnJhbWVzIHB1bHNlIHtcclxuICAwJSwgMTAwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEpO1xyXG4gICAgb3BhY2l0eTogMTtcclxuICB9XHJcbiAgNTAlIHtcclxuICAgIHRyYW5zZm9ybTogc2NhbGUoMS4wNSk7XHJcbiAgICBvcGFjaXR5OiAwLjg7XHJcbiAgfVxyXG59XHJcblxyXG5Aa2V5ZnJhbWVzIHNoYWtlIHtcclxuICAwJSwgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWCgwKTsgfVxyXG4gIDI1JSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWCgtNXB4KTsgfVxyXG4gIDc1JSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWCg1cHgpOyB9XHJcbn1cclxuXHJcbkBrZXlmcmFtZXMgZmxvYXQge1xyXG4gIDAlLCAxMDAlIHtcclxuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTtcclxuICB9XHJcbiAgNTAlIHtcclxuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtMTBweCk7XHJcbiAgfVxyXG59XHJcblxyXG5Aa2V5ZnJhbWVzIGluZGV4aW5nUHVsc2Uge1xyXG4gIDAlLCAxMDAlIHtcclxuICAgIHRyYW5zZm9ybTogc2NhbGUoMSk7XHJcbiAgICBvcGFjaXR5OiAxO1xyXG4gIH1cclxuICA1MCUge1xyXG4gICAgdHJhbnNmb3JtOiBzY2FsZSgxLjEpO1xyXG4gICAgb3BhY2l0eTogMC43O1xyXG4gIH1cclxufVxyXG5cclxuLy8gPT09IFJFU1BPTlNJVkUgREVTSUdOID09PVxyXG5AbWVkaWEgKG1heC13aWR0aDogNzY4cHgpIHtcclxuICAubG9hZGluZy1vdmVybGF5IC5sb2FkaW5nLWNvbnRlbnQsXHJcbiAgLmluZGV4aW5nLW92ZXJsYXkgLmluZGV4aW5nLWNvbnRlbnQsXHJcbiAgLmVycm9yLXN0YXRlIC5lcnJvci1jb250ZW50LFxyXG4gIC5lbXB0eS1zdGF0ZSAuZW1wdHktY29udGVudCB7XHJcbiAgICBwYWRkaW5nOiAxLjVyZW0gMXJlbTtcclxuICB9XHJcbiAgXHJcbiAgLmVycm9yLXN0YXRlIC5lcnJvci1jb250ZW50IC5lcnJvci1pY29uLFxyXG4gIC5lbXB0eS1zdGF0ZSAuZW1wdHktY29udGVudCAuZW1wdHktaWNvbiB7XHJcbiAgICBmb250LXNpemU6IDIuNXJlbTtcclxuICAgIHdpZHRoOiAyLjVyZW07XHJcbiAgICBoZWlnaHQ6IDIuNXJlbTtcclxuICB9XHJcbiAgXHJcbiAgLmVtcHR5LXN0YXRlIC5lbXB0eS1jb250ZW50IC5lbXB0eS10aXRsZSB7XHJcbiAgICBmb250LXNpemU6IDEuM3JlbTtcclxuICB9XHJcbiAgXHJcbiAgLmVycm9yLXN0YXRlIC5lcnJvci1jb250ZW50IC5lcnJvci10aXRsZSB7XHJcbiAgICBmb250LXNpemU6IDEuMXJlbTtcclxuICB9XHJcbn1cclxuXHJcbkBtZWRpYSAobWF4LXdpZHRoOiA0ODBweCkge1xyXG4gIC5sb2FkaW5nLW92ZXJsYXkgLmxvYWRpbmctY29udGVudCAubG9hZGluZy10ZXh0LFxyXG4gIC5pbmRleGluZy1vdmVybGF5IC5pbmRleGluZy1jb250ZW50IC5pbmRleGluZy10ZXh0IHtcclxuICAgIGZvbnQtc2l6ZTogMXJlbTtcclxuICB9XHJcbiAgXHJcbiAgLmVycm9yLXN0YXRlIC5lcnJvci1jb250ZW50LFxyXG4gIC5lbXB0eS1zdGF0ZSAuZW1wdHktY29udGVudCxcclxuICAuaW5kZXhpbmctb3ZlcmxheSAuaW5kZXhpbmctY29udGVudCB7XHJcbiAgICBwYWRkaW5nOiAxcmVtO1xyXG4gIH1cclxuICBcclxuICAuZXJyb3Itc3RhdGUgLmVycm9yLWNvbnRlbnQgLnJldHJ5LWJ1dHRvbiB7XHJcbiAgICB3aWR0aDogMTAwJTtcclxuICAgIG1hcmdpbi10b3A6IDAuNXJlbTtcclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBEQVJLIE1PREUgU1VQUE9SVCA9PT1cclxuQG1lZGlhIChwcmVmZXJzLWNvbG9yLXNjaGVtZTogZGFyaykge1xyXG4gIDpob3N0IHtcclxuICAgIGJvcmRlci1jb2xvcjogIzQyNDI0MjtcclxuICB9XHJcbiAgXHJcbiAgLmxvYWRpbmctb3ZlcmxheSB7XHJcbiAgICBiYWNrZ3JvdW5kOiByZ2JhKDMzLCAzMywgMzMsIDAuOTUpO1xyXG4gICAgXHJcbiAgICAubG9hZGluZy10ZXh0IHtcclxuICAgICAgY29sb3I6ICNlMGUwZTA7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5sb2FkaW5nLXN1YnRleHQge1xyXG4gICAgICBjb2xvcjogI2JkYmRiZDtcclxuICAgIH1cclxuICB9XHJcbiAgXHJcbiAgLmluZGV4aW5nLW92ZXJsYXkge1xyXG4gICAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDEzNWRlZywgcmdiYSgyNTUsIDE5MywgNywgMC4yKSAwJSwgcmdiYSgyNTUsIDE1MiwgMCwgMC4yKSAxMDAlKTtcclxuICAgIFxyXG4gICAgLmluZGV4aW5nLWNvbnRlbnQge1xyXG4gICAgICBiYWNrZ3JvdW5kOiByZ2JhKDQ4LCA0OCwgNDgsIDAuOTUpO1xyXG4gICAgICBib3JkZXItY29sb3I6IHJnYmEoMjU1LCAxOTMsIDcsIDAuNik7XHJcbiAgICAgIGJveC1zaGFkb3c6IDAgNHB4IDIwcHggcmdiYSgyNTUsIDE5MywgNywgMC40KTtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmluZGV4aW5nLXRleHQge1xyXG4gICAgICBjb2xvcjogI2ZmYjc0ZDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmluZGV4aW5nLXN1YnRleHQge1xyXG4gICAgICBjb2xvcjogI2ZmYTcyNjtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmluZGV4aW5nLWluZm8ge1xyXG4gICAgICBiYWNrZ3JvdW5kOiByZ2JhKDI1NSwgMTkzLCA3LCAwLjIpO1xyXG4gICAgICBjb2xvcjogI2ZmY2MwMjtcclxuICAgICAgXHJcbiAgICAgIC5pbmZvLWljb24ge1xyXG4gICAgICAgIGNvbG9yOiAjZmZjMTA3O1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG4gIFxyXG4gIC5lcnJvci1zdGF0ZSB7XHJcbiAgICBiYWNrZ3JvdW5kOiBsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjMzAzMDMwIDAlLCAjNDI0MjQyIDEwMCUpO1xyXG4gICAgXHJcbiAgICAuZXJyb3ItdGl0bGUge1xyXG4gICAgICBjb2xvcjogI2Y0OGZiMTtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVycm9yLW1lc3NhZ2Uge1xyXG4gICAgICBjb2xvcjogI2JkYmRiZDtcclxuICAgIH1cclxuICB9XHJcbiAgXHJcbiAgLmVtcHR5LXN0YXRlIHtcclxuICAgIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxMzVkZWcsICMzMDMwMzAgMCUsICM0MjQyNDIgMTAwJSk7XHJcbiAgICBcclxuICAgIC5lbXB0eS10aXRsZSB7XHJcbiAgICAgIGNvbG9yOiAjZTBlMGUwO1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuZW1wdHktbWVzc2FnZSB7XHJcbiAgICAgIGNvbG9yOiAjYmRiZGJkO1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuZW1wdHktaWNvbixcclxuICAgIC5lbXB0eS1oaW50IHtcclxuICAgICAgY29sb3I6ICM5MGE0YWU7XHJcbiAgICB9XHJcbiAgfVxyXG4gIFxyXG4gIC5jb250ZW50LWlmcmFtZSB7XHJcbiAgICBiYWNrZ3JvdW5kOiAjMWUxZTFlO1xyXG4gIH1cclxufVxyXG4iXX0= */"] });
+
+
+/***/ }),
+
+/***/ "oFRw":
+/*!*******************************************************!*\
+  !*** ./src/app/git-chat/services/git-chat.service.ts ***!
+  \*******************************************************/
+/*! exports provided: GitChatService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "GitChatService", function() { return GitChatService; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ "kU1M");
+/* harmony import */ var _providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../providers/chat-provider.interface */ "4vaX");
+/* harmony import */ var _models_chat_models__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../models/chat.models */ "7Q97");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ "tk/3");
+
+
+
+
+
+
+
+const CHAT_SETTINGS_KEY = 'mdexplorer_chat_settings';
+class GitChatService {
+    constructor(provider, http) {
+        this.provider = provider;
+        this.http = http;
+        this.subscriptions = [];
+        this.currentRepositoryPath = null;
+        this.previousMessageCount = 0;
+        // Electron detection
+        this.isElectron = !!(window && window.electronAPI);
+        // Chat tab active state (set by component)
+        this._isChatTabActive$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](false);
+        this.isChatTabActive$ = this._isChatTabActive$.asObservable();
+        // Connection state
+        this._connectionState$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]('disconnected');
+        this.connectionState$ = this._connectionState$.asObservable();
+        // Room info
+        this._roomInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](null);
+        this.roomInfo$ = this._roomInfo$.asObservable();
+        // Settings
+        this._settings$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](this.loadSettings());
+        this.settings$ = this._settings$.asObservable();
+        this.messages$ = this.provider.messages$;
+        this.presence$ = this.provider.presence$;
+        this.isConnected$ = this.provider.isConnected$;
+        this.projectUsersCount$ = this.provider.projectUsersCount$;
+        // Subscribe to messages for notifications
+        this.setupNotifications();
+    }
+    /**
+     * Set up notification listener for new messages
+     */
+    setupNotifications() {
+        const sub = this.provider.messages$.pipe(Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["skip"])(1), // Skip initial empty array
+        Object(rxjs_operators__WEBPACK_IMPORTED_MODULE_2__["distinctUntilChanged"])((prev, curr) => prev.length === curr.length)).subscribe((messages) => {
+            if (messages.length > this.previousMessageCount && this.previousMessageCount > 0) {
+                const newMessage = messages[messages.length - 1];
+                if (newMessage && newMessage.type === 'message') {
+                    this.notifyNewMessage(newMessage);
+                }
+            }
+            this.previousMessageCount = messages.length;
+        });
+        this.subscriptions.push(sub);
+    }
+    /**
+     * Show notification for new message (Electron only)
+     */
+    notifyNewMessage(message) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            const settings = this._settings$.value;
+            const currentUser = this.provider.getCurrentUser();
+            // Don't notify if:
+            // - Not in Electron
+            // - Notifications disabled
+            // - Chat tab is active
+            // - Message is from current user
+            if (!this.isElectron)
+                return;
+            if (!settings.notificationsEnabled)
+                return;
+            if (this._isChatTabActive$.value)
+                return;
+            if (currentUser && message.senderEmail === currentUser.userEmail)
+                return;
+            // Truncate content for notification
+            const truncatedContent = message.content.length > 50
+                ? message.content.substring(0, 50) + '...'
+                : message.content;
+            const title = 'Team Chat - MdExplorer';
+            const body = `${message.senderName}: ${truncatedContent}`;
+            // Try native Electron notification first (works in agent mode / background)
+            const api = window.electronAPI;
+            if ((api === null || api === void 0 ? void 0 : api.showNotification) && (api === null || api === void 0 ? void 0 : api.isWindowFocused)) {
+                try {
+                    const isFocused = yield api.isWindowFocused();
+                    // Use native notification when window is not focused (agent mode / minimized)
+                    if (!isFocused) {
+                        api.showNotification(title, body, { silent: !settings.soundEnabled });
+                        console.log('[GitChatService] Sent native Electron notification');
+                        return;
+                    }
+                }
+                catch (e) {
+                    console.warn('[GitChatService] Failed to check window focus:', e);
+                }
+            }
+            // Fallback to Web Notification API (when window is focused)
+            // Request notification permission if needed
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+                return;
+            }
+            if (Notification.permission !== 'granted')
+                return;
+            try {
+                const notification = new Notification(title, {
+                    body,
+                    icon: '/assets/icons/chat-notification.png',
+                    silent: !settings.soundEnabled,
+                    tag: 'mdexplorer-chat' // Replaces previous notifications
+                });
+                // Handle notification errors
+                notification.onerror = (e) => {
+                    console.warn('[GitChatService] Notification error:', e);
+                };
+                // Focus app when notification clicked
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+                // Auto-close after 5 seconds
+                setTimeout(() => notification.close(), 5000);
+            }
+            catch (e) {
+                console.warn('[GitChatService] Failed to create notification:', e);
+            }
+        });
+    }
+    /**
+     * Join a chat room for a repository
+     */
+    joinRoom(repositoryPath) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (this.currentRepositoryPath === repositoryPath) {
+                return; // Already in this room
+            }
+            this._connectionState$.next('connecting');
+            this.previousMessageCount = 0;
+            try {
+                // Get room info from backend
+                const roomInfo = yield this.http.get(`/api/GitChat/room-info?repositoryPath=${encodeURIComponent(repositoryPath)}`).toPromise();
+                if (!roomInfo || !roomInfo.hasRemote) {
+                    this._connectionState$.next('disconnected');
+                    this._roomInfo$.next(roomInfo || null);
+                    return;
+                }
+                this._roomInfo$.next(roomInfo);
+                // Create user object
+                const user = {
+                    oderId: this.generateSessionId(),
+                    userId: roomInfo.user.userId,
+                    userName: roomInfo.user.userName,
+                    userEmail: roomInfo.user.userEmail,
+                    online: true,
+                    lastSeen: Date.now()
+                };
+                // Connect to room via provider
+                yield this.provider.connect(roomInfo.roomId, user);
+                this.currentRepositoryPath = repositoryPath;
+                this._connectionState$.next('connected');
+                console.log(`[GitChatService] Joined room for repository: ${repositoryPath}`);
+            }
+            catch (error) {
+                console.error('[GitChatService] Failed to join room:', error);
+                this._connectionState$.next('error');
+                throw error;
+            }
+        });
+    }
+    /**
+     * Leave the current chat room
+     */
+    leaveRoom() {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (!this.currentRepositoryPath) {
+                return;
+            }
+            try {
+                yield this.provider.disconnect();
+                this.currentRepositoryPath = null;
+                this._connectionState$.next('disconnected');
+                this._roomInfo$.next(null);
+                this.previousMessageCount = 0;
+                console.log('[GitChatService] Left room');
+            }
+            catch (error) {
+                console.error('[GitChatService] Failed to leave room:', error);
+            }
+        });
+    }
+    /**
+     * Send a message to the current room
+     */
+    sendMessage(content) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            const trimmedContent = content.trim();
+            if (!trimmedContent)
+                return;
+            const currentUser = this.provider.getCurrentUser();
+            if (!currentUser) {
+                throw new Error('Not connected to a room');
+            }
+            yield this.provider.sendMessage({
+                content: trimmedContent,
+                senderName: currentUser.userName,
+                senderEmail: currentUser.userEmail,
+                timestamp: Date.now(),
+                type: 'message'
+            });
+        });
+    }
+    /**
+     * Set whether the chat tab is currently active
+     */
+    setChatTabActive(active) {
+        this._isChatTabActive$.next(active);
+    }
+    /**
+     * Update chat settings
+     */
+    updateSettings(settings) {
+        const current = this._settings$.value;
+        const updated = Object.assign(Object.assign({}, current), settings);
+        this._settings$.next(updated);
+        this.saveSettings(updated);
+    }
+    /**
+     * Load settings from localStorage
+     */
+    loadSettings() {
+        try {
+            const stored = localStorage.getItem(CHAT_SETTINGS_KEY);
+            if (stored) {
+                return Object.assign(Object.assign({}, _models_chat_models__WEBPACK_IMPORTED_MODULE_4__["DEFAULT_CHAT_SETTINGS"]), JSON.parse(stored));
+            }
+        }
+        catch (e) {
+            console.warn('[GitChatService] Failed to load settings:', e);
+        }
+        return _models_chat_models__WEBPACK_IMPORTED_MODULE_4__["DEFAULT_CHAT_SETTINGS"];
+    }
+    /**
+     * Save settings to localStorage
+     */
+    saveSettings(settings) {
+        try {
+            localStorage.setItem(CHAT_SETTINGS_KEY, JSON.stringify(settings));
+        }
+        catch (e) {
+            console.warn('[GitChatService] Failed to save settings:', e);
+        }
+    }
+    /**
+     * Generate a unique session ID
+     */
+    generateSessionId() {
+        return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    }
+    /**
+     * Check if currently connected
+     */
+    get isConnected() {
+        return this._connectionState$.value === 'connected';
+    }
+    /**
+     * Get current room ID
+     */
+    get currentRoomId() {
+        return this.provider.getCurrentRoomId();
+    }
+    ngOnDestroy() {
+        this.subscriptions.forEach(sub => sub.unsubscribe());
+        this.leaveRoom();
+    }
+}
+GitChatService.ɵfac = function GitChatService_Factory(t) { return new (t || GitChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_3__["CHAT_PROVIDER"]), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__["HttpClient"])); };
+GitChatService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineInjectable"]({ token: GitChatService, factory: GitChatService.ɵfac });
 
 
 /***/ }),
@@ -24844,6 +25734,193 @@ NewDirectoryComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵde
 
 /***/ }),
 
+/***/ "r9BE":
+/*!*************************************************************!*\
+  !*** ./src/app/git-chat/providers/signalr-chat.provider.ts ***!
+  \*************************************************************/
+/*! exports provided: SignalRChatProvider */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "SignalRChatProvider", function() { return SignalRChatProvider; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ "qCKp");
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @microsoft/signalr */ "6HpG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ "fXoL");
+
+
+
+
+/**
+ * SignalR implementation of IChatProvider
+ * Connects to TeamChatHub on the backend which proxies to Firebase
+ */
+class SignalRChatProvider {
+    constructor() {
+        this.hubConnection = null;
+        this.currentRoomId = null;
+        this.currentUser = null;
+        this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
+        this._presence$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]({ users: [], totalOnline: 0 });
+        this._isConnected$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](false);
+        this._projectUsersCount$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"](0);
+        this.messages$ = this._messages$.asObservable();
+        this.presence$ = this._presence$.asObservable();
+        this.isConnected$ = this._isConnected$.asObservable();
+        this.projectUsersCount$ = this._projectUsersCount$.asObservable();
+        this.initializeSignalR();
+    }
+    /**
+     * Initialize SignalR connection
+     */
+    initializeSignalR() {
+        this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__["HubConnectionBuilder"]()
+            .withUrl('/signalr/teamchat')
+            .configureLogging(_microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__["LogLevel"].Information)
+            .withAutomaticReconnect()
+            .build();
+        // Handle incoming messages
+        this.hubConnection.on('ReceiveMessage', (message) => {
+            const currentMessages = this._messages$.value;
+            // Avoid duplicates
+            if (!currentMessages.find(m => m.id === message.id)) {
+                this._messages$.next([...currentMessages, message]);
+            }
+        });
+        // Handle message history (initial load)
+        this.hubConnection.on('ReceiveMessageHistory', (messages) => {
+            this._messages$.next(messages);
+        });
+        // Handle presence updates
+        this.hubConnection.on('PresenceUpdate', (presence) => {
+            this._presence$.next(presence);
+        });
+        // Handle project users count updates
+        this.hubConnection.on('ProjectUsersCountUpdate', (count) => {
+            this._projectUsersCount$.next(count);
+            console.log('[SignalRChatProvider] Project users count update:', count);
+        });
+        // Handle connection state changes
+        this.hubConnection.onreconnecting(() => {
+            console.log('[SignalRChatProvider] Reconnecting...');
+        });
+        this.hubConnection.onreconnected(() => {
+            console.log('[SignalRChatProvider] Reconnected');
+            // Rejoin room if we were in one
+            if (this.currentRoomId && this.currentUser) {
+                this.joinRoomInternal(this.currentRoomId, this.currentUser);
+            }
+        });
+        this.hubConnection.onclose(() => {
+            console.log('[SignalRChatProvider] Connection closed');
+            this._isConnected$.next(false);
+        });
+    }
+    /**
+     * Connect to a chat room
+     */
+    connect(roomId, user) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (!this.hubConnection) {
+                throw new Error('SignalR not initialized');
+            }
+            // Start connection if not already started
+            if (this.hubConnection.state === 'Disconnected') {
+                yield this.hubConnection.start();
+                console.log('[SignalRChatProvider] SignalR connected');
+            }
+            // Leave previous room if any
+            if (this.currentRoomId) {
+                yield this.leaveRoomInternal();
+            }
+            yield this.joinRoomInternal(roomId, user);
+        });
+    }
+    joinRoomInternal(roomId, user) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            this.currentRoomId = roomId;
+            this.currentUser = user;
+            // Join the room on the server
+            yield this.hubConnection.invoke('JoinRoom', roomId, user);
+            this._isConnected$.next(true);
+            console.log(`[SignalRChatProvider] Joined room: ${roomId}`);
+        });
+    }
+    leaveRoomInternal() {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (this.hubConnection && this.currentRoomId) {
+                try {
+                    yield this.hubConnection.invoke('LeaveRoom', this.currentRoomId);
+                }
+                catch (e) {
+                    console.warn('[SignalRChatProvider] Error leaving room:', e);
+                }
+            }
+            this._messages$.next([]);
+            this._presence$.next({ users: [], totalOnline: 0 });
+        });
+    }
+    /**
+     * Disconnect from current room
+     */
+    disconnect() {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            yield this.leaveRoomInternal();
+            this.currentRoomId = null;
+            this.currentUser = null;
+            this._isConnected$.next(false);
+            console.log('[SignalRChatProvider] Disconnected from room');
+        });
+    }
+    /**
+     * Send a message to the current room
+     */
+    sendMessage(message) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (!this.hubConnection || !this.currentRoomId) {
+                throw new Error('Not connected to a room');
+            }
+            yield this.hubConnection.invoke('SendMessage', this.currentRoomId, message);
+        });
+    }
+    /**
+     * Send a system message
+     */
+    sendSystemMessage(content) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            if (!this.hubConnection || !this.currentRoomId) {
+                return;
+            }
+            const systemMessage = {
+                content,
+                senderName: 'System',
+                senderEmail: '',
+                timestamp: Date.now(),
+                type: 'system'
+            };
+            yield this.hubConnection.invoke('SendMessage', this.currentRoomId, systemMessage);
+        });
+    }
+    /**
+     * Get current room ID
+     */
+    getCurrentRoomId() {
+        return this.currentRoomId;
+    }
+    /**
+     * Get current user
+     */
+    getCurrentUser() {
+        return this.currentUser;
+    }
+}
+SignalRChatProvider.ɵfac = function SignalRChatProvider_Factory(t) { return new (t || SignalRChatProvider)(); };
+SignalRChatProvider.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: SignalRChatProvider, factory: SignalRChatProvider.ɵfac });
+
+
+/***/ }),
+
 /***/ "s8RO":
 /*!*********************************************************************!*\
   !*** ./src/app/md-explorer/components/md-tree/md-tree.component.ts ***!
@@ -25980,7 +27057,9 @@ class MdTreeComponent {
         }
         // Build the mdexplorer:// URL
         // Format: mdexplorer://opendocument/<project-name>/<relative-path>
-        const mdExplorerUrl = `mdexplorer://opendocument/${encodeURIComponent(currentProject.name)}/${relativePath}`;
+        // Encode each path segment separately (to preserve slashes but encode spaces/special chars)
+        const encodedPath = relativePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        const mdExplorerUrl = `mdexplorer://opendocument/${encodeURIComponent(currentProject.name)}/${encodedPath}`;
         this.clipboard.copy(mdExplorerUrl);
         this.snackBar.open('MdExplorer link copied to clipboard', 'OK', { duration: 2000 });
     }

@@ -1431,7 +1431,17 @@ __webpack_require__.r(__webpack_exports__);
 // `ng build --prod` replaces `environment.ts` with `environment.prod.ts`.
 // The list of file replacements can be found in `angular.json`.
 const environment = {
-    production: false
+    production: false,
+    firebase: {
+        apiKey: "AIzaSyDN7WEySybw7YGeIxNPhca0r13m_Ynv7Cw",
+        authDomain: "mdexplorer-chat.firebaseapp.com",
+        databaseURL: "https://mdexplorer-chat-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "mdexplorer-chat",
+        storageBucket: "mdexplorer-chat.firebasestorage.app",
+        messagingSenderId: "651311255174",
+        appId: "1:651311255174:web:4a458b51e35e13c9054b07",
+        measurementId: "G-TFT73YSGQ3"
+    }
 };
 /*
  * For easier debugging in development mode, you can import the following file
@@ -1659,7 +1669,7 @@ class UrlHandlerService {
                         // Wait for indexing to complete before selecting the file
                         this.waitForIndexingComplete(indexingCompleteReceived, () => {
                             console.log('[UrlHandler] Indexing complete, selecting file...');
-                            this.selectFile(data.fullPath, data.section);
+                            this.selectFile(data.fullPath, data.filePath, data.section);
                         });
                     });
                 }
@@ -1701,21 +1711,21 @@ class UrlHandlerService {
     /**
      * Select a file in the tree and optionally scroll to a section
      */
-    selectFile(fullPath, section) {
-        console.log('[UrlHandler] Selecting file:', fullPath, 'section:', section);
+    selectFile(fullPath, relativePath, section) {
+        console.log('[UrlHandler] Selecting file:', fullPath, 'relativePath:', relativePath, 'section:', section);
         // Create a minimal MdFile object to search for in the dataStore
         const searchFile = {
             fullPath: fullPath,
-            path: '',
+            path: fullPath,
             name: fullPath.split(/[/\\]/).pop() || '',
-            relativePath: '',
+            relativePath: relativePath,
             level: 0,
             expandable: false,
             type: 'mdFile',
             childrens: [],
             index: 0,
             isLoading: false,
-            fullDirectoryPath: ''
+            fullDirectoryPath: fullPath.substring(0, Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\')))
         };
         // Try to find the file in the dataStore to get the complete MdFile object
         const foundFile = this.mdFileService.getMdFileFromDataStore(searchFile);
@@ -1726,8 +1736,8 @@ class UrlHandlerService {
             this.mdFileService.setSelectedMdFileFromServer(foundFile);
         }
         else {
-            console.log('[UrlHandler] File not found in dataStore, using search file');
-            // Fallback: use the minimal object (may not work perfectly)
+            console.log('[UrlHandler] File not found in dataStore, using search file with relativePath:', relativePath);
+            // Fallback: use the minimal object with the relativePath from the URL
             this.mdFileService.setSelectedMdFileFromSideNav(searchFile);
             this.mdFileService.setSelectedMdFileFromServer(searchFile);
         }
@@ -4406,8 +4416,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.12.12.10',
-    buildTime: '2025.12.12 19:16:58'
+    version: '2025.12.29.3',
+    buildTime: '2025.12.29 12:05:26'
 };
 
 
@@ -4441,6 +4451,9 @@ class ProjectsService {
         // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
         this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
         this.projectChanging$ = this.projectChangingSubject.asObservable();
+        // Track current project's chat room info for cleanup
+        this.currentRoomId = null;
+        this.currentOderId = null;
         this.dataStore = { mdProjects: [] };
         this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_1__["BehaviorSubject"]([]);
     }
@@ -4465,8 +4478,12 @@ class ProjectsService {
     }
     setNewFolderProject(path) {
         this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+        // Close previous project if any
+        this.notifyProjectClosed();
         this.http.post('../api/MdProjects/SetFolderProject', { path: path }).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
+            // Register project open for chat presence tracking
+            this.notifyProjectOpened(path);
             // Update compatibility mode from response
             if (response.compatibilityMode) {
                 const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__["CompatibilityMode"].GitHub :
@@ -4482,6 +4499,8 @@ class ProjectsService {
     }
     createProjectWithConfig(config) {
         this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+        // Close previous project if any
+        this.notifyProjectClosed();
         const request = {
             path: config.projectPath,
             initializeGit: config.initializeGit,
@@ -4489,6 +4508,8 @@ class ProjectsService {
         };
         this.http.post('../api/MdProjects/SetFolderProject', request).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
+            // Register project open for chat presence tracking
+            this.notifyProjectOpened(config.projectPath);
             // Update compatibility mode from response
             if (response.compatibilityMode) {
                 const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__["CompatibilityMode"].GitHub :
@@ -4521,7 +4542,52 @@ class ProjectsService {
      * Should be called when navigating back to the projects list.
      */
     closeCurrentProject() {
+        // Notify chat system that project is being closed
+        this.notifyProjectClosed();
         return this.http.post('../api/MdProjects/CloseProject', {});
+    }
+    /**
+     * Notify the chat system that a project has been opened.
+     * This registers the user in the project users count.
+     */
+    notifyProjectOpened(projectPath) {
+        this.http.post('../api/GitChat/project-opened', {
+            repositoryPath: projectPath
+        }).subscribe(response => {
+            if (response.success) {
+                this.currentRoomId = response.roomId || null;
+                this.currentOderId = response.oderId || null;
+                console.log('[ProjectsService] Project opened registered, roomId:', response.roomId, 'oderId:', response.oderId, 'users:', response.projectUsersCount);
+            }
+            else {
+                // Not a git repo or no remote - this is fine, just don't track
+                console.log('[ProjectsService] Project opened but not tracking (no git remote):', response.error);
+                this.currentRoomId = null;
+                this.currentOderId = null;
+            }
+        }, error => {
+            console.warn('[ProjectsService] Failed to register project open:', error);
+            this.currentRoomId = null;
+            this.currentOderId = null;
+        });
+    }
+    /**
+     * Notify the chat system that a project has been closed.
+     * This unregisters the user from the project users count.
+     */
+    notifyProjectClosed() {
+        if (this.currentRoomId && this.currentOderId) {
+            this.http.post('../api/GitChat/project-closed', {
+                roomId: this.currentRoomId,
+                oderId: this.currentOderId
+            }).subscribe(response => {
+                console.log('[ProjectsService] Project closed registered');
+            }, error => {
+                console.warn('[ProjectsService] Failed to register project close:', error);
+            });
+            this.currentRoomId = null;
+            this.currentOderId = null;
+        }
     }
 }
 ProjectsService.ɵfac = function ProjectsService_Factory(t) { return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__["HttpClient"]), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["Injector"])); };

@@ -209,10 +209,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private loadMarkdownFile(file: MdFile): void {
     if (!file?.relativePath) {
-      console.warn('⚠️ [MainContent] Invalid file provided for loading');
-      this.updateState({ 
-        status: 'error', 
-        errorMessage: 'File non valido selezionato',
+      const fileInfo = file?.fullPath || file?.name || 'unknown';
+      console.warn('⚠️ [MainContent] Invalid file provided for loading - missing relativePath. File info:', fileInfo);
+      this.updateState({
+        status: 'error',
+        errorMessage: `Impossibile caricare il file: path relativo mancante. File: ${fileInfo}`,
         currentPath: undefined
       });
       return;
@@ -233,12 +234,20 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * Remove leading slashes/backslashes from path to prevent double slash in URL
+   */
+  private cleanRelativePath(path: string): string {
+    return path?.replace(/^[\/\\]+/, '') ?? '';
+  }
+
+  /**
    * Legacy method maintained for backward compatibility
    */
   private callMdExplorerController(node: MdFile): void {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
-      const newHtmlSource = `../api/mdexplorer/${node.relativePath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+      const cleanPath = this.cleanRelativePath(node.relativePath);
+      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
 
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
@@ -388,7 +397,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force iframe reload by modifying URL
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
-        this.htmlSource = `../api/mdexplorer/${currentState.currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
+        const cleanPath = this.cleanRelativePath(currentState.currentPath);
+        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
       }
     });
   }
@@ -439,7 +449,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
-    this.htmlSource = `../api/mdexplorer/${newPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+    const cleanPath = this.cleanRelativePath(newPath);
+    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
   }
 
   /**
@@ -448,7 +459,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private refreshCurrentFile(): void {
     const currentPath = this.contentState$.value.currentPath;
     if (currentPath) {
-      
+
       this.updateState({
         status: 'loading',
         isIndexing: false
@@ -456,7 +467,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
-      this.htmlSource = `../api/mdexplorer/${currentPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
+      const cleanPath = this.cleanRelativePath(currentPath);
+      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
     }
   }
 
