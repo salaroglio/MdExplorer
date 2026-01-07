@@ -556,3 +556,20 @@
     transform: scale(1);
   }
 }
+
+// Diagnostics section
+.diagnostics-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+
+  button {
+    font-size: 0.85rem;
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+    }
+  }
+}

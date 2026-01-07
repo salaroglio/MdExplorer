@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../md-explorer/models/md-project';
 import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
@@ -46,7 +47,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     private dialogAn: NgDialogAnimationService,
     private gitService: GITService,
     private clipboard: Clipboard,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private http: HttpClient
   ) { }
 
     ngOnDestroy(): void {
@@ -244,5 +246,20 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     this.snackBar.open('Share URL copied to clipboard!', 'OK', { duration: 3000 });
     console.log('[Projects] Share URL copied:', shareUrl);
+  }
+
+  /**
+   * Open the application log file
+   */
+  openLog(): void {
+    this.http.post<any>('../api/Diagnostics/OpenLog', {}).subscribe({
+      next: (result) => {
+        console.log('[Projects] Log opened:', result.path);
+      },
+      error: (err) => {
+        console.error('[Projects] Error opening log:', err);
+        this.snackBar.open('Error opening log file: ' + (err.error?.error || err.message), 'OK', { duration: 5000 });
+      }
+    });
   }
 }

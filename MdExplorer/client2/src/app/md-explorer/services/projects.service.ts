@@ -71,6 +71,9 @@ export class ProjectsService {
     this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
       this.currentProjects$.next(response);
 
+      // Update window title for Electron taskbar preview
+      this.updateWindowTitle(response.name);
+
       // Register project open for chat presence tracking
       this.notifyProjectOpened(path);
 
@@ -104,6 +107,9 @@ export class ProjectsService {
 
     this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
       this.currentProjects$.next(response);
+
+      // Update window title for Electron taskbar preview
+      this.updateWindowTitle(response.name);
 
       // Register project open for chat presence tracking
       this.notifyProjectOpened(config.projectPath);
@@ -146,7 +152,37 @@ export class ProjectsService {
   closeCurrentProject(): Observable<any> {
     // Notify chat system that project is being closed
     this.notifyProjectClosed();
+    // Reset window title
+    this.updateWindowTitle(null);
     return this.http.post<any>('../api/MdProjects/CloseProject', {});
+  }
+
+  /**
+   * Re-registers the current project with the backend after a SignalR reconnection.
+   * This is necessary because when the SignalR connection is lost, the backend
+   * cleans up FileSystemWatcher and DatabaseContext for the old ConnectionId.
+   * After reconnection with a new ConnectionId, we need to re-register.
+   */
+  reregisterCurrentProject(): void {
+    const currentProject = this.currentProjects$.getValue();
+    if (currentProject && currentProject.path) {
+      console.log('[ProjectsService] Re-registering project after SignalR reconnection:', currentProject.path);
+
+      this.http.post<any>('../api/MdProjects/SetFolderProject', { path: currentProject.path }).subscribe(
+        response => {
+          console.log('[ProjectsService] Project re-registered successfully');
+          // Update the project in case any settings changed
+          this.currentProjects$.next(response);
+          // Update window title
+          this.updateWindowTitle(response.name);
+        },
+        error => {
+          console.error('[ProjectsService] Failed to re-register project:', error);
+        }
+      );
+    } else {
+      console.log('[ProjectsService] No current project to re-register');
+    }
   }
 
   /**
@@ -198,6 +234,17 @@ export class ProjectsService {
 
       this.currentRoomId = null;
       this.currentOderId = null;
+    }
+  }
+
+  /**
+   * Updates the Electron window title to show the project name in taskbar preview.
+   * Only works when running in Electron.
+   */
+  private updateWindowTitle(projectName: string | null): void {
+    if ((window as any).electronAPI?.setWindowTitle) {
+      const title = projectName ? `${projectName} - MdExplorer` : 'MdExplorer';
+      (window as any).electronAPI.setWindowTitle(title);
     }
   }
 

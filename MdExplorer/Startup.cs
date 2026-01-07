@@ -64,6 +64,9 @@ namespace MdExplorer
             // Add FoldersIgnoreService
             services.AddSingleton<FoldersIgnoreService>();
 
+            // Add ServerCache for command factories
+            services.AddSingleton<IServerCache, ServerCache>();
+
             // Add DatabaseManager for multi-client support
             services.AddSingleton<Services.DatabaseManager.IDatabaseManager, Services.DatabaseManager.DatabaseManager>();
 

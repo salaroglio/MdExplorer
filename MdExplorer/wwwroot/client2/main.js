@@ -108,12 +108,13 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class MdServerMessagesService {
-    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider, openingApplicationProvider, gitService) {
+    constructor(parsingProjectProvider, plantumlWorkingProvider, connectionLostProvider, openingApplicationProvider, gitService, injector) {
         this.parsingProjectProvider = parsingProjectProvider;
         this.plantumlWorkingProvider = plantumlWorkingProvider;
         this.connectionLostProvider = connectionLostProvider;
         this.openingApplicationProvider = openingApplicationProvider;
         this.gitService = gitService;
+        this.injector = injector;
         // Observable for Git branch switch events
         this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
         this.connectionIsLost = false;
@@ -168,12 +169,13 @@ class MdServerMessagesService {
                 });
             }
             if (this.hubConnection.state == "Disconnected") {
+                const wasReconnection = this.connectionIsLost; // Capture before reset
                 this.hubConnection
                     .start()
                     .then(() => {
                     console.log('Connection started');
                     this.connectionIsLost = false;
-                    this.getCurrentConnectionId(this);
+                    this.getCurrentConnectionId(this, wasReconnection);
                 })
                     .catch(err => {
                     console.log('Error while starting connection: ' + err);
@@ -305,7 +307,7 @@ class MdServerMessagesService {
             callback(connectionId, objectThis);
         });
     }
-    getCurrentConnectionId(objectThis) {
+    getCurrentConnectionId(objectThis, isReconnection = false) {
         this.hubConnection.invoke('GetConnectionId')
             .then(function (connectionId) {
             var _a;
@@ -315,6 +317,22 @@ class MdServerMessagesService {
                 console.log('[SignalR] Notifying Electron of connectionId:', connectionId);
                 window.electronAPI.notifyConnectionIdReady(connectionId);
             }
+            // If this was a reconnection, re-register the current project with the new connectionId
+            // This is necessary because when SignalR disconnects, the backend cleans up
+            // FileSystemWatcher and DatabaseContext for the old connectionId
+            if (isReconnection) {
+                console.log('[SignalR] Reconnection detected, re-registering project...');
+                objectThis.reregisterCurrentProject();
+            }
+        });
+    }
+    reregisterCurrentProject() {
+        // Use dynamic import to avoid circular dependency issues
+        Promise.resolve(/*! import() */).then(__webpack_require__.bind(null, /*! ../../md-explorer/services/projects.service */ "vUCT")).then(module => {
+            const projectsService = this.injector.get(module.ProjectsService);
+            projectsService.reregisterCurrentProject();
+        }).catch(err => {
+            console.error('[SignalR] Failed to re-register project:', err);
         });
     }
     // TOC Generation listeners
@@ -363,7 +381,7 @@ class MdServerMessagesService {
         });
     }
 }
-MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_3__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_4__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_5__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_6__["OpeningApplicationProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_7__["GITService"])); };
+MdServerMessagesService.ɵfac = function MdServerMessagesService_Factory(t) { return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_3__["ParsingProjectProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_4__["PlantumlWorkingProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_5__["ConnectionLostProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_6__["OpeningApplicationProvider"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_7__["GITService"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["Injector"])); };
 MdServerMessagesService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: MdServerMessagesService, factory: MdServerMessagesService.ɵfac, providedIn: 'root' });
 
 
@@ -4416,8 +4434,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2025.12.29.3',
-    buildTime: '2025.12.29 12:05:26'
+    version: '2026.01.05.4',
+    buildTime: '2026.01.05 12:02:49'
 };
 
 
@@ -4482,6 +4500,8 @@ class ProjectsService {
         this.notifyProjectClosed();
         this.http.post('../api/MdProjects/SetFolderProject', { path: path }).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
+            // Update window title for Electron taskbar preview
+            this.updateWindowTitle(response.name);
             // Register project open for chat presence tracking
             this.notifyProjectOpened(path);
             // Update compatibility mode from response
@@ -4508,6 +4528,8 @@ class ProjectsService {
         };
         this.http.post('../api/MdProjects/SetFolderProject', request).subscribe((response) => Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
             this.currentProjects$.next(response);
+            // Update window title for Electron taskbar preview
+            this.updateWindowTitle(response.name);
             // Register project open for chat presence tracking
             this.notifyProjectOpened(config.projectPath);
             // Update compatibility mode from response
@@ -4544,7 +4566,33 @@ class ProjectsService {
     closeCurrentProject() {
         // Notify chat system that project is being closed
         this.notifyProjectClosed();
+        // Reset window title
+        this.updateWindowTitle(null);
         return this.http.post('../api/MdProjects/CloseProject', {});
+    }
+    /**
+     * Re-registers the current project with the backend after a SignalR reconnection.
+     * This is necessary because when the SignalR connection is lost, the backend
+     * cleans up FileSystemWatcher and DatabaseContext for the old ConnectionId.
+     * After reconnection with a new ConnectionId, we need to re-register.
+     */
+    reregisterCurrentProject() {
+        const currentProject = this.currentProjects$.getValue();
+        if (currentProject && currentProject.path) {
+            console.log('[ProjectsService] Re-registering project after SignalR reconnection:', currentProject.path);
+            this.http.post('../api/MdProjects/SetFolderProject', { path: currentProject.path }).subscribe(response => {
+                console.log('[ProjectsService] Project re-registered successfully');
+                // Update the project in case any settings changed
+                this.currentProjects$.next(response);
+                // Update window title
+                this.updateWindowTitle(response.name);
+            }, error => {
+                console.error('[ProjectsService] Failed to re-register project:', error);
+            });
+        }
+        else {
+            console.log('[ProjectsService] No current project to re-register');
+        }
     }
     /**
      * Notify the chat system that a project has been opened.
@@ -4587,6 +4635,17 @@ class ProjectsService {
             });
             this.currentRoomId = null;
             this.currentOderId = null;
+        }
+    }
+    /**
+     * Updates the Electron window title to show the project name in taskbar preview.
+     * Only works when running in Electron.
+     */
+    updateWindowTitle(projectName) {
+        var _a;
+        if ((_a = window.electronAPI) === null || _a === void 0 ? void 0 : _a.setWindowTitle) {
+            const title = projectName ? `${projectName} - MdExplorer` : 'MdExplorer';
+            window.electronAPI.setWindowTitle(title);
         }
     }
 }

@@ -36,6 +36,7 @@ namespace MdExplorer.Controllers.ModernGit
         private readonly IGitRemoteUrlParser _urlParser;
         private readonly IGenericRemoteService _genericRemoteService;
         private readonly IGitAccountService _gitAccountService;
+        private readonly GitCredentialHelperResolver _gitCredentialHelper;
 
         public ModernGitController(
             IModernGitService gitService,
@@ -49,6 +50,7 @@ namespace MdExplorer.Controllers.ModernGit
             IGitRemoteUrlParser urlParser,
             IGenericRemoteService genericRemoteService,
             IGitAccountService gitAccountService,
+            GitCredentialHelperResolver gitCredentialHelper,
             IDatabaseManager databaseManager = null)
             : base(logger, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
         {
@@ -58,6 +60,7 @@ namespace MdExplorer.Controllers.ModernGit
             _urlParser = urlParser;
             _genericRemoteService = genericRemoteService;
             _gitAccountService = gitAccountService;
+            _gitCredentialHelper = gitCredentialHelper;
         }
 
         /// <summary>
@@ -315,6 +318,32 @@ namespace MdExplorer.Controllers.ModernGit
                         {
                             // Non-fatal: clone succeeded, credential saving is best-effort
                             _logger.LogWarning(ex, "Failed to save clone credentials (non-fatal)");
+                        }
+                    }
+                    else
+                    {
+                        // Credentials were provided via GCM prompt (request.Username is empty)
+                        // Try to detect and save credentials from GCM cache
+                        try
+                        {
+                            _logger.LogInformation("🔐 Attempting to auto-detect and save credentials from GCM for: {LocalPath}", request.LocalPath);
+                            var credentialsSaved = await _gitCredentialHelper.DetectAndSaveCredentialsForRepository(
+                                request.LocalPath,
+                                request.Url);
+
+                            if (credentialsSaved)
+                            {
+                                _logger.LogInformation("✅ Successfully auto-detected and saved GCM credentials for: {LocalPath}", request.LocalPath);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("⚠️ Could not auto-detect credentials from GCM for: {LocalPath}", request.LocalPath);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Non-fatal: clone succeeded, credential auto-detection is best-effort
+                            _logger.LogWarning(ex, "Failed to auto-detect GCM credentials (non-fatal)");
                         }
                     }
 

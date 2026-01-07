@@ -429,6 +429,7 @@ namespace MdExplorer.Services.Git
 
             try
             {
+                _logger.LogError("🚀🚀🚀 CLONE ASYNC - NEW CODE VERSION WITH DIAGNOSTICS 🚀🚀🚀");
                 _logger.LogInformation("Starting clone operation: {Url} to {LocalPath} (useSavedToken={UseSavedToken}, hasManualCredentials={HasManual})",
                     url, localPath, useSavedToken, !string.IsNullOrEmpty(username));
 
@@ -454,12 +455,35 @@ namespace MdExplorer.Services.Git
                 // Set repository path in execution context for credential resolvers
                 GitExecutionContext.CurrentRepositoryPath = localPath;
 
+                // HYBRID APPROACH: Use native git for Basic Auth providers (SCM-Manager, Gitea, etc.)
+                // This fixes the issue where LibGit2Sharp.Clone() doesn't checkout files properly
+                if (IsBasicAuthProvider(url))
+                {
+                    _logger.LogInformation("Detected Basic Auth provider, using native git clone");
+                    return await CloneWithNativeGitAsync(url, localPath, branchName, username, password, stopwatch);
+                }
+
+                // For OAuth providers (GitHub, GitLab, etc.), continue with LibGit2Sharp
+                _logger.LogInformation("Detected OAuth provider, using LibGit2Sharp clone");
+
                 var cloneOptions = new CloneOptions
                 {
-                    BranchName = branchName
+                    BranchName = branchName,
+                    Checkout = true,  // Explicitly enable checkout (should be default, but let's be sure)
+                    OnCheckoutProgress = (path, completedSteps, totalSteps) =>
+                    {
+                        // Log checkout progress to understand if checkout is happening at all
+                        if (completedSteps == 1 || completedSteps == totalSteps || completedSteps % 100 == 0)
+                        {
+                            _logger.LogWarning("📦 CHECKOUT PROGRESS: {Path} - {Completed}/{Total}",
+                                path ?? "(starting)", completedSteps, totalSteps);
+                        }
+                    }
                 };
 
-                // DEBUG: Log credential decision parameters
+                // DEBUG: Log clone options
+                _logger.LogWarning("[CLONE DEBUG] CloneOptions: BranchName={BranchName}, Checkout={Checkout}",
+                    string.IsNullOrEmpty(branchName) ? "(default/null)" : branchName, cloneOptions.Checkout);
                 _logger.LogWarning("[CLONE DEBUG] CloneAsync params: useSavedToken={UseSavedToken}, hasUsername={HasUsername}, hasPassword={HasPassword}",
                     useSavedToken, !string.IsNullOrEmpty(username), !string.IsNullOrEmpty(password));
 
@@ -485,6 +509,17 @@ namespace MdExplorer.Services.Git
                 }
 
                 var clonedRepoPath = Repository.Clone(url, localPath, cloneOptions);
+
+                // IMMEDIATE CHECK: Count files right after clone, BEFORE any fixes
+                var immediateFileCount = Directory.GetFileSystemEntries(localPath)
+                    .Where(entry => !entry.EndsWith(".git"))
+                    .Count();
+                _logger.LogError("🚨 IMMEDIATE POST-CLONE - Files in working dir (excluding .git): {FileCount}", immediateFileCount);
+
+                if (immediateFileCount == 0)
+                {
+                    _logger.LogError("🚨🚨🚨 CLONE DID NOT CHECKOUT FILES! Working directory is empty!");
+                }
 
                 // Diagnostic logging to investigate clone behavior
                 try
@@ -523,9 +558,19 @@ namespace MdExplorer.Services.Git
                                 branch.FriendlyName, branch.Tip?.Sha?.Substring(0, 8));
                         }
 
+                        // Log current state for debugging
+                        var workingDirFilesBeforeFix = Directory.GetFileSystemEntries(localPath)
+                            .Where(entry => !entry.EndsWith(".git"))
+                            .Count();
+                        _logger.LogWarning("🔍 CLONE STATE - TrackedBranch: {TrackedBranch}, IsDetached: {IsDetached}, WorkingDirFiles: {FileCount}",
+                            repo.Head.TrackedBranch?.FriendlyName ?? "NULL",
+                            repo.Head.FriendlyName == "(no branch)" || !repo.Head.CanonicalName.StartsWith("refs/heads/"),
+                            workingDirFilesBeforeFix);
+
                         // Check if local branch is behind remote
                         if (repo.Head.TrackedBranch != null)
                         {
+                            _logger.LogWarning("🔍 PATH: Entering TrackedBranch check (TrackedBranch is NOT null)");
                             var localTip = repo.Head.Tip;
                             var remoteTip = repo.Head.TrackedBranch.Tip;
 
@@ -569,7 +614,35 @@ namespace MdExplorer.Services.Git
                                     }
                                     else
                                     {
-                                        _logger.LogWarning("⚠️ FIX - Could not find local branch {LocalBranch}", localBranchName);
+                                        // Local branch object is null (branch exists but has no commits - HEAD is null)
+                                        // This happens when clone fetches objects but doesn't checkout files
+                                        _logger.LogWarning("⚠️ FIX - Local branch {LocalBranch} has no commits, forcing checkout of remote tip", localBranchName);
+
+                                        // Force checkout the remote tip directly
+                                        Commands.Checkout(repo, remoteTip, new CheckoutOptions
+                                        {
+                                            CheckoutModifiers = CheckoutModifiers.Force
+                                        });
+
+                                        // Now create/update the local branch to point to this commit
+                                        var existingBranch = repo.Branches[localBranchName];
+                                        if (existingBranch == null)
+                                        {
+                                            // Create the branch pointing to the remote tip
+                                            repo.CreateBranch(localBranchName, remoteTip);
+                                            _logger.LogInformation("✅ FIX - Created local branch {LocalBranch} at {Sha}", localBranchName, remoteTip.Sha);
+                                        }
+
+                                        // Checkout the local branch (not detached HEAD)
+                                        var branch = repo.Branches[localBranchName];
+                                        if (branch != null)
+                                        {
+                                            Commands.Checkout(repo, branch);
+                                            _logger.LogInformation("✅ FIX - Checked out local branch {LocalBranch}", localBranchName);
+                                        }
+
+                                        _logger.LogInformation("✅ FIX - Successfully forced checkout of remote tip");
+                                        _logger.LogInformation("   Working directory files: {FileCount}", Directory.GetFiles(localPath, "*", SearchOption.AllDirectories).Length);
                                     }
                                 }
                                 catch (Exception checkoutEx)
@@ -583,10 +656,18 @@ namespace MdExplorer.Services.Git
                             }
                         }
 
+                        // Log if we skipped the TrackedBranch check
+                        if (repo.Head.TrackedBranch == null)
+                        {
+                            _logger.LogWarning("🔍 PATH: SKIPPED TrackedBranch check (TrackedBranch is NULL)");
+                        }
+
                         // FINAL CHECK: Ensure we're not in detached HEAD state
                         // In LibGit2Sharp, detached HEAD is indicated by FriendlyName = "(no branch)"
                         var isDetached = repo.Head.FriendlyName == "(no branch)" ||
                                          !repo.Head.CanonicalName.StartsWith("refs/heads/");
+
+                        _logger.LogWarning("🔍 PATH: isDetached = {IsDetached}", isDetached);
 
                         if (isDetached)
                         {
@@ -693,6 +774,12 @@ namespace MdExplorer.Services.Git
                             // Pull failure is non-fatal - the clone already succeeded
                             _logger.LogWarning(pullEx, "⚠️ POST-CLONE - Pull failed (non-fatal): {Message}", pullEx.Message);
                         }
+
+                        // FINAL LOG: Count files in working directory after all fixes
+                        var finalFileCount = Directory.GetFileSystemEntries(localPath)
+                            .Where(entry => !entry.EndsWith(".git"))
+                            .Count();
+                        _logger.LogWarning("🔍 FINAL STATE - WorkingDirFiles after all fixes: {FileCount}", finalFileCount);
                     }
                 }
                 catch (Exception diagEx)
@@ -716,13 +803,250 @@ namespace MdExplorer.Services.Git
             {
                 stopwatch.Stop();
                 _logger.LogError(ex, "Error during clone operation: {Url} to {LocalPath}", url, localPath);
-                
+
                 return new GitOperationResult
                 {
                     Success = false,
                     ErrorMessage = $"Clone failed: {ex.Message}",
                     Duration = stopwatch.Elapsed
                 };
+            }
+        }
+
+        /// <summary>
+        /// Determines if the URL is for a Basic Auth provider (SCM-Manager, Gitea, etc.)
+        /// OAuth providers (GitHub, GitLab, etc.) use LibGit2Sharp, Basic Auth uses native git.
+        /// </summary>
+        private bool IsBasicAuthProvider(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            var urlLower = url.ToLowerInvariant();
+
+            // OAuth providers - use LibGit2Sharp
+            if (urlLower.Contains("github.com") ||
+                urlLower.Contains("gitlab.com") ||
+                urlLower.Contains("bitbucket.org") ||
+                urlLower.Contains("dev.azure.com") ||
+                urlLower.Contains("visualstudio.com"))
+            {
+                return false;
+            }
+
+            // Everything else (SCM-Manager, Gitea, generic) - use native git
+            return true;
+        }
+
+        /// <summary>
+        /// Clone with native git for Basic Auth providers (SCM-Manager, Gitea, etc.)
+        /// This approach solves the issue where LibGit2Sharp.Clone() doesn't checkout files properly.
+        /// </summary>
+        private async Task<GitOperationResult> CloneWithNativeGitAsync(
+            string url, string localPath, string branchName,
+            string username, string password, Stopwatch stopwatch)
+        {
+            _logger.LogInformation("Using native git clone for Basic Auth provider: {Url}", url);
+
+            try
+            {
+                // 1. Save credentials with git credential approve (before clone)
+                if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+                {
+                    var credSaved = await SaveCredentialsToGitAsync(url, username, password);
+                    _logger.LogInformation("Credentials saved to git credential store: {Success}", credSaved);
+                }
+
+                // 2. Execute git clone (clean URL, credentials come from credential store)
+                var args = $"clone \"{url}\" \"{localPath}\"";
+                if (!string.IsNullOrEmpty(branchName))
+                {
+                    args += $" --branch \"{branchName}\"";
+                }
+
+                _logger.LogInformation("Executing: git {Args}", args);
+
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = args,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                var completed = await Task.Run(() => process.WaitForExit(300000)); // 5 min timeout
+
+                if (!completed)
+                {
+                    try { process.Kill(); } catch { }
+                    stopwatch.Stop();
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Clone timeout after 5 minutes",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                var stdout = await process.StandardOutput.ReadToEndAsync();
+                var stderr = await process.StandardError.ReadToEndAsync();
+                stopwatch.Stop();
+
+                _logger.LogInformation("git clone exit code: {ExitCode}", process.ExitCode);
+                if (!string.IsNullOrEmpty(stdout))
+                    _logger.LogInformation("git clone stdout: {Stdout}", stdout);
+                if (!string.IsNullOrEmpty(stderr))
+                    _logger.LogInformation("git clone stderr: {Stderr}", stderr);
+
+                if (process.ExitCode == 0)
+                {
+                    var fileCount = Directory.GetFileSystemEntries(localPath)
+                        .Count(e => !e.EndsWith(".git"));
+
+                    _logger.LogInformation("Native git clone successful: {FileCount} items in working directory", fileCount);
+
+                    return new GitOperationResult
+                    {
+                        Success = true,
+                        Message = $"Successfully cloned repository ({fileCount} items)",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                // 3. If authentication error, remove bad credentials from credential store
+                if (IsAuthenticationError(stderr))
+                {
+                    _logger.LogWarning("Authentication failed, removing bad credentials from store");
+                    await RejectCredentialsAsync(url, username);
+                }
+
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Clone failed: {stderr}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error during native git clone: {Url}", url);
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Clone failed: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Checks if the error message indicates an authentication failure
+        /// </summary>
+        private bool IsAuthenticationError(string stderr)
+        {
+            if (string.IsNullOrEmpty(stderr)) return false;
+            var lowerStderr = stderr.ToLowerInvariant();
+
+            return lowerStderr.Contains("authentication failed") ||
+                   lowerStderr.Contains("401") ||
+                   lowerStderr.Contains("403") ||
+                   lowerStderr.Contains("could not read username") ||
+                   lowerStderr.Contains("invalid credentials") ||
+                   lowerStderr.Contains("logon failed");
+        }
+
+        /// <summary>
+        /// Saves credentials to the git credential store using 'git credential approve'
+        /// </summary>
+        private async Task<bool> SaveCredentialsToGitAsync(string url, string username, string password)
+        {
+            try
+            {
+                var uri = new Uri(url);
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = "credential approve",
+                        UseShellExecute = false,
+                        RedirectStandardInput = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+
+                var credentialInput = $"protocol={uri.Scheme}\nhost={uri.Host}\nusername={username}\npassword={password}\n\n";
+                await process.StandardInput.WriteAsync(credentialInput);
+                process.StandardInput.Close();
+
+                var completed = process.WaitForExit(10000);
+
+                if (completed && process.ExitCode == 0)
+                {
+                    _logger.LogInformation("Credentials saved to git credential store for {Host}", uri.Host);
+                    return true;
+                }
+                else
+                {
+                    var stderr = await process.StandardError.ReadToEndAsync();
+                    _logger.LogWarning("Failed to save credentials to git credential store: {Error}", stderr);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Exception saving credentials to git credential store");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Removes bad credentials from the git credential store using 'git credential reject'
+        /// </summary>
+        private async Task RejectCredentialsAsync(string url, string username)
+        {
+            try
+            {
+                var uri = new Uri(url);
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = "credential reject",
+                        UseShellExecute = false,
+                        RedirectStandardInput = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+
+                var input = $"protocol={uri.Scheme}\nhost={uri.Host}\n";
+                if (!string.IsNullOrEmpty(username))
+                {
+                    input += $"username={username}\n";
+                }
+                input += "\n";
+
+                await process.StandardInput.WriteAsync(input);
+                process.StandardInput.Close();
+                process.WaitForExit(5000);
+
+                _logger.LogInformation("Bad credentials rejected from store for {Host}", uri.Host);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to reject credentials from store");
             }
         }
 

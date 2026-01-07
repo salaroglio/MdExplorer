@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import * as signalR from "@microsoft/signalr";
 import { GITService } from '../../git/services/gitservice.service';
 import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
@@ -30,11 +30,12 @@ export class MdServerMessagesService {
     private plantumlWorkingProvider: PlantumlWorkingProvider,
     private connectionLostProvider: ConnectionLostProvider,
     private openingApplicationProvider: OpeningApplicationProvider,
-    private gitService: GITService) {
+    private gitService: GITService,
+    private injector: Injector) {
     this.startConnection();
     console.log('MonitorMDService constructor');
     this.linkEventCompArray = [];
-    
+
   }
 
   private hubConnection: signalR.HubConnection
@@ -97,12 +98,13 @@ export class MdServerMessagesService {
     }
 
     if (this.hubConnection.state == "Disconnected") {
+      const wasReconnection = this.connectionIsLost; // Capture before reset
       this.hubConnection
         .start()
         .then(() => {
           console.log('Connection started');
           this.connectionIsLost = false;
-          this.getCurrentConnectionId(this);
+          this.getCurrentConnectionId(this, wasReconnection);
         }
 
         )
@@ -266,7 +268,7 @@ export class MdServerMessagesService {
       });
   }
 
-  public getCurrentConnectionId(objectThis: MdServerMessagesService): void {
+  public getCurrentConnectionId(objectThis: MdServerMessagesService, isReconnection: boolean = false): void {
     this.hubConnection.invoke('GetConnectionId')
       .then(function (connectionId) {
         objectThis.connectionId = connectionId;
@@ -276,7 +278,25 @@ export class MdServerMessagesService {
           console.log('[SignalR] Notifying Electron of connectionId:', connectionId);
           (window as any).electronAPI.notifyConnectionIdReady(connectionId);
         }
+
+        // If this was a reconnection, re-register the current project with the new connectionId
+        // This is necessary because when SignalR disconnects, the backend cleans up
+        // FileSystemWatcher and DatabaseContext for the old connectionId
+        if (isReconnection) {
+          console.log('[SignalR] Reconnection detected, re-registering project...');
+          objectThis.reregisterCurrentProject();
+        }
       });
+  }
+
+  private reregisterCurrentProject(): void {
+    // Use dynamic import to avoid circular dependency issues
+    import('../../md-explorer/services/projects.service').then(module => {
+      const projectsService = this.injector.get(module.ProjectsService);
+      projectsService.reregisterCurrentProject();
+    }).catch(err => {
+      console.error('[SignalR] Failed to re-register project:', err);
+    });
   }
 
   // TOC Generation listeners

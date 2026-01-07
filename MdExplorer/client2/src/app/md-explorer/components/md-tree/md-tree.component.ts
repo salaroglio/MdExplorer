@@ -1060,8 +1060,38 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     );
 
-    // Forza il refresh del componente
+    // Forza l'aggiornamento del tree prima di espandere
+    this.changeDetectorRef.detectChanges();
+
+    // Crea un MdFile valido per la navigazione
+    const mdFileForNavigation: MdFile = {
+      name: newMdFile.name,
+      path: newMdFile.path,
+      relativePath: newMdFile.relativePath,
+      fullPath: newMdFile.fullPath,
+      fullDirectoryPath: newMdFile.fullPath.substring(0, newMdFile.fullPath.lastIndexOf('\\')),
+      type: 'mdFile',
+      level: newMdFile.level,
+      expandable: false,
+      isLoading: false,
+      childrens: [],
+      index: 0,
+      isIndexed: true,
+      indexingStatus: 'completed'
+    };
+
+    // Espandi il tree fino al file (triggera il subscriber che espande i nodi)
+    this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+
+    // Seleziona il file
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+    this.navService.setNewNavigation(mdFileForNavigation);
+    this.activeNode = mdFileForNavigation;
+    this.selectedNode = mdFileForNavigation;
     this.changeDetectorRef.markForCheck();
+
+    // Naviga al documento
+    this.router.navigate(['/main/navigation/document']);
   }
 
   // Costruisce la gerarchia completa per un file

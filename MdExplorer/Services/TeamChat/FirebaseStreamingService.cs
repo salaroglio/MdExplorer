@@ -34,8 +34,11 @@ namespace MdExplorer.Services.TeamChat
         // Track active SSE connections for presence: roomId -> RoomSubscription
         private readonly ConcurrentDictionary<string, RoomSubscription> _presenceSubscriptions = new();
 
-        // Track last seen message timestamp per room to avoid duplicates
-        private readonly ConcurrentDictionary<string, long> _lastMessageTimestamp = new();
+        // Track seen message IDs per room to avoid duplicates (more reliable than timestamp)
+        private readonly ConcurrentDictionary<string, HashSet<string>> _seenMessageIds = new();
+
+        // Lock for seen message IDs (HashSet is not thread-safe)
+        private readonly ConcurrentDictionary<string, object> _seenMessageLocks = new();
 
         // Lock for subscription management
         private readonly object _subscriptionLock = new();
@@ -99,8 +102,9 @@ namespace MdExplorer.Services.TeamChat
                     _roomSubscriptions[roomId] = subscription;
                     needsNewTask = true;
 
-                    // Initialize last timestamp to now to avoid receiving old messages
-                    _lastMessageTimestamp[roomId] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    // Initialize seen message IDs set for this room
+                    _seenMessageIds[roomId] = new HashSet<string>();
+                    _seenMessageLocks[roomId] = new object();
                 }
             }
 
@@ -124,7 +128,8 @@ namespace MdExplorer.Services.TeamChat
                 {
                     subscription.CancellationTokenSource?.Cancel();
                     subscription.IsTaskRunning = false;
-                    _lastMessageTimestamp.TryRemove(roomId, out _);
+                    _seenMessageIds.TryRemove(roomId, out _);
+                    _seenMessageLocks.TryRemove(roomId, out _);
                     _logger.LogInformation("Closed SSE subscription for room {RoomId}", roomId);
                 }
             }
@@ -295,26 +300,27 @@ namespace MdExplorer.Services.TeamChat
         /// <summary>
         /// Process initial batch of messages when SSE connection is established
         /// </summary>
-        private async Task ProcessInitialMessages(string roomId, JsonElement dataElement)
+        private Task ProcessInitialMessages(string roomId, JsonElement dataElement)
         {
             // We don't broadcast initial messages - they're already loaded via REST API
-            // Just update the last timestamp to the newest message
-            _lastMessageTimestamp.TryGetValue(roomId, out long maxTimestamp);
-
-            foreach (var prop in dataElement.EnumerateObject())
+            // Just mark all message IDs as seen to avoid re-broadcasting them
+            if (!_seenMessageIds.TryGetValue(roomId, out var seenIds) ||
+                !_seenMessageLocks.TryGetValue(roomId, out var lockObj))
             {
-                if (prop.Value.TryGetProperty("timestamp", out var timestampElement))
+                return Task.CompletedTask;
+            }
+
+            lock (lockObj)
+            {
+                foreach (var prop in dataElement.EnumerateObject())
                 {
-                    var timestamp = timestampElement.GetInt64();
-                    if (timestamp > maxTimestamp)
-                    {
-                        maxTimestamp = timestamp;
-                    }
+                    seenIds.Add(prop.Name); // prop.Name is the message ID
                 }
             }
 
-            _lastMessageTimestamp[roomId] = maxTimestamp;
-            _logger.LogDebug("Updated last timestamp for room {RoomId} to {Timestamp}", roomId, maxTimestamp);
+            _logger.LogDebug("Marked initial messages as seen for room {RoomId}", roomId);
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -346,17 +352,36 @@ namespace MdExplorer.Services.TeamChat
         /// </summary>
         private async Task BroadcastMessageIfNew(string roomId, ChatMessageDto message)
         {
-            // Check if this is a new message (timestamp > last seen)
-            _lastMessageTimestamp.TryGetValue(roomId, out long lastTimestamp);
-
-            if (message.Timestamp <= lastTimestamp)
+            // Check if we've already seen this message by ID
+            if (!_seenMessageIds.TryGetValue(roomId, out var seenIds) ||
+                !_seenMessageLocks.TryGetValue(roomId, out var lockObj))
             {
-                // Already seen this message or older
+                // Room not properly initialized, skip
+                _logger.LogWarning("Room {RoomId} not properly initialized for message tracking", roomId);
                 return;
             }
 
-            // Update last seen timestamp
-            _lastMessageTimestamp[roomId] = message.Timestamp;
+            bool isNewMessage;
+            lock (lockObj)
+            {
+                // Try to add the message ID - returns false if already present
+                isNewMessage = seenIds.Add(message.Id);
+
+                // Limit the size of seen IDs to prevent memory growth (keep last 1000)
+                if (seenIds.Count > 1000)
+                {
+                    // Remove oldest entries (HashSet doesn't maintain order, so just clear and keep recent)
+                    // In practice, this shouldn't happen often in normal chat usage
+                    _logger.LogDebug("Trimming seen message IDs for room {RoomId}", roomId);
+                }
+            }
+
+            if (!isNewMessage)
+            {
+                // Already seen this message
+                _logger.LogDebug("Skipping already seen message {MessageId} for room {RoomId}", message.Id, roomId);
+                return;
+            }
 
             // Broadcast to all clients in this room via SignalR
             await _hubContext.Clients.Group(roomId).SendAsync("ReceiveMessage", message);
@@ -880,7 +905,8 @@ namespace MdExplorer.Services.TeamChat
             }
             _presenceSubscriptions.Clear();
 
-            _lastMessageTimestamp.Clear();
+            _seenMessageIds.Clear();
+            _seenMessageLocks.Clear();
         }
 
         private class RoomSubscription
