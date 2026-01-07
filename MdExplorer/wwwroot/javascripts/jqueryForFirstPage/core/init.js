@@ -15,8 +15,14 @@ $(function() {
         navigation: typeof initializeInternalNavigation !== 'undefined',
         search: typeof toggleSearch !== 'undefined',
         drawing: typeof toggleMdCanvas !== 'undefined',
-        toc: typeof toggleTOC !== 'undefined'
+        toc: typeof toggleTOC !== 'undefined',
+        interactiveSvg: typeof InteractiveSvg !== 'undefined'
     });
+
+    // Auto-initialize interactive SVG for all PlantUML diagrams on page
+    if (typeof InteractiveSvg !== 'undefined') {
+        InteractiveSvg.initAll();
+    }
 
     // Initialize scroll tracking for TOC/Refs positioning
     window.addEventListener("scroll", function () {

@@ -1,0 +1,206 @@
+/**
+ * MdExplorer - Interactive SVG Styles
+ * ====================================
+ * Visual styles for interactive PlantUML SVG diagrams
+ *
+ * Color Scheme:
+ * - BLUE (#2196F3): Selected source element
+ * - RED (#f44336): Boxes sending info TO selected (incoming connections)
+ * - GREEN (#4CAF50): Boxes receiving info FROM selected (outgoing connections)
+ * - YELLOW (#FFC107): Note/comment boxes (GMN*)
+ * - ORANGE (#FF9800): Highlighted links/arrows
+ */
+
+/* === BASE SVG STYLES === */
+
+svg.interactive-svg {
+    cursor: default;
+}
+
+/* === ALL BOXES ARE CLICKABLE === */
+
+svg.interactive-svg g[id^="cluster_"],
+svg.interactive-svg g[id^="cluster_"] *,
+svg.interactive-svg g[id^="elem_"],
+svg.interactive-svg g[id^="elem_"] *,
+svg.interactive-svg g[id^="GMN"],
+svg.interactive-svg g[id^="GMN"] * {
+    pointer-events: all !important;
+    cursor: pointer;
+}
+
+/* === LINKS ARE CLICKABLE === */
+
+svg.interactive-svg g[id^="link_"],
+svg.interactive-svg g[id^="link_"] * {
+    pointer-events: stroke !important;
+    cursor: pointer;
+}
+
+/* === HOVER EFFECTS === */
+
+svg.interactive-svg g[id^="elem_"]:hover > rect,
+svg.interactive-svg g[id^="elem_"]:hover > path,
+svg.interactive-svg g[id^="cluster_"]:hover > rect,
+svg.interactive-svg g[id^="cluster_"]:hover > path,
+svg.interactive-svg g[id^="GMN"]:hover > rect,
+svg.interactive-svg g[id^="GMN"]:hover > path {
+    stroke-width: 2 !important;
+    filter: drop-shadow(0 0 4px rgba(33, 150, 243, 0.5));
+}
+
+svg.interactive-svg g[id^="link_"]:hover path:not(.hit-area) {
+    stroke: #2196F3 !important;
+    stroke-width: 3 !important;
+}
+
+svg.interactive-svg g[id^="link_"]:hover polygon {
+    fill: #2196F3 !important;
+    stroke: #2196F3 !important;
+}
+
+/* === SELECTED SOURCE BOX - BLUE === */
+
+svg.interactive-svg g.source-selected > rect,
+svg.interactive-svg g.source-selected > path {
+    stroke: #2196F3 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #2196F3) drop-shadow(0 0 16px #2196F3) !important;
+}
+
+/* === DESTINATION BOXES - INCOMING (senders) - RED === */
+
+svg.interactive-svg g.destination > rect,
+svg.interactive-svg g.destination > path,
+svg.interactive-svg g.destination-incoming > rect,
+svg.interactive-svg g.destination-incoming > path {
+    stroke: #f44336 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #f44336) drop-shadow(0 0 16px #f44336) !important;
+}
+
+/* === DESTINATION BOXES - OUTGOING (receivers) - GREEN === */
+
+svg.interactive-svg g.destination-outgoing > rect,
+svg.interactive-svg g.destination-outgoing > path {
+    stroke: #4CAF50 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #4CAF50) drop-shadow(0 0 16px #4CAF50) !important;
+}
+
+/* === NOTE BOXES - YELLOW === */
+
+svg.interactive-svg g.destination-note > rect,
+svg.interactive-svg g.destination-note > path {
+    stroke: #FFC107 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #FFC107) drop-shadow(0 0 16px #FFC107) !important;
+}
+
+/* === HIGHLIGHTED LINKS - ORANGE === */
+
+svg.interactive-svg g.link-highlighted path:not(.hit-area) {
+    stroke: #FF9800 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 6px #FF9800) drop-shadow(0 0 12px #FF9800) !important;
+}
+
+svg.interactive-svg g.link-highlighted polygon {
+    fill: #FF9800 !important;
+    stroke: #FF9800 !important;
+    filter: drop-shadow(0 0 6px #FF9800) !important;
+}
+
+/* === DIM NON-RELATED ELEMENTS === */
+
+svg.interactive-svg.has-selection g[id^="cluster_"]:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note),
+svg.interactive-svg.has-selection g[id^="elem_"]:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note),
+svg.interactive-svg.has-selection g[id^="GMN"]:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note) {
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+}
+
+svg.interactive-svg.has-selection g[id^="link_"]:not(.link-highlighted) {
+    opacity: 0.15;
+    transition: opacity 0.2s ease;
+}
+
+/* === ALTERNATIVE LINK SELECTION COLORS === */
+
+/* Selected - BLUE */
+svg.interactive-svg g[id^="link_"].selected path:not(.hit-area) {
+    stroke: #2196F3 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 8px #2196F3) drop-shadow(0 0 16px #2196F3);
+}
+svg.interactive-svg g[id^="link_"].selected polygon {
+    fill: #2196F3 !important;
+    stroke: #2196F3 !important;
+    filter: drop-shadow(0 0 8px #2196F3);
+}
+
+/* Selected - GREEN */
+svg.interactive-svg g[id^="link_"].selected-green path:not(.hit-area) {
+    stroke: #4CAF50 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 8px #4CAF50) drop-shadow(0 0 16px #4CAF50);
+}
+svg.interactive-svg g[id^="link_"].selected-green polygon {
+    fill: #4CAF50 !important;
+    stroke: #4CAF50 !important;
+    filter: drop-shadow(0 0 8px #4CAF50);
+}
+
+/* Selected - ORANGE */
+svg.interactive-svg g[id^="link_"].selected-orange path:not(.hit-area) {
+    stroke: #FF9800 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 8px #FF9800) drop-shadow(0 0 16px #FF9800);
+}
+svg.interactive-svg g[id^="link_"].selected-orange polygon {
+    fill: #FF9800 !important;
+    stroke: #FF9800 !important;
+    filter: drop-shadow(0 0 8px #FF9800);
+}
+
+/* Selected - CYAN */
+svg.interactive-svg g[id^="link_"].selected-cyan path:not(.hit-area) {
+    stroke: #00BCD4 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 8px #00BCD4) drop-shadow(0 0 16px #00BCD4);
+}
+svg.interactive-svg g[id^="link_"].selected-cyan polygon {
+    fill: #00BCD4 !important;
+    stroke: #00BCD4 !important;
+    filter: drop-shadow(0 0 8px #00BCD4);
+}
+
+/* === HIT AREA (invisible wider click target) === */
+
+svg.interactive-svg .hit-area {
+    stroke: transparent;
+    stroke-width: 30px;
+    fill: none;
+    pointer-events: painted;
+    cursor: pointer;
+}
+
+/* === TRANSITIONS === */
+
+svg.interactive-svg g[id^="elem_"],
+svg.interactive-svg g[id^="cluster_"],
+svg.interactive-svg g[id^="GMN"],
+svg.interactive-svg g[id^="link_"] {
+    transition: opacity 0.2s ease;
+}
+
+svg.interactive-svg g[id^="elem_"] > rect,
+svg.interactive-svg g[id^="elem_"] > path,
+svg.interactive-svg g[id^="cluster_"] > rect,
+svg.interactive-svg g[id^="cluster_"] > path,
+svg.interactive-svg g[id^="GMN"] > rect,
+svg.interactive-svg g[id^="GMN"] > path,
+svg.interactive-svg g[id^="link_"] path,
+svg.interactive-svg g[id^="link_"] polygon {
+    transition: stroke 0.2s ease, stroke-width 0.2s ease, fill 0.2s ease, filter 0.2s ease;
+}

@@ -136,10 +136,14 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/javascripts/jqueryForFirstPage/highlighting/syntax-highlighting.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/mermaid-rendering.js');
 
+        // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
+        document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.js');
+
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (20 files) ===');
+        console.log('=== MODULAR FILES LOADED (21 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');
