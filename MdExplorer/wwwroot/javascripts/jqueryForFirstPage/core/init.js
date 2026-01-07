@@ -16,12 +16,18 @@ $(function() {
         search: typeof toggleSearch !== 'undefined',
         drawing: typeof toggleMdCanvas !== 'undefined',
         toc: typeof toggleTOC !== 'undefined',
-        interactiveSvg: typeof InteractiveSvg !== 'undefined'
+        interactiveSvg: typeof InteractiveSvg !== 'undefined',
+        interactiveSvgSequence: typeof InteractiveSvgSequence !== 'undefined'
     });
 
     // Auto-initialize interactive SVG for all PlantUML diagrams on page
+    // Component diagrams (with elem_, cluster_, link_ elements)
     if (typeof InteractiveSvg !== 'undefined') {
         InteractiveSvg.initAll();
+    }
+    // Sequence diagrams (participant boxes and message arrows)
+    if (typeof InteractiveSvgSequence !== 'undefined') {
+        InteractiveSvgSequence.initAll();
     }
 
     // Initialize scroll tracking for TOC/Refs positioning
