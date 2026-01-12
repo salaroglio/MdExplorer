@@ -68,9 +68,13 @@ namespace MdExplorer.Service.Controllers
                 var relativePath = GetRelativePathFileSystem("mdexport");
                 var relativePathExtension = Path.GetExtension(relativePath);
 
+                _logger.LogInformation($"[MdExport] ConnectionId: {connectionId}");
+                _logger.LogInformation($"[MdExport] ProjectPath: {filePath}");
+                _logger.LogInformation($"[MdExport] RelativePath: {relativePath}");
+
                 if (relativePathExtension != "" && relativePathExtension != ".md")
                 {
-                    filePath = string.Concat(filePath, relativePath);
+                    filePath = Path.Combine(filePath, relativePath);
                     var data = System.IO.File.ReadAllBytes(filePath);
                     var notMdFile = new FileContentResult(data, "image/" + relativePathExtension);
                     return notMdFile;
@@ -79,11 +83,11 @@ namespace MdExplorer.Service.Controllers
 
                 if (relativePathExtension == ".md")
                 {
-                    filePath = string.Concat(filePath, relativePath);
+                    filePath = Path.Combine(filePath, relativePath);
                 }
                 else
                 {
-                    filePath = string.Concat(filePath, relativePath, ".md");
+                    filePath = Path.Combine(filePath, relativePath + ".md");
                 }
 
                 var readText = string.Empty;

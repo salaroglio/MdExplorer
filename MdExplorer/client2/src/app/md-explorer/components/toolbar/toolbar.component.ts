@@ -102,6 +102,15 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Get connectionId from SignalR service for export notifications
+    this.connectionId = this.monitorMDService.connectionId;
+    // If connectionId is not yet available, get it when ready
+    if (!this.connectionId) {
+      this.monitorMDService.getConnectionId((id) => {
+        this.connectionId = id;
+      }, this);
+    }
+
     this.monitorMDService.addMdProcessedListener(this.markdownFileIsProcessed, this);
     this.monitorMDService.addPdfIsReadyListener(this.showPdfIsready, this); //TODO: da spostare in SignalR
     this.monitorMDService.addMdRule1Listener(this.showRule1IsBroken, this);//TODO: da spostare in SignalR
@@ -409,7 +418,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   private sendExportRequest(objectThis: ToolbarComponent) {
-    const url = '../api/mdexport/' + objectThis.relativePath;
+    const url = '../api/mdexport/' + objectThis.relativePath + '?ConnectionId=' + objectThis.connectionId;
     return objectThis.http.get(url)
       .subscribe(data => { console.log(data) });
   }
@@ -443,6 +452,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   Export() {
+    if (!this.relativePath) {
+      this._snackBar.open("Please select a document first", 'OK', { duration: 3000, verticalPosition: 'top' });
+      return;
+    }
     this._snackBar.open("Export request queued!", null, { duration: 2000, verticalPosition: 'top' });
     this.sendExportRequest(this);
   }
