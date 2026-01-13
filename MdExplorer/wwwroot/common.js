@@ -115,6 +115,7 @@ if (window.commonJsLoaded) {
         // NAVIGATION: History and scroll position management
         loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/navigation-history.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/scroll-position.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/sharepoint-tooltips.js');
 
         // SEARCH: Full-text search with highlighting
         loadScriptOnce('/javascripts/jqueryForFirstPage/search/search-functionality.js');

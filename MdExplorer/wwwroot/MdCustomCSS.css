@@ -646,3 +646,35 @@ s
     background-color: #ff9900;
     font-weight: bold;
 }
+
+/* ============================================
+   SharePoint Tooltip Themes
+   ============================================ */
+
+/* Owner (OneDrive personale) - Blu Microsoft */
+.tippy-tooltip.sharepoint-owner-theme {
+    background-color: #0078d4;
+    color: white;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.tippy-tooltip.sharepoint-owner-theme .tippy-arrow {
+    color: #0078d4;
+}
+
+/* Team (Siti SharePoint di team) - Arancione */
+.tippy-tooltip.sharepoint-team-theme {
+    background-color: #ff8c00;
+    color: white;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.tippy-tooltip.sharepoint-team-theme .tippy-arrow {
+    color: #ff8c00;
+}
