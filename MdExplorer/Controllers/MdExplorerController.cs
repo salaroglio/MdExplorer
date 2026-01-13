@@ -95,18 +95,39 @@ namespace MdExplorer.Controllers
                 return BadRequest("Invalid file path");
             }
 
-            if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
-            {
-                var responseForNotMdFile = CreateAResponseForNotMdFile(rootPathSystem,
-                                                        relativePathFile,
-                                                        relativePathExtension);
-                return responseForNotMdFile;
-            }
+            // Leggere connectionId e source PRIMA per tutti i tipi di file
             var connectionId = Request.Query["ConnectionId"];
             var source = Request.Query["source"]; // "angular" or null
             bool isIframeLinkClick = string.IsNullOrEmpty(source);
 
             _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
+
+            if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
+            {
+                var responseForNotMdFile = CreateAResponseForNotMdFile(rootPathSystem,
+                                                        relativePathFile,
+                                                        relativePathExtension);
+                if (responseForNotMdFile == null)
+                {
+                    return NotFound($"File not found: {relativePathFile}");
+                }
+
+                // Invia documentNavigated SOLO per file HTML (non per immagini, PDF, etc.)
+                if (isIframeLinkClick && !string.IsNullOrEmpty(connectionId)
+                    && (relativePathExtension == ".html" || relativePathExtension == ".htm"))
+                {
+                    await _hubContext.Clients.Client(connectionId: connectionId)
+                        .SendAsync("documentNavigated", new {
+                            fullPath = Path.Combine(rootPathSystem, relativePathFile.TrimStart('/', '\\')),
+                            relativePath = relativePathFile,
+                            name = Path.GetFileName(relativePathFile),
+                            fullDirectoryPath = Path.GetDirectoryName(Path.Combine(rootPathSystem, relativePathFile.TrimStart('/', '\\')))
+                        });
+                    _logger.LogInformation($"📍 [MdExplorer] Navigation history event sent for HTML file: {relativePathFile}");
+                }
+
+                return responseForNotMdFile;
+            }
 
             string fullPathFile = ManageIfThePathContainsExtensionMdOrNot(
                     rootPathSystem,
@@ -339,31 +360,51 @@ namespace MdExplorer.Controllers
 
         private FileContentResult CreateAResponseForNotMdFile(string rootPathSystem, string relativePathFile, string relativePathExtension)
         {
-            var filePathSystem = string.Concat(rootPathSystem, relativePathFile);
-            
+            // Rimuovi separatori iniziali per evitare che Path.Combine ignori il rootPath
+            var cleanRelativePath = relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/', '\\');
+            var filePathSystem = Path.GetFullPath(Path.Combine(rootPathSystem, cleanRelativePath));
+
             // Se il percorso contiene .md directory (PlantUML images), cercare dalla root del progetto
-            if (relativePathFile.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}"))
+            if (cleanRelativePath.Contains($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}") ||
+                cleanRelativePath.Contains("/.md/"))
             {
-                var mdIndex = relativePathFile.IndexOf($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
-                var filenameAfterMd = relativePathFile.Substring(mdIndex + 1); // include .md/filename
-                filePathSystem = Path.Combine(rootPathSystem, filenameAfterMd);
-                
+                // Trova la posizione di .md/ nel path
+                var mdIndex = cleanRelativePath.IndexOf($"{Path.DirectorySeparatorChar}.md{Path.DirectorySeparatorChar}");
+                if (mdIndex < 0) mdIndex = cleanRelativePath.IndexOf("/.md/");
+
+                var filenameAfterMd = cleanRelativePath.Substring(mdIndex + 1); // include .md/filename
+                filePathSystem = Path.GetFullPath(Path.Combine(rootPathSystem, filenameAfterMd));
+
                 _logger.LogInformation($"🔍 [MdExplorer] PlantUML image path corrected:");
-                _logger.LogInformation($"🔍 [MdExplorer] Original: {string.Concat(rootPathSystem, relativePathFile)}");
+                _logger.LogInformation($"🔍 [MdExplorer] Original: {Path.Combine(rootPathSystem, relativePathFile)}");
                 _logger.LogInformation($"🔍 [MdExplorer] Corrected: {filePathSystem}");
             }
-            
+
+            _logger.LogInformation($"🔍 [MdExplorer] CreateAResponseForNotMdFile:");
+            _logger.LogInformation($"🔍 [MdExplorer]   rootPathSystem: '{rootPathSystem}'");
+            _logger.LogInformation($"🔍 [MdExplorer]   relativePathFile: '{relativePathFile}'");
+            _logger.LogInformation($"🔍 [MdExplorer]   cleanRelativePath: '{cleanRelativePath}'");
+            _logger.LogInformation($"🔍 [MdExplorer]   filePathSystem: '{filePathSystem}'");
+            _logger.LogInformation($"🔍 [MdExplorer]   File.Exists: {System.IO.File.Exists(filePathSystem)}");
+            _logger.LogInformation($"🔍 [MdExplorer]   Directory.Exists: {System.IO.Directory.Exists(Path.GetDirectoryName(filePathSystem))}");
+
+            if (!System.IO.File.Exists(filePathSystem))
+            {
+                _logger.LogWarning($"⚠️ [MdExplorer] File not found: '{filePathSystem}' - returning 404");
+                return null; // Caller should handle null and return NotFound()
+            }
+
             var data = System.IO.File.ReadAllBytes(filePathSystem);
-            var currentContetType = $"image/{relativePathExtension.Replace(".", string.Empty)}";
-            if (relativePathExtension == ".pdf")
+
+            // Usa il provider standard di ASP.NET Core per i MIME types
+            var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(filePathSystem, out var contentType))
             {
-                currentContetType = $"application/{relativePathExtension}";
+                // Fallback per estensioni non riconosciute
+                contentType = "application/octet-stream";
             }
-            if (relativePathExtension == ".svg")
-            {
-                currentContetType = $"image/svg+xml";
-            }
-            var notMdFile = new FileContentResult(data, currentContetType);
+
+            var notMdFile = new FileContentResult(data, contentType);
             return notMdFile;
         }
 

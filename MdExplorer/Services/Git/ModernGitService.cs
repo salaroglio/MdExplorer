@@ -52,20 +52,39 @@ namespace MdExplorer.Services.Git
                 // Look up saved account for this repository
                 var normalizedPath = Path.GetFullPath(repositoryPath);
                 using var tx = _userSettingsDB.BeginTransaction();
-                var dal = _userSettingsDB.GetDal<GitRepositoryAccount>();
+                var accountDal = _userSettingsDB.GetDal<GitRepositoryAccount>();
+                var credentialDal = _userSettingsDB.GetDal<GitCredential>();
 
                 // Fetch all active accounts first, then filter in memory
                 // (Path.GetFullPath cannot be translated to SQL by NHibernate)
-                var allAccounts = dal.GetList().Where(a => a.IsActive).ToList();
+                var allAccounts = accountDal.GetList().Where(a => a.IsActive).ToList();
                 var account = allAccounts.FirstOrDefault(a =>
                     !string.IsNullOrEmpty(a.RepositoryPath) &&
                     Path.GetFullPath(a.RepositoryPath).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
 
-                if (account != null && !string.IsNullOrEmpty(account.AuthUsername))
+                if (account != null)
                 {
-                    GitExecutionContext.CurrentUsername = account.AuthUsername;
-                    _logger.LogInformation("[GitContext] Set username for {RepoPath}: {Username}",
-                        repositoryPath, account.AuthUsername);
+                    // Load the associated GitCredential explicitly (NHibernate lazy loading doesn't work with convenience properties)
+                    if (account.CredentialId.HasValue)
+                    {
+                        account.Credential = credentialDal.GetList()
+                            .FirstOrDefault(c => c.Id == account.CredentialId.Value);
+
+                        _logger.LogDebug("[GitContext] Loaded credential {CredentialId} for {RepoPath}",
+                            account.CredentialId, repositoryPath);
+                    }
+
+                    // Now AuthUsername will work correctly (reads from Credential.AuthUsername)
+                    if (!string.IsNullOrEmpty(account.AuthUsername))
+                    {
+                        GitExecutionContext.CurrentUsername = account.AuthUsername;
+                        _logger.LogInformation("[GitContext] Set username for {RepoPath}: {Username}",
+                            repositoryPath, account.AuthUsername);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("[GitContext] Account found but no AuthUsername for {RepoPath}", repositoryPath);
+                    }
                 }
                 else
                 {
@@ -688,8 +707,8 @@ namespace MdExplorer.Services.Git
                                 }
                                 else
                                 {
-                                    // Fallback: try common default branches
-                                    var commonDefaults = new[] { "main", "master", "develop" };
+                                    // Fallback: try common default branches (master first for legacy repos)
+                                    var commonDefaults = new[] { "master", "develop", "main" };
                                     foreach (var commonBranch in commonDefaults)
                                     {
                                         var remoteBranch = repo.Branches[$"origin/{commonBranch}"];
@@ -908,6 +927,58 @@ namespace MdExplorer.Services.Git
                         .Count(e => !e.EndsWith(".git"));
 
                     _logger.LogInformation("Native git clone successful: {FileCount} items in working directory", fileCount);
+
+                    // Post-clone branch fix for Basic Auth providers (same logic as OAuth)
+                    // This ensures we checkout the correct branch if the remote default is wrong
+                    try
+                    {
+                        using (var repo = new Repository(localPath))
+                        {
+                            var currentBranch = repo.Head.FriendlyName;
+                            var hasCommits = repo.Head.Tip != null;
+                            var isDetached = currentBranch == "(no branch)" || !repo.Head.CanonicalName.StartsWith("refs/heads/");
+
+                            _logger.LogInformation("Post-clone check: branch={Branch}, hasCommits={HasCommits}, isDetached={IsDetached}",
+                                currentBranch, hasCommits, isDetached);
+
+                            if (!hasCommits || isDetached)
+                            {
+                                _logger.LogWarning("Branch has no commits or is detached, searching for valid branch...");
+
+                                // Try preferred branches in order: master first for legacy repos
+                                var preferredBranches = new[] { "master", "develop", "main" };
+                                foreach (var preferredBranch in preferredBranches)
+                                {
+                                    var remoteBranch = repo.Branches[$"origin/{preferredBranch}"];
+                                    if (remoteBranch?.Tip != null)
+                                    {
+                                        _logger.LogInformation("Found valid remote branch: origin/{Branch}", preferredBranch);
+
+                                        var localBranch = repo.Branches[preferredBranch];
+                                        if (localBranch == null)
+                                        {
+                                            // Create local branch tracking the remote
+                                            localBranch = repo.CreateBranch(preferredBranch, remoteBranch.Tip);
+                                            repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
+                                            _logger.LogInformation("Created local branch {Branch} tracking origin/{Branch}", preferredBranch, preferredBranch);
+                                        }
+
+                                        Commands.Checkout(repo, localBranch);
+                                        _logger.LogInformation("Checked out branch: {Branch}", preferredBranch);
+
+                                        // Update file count after checkout
+                                        fileCount = Directory.GetFileSystemEntries(localPath)
+                                            .Count(e => !e.EndsWith(".git"));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception branchFixEx)
+                    {
+                        _logger.LogWarning(branchFixEx, "Post-clone branch fix failed, continuing with default branch");
+                    }
 
                     return new GitOperationResult
                     {

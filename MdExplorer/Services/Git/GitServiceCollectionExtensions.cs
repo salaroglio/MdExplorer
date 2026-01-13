@@ -32,7 +32,10 @@ namespace MdExplorer.Services.Git
             // Register Git config helper for managing .git/config files
             services.AddScoped<IGitConfigHelper, GitConfigHelper>();
 
-            // Register Git account management service
+            // Register Git credential management service (shared credentials)
+            services.AddScoped<IGitCredentialService, GitCredentialService>();
+
+            // Register Git account management service (per-repository configuration)
             services.AddScoped<IGitAccountService, GitAccountService>();
 
             // Register SSH key manager
@@ -75,6 +78,7 @@ namespace MdExplorer.Services.Git
             services.AddScoped<IModernGitService, ModernGitService>();
             services.AddScoped<IGitHubService, GitHubService>();
             services.AddScoped<IGitConfigHelper, GitConfigHelper>();
+            services.AddScoped<IGitCredentialService, GitCredentialService>();
             services.AddScoped<IGitAccountService, GitAccountService>();
             services.AddScoped<ISSHKeyManager, SSHKeyManager>();
 

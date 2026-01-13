@@ -390,18 +390,20 @@ namespace MdExplorer.Controllers.ModernGit
                 _ => "Generic"
             };
 
-            var account = new GitRepositoryAccount
-            {
-                RepositoryPath = Path.GetFullPath(request.LocalPath),
-                AccountName = $"{accountType} - {urlInfo.RepoName ?? "repository"}",
-                AccountType = accountType,
-                AuthUsername = request.Username,
-                HttpsPassword = request.Password,
-                PreferredAuthMethod = "username_password",
-                IsActive = true
-            };
+            var repositoryPath = Path.GetFullPath(request.LocalPath);
+            var accountName = $"{accountType} - {request.Username ?? "Account"}";
 
-            await _gitAccountService.CreateAccountAsync(account);
+            // Use CreateAccountWithCredentialAsync to create account with linked credential
+            var account = await _gitAccountService.CreateAccountWithCredentialAsync(
+                repositoryPath,
+                accountType,
+                accountName,
+                request.Username,
+                gitHubPAT: accountType == "GitHub" ? request.Password : null,
+                gitLabToken: accountType == "GitLab" ? request.Password : null,
+                httpsPassword: request.Password,
+                preferredAuthMethod: "username_password");
+
             _logger.LogInformation("Created GitRepositoryAccount for {RepoPath} with type {AccountType}",
                 account.RepositoryPath, account.AccountType);
         }
@@ -946,7 +948,8 @@ namespace MdExplorer.Controllers.ModernGit
                         CreateRemoteRepo = request.CreateRemoteRepo,
                         RepoDescription = request.RepoDescription,
                         IsPrivate = request.IsPrivate,
-                        UseSavedToken = request.UseSavedToken
+                        UseSavedToken = request.UseSavedToken,
+                        CopyFromCredentialId = request.CopyFromCredentialId
                     });
 
                 if (result.Success)

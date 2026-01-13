@@ -1,6 +1,7 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { GITService } from '../../services/gitservice.service';
+import { GitCredentialService } from '../../services/git-credential.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   GitSetupRemoteGenericDialogData,
@@ -46,11 +47,9 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
   urlInfo: ParseRemoteUrlResponse | null = null;
   validationResult: ValidateRemoteAuthResponse | null = null;
 
-  // Saved GitHub token info
-  hasSavedGitHubToken: boolean = false;
-  savedTokenUsername: string = '';
-  savedTokenValid: boolean = false;
-  useSavedToken: boolean = true;
+  // Multi-account support (uses unique credentials)
+  savedGitHubCredentials: { id: string; username: string; accountName: string }[] = [];
+  selectedCredentialId: string | null = null;
 
   // Provider info for display
   readonly providerInfo = PROVIDER_INFO;
@@ -59,6 +58,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
     public dialogRef: MatDialogRef<GitSetupRemoteGenericDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: GitSetupRemoteGenericDialogData,
     private gitService: GITService,
+    private gitCredentialService: GitCredentialService,
     private snackBar: MatSnackBar
   ) {}
 
@@ -79,7 +79,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
 
     if (!this.remoteUrl || this.remoteUrl.trim().length < 10) {
       this.urlInfo = null;
-      this.hasSavedGitHubToken = false;
+      this.savedGitHubCredentials = [];
       return;
     }
 
@@ -93,36 +93,20 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
           this.error = result.error || 'URL non valido';
         }
 
-        // If GitHub detected, check for saved token
+        // If GitHub detected, load saved credentials
         if (result.provider === 'github') {
-          this.checkSavedGitHubToken();
+          this.loadSavedGitHubCredentials();
+          // GitHub requires PAT, auto-select it
+          this.authMethod = 'pat';
         } else {
-          this.hasSavedGitHubToken = false;
+          this.savedGitHubCredentials = [];
+          this.selectedCredentialId = null;
         }
       },
       error: (err) => {
         console.error('Error parsing URL:', err);
         this.isValidating = false;
         this.urlInfo = null;
-        this.hasSavedGitHubToken = false;
-      }
-    });
-  }
-
-  /**
-   * Check if there's a saved GitHub token
-   */
-  checkSavedGitHubToken(): void {
-    this.gitService.getGitHubToken().subscribe({
-      next: (result) => {
-        this.hasSavedGitHubToken = result.hasToken;
-        this.savedTokenUsername = result.username || '';
-        this.savedTokenValid = result.tokenValid;
-        // Default to using saved token if it exists and is valid
-        this.useSavedToken = result.hasToken && result.tokenValid;
-      },
-      error: () => {
-        this.hasSavedGitHubToken = false;
       }
     });
   }
@@ -188,6 +172,52 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
   }
 
   /**
+   * Auto-select PAT auth method when user types in token field
+   */
+  onTokenChange(): void {
+    if (this.token && this.token.length > 0) {
+      this.authMethod = 'pat';
+    }
+  }
+
+  /**
+   * Load saved GitHub credentials from credential service
+   * Now returns unique credentials directly (no more deduplication needed)
+   */
+  loadSavedGitHubCredentials(): void {
+    this.gitCredentialService.getCredentialsByType('GitHub').subscribe({
+      next: (credentials) => {
+        this.savedGitHubCredentials = credentials;
+      },
+      error: (err) => {
+        console.error('Error loading saved GitHub credentials:', err);
+        this.savedGitHubCredentials = [];
+      }
+    });
+  }
+
+  /**
+   * Get display names of saved GitHub credentials
+   */
+  getSavedCredentialNames(): string {
+    return this.savedGitHubCredentials
+      .map(c => c.username || c.accountName)
+      .join(', ');
+  }
+
+  /**
+   * Handle credential selection change
+   */
+  onCredentialSelectionChange(): void {
+    if (!this.selectedCredentialId) {
+      // When deselected (new credentials), clear manual input fields
+      this.username = '';
+      this.token = '';
+      this.password = '';
+    }
+  }
+
+  /**
    * Get provider display info
    */
   getProviderInfo(): { name: string; icon: string; color: string } | null {
@@ -203,8 +233,8 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
       return false;
     }
 
-    // If using saved GitHub token, no need for manual credentials
-    if (this.urlInfo?.provider === 'github' && this.useSavedToken && this.hasSavedGitHubToken) {
+    // If using a saved credential
+    if (this.selectedCredentialId) {
       return true;
     }
 
@@ -242,22 +272,23 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
     this.error = null;
 
     const effectivePassword = this.getEffectivePassword();
-    const shouldUseSavedToken = this.urlInfo?.provider === 'github' && this.useSavedToken && this.hasSavedGitHubToken;
+    const useExistingCredential = !!this.selectedCredentialId;
 
     const request = {
       repositoryPath: this.data.projectPath,
       remoteUrl: this.remoteUrl,
       remoteName: this.remoteName || 'origin',
       authMethod: this.authMethod || 'username_password',
-      username: shouldUseSavedToken ? '' : (this.username || ''),
-      password: shouldUseSavedToken ? '' : (this.authMethod === 'username_password' ? (this.password || '') : ''),
-      token: shouldUseSavedToken ? '' : (this.authMethod === 'pat' ? (this.token || '') : ''),
+      username: useExistingCredential ? '' : (this.username || ''),
+      password: useExistingCredential ? '' : (this.authMethod === 'username_password' ? (this.password || '') : ''),
+      token: useExistingCredential ? '' : (this.authMethod === 'pat' ? (this.token || '') : ''),
       saveCredentials: this.saveCredentials === true,
       pushAfterAdd: this.pushAfterAdd === true,
       createRemoteRepo: this.createRemoteRepo === true && this.urlInfo?.supportsAutoCreate === true,
       repoDescription: this.repoDescription || '',
       isPrivate: this.isPrivate !== false,
-      useSavedToken: shouldUseSavedToken
+      useSavedToken: false,
+      copyFromCredentialId: this.selectedCredentialId || undefined
     };
 
     console.log('Setup remote request:', request);

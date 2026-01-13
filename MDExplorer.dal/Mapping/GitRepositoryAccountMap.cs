@@ -10,14 +10,11 @@ namespace MDExplorer.DataAccess.Mapping
             Table("GitRepositoryAccount");
             Id(x => x.Id).GeneratedBy.GuidComb();
             Map(x => x.RepositoryPath).Length(500).Not.Nullable().Unique();
-            Map(x => x.AccountName).Length(100).Not.Nullable();
-            Map(x => x.AccountType).Length(50).Not.Nullable();
-            Map(x => x.GitHubPAT).Length(500).Nullable();
-            Map(x => x.GitLabToken).Length(500).Nullable();
-            Map(x => x.SSHKeyPath).Length(500).Nullable();
-            Map(x => x.BitbucketAppPassword).Length(500).Nullable();
-            Map(x => x.HttpsPassword).Length(500).Nullable();
-            Map(x => x.AuthUsername).Length(100).Nullable();
+
+            // Reference to shared credential
+            References(x => x.Credential).Column("CredentialId").Nullable();
+
+            // Repository-specific settings
             Map(x => x.PreferredAuthMethod).Length(50).Nullable();
             Map(x => x.Username).Length(100).Nullable();
             Map(x => x.Email).Length(200).Nullable();

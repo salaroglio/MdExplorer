@@ -21,19 +21,22 @@ namespace MdExplorer.Services.Git
         private readonly IGitHubService _gitHubService;
         private readonly IModernGitService _modernGitService;
         private readonly IGitAccountService _gitAccountService;
+        private readonly IGitCredentialService _gitCredentialService;
 
         public GenericRemoteService(
             ILogger<GenericRemoteService> logger,
             IGitRemoteUrlParser urlParser,
             IGitHubService gitHubService,
             IModernGitService modernGitService,
-            IGitAccountService gitAccountService)
+            IGitAccountService gitAccountService,
+            IGitCredentialService gitCredentialService)
         {
             _logger = logger;
             _urlParser = urlParser;
             _gitHubService = gitHubService;
             _modernGitService = modernGitService;
             _gitAccountService = gitAccountService;
+            _gitCredentialService = gitCredentialService;
         }
 
         public async Task<ValidateRemoteResult> ValidateRemoteWithCredentialsAsync(ValidateRemoteRequest request)
@@ -161,8 +164,55 @@ namespace MdExplorer.Services.Git
                 string effectiveUsername = request.Username;
                 string effectivePassword = GetEffectivePassword(request);
                 string effectiveToken = request.Token;
+                Guid? existingCredentialId = null; // Track if we're using an existing credential
 
-                if (request.UseSavedToken && urlInfo.Provider == "github")
+                // Handle copying credentials from an existing credential
+                if (!string.IsNullOrEmpty(request.CopyFromCredentialId))
+                {
+                    _logger.LogInformation("Loading credentials from credential: {CredentialId}", request.CopyFromCredentialId);
+                    if (Guid.TryParse(request.CopyFromCredentialId, out var credentialGuid))
+                    {
+                        var sourceCredential = await _gitCredentialService.GetByIdAsync(credentialGuid);
+                        if (sourceCredential != null)
+                        {
+                            // Remember the existing credential ID to avoid creating duplicates
+                            existingCredentialId = credentialGuid;
+
+                            // Get credentials directly from the GitCredential entity
+                            effectiveUsername = sourceCredential.AuthUsername ?? "git";
+
+                            // Copy the appropriate token based on provider
+                            if (urlInfo.Provider == "github" && !string.IsNullOrEmpty(sourceCredential.GitHubPAT))
+                            {
+                                effectiveToken = sourceCredential.GitHubPAT;
+                                effectivePassword = sourceCredential.GitHubPAT;
+                            }
+                            else if (urlInfo.Provider == "gitlab" && !string.IsNullOrEmpty(sourceCredential.GitLabToken))
+                            {
+                                effectiveToken = sourceCredential.GitLabToken;
+                                effectivePassword = sourceCredential.GitLabToken;
+                            }
+                            else if (!string.IsNullOrEmpty(sourceCredential.HttpsPassword))
+                            {
+                                effectivePassword = sourceCredential.HttpsPassword;
+                            }
+
+                            _logger.LogInformation("Using credentials from credential (Id: {CredentialId}, user: {Username})",
+                                sourceCredential.Id, effectiveUsername);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Source credential not found: {CredentialId}", request.CopyFromCredentialId);
+                            return new SetupRemoteGenericResult
+                            {
+                                Success = false,
+                                Error = "Selected credential not found.",
+                                DurationMs = stopwatch.ElapsedMilliseconds
+                            };
+                        }
+                    }
+                }
+                else if (request.UseSavedToken && urlInfo.Provider == "github")
                 {
                     _logger.LogInformation("Using saved GitHub token for authentication");
                     var savedToken = await _gitHubService.GetTokenAsync();
@@ -211,7 +261,7 @@ namespace MdExplorer.Services.Git
                 // Step 1: Optionally create remote repository (if supported and requested)
                 if (request.CreateRemoteRepo && urlInfo.SupportsAutoCreate)
                 {
-                    var createResult = await CreateRemoteRepositoryAsync(urlInfo, request);
+                    var createResult = await CreateRemoteRepositoryAsync(urlInfo, request, effectiveToken);
                     if (!createResult.success && !createResult.alreadyExists)
                     {
                         return new SetupRemoteGenericResult
@@ -231,8 +281,7 @@ namespace MdExplorer.Services.Git
                     await StoreCredentialsAsync(request.RemoteUrl, effectiveUsername, effectivePassword);
 
                     // Also persist to database for MdExplorer's credential resolver
-                    // When using saved token, we still want to save the association for this repo
-                    await SaveAccountCredentialsAsync(request, urlInfo, effectiveUsername, effectiveToken, effectivePassword);
+                    await SaveAccountCredentialsAsync(request, urlInfo, effectiveUsername, effectiveToken, effectivePassword, existingCredentialId);
                 }
 
                 // Step 3: Add remote to local repository
@@ -429,60 +478,109 @@ namespace MdExplorer.Services.Git
         }
 
         /// <summary>
-        /// Saves credentials to the GitRepositoryAccount table for persistent storage
+        /// Saves credentials to the GitCredential and GitRepositoryAccount tables for persistent storage
         /// </summary>
         private async Task SaveAccountCredentialsAsync(SetupRemoteGenericRequest request, RemoteUrlInfo urlInfo,
-            string effectiveUsername, string effectiveToken, string effectivePassword)
+            string effectiveUsername, string effectiveToken, string effectivePassword, Guid? existingCredentialId = null)
         {
             try
             {
-                var accountType = MapProviderToAccountType(urlInfo.Provider);
-                var existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(request.RepositoryPath);
-                var useToken = request.AuthMethod == "pat" || request.UseSavedToken;
+                GitCredential credential = null;
+                var useToken = request.AuthMethod == "pat" || request.UseSavedToken || existingCredentialId.HasValue;
 
-                if (existingAccount != null)
+                // If we already have an existing credential ID (from CopyFromCredentialId), use it directly
+                if (existingCredentialId.HasValue)
                 {
-                    // Update existing account
-                    existingAccount.AuthUsername = effectiveUsername;
-                    existingAccount.PreferredAuthMethod = useToken ? "pat" : request.AuthMethod;
-                    existingAccount.UpdatedAt = DateTime.UtcNow;
-
-                    if (useToken && !string.IsNullOrEmpty(effectiveToken))
+                    credential = await _gitCredentialService.GetByIdAsync(existingCredentialId.Value);
+                    if (credential == null)
                     {
-                        SetTokenByAccountType(existingAccount, accountType, effectiveToken);
+                        _logger.LogWarning("Existing credential {CredentialId} not found, will create new one", existingCredentialId);
+                        existingCredentialId = null; // Fall through to create new
                     }
                     else
                     {
-                        existingAccount.HttpsPassword = effectivePassword;
+                        _logger.LogInformation("Using existing credential {CredentialId} for repository", existingCredentialId);
+                    }
+                }
+
+                // If no existing credential, find or create one
+                if (credential == null)
+                {
+                    var accountType = MapProviderToAccountType(urlInfo.Provider);
+                    var accountName = $"{accountType} - {effectiveUsername ?? "Account"}";
+
+                    // Determine which credential values to use
+                    string gitHubPAT = null;
+                    string gitLabToken = null;
+                    string httpsPassword = null;
+
+                    if (useToken && !string.IsNullOrEmpty(effectiveToken))
+                    {
+                        switch (accountType)
+                        {
+                            case "GitHub":
+                                gitHubPAT = effectiveToken;
+                                break;
+                            case "GitLab":
+                                gitLabToken = effectiveToken;
+                                break;
+                            default:
+                                httpsPassword = effectiveToken;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        httpsPassword = effectivePassword;
                     }
 
+                    // Find or create the credential
+                    credential = await _gitCredentialService.FindOrCreateAsync(
+                        accountType,
+                        accountName,
+                        effectiveUsername,
+                        gitHubPAT,
+                        gitLabToken,
+                        httpsPassword);
+                }
+
+                // Check if a repository account already exists
+                var existingAccount = await _gitAccountService.GetAccountForRepositoryAsync(request.RepositoryPath);
+
+                if (existingAccount != null)
+                {
+                    // Update existing account to link to the credential
+                    existingAccount.CredentialId = credential.Id;
+                    existingAccount.Credential = credential;
+                    existingAccount.PreferredAuthMethod = useToken ? "pat" : request.AuthMethod;
+                    existingAccount.UpdatedAt = DateTime.UtcNow;
+
                     await _gitAccountService.UpdateAccountAsync(existingAccount);
-                    _logger.LogInformation("Updated credentials in database for repository: {RepoPath}", request.RepositoryPath);
+                    _logger.LogInformation("Updated repository account to use credential {CredentialId} for: {RepoPath}",
+                        credential.Id, request.RepositoryPath);
                 }
                 else
                 {
-                    // Create new account
+                    // Create new repository account linked to the credential
                     var newAccount = new GitRepositoryAccount
                     {
                         RepositoryPath = request.RepositoryPath,
-                        AccountName = $"{accountType} - {urlInfo.RepoName ?? "Repository"}",
-                        AccountType = accountType,
-                        AuthUsername = effectiveUsername,
+                        CredentialId = credential.Id,
+                        Credential = credential,
                         PreferredAuthMethod = useToken ? "pat" : request.AuthMethod,
                         IsActive = true
                     };
 
-                    if (useToken && !string.IsNullOrEmpty(effectiveToken))
-                    {
-                        SetTokenByAccountType(newAccount, accountType, effectiveToken);
-                    }
-                    else
-                    {
-                        newAccount.HttpsPassword = effectivePassword;
-                    }
-
                     await _gitAccountService.CreateAccountAsync(newAccount);
-                    _logger.LogInformation("Created new account in database for repository: {RepoPath}", request.RepositoryPath);
+                    _logger.LogInformation("Created repository account with credential {CredentialId} for: {RepoPath}",
+                        credential.Id, request.RepositoryPath);
+                }
+
+                // CRITICAL: Update remote URL to include username (prevents GCM confusion with multiple accounts)
+                // This is what clone does that setup-remote was missing!
+                if (!string.IsNullOrEmpty(effectiveUsername))
+                {
+                    await UpdateRemoteUrlWithUsernameAsync(request.RepositoryPath, request.RemoteUrl, effectiveUsername);
                 }
             }
             catch (Exception ex)
@@ -502,38 +600,35 @@ namespace MdExplorer.Services.Git
             };
         }
 
-        private void SetTokenByAccountType(GitRepositoryAccount account, string accountType, string token)
-        {
-            switch (accountType)
-            {
-                case "GitHub":
-                    account.GitHubPAT = token;
-                    break;
-                case "GitLab":
-                    account.GitLabToken = token;
-                    break;
-                case "Bitbucket":
-                    account.BitbucketAppPassword = token;
-                    break;
-                default:
-                    // For generic, treat token as password
-                    account.HttpsPassword = token;
-                    break;
-            }
-        }
-
         private async Task<(bool success, bool alreadyExists, string error)> CreateRemoteRepositoryAsync(
-            RemoteUrlInfo urlInfo, SetupRemoteGenericRequest request)
+            RemoteUrlInfo urlInfo, SetupRemoteGenericRequest request, string effectiveToken = null)
         {
             try
             {
                 if (urlInfo.Provider == "github")
                 {
-                    var result = await _gitHubService.CreateRepositoryAsync(
-                        urlInfo.Owner,
-                        urlInfo.RepoName,
-                        request.RepoDescription,
-                        request.IsPrivate);
+                    GitHubRepositoryResult result;
+
+                    // Use the provided token if available, otherwise fall back to global token
+                    if (!string.IsNullOrEmpty(effectiveToken))
+                    {
+                        _logger.LogInformation("Creating GitHub repository with provided credential token");
+                        result = await _gitHubService.CreateRepositoryWithTokenAsync(
+                            urlInfo.Owner,
+                            urlInfo.RepoName,
+                            effectiveToken,
+                            request.RepoDescription,
+                            request.IsPrivate);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Creating GitHub repository with global token");
+                        result = await _gitHubService.CreateRepositoryAsync(
+                            urlInfo.Owner,
+                            urlInfo.RepoName,
+                            request.RepoDescription,
+                            request.IsPrivate);
+                    }
 
                     return (result.Success, result.AlreadyExists, result.ErrorMessage);
                 }
@@ -623,6 +718,82 @@ namespace MdExplorer.Services.Git
                 || errorMsg.Contains("not found")
                 || errorMsg.Contains("repository not found")
                 || errorMsg.Contains("does not exist");
+        }
+
+        /// <summary>
+        /// Updates the remote URL to include the username if not already present.
+        /// This prevents GCM confusion when multiple accounts are used for the same host.
+        /// Example: https://github.com/user/repo.git → https://username@github.com/user/repo.git
+        /// </summary>
+        private async Task UpdateRemoteUrlWithUsernameAsync(string repositoryPath, string currentRemoteUrl, string username)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(repositoryPath) || string.IsNullOrEmpty(currentRemoteUrl) || string.IsNullOrEmpty(username))
+                {
+                    return;
+                }
+
+                var uri = new Uri(currentRemoteUrl);
+
+                // Check if URL already has a username
+                if (!string.IsNullOrEmpty(uri.UserInfo))
+                {
+                    _logger.LogDebug("[RemoteUrlUpdate] URL already contains username: {UserInfo}", uri.UserInfo);
+                    return;
+                }
+
+                // Only update HTTPS URLs (not SSH)
+                if (uri.Scheme != "https")
+                {
+                    _logger.LogDebug("[RemoteUrlUpdate] Skipping non-HTTPS URL: {Scheme}", uri.Scheme);
+                    return;
+                }
+
+                // Build new URL with username
+                var newUrl = $"https://{username}@{uri.Host}{uri.PathAndQuery}";
+
+                _logger.LogInformation("[RemoteUrlUpdate] Updating remote URL: {OldUrl} → {NewUrl}", currentRemoteUrl, newUrl);
+
+                // Execute git remote set-url
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"remote set-url origin \"{newUrl}\"",
+                        WorkingDirectory = repositoryPath,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                var completed = await Task.Run(() => process.WaitForExit(10000)); // 10 second timeout
+
+                if (!completed)
+                {
+                    _logger.LogWarning("[RemoteUrlUpdate] git remote set-url timed out");
+                    process.Kill();
+                    return;
+                }
+
+                if (process.ExitCode == 0)
+                {
+                    _logger.LogInformation("[RemoteUrlUpdate] Successfully updated remote URL with username: {Username}", username);
+                }
+                else
+                {
+                    var error = await process.StandardError.ReadToEndAsync();
+                    _logger.LogWarning("[RemoteUrlUpdate] Failed to update remote URL: {Error}", error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[RemoteUrlUpdate] Error updating remote URL for: {RepoPath}", repositoryPath);
+            }
         }
     }
 }

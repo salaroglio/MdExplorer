@@ -3,64 +3,32 @@ using System;
 namespace MdExplorer.Abstractions.Entities.UserDB
 {
     /// <summary>
-    /// Represents Git account configuration for a specific repository.
-    /// Enables multi-account support where different repositories can use different credentials.
+    /// Represents Git configuration for a specific repository.
+    /// Links a repository to shared credentials and stores repository-specific settings.
     /// </summary>
     public class GitRepositoryAccount
     {
         /// <summary>
-        /// Unique identifier for this Git account configuration
+        /// Unique identifier for this repository configuration
         /// </summary>
         public virtual Guid Id { get; set; }
 
         /// <summary>
-        /// Absolute path to the Git repository this account is associated with.
-        /// This is the primary key for repository-specific authentication.
+        /// Absolute path to the Git repository this configuration is associated with.
+        /// This is the primary key for repository-specific settings.
         /// </summary>
         public virtual string RepositoryPath { get; set; }
 
         /// <summary>
-        /// Friendly name for this account (e.g., "Personal", "Work", "Client XYZ")
+        /// Foreign key to the shared credential used by this repository.
+        /// Nullable to support gradual migration.
         /// </summary>
-        public virtual string AccountName { get; set; }
+        public virtual Guid? CredentialId { get; set; }
 
         /// <summary>
-        /// Type of Git hosting service: GitHub, GitLab, Bitbucket, Generic
+        /// Navigation property to the shared credential.
         /// </summary>
-        public virtual string AccountType { get; set; }
-
-        /// <summary>
-        /// GitHub Personal Access Token (PAT) for HTTPS authentication
-        /// </summary>
-        public virtual string GitHubPAT { get; set; }
-
-        /// <summary>
-        /// GitLab Personal Access Token for HTTPS authentication
-        /// </summary>
-        public virtual string GitLabToken { get; set; }
-
-        /// <summary>
-        /// Path to a specific SSH private key for this repository.
-        /// If null, the default SSH key will be used.
-        /// </summary>
-        public virtual string SSHKeyPath { get; set; }
-
-        /// <summary>
-        /// Bitbucket App Password for HTTPS authentication
-        /// </summary>
-        public virtual string BitbucketAppPassword { get; set; }
-
-        /// <summary>
-        /// Password for HTTPS authentication (for username/password method).
-        /// Used for generic Git servers and providers that support username/password.
-        /// </summary>
-        public virtual string HttpsPassword { get; set; }
-
-        /// <summary>
-        /// Username for HTTPS authentication (separate from commit username).
-        /// Used together with HttpsPassword for username/password authentication.
-        /// </summary>
-        public virtual string AuthUsername { get; set; }
+        public virtual GitCredential Credential { get; set; }
 
         /// <summary>
         /// Preferred authentication method for this repository: "token", "username_password", "ssh".
@@ -79,22 +47,22 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string Email { get; set; }
 
         /// <summary>
-        /// Optional user notes about this account configuration
+        /// Optional user notes about this repository configuration
         /// </summary>
         public virtual string Notes { get; set; }
 
         /// <summary>
-        /// Whether this account is currently active/enabled
+        /// Whether this configuration is currently active/enabled
         /// </summary>
         public virtual bool IsActive { get; set; }
 
         /// <summary>
-        /// Timestamp when this account configuration was created
+        /// Timestamp when this configuration was created
         /// </summary>
         public virtual DateTime CreatedAt { get; set; }
 
         /// <summary>
-        /// Timestamp when this account configuration was last updated
+        /// Timestamp when this configuration was last updated
         /// </summary>
         public virtual DateTime UpdatedAt { get; set; }
 
@@ -106,5 +74,49 @@ namespace MdExplorer.Abstractions.Entities.UserDB
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
+
+        #region Convenience Properties (read from Credential)
+
+        /// <summary>
+        /// Gets the account name from the linked credential
+        /// </summary>
+        public virtual string AccountName => Credential?.AccountName;
+
+        /// <summary>
+        /// Gets the account type from the linked credential
+        /// </summary>
+        public virtual string AccountType => Credential?.AccountType;
+
+        /// <summary>
+        /// Gets the auth username from the linked credential
+        /// </summary>
+        public virtual string AuthUsername => Credential?.AuthUsername;
+
+        /// <summary>
+        /// Gets the GitHub PAT from the linked credential
+        /// </summary>
+        public virtual string GitHubPAT => Credential?.GitHubPAT;
+
+        /// <summary>
+        /// Gets the GitLab token from the linked credential
+        /// </summary>
+        public virtual string GitLabToken => Credential?.GitLabToken;
+
+        /// <summary>
+        /// Gets the SSH key path from the linked credential
+        /// </summary>
+        public virtual string SSHKeyPath => Credential?.SSHKeyPath;
+
+        /// <summary>
+        /// Gets the Bitbucket app password from the linked credential
+        /// </summary>
+        public virtual string BitbucketAppPassword => Credential?.BitbucketAppPassword;
+
+        /// <summary>
+        /// Gets the HTTPS password from the linked credential
+        /// </summary>
+        public virtual string HttpsPassword => Credential?.HttpsPassword;
+
+        #endregion
     }
 }

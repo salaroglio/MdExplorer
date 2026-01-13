@@ -356,7 +356,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             try
             {
                 var gitPath = Path.Combine(projectPath, ".git");
-                
+
                 // Check if Git repository already exists
                 if (Directory.Exists(gitPath))
                 {
@@ -367,6 +367,22 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 // Initialize Git repository
                 Repository.Init(projectPath);
                 Console.WriteLine($"Git repository initialized at: {projectPath}");
+
+                // Set initial branch to "main" (modern standard)
+                using (var repo = new Repository(projectPath))
+                {
+                    // Create initial empty commit to establish the branch
+                    var signature = new Signature("MdExplorer", "noreply@mdexplorer.net", DateTimeOffset.Now);
+                    repo.Commit("Initial commit", signature, signature, new CommitOptions { AllowEmptyCommit = true });
+
+                    // Rename branch from master to main
+                    var currentBranch = repo.Head;
+                    if (currentBranch.FriendlyName == "master")
+                    {
+                        repo.Branches.Rename(currentBranch, "main");
+                        Console.WriteLine($"Branch renamed from 'master' to 'main'");
+                    }
+                }
 
                 // Create .gitignore file with MdExplorer specific patterns
                 var gitignorePath = Path.Combine(projectPath, ".gitignore");

@@ -348,7 +348,7 @@ namespace MdExplorer.Controllers.GitChat
     public class ProjectOpenedDto
     {
         public string RepositoryPath { get; set; }
-        public string OderId { get; set; }
+        public string? OderId { get; set; }
     }
 
     /// <summary>
@@ -356,7 +356,7 @@ namespace MdExplorer.Controllers.GitChat
     /// </summary>
     public class ProjectClosedDto
     {
-        public string RoomId { get; set; }
-        public string OderId { get; set; }
+        public string? RoomId { get; set; }
+        public string? OderId { get; set; }
     }
 }

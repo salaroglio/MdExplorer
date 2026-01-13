@@ -1,11 +1,15 @@
+import { GitCredential } from './git-credential.model';
+
 /**
  * Git Account model for repository-specific authentication
  */
 export interface GitAccount {
   id?: string;
   repositoryPath: string;
-  accountName: string;
-  accountType: 'GitHub' | 'GitLab' | 'Bitbucket' | 'Generic';
+  credentialId?: string;
+  credential?: GitCredential;
+  accountName?: string;
+  accountType?: 'GitHub' | 'GitLab' | 'Bitbucket' | 'Generic';
   hasGitHubPAT?: boolean;
   hasGitLabToken?: boolean;
   hasSSHKeyPath?: boolean;
@@ -26,14 +30,17 @@ export interface GitAccount {
  */
 export interface CreateGitAccountRequest {
   repositoryPath: string;
-  accountName: string;
-  accountType: string;
+  credentialId?: string;  // Use existing credential
+  // Fields for creating new credential (ignored if credentialId is set)
+  accountName?: string;
+  accountType?: string;
+  authUsername?: string;
   gitHubPAT?: string;
   gitLabToken?: string;
   sshKeyPath?: string;
   bitbucketAppPassword?: string;
   httpsPassword?: string;
-  authUsername?: string;
+  // Repository-specific fields
   preferredAuthMethod?: string;
   username?: string;
   email?: string;
@@ -45,15 +52,18 @@ export interface CreateGitAccountRequest {
  * Request to update an existing Git account
  */
 export interface UpdateGitAccountRequest {
-  repositoryPath: string;
-  accountName: string;
-  accountType: string;
+  repositoryPath?: string;
+  credentialId?: string;  // Switch to different credential
+  // Fields for creating/updating credential
+  accountName?: string;
+  accountType?: string;
+  authUsername?: string;
   gitHubPAT?: string;
   gitLabToken?: string;
   sshKeyPath?: string;
   bitbucketAppPassword?: string;
   httpsPassword?: string;
-  authUsername?: string;
+  // Repository-specific fields
   preferredAuthMethod?: string;
   username?: string;
   email?: string;

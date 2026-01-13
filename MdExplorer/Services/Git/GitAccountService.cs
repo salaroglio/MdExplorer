@@ -19,15 +19,18 @@ namespace MdExplorer.Services.Git
         private readonly IUserSettingsDB _userSettingsDB;
         private readonly ILogger<GitAccountService> _logger;
         private readonly IGitConfigHelper _gitConfigHelper;
+        private readonly IGitCredentialService _gitCredentialService;
 
         public GitAccountService(
             IUserSettingsDB userSettingsDB,
             ILogger<GitAccountService> logger,
-            IGitConfigHelper gitConfigHelper)
+            IGitConfigHelper gitConfigHelper,
+            IGitCredentialService gitCredentialService)
         {
             _userSettingsDB = userSettingsDB;
             _logger = logger;
             _gitConfigHelper = gitConfigHelper;
+            _gitCredentialService = gitCredentialService;
         }
 
         public async Task<GitRepositoryAccount> GetAccountForRepositoryAsync(string repositoryPath)
@@ -44,7 +47,7 @@ namespace MdExplorer.Services.Git
 
                     // Normalize path for comparison (removes trailing slash, normalizes separators)
                     var normalizedPath = NormalizeRepositoryPath(repositoryPath);
-                    _logger.LogWarning("[GitAccountService] Looking for path: '{SearchPath}'", normalizedPath);
+                    _logger.LogDebug("[GitAccountService] Looking for path: '{SearchPath}'", normalizedPath);
 
                     // Use a transaction for proper session management
                     using var tx = _userSettingsDB.BeginTransaction();
@@ -53,7 +56,7 @@ namespace MdExplorer.Services.Git
                     // Fetch all accounts first, then filter in memory
                     // (Path.GetFullPath cannot be translated to SQL by NHibernate)
                     var allAccounts = dal.GetList().ToList();
-                    _logger.LogWarning("[GitAccountService] Found {Count} accounts in DB", allAccounts.Count);
+                    _logger.LogDebug("[GitAccountService] Found {Count} accounts in DB", allAccounts.Count);
 
                     var account = allAccounts.FirstOrDefault(a =>
                         !string.IsNullOrEmpty(a.RepositoryPath) &&
@@ -61,20 +64,12 @@ namespace MdExplorer.Services.Git
 
                     if (account != null)
                     {
-                        _logger.LogInformation("[GitAccountService] ✅ Found account '{AccountName}' for path: {RepoPath}",
-                            account.AccountName, normalizedPath);
+                        _logger.LogInformation("[GitAccountService] Found account for path: {RepoPath} (CredentialId: {CredentialId})",
+                            normalizedPath, account.CredentialId);
                     }
                     else
                     {
-                        // Log all paths for debugging path mismatch issues
-                        _logger.LogWarning("[GitAccountService] ❌ No account found for path: '{SearchPath}'", normalizedPath);
-                        foreach (var a in allAccounts.Where(x => !string.IsNullOrEmpty(x.RepositoryPath)))
-                        {
-                            var storedNormalized = NormalizeRepositoryPath(a.RepositoryPath);
-                            _logger.LogWarning("[GitAccountService] DB has: '{Stored}' -> normalized: '{Normalized}' matches: {Match}",
-                                a.RepositoryPath, storedNormalized,
-                                storedNormalized.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-                        }
+                        _logger.LogDebug("[GitAccountService] No account found for path: '{SearchPath}'", normalizedPath);
                     }
 
                     return account;
@@ -106,6 +101,43 @@ namespace MdExplorer.Services.Git
                 {
                     _logger.LogError(ex, "Error retrieving all Git accounts");
                     return new List<GitRepositoryAccount>();
+                }
+            });
+        }
+
+        public async Task<GitRepositoryAccount> GetAccountByIdAsync(Guid accountId)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    if (accountId == Guid.Empty)
+                    {
+                        _logger.LogWarning("GetAccountByIdAsync called with empty GUID");
+                        return null;
+                    }
+
+                    using var tx = _userSettingsDB.BeginTransaction();
+                    var dal = _userSettingsDB.GetDal<GitRepositoryAccount>();
+
+                    var account = dal.GetList().FirstOrDefault(a => a.Id == accountId);
+
+                    if (account != null)
+                    {
+                        _logger.LogInformation("Found account with ID: {AccountId} (CredentialId: {CredentialId})",
+                            accountId, account.CredentialId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No account found with ID: {AccountId}", accountId);
+                    }
+
+                    return account;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error retrieving Git account by ID: {AccountId}", accountId);
+                    return null;
                 }
             });
         }
@@ -147,8 +179,8 @@ namespace MdExplorer.Services.Git
                         dal.Save(account);
                         _userSettingsDB.Commit();
 
-                        _logger.LogInformation("Created Git account '{AccountName}' for repository: {RepoPath}",
-                            account.AccountName, account.RepositoryPath);
+                        _logger.LogInformation("Created Git account for repository: {RepoPath} (CredentialId: {CredentialId})",
+                            account.RepositoryPath, account.CredentialId);
 
                         // Write credential configuration to .git/config
                         WriteCredentialToGitConfig(account);
@@ -167,6 +199,46 @@ namespace MdExplorer.Services.Git
                     throw;
                 }
             });
+        }
+
+        /// <summary>
+        /// Creates a repository account with a linked credential.
+        /// If a matching credential exists, it will be reused; otherwise a new one is created.
+        /// </summary>
+        public async Task<GitRepositoryAccount> CreateAccountWithCredentialAsync(
+            string repositoryPath,
+            string accountType,
+            string accountName,
+            string authUsername,
+            string gitHubPAT = null,
+            string gitLabToken = null,
+            string httpsPassword = null,
+            string preferredAuthMethod = null,
+            string commitUsername = null,
+            string commitEmail = null)
+        {
+            // Find or create the credential
+            var credential = await _gitCredentialService.FindOrCreateAsync(
+                accountType,
+                accountName,
+                authUsername,
+                gitHubPAT,
+                gitLabToken,
+                httpsPassword);
+
+            // Create the repository account linked to the credential
+            var account = new GitRepositoryAccount
+            {
+                RepositoryPath = repositoryPath,
+                CredentialId = credential.Id,
+                Credential = credential,
+                PreferredAuthMethod = preferredAuthMethod,
+                Username = commitUsername,
+                Email = commitEmail,
+                IsActive = true
+            };
+
+            return await CreateAccountAsync(account);
         }
 
         public async Task<GitRepositoryAccount> UpdateAccountAsync(GitRepositoryAccount account)
@@ -206,8 +278,8 @@ namespace MdExplorer.Services.Git
                         dal.Save(account);
                         _userSettingsDB.Commit();
 
-                        _logger.LogInformation("Updated Git account '{AccountName}' (ID: {AccountId})",
-                            account.AccountName, account.Id);
+                        _logger.LogInformation("Updated Git account (ID: {AccountId}, CredentialId: {CredentialId})",
+                            account.Id, account.CredentialId);
 
                         // Update credential configuration in .git/config
                         WriteCredentialToGitConfig(account);
@@ -258,8 +330,7 @@ namespace MdExplorer.Services.Git
                         dal.Delete(account);
                         _userSettingsDB.Commit();
 
-                        _logger.LogInformation("Deleted Git account '{AccountName}' (ID: {AccountId})",
-                            account.AccountName, accountId);
+                        _logger.LogInformation("Deleted Git account (ID: {AccountId})", accountId);
 
                         // Remove credential configuration from .git/config
                         RemoveCredentialFromGitConfig(repositoryPath);
@@ -357,12 +428,15 @@ namespace MdExplorer.Services.Git
                     return;
                 }
 
-                // Determine the username to use
-                var username = account.Username;
+                // Determine the username to use (from credential or commit username)
+                var username = account.AuthUsername; // From linked credential
                 if (string.IsNullOrEmpty(username))
                 {
-                    // For GitHub, the username for token auth is typically "git" or the account name
-                    username = account.AccountName ?? "git";
+                    username = account.Username; // Commit username
+                }
+                if (string.IsNullOrEmpty(username))
+                {
+                    username = "git"; // Default for token auth
                 }
 
                 var success = _gitConfigHelper.WriteCredentialConfig(account.RepositoryPath, username);

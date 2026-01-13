@@ -51,9 +51,9 @@ export class AppCurrentMetadataService {
 
   loadSettings() {
     const url = '../api/AppSettings/GetSettings';
-    return this.http.get<IMdSetting[]>(url)
+    return this.http.get<{ settings: IMdSetting[] }>(url)
       .subscribe(data => {
-        this.dataStore.settings = data;
+        this.dataStore.settings = data.settings;
         this._Settings.next(Object.assign({}, this.dataStore).settings);
       }
         , error => {
@@ -68,7 +68,8 @@ export class AppCurrentMetadataService {
       this.dataStore.settings = updatedSettings;
       this._Settings.next(Object.assign({}, this.dataStore).settings);
     }
-    return this.http.post<IMdSetting[]>(url, this.dataStore.settings);
+    // Backend expects { settings: [...] } wrapper
+    return this.http.post<IMdSetting[]>(url, { settings: this.dataStore.settings });
   }
 
   killServer() {

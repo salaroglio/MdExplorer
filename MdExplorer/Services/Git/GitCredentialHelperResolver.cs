@@ -18,6 +18,7 @@ namespace MdExplorer.Services.Git
     {
         private readonly ILogger<GitCredentialHelperResolver> _logger;
         private readonly IGitAccountService _gitAccountService;
+        private readonly IGitCredentialService _gitCredentialService;
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(60); // Increased for OAuth browser flow
 
         // Cache to avoid prompting multiple times for the same URL in a session
@@ -39,10 +40,12 @@ namespace MdExplorer.Services.Git
 
         public GitCredentialHelperResolver(
             ILogger<GitCredentialHelperResolver> logger,
-            IGitAccountService gitAccountService)
+            IGitAccountService gitAccountService,
+            IGitCredentialService gitCredentialService)
         {
             _logger = logger;
             _gitAccountService = gitAccountService;
+            _gitCredentialService = gitCredentialService;
         }
 
         public async Task<Credentials> ResolveCredentialsAsync(string url, string usernameFromUrl, SupportedCredentialTypes types)
@@ -310,35 +313,56 @@ namespace MdExplorer.Services.Git
                 // Update existing account or create new one
                 if (existingAccount != null)
                 {
-                    // Update the existing incomplete account with detected credentials
-                    existingAccount.AuthUsername = username;
-                    existingAccount.HttpsPassword = password;
-                    existingAccount.AccountType = accountType;
+                    // Update the existing credential linked to this account
+                    if (existingAccount.Credential != null)
+                    {
+                        existingAccount.Credential.AuthUsername = username;
+                        existingAccount.Credential.HttpsPassword = password;
+                        existingAccount.Credential.AccountType = accountType;
+                        existingAccount.Credential.IsActive = true;
+                        // Update AccountName if empty or doesn't match the standard pattern
+                        var expectedName = $"{accountType} - {username}";
+                        if (string.IsNullOrEmpty(existingAccount.Credential.AccountName) ||
+                            existingAccount.Credential.AccountName != expectedName)
+                        {
+                            existingAccount.Credential.AccountName = expectedName;
+                        }
+                        await _gitCredentialService.UpdateAsync(existingAccount.Credential);
+                    }
+                    else
+                    {
+                        // Create new credential and link it
+                        var credential = await _gitCredentialService.FindOrCreateAsync(
+                            accountType,
+                            $"{accountType} - {username}",
+                            username,
+                            gitHubPAT: accountType == "GitHub" ? password : null,
+                            gitLabToken: accountType == "GitLab" ? password : null,
+                            httpsPassword: password);
+
+                        existingAccount.CredentialId = credential.Id;
+                        existingAccount.Credential = credential;
+                    }
+
                     existingAccount.PreferredAuthMethod = "auto";
                     existingAccount.IsActive = true;
-                    if (string.IsNullOrEmpty(existingAccount.AccountName) || existingAccount.AccountName.StartsWith("Auto-detected"))
-                    {
-                        existingAccount.AccountName = $"Auto-detected ({username})";
-                    }
 
                     await _gitAccountService.UpdateAccountAsync(existingAccount);
                     _logger.LogInformation("[CredentialAutoDetect] Updated existing account with detected credentials: {AccountName}", existingAccount.AccountName);
                 }
                 else
                 {
-                    // Create new account
-                    var account = new GitRepositoryAccount
-                    {
-                        RepositoryPath = normalizedPath,
-                        AccountName = $"Auto-detected ({username})",
-                        AccountType = accountType,
-                        AuthUsername = username,
-                        HttpsPassword = password,
-                        PreferredAuthMethod = "auto",
-                        IsActive = true
-                    };
+                    // Create new account with credential using the service method
+                    var account = await _gitAccountService.CreateAccountWithCredentialAsync(
+                        normalizedPath,
+                        accountType,
+                        $"{accountType} - {username}",
+                        username,
+                        gitHubPAT: accountType == "GitHub" ? password : null,
+                        gitLabToken: accountType == "GitLab" ? password : null,
+                        httpsPassword: password,
+                        preferredAuthMethod: "auto");
 
-                    await _gitAccountService.CreateAccountAsync(account);
                     _logger.LogInformation("[CredentialAutoDetect] Created new account with detected credentials: {AccountName}", account.AccountName);
                 }
 

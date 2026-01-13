@@ -71,20 +71,37 @@ namespace MdExplorer.Service.Controllers
         }
 
         [HttpPost]
-        public IActionResult SetSettings(Settings settings)
+        public IActionResult SetSettings([FromBody] Settings settings)
         {
+            _logger.LogWarning("***** SETSETTINGS CHIAMATO *****");
+            _logger.LogInformation($"[SetSettings] Received {settings?.settings?.Length ?? 0} settings to save");
+
             var settingsDal = _session.GetDal<Setting>();
             _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
             foreach (var item in settings.settings)
             {
-                var dbItem = settingsDal.GetList().Where(_ => _.Id == item.Id).FirstOrDefault();
-                dbItem.ValueDateTime = item.ValueDateTime;
-                dbItem.ValueDecimal = item.ValueDecimal;
-                dbItem.ValueInt = item.ValueInt;
-                dbItem.ValueString = item.ValueString;
+                _logger.LogInformation($"[SetSettings] Processing: Id={item.id}, Name={item.name}, ValueString={item.valueString}");
+
+                var dbItem = settingsDal.GetList().Where(_ => _.Id == item.id).FirstOrDefault();
+
+                if (dbItem == null)
+                {
+                    _logger.LogWarning($"[SetSettings] Setting not found in DB: Id={item.id}, Name={item.name}");
+                    continue;
+                }
+
+                _logger.LogInformation($"[SetSettings] Found in DB: Id={dbItem.Id}, Name={dbItem.Name}, OldValue={dbItem.ValueString}");
+
+                dbItem.ValueDateTime = item.valueDateTime;
+                dbItem.ValueDecimal = item.valueDecimal;
+                dbItem.ValueInt = item.valueInt;
+                dbItem.ValueString = item.valueString;
                 settingsDal.Save(dbItem);
+
+                _logger.LogInformation($"[SetSettings] Saved: Name={dbItem.Name}, NewValue={dbItem.ValueString}");
             }
             _session.Commit();
+            _logger.LogInformation("[SetSettings] Transaction committed");
             return Ok(new { response = "settings saved" });
         }
 
@@ -156,7 +173,17 @@ namespace MdExplorer.Service.Controllers
 
         public class Settings
         {
-            public Setting[] settings { get; set; }
+            public SettingDto[] settings { get; set; }
+        }
+
+        public class SettingDto
+        {
+            public Guid id { get; set; }
+            public string name { get; set; }
+            public string? valueString { get; set; }
+            public int? valueInt { get; set; }
+            public DateTime? valueDateTime { get; set; }
+            public decimal? valueDecimal { get; set; }
         }
 
         [HttpGet]

@@ -378,6 +378,12 @@ namespace MdExplorer.Controllers.ModernGit
         /// Whether to use the saved GitHub token instead of provided credentials
         /// </summary>
         public bool UseSavedToken { get; set; } = false;
+
+        /// <summary>
+        /// ID of an existing GitCredential to use for authentication.
+        /// When set, credentials will be loaded from the specified credential.
+        /// </summary>
+        public string CopyFromCredentialId { get; set; }
     }
 
     /// <summary>

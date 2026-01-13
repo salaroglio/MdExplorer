@@ -220,6 +220,24 @@
   }
 }
 
+.saved-accounts-section {
+  margin-bottom: 16px;
+
+  .account-repo-hint {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 4px;
+  }
+
+  mat-option mat-icon {
+    margin-right: 8px;
+    font-size: 20px;
+    height: 20px;
+    width: 20px;
+    vertical-align: middle;
+  }
+}
+
 .validate-button {
   margin-bottom: 16px;
 

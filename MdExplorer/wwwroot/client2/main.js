@@ -2717,7 +2717,7 @@ class AppCurrentMetadataService {
         const url = '../api/AppSettings/GetSettings';
         return this.http.get(url)
             .subscribe(data => {
-            this.dataStore.settings = data;
+            this.dataStore.settings = data.settings;
             this._Settings.next(Object.assign({}, this.dataStore).settings);
         }, error => {
         });
@@ -2729,7 +2729,8 @@ class AppCurrentMetadataService {
             this.dataStore.settings = updatedSettings;
             this._Settings.next(Object.assign({}, this.dataStore).settings);
         }
-        return this.http.post(url, this.dataStore.settings);
+        // Backend expects { settings: [...] } wrapper
+        return this.http.post(url, { settings: this.dataStore.settings });
     }
     killServer() {
         const url = '../api/AppSettings/KillServer';
@@ -4434,8 +4435,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2026.01.05.4',
-    buildTime: '2026.01.05 12:02:49'
+    version: '2026.01.12.3',
+    buildTime: '2026.01.12 15:28:11'
 };
 
 

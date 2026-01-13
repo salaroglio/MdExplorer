@@ -31,33 +31,42 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.appCurrentFolder.loadSettings();
-    this.appCurrentFolder.settings.subscribe((data: any) => {
-      var settings = data.settings as IMdSetting[];
-      if (settings != undefined) {
+    this.appCurrentFolder.settings.subscribe((settings: IMdSetting[]) => {
+      if (settings != undefined && settings.length > 0) {
         this._settings = settings;
-        this.vscodePath = settings.filter(_ => _.name === "EditorPath")[0].valueString || null;
-        this.intellijPath = settings.filter(_ => _.name === "IntelliJPath")[0]?.valueString || null;
-        this.jiraServer = settings.filter(_ => _.name === "JiraServer")[0].valueString || null;
-        this.plantumlLocalPath = settings.filter(_ => _.name === "PlantumlLocalPath")[0].valueString || null;
-        this.javaPath = settings.filter(_ => _.name === "JavaPath")[0].valueString || null;
-        this.localGraphvizDotPath = settings.filter(_ => _.name === "LocalGraphvizDotPath")[0].valueString || null;
+        this.vscodePath = settings.find(_ => _.name === "EditorPath")?.valueString || null;
+        this.intellijPath = settings.find(_ => _.name === "IntelliJPath")?.valueString || null;
+        this.jiraServer = settings.find(_ => _.name === "JiraServer")?.valueString || null;
+        this.plantumlLocalPath = settings.find(_ => _.name === "PlantumlLocalPath")?.valueString || null;
+        this.javaPath = settings.find(_ => _.name === "JavaPath")?.valueString || null;
+        this.localGraphvizDotPath = settings.find(_ => _.name === "LocalGraphvizDotPath")?.valueString || null;
       }
     });
   }
 
   save() {
-    this._settings.filter(_ => _.name === "EditorPath")[0].valueString = this.vscodePath;
-    this._settings.filter(_ => _.name === "IntelliJPath")[0].valueString = this.intellijPath;
-    this._settings.filter(_ => _.name === "JiraServer")[0].valueString = this.jiraServer;
-    this._settings.filter(_ => _.name === "PlantumlLocalPath")[0].valueString = this.plantumlLocalPath;
-    this._settings.filter(_ => _.name === "JavaPath")[0].valueString = this.javaPath;
-    this._settings.filter(_ => _.name === "LocalGraphvizDotPath")[0].valueString = this.localGraphvizDotPath;
+    this.updateSetting("EditorPath", this.vscodePath);
+    this.updateSetting("IntelliJPath", this.intellijPath);
+    this.updateSetting("JiraServer", this.jiraServer);
+    this.updateSetting("PlantumlLocalPath", this.plantumlLocalPath);
+    this.updateSetting("JavaPath", this.javaPath);
+    this.updateSetting("LocalGraphvizDotPath", this.localGraphvizDotPath);
 
     // Pass the updated settings to the service
     this.appCurrentFolder.saveSettings(this._settings).subscribe(data => {
       this._snackBar.open("settings saved","" ,{ duration: 1000 });
     });
     this.dialogRef.close(null);
+  }
+
+  private updateSetting(name: string, value: string): void {
+    const setting = this._settings.find(_ => _.name === name);
+    if (setting) {
+      setting.valueString = value;
+    } else {
+      // Create new setting if it doesn't exist
+      this._settings.push({ name: name, valueString: value } as IMdSetting);
+    }
   }
 
   dismiss() {

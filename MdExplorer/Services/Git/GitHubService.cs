@@ -15,9 +15,14 @@ namespace MdExplorer.Services.Git
     public interface IGitHubService
     {
         /// <summary>
-        /// Creates a new repository on GitHub
+        /// Creates a new repository on GitHub using global token
         /// </summary>
         Task<GitHubRepositoryResult> CreateRepositoryAsync(string organization, string repositoryName, string description = null, bool isPrivate = true);
+
+        /// <summary>
+        /// Creates a new repository on GitHub using the specified token
+        /// </summary>
+        Task<GitHubRepositoryResult> CreateRepositoryWithTokenAsync(string organization, string repositoryName, string token, string description = null, bool isPrivate = true);
 
         /// <summary>
         /// Checks if a repository exists on GitHub
@@ -132,6 +137,102 @@ namespace MdExplorer.Services.Git
                 catch (NotFoundException)
                 {
                     // Organization not found, try as user repository
+                    _logger.LogInformation("Organization not found, creating as user repository");
+                    createdRepo = await client.Repository.Create(newRepo);
+                }
+
+                _logger.LogInformation("Repository created successfully: {Url}", createdRepo.HtmlUrl);
+
+                return new GitHubRepositoryResult
+                {
+                    Success = true,
+                    RepositoryUrl = createdRepo.HtmlUrl,
+                    CloneUrl = createdRepo.CloneUrl,
+                    AlreadyExists = false
+                };
+            }
+            catch (AuthorizationException authEx)
+            {
+                _logger.LogError(authEx, "Authorization failed when creating repository");
+                return new GitHubRepositoryResult
+                {
+                    Success = false,
+                    ErrorMessage = "Authorization failed. Please check your GitHub token has 'repo' scope."
+                };
+            }
+            catch (ApiException apiEx)
+            {
+                _logger.LogError(apiEx, "GitHub API error when creating repository");
+                return new GitHubRepositoryResult
+                {
+                    Success = false,
+                    ErrorMessage = $"GitHub API error: {apiEx.Message}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error when creating repository");
+                return new GitHubRepositoryResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Unexpected error: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<GitHubRepositoryResult> CreateRepositoryWithTokenAsync(string organization, string repositoryName, string token, string description = null, bool isPrivate = true)
+        {
+            try
+            {
+                _logger.LogInformation("Creating GitHub repository with provided token: {Organization}/{Repository}, Private: {IsPrivate}",
+                    organization, repositoryName, isPrivate);
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    return new GitHubRepositoryResult
+                    {
+                        Success = false,
+                        ErrorMessage = "GitHub token not provided."
+                    };
+                }
+
+                var client = new GitHubClient(new ProductHeaderValue("MdExplorer"));
+                client.Credentials = new Credentials(token);
+
+                // First check if repository exists
+                try
+                {
+                    await client.Repository.Get(organization, repositoryName);
+                    _logger.LogWarning("Repository already exists: {Organization}/{Repository}", organization, repositoryName);
+                    return new GitHubRepositoryResult
+                    {
+                        Success = true,
+                        AlreadyExists = true,
+                        RepositoryUrl = $"https://github.com/{organization}/{repositoryName}",
+                        CloneUrl = $"https://github.com/{organization}/{repositoryName}.git"
+                    };
+                }
+                catch (NotFoundException)
+                {
+                    // Repository doesn't exist, continue with creation
+                }
+
+                // Create new repository
+                var newRepo = new NewRepository(repositoryName)
+                {
+                    Description = description ?? $"Repository created by MdExplorer",
+                    Private = isPrivate,
+                    AutoInit = false
+                };
+
+                Repository createdRepo;
+
+                try
+                {
+                    createdRepo = await client.Repository.Create(organization, newRepo);
+                }
+                catch (NotFoundException)
+                {
                     _logger.LogInformation("Organization not found, creating as user repository");
                     createdRepo = await client.Repository.Create(newRepo);
                 }

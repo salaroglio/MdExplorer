@@ -78,7 +78,8 @@ namespace MdExplorer.Services.Git
                     }
 
                     // Method 2: Token-based (if username/password not available or explicit token method)
-                    if (effectivePassword == null && (authMethod == "token" || authMethod == "auto"))
+                    // Note: "pat" is an alias for "token" (Personal Access Token)
+                    if (effectivePassword == null && (authMethod == "token" || authMethod == "pat" || authMethod == "auto"))
                     {
                         if (account.AccountType == "GitHub" && !string.IsNullOrEmpty(account.GitHubPAT))
                         {
@@ -142,14 +143,20 @@ namespace MdExplorer.Services.Git
         {
             // This resolver can handle any URL if we have repository-specific configuration
             var repositoryPath = GetRepositoryPathFromContext();
+            _logger.LogWarning("[RepoSpecificResolver] CanResolveCredentials called - URL: {Url}, RepoPath: {RepoPath}",
+                url, repositoryPath ?? "(none)");
+
             if (string.IsNullOrEmpty(repositoryPath))
             {
+                _logger.LogWarning("[RepoSpecificResolver] CanResolveCredentials returning FALSE - no repository path in context");
                 return false;
             }
 
             var account = GetAccountForRepository(repositoryPath);
             if (account == null || !account.IsActive)
             {
+                _logger.LogWarning("[RepoSpecificResolver] CanResolveCredentials returning FALSE - account is null or inactive for {RepoPath}",
+                    repositoryPath);
                 return false;
             }
 
@@ -167,7 +174,13 @@ namespace MdExplorer.Services.Git
                 (!string.IsNullOrEmpty(account.BitbucketAppPassword) && account.AccountType == "Bitbucket")
             );
 
-            return isHTTPS && (hasUsernamePassword || hasTokenForHTTPS);
+            _logger.LogWarning("[RepoSpecificResolver] CanResolveCredentials check - isHTTPS: {IsHTTPS}, hasUsernamePassword: {HasUserPass}, hasTokenForHTTPS: {HasToken}, AccountType: {AccountType}, AuthUsername: {AuthUser}, HasGitHubPAT: {HasPAT}",
+                isHTTPS, hasUsernamePassword, hasTokenForHTTPS, account.AccountType, account.AuthUsername, !string.IsNullOrEmpty(account.GitHubPAT));
+
+            var canResolve = isHTTPS && (hasUsernamePassword || hasTokenForHTTPS);
+            _logger.LogWarning("[RepoSpecificResolver] CanResolveCredentials returning {Result}", canResolve);
+
+            return canResolve;
         }
 
         public int GetPriority()
@@ -202,14 +215,25 @@ namespace MdExplorer.Services.Git
                 var normalizedPath = System.IO.Path.GetFullPath(repositoryPath);
 
                 using var tx = _userSettingsDB.BeginTransaction();
-                var dal = _userSettingsDB.GetDal<GitRepositoryAccount>();
+                var accountDal = _userSettingsDB.GetDal<GitRepositoryAccount>();
+                var credentialDal = _userSettingsDB.GetDal<GitCredential>();
 
                 // Fetch all accounts first, then filter in memory
                 // (Path.GetFullPath cannot be translated to SQL by NHibernate)
-                var allAccounts = dal.GetList().ToList();
+                var allAccounts = accountDal.GetList().ToList();
                 var account = allAccounts.FirstOrDefault(a =>
                     !string.IsNullOrEmpty(a.RepositoryPath) &&
                     System.IO.Path.GetFullPath(a.RepositoryPath).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
+
+                // Load the associated GitCredential explicitly (NHibernate lazy loading doesn't work with convenience properties)
+                if (account != null && account.CredentialId.HasValue)
+                {
+                    account.Credential = credentialDal.GetList()
+                        .FirstOrDefault(c => c.Id == account.CredentialId.Value);
+
+                    _logger.LogDebug("[RepoSpecificResolver] Loaded credential {CredentialId} for account at {RepoPath}",
+                        account.CredentialId, normalizedPath);
+                }
 
                 if (account != null)
                 {

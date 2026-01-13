@@ -30,9 +30,36 @@ namespace Ad.Tools.Dal.Decorators
 
         public void ReplaceDB(IPersistenceConfigurer config, Assembly assembly)
         {
+            // CRITICAL: Close the old session factory to release database connections
+            // This prevents "database is locked" errors when switching projects
+            var oldFactory = _sessionFactory;
+            System.Diagnostics.Debug.WriteLine($"*** [ReplaceDB] Called! OldFactory is null: {oldFactory == null}, OldFactory.IsClosed: {oldFactory?.IsClosed}");
+            Console.WriteLine($"*** [ReplaceDB] Called! OldFactory is null: {oldFactory == null}, OldFactory.IsClosed: {oldFactory?.IsClosed}");
+
+            if (oldFactory != null && !oldFactory.IsClosed)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("*** [ReplaceDB] Closing old factory...");
+                    Console.WriteLine("*** [ReplaceDB] Closing old factory...");
+                    oldFactory.Close();
+                    oldFactory.Dispose();
+                    System.Diagnostics.Debug.WriteLine("*** [ReplaceDB] Old factory closed and disposed");
+                    Console.WriteLine("*** [ReplaceDB] Old factory closed and disposed");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"*** [ReplaceDB] Error closing old factory: {ex.Message}");
+                    Console.WriteLine($"*** [ReplaceDB] Error closing old factory: {ex.Message}");
+                    // Ignore errors during cleanup - we're replacing anyway
+                }
+            }
+
             _sessionFactory = Fluently.Configure()
                         .Database(config)
                         .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
+            System.Diagnostics.Debug.WriteLine("*** [ReplaceDB] New factory created");
+            Console.WriteLine("*** [ReplaceDB] New factory created");
         }
 
         public IStatistics Statistics => _sessionFactory.Statistics;

@@ -171,7 +171,65 @@ function updateNavigationButtons() {
 
 }
 
+/**
+ * Initialize ConnectionId injection for relative links
+ * Ensures all relative links include the ConnectionId from the body attribute
+ * This is CRITICAL for proper routing on the server side
+ */
+function initializeConnectionIdForLinks() {
+    // Get connectionId from body attribute
+    var connectionId = $('body').attr('connectionid');
+    if (!connectionId) {
+        console.warn('[MdExplorer] ConnectionId not found on body element - relative links may not work correctly');
+        return;
+    }
+
+    // Intercept clicks on all links that are NOT anchor links and NOT external links
+    $(document).on('click', 'a:not([href^="#"])', function(e) {
+        var href = $(this).attr('href');
+
+        // Skip if no href
+        if (!href) return;
+
+        // Skip external links (http:// or https:// except localhost)
+        if (/^https?:\/\/(?!localhost)/i.test(href)) {
+            return; // Let the default behavior handle external links
+        }
+
+        // Skip javascript: links
+        if (/^javascript:/i.test(href)) {
+            return;
+        }
+
+        // Skip mailto: links
+        if (/^mailto:/i.test(href)) {
+            return;
+        }
+
+        // Skip if connectionId is already in the URL
+        if (/[?&]connectionId=/i.test(href)) {
+            return;
+        }
+
+        // Prevent default navigation
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Add connectionId to the URL
+        var separator = href.indexOf('?') === -1 ? '?' : '&';
+        var newHref = href + separator + 'connectionId=' + connectionId;
+
+        console.log('[MdExplorer] Injecting connectionId into link:', href, '->', newHref);
+
+        // Navigate to the new URL
+        window.location.href = newHref;
+    });
+
+    console.log('[MdExplorer] ConnectionId link injection initialized');
+}
+
 // Initialize navigation when document is ready
 $(document).ready(function() {
     initializeInternalNavigation();
+    initializeConnectionIdForLinks();
 });
