@@ -150,6 +150,9 @@ namespace MdExplorer.Service.Controllers
                     filePath
                 );
 
+                // Prepara il markdown per Pandoc (fix separatori ---, etc.)
+                readText = _wordTemplateService.PrepareMarkdownForPandoc(readText);
+
                 // Verifica che la directory .md esista prima di cambiare directory
                 var mdTempDir = Path.Combine(GetProjectPath(), ".md");
                 

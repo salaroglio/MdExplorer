@@ -18,5 +18,11 @@ namespace MdExplorer.Features.Exports
         /// Sostituisce i tag in un template
         /// </summary>
         string ReplaceTags(string template, Dictionary<string, string> tags);
+
+        /// <summary>
+        /// Prepara il markdown per Pandoc, risolvendo problemi di compatibilità
+        /// (es. separatori --- interpretati come YAML)
+        /// </summary>
+        string PrepareMarkdownForPandoc(string markdownContent);
     }
 }

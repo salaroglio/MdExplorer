@@ -140,7 +140,7 @@ namespace MdExplorer.Features.Exports
             return _tagRegex.Replace(template, match =>
             {
                 var tagName = match.Groups[1].Value.Trim();
-                
+
                 // Supporta tag con valore di default: {{tag|default}}
                 var parts = tagName.Split('|');
                 var actualTagName = parts[0].Trim();
@@ -159,6 +159,69 @@ namespace MdExplorer.Features.Exports
                     return match.Value; // Mantieni il tag originale se non trovato
                 }
             });
+        }
+
+        /// <summary>
+        /// Prepara il markdown per Pandoc, risolvendo problemi di compatibilità.
+        /// In particolare, sostituisce i separatori orizzontali "---" con "***"
+        /// per evitare che Pandoc li interpreti come inizio di un blocco YAML.
+        /// </summary>
+        public string PrepareMarkdownForPandoc(string markdownContent)
+        {
+            if (string.IsNullOrEmpty(markdownContent))
+                return markdownContent;
+
+            // Regex per trovare "---" su una linea da sola (separatore orizzontale)
+            // che NON sia il front matter YAML (all'inizio del documento)
+            // Il front matter è: ---\n...contenuto...\n---
+            // I separatori successivi sono solo "---" su una linea
+
+            var lines = markdownContent.Split('\n');
+            var result = new StringBuilder();
+            var inYamlFrontMatter = false;
+            var frontMatterClosed = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                var trimmedLine = line.TrimEnd('\r');
+
+                // Gestione YAML front matter
+                if (i == 0 && trimmedLine == "---")
+                {
+                    // Inizio del front matter
+                    inYamlFrontMatter = true;
+                    result.AppendLine(line.TrimEnd('\r'));
+                    continue;
+                }
+
+                if (inYamlFrontMatter && !frontMatterClosed && trimmedLine == "---")
+                {
+                    // Fine del front matter
+                    frontMatterClosed = true;
+                    inYamlFrontMatter = false;
+                    result.AppendLine(line.TrimEnd('\r'));
+                    continue;
+                }
+
+                // Se siamo fuori dal front matter e troviamo "---" da solo, sostituiscilo
+                if (frontMatterClosed && trimmedLine == "---")
+                {
+                    result.AppendLine("***");
+                    _logger.LogDebug("[WordTemplateService] Replaced horizontal rule '---' with '***' at line {0}", i + 1);
+                }
+                else
+                {
+                    result.AppendLine(line.TrimEnd('\r'));
+                }
+            }
+
+            // Rimuovi l'ultimo newline extra aggiunto da AppendLine
+            var resultStr = result.ToString();
+            if (resultStr.EndsWith("\n"))
+                resultStr = resultStr.Substring(0, resultStr.Length - 1);
+
+            return resultStr;
         }
     }
 }
