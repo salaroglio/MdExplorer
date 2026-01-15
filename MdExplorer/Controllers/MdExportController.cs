@@ -33,6 +33,7 @@ namespace MdExplorer.Service.Controllers
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentManager;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
         private readonly IWordTemplateService _wordTemplateService;
+        private readonly IAsciiArtToImageService _asciiArtService;
 
         /// <summary>
         /// Variabile di scambio dati con l'evento di chiusura del processo Pandoc
@@ -50,6 +51,7 @@ namespace MdExplorer.Service.Controllers
                 IWorkLink[] modifiers,
                 IHelper helper,
                 IWordTemplateService wordTemplateService,
+                IAsciiArtToImageService asciiArtService,
                 IDatabaseManager databaseManager
             ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
@@ -57,6 +59,7 @@ namespace MdExplorer.Service.Controllers
             _yamlDocumentManager = yamlDocumentManager;
             _yamlDefaultGenerator = yamlDefaultGenerator;
             _wordTemplateService = wordTemplateService;
+            _asciiArtService = asciiArtService;
         }
 
         [HttpGet]
@@ -131,13 +134,21 @@ namespace MdExplorer.Service.Controllers
                 if (docDesc?.WordSection?.PredefinedPages != null)
                 {
                     readText = await _wordTemplateService.InsertPredefinedPagesAsync(
-                        readText, 
-                        docDesc, 
+                        readText,
+                        docDesc,
                         GetProjectPath()
                     );
-                    
+
                     _logger.LogInformation("Pagine predefinite inserite per il documento {0}", filePath);
                 }
+
+                // Converti ASCII art (box-drawing characters) in immagini per Word export
+                // Questo risolve il problema dei bordi disallineati nei diagrammi ASCII
+                readText = await _asciiArtService.ConvertAsciiArtToImagesAsync(
+                    readText,
+                    GetProjectPath(),
+                    filePath
+                );
 
                 // Verifica che la directory .md esista prima di cambiare directory
                 var mdTempDir = Path.Combine(GetProjectPath(), ".md");

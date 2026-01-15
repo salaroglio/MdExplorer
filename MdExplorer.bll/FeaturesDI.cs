@@ -97,6 +97,7 @@ namespace MdExplorer.Features
             services.AddSingleton<ProjectBodyEngine>();
             services.AddScoped<RefactoringManager>();
             services.AddScoped<IWordTemplateService, WordTemplateService>();
+            services.AddScoped<IAsciiArtToImageService, AsciiArtToImageService>();
             return services;
         }
     }
