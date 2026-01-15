@@ -1817,7 +1817,10 @@ class MilkdownReactHostComponent {
                 MarkdownContent: markdownToSave
             };
             try {
-                yield this.http.post('/api/MdExplorerEditorReact/UpdateMarkdown', requestBody).toPromise();
+                // Include ConnectionId in query string for proper path resolution during save
+                const connectionId = this.serverMessages.connectionId || '';
+                const url = `/api/MdExplorerEditorReact/UpdateMarkdown?ConnectionId=${encodeURIComponent(connectionId)}`;
+                yield this.http.post(url, requestBody).toPromise();
                 console.log('React Host: Markdown salvato con successo per:', this.currentFilePath);
                 // Dopo il salvataggio, torna indietro
                 this.location.back();
@@ -27292,8 +27295,8 @@ class MdTreeComponent {
     }
     // Gestisce la creazione di un nuovo file markdown
     handleNewMarkdownFileCreated(fileData) {
-        var _a, _b;
-        // STEP 2: Controlla se il file esiste già (caso rinominazione)
+        var _a, _b, _c, _d;
+        // STEP 1: Controlla se il file esiste già (caso rinominazione)
         const existingFile = this.findNodeByPath(fileData.fullPath);
         if (existingFile) {
             console.log('🔄 [Handler] File rinominato trovato, aggiornando:', existingFile.name, '→', fileData.name);
@@ -27310,8 +27313,7 @@ class MdTreeComponent {
             this.changeDetectorRef.markForCheck();
             return;
         }
-        // Converte i dati ricevuti in un oggetto MdFile
-        // I dati arrivano dal backend in lowercase, mappiamoli correttamente
+        // STEP 2: Converte i dati ricevuti in un oggetto MdFile
         const newMdFile = {
             name: fileData.name,
             fullPath: fileData.fullPath,
@@ -27320,54 +27322,56 @@ class MdTreeComponent {
             type: fileData.type,
             level: fileData.level,
             expandable: fileData.expandable,
-            isIndexed: fileData.isIndexed,
-            indexingStatus: fileData.indexingStatus,
+            isIndexed: (_c = fileData.isIndexed) !== null && _c !== void 0 ? _c : true,
+            indexingStatus: (_d = fileData.indexingStatus) !== null && _d !== void 0 ? _d : 'completed',
             childrens: []
         };
-        // Costruisce la gerarchia completa per il servizio
+        // STEP 3: Costruisce la gerarchia completa (directories + file)
         const hierarchyPath = this.buildFileHierarchy(newMdFile);
-        // Usa il servizio per aggiungere il file al datastore
-        this.mdFileService.addNewFile(hierarchyPath);
-        // IMPORTANTE: Aggiungi il file al Set di tracking dato che è già indicizzato
-        const currentSet = this.indexedFilesSubject.value;
-        const newSet = new Set(currentSet);
-        newSet.add(newMdFile.fullPath);
-        this.indexedFilesSubject.next(newSet);
-        // Mostra una notifica di successo
-        this.snackBar.open(`✅ Nuovo file creato: ${newMdFile.name}`, 'Chiudi', {
-            duration: 3000,
-            horizontalPosition: 'right',
-            verticalPosition: 'bottom',
-            panelClass: ['success-snackbar']
+        // STEP 4: Usa il nuovo metodo che crea directory mancanti e poi aggiunge il file
+        // Il metodo restituisce un Subject che emette quando l'operazione è completa
+        this.mdFileService.addNewFileWithDirectories(hierarchyPath).subscribe(() => {
+            // STEP 5: Aggiungi il file al Set di tracking (già indicizzato)
+            const currentSet = this.indexedFilesSubject.value;
+            const newSet = new Set(currentSet);
+            newSet.add(newMdFile.fullPath);
+            this.indexedFilesSubject.next(newSet);
+            // STEP 6: Forza change detection per aggiornare il tree
+            this.changeDetectorRef.detectChanges();
+            // STEP 7: Crea un MdFile valido per la navigazione
+            const mdFileForNavigation = {
+                name: newMdFile.name,
+                path: newMdFile.path,
+                relativePath: newMdFile.relativePath,
+                fullPath: newMdFile.fullPath,
+                fullDirectoryPath: newMdFile.fullPath.substring(0, newMdFile.fullPath.lastIndexOf('\\')),
+                type: 'mdFile',
+                level: newMdFile.level,
+                expandable: false,
+                isLoading: false,
+                childrens: [],
+                index: 0,
+                isIndexed: true,
+                indexingStatus: 'completed'
+            };
+            // STEP 8: Espandi il tree fino al file (triggera il subscriber che espande i nodi)
+            this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+            // STEP 9: Seleziona il file nel tree
+            this.activeNode = mdFileForNavigation;
+            this.selectedNode = mdFileForNavigation;
+            this.changeDetectorRef.markForCheck();
+            // STEP 10: Naviga al documento e imposta il file selezionato
+            this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+            this.navService.setNewNavigation(mdFileForNavigation);
+            this.router.navigate(['/main/navigation/document']);
+            // STEP 11: Mostra notifica di successo (dopo la navigazione)
+            this.snackBar.open(`Nuovo file creato: ${newMdFile.name}`, 'Chiudi', {
+                duration: 3000,
+                horizontalPosition: 'right',
+                verticalPosition: 'bottom',
+                panelClass: ['success-snackbar']
+            });
         });
-        // Forza l'aggiornamento del tree prima di espandere
-        this.changeDetectorRef.detectChanges();
-        // Crea un MdFile valido per la navigazione
-        const mdFileForNavigation = {
-            name: newMdFile.name,
-            path: newMdFile.path,
-            relativePath: newMdFile.relativePath,
-            fullPath: newMdFile.fullPath,
-            fullDirectoryPath: newMdFile.fullPath.substring(0, newMdFile.fullPath.lastIndexOf('\\')),
-            type: 'mdFile',
-            level: newMdFile.level,
-            expandable: false,
-            isLoading: false,
-            childrens: [],
-            index: 0,
-            isIndexed: true,
-            indexingStatus: 'completed'
-        };
-        // Espandi il tree fino al file (triggera il subscriber che espande i nodi)
-        this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
-        // Seleziona il file
-        this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
-        this.navService.setNewNavigation(mdFileForNavigation);
-        this.activeNode = mdFileForNavigation;
-        this.selectedNode = mdFileForNavigation;
-        this.changeDetectorRef.markForCheck();
-        // Naviga al documento
-        this.router.navigate(['/main/navigation/document']);
     }
     // Costruisce la gerarchia completa per un file
     buildFileHierarchy(newFile) {
@@ -27376,17 +27380,21 @@ class MdTreeComponent {
         if (newFile.level === 0) {
             return [newFile];
         }
-        // Altrimenti, costruisce la gerarchia delle cartelle parent
-        const pathParts = newFile.relativePath.split('\\').filter(part => part.length > 0);
-        let currentPath = '';
-        // Aggiungi le cartelle parent
+        // Calcola il base path (project root) sottraendo il relativePath dal fullPath
+        // Questo è più robusto che usare indexOf che potrebbe fallire con nomi duplicati
+        const relativePath = newFile.relativePath || '';
+        const basePath = newFile.fullPath.substring(0, newFile.fullPath.length - relativePath.length);
+        // Estrai le parti del path relativo
+        const pathParts = relativePath.split('\\').filter(part => part.length > 0);
+        let currentRelativePath = '';
+        // Aggiungi le cartelle parent (escludi l'ultimo elemento che è il file)
         for (let i = 0; i < pathParts.length - 1; i++) {
-            currentPath += '\\' + pathParts[i];
+            currentRelativePath += '\\' + pathParts[i];
             const folderNode = {
                 name: pathParts[i],
-                fullPath: newFile.fullPath.substring(0, newFile.fullPath.indexOf(currentPath)) + currentPath,
-                path: currentPath,
-                relativePath: currentPath,
+                fullPath: basePath + currentRelativePath,
+                path: currentRelativePath,
+                relativePath: currentRelativePath,
                 type: 'folder',
                 level: i,
                 expandable: true,

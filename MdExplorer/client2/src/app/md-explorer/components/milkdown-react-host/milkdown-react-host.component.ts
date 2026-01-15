@@ -217,7 +217,10 @@ export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDest
     };
 
     try {
-      await this.http.post('/api/MdExplorerEditorReact/UpdateMarkdown', requestBody).toPromise();
+      // Include ConnectionId in query string for proper path resolution during save
+      const connectionId = this.serverMessages.connectionId || '';
+      const url = `/api/MdExplorerEditorReact/UpdateMarkdown?ConnectionId=${encodeURIComponent(connectionId)}`;
+      await this.http.post(url, requestBody).toPromise();
       console.log('React Host: Markdown salvato con successo per:', this.currentFilePath);
       // Dopo il salvataggio, torna indietro
       this.location.back();

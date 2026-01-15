@@ -244,14 +244,28 @@ namespace MdExplorer.Service.Controllers
             }
 
             public void StartNewPandoc(string filePath, string projectPath,
-                    string readText, 
+                    string readText,
                     out string currentFilePdfPath, out Process processStarted)
             {
                 var currentGuid = _helperPdf.GetHashString(readText);
                 // Usa Path.Combine per essere cross-platform
                 var currentFilePath = Path.Combine(".md", $"{currentGuid}.md");
-                currentFilePdfPath = filePath.Replace("\\\\", "\\").Replace(".md", $".{_createPandocCommand.Extension}");
-                
+
+                // Calcola il path relativo del file rispetto al progetto
+                var relativePath = filePath.Replace(projectPath, "").TrimStart(Path.DirectorySeparatorChar);
+
+                // Costruisci il path di output nella cartella .mdword (struttura specchio)
+                var outputFileName = Path.ChangeExtension(relativePath, _createPandocCommand.Extension);
+                currentFilePdfPath = Path.Combine(projectPath, ".mdword", outputFileName);
+
+                // Crea la directory di destinazione se non esiste
+                var outputDirectory = Path.GetDirectoryName(currentFilePdfPath);
+                if (!Directory.Exists(outputDirectory))
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                    _logger.LogInformation($"[MdExport] Created output directory: {outputDirectory}");
+                }
+
                 System.IO.File.WriteAllText(currentFilePath, readText);
                 
                 

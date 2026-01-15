@@ -487,6 +487,54 @@ namespace MdExplorer.Controllers
         }
 
         /// <summary>
+        /// Reverse transforms API URLs back to absolute paths relative to project root for saving.
+        /// Example: ![alt](/api/MdExplorer/docs/assets/img.png?ConnectionId=xxx) -> ![alt](/docs/assets/img.png)
+        /// </summary>
+        private string ReverseTransformImagePathsForSave(string markdown, string fullPathFile, string connectionId)
+        {
+            if (string.IsNullOrEmpty(markdown))
+                return markdown;
+
+            try
+            {
+                _logger.LogInformation($"[ReactEditor] ReverseTransformImagePaths: connectionId={connectionId}, fullPathFile={fullPathFile}");
+
+                // Pattern to match API URLs in markdown images: ![alt text](/api/MdExplorer/path?ConnectionId=xxx)
+                // The path can contain any characters except ) and the ConnectionId query param is optional
+                var apiImagePattern = new Regex(@"!\[([^\]]*)\]\(/api/MdExplorer/([^?\)]+)(?:\?ConnectionId=[^)]+)?\)", RegexOptions.Compiled);
+
+                return apiImagePattern.Replace(markdown, match =>
+                {
+                    try
+                    {
+                        var altText = match.Groups[1].Value;
+                        var relativeFromProject = match.Groups[2].Value;
+
+                        // Decode URL-encoded characters
+                        relativeFromProject = Uri.UnescapeDataString(relativeFromProject);
+
+                        // Convert to Unix-style path separators and ensure leading slash
+                        var absolutePathFromRoot = "/" + relativeFromProject.Replace("\\", "/").TrimStart('/');
+
+                        _logger.LogInformation($"[ReactEditor] Image path reverse transformed: /api/MdExplorer/{relativeFromProject} -> {absolutePathFromRoot}");
+
+                        return $"![{altText}]({absolutePathFromRoot})";
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"[ReactEditor] Failed to reverse transform image path in match: {match.Value}");
+                        return match.Value; // Return original on error
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ReactEditor] Error in ReverseTransformImagePathsForSave");
+                return markdown; // Return original markdown on error
+            }
+        }
+
+        /// <summary>
         /// Finds the project root by looking for .md or .git folder in parent directories.
         /// </summary>
         private string FindProjectRoot(string startDirectory)
@@ -654,6 +702,11 @@ namespace MdExplorer.Controllers
                 string normalizedToLfContent = contentFromClient.Replace("\r\n", "\n");
                 // Secondo: converti \n nel newline specifico della piattaforma
                 string platformSpecificContent = normalizedToLfContent.Replace("\n", Environment.NewLine);
+
+                // Reverse transform API URLs back to relative paths before saving
+                // This converts /api/MdExplorer/folder/assets/img.png?ConnectionId=xxx -> ./assets/img.png
+                var connectionId = Request.Query["ConnectionId"].ToString();
+                platformSpecificContent = ReverseTransformImagePathsForSave(platformSpecificContent, filePathToAccessOnServer, connectionId);
 
                 if (!string.IsNullOrEmpty(originalYamlBlock))
                 {

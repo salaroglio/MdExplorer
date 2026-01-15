@@ -172,17 +172,87 @@ export class MdFileService {
   addNewDirectoryExtended(folders: MdFile[]) {
 
     let currentfolder = [];
-    folders.forEach((folder, index) => {      
+    folders.forEach((folder, index) => {
       const dataFound: MdFile[] = [];
       this.recursiveSearch(this.dataStore.mdFiles, folder, dataFound);
       currentfolder.push(folder);
-      if (dataFound.length === 0) {        
+      if (dataFound.length === 0) {
         this.addNewDirectory(currentfolder);
       }
-      
+
     });
-      
-       
+
+
+  }
+
+  /**
+   * Adds a new file to the datastore, creating any missing parent directories.
+   * This is the correct method to use when a file is created via FileSystemWatcher
+   * and its parent directories may not exist in the tree yet.
+   *
+   * @param hierarchy Array of nodes: [folder1, folder2, ..., file]
+   *                  where folders are ordered from root to deepest, and file is last
+   * @returns Subject<void> that emits when the operation is complete and tree is updated
+   */
+  addNewFileWithDirectories(hierarchy: MdFile[]): Subject<void> {
+    const completed = new Subject<void>();
+
+    if (!hierarchy || hierarchy.length === 0) {
+      setTimeout(() => {
+        completed.next();
+        completed.complete();
+      }, 0);
+      return completed;
+    }
+
+    // Separate directories from the file (file is the last element with type != 'folder')
+    const directories: MdFile[] = [];
+    let file: MdFile | null = null;
+
+    for (const node of hierarchy) {
+      if (node.type === 'folder') {
+        directories.push(node);
+      } else {
+        file = node;
+      }
+    }
+
+    // Create missing directories in order (from root to deepest)
+    // Build the path incrementally as addNewDirectory expects
+    const pathSoFar: MdFile[] = [];
+
+    for (const dir of directories) {
+      // Check if this directory already exists in the datastore
+      const dataFound: MdFile[] = [];
+      this.recursiveSearch(this.dataStore.mdFiles, dir, dataFound);
+
+      pathSoFar.push(dir);
+
+      if (dataFound.length === 0) {
+        // Directory doesn't exist, create it
+        // addNewDirectory expects the full path array from root
+        this.addNewDirectory([...pathSoFar]);
+      }
+    }
+
+    // Now add the file - at this point all parent directories exist
+    if (file) {
+      // Ensure indexing properties are set
+      file.isIndexed = file.isIndexed ?? true;
+      file.indexingStatus = file.indexingStatus ?? 'completed';
+
+      // Use the full hierarchy for addNewFile so it can navigate to the correct parent
+      this.addNewFile(hierarchy);
+    }
+
+    // Emit completion after Angular has a chance to process the changes
+    // Use setTimeout to ensure change detection has run
+    setTimeout(() => {
+      completed.next();
+      completed.complete();
+    }, 50);
+
+    return completed;
   }
 
   // This function adds a new directory.

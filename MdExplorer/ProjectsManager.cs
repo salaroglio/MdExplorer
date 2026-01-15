@@ -391,6 +391,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     var gitignoreContent = new StringBuilder();
                     gitignoreContent.AppendLine("# MdExplorer specific files and folders");
                     gitignoreContent.AppendLine(".md/");
+                    gitignoreContent.AppendLine(".mdword/");
                     gitignoreContent.AppendLine("");
                     gitignoreContent.AppendLine("# Database files");
                     gitignoreContent.AppendLine("*.db");
