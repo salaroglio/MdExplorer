@@ -4435,8 +4435,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2026.01.15.1',
-    buildTime: '2026.01.15 09:06:50'
+    version: '2026.01.15.4',
+    buildTime: '2026.01.15 17:37:27'
 };
 
 
@@ -4790,7 +4790,7 @@ class MdFileService {
             // The file is in the root
             const dummyItem = this.dataStore.mdFiles.pop();
             this.dataStore.mdFiles.push(currentItem, dummyItem); // Simplified push operation
-            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles); // Simplified object cloning and notification
+            this._mdFiles.next([...this.dataStore.mdFiles]);
         }
     }
     // This function adds new directories
@@ -4818,8 +4818,10 @@ class MdFileService {
      */
     addNewFileWithDirectories(hierarchy) {
         var _a, _b;
+        console.log('🔧 [addNewFileWithDirectories] INIZIO - hierarchy:', JSON.stringify(hierarchy, null, 2));
         const completed = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
         if (!hierarchy || hierarchy.length === 0) {
+            console.log('⚠️ [addNewFileWithDirectories] hierarchy vuoto, esco');
             setTimeout(() => {
                 completed.next();
                 completed.complete();
@@ -4837,6 +4839,7 @@ class MdFileService {
                 file = node;
             }
         }
+        console.log('📁 [addNewFileWithDirectories] directories trovate:', directories.length, 'file:', file === null || file === void 0 ? void 0 : file.name);
         // Create missing directories in order (from root to deepest)
         // Build the path incrementally as addNewDirectory expects
         const pathSoFar = [];
@@ -4844,10 +4847,12 @@ class MdFileService {
             // Check if this directory already exists in the datastore
             const dataFound = [];
             this.recursiveSearch(this.dataStore.mdFiles, dir, dataFound);
+            console.log('🔍 [addNewFileWithDirectories] Cerco dir:', dir.name, 'fullPath:', dir.fullPath, '- trovata:', dataFound.length > 0);
             pathSoFar.push(dir);
             if (dataFound.length === 0) {
                 // Directory doesn't exist, create it
                 // addNewDirectory expects the full path array from root
+                console.log('➕ [addNewFileWithDirectories] Creo directory:', dir.name);
                 this.addNewDirectory([...pathSoFar]);
             }
         }
@@ -4857,6 +4862,7 @@ class MdFileService {
             file.isIndexed = (_a = file.isIndexed) !== null && _a !== void 0 ? _a : true;
             file.indexingStatus = (_b = file.indexingStatus) !== null && _b !== void 0 ? _b : 'completed';
             // Use the full hierarchy for addNewFile so it can navigate to the correct parent
+            console.log('📄 [addNewFileWithDirectories] Aggiungo file:', file.name);
             this.addNewFile(hierarchy);
         }
         // Emit completion after Angular has a chance to process the changes
@@ -4887,7 +4893,7 @@ class MdFileService {
             const dummyItem = this.dataStore.mdFiles.pop(); // Remove the last item (dummy)
             this.dataStore.mdFiles.push(currentItem, dummyItem); // Add the current item and then the dummy back
             // Notify subscribers of the update
-            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+            this._mdFiles.next([...this.dataStore.mdFiles]);
         }
     }
     recursiveSearchFolder(data, i, parentFolder) {
@@ -4906,7 +4912,7 @@ class MdFileService {
         }
         else {
             parentFolder.childrens.push(currentItem); // Directly use currentItem
-            this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles); // Simplified notification
+            this._mdFiles.next([...this.dataStore.mdFiles]);
         }
     }
     getShallowStructure() {
@@ -5095,7 +5101,7 @@ class MdFileService {
             }
             currentFolder.splice(currentFolder.indexOf(dataFound[0]), 1);
         }
-        this._mdFiles.next(Object.assign({}, this.dataStore).mdFiles);
+        this._mdFiles.next([...this.dataStore.mdFiles]);
     }
     recursiveSearchForShowData(fileToFind) {
         let dataFound = [];

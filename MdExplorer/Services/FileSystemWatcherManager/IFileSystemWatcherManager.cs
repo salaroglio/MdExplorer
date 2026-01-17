@@ -99,5 +99,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// Event handler delegate for Renamed events (for proper cleanup before Dispose)
         /// </summary>
         public System.IO.RenamedEventHandler RenamedHandler { get; set; }
+
+        /// <summary>
+        /// Event handler delegate for Deleted events (for proper cleanup before Dispose)
+        /// </summary>
+        public System.IO.FileSystemEventHandler DeletedHandler { get; set; }
     }
 }

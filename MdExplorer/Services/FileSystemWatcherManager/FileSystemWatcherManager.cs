@@ -89,16 +89,19 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 FileSystemEventHandler changedHandler = (sender, e) => OnFileChanged(context, e);
                 FileSystemEventHandler createdHandler = (sender, e) => OnFileCreated(context, e);
                 RenamedEventHandler renamedHandler = (sender, e) => OnFileRenamed(context, e);
+                FileSystemEventHandler deletedHandler = (sender, e) => OnFileDeleted(context, e);
 
                 // Store handlers in context for removal before Dispose
                 context.ChangedHandler = changedHandler;
                 context.CreatedHandler = createdHandler;
                 context.RenamedHandler = renamedHandler;
+                context.DeletedHandler = deletedHandler;
 
                 // Attach event handlers
                 watcher.Changed += changedHandler;
                 watcher.Created += createdHandler;
                 watcher.Renamed += renamedHandler;
+                watcher.Deleted += deletedHandler;
 
                 _watchers[connectionId] = context;
 
@@ -137,6 +140,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                             context.Watcher.Created -= context.CreatedHandler;
                         if (context.RenamedHandler != null)
                             context.Watcher.Renamed -= context.RenamedHandler;
+                        if (context.DeletedHandler != null)
+                            context.Watcher.Deleted -= context.DeletedHandler;
 
                         context.Watcher.Dispose();
                     }
@@ -441,6 +446,50 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             }
         }
 
+        private async void OnFileDeleted(WatcherContext context, FileSystemEventArgs e)
+        {
+            try
+            {
+                var fileExtension = Path.GetExtension(e.FullPath);
+                var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
+
+                if (!isMarkdown)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
+                    return;
+                }
+
+                _logger.LogInformation($"🗑️ [{context.ConnectionId}] Markdown file deleted: {e.FullPath}");
+
+                if (ShouldIgnoreMarkdownFile(context, e.FullPath))
+                {
+                    _logger.LogInformation($"❌ [{context.ConnectionId}] Deleted markdown file {e.FullPath} filtered out");
+                    return;
+                }
+
+                // Remove from database
+                RemoveFileFromDB(context, e.FullPath);
+
+                var relativePath = GetRelativePath(context, e.FullPath);
+                var fileDeletedData = new
+                {
+                    Name = Path.GetFileName(e.FullPath),
+                    FullPath = e.FullPath,
+                    Path = relativePath,
+                    RelativePath = relativePath
+                };
+
+                // Notify ONLY this specific client
+                await _hubContext.Clients.Client(context.ConnectionId).SendAsync("markdownFileDeleted", fileDeletedData);
+
+                _logger.LogInformation($"✅ [{context.ConnectionId}] Notified client of deleted file: {e.FullPath}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❗ [{context.ConnectionId}] ERROR in OnFileDeleted for: {e.FullPath}");
+            }
+        }
+
         #endregion
 
         #region Helper Methods
@@ -562,6 +611,53 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error in ParseNewFileIntoDB");
                 throw;
+            }
+        }
+
+        private void RemoveFileFromDB(WatcherContext context, string fullPath)
+        {
+            _logger.LogDebug($"[{context.ConnectionId}] RemoveFileFromDB START for: {Path.GetFileName(fullPath)}");
+
+            try
+            {
+                // Get database context for this connection
+                var dbContext = _databaseManager.GetContext(context.ConnectionId);
+                var engineDB = dbContext.EngineDB;
+
+                engineDB.BeginTransaction();
+                var fileDal = engineDB.GetDal<MarkdownFile>();
+                var mdf = fileDal.GetList().Where(_ => _.Path == fullPath).FirstOrDefault();
+
+                if (mdf != null)
+                {
+                    // Delete associated links first
+                    var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
+                    var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf).ToList();
+
+                    _logger.LogDebug($"[{context.ConnectionId}] Deleting {listLinks.Count} associated links");
+                    foreach (var link in listLinks)
+                    {
+                        linkDal.Delete(link);
+                    }
+
+                    engineDB.Flush();
+
+                    // Delete the file record
+                    fileDal.Delete(mdf);
+                    _logger.LogDebug($"[{context.ConnectionId}] Deleted MarkdownFile record: {mdf.FileName}");
+                }
+                else
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] MarkdownFile record not found for: {fullPath}");
+                }
+
+                engineDB.Commit();
+                _logger.LogDebug($"[{context.ConnectionId}] RemoveFileFromDB COMPLETED for: {Path.GetFileName(fullPath)}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error in RemoveFileFromDB");
+                // Don't throw - we still want to notify the client even if DB cleanup fails
             }
         }
 

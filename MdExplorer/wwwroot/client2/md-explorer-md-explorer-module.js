@@ -27296,8 +27296,10 @@ class MdTreeComponent {
     // Gestisce la creazione di un nuovo file markdown
     handleNewMarkdownFileCreated(fileData) {
         var _a, _b, _c, _d;
+        console.log('🆕 [handleNewMarkdownFileCreated] INIZIO - fileData ricevuto:', JSON.stringify(fileData, null, 2));
         // STEP 1: Controlla se il file esiste già (caso rinominazione)
         const existingFile = this.findNodeByPath(fileData.fullPath);
+        console.log('🔍 [STEP 1] existingFile trovato:', existingFile);
         if (existingFile) {
             console.log('🔄 [Handler] File rinominato trovato, aggiornando:', existingFile.name, '→', fileData.name);
             // Aggiorna le proprietà di indicizzazione invece di aggiungere nuovo nodo
@@ -27328,9 +27330,12 @@ class MdTreeComponent {
         };
         // STEP 3: Costruisce la gerarchia completa (directories + file)
         const hierarchyPath = this.buildFileHierarchy(newMdFile);
+        console.log('📂 [STEP 3] hierarchyPath costruito:', JSON.stringify(hierarchyPath, null, 2));
         // STEP 4: Usa il nuovo metodo che crea directory mancanti e poi aggiunge il file
+        console.log('➡️ [STEP 4] Chiamo addNewFileWithDirectories...');
         // Il metodo restituisce un Subject che emette quando l'operazione è completa
         this.mdFileService.addNewFileWithDirectories(hierarchyPath).subscribe(() => {
+            console.log('✅ [STEP 4] addNewFileWithDirectories COMPLETATO');
             // STEP 5: Aggiungi il file al Set di tracking (già indicizzato)
             const currentSet = this.indexedFilesSubject.value;
             const newSet = new Set(currentSet);
@@ -27383,7 +27388,11 @@ class MdTreeComponent {
         // Calcola il base path (project root) sottraendo il relativePath dal fullPath
         // Questo è più robusto che usare indexOf che potrebbe fallire con nomi duplicati
         const relativePath = newFile.relativePath || '';
-        const basePath = newFile.fullPath.substring(0, newFile.fullPath.length - relativePath.length);
+        let basePath = newFile.fullPath.substring(0, newFile.fullPath.length - relativePath.length);
+        // Rimuovi il backslash finale dal basePath per evitare doppi backslash
+        if (basePath.endsWith('\\')) {
+            basePath = basePath.substring(0, basePath.length - 1);
+        }
         // Estrai le parti del path relativo
         const pathParts = relativePath.split('\\').filter(part => part.length > 0);
         let currentRelativePath = '';

@@ -161,7 +161,7 @@ export class MdFileService {
       // The file is in the root
       const dummyItem = this.dataStore.mdFiles.pop();
       this.dataStore.mdFiles.push(currentItem, dummyItem); // Simplified push operation
-      this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified object cloning and notification
+      this._mdFiles.next([...this.dataStore.mdFiles]);
     }
   }
 
@@ -195,9 +195,11 @@ export class MdFileService {
    * @returns Subject<void> that emits when the operation is complete and tree is updated
    */
   addNewFileWithDirectories(hierarchy: MdFile[]): Subject<void> {
+    console.log('🔧 [addNewFileWithDirectories] INIZIO - hierarchy:', JSON.stringify(hierarchy, null, 2));
     const completed = new Subject<void>();
 
     if (!hierarchy || hierarchy.length === 0) {
+      console.log('⚠️ [addNewFileWithDirectories] hierarchy vuoto, esco');
       setTimeout(() => {
         completed.next();
         completed.complete();
@@ -216,6 +218,7 @@ export class MdFileService {
         file = node;
       }
     }
+    console.log('📁 [addNewFileWithDirectories] directories trovate:', directories.length, 'file:', file?.name);
 
     // Create missing directories in order (from root to deepest)
     // Build the path incrementally as addNewDirectory expects
@@ -225,12 +228,14 @@ export class MdFileService {
       // Check if this directory already exists in the datastore
       const dataFound: MdFile[] = [];
       this.recursiveSearch(this.dataStore.mdFiles, dir, dataFound);
+      console.log('🔍 [addNewFileWithDirectories] Cerco dir:', dir.name, 'fullPath:', dir.fullPath, '- trovata:', dataFound.length > 0);
 
       pathSoFar.push(dir);
 
       if (dataFound.length === 0) {
         // Directory doesn't exist, create it
         // addNewDirectory expects the full path array from root
+        console.log('➕ [addNewFileWithDirectories] Creo directory:', dir.name);
         this.addNewDirectory([...pathSoFar]);
       }
     }
@@ -242,6 +247,7 @@ export class MdFileService {
       file.indexingStatus = file.indexingStatus ?? 'completed';
 
       // Use the full hierarchy for addNewFile so it can navigate to the correct parent
+      console.log('📄 [addNewFileWithDirectories] Aggiungo file:', file.name);
       this.addNewFile(hierarchy);
     }
 
@@ -277,7 +283,7 @@ export class MdFileService {
       this.dataStore.mdFiles.push(currentItem, dummyItem); // Add the current item and then the dummy back
 
       // Notify subscribers of the update
-      this._mdFiles.next({ ...this.dataStore }.mdFiles);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
     }
   }
 
@@ -301,7 +307,7 @@ export class MdFileService {
       this.recursiveSearchFolder(data, i + 1, currentFolder);
     } else {
       parentFolder.childrens.push(currentItem); // Directly use currentItem
-      this._mdFiles.next({ ...this.dataStore }.mdFiles); // Simplified notification
+      this._mdFiles.next([...this.dataStore.mdFiles]);
     }
   }
 
@@ -542,7 +548,7 @@ export class MdFileService {
       }
       currentFolder.splice(currentFolder.indexOf(dataFound[0]), 1);
     }
-    this._mdFiles.next({ ...this.dataStore }.mdFiles); 
+    this._mdFiles.next([...this.dataStore.mdFiles]);
 
   }
 
