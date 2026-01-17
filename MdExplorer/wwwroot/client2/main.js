@@ -4435,8 +4435,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2026.01.15.4',
-    buildTime: '2026.01.15 17:37:27'
+    version: '2026.01.17.5',
+    buildTime: '2026.01.17 23:44:24'
 };
 
 
@@ -4735,6 +4735,12 @@ class MdFileService {
     }
     get selectedMdFileFromSideNav() {
         return this._selectedMdFileFromSideNav.asObservable();
+    }
+    /**
+     * Get the current value of selected file (for synchronous access)
+     */
+    get currentSelectedMdFile() {
+        return this._selectedMdFileFromSideNav.value;
     }
     get selectedDirectoryFromNewDirectory() {
         return this._selectedDirectoryFromNewDirectory.asObservable();
@@ -5140,6 +5146,15 @@ class MdFileService {
         console.log('[MdFileService] pasteFromClipboard called with:', node);
         console.log('[MdFileService] Making POST request to:', url);
         return this.http.post(url, node);
+    }
+    /**
+     * Save an annotated screenshot with marker descriptions.
+     * @param formData FormData containing OriginalImage, AnnotatedImage, DocumentPath, ImageName, DescriptionsJson, ConnectionId
+     */
+    saveAnnotatedScreenshot(formData) {
+        const url = '../api/mdfiles/SaveAnnotatedScreenshot';
+        console.log('[MdFileService] saveAnnotatedScreenshot called');
+        return this.http.post(url, formData);
     }
     addExistingFileToMDEProject(node, path) {
         const url = '../api/mdfiles/addExistingFileToMDEProject';

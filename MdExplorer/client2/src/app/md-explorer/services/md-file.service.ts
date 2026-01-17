@@ -96,6 +96,13 @@ export class MdFileService {
     return this._selectedMdFileFromSideNav.asObservable();
   }
 
+  /**
+   * Get the current value of selected file (for synchronous access)
+   */
+  get currentSelectedMdFile(): MdFile | null {
+    return this._selectedMdFileFromSideNav.value;
+  }
+
   get selectedDirectoryFromNewDirectory(): Observable<MdFile> {
     return this._selectedDirectoryFromNewDirectory.asObservable();
   }
@@ -596,6 +603,21 @@ export class MdFileService {
     return this.http.post<any>(url, node);
   }
 
+  /**
+   * Save an annotated screenshot with marker descriptions.
+   * @param formData FormData containing OriginalImage, AnnotatedImage, DocumentPath, ImageName, DescriptionsJson, ConnectionId
+   */
+  saveAnnotatedScreenshot(formData: FormData) {
+    const url = '../api/mdfiles/SaveAnnotatedScreenshot';
+    console.log('[MdFileService] saveAnnotatedScreenshot called');
+    return this.http.post<{
+      success: boolean;
+      originalImagePath?: string;
+      annotatedImagePath?: string;
+      insertedMarkdown?: string;
+      errorMessage?: string;
+    }>(url, formData);
+  }
 
   addExistingFileToMDEProject(node: MdFile,path:String) {
     const url = '../api/mdfiles/addExistingFileToMDEProject';

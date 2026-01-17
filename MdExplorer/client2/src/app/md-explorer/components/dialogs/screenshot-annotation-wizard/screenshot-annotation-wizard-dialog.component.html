@@ -1,0 +1,102 @@
+<h2 mat-dialog-title>
+  <mat-icon style="vertical-align: middle;">edit</mat-icon>
+  Annota Screenshot
+  <span class="step-indicator">Passo {{ currentStep + 1 }} di 2</span>
+</h2>
+
+<mat-dialog-content>
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Salvataggio in corso...</p>
+  </div>
+
+  <!-- Step 0: Annotation - use [hidden] to keep canvas alive for export -->
+  <div [hidden]="isLoading || currentStep !== 0" class="step-content">
+    <p class="step-description">
+      Clicca sull'immagine per posizionare i marker numerati. Puoi scegliere il colore dalla tavolozza.
+    </p>
+
+    <!-- Image name input -->
+    <mat-form-field appearance="outline" class="image-name-field">
+      <mat-label>Nome immagine</mat-label>
+      <input matInput [(ngModel)]="imageName" placeholder="screenshot">
+      <mat-hint>Il nome base per i file immagine salvati</mat-hint>
+    </mat-form-field>
+
+    <!-- Annotation Canvas -->
+    <app-image-annotation-canvas
+      #annotationCanvas
+      [imageBlob]="data.imageBlob"
+      (markersChanged)="onMarkersChanged($event)">
+    </app-image-annotation-canvas>
+  </div>
+
+  <!-- Step 1: Descriptions -->
+  <div *ngIf="!isLoading && currentStep === 1" class="step-content">
+    <p class="step-description">
+      Inserisci una descrizione per ogni marker posizionato.
+    </p>
+
+    <div class="step1-layout">
+      <!-- Reference image -->
+      <div class="reference-image">
+        <img *ngIf="annotatedImageUrl" [src]="annotatedImageUrl" alt="Screenshot annotato">
+      </div>
+
+      <!-- Description form -->
+      <div class="descriptions-form">
+        <div *ngFor="let desc of descriptions" class="description-item">
+          <div class="marker-badge" [style.backgroundColor]="'#FF4444'">
+            {{ desc.markerId }}
+          </div>
+          <mat-form-field appearance="outline" class="description-field">
+            <mat-label>Descrizione marker {{ desc.markerId }}</mat-label>
+            <textarea
+              matInput
+              [(ngModel)]="desc.text"
+              rows="2"
+              placeholder="Inserisci la descrizione...">
+            </textarea>
+          </mat-form-field>
+        </div>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <!-- Step 0 Actions -->
+  <div *ngIf="currentStep === 0" class="actions">
+    <button mat-button (click)="cancel()" [disabled]="isLoading">
+      Annulla
+    </button>
+    <button
+      mat-raised-button
+      color="primary"
+      (click)="goToStep1()"
+      [disabled]="!canProceedToStep1() || isLoading">
+      <mat-icon>arrow_forward</mat-icon>
+      Avanti
+    </button>
+  </div>
+
+  <!-- Step 1 Actions -->
+  <div *ngIf="currentStep === 1" class="actions">
+    <button mat-button (click)="goToStep0()" [disabled]="isLoading">
+      <mat-icon>arrow_back</mat-icon>
+      Indietro
+    </button>
+    <button mat-button (click)="cancel()" [disabled]="isLoading">
+      Annulla
+    </button>
+    <button
+      mat-raised-button
+      color="primary"
+      (click)="complete()"
+      [disabled]="!allDescriptionsFilled() || isLoading">
+      <mat-icon>save</mat-icon>
+      Salva
+    </button>
+  </div>
+</mat-dialog-actions>

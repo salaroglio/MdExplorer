@@ -1,0 +1,50 @@
+<div #canvasContainer class="canvas-container">
+  <canvas
+    #canvas
+    (click)="onCanvasClick($event)"
+    class="annotation-canvas">
+  </canvas>
+</div>
+
+<div class="controls">
+  <!-- Color palette -->
+  <div class="color-palette">
+    <span class="label">Colore marker:</span>
+    <div class="color-options">
+      <button
+        *ngFor="let color of availableColors"
+        [style.backgroundColor]="color.value"
+        [class.selected]="markerColor === color.value"
+        (click)="setMarkerColor(color.value)"
+        [title]="color.name"
+        class="color-btn">
+      </button>
+    </div>
+  </div>
+
+  <!-- Undo buttons -->
+  <div class="undo-controls">
+    <button
+      mat-stroked-button
+      (click)="removeLastMarker()"
+      [disabled]="markers.length === 0"
+      class="undo-btn">
+      <mat-icon>undo</mat-icon>
+      Annulla ultimo
+    </button>
+    <button
+      mat-stroked-button
+      color="warn"
+      (click)="clearMarkers()"
+      [disabled]="markers.length === 0"
+      class="clear-btn">
+      <mat-icon>clear_all</mat-icon>
+      Cancella tutti
+    </button>
+  </div>
+</div>
+
+<div class="marker-count">
+  <mat-icon>pin_drop</mat-icon>
+  <span>{{ markers.length }} marker{{ markers.length !== 1 ? 's' : '' }} posizionati</span>
+</div>

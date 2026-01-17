@@ -528,6 +528,188 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Save an annotated screenshot with marker descriptions to the document's assets folder.
+        /// Creates both original (for rollback) and annotated images, then appends markdown to the document.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> SaveAnnotatedScreenshot([FromForm] SaveAnnotatedScreenshotRequest request)
+        {
+            _logger.LogInformation("SaveAnnotatedScreenshot called with documentPath: {DocumentPath}, imageName: {ImageName}",
+                request?.DocumentPath, request?.ImageName);
+
+            try
+            {
+                // Validate required fields
+                if (request?.OriginalImage == null || request.OriginalImage.Length == 0)
+                {
+                    return BadRequest(new SaveAnnotatedScreenshotResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Original image is required"
+                    });
+                }
+
+                if (request?.AnnotatedImage == null || request.AnnotatedImage.Length == 0)
+                {
+                    return BadRequest(new SaveAnnotatedScreenshotResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Annotated image is required"
+                    });
+                }
+
+                if (string.IsNullOrEmpty(request.DocumentPath) || !System.IO.File.Exists(request.DocumentPath))
+                {
+                    _logger.LogWarning("SaveAnnotatedScreenshot: Invalid documentPath: {DocumentPath}", request.DocumentPath);
+                    return BadRequest(new SaveAnnotatedScreenshotResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Invalid document path"
+                    });
+                }
+
+                // Parse marker descriptions
+                var descriptions = new List<MarkerDescriptionDto>();
+                if (!string.IsNullOrEmpty(request.DescriptionsJson))
+                {
+                    try
+                    {
+                        descriptions = System.Text.Json.JsonSerializer.Deserialize<List<MarkerDescriptionDto>>(
+                            request.DescriptionsJson,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        );
+                    }
+                    catch (Exception jsonEx)
+                    {
+                        _logger.LogWarning("Failed to parse descriptions JSON: {Error}", jsonEx.Message);
+                    }
+                }
+
+                SetFileSystemWatcherEnabled(false);
+
+                try
+                {
+                    // Sanitize image name
+                    var ruleReg = new Regex("(^(PRN|AUX|NUL|CON|COM[1-9]|LPT[1-9]|(\\.+)$)(\\..*)?$)|(([\\x00-\\x1f\\?*:\";‌​|/<>])+)|([\\\\.\\s]+)");
+                    var baseName = string.IsNullOrEmpty(request.ImageName) ? "screenshot" : request.ImageName;
+                    var sanitizedName = ruleReg.Replace(baseName, "-").Replace(" ", "-");
+                    var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+
+                    // Create assets directory next to the document
+                    var assetsDirectory = Path.Combine(
+                        Path.GetDirectoryName(request.DocumentPath),
+                        "assets"
+                    );
+                    Directory.CreateDirectory(assetsDirectory);
+
+                    // Save original image (for rollback)
+                    var originalFileName = $"{sanitizedName}_original_{timestamp}.png";
+                    var originalImagePath = Path.Combine(assetsDirectory, originalFileName);
+                    using (var stream = new FileStream(originalImagePath, FileMode.Create))
+                    {
+                        await request.OriginalImage.CopyToAsync(stream);
+                    }
+
+                    // Save annotated image
+                    var annotatedFileName = $"{sanitizedName}_annotated_{timestamp}.png";
+                    var annotatedImagePath = Path.Combine(assetsDirectory, annotatedFileName);
+                    using (var stream = new FileStream(annotatedImagePath, FileMode.Create))
+                    {
+                        await request.AnnotatedImage.CopyToAsync(stream);
+                    }
+
+                    _logger.LogInformation("SaveAnnotatedScreenshot: Saved images to {AssetsDir}", assetsDirectory);
+
+                    // Calculate path relative to project root (with leading slash for absolute reference)
+                    var projectPath = GetProjectPath();
+                    var imageRelativePath = annotatedImagePath
+                        .Replace(projectPath, "")
+                        .TrimStart(Path.DirectorySeparatorChar)
+                        .Replace("\\", "/");
+
+                    // Build markdown content with absolute path from project root (starts with /)
+                    var markdownBuilder = new StringBuilder();
+                    markdownBuilder.AppendLine();
+                    markdownBuilder.AppendLine($"![{sanitizedName}](/{imageRelativePath})");
+                    markdownBuilder.AppendLine();
+
+                    // Add numbered list of descriptions
+                    if (descriptions != null && descriptions.Count > 0)
+                    {
+                        foreach (var desc in descriptions.OrderBy(d => d.MarkerId))
+                        {
+                            markdownBuilder.AppendLine($"{desc.MarkerId}. {desc.Text}");
+                        }
+                    }
+
+                    var insertedMarkdown = markdownBuilder.ToString();
+
+                    // Append markdown to document
+                    var currentContent = await System.IO.File.ReadAllTextAsync(request.DocumentPath);
+                    var newContent = currentContent + insertedMarkdown;
+                    await System.IO.File.WriteAllTextAsync(request.DocumentPath, newContent);
+
+                    _logger.LogInformation("SaveAnnotatedScreenshot: Updated markdown document");
+
+                    // Send SignalR notification to refresh the document
+                    try
+                    {
+                        var documentDirectory = Path.GetDirectoryName(request.DocumentPath);
+                        var documentName = Path.GetFileName(request.DocumentPath);
+                        // projectPath already declared above
+                        var docRelativePath = request.DocumentPath
+                            .Replace(projectPath, "")
+                            .TrimStart(Path.DirectorySeparatorChar)
+                            .Replace("\\", "/");
+
+                        var monitoredMd = new MonitoredMDModel
+                        {
+                            Path = docRelativePath,
+                            Name = documentName,
+                            RelativePath = docRelativePath,
+                            FullPath = request.DocumentPath,
+                            FullDirectoryPath = documentDirectory
+                        };
+
+                        await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
+                        _logger.LogInformation("SignalR notification 'markdownfileischanged' sent for: {Path}", docRelativePath);
+                    }
+                    catch (Exception signalrEx)
+                    {
+                        _logger.LogWarning("Failed to send SignalR notification: {Message}", signalrEx.Message);
+                    }
+
+                    // Calculate original image path relative to project root
+                    var originalImageRelativePath = originalImagePath
+                        .Replace(projectPath, "")
+                        .TrimStart(Path.DirectorySeparatorChar)
+                        .Replace("\\", "/");
+
+                    return Ok(new SaveAnnotatedScreenshotResponse
+                    {
+                        Success = true,
+                        OriginalImagePath = originalImageRelativePath,
+                        AnnotatedImagePath = imageRelativePath,
+                        InsertedMarkdown = insertedMarkdown
+                    });
+                }
+                finally
+                {
+                    SetFileSystemWatcherEnabled(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SaveAnnotatedScreenshot");
+                return StatusCode(500, new SaveAnnotatedScreenshotResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Internal error: {ex.Message}"
+                });
+            }
+        }
+
         [HttpPost]
         public IActionResult OpenCustomWordTemplate([FromBody] FileInfoNode fileData)
         {

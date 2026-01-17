@@ -11,6 +11,7 @@ import { MdFile } from '../../models/md-file';
 import { ProjectsService } from '../../services/projects.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { LayoutService } from '../../services/layout.service';
+import { ClipboardPasteService } from '../../services/clipboard-paste.service';
 
 
 
@@ -53,7 +54,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
     public navService:MdNavigationService,
     private ref: ChangeDetectorRef, // Injected ChangeDetectorRef
     private layoutService: LayoutService,
-    private http: HttpClient
+    private http: HttpClient,
+    private clipboardPasteService: ClipboardPasteService
   ) {
     this.setupResizeListeners();
 
@@ -121,6 +123,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
     }
     // Clear debounce timer
     clearTimeout(this.debounceTimer);
+    // Cleanup clipboard paste service
+    this.clipboardPasteService.destroy();
   }
 
   private validateWidth(width: number): number {
@@ -182,6 +186,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Initialize global Ctrl+V listener for screenshot annotation
+    this.clipboardPasteService.initialize();
 
   }
 

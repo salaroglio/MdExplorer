@@ -38,6 +38,8 @@ import { SignalRChatProvider } from '../git-chat/providers/signalr-chat.provider
 import { TocProgressDialogComponent } from './components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
 import { TocProgressService } from './services/toc-progress.service';
 import { ConfirmDialogComponent } from '../commons/components/confirm-dialog/confirm-dialog.component';
+import { ImageAnnotationCanvasComponent } from './components/image-annotation-canvas/image-annotation-canvas.component';
+import { ScreenshotAnnotationWizardDialogComponent } from './components/dialogs/screenshot-annotation-wizard/screenshot-annotation-wizard-dialog.component';
 
 
 
@@ -93,7 +95,9 @@ const routes: Routes = [
     DocumentShowComponent, // Added to declarations
     TocProgressDialogComponent,
     ConfirmDialogComponent,
-    GitChatComponent
+    GitChatComponent,
+    ImageAnnotationCanvasComponent,
+    ScreenshotAnnotationWizardDialogComponent
   ],
   imports: [
     CommonModule,
@@ -111,7 +115,8 @@ const routes: Routes = [
     GitChatService
   ],
   entryComponents: [
-    TocProgressDialogComponent
+    TocProgressDialogComponent,
+    ScreenshotAnnotationWizardDialogComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
