@@ -14,15 +14,16 @@ using System.Threading.Tasks;
 namespace MdExplorer.Services.TeamChat
 {
     /// <summary>
-    /// Team Chat service implementation using Firebase Realtime Database REST API.
-    /// Uses FirebaseStreamingService for real-time cross-PC communication via SSE.
+    /// Team Chat service implementation using VPS REST API.
+    /// Uses VpsChatStreamingService for real-time cross-PC communication via WebSocket.
     /// </summary>
     public class TeamChatService : ITeamChatService
     {
         private readonly ILogger<TeamChatService> _logger;
         private readonly HttpClient _httpClient;
-        private readonly string _firebaseDatabaseUrl;
-        private readonly FirebaseStreamingService _streamingService;
+        private readonly string _vpsApiUrl;
+        private readonly string _apiKey;
+        private readonly VpsChatStreamingService _streamingService;
 
         // Track presence per room: roomId -> (connectionId -> userInfo)
         private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ChatUserInfo>> _roomPresence = new();
@@ -42,17 +43,19 @@ namespace MdExplorer.Services.TeamChat
             ILogger<TeamChatService> logger,
             IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
-            FirebaseStreamingService streamingService)
+            VpsChatStreamingService streamingService)
         {
             _logger = logger;
-            _httpClient = httpClientFactory.CreateClient("Firebase");
+            _httpClient = httpClientFactory.CreateClient("MdChat");
             _streamingService = streamingService;
 
-            // Get Firebase URL from configuration
-            _firebaseDatabaseUrl = configuration["Firebase:DatabaseUrl"]
-                ?? "https://mdexplorer-chat-default-rtdb.europe-west1.firebasedatabase.app";
+            // Get VPS Chat configuration
+            _vpsApiUrl = configuration["MdChat:ApiUrl"]
+                ?? "https://errantia.net/mdchat/api";
+            _apiKey = configuration["MdChat:ApiKey"]
+                ?? throw new InvalidOperationException("MdChat:ApiKey is required in configuration");
 
-            _logger.LogInformation("TeamChatService initialized with Firebase URL: {Url}", _firebaseDatabaseUrl);
+            _logger.LogInformation("TeamChatService initialized with VPS API URL: {Url}", _vpsApiUrl);
         }
 
         /// <summary>
@@ -70,10 +73,10 @@ namespace MdExplorer.Services.TeamChat
             user.LastSeen = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             roomUsers[connectionId] = user;
 
-            // Update presence in Firebase
-            await UpdateFirebasePresence(roomId, connectionId, user);
+            // Update presence in VPS
+            await UpdateVpsPresence(roomId, connectionId, user);
 
-            // Subscribe to Firebase SSE only for the first client (one SSE per room per backend)
+            // Subscribe to VPS WebSocket only for the first client (one WS per room per backend)
             if (isFirstClient)
             {
                 await _streamingService.SubscribeToRoom(roomId);
@@ -109,10 +112,10 @@ namespace MdExplorer.Services.TeamChat
                     userName, roomId, connectionId, roomEmpty);
             }
 
-            // Remove presence from Firebase
-            await RemoveFirebasePresence(roomId, connectionId);
+            // Remove presence from VPS
+            await RemoveVpsPresence(roomId, connectionId);
 
-            // Unsubscribe from Firebase SSE only when the last client leaves
+            // Unsubscribe from VPS WebSocket only when the last client leaves
             if (roomEmpty)
             {
                 _streamingService.UnsubscribeFromRoom(roomId);
@@ -121,13 +124,27 @@ namespace MdExplorer.Services.TeamChat
         }
 
         /// <summary>
-        /// Send a message to a room (saves to Firebase)
+        /// Create an HttpRequestMessage with API Key header
+        /// </summary>
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent content = null)
+        {
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Add("X-API-Key", _apiKey);
+            if (content != null)
+            {
+                request.Content = content;
+            }
+            return request;
+        }
+
+        /// <summary>
+        /// Send a message to a room (saves to VPS)
         /// </summary>
         public async Task<ChatMessageDto> SendMessage(string roomId, ChatMessageDto message)
         {
             message.Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            var url = $"{_firebaseDatabaseUrl}/chatRooms/{roomId}/messages.json";
+            var url = $"{_vpsApiUrl}/rooms/{roomId}/messages";
 
             var json = JsonSerializer.Serialize(new
             {
@@ -142,11 +159,12 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                var response = await _httpClient.PostAsync(url, content);
+                using var request = CreateRequest(HttpMethod.Post, url, content);
+                var response = await _httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
 
                 var responseJson = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializer.Deserialize<FirebasePostResponse>(responseJson, _jsonOptions);
+                var result = JsonSerializer.Deserialize<VpsPostResponse>(responseJson, _jsonOptions);
 
                 message.Id = result?.Name ?? Guid.NewGuid().ToString();
 
@@ -154,8 +172,8 @@ namespace MdExplorer.Services.TeamChat
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send message to Firebase for room {RoomId}", roomId);
-                // Generate local ID if Firebase fails
+                _logger.LogError(ex, "Failed to send message to VPS for room {RoomId}", roomId);
+                // Generate local ID if VPS fails
                 message.Id = Guid.NewGuid().ToString();
             }
 
@@ -167,26 +185,27 @@ namespace MdExplorer.Services.TeamChat
         /// </summary>
         public async Task<List<ChatMessageDto>> GetRecentMessages(string roomId, int limit)
         {
-            var url = $"{_firebaseDatabaseUrl}/chatRooms/{roomId}/messages.json?orderBy=\"timestamp\"&limitToLast={limit}";
+            var url = $"{_vpsApiUrl}/rooms/{roomId}/messages?limitToLast={limit}";
 
             try
             {
-                var response = await _httpClient.GetAsync(url);
+                using var request = CreateRequest(HttpMethod.Get, url);
+                var response = await _httpClient.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("Failed to get messages from Firebase: {StatusCode}", response.StatusCode);
+                    _logger.LogWarning("Failed to get messages from VPS: {StatusCode}", response.StatusCode);
                     return new List<ChatMessageDto>();
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
 
-                if (string.IsNullOrEmpty(json) || json == "null")
+                if (string.IsNullOrEmpty(json) || json == "null" || json == "{}")
                 {
                     return new List<ChatMessageDto>();
                 }
 
-                var messages = JsonSerializer.Deserialize<Dictionary<string, FirebaseMessage>>(json, _jsonOptions);
+                var messages = JsonSerializer.Deserialize<Dictionary<string, VpsMessage>>(json, _jsonOptions);
 
                 if (messages == null)
                 {
@@ -208,7 +227,7 @@ namespace MdExplorer.Services.TeamChat
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get messages from Firebase for room {RoomId}", roomId);
+                _logger.LogError(ex, "Failed to get messages from VPS for room {RoomId}", roomId);
                 return new List<ChatMessageDto>();
             }
         }
@@ -231,9 +250,9 @@ namespace MdExplorer.Services.TeamChat
             return new PresenceInfoDto { Users = new List<ChatUserInfo>(), TotalOnline = 0 };
         }
 
-        private async Task UpdateFirebasePresence(string roomId, string connectionId, ChatUserInfo user)
+        private async Task UpdateVpsPresence(string roomId, string connectionId, ChatUserInfo user)
         {
-            var url = $"{_firebaseDatabaseUrl}/chatRooms/{roomId}/presence/{connectionId}.json";
+            var url = $"{_vpsApiUrl}/rooms/{roomId}/presence/{connectionId}";
 
             var json = JsonSerializer.Serialize(new
             {
@@ -249,27 +268,29 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                var response = await _httpClient.PutAsync(url, content);
+                using var request = CreateRequest(HttpMethod.Put, url, content);
+                var response = await _httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to update Firebase presence for room {RoomId}", roomId);
+                _logger.LogWarning(ex, "Failed to update VPS presence for room {RoomId}", roomId);
             }
         }
 
-        private async Task RemoveFirebasePresence(string roomId, string connectionId)
+        private async Task RemoveVpsPresence(string roomId, string connectionId)
         {
-            var url = $"{_firebaseDatabaseUrl}/chatRooms/{roomId}/presence/{connectionId}.json";
+            var url = $"{_vpsApiUrl}/rooms/{roomId}/presence/{connectionId}";
 
             try
             {
-                var response = await _httpClient.DeleteAsync(url);
+                using var request = CreateRequest(HttpMethod.Delete, url);
+                var response = await _httpClient.SendAsync(request);
                 // Don't throw on failure - presence cleanup is best effort
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to remove Firebase presence for room {RoomId}", roomId);
+                _logger.LogWarning(ex, "Failed to remove VPS presence for room {RoomId}", roomId);
             }
         }
 
@@ -287,8 +308,8 @@ namespace MdExplorer.Services.TeamChat
             user.LastSeen = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             roomUsers[oderId] = user;
 
-            // Update in Firebase
-            await UpdateFirebaseProjectUser(roomId, oderId, user);
+            // Update in VPS
+            await UpdateVpsProjectUser(roomId, oderId, user);
 
             // Subscribe to project users SSE if first user
             if (isFirstUser)
@@ -322,8 +343,8 @@ namespace MdExplorer.Services.TeamChat
                     userName, roomId, oderId);
             }
 
-            // Remove from Firebase
-            await RemoveFirebaseProjectUser(roomId, oderId);
+            // Remove from VPS
+            await RemoveVpsProjectUser(roomId, oderId);
 
             // Unsubscribe from SSE if no more users
             if (roomEmpty)
@@ -346,7 +367,7 @@ namespace MdExplorer.Services.TeamChat
 
         /// <summary>
         /// Update project user count from remote SSE
-        /// Called by FirebaseStreamingService when remote presence changes
+        /// Called by VpsChatStreamingService when remote presence changes
         /// </summary>
         public void UpdateRemoteProjectUsers(string roomId, int count)
         {
@@ -355,9 +376,9 @@ namespace MdExplorer.Services.TeamChat
             _logger.LogDebug("Remote project users update for room {RoomId}: {Count}", roomId, count);
         }
 
-        private async Task UpdateFirebaseProjectUser(string roomId, string oderId, ChatUserInfo user)
+        private async Task UpdateVpsProjectUser(string roomId, string oderId, ChatUserInfo user)
         {
-            var url = $"{_firebaseDatabaseUrl}/chatRooms/{roomId}/projectUsers/{oderId}.json";
+            var url = $"{_vpsApiUrl}/rooms/{roomId}/project-users/{oderId}";
 
             var json = JsonSerializer.Serialize(new
             {
@@ -373,37 +394,39 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                var response = await _httpClient.PutAsync(url, content);
+                using var request = CreateRequest(HttpMethod.Put, url, content);
+                var response = await _httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to update Firebase project user for room {RoomId}", roomId);
+                _logger.LogWarning(ex, "Failed to update VPS project user for room {RoomId}", roomId);
             }
         }
 
-        private async Task RemoveFirebaseProjectUser(string roomId, string oderId)
+        private async Task RemoveVpsProjectUser(string roomId, string oderId)
         {
-            var url = $"{_firebaseDatabaseUrl}/chatRooms/{roomId}/projectUsers/{oderId}.json";
+            var url = $"{_vpsApiUrl}/rooms/{roomId}/project-users/{oderId}";
 
             try
             {
-                var response = await _httpClient.DeleteAsync(url);
+                using var request = CreateRequest(HttpMethod.Delete, url);
+                var response = await _httpClient.SendAsync(request);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to remove Firebase project user for room {RoomId}", roomId);
+                _logger.LogWarning(ex, "Failed to remove VPS project user for room {RoomId}", roomId);
             }
         }
 
-        // Firebase response models
-        private class FirebasePostResponse
+        // VPS response models
+        private class VpsPostResponse
         {
             [JsonPropertyName("name")]
             public string Name { get; set; }
         }
 
-        private class FirebaseMessage
+        private class VpsMessage
         {
             [JsonPropertyName("content")]
             public string Content { get; set; }

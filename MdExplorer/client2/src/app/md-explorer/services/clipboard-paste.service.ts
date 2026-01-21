@@ -1,6 +1,7 @@
 import { Injectable, NgZone } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subscription } from 'rxjs';
 import { MdFileService } from './md-file.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { ScreenshotAnnotationWizardDialogComponent, WizardDialogData } from '../components/dialogs/screenshot-annotation-wizard/screenshot-annotation-wizard-dialog.component';
@@ -11,6 +12,7 @@ import { ScreenshotAnnotationWizardDialogComponent, WizardDialogData } from '../
 export class ClipboardPasteService {
   private isInitialized = false;
   private pasteHandler?: (event: ClipboardEvent) => void;
+  private signalRSubscription?: Subscription;
 
   constructor(
     private dialog: MatDialog,
@@ -21,7 +23,7 @@ export class ClipboardPasteService {
   ) {}
 
   /**
-   * Initialize the global Ctrl+V listener.
+   * Initialize the global Ctrl+V listener and SignalR subscription.
    * Should be called once from the main/sidenav component.
    */
   initialize(): void {
@@ -30,25 +32,36 @@ export class ClipboardPasteService {
       return;
     }
 
+    // Setup paste event listener for Angular context
     this.pasteHandler = (event: ClipboardEvent) => {
       this.handlePaste(event);
     };
-
     document.addEventListener('paste', this.pasteHandler);
+
+    // Subscribe to SignalR events from iframe Ctrl+V
+    this.signalRSubscription = this.serverMessages.screenshotAnnotationRequest$.subscribe(data => {
+      console.log('[ClipboardPasteService] Received SignalR event:', data);
+      this.handleSignalRPaste(data);
+    });
+
     this.isInitialized = true;
-    console.log('[ClipboardPasteService] Initialized global paste listener');
+    console.log('[ClipboardPasteService] Initialized global paste listener and SignalR subscription');
   }
 
   /**
-   * Cleanup the listener when the service is destroyed
+   * Cleanup the listener and subscription when the service is destroyed
    */
   destroy(): void {
     if (this.pasteHandler) {
       document.removeEventListener('paste', this.pasteHandler);
       this.pasteHandler = undefined;
-      this.isInitialized = false;
-      console.log('[ClipboardPasteService] Destroyed global paste listener');
     }
+    if (this.signalRSubscription) {
+      this.signalRSubscription.unsubscribe();
+      this.signalRSubscription = undefined;
+    }
+    this.isInitialized = false;
+    console.log('[ClipboardPasteService] Destroyed global paste listener and SignalR subscription');
   }
 
   /**
@@ -151,5 +164,97 @@ export class ClipboardPasteService {
       // Fall back to paste event listener which doesn't need explicit permission
       return true;
     }
+  }
+
+  /**
+   * Handle paste request from SignalR (triggered by iframe Ctrl+V)
+   */
+  private handleSignalRPaste(data: {
+    success: boolean,
+    imageBase64?: string,
+    mimeType?: string,
+    documentPath?: string,
+    errorMessage?: string,
+    platformHint?: string
+  }): void {
+    // Check if there was an error
+    if (!data.success) {
+      console.log('[ClipboardPasteService] SignalR paste failed:', data.errorMessage);
+      this.ngZone.run(() => {
+        this.snackBar.open(
+          data.errorMessage || 'Nessuna immagine negli appunti',
+          'OK',
+          {
+            duration: 4000,
+            verticalPosition: 'top'
+          }
+        );
+      });
+      return;
+    }
+
+    // Check for image data
+    if (!data.imageBase64) {
+      console.error('[ClipboardPasteService] No image data in SignalR response');
+      return;
+    }
+
+    // Get document path - use the one from SignalR or fall back to current selection
+    let documentPath = data.documentPath;
+    if (!documentPath) {
+      const selectedFile = this.mdFileService.currentSelectedMdFile;
+      if (!selectedFile || !selectedFile.fullPath) {
+        console.log('[ClipboardPasteService] No document selected');
+        this.ngZone.run(() => {
+          this.snackBar.open('Seleziona un documento markdown prima di incollare', 'OK', {
+            duration: 3000,
+            verticalPosition: 'top'
+          });
+        });
+        return;
+      }
+      documentPath = selectedFile.fullPath;
+    }
+
+    // Convert base64 to Blob
+    const mimeType = data.mimeType || 'image/png';
+    const imageBlob = this.base64ToBlob(data.imageBase64, mimeType);
+
+    console.log('[ClipboardPasteService] Opening wizard from SignalR event');
+    console.log('[ClipboardPasteService] Document path:', documentPath);
+    console.log('[ClipboardPasteService] Image size:', imageBlob.size, 'bytes');
+
+    // Get SignalR connection ID
+    const connectionId = this.serverMessages.connectionId || '';
+
+    // Open wizard dialog
+    this.ngZone.run(() => {
+      const dialogData: WizardDialogData = {
+        imageBlob: imageBlob,
+        documentPath: documentPath,
+        connectionId: connectionId
+      };
+
+      this.dialog.open(ScreenshotAnnotationWizardDialogComponent, {
+        width: '900px',
+        maxWidth: '95vw',
+        maxHeight: '90vh',
+        data: dialogData,
+        disableClose: true
+      });
+    });
+  }
+
+  /**
+   * Convert base64 string to Blob
+   */
+  private base64ToBlob(base64: string, mimeType: string): Blob {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
   }
 }

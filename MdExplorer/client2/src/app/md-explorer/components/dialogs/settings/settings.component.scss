@@ -19,3 +19,15 @@
     color: #FF6B00; // IntelliJ orange
   }
 }
+
+// Notification settings styling
+.notification-setting {
+  padding: 8px 0;
+
+  .setting-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.6);
+    line-height: 1.4;
+  }
+}

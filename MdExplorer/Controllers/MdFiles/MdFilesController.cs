@@ -2802,7 +2802,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 node.IsIndexed = false;
                 node.IndexingStatus = "idle";
             }
-            
+
             if (node.Childrens != null)
             {
                 foreach (var child in node.Childrens)
@@ -2811,7 +2811,72 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 }
             }
         }
+
+        /// <summary>
+        /// Triggered from iframe when user presses Ctrl+V.
+        /// Reads image from system clipboard and notifies Angular via SignalR.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> TriggerPasteWizard([FromBody] TriggerPasteWizardRequest request)
+        {
+            _logger.LogInformation($"[TriggerPasteWizard] Request received - ConnectionId: {request.ConnectionId}, DocumentPath: {request.DocumentPath}");
+
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                _logger.LogWarning("[TriggerPasteWizard] ConnectionId is missing");
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+
+            try
+            {
+                // Read image from system clipboard using CrossPlatformClipboard
+                var clipboardResult = await CrossPlatformClipboard.GetImageAsync();
+
+                if (!clipboardResult.Success)
+                {
+                    _logger.LogInformation($"[TriggerPasteWizard] No image in clipboard: {clipboardResult.ErrorMessage}");
+
+                    // Notify Angular that there's no image
+                    await _hubContext.Clients.Client(request.ConnectionId)
+                        .SendAsync("openScreenshotAnnotationWizard", new
+                        {
+                            success = false,
+                            errorMessage = clipboardResult.ErrorMessage,
+                            platformHint = clipboardResult.PlatformHint
+                        });
+
+                    return Ok(new { success = false, message = clipboardResult.ErrorMessage });
+                }
+
+                // Convert image bytes to base64
+                var imageBase64 = Convert.ToBase64String(clipboardResult.ImageData);
+                _logger.LogInformation($"[TriggerPasteWizard] Image found - Size: {clipboardResult.ImageData.Length} bytes, sending via SignalR");
+
+                // Send to Angular via SignalR
+                await _hubContext.Clients.Client(request.ConnectionId)
+                    .SendAsync("openScreenshotAnnotationWizard", new
+                    {
+                        success = true,
+                        imageBase64 = imageBase64,
+                        mimeType = "image/png",
+                        documentPath = request.DocumentPath
+                    });
+
+                return Ok(new { success = true, message = "Image sent via SignalR" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[TriggerPasteWizard] Error processing clipboard");
+                return StatusCode(500, new { error = "Error processing clipboard", details = ex.Message });
+            }
+        }
     }
+}
+
+public class TriggerPasteWizardRequest
+{
+    public string ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
 }
 
 

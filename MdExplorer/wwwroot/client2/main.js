@@ -117,6 +117,8 @@ class MdServerMessagesService {
         this.injector = injector;
         // Observable for Git branch switch events
         this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
+        // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
+        this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__["Subject"]();
         this.connectionIsLost = false;
         this.consoleIsClosed = false;
         this.startConnection = () => {
@@ -155,6 +157,11 @@ class MdServerMessagesService {
                 this.hubConnection.on('gitBranchSwitched', (data) => {
                     console.log('✅ SignalR event received: gitBranchSwitched', data);
                     this.gitBranchSwitched$.next(data);
+                });
+                // Screenshot Annotation Wizard event (from iframe Ctrl+V via backend clipboard read)
+                this.hubConnection.on('openScreenshotAnnotationWizard', (data) => {
+                    console.log('📷 SignalR event received: openScreenshotAnnotationWizard', data);
+                    this.screenshotAnnotationRequest$.next(data);
                 });
                 this.hubConnection.on('consoleClosed', (data) => {
                     console.log('consoleClosed');
@@ -2807,7 +2814,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/router */ "tyNb");
 /* harmony import */ var _services_ai_notification_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./services/ai-notification.service */ "+Jvq");
 /* harmony import */ var _services_url_handler_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./services/url-handler.service */ "Ivbh");
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ "89FR");
+/* harmony import */ var _services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./services/file-change-notification.service */ "Yxbr");
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ "89FR");
+
 
 
 
@@ -2817,13 +2826,14 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class AppComponent {
-    constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService) {
+    constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService) {
         this.titleService = titleService;
         this.currentFolder = currentFolder;
         this.route = route;
         this.router = router;
         this.aiNotificationService = aiNotificationService;
         this.urlHandlerService = urlHandlerService;
+        this.fileChangeNotificationService = fileChangeNotificationService;
         this.title = 'client2';
         currentFolder.folderName.subscribe((data) => {
             this.titleService.setTitle(data.currentFolder);
@@ -2831,6 +2841,8 @@ class AppComponent {
         currentFolder.loadFolderName();
         // Initialize URL handler service for mdexplorer:// protocol
         this.urlHandlerService.initialize();
+        // Initialize file change notification service (taskbar flash)
+        this.fileChangeNotificationService.initialize();
     }
     unloadHandler(event) {
         // E' stato dato il comando di chiusura del tab o di chrome
@@ -2841,7 +2853,7 @@ class AppComponent {
         //
     }
 }
-AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_2__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_3__["AppCurrentMetadataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_5__["AiNotificationService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_6__["UrlHandlerService"])); };
+AppComponent.ɵfac = function AppComponent_Factory(t) { return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_2__["Title"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_3__["AppCurrentMetadataService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["ActivatedRoute"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_4__["Router"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_5__["AiNotificationService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_6__["UrlHandlerService"]), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_7__["FileChangeNotificationService"])); };
 AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: AppComponent, selectors: [["app-root"]], hostBindings: function AppComponent_HostBindings(rf, ctx) { if (rf & 1) {
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) { return ctx.unloadHandler($event); }, false, _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresolveWindow"]);
     } }, decls: 4, vars: 1, consts: [[1, "container", "app-content"], ["o", "outlet"]], template: function AppComponent_Template(rf, ctx) { if (rf & 1) {
@@ -2853,7 +2865,7 @@ AppComponent.ɵcmp = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineCompo
         const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵreference"](3);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
         _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
-    } }, directives: [_components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_7__["TitleBarComponent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwiZmlsZSI6ImFwcC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5mbGV4LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWZsb3c6IHJvdyB3cmFwO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgZmxleC13cmFwOiB3cmFwOyAgXHJcbn1cclxuXHJcbi5mbGV4LWl0ZW0ge1xyXG4gIGJhY2tncm91bmQ6IHRvbWF0bztcclxufVxyXG5cclxuLmFwcC1jb250ZW50IHtcclxuICBtYXJnaW4tdG9wOiAzMHB4OyAvLyBTcGFjZSBmb3IgdGl0bGUgYmFyXHJcbiAgaGVpZ2h0OiBjYWxjKDEwMHZoIC0gMzBweCk7IC8vIEltcG9zdGEgbCdhbHRlenphIHBlciBvY2N1cGFyZSB0dXR0byBsbyBzcGF6aW8gZGlzcG9uaWJpbGVcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbiJdfQ== */"], data: { animation: [
+    } }, directives: [_components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_8__["TitleBarComponent"], _angular_router__WEBPACK_IMPORTED_MODULE_4__["RouterOutlet"]], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uXFwuLlxcYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwiZmlsZSI6ImFwcC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5mbGV4LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWZsb3c6IHJvdyB3cmFwO1xyXG4gIGZsZXgtZGlyZWN0aW9uOiByb3c7XHJcbiAgZmxleC13cmFwOiB3cmFwOyAgXHJcbn1cclxuXHJcbi5mbGV4LWl0ZW0ge1xyXG4gIGJhY2tncm91bmQ6IHRvbWF0bztcclxufVxyXG5cclxuLmFwcC1jb250ZW50IHtcclxuICBtYXJnaW4tdG9wOiAzMHB4OyAvLyBTcGFjZSBmb3IgdGl0bGUgYmFyXHJcbiAgaGVpZ2h0OiBjYWxjKDEwMHZoIC0gMzBweCk7IC8vIEltcG9zdGEgbCdhbHRlenphIHBlciBvY2N1cGFyZSB0dXR0byBsbyBzcGF6aW8gZGlzcG9uaWJpbGVcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbiJdfQ== */"], data: { animation: [
             _shared_animations__WEBPACK_IMPORTED_MODULE_0__["slideInAnimation"]
         ] } });
 
@@ -3752,6 +3764,156 @@ ParsingProjectProvider.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵ
 
 /***/ }),
 
+/***/ "Yxbr":
+/*!**************************************************************!*\
+  !*** ./src/app/services/file-change-notification.service.ts ***!
+  \**************************************************************/
+/*! exports provided: FileChangeNotificationService */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "FileChangeNotificationService", function() { return FileChangeNotificationService; });
+/* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! tslib */ "mrSG");
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ "fXoL");
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ "+dpY");
+
+
+
+/**
+ * Service to handle taskbar flash notifications when files change externally.
+ * Works only in Electron environment.
+ */
+class FileChangeNotificationService {
+    constructor(serverMessages) {
+        this.serverMessages = serverMessages;
+        this.pendingChanges = 0;
+        this.isInitialized = false;
+        this.cleanupFocusListener = null;
+        // Settings key for localStorage
+        this.SETTINGS_KEY = 'mdexplorer_file_change_notification_enabled';
+    }
+    /**
+     * Initialize the service - should be called once from AppComponent
+     */
+    initialize() {
+        var _a;
+        if (this.isInitialized) {
+            console.log('[FileChangeNotification] Already initialized');
+            return;
+        }
+        // Only initialize if we're running in Electron
+        if (!((_a = window.electronAPI) === null || _a === void 0 ? void 0 : _a.flashTaskbarIcon)) {
+            console.log('[FileChangeNotification] Not running in Electron, skipping initialization');
+            return;
+        }
+        console.log('[FileChangeNotification] Initializing service');
+        this.isInitialized = true;
+        // Subscribe to file change events via SignalR
+        this.registerSignalRListeners();
+        // Listen for window focus events from Electron
+        this.registerWindowFocusListener();
+    }
+    /**
+     * Check if notifications are enabled
+     */
+    isEnabled() {
+        const stored = localStorage.getItem(this.SETTINGS_KEY);
+        // Default to enabled if not set
+        return stored === null ? true : stored === 'true';
+    }
+    /**
+     * Set notification enabled state
+     */
+    setEnabled(enabled) {
+        localStorage.setItem(this.SETTINGS_KEY, enabled.toString());
+        console.log('[FileChangeNotification] Notifications', enabled ? 'enabled' : 'disabled');
+        // If disabled, clear any pending notifications
+        if (!enabled) {
+            this.clearPendingChanges();
+        }
+    }
+    /**
+     * Get current pending changes count
+     */
+    getPendingChangesCount() {
+        return this.pendingChanges;
+    }
+    registerSignalRListeners() {
+        // File created
+        this.serverMessages.addMarkdownFileCreatedListener((data, objectThis) => {
+            objectThis.handleFileChange('created', data);
+        }, this);
+        // File changed
+        this.serverMessages.addMarkdownFileListener((data, objectThis) => {
+            objectThis.handleFileChange('changed', data);
+        }, this);
+        // File deleted
+        this.serverMessages.addMarkdownFileDeletedListener((data, objectThis) => {
+            objectThis.handleFileChange('deleted', data);
+        }, this);
+        console.log('[FileChangeNotification] SignalR listeners registered');
+    }
+    registerWindowFocusListener() {
+        const electronAPI = window.electronAPI;
+        if (electronAPI === null || electronAPI === void 0 ? void 0 : electronAPI.onWindowFocused) {
+            this.cleanupFocusListener = electronAPI.onWindowFocused(() => {
+                console.log('[FileChangeNotification] Window focused, clearing pending changes');
+                this.clearPendingChanges();
+            });
+        }
+    }
+    handleFileChange(type, data) {
+        return Object(tslib__WEBPACK_IMPORTED_MODULE_0__["__awaiter"])(this, void 0, void 0, function* () {
+            // Check if notifications are enabled
+            if (!this.isEnabled()) {
+                return;
+            }
+            const electronAPI = window.electronAPI;
+            if (!electronAPI) {
+                return;
+            }
+            try {
+                // Check if window is focused
+                const isFocused = yield electronAPI.isWindowFocused();
+                if (!isFocused) {
+                    this.pendingChanges++;
+                    console.log(`[FileChangeNotification] File ${type}: ${data.name || data.fullPath}, pending: ${this.pendingChanges}`);
+                    // Flash the taskbar
+                    electronAPI.flashTaskbarIcon();
+                    // Set badge with count
+                    electronAPI.setTaskbarBadge(this.pendingChanges);
+                }
+            }
+            catch (error) {
+                console.error('[FileChangeNotification] Error handling file change:', error);
+            }
+        });
+    }
+    clearPendingChanges() {
+        this.pendingChanges = 0;
+        const electronAPI = window.electronAPI;
+        if (electronAPI) {
+            electronAPI.stopFlashTaskbarIcon();
+            electronAPI.clearTaskbarBadge();
+        }
+    }
+    /**
+     * Cleanup when service is destroyed
+     */
+    ngOnDestroy() {
+        if (this.cleanupFocusListener) {
+            this.cleanupFocusListener();
+            this.cleanupFocusListener = null;
+        }
+    }
+}
+FileChangeNotificationService.ɵfac = function FileChangeNotificationService_Factory(t) { return new (t || FileChangeNotificationService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__["MdServerMessagesService"])); };
+FileChangeNotificationService.ɵprov = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({ token: FileChangeNotificationService, factory: FileChangeNotificationService.ɵfac, providedIn: 'root' });
+
+
+/***/ }),
+
 /***/ "ZAI4":
 /*!*******************************!*\
   !*** ./src/app/app.module.ts ***!
@@ -4435,8 +4597,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-    version: '2026.01.17.5',
-    buildTime: '2026.01.17 23:44:24'
+    version: '2026.01.20.1',
+    buildTime: '2026.01.20 14:30:12'
 };
 
 

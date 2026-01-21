@@ -5,6 +5,7 @@ import { slideInAnimation } from './shared/animations';
 import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 import { AiNotificationService } from './services/ai-notification.service';
 import { UrlHandlerService } from './services/url-handler.service';
+import { FileChangeNotificationService } from './services/file-change-notification.service';
 
 @Component({
   selector: 'app-root',
@@ -31,7 +32,8 @@ export class AppComponent {
     private route: ActivatedRoute,
     private router: Router,
     private aiNotificationService: AiNotificationService,
-    private urlHandlerService: UrlHandlerService) { // Initialize AI notification service
+    private urlHandlerService: UrlHandlerService,
+    private fileChangeNotificationService: FileChangeNotificationService) {
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);
@@ -40,5 +42,8 @@ export class AppComponent {
 
     // Initialize URL handler service for mdexplorer:// protocol
     this.urlHandlerService.initialize();
+
+    // Initialize file change notification service (taskbar flash)
+    this.fileChangeNotificationService.initialize();
   }
 }

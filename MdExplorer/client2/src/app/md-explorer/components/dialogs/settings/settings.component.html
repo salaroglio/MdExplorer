@@ -41,6 +41,24 @@
         </mat-form-field>
       </div>
     </mat-card>
+
+    <!-- Electron-only settings -->
+    <mat-card *ngIf="isElectronEnvironment" style="margin-top:10px; margin-bottom:10px">
+      <mat-card-header>
+        <mat-card-title>Notifications</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="notification-setting">
+          <mat-slide-toggle
+            [(ngModel)]="fileChangeNotificationEnabled"
+            (change)="onFileChangeNotificationToggle()"
+            color="primary">
+            Flash taskbar for file changes
+          </mat-slide-toggle>
+          <p class="setting-hint">Flash the taskbar icon when files are modified externally while MdExplorer is in the background</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
   </mat-dialog-content>
   <mat-dialog-actions>
     <button mat-button color="primary" (click)="save()">

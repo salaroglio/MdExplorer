@@ -685,13 +685,16 @@ namespace MdExplorer.Controllers
             var body = doc1.CreateElement("body");
             var BodyId = doc1.CreateAttribute("Id");
             var ConnectionId = doc1.CreateAttribute("ConnectionId");
+            var DocumentPath = doc1.CreateAttribute("DocumentPath");
             var bodyStyle = doc1.CreateAttribute("style");
             // IFRAME SCROLLING FIX: Permetti scrolling naturale nel body
             bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
             BodyId.Value = "MdBody";
             ConnectionId.Value = connectionId;
+            DocumentPath.Value = filePathSystem1;
             body.Attributes.Append(BodyId);
             body.Attributes.Append(ConnectionId);
+            body.Attributes.Append(DocumentPath);
             body.Attributes.Append(bodyStyle);
             html.AppendChild(body);
 
@@ -718,7 +721,7 @@ namespace MdExplorer.Controllers
     <link rel=""stylesheet"" href=""/common.css"" />
     <script src=""/common.js""></script>
 </head>
-<body Id=""MdBody"" ConnectionId=""{connectionId}"" style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}
 </body>
 </html>";

@@ -3,6 +3,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { IMdSetting } from '../../../../models/IMdSetting'
 import { AppCurrentMetadataService } from '../../../../services/app-current-metadata.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { FileChangeNotificationService } from '../../../../services/file-change-notification.service';
 
 
  
@@ -22,11 +23,17 @@ export class SettingsComponent implements OnInit {
   javaPath: string;
   localGraphvizDotPath: string;
 
+  // File change notification settings
+  fileChangeNotificationEnabled: boolean = true;
+  isElectronEnvironment: boolean = false;
+
   constructor(private appCurrentFolder: AppCurrentMetadataService,
     private dialogRef: MatDialogRef<SettingsComponent>,
-    private _snackBar: MatSnackBar
+    private _snackBar: MatSnackBar,
+    private fileChangeNotificationService: FileChangeNotificationService
   ) {
-
+    // Check if running in Electron
+    this.isElectronEnvironment = !!(window as any).electronAPI?.flashTaskbarIcon;
   }
 
   ngOnInit(): void {
@@ -42,6 +49,13 @@ export class SettingsComponent implements OnInit {
         this.localGraphvizDotPath = settings.find(_ => _.name === "LocalGraphvizDotPath")?.valueString || null;
       }
     });
+
+    // Load file change notification setting
+    this.fileChangeNotificationEnabled = this.fileChangeNotificationService.isEnabled();
+  }
+
+  onFileChangeNotificationToggle(): void {
+    this.fileChangeNotificationService.setEnabled(this.fileChangeNotificationEnabled);
   }
 
   save() {

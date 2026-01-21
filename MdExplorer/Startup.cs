@@ -107,14 +107,9 @@ namespace MdExplorer
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
 
             // Register Team Chat services
-            services.AddHttpClient("Firebase");
-            services.AddHttpClient("FirebaseStreaming", client =>
-            {
-                // SSE connections need infinite timeout
-                client.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
-            });
-            // FirebaseStreamingService handles SSE connections for real-time cross-PC chat
-            services.AddSingleton<Services.TeamChat.FirebaseStreamingService>();
+            services.AddHttpClient("MdChat");
+            // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat
+            services.AddSingleton<Services.TeamChat.VpsChatStreamingService>();
             services.AddSingleton<Services.TeamChat.ITeamChatService, Services.TeamChat.TeamChatService>();
 
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));

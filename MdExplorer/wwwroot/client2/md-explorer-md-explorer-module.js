@@ -23935,7 +23935,7 @@ class ClipboardPasteService {
         this.isInitialized = false;
     }
     /**
-     * Initialize the global Ctrl+V listener.
+     * Initialize the global Ctrl+V listener and SignalR subscription.
      * Should be called once from the main/sidenav component.
      */
     initialize() {
@@ -23943,23 +23943,33 @@ class ClipboardPasteService {
             console.log('[ClipboardPasteService] Already initialized');
             return;
         }
+        // Setup paste event listener for Angular context
         this.pasteHandler = (event) => {
             this.handlePaste(event);
         };
         document.addEventListener('paste', this.pasteHandler);
+        // Subscribe to SignalR events from iframe Ctrl+V
+        this.signalRSubscription = this.serverMessages.screenshotAnnotationRequest$.subscribe(data => {
+            console.log('[ClipboardPasteService] Received SignalR event:', data);
+            this.handleSignalRPaste(data);
+        });
         this.isInitialized = true;
-        console.log('[ClipboardPasteService] Initialized global paste listener');
+        console.log('[ClipboardPasteService] Initialized global paste listener and SignalR subscription');
     }
     /**
-     * Cleanup the listener when the service is destroyed
+     * Cleanup the listener and subscription when the service is destroyed
      */
     destroy() {
         if (this.pasteHandler) {
             document.removeEventListener('paste', this.pasteHandler);
             this.pasteHandler = undefined;
-            this.isInitialized = false;
-            console.log('[ClipboardPasteService] Destroyed global paste listener');
         }
+        if (this.signalRSubscription) {
+            this.signalRSubscription.unsubscribe();
+            this.signalRSubscription = undefined;
+        }
+        this.isInitialized = false;
+        console.log('[ClipboardPasteService] Destroyed global paste listener and SignalR subscription');
     }
     /**
      * Handle paste event
@@ -24049,6 +24059,78 @@ class ClipboardPasteService {
                 return true;
             }
         });
+    }
+    /**
+     * Handle paste request from SignalR (triggered by iframe Ctrl+V)
+     */
+    handleSignalRPaste(data) {
+        // Check if there was an error
+        if (!data.success) {
+            console.log('[ClipboardPasteService] SignalR paste failed:', data.errorMessage);
+            this.ngZone.run(() => {
+                this.snackBar.open(data.errorMessage || 'Nessuna immagine negli appunti', 'OK', {
+                    duration: 4000,
+                    verticalPosition: 'top'
+                });
+            });
+            return;
+        }
+        // Check for image data
+        if (!data.imageBase64) {
+            console.error('[ClipboardPasteService] No image data in SignalR response');
+            return;
+        }
+        // Get document path - use the one from SignalR or fall back to current selection
+        let documentPath = data.documentPath;
+        if (!documentPath) {
+            const selectedFile = this.mdFileService.currentSelectedMdFile;
+            if (!selectedFile || !selectedFile.fullPath) {
+                console.log('[ClipboardPasteService] No document selected');
+                this.ngZone.run(() => {
+                    this.snackBar.open('Seleziona un documento markdown prima di incollare', 'OK', {
+                        duration: 3000,
+                        verticalPosition: 'top'
+                    });
+                });
+                return;
+            }
+            documentPath = selectedFile.fullPath;
+        }
+        // Convert base64 to Blob
+        const mimeType = data.mimeType || 'image/png';
+        const imageBlob = this.base64ToBlob(data.imageBase64, mimeType);
+        console.log('[ClipboardPasteService] Opening wizard from SignalR event');
+        console.log('[ClipboardPasteService] Document path:', documentPath);
+        console.log('[ClipboardPasteService] Image size:', imageBlob.size, 'bytes');
+        // Get SignalR connection ID
+        const connectionId = this.serverMessages.connectionId || '';
+        // Open wizard dialog
+        this.ngZone.run(() => {
+            const dialogData = {
+                imageBlob: imageBlob,
+                documentPath: documentPath,
+                connectionId: connectionId
+            };
+            this.dialog.open(_components_dialogs_screenshot_annotation_wizard_screenshot_annotation_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_1__["ScreenshotAnnotationWizardDialogComponent"], {
+                width: '900px',
+                maxWidth: '95vw',
+                maxHeight: '90vh',
+                data: dialogData,
+                disableClose: true
+            });
+        });
+    }
+    /**
+     * Convert base64 string to Blob
+     */
+    base64ToBlob(base64, mimeType) {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
     }
 }
 ClipboardPasteService.ɵfac = function ClipboardPasteService_Factory(t) { return new (t || ClipboardPasteService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__["MatDialog"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__["MatSnackBar"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_md_file_service__WEBPACK_IMPORTED_MODULE_5__["MdFileService"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_6__["MdServerMessagesService"]), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["NgZone"])); };

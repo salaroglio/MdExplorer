@@ -25,6 +25,16 @@ export class MdServerMessagesService {
   // Observable for Git branch switch events
   public gitBranchSwitched$ = new Subject<{ fileCount: number, message: string }>();
 
+  // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
+  public screenshotAnnotationRequest$ = new Subject<{
+    success: boolean,
+    imageBase64?: string,
+    mimeType?: string,
+    documentPath?: string,
+    errorMessage?: string,
+    platformHint?: string
+  }>();
+
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
     private plantumlWorkingProvider: PlantumlWorkingProvider,
@@ -81,6 +91,12 @@ export class MdServerMessagesService {
       this.hubConnection.on('gitBranchSwitched', (data) => {
         console.log('✅ SignalR event received: gitBranchSwitched', data);
         this.gitBranchSwitched$.next(data);
+      });
+
+      // Screenshot Annotation Wizard event (from iframe Ctrl+V via backend clipboard read)
+      this.hubConnection.on('openScreenshotAnnotationWizard', (data) => {
+        console.log('📷 SignalR event received: openScreenshotAnnotationWizard', data);
+        this.screenshotAnnotationRequest$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {

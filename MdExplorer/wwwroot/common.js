@@ -120,6 +120,9 @@ if (window.commonJsLoaded) {
         // SEARCH: Full-text search with highlighting
         loadScriptOnce('/javascripts/jqueryForFirstPage/search/search-functionality.js');
 
+        // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
+        loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
+
         // PANELS: TOC, references, and resize functionality
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/toc-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/references-manager.js');
