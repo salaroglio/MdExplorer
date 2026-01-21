@@ -69,23 +69,16 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
 
   /**
    * Check if we can proceed to step 1
+   * Now always returns true - users can proceed without markers
    */
   canProceedToStep1(): boolean {
-    return this.markers.length > 0;
+    return true;
   }
 
   /**
    * Move to step 1 (descriptions)
    */
   async goToStep1(): Promise<void> {
-    if (!this.canProceedToStep1()) {
-      this.snackBar.open('Posiziona almeno un marker prima di procedere', 'OK', {
-        duration: 3000,
-        verticalPosition: 'top'
-      });
-      return;
-    }
-
     // Export and cache both images BEFORE hiding the canvas
     try {
       // Cache original blob
@@ -135,9 +128,18 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
 
   /**
    * Check if all descriptions are filled
+   * Returns true if no markers exist (nothing to describe)
    */
   allDescriptionsFilled(): boolean {
+    if (this.descriptions.length === 0) return true;
     return this.descriptions.every(d => d.text && d.text.trim().length > 0);
+  }
+
+  /**
+   * Get the color of a specific marker
+   */
+  getMarkerColor(markerId: number): string {
+    return this.annotationCanvas?.getMarkerColor(markerId) || '#FF4444';
   }
 
   /**

@@ -2,14 +2,40 @@
   <canvas
     #canvas
     (click)="onCanvasClick($event)"
+    (mousedown)="onMouseDown($event)"
+    (mousemove)="onMouseMove($event)"
+    (mouseup)="onMouseUp($event)"
+    (mouseleave)="onMouseUp($event)"
+    [style.cursor]="currentCursor"
     class="annotation-canvas">
   </canvas>
 </div>
 
 <div class="controls">
+  <!-- Tool selector -->
+  <div class="tool-selector">
+    <span class="label">Strumento:</span>
+    <div class="tool-options">
+      <button
+        [class.selected]="currentTool === 'ball'"
+        (click)="setTool('ball')"
+        title="Palla numerata (click per posizionare)"
+        class="tool-btn">
+        <mat-icon>radio_button_checked</mat-icon>
+      </button>
+      <button
+        [class.selected]="currentTool === 'box'"
+        (click)="setTool('box')"
+        title="Box numerato (click e trascina)"
+        class="tool-btn">
+        <mat-icon>crop_square</mat-icon>
+      </button>
+    </div>
+  </div>
+
   <!-- Color palette -->
   <div class="color-palette">
-    <span class="label">Colore marker:</span>
+    <span class="label">Colore:</span>
     <div class="color-options">
       <button
         *ngFor="let color of availableColors"
@@ -47,4 +73,9 @@
 <div class="marker-count">
   <mat-icon>pin_drop</mat-icon>
   <span>{{ markers.length }} marker{{ markers.length !== 1 ? 's' : '' }} posizionati</span>
+</div>
+
+<div class="tool-hint">
+  <span *ngIf="currentTool === 'ball'">Click sull'immagine per posizionare una palla numerata. Trascina i marker esistenti per spostarli.</span>
+  <span *ngIf="currentTool === 'box'">Click e trascina sull'immagine per disegnare un box. Usa gli handle per ridimensionare.</span>
 </div>

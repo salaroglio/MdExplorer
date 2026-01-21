@@ -34,8 +34,11 @@
 
   <!-- Step 1: Descriptions -->
   <div *ngIf="!isLoading && currentStep === 1" class="step-content">
-    <p class="step-description">
+    <p class="step-description" *ngIf="descriptions.length > 0">
       Inserisci una descrizione per ogni marker posizionato.
+    </p>
+    <p class="step-description" *ngIf="descriptions.length === 0">
+      Nessun marker posizionato. Puoi salvare lo screenshot senza annotazioni oppure tornare indietro per aggiungerne.
     </p>
 
     <div class="step1-layout">
@@ -45,9 +48,9 @@
       </div>
 
       <!-- Description form -->
-      <div class="descriptions-form">
+      <div class="descriptions-form" *ngIf="descriptions.length > 0">
         <div *ngFor="let desc of descriptions" class="description-item">
-          <div class="marker-badge" [style.backgroundColor]="'#FF4444'">
+          <div class="marker-badge" [style.backgroundColor]="getMarkerColor(desc.markerId)">
             {{ desc.markerId }}
           </div>
           <mat-form-field appearance="outline" class="description-field">
@@ -75,7 +78,7 @@
       mat-raised-button
       color="primary"
       (click)="goToStep1()"
-      [disabled]="!canProceedToStep1() || isLoading">
+      [disabled]="isLoading">
       <mat-icon>arrow_forward</mat-icon>
       Avanti
     </button>

@@ -11,9 +11,9 @@
 }
 
 .annotation-canvas {
-  cursor: crosshair;
   max-width: 100%;
   max-height: 100%;
+  // Cursor is set dynamically via [style.cursor]
 }
 
 .controls {
@@ -23,6 +23,56 @@
   margin-top: 16px;
   flex-wrap: wrap;
   gap: 16px;
+}
+
+.tool-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .label {
+    font-size: 14px;
+    color: #666;
+  }
+
+  .tool-options {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tool-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    border: 2px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    mat-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+      color: #666;
+    }
+
+    &:hover {
+      border-color: #999;
+      background: #f5f5f5;
+    }
+
+    &.selected {
+      border-color: #2196F3;
+      background: #e3f2fd;
+
+      mat-icon {
+        color: #2196F3;
+      }
+    }
+  }
 }
 
 .color-palette {
@@ -90,4 +140,11 @@
     height: 18px;
     color: #2196F3;
   }
+}
+
+.tool-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
 }
