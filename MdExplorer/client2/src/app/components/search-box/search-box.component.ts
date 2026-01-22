@@ -14,7 +14,7 @@ import { ProjectsService } from '../../md-explorer/services/projects.service';
   styleUrls: ['./search-box.component.scss']
 })
 export class SearchBoxComponent implements OnInit, OnDestroy {
-  @ViewChild('searchInput') searchInput: ElementRef;
+  @ViewChild('searchInput', { static: false }) searchInput: ElementRef;
   
   searchControl = new FormControl('');
   searchResults: SearchResult | null = null;

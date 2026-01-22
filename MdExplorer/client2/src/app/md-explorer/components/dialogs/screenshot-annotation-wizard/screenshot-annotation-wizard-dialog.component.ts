@@ -22,7 +22,7 @@ export interface WizardDialogData {
   styleUrls: ['./screenshot-annotation-wizard-dialog.component.scss']
 })
 export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
-  @ViewChild('annotationCanvas') annotationCanvas!: ImageAnnotationCanvasComponent;
+  @ViewChild('annotationCanvas', { static: false }) annotationCanvas!: ImageAnnotationCanvasComponent;
 
   // Wizard state
   currentStep: number = 0;

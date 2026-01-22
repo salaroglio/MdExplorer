@@ -33,7 +33,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public titleProject: string;
   public currentBranch: string = null;
   public hasRemote: boolean = false;
-  @ViewChild('sidenav') sidenav: MatSidenav;
+  @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
   
   // Memory leak prevention
   private mouseMoveListener?: (event: MouseEvent) => void;

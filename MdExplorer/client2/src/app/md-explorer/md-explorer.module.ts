@@ -114,10 +114,6 @@ const routes: Routes = [
     { provide: CHAT_PROVIDER, useClass: SignalRChatProvider },
     GitChatService
   ],
-  entryComponents: [
-    TocProgressDialogComponent,
-    ScreenshotAnnotationWizardDialogComponent
-  ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class MdExplorerModule {

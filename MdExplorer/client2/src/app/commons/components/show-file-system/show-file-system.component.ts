@@ -205,7 +205,7 @@ export class ShowFileSystemComponent implements OnInit {
   public contextMenuNode: MdFile | null = null;
 
   // NEW: ViewChild for filter input
-  @ViewChild('filterInput') filterInput: ElementRef;
+  @ViewChild('filterInput', { static: false }) filterInput: ElementRef;
 
   // Legacy properties (manteniamo per compatibilità)
   getLevel = (node: MdFile) => node.level;

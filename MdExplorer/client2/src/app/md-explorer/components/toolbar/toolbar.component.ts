@@ -45,9 +45,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public console = console;
 
   public currentBranch: string;
-  @ViewChild('hoverMenu') hoverMenuTrigger: MatMenuTrigger;
-  @ViewChild('branchMenuTrigger') matMenuTrigger: MatMenuTrigger;
-  @ViewChild(MatTabGroup) tabGroup: MatTabGroup;
+  @ViewChild('hoverMenu', { static: false }) hoverMenuTrigger: MatMenuTrigger;
+  @ViewChild('branchMenuTrigger', { static: false }) matMenuTrigger: MatMenuTrigger;
+  @ViewChild(MatTabGroup, { static: false }) tabGroup: MatTabGroup;
 
   TitleToShow: string;
   absolutePath: string;

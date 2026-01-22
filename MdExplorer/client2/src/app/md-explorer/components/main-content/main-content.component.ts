@@ -27,7 +27,7 @@ interface ContentState {
   styleUrls: ['./main-content.component.scss']
 })
 export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('iframe') iframe: ElementRef<HTMLIFrameElement>;
+  @ViewChild('iframe', { static: false }) iframe: ElementRef<HTMLIFrameElement>;
   public classForContent: string = "hundredPercentContent";
 
   // Legacy properties for backward compatibility

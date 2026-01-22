@@ -68,7 +68,7 @@ declare const Zone: any;
   `]
 })
 export class MilkdownReactHostComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('docsPilotElement') docsPilotElementRef: ElementRef<HTMLElement & { markdown: string }>;
+  @ViewChild('docsPilotElement', { static: false }) docsPilotElementRef: ElementRef<HTMLElement & { markdown: string }>;
 
   markdownContent: string = '# Benvenuto nell\\\'Editor React (Milkdown)!';
   private fileSubscription: Subscription;

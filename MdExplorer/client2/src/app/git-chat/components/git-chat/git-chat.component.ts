@@ -10,8 +10,8 @@ import { ProjectsService } from '../../../md-explorer/services/projects.service'
   styleUrls: ['./git-chat.component.scss']
 })
 export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
-  @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
-  @ViewChild('messageInput') private messageInput!: ElementRef;
+  @ViewChild('scrollContainer', { static: false }) private scrollContainer!: ElementRef;
+  @ViewChild('messageInput', { static: false }) private messageInput!: ElementRef;
 
   messages: ChatMessage[] = [];
   presence: PresenceInfo = { users: [], totalOnline: 0 };

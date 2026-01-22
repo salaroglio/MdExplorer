@@ -10,9 +10,9 @@ import { Router } from '@angular/router';
   styleUrls: ['./ai-chat.component.scss']
 })
 export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
-  @ViewChild('scrollContainer') private scrollContainer: ElementRef;
-  @ViewChild('messageInput') private messageInput: ElementRef;
-  @ViewChild('modelManagerPanel') private modelManagerPanel: ElementRef;
+  @ViewChild('scrollContainer', { static: false }) private scrollContainer: ElementRef;
+  @ViewChild('messageInput', { static: false }) private messageInput: ElementRef;
+  @ViewChild('modelManagerPanel', { static: false }) private modelManagerPanel: ElementRef;
   @Input() compactMode: boolean = false;
   
   messages: ChatMessage[] = [];
