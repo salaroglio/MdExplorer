@@ -1,7 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { Routes, RouterModule } from '@angular/router';
-import { FlexLayoutModule } from '@angular/flex-layout';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { ConnectionIdInterceptor } from './interceptors/connection-id.interceptor';
@@ -52,8 +51,7 @@ const routes: Routes = [
   ],
   imports: [
     BrowserModule,
-    RouterModule.forRoot(routes), //
-    FlexLayoutModule,
+    RouterModule.forRoot(routes),
     MaterialModule,
     FormsModule,
     ReactiveFormsModule,
