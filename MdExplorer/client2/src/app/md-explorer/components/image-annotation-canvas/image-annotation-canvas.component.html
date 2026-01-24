@@ -1,81 +1,126 @@
-<div #canvasContainer class="canvas-container">
-  <canvas
-    #canvas
-    (click)="onCanvasClick($event)"
-    (mousedown)="onMouseDown($event)"
-    (mousemove)="onMouseMove($event)"
-    (mouseup)="onMouseUp($event)"
-    (mouseleave)="onMouseUp($event)"
-    [style.cursor]="currentCursor"
-    class="annotation-canvas">
-  </canvas>
-</div>
-
-<div class="controls">
-  <!-- Tool selector -->
-  <div class="tool-selector">
-    <span class="label">Strumento:</span>
-    <div class="tool-options">
-      <button
-        [class.selected]="currentTool === 'ball'"
-        (click)="setTool('ball')"
-        title="Palla numerata (click per posizionare)"
-        class="tool-btn">
-        <mat-icon>radio_button_checked</mat-icon>
-      </button>
-      <button
-        [class.selected]="currentTool === 'box'"
-        (click)="setTool('box')"
-        title="Box numerato (click e trascina)"
-        class="tool-btn">
-        <mat-icon>crop_square</mat-icon>
-      </button>
+<div class="annotation-layout">
+  <!-- Left side: Canvas -->
+  <div class="canvas-area">
+    <div #canvasContainer class="canvas-container">
+      <canvas
+        #canvas
+        (click)="onCanvasClick($event)"
+        (mousedown)="onMouseDown($event)"
+        (mousemove)="onMouseMove($event)"
+        (mouseup)="onMouseUp($event)"
+        (mouseleave)="onMouseUp($event)"
+        [style.cursor]="currentCursor"
+        class="annotation-canvas">
+      </canvas>
+    </div>
+    <div class="marker-count">
+      <mat-icon>pin_drop</mat-icon>
+      <span>{{ markers.length }} marker{{ markers.length !== 1 ? 's' : '' }} posizionati</span>
     </div>
   </div>
 
-  <!-- Color palette -->
-  <div class="color-palette">
-    <span class="label">Colore:</span>
-    <div class="color-options">
+  <!-- Right side: Controls -->
+  <div class="controls-panel">
+    <h4 class="panel-title">Strumenti</h4>
+
+    <!-- Tool selector -->
+    <div class="control-group">
+      <span class="control-label">Tipo marker:</span>
+      <div class="tool-options">
+        <button
+          [class.selected]="currentTool === 'ball'"
+          (click)="setTool('ball')"
+          title="Palla numerata (click per posizionare)"
+          class="tool-btn">
+          <mat-icon>radio_button_checked</mat-icon>
+        </button>
+        <button
+          [class.selected]="currentTool === 'box'"
+          (click)="setTool('box')"
+          title="Box numerato (click e trascina)"
+          class="tool-btn">
+          <mat-icon>crop_square</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Color palette -->
+    <div class="control-group">
+      <span class="control-label">Colore:</span>
+      <div class="color-options">
+        <button
+          *ngFor="let color of availableColors"
+          [style.backgroundColor]="color.value"
+          [class.selected]="markerColor === color.value"
+          (click)="setMarkerColor(color.value)"
+          [title]="color.name"
+          class="color-btn">
+        </button>
+      </div>
+    </div>
+
+    <!-- Marker size slider -->
+    <div class="control-group">
+      <span class="control-label">Dim. marker:</span>
+      <div class="slider-row">
+        <mat-slider
+          [min]="MIN_MARKER_RADIUS"
+          [max]="MAX_MARKER_RADIUS"
+          [step]="2"
+          [value]="markerRadius"
+          (input)="onMarkerRadiusChanged($event.value)"
+          thumbLabel>
+        </mat-slider>
+        <span class="slider-value">{{ markerRadius }}px</span>
+      </div>
+    </div>
+
+    <!-- Image padding slider -->
+    <div class="control-group">
+      <span class="control-label">Margine:</span>
+      <div class="slider-row">
+        <mat-slider
+          [min]="0"
+          [max]="MAX_IMAGE_PADDING"
+          [step]="5"
+          [value]="imagePadding"
+          (input)="onPaddingChanged($event.value)"
+          thumbLabel>
+        </mat-slider>
+        <span class="slider-value">{{ imagePadding }}px</span>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <!-- Tool hint -->
+    <div class="tool-hint">
+      <mat-icon>info_outline</mat-icon>
+      <span *ngIf="currentTool === 'ball'">Click sull'immagine per posizionare una palla numerata. Trascina i marker esistenti per spostarli.</span>
+      <span *ngIf="currentTool === 'box'">Click e trascina per disegnare un box. Usa gli handle per ridimensionare.</span>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <!-- Undo controls -->
+    <div class="undo-controls">
       <button
-        *ngFor="let color of availableColors"
-        [style.backgroundColor]="color.value"
-        [class.selected]="markerColor === color.value"
-        (click)="setMarkerColor(color.value)"
-        [title]="color.name"
-        class="color-btn">
+        mat-stroked-button
+        (click)="removeLastMarker()"
+        [disabled]="markers.length === 0"
+        class="undo-btn">
+        <mat-icon>undo</mat-icon>
+        Annulla ultimo
+      </button>
+      <button
+        mat-stroked-button
+        color="warn"
+        (click)="clearMarkers()"
+        [disabled]="markers.length === 0"
+        class="clear-btn">
+        <mat-icon>clear_all</mat-icon>
+        Cancella tutti
       </button>
     </div>
   </div>
-
-  <!-- Undo buttons -->
-  <div class="undo-controls">
-    <button
-      mat-stroked-button
-      (click)="removeLastMarker()"
-      [disabled]="markers.length === 0"
-      class="undo-btn">
-      <mat-icon>undo</mat-icon>
-      Annulla ultimo
-    </button>
-    <button
-      mat-stroked-button
-      color="warn"
-      (click)="clearMarkers()"
-      [disabled]="markers.length === 0"
-      class="clear-btn">
-      <mat-icon>clear_all</mat-icon>
-      Cancella tutti
-    </button>
-  </div>
-</div>
-
-<div class="marker-count">
-  <mat-icon>pin_drop</mat-icon>
-  <span>{{ markers.length }} marker{{ markers.length !== 1 ? 's' : '' }} posizionati</span>
-</div>
-
-<div class="tool-hint">
-  <span *ngIf="currentTool === 'ball'">Click sull'immagine per posizionare una palla numerata. Trascina i marker esistenti per spostarli.</span>
-  <span *ngIf="currentTool === 'box'">Click e trascina sull'immagine per disegnare un box. Usa gli handle per ridimensionare.</span>
 </div>

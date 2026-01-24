@@ -20,9 +20,11 @@ h2[mat-dialog-title] {
 }
 
 mat-dialog-content {
-  min-width: 600px;
-  max-width: 900px;
-  min-height: 400px;
+  min-width: 800px;
+  max-width: 1200px;
+  min-height: 500px;
+  max-height: 80vh;
+  overflow: hidden;
 }
 
 .loading-container {

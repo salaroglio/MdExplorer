@@ -132,9 +132,9 @@ export class ClipboardPasteService {
       };
 
       this.dialog.open(ScreenshotAnnotationWizardDialogComponent, {
-        width: '900px',
+        width: '1200px',
         maxWidth: '95vw',
-        maxHeight: '90vh',
+        maxHeight: '95vh',
         data: dialogData,
         disableClose: true
       });
@@ -236,9 +236,9 @@ export class ClipboardPasteService {
       };
 
       this.dialog.open(ScreenshotAnnotationWizardDialogComponent, {
-        width: '900px',
+        width: '1200px',
         maxWidth: '95vw',
-        maxHeight: '90vh',
+        maxHeight: '95vh',
         data: dialogData,
         disableClose: true
       });

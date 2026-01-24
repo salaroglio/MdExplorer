@@ -55,8 +55,20 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   private ctx!: CanvasRenderingContext2D;
   private image: HTMLImageElement | null = null;
   private imageLoaded = false;
-  private markerRadius = 16;
   private resizeObserver?: any; // ResizeObserver
+
+  // Configurable marker radius
+  markerRadius = 16;
+  readonly MIN_MARKER_RADIUS = 8;
+  readonly MAX_MARKER_RADIUS = 32;
+
+  // Configurable image padding (margin around image for annotations at edges)
+  imagePadding = 0; // pixels in canvas coordinates
+  readonly MAX_IMAGE_PADDING = 50;
+
+  // Cached image display dimensions (used for drawing and coordinate calculations)
+  private imageDisplayWidth = 0;
+  private imageDisplayHeight = 0;
 
   // Drag state
   private isDragging = false;
@@ -127,31 +139,18 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   private resizeCanvas(): void {
     if (!this.image || !this.containerRef) return;
 
-    const container = this.containerRef.nativeElement;
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
+    // Always use original image dimensions (1:1, no scaling)
+    // Container has overflow:auto so user can scroll if image is large
+    this.imageDisplayWidth = this.image.width;
+    this.imageDisplayHeight = this.image.height;
 
-    // Calculate aspect ratio to fit image in container
-    const imageRatio = this.image.width / this.image.height;
-    const containerRatio = containerWidth / containerHeight;
+    // Canvas size = image size + padding on all sides
+    // Padding EXPANDS the canvas, doesn't shrink the image
+    this.canvas.width = this.imageDisplayWidth + (this.imagePadding * 2);
+    this.canvas.height = this.imageDisplayHeight + (this.imagePadding * 2);
 
-    let canvasWidth: number;
-    let canvasHeight: number;
-
-    if (imageRatio > containerRatio) {
-      // Image is wider - fit to width
-      canvasWidth = containerWidth;
-      canvasHeight = containerWidth / imageRatio;
-    } else {
-      // Image is taller - fit to height
-      canvasHeight = containerHeight;
-      canvasWidth = containerHeight * imageRatio;
-    }
-
-    this.canvas.width = canvasWidth;
-    this.canvas.height = canvasHeight;
-
-    console.log('[ImageAnnotationCanvas] Canvas resized to:', canvasWidth, 'x', canvasHeight);
+    console.log('[ImageAnnotationCanvas] Canvas resized to:', this.canvas.width, 'x', this.canvas.height,
+                'image:', this.imageDisplayWidth, 'x', this.imageDisplayHeight, 'padding:', this.imagePadding);
   }
 
   private redraw(): void {
@@ -160,8 +159,15 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw image scaled to canvas
-    this.ctx.drawImage(this.image, 0, 0, this.canvas.width, this.canvas.height);
+    // Fill padding area with background color
+    if (this.imagePadding > 0) {
+      this.ctx.fillStyle = '#e8e8e8';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // Draw image at stored dimensions (inside the padding area)
+    this.ctx.drawImage(this.image, this.imagePadding, this.imagePadding,
+                       this.imageDisplayWidth, this.imageDisplayHeight);
 
     // Draw markers
     this.markers.forEach(marker => {
@@ -178,8 +184,9 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   }
 
   private drawBallMarker(marker: AnnotationMarker): void {
-    const x = (marker.x / 100) * this.canvas.width;
-    const y = (marker.y / 100) * this.canvas.height;
+    // Marker coordinates are relative to image area, add padding offset
+    const x = this.imagePadding + (marker.x / 100) * this.imageDisplayWidth;
+    const y = this.imagePadding + (marker.y / 100) * this.imageDisplayHeight;
 
     // Draw circle with shadow
     this.ctx.save();
@@ -210,10 +217,11 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   }
 
   private drawBoxMarker(marker: AnnotationMarker): void {
-    const x = (marker.x / 100) * this.canvas.width;
-    const y = (marker.y / 100) * this.canvas.height;
-    const w = ((marker.width || 10) / 100) * this.canvas.width;
-    const h = ((marker.height || 10) / 100) * this.canvas.height;
+    // Marker coordinates are relative to image area, add padding offset
+    const x = this.imagePadding + (marker.x / 100) * this.imageDisplayWidth;
+    const y = this.imagePadding + (marker.y / 100) * this.imageDisplayHeight;
+    const w = ((marker.width || 10) / 100) * this.imageDisplayWidth;
+    const h = ((marker.height || 10) / 100) * this.imageDisplayHeight;
 
     this.ctx.save();
 
@@ -260,10 +268,11 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   private drawResizeHandles(marker: AnnotationMarker): void {
     if (marker.type !== 'box' || this.isExportMode) return;
 
-    const x = (marker.x / 100) * this.canvas.width;
-    const y = (marker.y / 100) * this.canvas.height;
-    const w = ((marker.width || 10) / 100) * this.canvas.width;
-    const h = ((marker.height || 10) / 100) * this.canvas.height;
+    // Marker coordinates are relative to image area, add padding offset
+    const x = this.imagePadding + (marker.x / 100) * this.imageDisplayWidth;
+    const y = this.imagePadding + (marker.y / 100) * this.imageDisplayHeight;
+    const w = ((marker.width || 10) / 100) * this.imageDisplayWidth;
+    const h = ((marker.height || 10) / 100) * this.imageDisplayHeight;
     const hs = this.HANDLE_SIZE;
 
     this.ctx.fillStyle = '#FFFFFF';
@@ -396,11 +405,16 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
 
   private getMousePosition(event: MouseEvent): { xPercent: number, yPercent: number } {
     const rect = this.canvas.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
+    // Account for CSS scaling (canvas may be displayed at different size than internal resolution)
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    const clickX = (event.clientX - rect.left) * scaleX;
+    const clickY = (event.clientY - rect.top) * scaleY;
+
+    // Convert to percentage relative to image area (not canvas area)
     return {
-      xPercent: (clickX / this.canvas.width) * 100,
-      yPercent: (clickY / this.canvas.height) * 100
+      xPercent: ((clickX - this.imagePadding) / this.imageDisplayWidth) * 100,
+      yPercent: ((clickY - this.imagePadding) / this.imageDisplayHeight) * 100
     };
   }
 
@@ -595,10 +609,11 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   private drawBoxPreview(): void {
     if (!this.boxPreview) return;
 
-    const x = (this.boxPreview.x / 100) * this.canvas.width;
-    const y = (this.boxPreview.y / 100) * this.canvas.height;
-    const w = (this.boxPreview.width / 100) * this.canvas.width;
-    const h = (this.boxPreview.height / 100) * this.canvas.height;
+    // Box preview coordinates are relative to image area, add padding offset
+    const x = this.imagePadding + (this.boxPreview.x / 100) * this.imageDisplayWidth;
+    const y = this.imagePadding + (this.boxPreview.y / 100) * this.imageDisplayHeight;
+    const w = (this.boxPreview.width / 100) * this.imageDisplayWidth;
+    const h = (this.boxPreview.height / 100) * this.imageDisplayHeight;
 
     this.ctx.save();
     this.ctx.strokeStyle = this.markerColor;
@@ -634,6 +649,20 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
     // Note: This only affects NEW markers, existing markers keep their color
   }
 
+  onMarkerRadiusChanged(value: number): void {
+    console.log('[ImageAnnotationCanvas] Marker radius changed to:', value);
+    this.markerRadius = Math.max(this.MIN_MARKER_RADIUS,
+                                 Math.min(this.MAX_MARKER_RADIUS, value));
+    this.redraw();
+  }
+
+  onPaddingChanged(value: number): void {
+    console.log('[ImageAnnotationCanvas] Padding changed to:', value);
+    this.imagePadding = Math.max(0, Math.min(this.MAX_IMAGE_PADDING, value));
+    this.resizeCanvas();
+    this.redraw();
+  }
+
   getMarkerColor(markerId: number): string {
     const marker = this.markers.find(m => m.id === markerId);
     return marker?.color || this.markerColor;
@@ -644,27 +673,163 @@ export class ImageAnnotationCanvasComponent implements OnInit, AfterViewInit, On
   }
 
   /**
-   * Export the canvas as a Blob (PNG format)
-   * Exports without resize handles for clean output
+   * Export the canvas as a Blob (PNG format) at FULL ORIGINAL resolution
+   * Creates a temporary canvas at the original image size for high-quality export
    */
   async exportAsBlob(): Promise<Blob> {
-    // Enable export mode to hide resize handles
-    this.isExportMode = true;
-    this.redraw();
+    if (!this.image) {
+      throw new Error('No image loaded');
+    }
+
+    // Calculate scale factor: how much bigger is the original image vs the displayed version
+    const scaleX = this.image.width / this.imageDisplayWidth;
+    const scaleY = this.image.height / this.imageDisplayHeight;
+
+    // Scale padding to original image pixels
+    const exportPaddingX = Math.round(this.imagePadding * scaleX);
+    const exportPaddingY = Math.round(this.imagePadding * scaleY);
+
+    // Create export canvas at original image resolution (plus padding)
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = this.image.width + (exportPaddingX * 2);
+    exportCanvas.height = this.image.height + (exportPaddingY * 2);
+    const exportCtx = exportCanvas.getContext('2d')!;
+
+    console.log('[ImageAnnotationCanvas] Exporting at resolution:', exportCanvas.width, 'x', exportCanvas.height);
+
+    // Fill padding area with background color
+    if (this.imagePadding > 0) {
+      exportCtx.fillStyle = '#f0f0f0';
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    }
+
+    // Draw original image at full resolution (centered in padding)
+    exportCtx.drawImage(this.image, exportPaddingX, exportPaddingY);
+
+    // Draw markers scaled to original resolution
+    this.markers.forEach(marker => {
+      this.drawMarkerOnExportCanvas(exportCtx, marker, exportPaddingX, exportPaddingY, scaleX, scaleY);
+    });
 
     return new Promise((resolve, reject) => {
-      this.canvas.toBlob((blob) => {
-        // Restore normal mode
-        this.isExportMode = false;
-        this.redraw();
-
+      exportCanvas.toBlob((blob) => {
         if (blob) {
+          console.log('[ImageAnnotationCanvas] Export complete, blob size:', blob.size);
           resolve(blob);
         } else {
           reject(new Error('Failed to export canvas as blob'));
         }
       }, 'image/png');
     });
+  }
+
+  /**
+   * Draw a marker on the export canvas at the scaled coordinates
+   */
+  private drawMarkerOnExportCanvas(
+    ctx: CanvasRenderingContext2D,
+    marker: AnnotationMarker,
+    paddingX: number,
+    paddingY: number,
+    scaleX: number,
+    scaleY: number
+  ): void {
+    if (marker.type === 'ball') {
+      this.drawBallMarkerOnExportCanvas(ctx, marker, paddingX, paddingY, scaleX, scaleY);
+    } else {
+      this.drawBoxMarkerOnExportCanvas(ctx, marker, paddingX, paddingY, scaleX, scaleY);
+    }
+  }
+
+  private drawBallMarkerOnExportCanvas(
+    ctx: CanvasRenderingContext2D,
+    marker: AnnotationMarker,
+    paddingX: number,
+    paddingY: number,
+    scaleX: number,
+    scaleY: number
+  ): void {
+    // Marker coordinates are percentage of image area
+    const x = paddingX + (marker.x / 100) * this.image!.width;
+    const y = paddingY + (marker.y / 100) * this.image!.height;
+
+    // Scale marker radius proportionally
+    const scaledRadius = this.markerRadius * Math.max(scaleX, scaleY);
+    const scaledFontSize = Math.round(14 * Math.max(scaleX, scaleY));
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 4 * Math.max(scaleX, scaleY);
+    ctx.shadowOffsetX = 2 * scaleX;
+    ctx.shadowOffsetY = 2 * scaleY;
+
+    ctx.beginPath();
+    ctx.arc(x, y, scaledRadius, 0, Math.PI * 2);
+    ctx.fillStyle = marker.color;
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2 * Math.max(scaleX, scaleY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `bold ${scaledFontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(marker.id.toString(), x, y);
+
+    ctx.restore();
+  }
+
+  private drawBoxMarkerOnExportCanvas(
+    ctx: CanvasRenderingContext2D,
+    marker: AnnotationMarker,
+    paddingX: number,
+    paddingY: number,
+    scaleX: number,
+    scaleY: number
+  ): void {
+    // Marker coordinates are percentage of image area
+    const x = paddingX + (marker.x / 100) * this.image!.width;
+    const y = paddingY + (marker.y / 100) * this.image!.height;
+    const w = ((marker.width || 10) / 100) * this.image!.width;
+    const h = ((marker.height || 10) / 100) * this.image!.height;
+
+    ctx.save();
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 4 * Math.max(scaleX, scaleY);
+    ctx.shadowOffsetX = 2 * scaleX;
+    ctx.shadowOffsetY = 2 * scaleY;
+
+    ctx.strokeStyle = marker.color;
+    ctx.lineWidth = 3 * Math.max(scaleX, scaleY);
+    ctx.strokeRect(x, y, w, h);
+
+    ctx.shadowColor = 'transparent';
+
+    // Scale badge radius and font
+    const badgeRadius = 12 * Math.max(scaleX, scaleY);
+    const badgeX = x + badgeRadius + (4 * scaleX);
+    const badgeY = y + badgeRadius + (4 * scaleY);
+    const scaledFontSize = Math.round(12 * Math.max(scaleX, scaleY));
+
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
+    ctx.fillStyle = marker.color;
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2 * Math.max(scaleX, scaleY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `bold ${scaledFontSize}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(marker.id.toString(), badgeX, badgeY);
+
+    ctx.restore();
   }
 
   /**
