@@ -99,7 +99,8 @@ function toggleMagnifier(stringMatchedHash) {
 
 /**
  * Create floating canvas element for magnifier
- * Canvas size: min 300px, max 500px, or 30% of viewport width
+ * Canvas is a horizontal rectangle: width is 2x the height
+ * Height: min 300px, max 500px, or 30% of viewport width
  */
 function createMagnifierCanvas() {
     // Rimuovi canvas esistente se presente
@@ -107,13 +108,16 @@ function createMagnifierCanvas() {
         $(window.magnifierCanvas).remove();
     }
 
-    // Calcola dimensioni canvas (min 300x300, max 500x500)
-    var canvasSize = Math.max(300, Math.min(500, window.innerWidth * 0.3));
+    // Calcola dimensioni canvas - rettangolo orizzontale
+    // Altezza: min 300, max 500 (come prima)
+    // Larghezza: il doppio dell'altezza
+    var canvasHeight = Math.max(300, Math.min(500, window.innerWidth * 0.3));
+    var canvasWidth = canvasHeight * 2;
 
     // Crea nuovo canvas
     window.magnifierCanvas = document.createElement('canvas');
-    window.magnifierCanvas.width = canvasSize;
-    window.magnifierCanvas.height = canvasSize;
+    window.magnifierCanvas.width = canvasWidth;
+    window.magnifierCanvas.height = canvasHeight;
     window.magnifierCanvas.style.cssText = `
         position: fixed;
         border: 2px solid #333;
@@ -127,7 +131,7 @@ function createMagnifierCanvas() {
     document.body.appendChild(window.magnifierCanvas);
     window.magnifierContext = window.magnifierCanvas.getContext('2d');
 
-    console.log('[createMagnifierCanvas] Canvas created with size:', canvasSize);
+    console.log('[createMagnifierCanvas] Canvas created with size:', canvasWidth, 'x', canvasHeight);
 }
 
 /**
@@ -206,17 +210,19 @@ function updateMagnifier(e, $box, $img) {
         var naturalX = (mouseX / rect.width) * img.naturalWidth;
         var naturalY = (mouseY / rect.height) * img.naturalHeight;
 
-        // Area da zoomare
-        var sourceSize = window.magnifierCanvas.width / zoomFactor;
-        var sourceX = naturalX - sourceSize / 2;
-        var sourceY = naturalY - sourceSize / 2;
+        // Area da zoomare - rettangolo orizzontale
+        var sourceWidth = window.magnifierCanvas.width / zoomFactor;
+        var sourceHeight = window.magnifierCanvas.height / zoomFactor;
+        var sourceX = naturalX - sourceWidth / 2;
+        var sourceY = naturalY - sourceHeight / 2;
 
         console.log('[updateMagnifier] Draw parameters:', {
             naturalX: naturalX,
             naturalY: naturalY,
             sourceX: sourceX,
             sourceY: sourceY,
-            sourceSize: sourceSize,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
             canvasWidth: window.magnifierCanvas.width,
             canvasHeight: window.magnifierCanvas.height
         });
@@ -228,12 +234,12 @@ function updateMagnifier(e, $box, $img) {
         window.magnifierContext.fillStyle = 'rgba(255, 255, 255, 0.9)';
         window.magnifierContext.fillRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
 
-        // Disegna l'immagine zoomata (senza clipping circolare)
+        // Disegna l'immagine zoomata (rettangolo orizzontale)
         try {
             console.log('[updateMagnifier] Drawing image...');
             window.magnifierContext.drawImage(
                 img,
-                sourceX, sourceY, sourceSize, sourceSize,
+                sourceX, sourceY, sourceWidth, sourceHeight,
                 0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height
             );
             console.log('[updateMagnifier] Image drawn successfully');
@@ -252,7 +258,6 @@ function updateMagnifier(e, $box, $img) {
         window.magnifierContext.lineTo(window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 + 10);
         window.magnifierContext.stroke();
     }
-    // TODO: Gestire SVG se necessario
 }
 
 /**
@@ -352,10 +357,11 @@ function drawMagnifiedImage(img, mouseX, mouseY, rect) {
         // Fattore di zoom
         var zoomFactor = 2.5;
 
-        // Calcola l'area da zoomare
-        var sourceSize = window.magnifierCanvas.width / zoomFactor;
-        var sourceX = (mouseX / rect.width) * img.width - sourceSize / 2;
-        var sourceY = (mouseY / rect.height) * img.height - sourceSize / 2;
+        // Calcola l'area da zoomare - rettangolo orizzontale
+        var sourceWidth = window.magnifierCanvas.width / zoomFactor;
+        var sourceHeight = window.magnifierCanvas.height / zoomFactor;
+        var sourceX = (mouseX / rect.width) * img.width - sourceWidth / 2;
+        var sourceY = (mouseY / rect.height) * img.height - sourceHeight / 2;
 
         // Clear canvas
         window.magnifierContext.clearRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
@@ -364,10 +370,10 @@ function drawMagnifiedImage(img, mouseX, mouseY, rect) {
         window.magnifierContext.fillStyle = 'white';
         window.magnifierContext.fillRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
 
-        // Disegna l'immagine zoomata (senza clipping circolare)
+        // Disegna l'immagine zoomata (rettangolo orizzontale)
         window.magnifierContext.drawImage(
             img,
-            sourceX, sourceY, sourceSize, sourceSize,
+            sourceX, sourceY, sourceWidth, sourceHeight,
             0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height
         );
 
