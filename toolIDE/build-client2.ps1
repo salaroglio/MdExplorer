@@ -1,4 +1,4 @@
-# Build client2 with Node.js 14.21.3
+# Build client2 with Node.js 16.20.2
 # This script sets the correct Node version before building
 
 $ErrorActionPreference = "Stop"
@@ -8,15 +8,15 @@ if (-not $nvmHome) {
     $nvmHome = "$env:APPDATA\nvm"
 }
 
-$nodePath = "$nvmHome\v14.21.3"
+$nodePath = "$nvmHome\v16.20.2"
 $nodeExe = "$nodePath\node.exe"
 
 if (-not (Test-Path $nodeExe)) {
-    Write-Host "ERROR: Node 14.21.3 not found. Run: nvm install 14.21.3" -ForegroundColor Red
+    Write-Host "ERROR: Node 16.20.2 not found. Run: nvm install 16.20.2" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "=== Building client2 with Node.js 14.21.3 ===" -ForegroundColor Cyan
+Write-Host "=== Building client2 with Node.js 16.20.2 ===" -ForegroundColor Cyan
 
 # Verify version
 $nodeVersion = & $nodeExe --version
