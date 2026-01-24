@@ -34,14 +34,14 @@
             mat-icon-button
             [matMenuTriggerFor]="authFailedMenu"
             [matTooltip]="'Connection failed: ' + (authenticationFailureReason || 'click to fix')">
-      <mat-icon style="color: yellow">warning</mat-icon>
+      <mat-icon class="warning-icon">warning</mat-icon>
     </button>
     <!-- Connection not active (generic case) -->
     <button *ngIf="isGitRepository && !connectionIsActive && !authenticationMissing && !authenticationFailed && !isCheckingConnection"
             mat-icon-button
             matTooltip="Missing connection to remote"
             (click)="checkConnection()">
-      <mat-icon style="color: yellow">warning</mat-icon>
+      <mat-icon class="warning-icon">warning</mat-icon>
     </button>
     <span *ngIf="isGitRepository && isCheckingConnection"><img src="/assets/connecting.gif" /></span>
 

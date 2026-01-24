@@ -40,6 +40,11 @@ mat-toolbar {
     mat-icon, .mat-icon {
       color: white !important;
     }
+
+    // Eccezione per icona warning - giallo chiaro
+    mat-icon.warning-icon, .mat-icon.warning-icon {
+      color: #FFEB3B !important;
+    }
   }
 
   // Colori tematici per i pulsanti della toolbar

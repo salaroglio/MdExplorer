@@ -11,6 +11,52 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
+// Icona folder color oro arancione
+mat-icon.folder-icon,
+.mat-icon.folder-icon,
+mat-icon.gold-icon,
+.mat-icon.gold-icon,
+.gold-icon {
+  color: #E69500 !important;
+}
+
+// Fix menu contestuali - sfondo bianco
+.mat-menu-panel,
+.mat-mdc-menu-panel,
+.cdk-overlay-pane .mat-menu-panel,
+.cdk-overlay-pane .mat-mdc-menu-panel {
+  background-color: white !important;
+  background: white !important;
+}
+
+.mat-menu-content,
+.mat-mdc-menu-content {
+  background-color: white !important;
+}
+
+// Rimuovi sfondo grigio dai bottoni con icone
+button.mat-icon-button,
+button.mat-mdc-icon-button,
+.mat-icon-button,
+.mat-mdc-icon-button {
+  background-color: transparent !important;
+
+  .mat-button-focus-overlay,
+  .mat-mdc-button-persistent-ripple,
+  .mat-mdc-focus-indicator,
+  .mdc-icon-button__ripple {
+    background-color: transparent !important;
+    opacity: 0 !important;
+  }
+
+  &:hover {
+    background-color: transparent !important;
+    .mat-button-focus-overlay {
+      opacity: 0 !important;
+    }
+  }
+}
+
 // Fix tooltip Angular Material 15 Legacy - sfondo scuro con testo bianco
 .mat-mdc-tooltip,
 .mat-tooltip {
@@ -86,10 +132,19 @@ body {
   }
 }
 
-// Fix form field (legacy) - evita sovrapposizione
+// Fix form field (legacy) - evita sovrapposizione hint e label
 .mat-form-field {
   .mat-form-field-wrapper {
-    padding-bottom: 1.25em !important;
+    padding-bottom: 1.5em !important;
+  }
+  .mat-form-field-subscript-wrapper {
+    margin-top: 0.5em !important;
+    position: relative !important;
+    top: 0 !important;
+  }
+  .mat-hint {
+    display: block !important;
+    margin-top: 4px !important;
   }
   .mat-form-field-infix {
     border-top: 0.84375em solid transparent !important;
@@ -102,6 +157,17 @@ body {
   }
   &.mat-form-field-appearance-outline .mat-form-field-outline-thick {
     color: #3f51b5 !important;
+  }
+
+  // Fix label floating quando il campo ha valore
+  &.mat-form-field-should-float .mat-form-field-label {
+    transform: translateY(-1.25em) scale(0.75) !important;
+    width: 133.33% !important;
+  }
+
+  // Nascondi placeholder quando c'è testo (per input nativi)
+  input:not(:placeholder-shown) + .mat-form-field-label-wrapper .mat-form-field-label {
+    transform: translateY(-1.25em) scale(0.75) !important;
   }
 }
 

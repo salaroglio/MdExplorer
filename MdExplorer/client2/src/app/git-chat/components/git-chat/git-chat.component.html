@@ -99,7 +99,7 @@
     </div>
 
     <!-- Messages list -->
-    <div *ngFor="let message of messages; trackBy: trackByMessageId"
+    <div *ngFor="let message of filteredMessages; trackBy: trackByMessageId"
          [ngClass]="getMessageClass(message)">
 
       <!-- System message -->

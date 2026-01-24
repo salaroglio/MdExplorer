@@ -15,6 +15,13 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   messages: ChatMessage[] = [];
   presence: PresenceInfo = { users: [], totalOnline: 0 };
+
+  // Filtra i messaggi di join/leave ma mantiene gli altri messaggi di sistema
+  get filteredMessages(): ChatMessage[] {
+    return this.messages.filter(m =>
+      !(m.type === 'system' && (m.content.includes('joined the chat') || m.content.includes('left the chat')))
+    );
+  }
   settings: ChatSettings = { notificationsEnabled: true, soundEnabled: true };
   connectionState: ChatConnectionState = 'disconnected';
 

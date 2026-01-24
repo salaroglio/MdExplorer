@@ -20,6 +20,65 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
+mat-icon.folder-icon,
+.mat-icon.folder-icon,
+mat-icon.gold-icon,
+.mat-icon.gold-icon,
+.gold-icon {
+  color: #E69500 !important;
+}
+
+.mat-menu-panel,
+.mat-mdc-menu-panel,
+.cdk-overlay-pane .mat-menu-panel,
+.cdk-overlay-pane .mat-mdc-menu-panel {
+  background-color: white !important;
+  background: white !important;
+}
+
+.mat-menu-content,
+.mat-mdc-menu-content {
+  background-color: white !important;
+}
+
+button.mat-icon-button,
+button.mat-mdc-icon-button,
+.mat-icon-button,
+.mat-mdc-icon-button {
+  background-color: transparent !important;
+}
+button.mat-icon-button .mat-button-focus-overlay,
+button.mat-icon-button .mat-mdc-button-persistent-ripple,
+button.mat-icon-button .mat-mdc-focus-indicator,
+button.mat-icon-button .mdc-icon-button__ripple,
+button.mat-mdc-icon-button .mat-button-focus-overlay,
+button.mat-mdc-icon-button .mat-mdc-button-persistent-ripple,
+button.mat-mdc-icon-button .mat-mdc-focus-indicator,
+button.mat-mdc-icon-button .mdc-icon-button__ripple,
+.mat-icon-button .mat-button-focus-overlay,
+.mat-icon-button .mat-mdc-button-persistent-ripple,
+.mat-icon-button .mat-mdc-focus-indicator,
+.mat-icon-button .mdc-icon-button__ripple,
+.mat-mdc-icon-button .mat-button-focus-overlay,
+.mat-mdc-icon-button .mat-mdc-button-persistent-ripple,
+.mat-mdc-icon-button .mat-mdc-focus-indicator,
+.mat-mdc-icon-button .mdc-icon-button__ripple {
+  background-color: transparent !important;
+  opacity: 0 !important;
+}
+button.mat-icon-button:hover,
+button.mat-mdc-icon-button:hover,
+.mat-icon-button:hover,
+.mat-mdc-icon-button:hover {
+  background-color: transparent !important;
+}
+button.mat-icon-button:hover .mat-button-focus-overlay,
+button.mat-mdc-icon-button:hover .mat-button-focus-overlay,
+.mat-icon-button:hover .mat-button-focus-overlay,
+.mat-mdc-icon-button:hover .mat-button-focus-overlay {
+  opacity: 0 !important;
+}
+
 .mat-mdc-tooltip,
 .mat-tooltip {
   background-color: #424242 !important;
@@ -86,7 +145,16 @@ body {
 }
 
 .mat-form-field .mat-form-field-wrapper {
-  padding-bottom: 1.25em !important;
+  padding-bottom: 1.5em !important;
+}
+.mat-form-field .mat-form-field-subscript-wrapper {
+  margin-top: 0.5em !important;
+  position: relative !important;
+  top: 0 !important;
+}
+.mat-form-field .mat-hint {
+  display: block !important;
+  margin-top: 4px !important;
 }
 .mat-form-field .mat-form-field-infix {
   border-top: 0.84375em solid transparent !important;
@@ -99,6 +167,13 @@ body {
 }
 .mat-form-field.mat-form-field-appearance-outline .mat-form-field-outline-thick {
   color: #3f51b5 !important;
+}
+.mat-form-field.mat-form-field-should-float .mat-form-field-label {
+  transform: translateY(-1.25em) scale(0.75) !important;
+  width: 133.33% !important;
+}
+.mat-form-field input:not(:placeholder-shown) + .mat-form-field-label-wrapper .mat-form-field-label {
+  transform: translateY(-1.25em) scale(0.75) !important;
 }
 
 .resizable-dialog-container .mat-dialog-container {

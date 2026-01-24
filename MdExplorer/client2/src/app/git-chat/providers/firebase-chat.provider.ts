@@ -149,9 +149,6 @@ export class FirebaseChatProvider implements IChatProvider {
 
     this._isConnected$.next(true);
 
-    // Send join message
-    await this.sendSystemMessage(`${user.userName} joined the chat`);
-
     console.log(`[FirebaseChatProvider] Connected to room: ${roomId}`);
   }
 
@@ -164,15 +161,6 @@ export class FirebaseChatProvider implements IChatProvider {
     }
 
     console.log(`[FirebaseChatProvider] Disconnecting from room: ${this.currentRoomId}`);
-
-    // Send leave message before disconnecting
-    if (this.currentUser) {
-      try {
-        await this.sendSystemMessage(`${this.currentUser.userName} left the chat`);
-      } catch (e) {
-        // Ignore errors when sending leave message
-      }
-    }
 
     // Unsubscribe from listeners
     if (this.messagesUnsubscribe) {

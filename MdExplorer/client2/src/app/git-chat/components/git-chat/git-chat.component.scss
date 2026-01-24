@@ -43,7 +43,19 @@
       gap: 4px;
       padding: 4px 8px;
       min-width: auto;
-      color: white;
+      color: white !important;
+      background-color: transparent !important;
+
+      .mat-button-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .mat-button-focus-overlay,
+      .mat-button-ripple {
+        background-color: transparent !important;
+      }
 
       .online-dot {
         width: 8px;
@@ -56,6 +68,7 @@
       .online-count {
         font-size: 12px;
         font-weight: 500;
+        color: white !important;
       }
     }
 
