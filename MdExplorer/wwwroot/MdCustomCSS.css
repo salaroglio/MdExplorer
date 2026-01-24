@@ -346,12 +346,18 @@ s
     width:100%;    
 }
 
-.mdeItemMainPageLeftMenu {    
+.mdeItemMainPageLeftMenu {
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
     flex: 0 0 45px;
-    
+}
+
+.mdeItemMainPageRightMenu {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    flex: 0 0 45px;
 }
 
 .mdeItemMainPageCenter {

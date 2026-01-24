@@ -193,6 +193,35 @@ button.mat-mdc-icon-button,
   }
 }
 
+// Fix snackbar default - sfondo bianco
+.mat-snack-bar-container,
+.mat-mdc-snack-bar-container {
+  background-color: white !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12) !important;
+}
+
+// Fix snackbar action button
+.mat-simple-snackbar-action,
+.mat-mdc-snack-bar-action {
+  button, .mat-button, .mat-mdc-button {
+    background-color: #3f51b5 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    padding: 0 12px !important;
+    min-width: 64px !important;
+
+    .mat-button-wrapper {
+      color: white !important;
+    }
+
+    &:hover {
+      background-color: #303f9f !important;
+    }
+  }
+}
+
 // Minimal snackbar styles - base
 .subtle-snackbar, .success-snackbar {
   .mat-snack-bar-container {

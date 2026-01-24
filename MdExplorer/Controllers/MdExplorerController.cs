@@ -609,11 +609,12 @@ namespace MdExplorer.Controllers
                     </div>
                     <div class=""mdeContainerIFrameApplciation"">
                         <div class=""mdeItemMainPageLeftMenu"" ></div>
-                        
+
                         <div class=""mdeItemMainPageCenter md-tocbot-content js-toc-content"">
                             {result}
                         </div>
-                        
+
+                        <div class=""mdeItemMainPageRightMenu"" ></div>
                     </div>
                      
                     ";
