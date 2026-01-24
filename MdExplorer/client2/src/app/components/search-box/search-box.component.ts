@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
-import { FormControl } from '@angular/forms';
+import { UntypedFormControl } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { SearchService } from '../../services/search.service';
@@ -16,7 +16,7 @@ import { ProjectsService } from '../../md-explorer/services/projects.service';
 export class SearchBoxComponent implements OnInit, OnDestroy {
   @ViewChild('searchInput', { static: false }) searchInput: ElementRef;
   
-  searchControl = new FormControl('');
+  searchControl = new UntypedFormControl('');
   searchResults: SearchResult | null = null;
   isSearching = false;
   showResults = false;
