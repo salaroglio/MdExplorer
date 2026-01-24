@@ -83,6 +83,18 @@ img.overrideImgFluid {
     height: 200px;
 }
 
+/* For simple images without custom CSS - respects natural size */
+.simpleImgContainer {
+    display: inline-block;
+    max-width: 100%;
+}
+
+img.simpleImgFluid {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
 .s1 {
     height: auto;
     border: 1px dotted blue;

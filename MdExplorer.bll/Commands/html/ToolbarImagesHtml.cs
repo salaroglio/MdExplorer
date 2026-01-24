@@ -23,10 +23,23 @@ namespace MdExplorer.Features.Commands.html
 
 
         private MatchCollection GetHashFromLink(string html)
-        {            
+        {
             Regex rx = new Regex(@"/([^.svg]*).svg",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(html);
+            return matches;
+        }
+
+        /// <summary>
+        /// Get images without curly brackets: ![alt](path) not followed by {
+        /// </summary>
+        private MatchCollection GetSimpleImageMatches(string markdown)
+        {
+            // Match ![alt](path) NOT followed by {
+            // Group 1: alt text, Group 2: path
+            Regex rx = new Regex(@"!\[([^\]]*)\]\(([^)]+)\)(?!\s*\{)",
+                                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var matches = rx.Matches(markdown);
             return matches;
         }
 
@@ -138,6 +151,58 @@ namespace MdExplorer.Features.Commands.html
                                                 endDivContainer);
                 markdown = markdown.Replace(itemImg.Groups[0].Value, divContainsImage);
 
+            }
+
+            // Process simple images without curly brackets: ![alt](path)
+            var simpleImgMatches = GetSimpleImageMatches(markdown);
+            foreach (Match simpleImg in simpleImgMatches)
+            {
+                var altText = simpleImg.Groups[1].Value;
+                var imagePath = simpleImg.Groups[2].Value;
+
+                // Skip if this is inside an already processed div (check if it's part of the markdown content)
+                // Generate hash from image path for unique ID
+                var imageHash = _helper.GetHashString(imagePath, Encoding.UTF8);
+                var guidToDisplayToolbar = Guid.NewGuid().ToString("D");
+                var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\", @"\\");
+
+                // Build the wrapped image HTML
+                var originalImageMarkdown = simpleImg.Groups[0].Value;
+                var imageWithClass = $"![{altText}]({imagePath}){{.simpleImgFluid data-md-hash=\"empty\"}}";
+
+                var divContainsImage = $"<div id=\"{imageHash}\" " +
+                    $"onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" " +
+                    $"onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" " +
+                    $"md-path-file=\"{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}\" " +
+                    $"md-css-hash=\"empty\" " +
+                    $"md-CurrentQueryRequest=\"{prepareCurrentQueryRequest}\" " +
+                    $"class=\"simpleImgContainer\" " +
+                    $"onmouseup=\"resizeImage(this)\">" +
+                    $"{System.Environment.NewLine}{System.Environment.NewLine}" +
+                    $"{imageWithClass}" +
+                    $"{System.Environment.NewLine}{System.Environment.NewLine}" +
+                    $"</div>";
+
+                // Build toolbar (only eyes and magnifier for simple images)
+                var newDivContainer = $"\r\n<div>";
+                var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" " +
+                    $"onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" " +
+                    $"onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" " +
+                    $"style=\"display:none;\">";
+                var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{imageHash}')""><img src=""/assets/eyes.png""/></button>";
+                var newButtonMagnifier = $@"<button alt=""zoom"" onclick=""toggleMagnifier('{imageHash}')""><img src=""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>";
+                var endDivForToolbar = "</div>";
+                var endDivContainer = "</div>";
+
+                divContainsImage = string.Concat(newDivContainer,
+                                                    newDivToolbar,
+                                                         newButtonEyes,
+                                                         newButtonMagnifier,
+                                                    endDivForToolbar,
+                                                    divContainsImage,
+                                                endDivContainer);
+
+                markdown = markdown.Replace(originalImageMarkdown, divContainsImage);
             }
 
             return markdown;
