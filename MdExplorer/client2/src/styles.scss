@@ -11,6 +11,100 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
+// Fix tooltip Angular Material 15 Legacy - sfondo scuro con testo bianco
+.mat-mdc-tooltip,
+.mat-tooltip {
+  background-color: #424242 !important;
+  color: white !important;
+  font-size: 12px !important;
+}
+
+.mat-mdc-tooltip .mdc-tooltip__surface {
+  background-color: #424242 !important;
+  color: white !important;
+}
+
+// Fix per Angular Material 15 Legacy Dialog (classi legacy senza mdc)
+.cdk-overlay-pane {
+  .mat-dialog-container {
+    background-color: white !important;
+    background: white !important;
+    border-radius: 8px !important;
+    padding: 24px !important;
+    box-shadow: 0 11px 15px -7px rgba(0,0,0,.2),
+                0 24px 38px 3px rgba(0,0,0,.14),
+                0 9px 46px 8px rgba(0,0,0,.12) !important;
+  }
+}
+
+.mat-dialog-container {
+  background-color: white !important;
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 24px !important;
+}
+
+// Fix dialog title, content, actions (legacy)
+.mat-dialog-title {
+  padding: 0 0 16px 0 !important;
+  margin: 0 !important;
+  font-size: 20px !important;
+  font-weight: 500 !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+.mat-dialog-content {
+  padding: 0 !important;
+  margin: 0 0 16px 0 !important;
+  color: rgba(0, 0, 0, 0.6) !important;
+  max-height: 65vh !important;
+  overflow: auto !important;
+  background-color: white !important;
+}
+
+.mat-dialog-actions {
+  padding: 16px 0 0 0 !important;
+  margin: 0 !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  background-color: white !important;
+}
+
+// Fix slider visibility (legacy)
+.mat-slider {
+  .mat-slider-track-fill {
+    background-color: #3f51b5 !important;
+  }
+  .mat-slider-track-background {
+    background-color: rgba(0, 0, 0, 0.26) !important;
+  }
+  .mat-slider-thumb {
+    background-color: #3f51b5 !important;
+  }
+  .mat-slider-thumb-label {
+    background-color: #3f51b5 !important;
+  }
+}
+
+// Fix form field (legacy) - evita sovrapposizione
+.mat-form-field {
+  .mat-form-field-wrapper {
+    padding-bottom: 1.25em !important;
+  }
+  .mat-form-field-infix {
+    border-top: 0.84375em solid transparent !important;
+  }
+  .mat-form-field-label {
+    color: rgba(0, 0, 0, 0.6) !important;
+  }
+  .mat-form-field-outline {
+    color: rgba(0, 0, 0, 0.12) !important;
+  }
+  &.mat-form-field-appearance-outline .mat-form-field-outline-thick {
+    color: #3f51b5 !important;
+  }
+}
+
 // Resizable dialog container styles
 .resizable-dialog-container {
   .mat-dialog-container {

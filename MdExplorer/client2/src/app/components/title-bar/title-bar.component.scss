@@ -123,3 +123,19 @@
     color: white;
   }
 }
+
+// Fix per Angular Material 15 Legacy - rimuove sfondo bianco dai bottoni
+button.mat-mdc-icon-button,
+button[mat-icon-button] {
+  background-color: transparent !important;
+  color: white !important;
+
+  .mat-mdc-button-persistent-ripple,
+  .mat-mdc-focus-indicator {
+    background-color: transparent !important;
+  }
+
+  mat-icon, .mat-icon {
+    color: white !important;
+  }
+}

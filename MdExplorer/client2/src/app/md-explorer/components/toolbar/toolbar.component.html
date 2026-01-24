@@ -1,21 +1,21 @@
 <mat-toolbar color="primary">
   <mat-toolbar-row>
-    <button mat-icon-button matTooltip="hide/show menu" (click)="toggleSidenav()">
+    <button mat-icon-button matTooltip="hide/show menu" (click)="toggleSidenav()" class="toolbar-btn btn-menu">
       <mat-icon>vertical_split</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="edit document" (click)="OpenEditor()">
+    <button mat-icon-button matTooltip="edit document" (click)="OpenEditor()" class="toolbar-btn btn-edit">
       <mat-icon>edit</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="export in word" (click)="Export()">
+    <button mat-icon-button matTooltip="export in word" (click)="Export()" class="toolbar-btn btn-export">
       <mat-icon>directions</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()">
+    <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()" class="toolbar-btn btn-bookmark">
       <mat-icon>bookmark</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="Open React Editor" (click)="openReactEditor()">
+    <button mat-icon-button matTooltip="Open React Editor" (click)="openReactEditor()" class="toolbar-btn btn-editor">
       <mat-icon>article</mat-icon>
     </button>
-    <button *ngIf="isTocDirectoryFile()" mat-icon-button matTooltip="Aggiorna TOC con AI" (click)="refreshTocDirectory()">
+    <button *ngIf="isTocDirectoryFile()" mat-icon-button matTooltip="Aggiorna TOC con AI" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
       <mat-icon>refresh</mat-icon>
     </button>
     <span>{{currentMdFile?.name}}</span>

@@ -131,3 +131,13 @@ mat-dialog-content {
     }
   }
 }
+
+// Fix per Angular Material 15 Legacy
+::ng-deep {
+  .mat-mdc-dialog-container,
+  .mat-mdc-dialog-container .mdc-dialog__container,
+  .mat-mdc-dialog-container .mdc-dialog__surface {
+    background-color: white !important;
+    padding: 24px !important;
+  }
+}

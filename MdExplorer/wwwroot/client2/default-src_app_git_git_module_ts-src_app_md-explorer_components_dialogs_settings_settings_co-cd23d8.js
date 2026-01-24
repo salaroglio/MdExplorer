@@ -11,15 +11,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "CommitMessageDialogComponent": () => (/* binding */ CommitMessageDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ 8987);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/forms */ 2508);
 
 
@@ -32,117 +32,148 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function CommitMessageDialogComponent_mat_spinner_15_Template(rf, ctx) { if (rf & 1) {
+function CommitMessageDialogComponent_mat_spinner_15_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelement"](0, "mat-spinner", 11);
-} }
-function CommitMessageDialogComponent_div_16_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function CommitMessageDialogComponent_div_16_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "div", 12)(1, "mat-icon", 13);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](2, "warning");
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", ctx_r1.aiError, " ");
-} }
-class CommitMessageDialogComponent {
-    constructor(dialogRef, data, http) {
-        this.dialogRef = dialogRef;
-        this.data = data;
-        this.http = http;
-        this.isGeneratingMessage = false;
-        this.aiError = null;
-        this.commitMessage = data.defaultMessage || 'Update from MdExplorer';
-    }
-    onCancel() {
-        this.dialogRef.close(null);
-    }
-    onConfirm() {
-        if (this.commitMessage && this.commitMessage.trim()) {
-            this.dialogRef.close(this.commitMessage.trim());
-        }
-    }
-    generateWithAi() {
-        if (!this.data.projectPath) {
-            this.aiError = 'Project path not available';
-            return;
-        }
-        this.isGeneratingMessage = true;
-        this.aiError = null;
-        this.http.post('/api/GitAi/generate-commit-message', {
-            projectPath: this.data.projectPath
-        }).subscribe({
-            next: (response) => {
-                this.isGeneratingMessage = false;
-                if (response.success && response.suggestedMessage) {
-                    this.commitMessage = response.suggestedMessage;
-                }
-                else if (response.error) {
-                    this.aiError = response.error;
-                    if (response.suggestedMessage) {
-                        // Use fallback message if provided
-                        this.commitMessage = response.suggestedMessage;
-                    }
-                }
-            },
-            error: (err) => {
-                this.isGeneratingMessage = false;
-                this.aiError = 'Errore durante la generazione del messaggio';
-                console.error('Error generating commit message:', err);
-            }
-        });
-    }
+  }
 }
-CommitMessageDialogComponent.ɵfac = function CommitMessageDialogComponent_Factory(t) { return new (t || CommitMessageDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__.HttpClient)); };
-CommitMessageDialogComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({ type: CommitMessageDialogComponent, selectors: [["app-commit-message-dialog"]], decls: 22, vars: 7, consts: [["mat-dialog-title", ""], ["appearance", "outline", 2, "width", "100%", "min-width", "400px"], ["matInput", "", "rows", "4", "placeholder", "Describe your changes...", "cdkFocusInitial", "", 3, "ngModel", "disabled", "ngModelChange", "keydown.enter"], [2, "margin-top", "16px", "display", "flex", "align-items", "center", "gap", "8px"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], [2, "margin-right", "4px"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["style", "margin-top: 8px; color: #f44336; font-size: 12px;", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [2, "margin-top", "8px", "color", "#f44336", "font-size", "12px"], [2, "font-size", "16px", "vertical-align", "middle"]], template: function CommitMessageDialogComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "h2", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](1, "Commit Message");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](2, "mat-dialog-content")(3, "mat-form-field", 1)(4, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](5, "Enter commit message");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](6, "textarea", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("ngModelChange", function CommitMessageDialogComponent_Template_textarea_ngModelChange_6_listener($event) { return ctx.commitMessage = $event; })("keydown.enter", function CommitMessageDialogComponent_Template_textarea_keydown_enter_6_listener($event) { return $event.ctrlKey && ctx.onConfirm(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](7, "    ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](8, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](9, "Press Ctrl+Enter to commit");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](10, "div", 3)(11, "button", 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_11_listener() { return ctx.generateWithAi(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](12, "mat-icon", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](13, "smart_toy");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](14);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](15, CommitMessageDialogComponent_mat_spinner_15_Template, 1, 0, "mat-spinner", 6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](16, CommitMessageDialogComponent_div_16_Template, 4, 1, "div", 7);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](17, "mat-dialog-actions", 8)(18, "button", 9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_18_listener() { return ctx.onCancel(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](19, "Cancel");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](20, "button", 10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_20_listener() { return ctx.onConfirm(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](21, " Commit ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngModel", ctx.commitMessage)("disabled", ctx.isGeneratingMessage);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("disabled", ctx.isGeneratingMessage);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", ctx.isGeneratingMessage ? "Generazione in corso..." : "Genera con AI", " ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx.isGeneratingMessage);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx.aiError);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("disabled", !ctx.commitMessage || !ctx.commitMessage.trim() || ctx.isGeneratingMessage);
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_3__.NgIf, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_4__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_4__.MatHint, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLabel, _angular_material_input__WEBPACK_IMPORTED_MODULE_5__.MatInput, _angular_material_button__WEBPACK_IMPORTED_MODULE_6__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_8__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_1__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_9__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_9__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_9__.NgModel], styles: [".mat-dialog-container {\n  padding: 24px;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  font-size: 14px;\n}\n\ntextarea[_ngcontent-%COMP%] {\n  font-family: monospace;\n  font-size: 14px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  padding: 0;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNvbW1pdC1tZXNzYWdlLWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7QUFDRjs7QUFFQTtFQUNFLGNBQUE7QUFDRjs7QUFFQTtFQUNFLGVBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxVQUFBO0FBQ0YiLCJmaWxlIjoiY29tbWl0LW1lc3NhZ2UtZGlhbG9nLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiOjpuZy1kZWVwIC5tYXQtZGlhbG9nLWNvbnRhaW5lciB7XHJcbiAgcGFkZGluZzogMjRweDtcclxufVxyXG5cclxubWF0LWRpYWxvZy1jb250ZW50IHtcclxuICBtYXJnaW46IDIwcHggMDtcclxufVxyXG5cclxubWF0LWZvcm0tZmllbGQge1xyXG4gIGZvbnQtc2l6ZTogMTRweDtcclxufVxyXG5cclxudGV4dGFyZWEge1xyXG4gIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XHJcbiAgZm9udC1zaXplOiAxNHB4O1xyXG59XHJcblxyXG5tYXQtZGlhbG9nLWFjdGlvbnMge1xyXG4gIG1hcmdpbi10b3A6IDE2cHg7XHJcbiAgcGFkZGluZzogMDtcclxufSJdfQ== */"] });
-
+class CommitMessageDialogComponent {
+  constructor(dialogRef, data, http) {
+    this.dialogRef = dialogRef;
+    this.data = data;
+    this.http = http;
+    this.isGeneratingMessage = false;
+    this.aiError = null;
+    this.commitMessage = data.defaultMessage || 'Update from MdExplorer';
+  }
+  onCancel() {
+    this.dialogRef.close(null);
+  }
+  onConfirm() {
+    if (this.commitMessage && this.commitMessage.trim()) {
+      this.dialogRef.close(this.commitMessage.trim());
+    }
+  }
+  generateWithAi() {
+    if (!this.data.projectPath) {
+      this.aiError = 'Project path not available';
+      return;
+    }
+    this.isGeneratingMessage = true;
+    this.aiError = null;
+    this.http.post('/api/GitAi/generate-commit-message', {
+      projectPath: this.data.projectPath
+    }).subscribe({
+      next: response => {
+        this.isGeneratingMessage = false;
+        if (response.success && response.suggestedMessage) {
+          this.commitMessage = response.suggestedMessage;
+        } else if (response.error) {
+          this.aiError = response.error;
+          if (response.suggestedMessage) {
+            // Use fallback message if provided
+            this.commitMessage = response.suggestedMessage;
+          }
+        }
+      },
+      error: err => {
+        this.isGeneratingMessage = false;
+        this.aiError = 'Errore durante la generazione del messaggio';
+        console.error('Error generating commit message:', err);
+      }
+    });
+  }
+  static {
+    this.ɵfac = function CommitMessageDialogComponent_Factory(t) {
+      return new (t || CommitMessageDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__.HttpClient));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({
+      type: CommitMessageDialogComponent,
+      selectors: [["app-commit-message-dialog"]],
+      decls: 22,
+      vars: 7,
+      consts: [["mat-dialog-title", ""], ["appearance", "outline", 2, "width", "100%", "min-width", "400px"], ["matInput", "", "rows", "4", "placeholder", "Describe your changes...", "cdkFocusInitial", "", 3, "ngModel", "disabled", "ngModelChange", "keydown.enter"], [2, "margin-top", "16px", "display", "flex", "align-items", "center", "gap", "8px"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], [2, "margin-right", "4px"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["style", "margin-top: 8px; color: #f44336; font-size: 12px;", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [2, "margin-top", "8px", "color", "#f44336", "font-size", "12px"], [2, "font-size", "16px", "vertical-align", "middle"]],
+      template: function CommitMessageDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](1, "Commit Message");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](2, "mat-dialog-content")(3, "mat-form-field", 1)(4, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](5, "Enter commit message");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](6, "textarea", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("ngModelChange", function CommitMessageDialogComponent_Template_textarea_ngModelChange_6_listener($event) {
+            return ctx.commitMessage = $event;
+          })("keydown.enter", function CommitMessageDialogComponent_Template_textarea_keydown_enter_6_listener($event) {
+            return $event.ctrlKey && ctx.onConfirm();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](7, "    ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](8, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](9, "Press Ctrl+Enter to commit");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](10, "div", 3)(11, "button", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_11_listener() {
+            return ctx.generateWithAi();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](12, "mat-icon", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](13, "smart_toy");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](15, CommitMessageDialogComponent_mat_spinner_15_Template, 1, 0, "mat-spinner", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](16, CommitMessageDialogComponent_div_16_Template, 4, 1, "div", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](17, "mat-dialog-actions", 8)(18, "button", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_18_listener() {
+            return ctx.onCancel();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](19, "Cancel");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](20, "button", 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_20_listener() {
+            return ctx.onConfirm();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](21, " Commit ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngModel", ctx.commitMessage)("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", ctx.isGeneratingMessage ? "Generazione in corso..." : "Genera con AI", " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx.aiError);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("disabled", !ctx.commitMessage || !ctx.commitMessage.trim() || ctx.isGeneratingMessage);
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_3__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyLabel, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_5__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_8__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_9__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_9__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_9__.NgModel],
+      styles: [".mat-dialog-container {\n  padding: 24px;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  font-size: 14px;\n}\n\ntextarea[_ngcontent-%COMP%] {\n  font-family: monospace;\n  font-size: 14px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  padding: 0;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvY29tbWl0LW1lc3NhZ2UtZGlhbG9nL2NvbW1pdC1tZXNzYWdlLWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7QUFDRjs7QUFFQTtFQUNFLGNBQUE7QUFDRjs7QUFFQTtFQUNFLGVBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxVQUFBO0FBQ0YiLCJzb3VyY2VzQ29udGVudCI6WyI6Om5nLWRlZXAgLm1hdC1kaWFsb2ctY29udGFpbmVyIHtcclxuICBwYWRkaW5nOiAyNHB4O1xyXG59XHJcblxyXG5tYXQtZGlhbG9nLWNvbnRlbnQge1xyXG4gIG1hcmdpbjogMjBweCAwO1xyXG59XHJcblxyXG5tYXQtZm9ybS1maWVsZCB7XHJcbiAgZm9udC1zaXplOiAxNHB4O1xyXG59XHJcblxyXG50ZXh0YXJlYSB7XHJcbiAgZm9udC1mYW1pbHk6IG1vbm9zcGFjZTtcclxuICBmb250LXNpemU6IDE0cHg7XHJcbn1cclxuXHJcbm1hdC1kaWFsb2ctYWN0aW9ucyB7XHJcbiAgbWFyZ2luLXRvcDogMTZweDtcclxuICBwYWRkaW5nOiAwO1xyXG59Il0sInNvdXJjZVJvb3QiOiIifQ== */"]
+    });
+  }
+}
 
 /***/ }),
 
@@ -156,21 +187,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitAccountManagementDialogComponent": () => (/* binding */ GitAccountManagementDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_git_account_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../services/git-account.service */ 7360);
-/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/snack-bar */ 930);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/core */ 9121);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_radio__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/radio */ 2922);
-/* harmony import */ var _angular_material_select__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/select */ 7371);
-/* harmony import */ var _angular_material_card__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/card */ 2156);
+/* harmony import */ var _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-core */ 7090);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-radio */ 3493);
+/* harmony import */ var _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-select */ 6002);
+/* harmony import */ var _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-card */ 7315);
 /* harmony import */ var _angular_material_divider__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/divider */ 1528);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/forms */ 2508);
 
 
@@ -189,99 +220,127 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function GitAccountManagementDialogComponent_div_11_Template(rf, ctx) { if (rf & 1) {
+function GitAccountManagementDialogComponent_div_11_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 11);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "mat-spinner", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "p");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, "Caricamento...");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} }
-function GitAccountManagementDialogComponent_div_12_div_12_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_div_12_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 17)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "person");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r6.currentAccount.username);
-} }
-function GitAccountManagementDialogComponent_div_12_div_13_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_div_13_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 17)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "email");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r7.currentAccount.email);
-} }
-function GitAccountManagementDialogComponent_div_12_span_17_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_span_17_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "GitHub Token configurato");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitAccountManagementDialogComponent_div_12_span_18_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_span_18_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "GitLab Token configurato");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitAccountManagementDialogComponent_div_12_span_19_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_span_19_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "Bitbucket App Password configurata");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitAccountManagementDialogComponent_div_12_span_20_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_span_20_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "Password HTTPS configurata");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitAccountManagementDialogComponent_div_12_span_21_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_span_21_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "Nessuna credenziale configurata");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitAccountManagementDialogComponent_div_12_div_24_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_div_24_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 17)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "account_circle");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"]("Auth Username: ", ctx_r13.currentAccount.authUsername, "");
-} }
-function GitAccountManagementDialogComponent_div_12_div_25_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_div_25_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 17)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "security");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"]("Metodo: ", ctx_r14.currentAccount.preferredAuthMethod === "username_password" ? "Username/Password" : "Token", "");
-} }
-function GitAccountManagementDialogComponent_div_12_div_26_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_div_26_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 17)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "note");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span", 21);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r15.currentAccount.notes);
-} }
-function GitAccountManagementDialogComponent_div_12_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_12_Template(rf, ctx) {
+  if (rf & 1) {
     const _r17 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 13)(1, "h3");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Account Attivo");
@@ -313,20 +372,29 @@ function GitAccountManagementDialogComponent_div_12_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](26, GitAccountManagementDialogComponent_div_12_div_26_Template, 5, 1, "div", 16);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](27, "mat-card-actions")(28, "button", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_12_Template_button_click_28_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r17); const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r16.editAccount()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_12_Template_button_click_28_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r17);
+      const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r16.editAccount());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](29, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](30, "edit");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](31, " Modifica ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](32, "button", 20);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_12_Template_button_click_32_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r17); const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r18.deleteAccount()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_12_Template_button_click_32_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r17);
+      const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r18.deleteAccount());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](33, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](34, "delete");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](35, " Elimina ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", ctx_r1.currentAccount.accountName, " ");
@@ -356,8 +424,10 @@ function GitAccountManagementDialogComponent_div_12_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r1.currentAccount.preferredAuthMethod);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r1.currentAccount.notes);
-} }
-function GitAccountManagementDialogComponent_div_13_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_13_Template(rf, ctx) {
+  if (rf & 1) {
     const _r20 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 22)(1, "mat-icon", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "info");
@@ -369,78 +439,121 @@ function GitAccountManagementDialogComponent_div_13_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "Configura un account Git per questo repository per abilitare push e pull.");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "button", 24);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_13_Template_button_click_7_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r20); const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r19.showCreate()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_13_Template_button_click_7_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r20);
+      const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r19.showCreate());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, "add");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](10, " Crea Nuovo Account ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} }
-function GitAccountManagementDialogComponent_div_14_mat_option_13_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_option_13_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-option", 36);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const type_r29 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("value", type_r29.value);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", type_r29.label, " ");
-} }
-function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template(rf, ctx) {
+  if (rf & 1) {
     const _r31 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-form-field", 26)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "GitHub Personal Access Token");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "input", 37);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r31); const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r30.gitHubPAT = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r31);
+      const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r30.gitHubPAT = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "button", 38);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r31); const ctx_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r32.hideToken = !ctx_r32.hideToken); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r31);
+      const ctx_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r32.hideToken = !ctx_r32.hideToken);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "mat-hint")(8, "a", 39);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template_a_click_8_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r31); const ctx_r33 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r33.openTokenCreationPage()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_16_Template_a_click_8_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r31);
+      const ctx_r33 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r33.openTokenCreationPage());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, "Crea un nuovo token su GitHub");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r22.gitHubPAT)("type", ctx_r22.hideToken ? "password" : "text");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r22.hideToken ? "visibility" : "visibility_off");
-} }
-function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template(rf, ctx) {
+  if (rf & 1) {
     const _r35 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-form-field", 26)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "GitLab Personal Access Token");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "input", 40);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35); const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r34.gitLabToken = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35);
+      const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r34.gitLabToken = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "button", 38);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35); const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r36.hideToken = !ctx_r36.hideToken); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35);
+      const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r36.hideToken = !ctx_r36.hideToken);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "mat-hint")(8, "a", 39);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template_a_click_8_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35); const ctx_r37 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r37.openTokenCreationPage()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_17_Template_a_click_8_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35);
+      const ctx_r37 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r37.openTokenCreationPage());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, "Crea un nuovo token su GitLab");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r23 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r23.gitLabToken)("type", ctx_r23.hideToken ? "password" : "text");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r23.hideToken ? "visibility" : "visibility_off");
-} }
-function GitAccountManagementDialogComponent_div_14_div_18_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_div_18_Template(rf, ctx) {
+  if (rf & 1) {
     const _r39 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 41)(1, "mat-label", 42);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Metodo di autenticazione:");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "mat-radio-group", 43);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_div_18_Template_mat_radio_group_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r39); const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r38.preferredAuthMethod = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_div_18_Template_mat_radio_group_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r39);
+      const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r38.preferredAuthMethod = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "mat-radio-button", 44)(5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, "token");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
@@ -451,42 +564,64 @@ function GitAccountManagementDialogComponent_div_14_div_18_Template(rf, ctx) { i
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11, " Username / Password ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r24 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r24.preferredAuthMethod);
-} }
-function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template(rf, ctx) {
+  if (rf & 1) {
     const _r41 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-form-field", 26)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Bitbucket App Password");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "input", 46);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r41); const ctx_r40 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r40.bitbucketAppPassword = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r41);
+      const ctx_r40 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r40.bitbucketAppPassword = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "button", 38);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r41); const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r42.hideToken = !ctx_r42.hideToken); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r41);
+      const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r42.hideToken = !ctx_r42.hideToken);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "mat-hint")(8, "a", 39);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template_a_click_8_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r41); const ctx_r43 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r43.openTokenCreationPage()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_19_Template_a_click_8_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r41);
+      const ctx_r43 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r43.openTokenCreationPage());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9, "Crea App Password su Bitbucket");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r25.bitbucketAppPassword)("type", ctx_r25.hideToken ? "password" : "text");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r25.hideToken ? "visibility" : "visibility_off");
-} }
-function GitAccountManagementDialogComponent_div_14_mat_form_field_20_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_form_field_20_Template(rf, ctx) {
+  if (rf & 1) {
     const _r45 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-form-field", 26)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Username per Autenticazione");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "input", 47);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_20_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r45); const ctx_r44 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r44.authUsername = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_20_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r45);
+      const ctx_r44 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r44.authUsername = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "mat-icon", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "account_circle");
@@ -494,38 +629,56 @@ function GitAccountManagementDialogComponent_div_14_mat_form_field_20_Template(r
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "mat-hint");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](7, "Username usato per l'autenticazione HTTPS");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r26.authUsername);
-} }
-function GitAccountManagementDialogComponent_div_14_mat_form_field_21_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_form_field_21_Template(rf, ctx) {
+  if (rf & 1) {
     const _r47 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-form-field", 26)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Password");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "input", 48);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_21_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r47); const ctx_r46 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r46.httpsPassword = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_21_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r47);
+      const ctx_r46 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r46.httpsPassword = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "button", 38);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_21_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r47); const ctx_r48 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r48.hideToken = !ctx_r48.hideToken); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_div_14_mat_form_field_21_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r47);
+      const ctx_r48 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r48.hideToken = !ctx_r48.hideToken);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r27 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r27.httpsPassword)("type", ctx_r27.hideToken ? "password" : "text");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r27.hideToken ? "visibility" : "visibility_off");
-} }
-function GitAccountManagementDialogComponent_div_14_mat_form_field_22_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_mat_form_field_22_Template(rf, ctx) {
+  if (rf & 1) {
     const _r50 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-form-field", 26)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Username Bitbucket");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "input", 49);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_22_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r50); const ctx_r49 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r49.authUsername = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_mat_form_field_22_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r50);
+      const ctx_r49 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r49.authUsername = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "mat-icon", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "account_circle");
@@ -533,12 +686,15 @@ function GitAccountManagementDialogComponent_div_14_mat_form_field_22_Template(r
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "mat-hint");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](7, "Username associato all'App Password");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r28 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r28.authUsername);
-} }
-function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) {
+  if (rf & 1) {
     const _r52 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 25)(1, "h3");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
@@ -547,7 +703,11 @@ function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "Nome Account");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "input", 27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_input_ngModelChange_6_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52); const ctx_r51 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r51.accountName = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_input_ngModelChange_6_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52);
+      const ctx_r51 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r51.accountName = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "mat-icon", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](8, "badge");
@@ -556,7 +716,11 @@ function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11, "Tipo Account");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](12, "mat-select", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_mat_select_ngModelChange_12_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52); const ctx_r53 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r53.accountType = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_mat_select_ngModelChange_12_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52);
+      const ctx_r53 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r53.accountType = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](13, GitAccountManagementDialogComponent_div_14_mat_option_13_Template, 2, 2, "mat-option", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](14, "mat-icon", 28);
@@ -577,7 +741,11 @@ function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](28, "Git Username");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](29, "input", 33);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_input_ngModelChange_29_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52); const ctx_r54 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r54.username = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_input_ngModelChange_29_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52);
+      const ctx_r54 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r54.username = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](30, "mat-icon", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](31, "person");
@@ -586,7 +754,11 @@ function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](34, "Git Email");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](35, "input", 34);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_input_ngModelChange_35_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52); const ctx_r55 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r55.email = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_input_ngModelChange_35_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52);
+      const ctx_r55 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r55.email = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](36, "mat-icon", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](37, "email");
@@ -595,12 +767,17 @@ function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](40, "Note");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](41, "textarea", 35);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_textarea_ngModelChange_41_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52); const ctx_r56 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r56.notes = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("ngModelChange", function GitAccountManagementDialogComponent_div_14_Template_textarea_ngModelChange_41_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r52);
+      const ctx_r56 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r56.notes = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](42, "mat-icon", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](43, "note");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r3.currentAccount ? "Modifica Account" : "Nuovo Account Git");
@@ -630,23 +807,34 @@ function GitAccountManagementDialogComponent_div_14_Template(rf, ctx) { if (rf &
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r3.email);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngModel", ctx_r3.notes);
-} }
-function GitAccountManagementDialogComponent_ng_container_18_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_ng_container_18_Template(rf, ctx) {
+  if (rf & 1) {
     const _r58 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementContainerStart"](0);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "button", 8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_ng_container_18_Template_button_click_1_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r58); const ctx_r57 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r57.cancelCreate()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_ng_container_18_Template_button_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r58);
+      const ctx_r57 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r57.cancelCreate());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "Annulla");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "button", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_ng_container_18_Template_button_click_3_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r58); const ctx_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r59.currentAccount ? ctx_r59.updateAccount() : ctx_r59.saveAccount()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_ng_container_18_Template_button_click_3_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r58);
+      const ctx_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r59.currentAccount ? ctx_r59.updateAccount() : ctx_r59.saveAccount());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](4, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementContainerEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("disabled", ctx_r4.isLoading);
@@ -656,347 +844,367 @@ function GitAccountManagementDialogComponent_ng_container_18_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r4.currentAccount ? "save" : "add");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", ctx_r4.currentAccount ? "Aggiorna" : "Salva", " ");
-} }
-function GitAccountManagementDialogComponent_button_19_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitAccountManagementDialogComponent_button_19_Template(rf, ctx) {
+  if (rf & 1) {
     const _r61 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_button_19_Template_button_click_0_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r61); const ctx_r60 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r60.showCreate()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_button_19_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r61);
+      const ctx_r60 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r60.showCreate());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "add");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, " Crea Nuovo ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("disabled", ctx_r5.isLoading);
-} }
+  }
+}
 class GitAccountManagementDialogComponent {
-    constructor(dialogRef, data, gitAccountService, snackBar) {
-        this.dialogRef = dialogRef;
-        this.data = data;
-        this.gitAccountService = gitAccountService;
-        this.snackBar = snackBar;
+  constructor(dialogRef, data, gitAccountService, snackBar) {
+    this.dialogRef = dialogRef;
+    this.data = data;
+    this.gitAccountService = gitAccountService;
+    this.snackBar = snackBar;
+    this.isLoading = false;
+    this.currentAccount = null;
+    this.showCreateForm = false;
+    // Form fields
+    this.accountName = '';
+    this.accountType = 'GitHub';
+    this.gitHubPAT = '';
+    this.gitLabToken = '';
+    this.bitbucketAppPassword = '';
+    this.httpsPassword = '';
+    this.authUsername = '';
+    this.preferredAuthMethod = 'token';
+    this.username = '';
+    this.email = '';
+    this.notes = '';
+    this.hideToken = true;
+    this.accountTypes = [{
+      value: 'GitHub',
+      label: 'GitHub'
+    }, {
+      value: 'GitLab',
+      label: 'GitLab'
+    }, {
+      value: 'Bitbucket',
+      label: 'Bitbucket'
+    }, {
+      value: 'Generic',
+      label: 'Generic Git'
+    }];
+  }
+  ngOnInit() {
+    this.loadCurrentAccount();
+  }
+  loadCurrentAccount() {
+    this.isLoading = true;
+    this.gitAccountService.getAccountForRepository(this.data.repositoryPath).subscribe({
+      next: account => {
+        this.currentAccount = account;
         this.isLoading = false;
-        this.currentAccount = null;
-        this.showCreateForm = false;
-        // Form fields
-        this.accountName = '';
-        this.accountType = 'GitHub';
-        this.gitHubPAT = '';
-        this.gitLabToken = '';
-        this.bitbucketAppPassword = '';
-        this.httpsPassword = '';
-        this.authUsername = '';
-        this.preferredAuthMethod = 'token';
-        this.username = '';
-        this.email = '';
-        this.notes = '';
-        this.hideToken = true;
-        this.accountTypes = [
-            { value: 'GitHub', label: 'GitHub' },
-            { value: 'GitLab', label: 'GitLab' },
-            { value: 'Bitbucket', label: 'Bitbucket' },
-            { value: 'Generic', label: 'Generic Git' }
-        ];
+      },
+      error: err => {
+        console.error('Error loading account:', err);
+        this.isLoading = false;
+        // No account is OK, user can create one
+      }
+    });
+  }
+  showCreate() {
+    this.showCreateForm = true;
+    // Pre-fill with defaults
+    this.accountName = `${this.accountType} Account`;
+  }
+  cancelCreate() {
+    this.showCreateForm = false;
+    this.resetForm();
+  }
+  resetForm() {
+    this.accountName = '';
+    this.accountType = 'GitHub';
+    this.gitHubPAT = '';
+    this.gitLabToken = '';
+    this.bitbucketAppPassword = '';
+    this.httpsPassword = '';
+    this.authUsername = '';
+    this.preferredAuthMethod = 'token';
+    this.username = '';
+    this.email = '';
+    this.notes = '';
+  }
+  saveAccount() {
+    // Validation
+    if (!this.accountName.trim()) {
+      this.snackBar.open('Nome account richiesto', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
     }
-    ngOnInit() {
-        this.loadCurrentAccount();
+    if (this.accountType === 'GitHub' && !this.gitHubPAT.trim()) {
+      this.snackBar.open('GitHub Personal Access Token richiesto', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
     }
-    loadCurrentAccount() {
-        this.isLoading = true;
-        this.gitAccountService.getAccountForRepository(this.data.repositoryPath).subscribe({
-            next: (account) => {
-                this.currentAccount = account;
-                this.isLoading = false;
-            },
-            error: (err) => {
-                console.error('Error loading account:', err);
-                this.isLoading = false;
-                // No account is OK, user can create one
-            }
+    if (this.accountType === 'GitLab' && !this.gitLabToken.trim()) {
+      this.snackBar.open('GitLab Token richiesto', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+    if (this.accountType === 'Bitbucket') {
+      if (this.preferredAuthMethod === 'token' && !this.bitbucketAppPassword.trim()) {
+        this.snackBar.open('Bitbucket App Password richiesta', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top'
         });
+        return;
+      }
+      if (this.preferredAuthMethod === 'username_password' && (!this.authUsername.trim() || !this.httpsPassword.trim())) {
+        this.snackBar.open('Username e Password richiesti', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+        return;
+      }
     }
-    showCreate() {
-        this.showCreateForm = true;
-        // Pre-fill with defaults
-        this.accountName = `${this.accountType} Account`;
+    if (this.accountType === 'Generic' && (!this.authUsername.trim() || !this.httpsPassword.trim())) {
+      this.snackBar.open('Username e Password richiesti per server Git generico', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
     }
-    cancelCreate() {
+    const request = {
+      repositoryPath: this.data.repositoryPath,
+      accountName: this.accountName.trim(),
+      accountType: this.accountType,
+      gitHubPAT: this.accountType === 'GitHub' ? this.gitHubPAT.trim() : undefined,
+      gitLabToken: this.accountType === 'GitLab' ? this.gitLabToken.trim() : undefined,
+      bitbucketAppPassword: this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'token' ? this.bitbucketAppPassword.trim() : undefined,
+      httpsPassword: this.accountType === 'Generic' || this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'username_password' ? this.httpsPassword.trim() : undefined,
+      authUsername: this.accountType === 'Generic' || this.accountType === 'Bitbucket' ? this.authUsername.trim() : undefined,
+      preferredAuthMethod: this.accountType === 'Bitbucket' || this.accountType === 'Generic' ? this.preferredAuthMethod : undefined,
+      username: this.username.trim() || undefined,
+      email: this.email.trim() || undefined,
+      notes: this.notes.trim() || undefined,
+      isActive: true
+    };
+    this.isLoading = true;
+    this.gitAccountService.createAccount(request).subscribe({
+      next: account => {
+        this.snackBar.open('Account Git creato con successo!', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top',
+          panelClass: ['success-snackbar']
+        });
+        this.currentAccount = account;
         this.showCreateForm = false;
         this.resetForm();
-    }
-    resetForm() {
-        this.accountName = '';
-        this.accountType = 'GitHub';
-        this.gitHubPAT = '';
-        this.gitLabToken = '';
-        this.bitbucketAppPassword = '';
-        this.httpsPassword = '';
-        this.authUsername = '';
-        this.preferredAuthMethod = 'token';
-        this.username = '';
-        this.email = '';
-        this.notes = '';
-    }
-    saveAccount() {
-        // Validation
-        if (!this.accountName.trim()) {
-            this.snackBar.open('Nome account richiesto', 'OK', {
-                duration: 3000,
-                verticalPosition: 'top'
-            });
-            return;
-        }
-        if (this.accountType === 'GitHub' && !this.gitHubPAT.trim()) {
-            this.snackBar.open('GitHub Personal Access Token richiesto', 'OK', {
-                duration: 3000,
-                verticalPosition: 'top'
-            });
-            return;
-        }
-        if (this.accountType === 'GitLab' && !this.gitLabToken.trim()) {
-            this.snackBar.open('GitLab Token richiesto', 'OK', {
-                duration: 3000,
-                verticalPosition: 'top'
-            });
-            return;
-        }
-        if (this.accountType === 'Bitbucket') {
-            if (this.preferredAuthMethod === 'token' && !this.bitbucketAppPassword.trim()) {
-                this.snackBar.open('Bitbucket App Password richiesta', 'OK', {
-                    duration: 3000,
-                    verticalPosition: 'top'
-                });
-                return;
-            }
-            if (this.preferredAuthMethod === 'username_password' &&
-                (!this.authUsername.trim() || !this.httpsPassword.trim())) {
-                this.snackBar.open('Username e Password richiesti', 'OK', {
-                    duration: 3000,
-                    verticalPosition: 'top'
-                });
-                return;
-            }
-        }
-        if (this.accountType === 'Generic' && (!this.authUsername.trim() || !this.httpsPassword.trim())) {
-            this.snackBar.open('Username e Password richiesti per server Git generico', 'OK', {
-                duration: 3000,
-                verticalPosition: 'top'
-            });
-            return;
-        }
-        const request = {
-            repositoryPath: this.data.repositoryPath,
-            accountName: this.accountName.trim(),
-            accountType: this.accountType,
-            gitHubPAT: this.accountType === 'GitHub' ? this.gitHubPAT.trim() : undefined,
-            gitLabToken: this.accountType === 'GitLab' ? this.gitLabToken.trim() : undefined,
-            bitbucketAppPassword: this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'token'
-                ? this.bitbucketAppPassword.trim() : undefined,
-            httpsPassword: (this.accountType === 'Generic' ||
-                (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'username_password'))
-                ? this.httpsPassword.trim() : undefined,
-            authUsername: (this.accountType === 'Generic' || this.accountType === 'Bitbucket')
-                ? this.authUsername.trim() : undefined,
-            preferredAuthMethod: (this.accountType === 'Bitbucket' || this.accountType === 'Generic')
-                ? this.preferredAuthMethod : undefined,
-            username: this.username.trim() || undefined,
-            email: this.email.trim() || undefined,
-            notes: this.notes.trim() || undefined,
-            isActive: true
-        };
-        this.isLoading = true;
-        this.gitAccountService.createAccount(request).subscribe({
-            next: (account) => {
-                this.snackBar.open('Account Git creato con successo!', 'OK', {
-                    duration: 3000,
-                    verticalPosition: 'top',
-                    panelClass: ['success-snackbar']
-                });
-                this.currentAccount = account;
-                this.showCreateForm = false;
-                this.resetForm();
-                this.isLoading = false;
-            },
-            error: (err) => {
-                console.error('Error creating account:', err);
-                const message = err.error?.error || err.error?.title || 'Errore nella creazione dell\'account';
-                this.snackBar.open(message, 'OK', {
-                    duration: 5000,
-                    verticalPosition: 'top',
-                    panelClass: ['error-snackbar']
-                });
-                this.isLoading = false;
-            }
+        this.isLoading = false;
+      },
+      error: err => {
+        console.error('Error creating account:', err);
+        const message = err.error?.error || err.error?.title || 'Errore nella creazione dell\'account';
+        this.snackBar.open(message, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
         });
-    }
-    deleteAccount() {
-        if (!this.currentAccount || !this.currentAccount.id)
-            return;
-        const confirmed = confirm(`Vuoi davvero eliminare l'account "${this.currentAccount.accountName}"?`);
-        if (!confirmed)
-            return;
-        this.isLoading = true;
-        this.gitAccountService.deleteAccount(this.currentAccount.id).subscribe({
-            next: (result) => {
-                if (result.success) {
-                    this.snackBar.open('Account eliminato con successo', 'OK', {
-                        duration: 3000,
-                        verticalPosition: 'top'
-                    });
-                    this.currentAccount = null;
-                    this.isLoading = false;
-                }
-            },
-            error: (err) => {
-                console.error('Error deleting account:', err);
-                this.snackBar.open('Errore nell\'eliminazione dell\'account', 'OK', {
-                    duration: 5000,
-                    verticalPosition: 'top',
-                    panelClass: ['error-snackbar']
-                });
-                this.isLoading = false;
-            }
+        this.isLoading = false;
+      }
+    });
+  }
+  deleteAccount() {
+    if (!this.currentAccount || !this.currentAccount.id) return;
+    const confirmed = confirm(`Vuoi davvero eliminare l'account "${this.currentAccount.accountName}"?`);
+    if (!confirmed) return;
+    this.isLoading = true;
+    this.gitAccountService.deleteAccount(this.currentAccount.id).subscribe({
+      next: result => {
+        if (result.success) {
+          this.snackBar.open('Account eliminato con successo', 'OK', {
+            duration: 3000,
+            verticalPosition: 'top'
+          });
+          this.currentAccount = null;
+          this.isLoading = false;
+        }
+      },
+      error: err => {
+        console.error('Error deleting account:', err);
+        this.snackBar.open('Errore nell\'eliminazione dell\'account', 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
         });
+        this.isLoading = false;
+      }
+    });
+  }
+  editAccount() {
+    if (!this.currentAccount) return;
+    // Fill form with current account data
+    this.accountName = this.currentAccount.accountName;
+    this.accountType = this.currentAccount.accountType;
+    this.authUsername = this.currentAccount.authUsername || '';
+    // SSH is handled automatically, so default to 'token' if ssh is set
+    const method = this.currentAccount.preferredAuthMethod;
+    this.preferredAuthMethod = method === 'token' || method === 'username_password' ? method : 'token';
+    this.username = this.currentAccount.username || '';
+    this.email = this.currentAccount.email || '';
+    this.notes = this.currentAccount.notes || '';
+    // Don't pre-fill tokens/passwords for security
+    this.showCreateForm = true;
+  }
+  updateAccount() {
+    if (!this.currentAccount || !this.currentAccount.id) return;
+    // Validation similar to saveAccount
+    if (!this.accountName.trim()) {
+      this.snackBar.open('Nome account richiesto', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
     }
-    editAccount() {
-        if (!this.currentAccount)
-            return;
-        // Fill form with current account data
-        this.accountName = this.currentAccount.accountName;
-        this.accountType = this.currentAccount.accountType;
-        this.authUsername = this.currentAccount.authUsername || '';
-        // SSH is handled automatically, so default to 'token' if ssh is set
-        const method = this.currentAccount.preferredAuthMethod;
-        this.preferredAuthMethod = (method === 'token' || method === 'username_password') ? method : 'token';
-        this.username = this.currentAccount.username || '';
-        this.email = this.currentAccount.email || '';
-        this.notes = this.currentAccount.notes || '';
-        // Don't pre-fill tokens/passwords for security
-        this.showCreateForm = true;
+    const request = {
+      repositoryPath: this.data.repositoryPath,
+      accountName: this.accountName.trim(),
+      accountType: this.accountType,
+      authUsername: this.authUsername.trim() || undefined,
+      preferredAuthMethod: this.accountType === 'Bitbucket' || this.accountType === 'Generic' ? this.preferredAuthMethod : undefined,
+      username: this.username.trim() || undefined,
+      email: this.email.trim() || undefined,
+      notes: this.notes.trim() || undefined,
+      isActive: true
+    };
+    // Only include credentials if user provided new ones
+    if (this.accountType === 'GitHub' && this.gitHubPAT.trim()) {
+      request.gitHubPAT = this.gitHubPAT.trim();
     }
-    updateAccount() {
-        if (!this.currentAccount || !this.currentAccount.id)
-            return;
-        // Validation similar to saveAccount
-        if (!this.accountName.trim()) {
-            this.snackBar.open('Nome account richiesto', 'OK', {
-                duration: 3000,
-                verticalPosition: 'top'
-            });
-            return;
-        }
-        const request = {
-            repositoryPath: this.data.repositoryPath,
-            accountName: this.accountName.trim(),
-            accountType: this.accountType,
-            authUsername: this.authUsername.trim() || undefined,
-            preferredAuthMethod: (this.accountType === 'Bitbucket' || this.accountType === 'Generic')
-                ? this.preferredAuthMethod : undefined,
-            username: this.username.trim() || undefined,
-            email: this.email.trim() || undefined,
-            notes: this.notes.trim() || undefined,
-            isActive: true
-        };
-        // Only include credentials if user provided new ones
-        if (this.accountType === 'GitHub' && this.gitHubPAT.trim()) {
-            request.gitHubPAT = this.gitHubPAT.trim();
-        }
-        if (this.accountType === 'GitLab' && this.gitLabToken.trim()) {
-            request.gitLabToken = this.gitLabToken.trim();
-        }
-        if (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'token' && this.bitbucketAppPassword.trim()) {
-            request.bitbucketAppPassword = this.bitbucketAppPassword.trim();
-        }
-        if ((this.accountType === 'Generic' || (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'username_password'))
-            && this.httpsPassword.trim()) {
-            request.httpsPassword = this.httpsPassword.trim();
-        }
-        this.isLoading = true;
-        this.gitAccountService.updateAccount(this.currentAccount.id, request).subscribe({
-            next: (account) => {
-                this.snackBar.open('Account aggiornato con successo!', 'OK', {
-                    duration: 3000,
-                    verticalPosition: 'top',
-                    panelClass: ['success-snackbar']
-                });
-                this.currentAccount = account;
-                this.showCreateForm = false;
-                this.resetForm();
-                this.isLoading = false;
-            },
-            error: (err) => {
-                console.error('Error updating account:', err);
-                const message = err.error?.error || 'Errore nell\'aggiornamento dell\'account';
-                this.snackBar.open(message, 'OK', {
-                    duration: 5000,
-                    verticalPosition: 'top',
-                    panelClass: ['error-snackbar']
-                });
-                this.isLoading = false;
-            }
+    if (this.accountType === 'GitLab' && this.gitLabToken.trim()) {
+      request.gitLabToken = this.gitLabToken.trim();
+    }
+    if (this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'token' && this.bitbucketAppPassword.trim()) {
+      request.bitbucketAppPassword = this.bitbucketAppPassword.trim();
+    }
+    if ((this.accountType === 'Generic' || this.accountType === 'Bitbucket' && this.preferredAuthMethod === 'username_password') && this.httpsPassword.trim()) {
+      request.httpsPassword = this.httpsPassword.trim();
+    }
+    this.isLoading = true;
+    this.gitAccountService.updateAccount(this.currentAccount.id, request).subscribe({
+      next: account => {
+        this.snackBar.open('Account aggiornato con successo!', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top',
+          panelClass: ['success-snackbar']
         });
+        this.currentAccount = account;
+        this.showCreateForm = false;
+        this.resetForm();
+        this.isLoading = false;
+      },
+      error: err => {
+        console.error('Error updating account:', err);
+        const message = err.error?.error || 'Errore nell\'aggiornamento dell\'account';
+        this.snackBar.open(message, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+        this.isLoading = false;
+      }
+    });
+  }
+  openTokenCreationPage() {
+    if (this.accountType === 'GitHub') {
+      window.open('https://github.com/settings/tokens/new?scopes=repo', '_blank');
+    } else if (this.accountType === 'GitLab') {
+      window.open('https://gitlab.com/-/profile/personal_access_tokens', '_blank');
+    } else if (this.accountType === 'Bitbucket') {
+      window.open('https://bitbucket.org/account/settings/app-passwords/', '_blank');
     }
-    openTokenCreationPage() {
-        if (this.accountType === 'GitHub') {
-            window.open('https://github.com/settings/tokens/new?scopes=repo', '_blank');
+  }
+  close() {
+    this.dialogRef.close(this.currentAccount !== null);
+  }
+  static {
+    this.ɵfac = function GitAccountManagementDialogComponent_Factory(t) {
+      return new (t || GitAccountManagementDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_git_account_service__WEBPACK_IMPORTED_MODULE_0__.GitAccountService), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_3__.MatLegacySnackBar));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({
+      type: GitAccountManagementDialogComponent,
+      selectors: [["app-git-account-management-dialog"]],
+      decls: 20,
+      vars: 8,
+      consts: [["mat-dialog-title", ""], [1, "dialog-content"], [1, "repository-info"], ["class", "loading-container", 4, "ngIf"], ["class", "current-account", 4, "ngIf"], ["class", "no-account", 4, "ngIf"], ["class", "account-form", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], [4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click", 4, "ngIf"], [1, "loading-container"], ["diameter", "40"], [1, "current-account"], [1, "account-card"], [1, "status-icon", "success"], ["class", "account-detail", 4, "ngIf"], [1, "account-detail"], [1, "credential-status"], ["mat-button", "", "color", "primary", 3, "click"], ["mat-button", "", "color", "warn", 3, "click"], [1, "notes"], [1, "no-account"], [1, "large-icon"], ["mat-raised-button", "", "color", "primary", 3, "click"], [1, "account-form"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "es: My GitHub Work", "required", "", 3, "ngModel", "ngModelChange"], ["matSuffix", ""], ["required", "", 3, "ngModel", "ngModelChange"], [3, "value", 4, "ngFor", "ngForOf"], ["appearance", "outline", "class", "full-width", 4, "ngIf"], ["class", "auth-method-section", 4, "ngIf"], ["matInput", "", "placeholder", "username", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "email", "placeholder", "user@example.com", 3, "ngModel", "ngModelChange"], ["matInput", "", "rows", "2", "placeholder", "Note opzionali su questo account", 3, "ngModel", "ngModelChange"], [3, "value"], ["matInput", "", "placeholder", "ghp_xxxxxxxxxxxxxxxxxxxx", "required", "", 3, "ngModel", "type", "ngModelChange"], ["mat-icon-button", "", "matSuffix", "", "type", "button", 3, "click"], [1, "link", 3, "click"], ["matInput", "", "placeholder", "glpat-xxxxxxxxxxxxxxxxxxxx", "required", "", 3, "ngModel", "type", "ngModelChange"], [1, "auth-method-section"], [1, "field-label"], [1, "auth-radio-group", 3, "ngModel", "ngModelChange"], ["value", "token"], ["value", "username_password"], ["matInput", "", "placeholder", "App Password generata da Bitbucket", "required", "", 3, "ngModel", "type", "ngModelChange"], ["matInput", "", "placeholder", "Username per HTTPS", "required", "", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Password per HTTPS", "required", "", 3, "ngModel", "type", "ngModelChange"], ["matInput", "", "placeholder", "Il tuo username Bitbucket", 3, "ngModel", "ngModelChange"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"]],
+      template: function GitAccountManagementDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "Gestione Account Git");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "mat-dialog-content", 1)(3, "div", 2)(4, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "folder");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "span");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](7, "Repository: ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "strong");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](10, "mat-divider");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](11, GitAccountManagementDialogComponent_div_11_Template, 4, 0, "div", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](12, GitAccountManagementDialogComponent_div_12_Template, 36, 15, "div", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](13, GitAccountManagementDialogComponent_div_13_Template, 11, 0, "div", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](14, GitAccountManagementDialogComponent_div_14_Template, 44, 14, "div", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](15, "mat-dialog-actions", 7)(16, "button", 8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_Template_button_click_16_listener() {
+            return ctx.close();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](17, "Chiudi");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](18, GitAccountManagementDialogComponent_ng_container_18_Template, 7, 4, "ng-container", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](19, GitAccountManagementDialogComponent_button_19_Template, 4, 1, "button", 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
         }
-        else if (this.accountType === 'GitLab') {
-            window.open('https://gitlab.com/-/profile/personal_access_tokens', '_blank');
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx.data.repositoryName);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.showCreateForm && ctx.currentAccount);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.showCreateForm && !ctx.currentAccount);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && ctx.showCreateForm);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("disabled", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.showCreateForm);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.showCreateForm && ctx.currentAccount);
         }
-        else if (this.accountType === 'Bitbucket') {
-            window.open('https://bitbucket.org/account/settings/app-passwords/', '_blank');
-        }
-    }
-    close() {
-        this.dialogRef.close(this.currentAccount !== null);
-    }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_4__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_4__.NgIf, _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_5__.MatLegacyOption, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyLabel, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacySuffix, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_7__.MatLegacyInput, _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_8__.MatLegacyRadioGroup, _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_8__.MatLegacyRadioButton, _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_9__.MatLegacySelect, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCard, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardHeader, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardContent, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardTitle, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardSubtitle, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardActions, _angular_material_divider__WEBPACK_IMPORTED_MODULE_11__.MatDivider, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_12__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_14__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.RequiredValidator, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.NgModel],
+      styles: [".dialog-content[_ngcontent-%COMP%] {\n  min-width: 500px;\n  max-width: 600px;\n  min-height: 400px;\n}\n\n.repository-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 16px 0;\n  color: rgba(0, 0, 0, 0.6);\n}\n.repository-info[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: rgba(0, 0, 0, 0.54);\n}\n.repository-info[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  color: rgba(0, 0, 0, 0.87);\n}\n\n.loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px 0;\n  gap: 16px;\n}\n\n.current-account[_ngcontent-%COMP%] {\n  padding: 16px 0;\n}\n.current-account[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n  font-size: 18px;\n  font-weight: 500;\n}\n\n.account-card[_ngcontent-%COMP%]   mat-card-header[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n.account-card[_ngcontent-%COMP%]   mat-card-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 20px;\n}\n.account-card[_ngcontent-%COMP%]   .status-icon.success[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.account-detail[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 8px 0;\n  color: rgba(0, 0, 0, 0.87);\n}\n.account-detail[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: rgba(0, 0, 0, 0.54);\n  font-size: 20px;\n  width: 20px;\n  height: 20px;\n}\n.account-detail[_ngcontent-%COMP%]   .notes[_ngcontent-%COMP%] {\n  font-style: italic;\n  color: rgba(0, 0, 0, 0.6);\n}\n.account-detail[_ngcontent-%COMP%]   .credential-status[_ngcontent-%COMP%] {\n  margin-left: auto;\n}\n.account-detail[_ngcontent-%COMP%]   .credential-status.success[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.no-account[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px 0;\n  text-align: center;\n  gap: 16px;\n}\n.no-account[_ngcontent-%COMP%]   .large-icon[_ngcontent-%COMP%] {\n  font-size: 64px;\n  width: 64px;\n  height: 64px;\n  color: rgba(0, 0, 0, 0.38);\n}\n.no-account[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  margin: 0;\n  font-size: 20px;\n  font-weight: 500;\n}\n.no-account[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: rgba(0, 0, 0, 0.6);\n  max-width: 400px;\n}\n\n.account-form[_ngcontent-%COMP%] {\n  padding: 16px 0;\n}\n.account-form[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  margin-bottom: 24px;\n  font-size: 18px;\n  font-weight: 500;\n}\n.account-form[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  margin: 24px 0 16px;\n  font-size: 16px;\n  font-weight: 500;\n  color: rgba(0, 0, 0, 0.6);\n}\n.account-form[_ngcontent-%COMP%]   .full-width[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.account-form[_ngcontent-%COMP%]   mat-divider[_ngcontent-%COMP%] {\n  margin: 24px 0;\n}\n.account-form[_ngcontent-%COMP%]   .link[_ngcontent-%COMP%] {\n  color: #1976d2;\n  cursor: pointer;\n  text-decoration: none;\n}\n.account-form[_ngcontent-%COMP%]   .link[_ngcontent-%COMP%]:hover {\n  text-decoration: underline;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n  gap: 8px;\n}\nmat-dialog-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LWFjY291bnQtbWFuYWdlbWVudC1kaWFsb2cvZ2l0LWFjY291bnQtbWFuYWdlbWVudC1kaWFsb2cuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7QUFDRjs7QUFFQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxlQUFBO0VBQ0EseUJBQUE7QUFDRjtBQUNFO0VBQ0UsMEJBQUE7QUFDSjtBQUVFO0VBQ0UsMEJBQUE7QUFBSjs7QUFJQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxlQUFBO0VBQ0EsU0FBQTtBQURGOztBQUlBO0VBQ0UsZUFBQTtBQURGO0FBR0U7RUFDRSxtQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtBQURKOztBQU1FO0VBQ0UsbUJBQUE7QUFISjtBQU1FO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGVBQUE7QUFKSjtBQVFJO0VBQ0UsY0FBQTtBQU5OOztBQVdBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtFQUNBLGNBQUE7RUFDQSwwQkFBQTtBQVJGO0FBVUU7RUFDRSwwQkFBQTtFQUNBLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtBQVJKO0FBV0U7RUFDRSxrQkFBQTtFQUNBLHlCQUFBO0FBVEo7QUFZRTtFQUNFLGlCQUFBO0FBVko7QUFZSTtFQUNFLGNBQUE7QUFWTjs7QUFlQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxlQUFBO0VBQ0Esa0JBQUE7RUFDQSxTQUFBO0FBWkY7QUFjRTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLDBCQUFBO0FBWko7QUFlRTtFQUNFLFNBQUE7RUFDQSxlQUFBO0VBQ0EsZ0JBQUE7QUFiSjtBQWdCRTtFQUNFLFNBQUE7RUFDQSx5QkFBQTtFQUNBLGdCQUFBO0FBZEo7O0FBa0JBO0VBQ0UsZUFBQTtBQWZGO0FBaUJFO0VBQ0UsbUJBQUE7RUFDQSxlQUFBO0VBQ0EsZ0JBQUE7QUFmSjtBQWtCRTtFQUNFLG1CQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0VBQ0EseUJBQUE7QUFoQko7QUFtQkU7RUFDRSxXQUFBO0FBakJKO0FBb0JFO0VBQ0UsY0FBQTtBQWxCSjtBQXFCRTtFQUNFLGNBQUE7RUFDQSxlQUFBO0VBQ0EscUJBQUE7QUFuQko7QUFxQkk7RUFDRSwwQkFBQTtBQW5CTjs7QUF3QkE7RUFDRSxrQkFBQTtFQUNBLFFBQUE7QUFyQkY7QUF3Qkk7RUFDRSxpQkFBQTtBQXRCTiIsInNvdXJjZXNDb250ZW50IjpbIi5kaWFsb2ctY29udGVudCB7XHJcbiAgbWluLXdpZHRoOiA1MDBweDtcclxuICBtYXgtd2lkdGg6IDYwMHB4O1xyXG4gIG1pbi1oZWlnaHQ6IDQwMHB4O1xyXG59XHJcblxyXG4ucmVwb3NpdG9yeS1pbmZvIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgZ2FwOiA4cHg7XHJcbiAgcGFkZGluZzogMTZweCAwO1xyXG4gIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNik7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNTQpO1xyXG4gIH1cclxuXHJcbiAgc3Ryb25nIHtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuODcpO1xyXG4gIH1cclxufVxyXG5cclxuLmxvYWRpbmctY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBwYWRkaW5nOiA0MHB4IDA7XHJcbiAgZ2FwOiAxNnB4O1xyXG59XHJcblxyXG4uY3VycmVudC1hY2NvdW50IHtcclxuICBwYWRkaW5nOiAxNnB4IDA7XHJcblxyXG4gIGgzIHtcclxuICAgIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbiAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICBmb250LXdlaWdodDogNTAwO1xyXG4gIH1cclxufVxyXG5cclxuLmFjY291bnQtY2FyZCB7XHJcbiAgbWF0LWNhcmQtaGVhZGVyIHtcclxuICAgIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbiAgfVxyXG5cclxuICBtYXQtY2FyZC10aXRsZSB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogOHB4O1xyXG4gICAgZm9udC1zaXplOiAyMHB4O1xyXG4gIH1cclxuXHJcbiAgLnN0YXR1cy1pY29uIHtcclxuICAgICYuc3VjY2VzcyB7XHJcbiAgICAgIGNvbG9yOiAjNGNhZjUwO1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLmFjY291bnQtZGV0YWlsIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgZ2FwOiAxMnB4O1xyXG4gIHBhZGRpbmc6IDhweCAwO1xyXG4gIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuODcpO1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBjb2xvcjogcmdiYSgwLCAwLCAwLCAwLjU0KTtcclxuICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgaGVpZ2h0OiAyMHB4O1xyXG4gIH1cclxuXHJcbiAgLm5vdGVzIHtcclxuICAgIGZvbnQtc3R5bGU6IGl0YWxpYztcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNik7XHJcbiAgfVxyXG5cclxuICAuY3JlZGVudGlhbC1zdGF0dXMge1xyXG4gICAgbWFyZ2luLWxlZnQ6IGF1dG87XHJcblxyXG4gICAgJi5zdWNjZXNzIHtcclxuICAgICAgY29sb3I6ICM0Y2FmNTA7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4ubm8tYWNjb3VudCB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgcGFkZGluZzogNDBweCAwO1xyXG4gIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICBnYXA6IDE2cHg7XHJcblxyXG4gIC5sYXJnZS1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogNjRweDtcclxuICAgIHdpZHRoOiA2NHB4O1xyXG4gICAgaGVpZ2h0OiA2NHB4O1xyXG4gICAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC4zOCk7XHJcbiAgfVxyXG5cclxuICBoMyB7XHJcbiAgICBtYXJnaW46IDA7XHJcbiAgICBmb250LXNpemU6IDIwcHg7XHJcbiAgICBmb250LXdlaWdodDogNTAwO1xyXG4gIH1cclxuXHJcbiAgcCB7XHJcbiAgICBtYXJnaW46IDA7XHJcbiAgICBjb2xvcjogcmdiYSgwLCAwLCAwLCAwLjYpO1xyXG4gICAgbWF4LXdpZHRoOiA0MDBweDtcclxuICB9XHJcbn1cclxuXHJcbi5hY2NvdW50LWZvcm0ge1xyXG4gIHBhZGRpbmc6IDE2cHggMDtcclxuXHJcbiAgaDMge1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMjRweDtcclxuICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgfVxyXG5cclxuICBoNCB7XHJcbiAgICBtYXJnaW46IDI0cHggMCAxNnB4O1xyXG4gICAgZm9udC1zaXplOiAxNnB4O1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNik7XHJcbiAgfVxyXG5cclxuICAuZnVsbC13aWR0aCB7XHJcbiAgICB3aWR0aDogMTAwJTtcclxuICB9XHJcblxyXG4gIG1hdC1kaXZpZGVyIHtcclxuICAgIG1hcmdpbjogMjRweCAwO1xyXG4gIH1cclxuXHJcbiAgLmxpbmsge1xyXG4gICAgY29sb3I6ICMxOTc2ZDI7XHJcbiAgICBjdXJzb3I6IHBvaW50ZXI7XHJcbiAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7XHJcblxyXG4gICAgJjpob3ZlciB7XHJcbiAgICAgIHRleHQtZGVjb3JhdGlvbjogdW5kZXJsaW5lO1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxubWF0LWRpYWxvZy1hY3Rpb25zIHtcclxuICBwYWRkaW5nOiAxNnB4IDI0cHg7XHJcbiAgZ2FwOiA4cHg7XHJcblxyXG4gIGJ1dHRvbiB7XHJcbiAgICBtYXQtaWNvbiB7XHJcbiAgICAgIG1hcmdpbi1yaWdodDogNHB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG4iXSwic291cmNlUm9vdCI6IiJ9 */"]
+    });
+  }
 }
-GitAccountManagementDialogComponent.ɵfac = function GitAccountManagementDialogComponent_Factory(t) { return new (t || GitAccountManagementDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_git_account_service__WEBPACK_IMPORTED_MODULE_0__.GitAccountService), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_3__.MatSnackBar)); };
-GitAccountManagementDialogComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: GitAccountManagementDialogComponent, selectors: [["app-git-account-management-dialog"]], decls: 20, vars: 8, consts: [["mat-dialog-title", ""], [1, "dialog-content"], [1, "repository-info"], ["class", "loading-container", 4, "ngIf"], ["class", "current-account", 4, "ngIf"], ["class", "no-account", 4, "ngIf"], ["class", "account-form", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], [4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click", 4, "ngIf"], [1, "loading-container"], ["diameter", "40"], [1, "current-account"], [1, "account-card"], [1, "status-icon", "success"], ["class", "account-detail", 4, "ngIf"], [1, "account-detail"], [1, "credential-status"], ["mat-button", "", "color", "primary", 3, "click"], ["mat-button", "", "color", "warn", 3, "click"], [1, "notes"], [1, "no-account"], [1, "large-icon"], ["mat-raised-button", "", "color", "primary", 3, "click"], [1, "account-form"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "es: My GitHub Work", "required", "", 3, "ngModel", "ngModelChange"], ["matSuffix", ""], ["required", "", 3, "ngModel", "ngModelChange"], [3, "value", 4, "ngFor", "ngForOf"], ["appearance", "outline", "class", "full-width", 4, "ngIf"], ["class", "auth-method-section", 4, "ngIf"], ["matInput", "", "placeholder", "username", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "email", "placeholder", "user@example.com", 3, "ngModel", "ngModelChange"], ["matInput", "", "rows", "2", "placeholder", "Note opzionali su questo account", 3, "ngModel", "ngModelChange"], [3, "value"], ["matInput", "", "placeholder", "ghp_xxxxxxxxxxxxxxxxxxxx", "required", "", 3, "ngModel", "type", "ngModelChange"], ["mat-icon-button", "", "matSuffix", "", "type", "button", 3, "click"], [1, "link", 3, "click"], ["matInput", "", "placeholder", "glpat-xxxxxxxxxxxxxxxxxxxx", "required", "", 3, "ngModel", "type", "ngModelChange"], [1, "auth-method-section"], [1, "field-label"], [1, "auth-radio-group", 3, "ngModel", "ngModelChange"], ["value", "token"], ["value", "username_password"], ["matInput", "", "placeholder", "App Password generata da Bitbucket", "required", "", 3, "ngModel", "type", "ngModelChange"], ["matInput", "", "placeholder", "Username per HTTPS", "required", "", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Password per HTTPS", "required", "", 3, "ngModel", "type", "ngModelChange"], ["matInput", "", "placeholder", "Il tuo username Bitbucket", 3, "ngModel", "ngModelChange"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"]], template: function GitAccountManagementDialogComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h2", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "Gestione Account Git");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "mat-dialog-content", 1)(3, "div", 2)(4, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, "folder");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "span");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](7, "Repository: ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "strong");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](10, "mat-divider");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](11, GitAccountManagementDialogComponent_div_11_Template, 4, 0, "div", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](12, GitAccountManagementDialogComponent_div_12_Template, 36, 15, "div", 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](13, GitAccountManagementDialogComponent_div_13_Template, 11, 0, "div", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](14, GitAccountManagementDialogComponent_div_14_Template, 44, 14, "div", 6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](15, "mat-dialog-actions", 7)(16, "button", 8);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitAccountManagementDialogComponent_Template_button_click_16_listener() { return ctx.close(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](17, "Chiudi");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](18, GitAccountManagementDialogComponent_ng_container_18_Template, 7, 4, "ng-container", 9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](19, GitAccountManagementDialogComponent_button_19_Template, 4, 1, "button", 10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx.data.repositoryName);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.showCreateForm && ctx.currentAccount);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.showCreateForm && !ctx.currentAccount);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && ctx.showCreateForm);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("disabled", ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.showCreateForm);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.showCreateForm && ctx.currentAccount);
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_4__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_4__.NgIf, _angular_material_core__WEBPACK_IMPORTED_MODULE_5__.MatOption, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatHint, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLabel, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatSuffix, _angular_material_input__WEBPACK_IMPORTED_MODULE_7__.MatInput, _angular_material_radio__WEBPACK_IMPORTED_MODULE_8__.MatRadioGroup, _angular_material_radio__WEBPACK_IMPORTED_MODULE_8__.MatRadioButton, _angular_material_select__WEBPACK_IMPORTED_MODULE_9__.MatSelect, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCard, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardHeader, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardContent, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardTitle, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardSubtitle, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardActions, _angular_material_divider__WEBPACK_IMPORTED_MODULE_11__.MatDivider, _angular_material_button__WEBPACK_IMPORTED_MODULE_12__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_14__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_2__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.RequiredValidator, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.NgModel], styles: [".dialog-content[_ngcontent-%COMP%] {\n  min-width: 500px;\n  max-width: 600px;\n  min-height: 400px;\n}\n\n.repository-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 16px 0;\n  color: rgba(0, 0, 0, 0.6);\n}\n\n.repository-info[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: rgba(0, 0, 0, 0.54);\n}\n\n.repository-info[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  color: rgba(0, 0, 0, 0.87);\n}\n\n.loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px 0;\n  gap: 16px;\n}\n\n.current-account[_ngcontent-%COMP%] {\n  padding: 16px 0;\n}\n\n.current-account[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n  font-size: 18px;\n  font-weight: 500;\n}\n\n.account-card[_ngcontent-%COMP%]   mat-card-header[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n\n.account-card[_ngcontent-%COMP%]   mat-card-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 20px;\n}\n\n.account-card[_ngcontent-%COMP%]   .status-icon.success[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.account-detail[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 8px 0;\n  color: rgba(0, 0, 0, 0.87);\n}\n\n.account-detail[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: rgba(0, 0, 0, 0.54);\n  font-size: 20px;\n  width: 20px;\n  height: 20px;\n}\n\n.account-detail[_ngcontent-%COMP%]   .notes[_ngcontent-%COMP%] {\n  font-style: italic;\n  color: rgba(0, 0, 0, 0.6);\n}\n\n.account-detail[_ngcontent-%COMP%]   .credential-status[_ngcontent-%COMP%] {\n  margin-left: auto;\n}\n\n.account-detail[_ngcontent-%COMP%]   .credential-status.success[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.no-account[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px 0;\n  text-align: center;\n  gap: 16px;\n}\n\n.no-account[_ngcontent-%COMP%]   .large-icon[_ngcontent-%COMP%] {\n  font-size: 64px;\n  width: 64px;\n  height: 64px;\n  color: rgba(0, 0, 0, 0.38);\n}\n\n.no-account[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  margin: 0;\n  font-size: 20px;\n  font-weight: 500;\n}\n\n.no-account[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: rgba(0, 0, 0, 0.6);\n  max-width: 400px;\n}\n\n.account-form[_ngcontent-%COMP%] {\n  padding: 16px 0;\n}\n\n.account-form[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  margin-bottom: 24px;\n  font-size: 18px;\n  font-weight: 500;\n}\n\n.account-form[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  margin: 24px 0 16px;\n  font-size: 16px;\n  font-weight: 500;\n  color: rgba(0, 0, 0, 0.6);\n}\n\n.account-form[_ngcontent-%COMP%]   .full-width[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.account-form[_ngcontent-%COMP%]   mat-divider[_ngcontent-%COMP%] {\n  margin: 24px 0;\n}\n\n.account-form[_ngcontent-%COMP%]   .link[_ngcontent-%COMP%] {\n  color: #1976d2;\n  cursor: pointer;\n  text-decoration: none;\n}\n\n.account-form[_ngcontent-%COMP%]   .link[_ngcontent-%COMP%]:hover {\n  text-decoration: underline;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n  gap: 8px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImdpdC1hY2NvdW50LW1hbmFnZW1lbnQtZGlhbG9nLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLGlCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsZUFBQTtFQUNBLHlCQUFBO0FBQ0Y7O0FBQ0U7RUFDRSwwQkFBQTtBQUNKOztBQUVFO0VBQ0UsMEJBQUE7QUFBSjs7QUFJQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxlQUFBO0VBQ0EsU0FBQTtBQURGOztBQUlBO0VBQ0UsZUFBQTtBQURGOztBQUdFO0VBQ0UsbUJBQUE7RUFDQSxlQUFBO0VBQ0EsZ0JBQUE7QUFESjs7QUFNRTtFQUNFLG1CQUFBO0FBSEo7O0FBTUU7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsZUFBQTtBQUpKOztBQVFJO0VBQ0UsY0FBQTtBQU5OOztBQVdBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtFQUNBLGNBQUE7RUFDQSwwQkFBQTtBQVJGOztBQVVFO0VBQ0UsMEJBQUE7RUFDQSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7QUFSSjs7QUFXRTtFQUNFLGtCQUFBO0VBQ0EseUJBQUE7QUFUSjs7QUFZRTtFQUNFLGlCQUFBO0FBVko7O0FBWUk7RUFDRSxjQUFBO0FBVk47O0FBZUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsZUFBQTtFQUNBLGtCQUFBO0VBQ0EsU0FBQTtBQVpGOztBQWNFO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsMEJBQUE7QUFaSjs7QUFlRTtFQUNFLFNBQUE7RUFDQSxlQUFBO0VBQ0EsZ0JBQUE7QUFiSjs7QUFnQkU7RUFDRSxTQUFBO0VBQ0EseUJBQUE7RUFDQSxnQkFBQTtBQWRKOztBQWtCQTtFQUNFLGVBQUE7QUFmRjs7QUFpQkU7RUFDRSxtQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtBQWZKOztBQWtCRTtFQUNFLG1CQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0VBQ0EseUJBQUE7QUFoQko7O0FBbUJFO0VBQ0UsV0FBQTtBQWpCSjs7QUFvQkU7RUFDRSxjQUFBO0FBbEJKOztBQXFCRTtFQUNFLGNBQUE7RUFDQSxlQUFBO0VBQ0EscUJBQUE7QUFuQko7O0FBcUJJO0VBQ0UsMEJBQUE7QUFuQk47O0FBd0JBO0VBQ0Usa0JBQUE7RUFDQSxRQUFBO0FBckJGOztBQXdCSTtFQUNFLGlCQUFBO0FBdEJOIiwiZmlsZSI6ImdpdC1hY2NvdW50LW1hbmFnZW1lbnQtZGlhbG9nLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmRpYWxvZy1jb250ZW50IHtcclxuICBtaW4td2lkdGg6IDUwMHB4O1xyXG4gIG1heC13aWR0aDogNjAwcHg7XHJcbiAgbWluLWhlaWdodDogNDAwcHg7XHJcbn1cclxuXHJcbi5yZXBvc2l0b3J5LWluZm8ge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDhweDtcclxuICBwYWRkaW5nOiAxNnB4IDA7XHJcbiAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC42KTtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC41NCk7XHJcbiAgfVxyXG5cclxuICBzdHJvbmcge1xyXG4gICAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC44Nyk7XHJcbiAgfVxyXG59XHJcblxyXG4ubG9hZGluZy1jb250YWluZXIge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIHBhZGRpbmc6IDQwcHggMDtcclxuICBnYXA6IDE2cHg7XHJcbn1cclxuXHJcbi5jdXJyZW50LWFjY291bnQge1xyXG4gIHBhZGRpbmc6IDE2cHggMDtcclxuXHJcbiAgaDMge1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgfVxyXG59XHJcblxyXG4uYWNjb3VudC1jYXJkIHtcclxuICBtYXQtY2FyZC1oZWFkZXIge1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICB9XHJcblxyXG4gIG1hdC1jYXJkLXRpdGxlIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgZ2FwOiA4cHg7XHJcbiAgICBmb250LXNpemU6IDIwcHg7XHJcbiAgfVxyXG5cclxuICAuc3RhdHVzLWljb24ge1xyXG4gICAgJi5zdWNjZXNzIHtcclxuICAgICAgY29sb3I6ICM0Y2FmNTA7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4uYWNjb3VudC1kZXRhaWwge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDEycHg7XHJcbiAgcGFkZGluZzogOHB4IDA7XHJcbiAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC44Nyk7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNTQpO1xyXG4gICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgd2lkdGg6IDIwcHg7XHJcbiAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgfVxyXG5cclxuICAubm90ZXMge1xyXG4gICAgZm9udC1zdHlsZTogaXRhbGljO1xyXG4gICAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC42KTtcclxuICB9XHJcblxyXG4gIC5jcmVkZW50aWFsLXN0YXR1cyB7XHJcbiAgICBtYXJnaW4tbGVmdDogYXV0bztcclxuXHJcbiAgICAmLnN1Y2Nlc3Mge1xyXG4gICAgICBjb2xvcjogIzRjYWY1MDtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5uby1hY2NvdW50IHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBwYWRkaW5nOiA0MHB4IDA7XHJcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gIGdhcDogMTZweDtcclxuXHJcbiAgLmxhcmdlLWljb24ge1xyXG4gICAgZm9udC1zaXplOiA2NHB4O1xyXG4gICAgd2lkdGg6IDY0cHg7XHJcbiAgICBoZWlnaHQ6IDY0cHg7XHJcbiAgICBjb2xvcjogcmdiYSgwLCAwLCAwLCAwLjM4KTtcclxuICB9XHJcblxyXG4gIGgzIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNik7XHJcbiAgICBtYXgtd2lkdGg6IDQwMHB4O1xyXG4gIH1cclxufVxyXG5cclxuLmFjY291bnQtZm9ybSB7XHJcbiAgcGFkZGluZzogMTZweCAwO1xyXG5cclxuICBoMyB7XHJcbiAgICBtYXJnaW4tYm90dG9tOiAyNHB4O1xyXG4gICAgZm9udC1zaXplOiAxOHB4O1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICB9XHJcblxyXG4gIGg0IHtcclxuICAgIG1hcmdpbjogMjRweCAwIDE2cHg7XHJcbiAgICBmb250LXNpemU6IDE2cHg7XHJcbiAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgY29sb3I6IHJnYmEoMCwgMCwgMCwgMC42KTtcclxuICB9XHJcblxyXG4gIC5mdWxsLXdpZHRoIHtcclxuICAgIHdpZHRoOiAxMDAlO1xyXG4gIH1cclxuXHJcbiAgbWF0LWRpdmlkZXIge1xyXG4gICAgbWFyZ2luOiAyNHB4IDA7XHJcbiAgfVxyXG5cclxuICAubGluayB7XHJcbiAgICBjb2xvcjogIzE5NzZkMjtcclxuICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgIHRleHQtZGVjb3JhdGlvbjogbm9uZTtcclxuXHJcbiAgICAmOmhvdmVyIHtcclxuICAgICAgdGV4dC1kZWNvcmF0aW9uOiB1bmRlcmxpbmU7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG5tYXQtZGlhbG9nLWFjdGlvbnMge1xyXG4gIHBhZGRpbmc6IDE2cHggMjRweDtcclxuICBnYXA6IDhweDtcclxuXHJcbiAgYnV0dG9uIHtcclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgbWFyZ2luLXJpZ2h0OiA0cHg7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcbiJdfQ== */"] });
-
 
 /***/ }),
 
@@ -1011,22 +1219,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "GitBranchDialogComponent": () => (/* binding */ GitBranchDialogComponent)
 /* harmony export */ });
 /* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
-/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/snack-bar */ 930);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_card__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/card */ 2156);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-card */ 7315);
 /* harmony import */ var _angular_material_core__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/core */ 9121);
-/* harmony import */ var _angular_material_list__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/list */ 6517);
-/* harmony import */ var _angular_material_tabs__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/tabs */ 5892);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/button */ 4522);
-/* harmony import */ var _angular_material_chips__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/chips */ 1169);
+/* harmony import */ var _angular_material_legacy_list__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/legacy-list */ 744);
+/* harmony import */ var _angular_material_legacy_tabs__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/legacy-tabs */ 2821);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
+/* harmony import */ var _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/legacy-chips */ 9257);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/forms */ 2508);
 
 
@@ -1663,63 +1871,67 @@ class GitBranchDialogComponent {
   onClose() {
     this.dialogRef.close();
   }
+  static {
+    this.ɵfac = function GitBranchDialogComponent_Factory(t) {
+      return new (t || GitBranchDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({
+      type: GitBranchDialogComponent,
+      selectors: [["app-git-branch-dialog"]],
+      decls: 16,
+      vars: 8,
+      consts: [["mat-dialog-title", ""], [1, "dialog-icon"], [1, "branch-dialog-content"], ["class", "current-branch-card", 4, "ngIf"], ["class", "search-field", "appearance", "outline", 4, "ngIf"], ["class", "loading-container", 4, "ngIf"], ["class", "error-card", 4, "ngIf"], ["class", "branch-list-container", 4, "ngIf"], ["class", "switching-overlay", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], [1, "current-branch-card"], [1, "current-branch-header"], ["color", "primary"], [1, "branch-details"], [1, "current-label"], [1, "current-branch-name"], ["class", "branch-stats", 4, "ngIf"], [1, "branch-stats"], ["color", "warn", "selected", "", 4, "ngIf"], ["color", "accent", "selected", "", 4, "ngIf"], ["color", "warn", "selected", ""], ["color", "accent", "selected", ""], ["appearance", "outline", 1, "search-field"], ["matInput", "", "placeholder", "Nome del branch...", "autocomplete", "off", 3, "ngModel", "ngModelChange", "input"], ["matPrefix", ""], ["mat-icon-button", "", "matSuffix", "", "aria-label", "Clear", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "matSuffix", "", "aria-label", "Clear", 3, "click"], [1, "loading-container"], ["diameter", "50"], [1, "error-card"], ["color", "warn"], ["mat-raised-button", "", "color", "primary", 3, "click"], [1, "branch-list-container"], [1, "branch-count"], [1, "branch-tabs", 3, "selectedIndex", "selectedIndexChange"], [4, "ngFor", "ngForOf"], ["class", "empty-state", 4, "ngIf"], ["mat-tab-label", ""], [1, "branch-list"], ["class", "branch-item", 3, "current", "remote", "local", "disabled", "click", 4, "ngFor", "ngForOf"], [1, "tab-icon"], [1, "tab-label"], [1, "tab-count"], [1, "branch-item", 3, "click"], ["matListIcon", "", 3, "color"], ["matLine", "", 1, "branch-name-line"], [1, "branch-name"], ["class", "branch-badge current-badge", 4, "ngIf"], ["matLine", "", "class", "branch-info-line", 4, "ngIf"], ["mat-icon-button", "", "class", "switch-button", 3, "disabled", "click", 4, "ngIf"], [1, "branch-badge", "current-badge"], ["matLine", "", 1, "branch-info-line"], ["class", "upstream-info", 4, "ngIf"], ["class", "sync-info", 4, "ngIf"], [1, "upstream-info"], [1, "small-icon"], [1, "sync-info"], ["mat-icon-button", "", 1, "switch-button", 3, "disabled", "click"], [1, "empty-state"], ["mat-button", "", 3, "click", 4, "ngIf"], ["mat-button", "", 3, "click"], [1, "switching-overlay"], ["diameter", "40"]],
+      template: function GitBranchDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "account_tree");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-dialog-content", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, GitBranchDialogComponent_mat_card_5_Template, 11, 2, "mat-card", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitBranchDialogComponent_mat_form_field_6_Template, 7, 2, "mat-form-field", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitBranchDialogComponent_div_7_Template, 4, 0, "div", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](8, GitBranchDialogComponent_mat_card_8_Template, 10, 1, "mat-card", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, GitBranchDialogComponent_div_9_Template, 6, 4, "div", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, GitBranchDialogComponent_div_10_Template, 4, 0, "div", 8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](11, "mat-dialog-actions", 9)(12, "button", 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitBranchDialogComponent_Template_button_click_12_listener() {
+            return ctx.onClose();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](13, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](14, "close");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](15, " Chiudi ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" Branch Manager ", ctx.data.projectName ? "- " + ctx.data.projectName : "", "\n");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.currentBranch && !ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.error && !ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.error);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isSwitching);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.isSwitching);
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacyLabel, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacyPrefix, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacySuffix, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_8__.MatLegacyInput, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__.MatLegacyCard, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__.MatLegacyCardContent, _angular_material_core__WEBPACK_IMPORTED_MODULE_10__.MatLine, _angular_material_legacy_list__WEBPACK_IMPORTED_MODULE_11__.MatLegacyList, _angular_material_legacy_list__WEBPACK_IMPORTED_MODULE_11__.MatLegacyListItem, _angular_material_legacy_list__WEBPACK_IMPORTED_MODULE_11__.MatLegacyListIconCssMatStyler, _angular_material_legacy_tabs__WEBPACK_IMPORTED_MODULE_12__.MatLegacyTabGroup, _angular_material_legacy_tabs__WEBPACK_IMPORTED_MODULE_12__.MatLegacyTabLabel, _angular_material_legacy_tabs__WEBPACK_IMPORTED_MODULE_12__.MatLegacyTab, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_13__.MatLegacyButton, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_14__.MatLegacyChipList, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_14__.MatLegacyChip, _angular_material_icon__WEBPACK_IMPORTED_MODULE_15__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_16__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_17__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_17__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_17__.NgModel],
+      styles: ["h2.mat-dialog-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  margin: 0;\n  padding: 16px 24px;\n  border-bottom: 1px solid #e0e0e0;\n}\nh2.mat-dialog-title[_ngcontent-%COMP%]   .dialog-icon[_ngcontent-%COMP%] {\n  font-size: 28px;\n  height: 28px;\n  width: 28px;\n}\n\n.branch-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 !important;\n  min-width: 600px;\n  min-height: 400px;\n  max-height: 70vh;\n  display: flex;\n  flex-direction: column;\n  position: relative;\n}\n\n.current-branch-card[_ngcontent-%COMP%] {\n  margin: 16px 24px;\n  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n  color: white;\n}\n.current-branch-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%] {\n  padding: 16px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  margin-bottom: 12px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 32px;\n  height: 32px;\n  width: 32px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   .branch-details[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   .branch-details[_ngcontent-%COMP%]   .current-label[_ngcontent-%COMP%] {\n  font-size: 0.85em;\n  opacity: 0.9;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   .branch-details[_ngcontent-%COMP%]   .current-branch-name[_ngcontent-%COMP%] {\n  font-size: 1.3em;\n  font-weight: 600;\n  font-family: \"Courier New\", monospace;\n}\n.current-branch-card[_ngcontent-%COMP%]   .branch-stats[_ngcontent-%COMP%]   mat-chip-list[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .branch-stats[_ngcontent-%COMP%]   mat-chip[_ngcontent-%COMP%] {\n  background-color: rgba(255, 255, 255, 0.2) !important;\n  color: white !important;\n}\n.current-branch-card[_ngcontent-%COMP%]   .branch-stats[_ngcontent-%COMP%]   mat-chip[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  margin-right: 4px;\n}\n\n.search-field[_ngcontent-%COMP%] {\n  margin: 16px 24px 0;\n  width: calc(100% - 48px);\n}\n.search-field[_ngcontent-%COMP%]   .mat-form-field-wrapper[_ngcontent-%COMP%] {\n  padding-bottom: 0;\n}\n\n.loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 60px 40px;\n  gap: 16px;\n}\n.loading-container[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  color: #666;\n  font-size: 1.1em;\n}\n\n.error-card[_ngcontent-%COMP%] {\n  margin: 16px 24px;\n  border: 2px solid #f44336;\n}\n.error-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n  gap: 16px;\n}\n.error-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  height: 48px;\n  width: 48px;\n}\n.error-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  color: #f44336;\n  font-size: 1.1em;\n  margin: 0;\n}\n\n.branch-list-container[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow-y: auto;\n  margin: 0 24px 16px;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-count[_ngcontent-%COMP%] {\n  padding: 8px 16px;\n  background-color: #f5f5f5;\n  border-radius: 4px 4px 0 0;\n  font-size: 0.9em;\n  color: #666;\n  font-weight: 500;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%] {\n  border: 1px solid #e0e0e0;\n  border-top: none;\n  border-radius: 0 0 4px 4px;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-header {\n  background-color: #fafafa;\n  border-bottom: 1px solid #e0e0e0;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-label {\n  min-width: 120px;\n  padding: 0 16px;\n  opacity: 0.8;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-label.mat-tab-label-active {\n  opacity: 1;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-body-wrapper {\n  max-height: calc(70vh - 300px);\n  overflow-y: auto;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]   .tab-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]   .tab-label[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]   .tab-count[_ngcontent-%COMP%] {\n  margin-left: 4px;\n  font-size: 0.85em;\n  color: #666;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-list[_ngcontent-%COMP%] {\n  padding: 0;\n}\n\n.branch-item[_ngcontent-%COMP%] {\n  cursor: pointer;\n  transition: all 0.2s ease;\n  border-bottom: 1px solid #f0f0f0;\n  padding: 12px 16px !important;\n  height: auto !important;\n  min-height: 60px;\n}\n.branch-item[_ngcontent-%COMP%]:hover:not(.disabled) {\n  background-color: #f5f5f5;\n}\n.branch-item.current[_ngcontent-%COMP%] {\n  background-color: #e3f2fd;\n  border-left: 4px solid #2196f3;\n}\n.branch-item.current[_ngcontent-%COMP%]:hover {\n  background-color: #bbdefb;\n}\n.branch-item.disabled[_ngcontent-%COMP%] {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n.branch-item[_ngcontent-%COMP%]:last-child {\n  border-bottom: none;\n}\n.branch-item[_ngcontent-%COMP%]   .mat-list-item-content[_ngcontent-%COMP%] {\n  padding: 0 !important;\n  height: auto !important;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n.branch-item[_ngcontent-%COMP%]   mat-icon[matListIcon][_ngcontent-%COMP%] {\n  margin-right: 0;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 4px 0;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-name[_ngcontent-%COMP%] {\n  font-family: \"Courier New\", monospace;\n  font-size: 1.05em;\n  font-weight: 500;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-badge[_ngcontent-%COMP%] {\n  font-size: 0.7em;\n  padding: 2px 6px;\n  border-radius: 3px;\n  font-weight: 600;\n  letter-spacing: 0.5px;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-badge.current-badge[_ngcontent-%COMP%] {\n  background-color: #2196f3;\n  color: white;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-badge.remote-badge[_ngcontent-%COMP%] {\n  background-color: #9e9e9e;\n  color: white;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  font-size: 0.85em;\n  color: #666;\n  padding: 2px 0;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%]   .upstream-info[_ngcontent-%COMP%], .branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%]   .sync-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%]   .small-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  height: 16px;\n  width: 16px;\n}\n.branch-item[_ngcontent-%COMP%]   .switch-button[_ngcontent-%COMP%] {\n  margin-left: auto;\n  color: #2196f3;\n}\n.branch-item[_ngcontent-%COMP%]   .switch-button[_ngcontent-%COMP%]:hover {\n  background-color: rgba(33, 150, 243, 0.1);\n}\n\n.empty-state[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 60px 40px;\n  text-align: center;\n  border: 1px solid #e0e0e0;\n  border-top: none;\n  border-radius: 0 0 4px 4px;\n}\n.empty-state[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 64px;\n  height: 64px;\n  width: 64px;\n  color: #bdbdbd;\n  margin-bottom: 16px;\n}\n.empty-state[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  font-size: 1.1em;\n  color: #666;\n  margin-bottom: 16px;\n}\n\n.switching-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background-color: rgba(255, 255, 255, 0.9);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 16px;\n  z-index: 1000;\n}\n.switching-overlay[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  font-size: 1.1em;\n  color: #666;\n  font-weight: 500;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n  border-top: 1px solid #e0e0e0;\n}\nmat-dialog-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n@media (max-width: 768px) {\n  .branch-dialog-content[_ngcontent-%COMP%] {\n    min-width: 90vw;\n    max-height: 80vh;\n  }\n  .current-branch-card[_ngcontent-%COMP%], .search-field[_ngcontent-%COMP%], .branch-list-container[_ngcontent-%COMP%] {\n    margin-left: 16px;\n    margin-right: 16px;\n  }\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LWJyYW5jaC1kaWFsb2cvZ2l0LWJyYW5jaC1kaWFsb2cuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxTQUFBO0VBQ0EsU0FBQTtFQUNBLGtCQUFBO0VBQ0EsZ0NBQUE7QUFBRjtBQUVFO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBQUo7O0FBS0E7RUFDRSxxQkFBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxnQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLGtCQUFBO0FBRkY7O0FBTUE7RUFDRSxpQkFBQTtFQUNBLDZEQUFBO0VBQ0EsWUFBQTtBQUhGO0FBS0U7RUFDRSxhQUFBO0FBSEo7QUFNRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxtQkFBQTtBQUpKO0FBTUk7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFKTjtBQU9JO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsUUFBQTtBQUxOO0FBT007RUFDRSxpQkFBQTtFQUNBLFlBQUE7QUFMUjtBQVFNO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLHFDQUFBO0FBTlI7QUFZSTtFQUNFLGFBQUE7RUFDQSxRQUFBO0FBVk47QUFhSTtFQUNFLHFEQUFBO0VBQ0EsdUJBQUE7QUFYTjtBQWFNO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsaUJBQUE7QUFYUjs7QUFrQkE7RUFDRSxtQkFBQTtFQUNBLHdCQUFBO0FBZkY7QUFpQkU7RUFDRSxpQkFBQTtBQWZKOztBQW9CQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLFNBQUE7QUFqQkY7QUFtQkU7RUFDRSxXQUFBO0VBQ0EsZ0JBQUE7QUFqQko7O0FBc0JBO0VBQ0UsaUJBQUE7RUFDQSx5QkFBQTtBQW5CRjtBQXFCRTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBQ0EsU0FBQTtBQW5CSjtBQXFCSTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQW5CTjtBQXNCSTtFQUNFLGNBQUE7RUFDQSxnQkFBQTtFQUNBLFNBQUE7QUFwQk47O0FBMEJBO0VBQ0UsT0FBQTtFQUNBLGdCQUFBO0VBQ0EsbUJBQUE7QUF2QkY7QUF5QkU7RUFDRSxpQkFBQTtFQUNBLHlCQUFBO0VBQ0EsMEJBQUE7RUFDQSxnQkFBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtBQXZCSjtBQTBCRTtFQUNFLHlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSwwQkFBQTtBQXhCSjtBQTJCTTtFQUNFLHlCQUFBO0VBQ0EsZ0NBQUE7QUF6QlI7QUE0Qk07RUFDRSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0FBMUJSO0FBNEJRO0VBQ0UsVUFBQTtBQTFCVjtBQThCTTtFQUNFLDhCQUFBO0VBQ0EsZ0JBQUE7QUE1QlI7QUFnQ0k7RUFDRSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQTlCTjtBQWlDSTtFQUNFLGdCQUFBO0FBL0JOO0FBa0NJO0VBQ0UsZ0JBQUE7RUFDQSxpQkFBQTtFQUNBLFdBQUE7QUFoQ047QUFvQ0U7RUFDRSxVQUFBO0FBbENKOztBQXVDQTtFQUNFLGVBQUE7RUFDQSx5QkFBQTtFQUNBLGdDQUFBO0VBQ0EsNkJBQUE7RUFDQSx1QkFBQTtFQUNBLGdCQUFBO0FBcENGO0FBc0NFO0VBQ0UseUJBQUE7QUFwQ0o7QUF1Q0U7RUFDRSx5QkFBQTtFQUNBLDhCQUFBO0FBckNKO0FBdUNJO0VBQ0UseUJBQUE7QUFyQ047QUF5Q0U7RUFDRSxZQUFBO0VBQ0EsbUJBQUE7QUF2Q0o7QUEwQ0U7RUFDRSxtQkFBQTtBQXhDSjtBQTJDRTtFQUNFLHFCQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxTQUFBO0FBekNKO0FBNENFO0VBQ0UsZUFBQTtBQTFDSjtBQTZDRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxjQUFBO0FBM0NKO0FBNkNJO0VBQ0UscUNBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0FBM0NOO0FBOENJO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxxQkFBQTtBQTVDTjtBQThDTTtFQUNFLHlCQUFBO0VBQ0EsWUFBQTtBQTVDUjtBQStDTTtFQUNFLHlCQUFBO0VBQ0EsWUFBQTtBQTdDUjtBQWtERTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxpQkFBQTtFQUNBLFdBQUE7RUFDQSxjQUFBO0FBaERKO0FBa0RJOztFQUVFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUFoRE47QUFtREk7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFqRE47QUFxREU7RUFDRSxpQkFBQTtFQUNBLGNBQUE7QUFuREo7QUFxREk7RUFDRSx5Q0FBQTtBQW5ETjs7QUF5REE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQkFBQTtFQUNBLHlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSwwQkFBQTtBQXRERjtBQXdERTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGNBQUE7RUFDQSxtQkFBQTtBQXRESjtBQXlERTtFQUNFLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLG1CQUFBO0FBdkRKOztBQTREQTtFQUNFLGtCQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLDBDQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0FBekRGO0FBMkRFO0VBQ0UsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUF6REo7O0FBOERBO0VBQ0Usa0JBQUE7RUFDQSw2QkFBQTtBQTNERjtBQTZERTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUEzREo7O0FBZ0VBO0VBQ0U7SUFDRSxlQUFBO0lBQ0EsZ0JBQUE7RUE3REY7RUFnRUE7OztJQUdFLGlCQUFBO0lBQ0Esa0JBQUE7RUE5REY7QUFDRiIsInNvdXJjZXNDb250ZW50IjpbIi8vIERpYWxvZyBUaXRsZVxyXG5oMi5tYXQtZGlhbG9nLXRpdGxlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgZ2FwOiAxMnB4O1xyXG4gIG1hcmdpbjogMDtcclxuICBwYWRkaW5nOiAxNnB4IDI0cHg7XHJcbiAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNlMGUwZTA7XHJcblxyXG4gIC5kaWFsb2ctaWNvbiB7XHJcbiAgICBmb250LXNpemU6IDI4cHg7XHJcbiAgICBoZWlnaHQ6IDI4cHg7XHJcbiAgICB3aWR0aDogMjhweDtcclxuICB9XHJcbn1cclxuXHJcbi8vIERpYWxvZyBDb250ZW50XHJcbi5icmFuY2gtZGlhbG9nLWNvbnRlbnQge1xyXG4gIHBhZGRpbmc6IDAgIWltcG9ydGFudDtcclxuICBtaW4td2lkdGg6IDYwMHB4O1xyXG4gIG1pbi1oZWlnaHQ6IDQwMHB4O1xyXG4gIG1heC1oZWlnaHQ6IDcwdmg7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxufVxyXG5cclxuLy8gQ3VycmVudCBCcmFuY2ggU3VtbWFyeSBDYXJkXHJcbi5jdXJyZW50LWJyYW5jaC1jYXJkIHtcclxuICBtYXJnaW46IDE2cHggMjRweDtcclxuICBiYWNrZ3JvdW5kOiBsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjNjY3ZWVhIDAlLCAjNzY0YmEyIDEwMCUpO1xyXG4gIGNvbG9yOiB3aGl0ZTtcclxuXHJcbiAgLm1hdC1jYXJkLWNvbnRlbnQge1xyXG4gICAgcGFkZGluZzogMTZweDtcclxuICB9XHJcblxyXG4gIC5jdXJyZW50LWJyYW5jaC1oZWFkZXIge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDEycHg7XHJcbiAgICBtYXJnaW4tYm90dG9tOiAxMnB4O1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAzMnB4O1xyXG4gICAgICBoZWlnaHQ6IDMycHg7XHJcbiAgICAgIHdpZHRoOiAzMnB4O1xyXG4gICAgfVxyXG5cclxuICAgIC5icmFuY2gtZGV0YWlscyB7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICAgIGdhcDogNHB4O1xyXG5cclxuICAgICAgLmN1cnJlbnQtbGFiZWwge1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xyXG4gICAgICAgIG9wYWNpdHk6IDAuOTtcclxuICAgICAgfVxyXG5cclxuICAgICAgLmN1cnJlbnQtYnJhbmNoLW5hbWUge1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMS4zZW07XHJcbiAgICAgICAgZm9udC13ZWlnaHQ6IDYwMDtcclxuICAgICAgICBmb250LWZhbWlseTogJ0NvdXJpZXIgTmV3JywgbW9ub3NwYWNlO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAuYnJhbmNoLXN0YXRzIHtcclxuICAgIG1hdC1jaGlwLWxpc3Qge1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBnYXA6IDhweDtcclxuICAgIH1cclxuXHJcbiAgICBtYXQtY2hpcCB7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC4yKSAhaW1wb3J0YW50O1xyXG4gICAgICBjb2xvcjogd2hpdGUgIWltcG9ydGFudDtcclxuXHJcbiAgICAgIG1hdC1pY29uIHtcclxuICAgICAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICAgIHdpZHRoOiAxOHB4O1xyXG4gICAgICAgIG1hcmdpbi1yaWdodDogNHB4O1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4vLyBTZWFyY2ggRmllbGRcclxuLnNlYXJjaC1maWVsZCB7XHJcbiAgbWFyZ2luOiAxNnB4IDI0cHggMDtcclxuICB3aWR0aDogY2FsYygxMDAlIC0gNDhweCk7XHJcblxyXG4gIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHtcclxuICAgIHBhZGRpbmctYm90dG9tOiAwO1xyXG4gIH1cclxufVxyXG5cclxuLy8gTG9hZGluZyBDb250YWluZXJcclxuLmxvYWRpbmctY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBwYWRkaW5nOiA2MHB4IDQwcHg7XHJcbiAgZ2FwOiAxNnB4O1xyXG5cclxuICBwIHtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgZm9udC1zaXplOiAxLjFlbTtcclxuICB9XHJcbn1cclxuXHJcbi8vIEVycm9yIENhcmRcclxuLmVycm9yLWNhcmQge1xyXG4gIG1hcmdpbjogMTZweCAyNHB4O1xyXG4gIGJvcmRlcjogMnB4IHNvbGlkICNmNDQzMzY7XHJcblxyXG4gIC5tYXQtY2FyZC1jb250ZW50IHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgcGFkZGluZzogNDBweDtcclxuICAgIGdhcDogMTZweDtcclxuXHJcbiAgICBtYXQtaWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogNDhweDtcclxuICAgICAgaGVpZ2h0OiA0OHB4O1xyXG4gICAgICB3aWR0aDogNDhweDtcclxuICAgIH1cclxuXHJcbiAgICBwIHtcclxuICAgICAgY29sb3I6ICNmNDQzMzY7XHJcbiAgICAgIGZvbnQtc2l6ZTogMS4xZW07XHJcbiAgICAgIG1hcmdpbjogMDtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vIEJyYW5jaCBMaXN0IENvbnRhaW5lclxyXG4uYnJhbmNoLWxpc3QtY29udGFpbmVyIHtcclxuICBmbGV4OiAxO1xyXG4gIG92ZXJmbG93LXk6IGF1dG87XHJcbiAgbWFyZ2luOiAwIDI0cHggMTZweDtcclxuXHJcbiAgLmJyYW5jaC1jb3VudCB7XHJcbiAgICBwYWRkaW5nOiA4cHggMTZweDtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XHJcbiAgICBib3JkZXItcmFkaXVzOiA0cHggNHB4IDAgMDtcclxuICAgIGZvbnQtc2l6ZTogMC45ZW07XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgfVxyXG5cclxuICAuYnJhbmNoLXRhYnMge1xyXG4gICAgYm9yZGVyOiAxcHggc29saWQgI2UwZTBlMDtcclxuICAgIGJvcmRlci10b3A6IG5vbmU7XHJcbiAgICBib3JkZXItcmFkaXVzOiAwIDAgNHB4IDRweDtcclxuXHJcbiAgICA6Om5nLWRlZXAge1xyXG4gICAgICAubWF0LXRhYi1oZWFkZXIge1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmYWZhZmE7XHJcbiAgICAgICAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNlMGUwZTA7XHJcbiAgICAgIH1cclxuXHJcbiAgICAgIC5tYXQtdGFiLWxhYmVsIHtcclxuICAgICAgICBtaW4td2lkdGg6IDEyMHB4O1xyXG4gICAgICAgIHBhZGRpbmc6IDAgMTZweDtcclxuICAgICAgICBvcGFjaXR5OiAwLjg7XHJcblxyXG4gICAgICAgICYubWF0LXRhYi1sYWJlbC1hY3RpdmUge1xyXG4gICAgICAgICAgb3BhY2l0eTogMTtcclxuICAgICAgICB9XHJcbiAgICAgIH1cclxuXHJcbiAgICAgIC5tYXQtdGFiLWJvZHktd3JhcHBlciB7XHJcbiAgICAgICAgbWF4LWhlaWdodDogY2FsYyg3MHZoIC0gMzAwcHgpO1xyXG4gICAgICAgIG92ZXJmbG93LXk6IGF1dG87XHJcbiAgICAgIH1cclxuICAgIH1cclxuXHJcbiAgICAudGFiLWljb24ge1xyXG4gICAgICBtYXJnaW4tcmlnaHQ6IDhweDtcclxuICAgICAgZm9udC1zaXplOiAxOHB4O1xyXG4gICAgICBoZWlnaHQ6IDE4cHg7XHJcbiAgICAgIHdpZHRoOiAxOHB4O1xyXG4gICAgfVxyXG5cclxuICAgIC50YWItbGFiZWwge1xyXG4gICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgfVxyXG5cclxuICAgIC50YWItY291bnQge1xyXG4gICAgICBtYXJnaW4tbGVmdDogNHB4O1xyXG4gICAgICBmb250LXNpemU6IDAuODVlbTtcclxuICAgICAgY29sb3I6ICM2NjY7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAuYnJhbmNoLWxpc3Qge1xyXG4gICAgcGFkZGluZzogMDtcclxuICB9XHJcbn1cclxuXHJcbi8vIEJyYW5jaCBMaXN0IEl0ZW1zXHJcbi5icmFuY2gtaXRlbSB7XHJcbiAgY3Vyc29yOiBwb2ludGVyO1xyXG4gIHRyYW5zaXRpb246IGFsbCAwLjJzIGVhc2U7XHJcbiAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNmMGYwZjA7XHJcbiAgcGFkZGluZzogMTJweCAxNnB4ICFpbXBvcnRhbnQ7XHJcbiAgaGVpZ2h0OiBhdXRvICFpbXBvcnRhbnQ7XHJcbiAgbWluLWhlaWdodDogNjBweDtcclxuXHJcbiAgJjpob3Zlcjpub3QoLmRpc2FibGVkKSB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIH1cclxuXHJcbiAgJi5jdXJyZW50IHtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNlM2YyZmQ7XHJcbiAgICBib3JkZXItbGVmdDogNHB4IHNvbGlkICMyMTk2ZjM7XHJcblxyXG4gICAgJjpob3ZlciB7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNiYmRlZmI7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAmLmRpc2FibGVkIHtcclxuICAgIG9wYWNpdHk6IDAuNTtcclxuICAgIGN1cnNvcjogbm90LWFsbG93ZWQ7XHJcbiAgfVxyXG5cclxuICAmOmxhc3QtY2hpbGQge1xyXG4gICAgYm9yZGVyLWJvdHRvbTogbm9uZTtcclxuICB9XHJcblxyXG4gIC5tYXQtbGlzdC1pdGVtLWNvbnRlbnQge1xyXG4gICAgcGFkZGluZzogMCAhaW1wb3J0YW50O1xyXG4gICAgaGVpZ2h0OiBhdXRvICFpbXBvcnRhbnQ7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogMTJweDtcclxuICB9XHJcblxyXG4gIG1hdC1pY29uW21hdExpc3RJY29uXSB7XHJcbiAgICBtYXJnaW4tcmlnaHQ6IDA7XHJcbiAgfVxyXG5cclxuICAuYnJhbmNoLW5hbWUtbGluZSB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogOHB4O1xyXG4gICAgcGFkZGluZzogNHB4IDA7XHJcblxyXG4gICAgLmJyYW5jaC1uYW1lIHtcclxuICAgICAgZm9udC1mYW1pbHk6ICdDb3VyaWVyIE5ldycsIG1vbm9zcGFjZTtcclxuICAgICAgZm9udC1zaXplOiAxLjA1ZW07XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICB9XHJcblxyXG4gICAgLmJyYW5jaC1iYWRnZSB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMC43ZW07XHJcbiAgICAgIHBhZGRpbmc6IDJweCA2cHg7XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDNweDtcclxuICAgICAgZm9udC13ZWlnaHQ6IDYwMDtcclxuICAgICAgbGV0dGVyLXNwYWNpbmc6IDAuNXB4O1xyXG5cclxuICAgICAgJi5jdXJyZW50LWJhZGdlIHtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMjE5NmYzO1xyXG4gICAgICAgIGNvbG9yOiB3aGl0ZTtcclxuICAgICAgfVxyXG5cclxuICAgICAgJi5yZW1vdGUtYmFkZ2Uge1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICM5ZTllOWU7XHJcbiAgICAgICAgY29sb3I6IHdoaXRlO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAuYnJhbmNoLWluZm8tbGluZSB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogMTJweDtcclxuICAgIGZvbnQtc2l6ZTogMC44NWVtO1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgICBwYWRkaW5nOiAycHggMDtcclxuXHJcbiAgICAudXBzdHJlYW0taW5mbyxcclxuICAgIC5zeW5jLWluZm8ge1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICBnYXA6IDRweDtcclxuICAgIH1cclxuXHJcbiAgICAuc21hbGwtaWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMTZweDtcclxuICAgICAgaGVpZ2h0OiAxNnB4O1xyXG4gICAgICB3aWR0aDogMTZweDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gIC5zd2l0Y2gtYnV0dG9uIHtcclxuICAgIG1hcmdpbi1sZWZ0OiBhdXRvO1xyXG4gICAgY29sb3I6ICMyMTk2ZjM7XHJcblxyXG4gICAgJjpob3ZlciB7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6IHJnYmEoMzMsIDE1MCwgMjQzLCAwLjEpO1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLy8gRW1wdHkgU3RhdGVcclxuLmVtcHR5LXN0YXRlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBwYWRkaW5nOiA2MHB4IDQwcHg7XHJcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gIGJvcmRlcjogMXB4IHNvbGlkICNlMGUwZTA7XHJcbiAgYm9yZGVyLXRvcDogbm9uZTtcclxuICBib3JkZXItcmFkaXVzOiAwIDAgNHB4IDRweDtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgZm9udC1zaXplOiA2NHB4O1xyXG4gICAgaGVpZ2h0OiA2NHB4O1xyXG4gICAgd2lkdGg6IDY0cHg7XHJcbiAgICBjb2xvcjogI2JkYmRiZDtcclxuICAgIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIGZvbnQtc2l6ZTogMS4xZW07XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICAgIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbiAgfVxyXG59XHJcblxyXG4vLyBTd2l0Y2hpbmcgT3ZlcmxheVxyXG4uc3dpdGNoaW5nLW92ZXJsYXkge1xyXG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICB0b3A6IDA7XHJcbiAgbGVmdDogMDtcclxuICByaWdodDogMDtcclxuICBib3R0b206IDA7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjkpO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIGdhcDogMTZweDtcclxuICB6LWluZGV4OiAxMDAwO1xyXG5cclxuICBwIHtcclxuICAgIGZvbnQtc2l6ZTogMS4xZW07XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgfVxyXG59XHJcblxyXG4vLyBEaWFsb2cgQWN0aW9uc1xyXG5tYXQtZGlhbG9nLWFjdGlvbnMge1xyXG4gIHBhZGRpbmc6IDE2cHggMjRweDtcclxuICBib3JkZXItdG9wOiAxcHggc29saWQgI2UwZTBlMDtcclxuXHJcbiAgYnV0dG9uIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgZ2FwOiA4cHg7XHJcbiAgfVxyXG59XHJcblxyXG4vLyBSZXNwb25zaXZlIGFkanVzdG1lbnRzXHJcbkBtZWRpYSAobWF4LXdpZHRoOiA3NjhweCkge1xyXG4gIC5icmFuY2gtZGlhbG9nLWNvbnRlbnQge1xyXG4gICAgbWluLXdpZHRoOiA5MHZ3O1xyXG4gICAgbWF4LWhlaWdodDogODB2aDtcclxuICB9XHJcblxyXG4gIC5jdXJyZW50LWJyYW5jaC1jYXJkLFxyXG4gIC5zZWFyY2gtZmllbGQsXHJcbiAgLmJyYW5jaC1saXN0LWNvbnRhaW5lciB7XHJcbiAgICBtYXJnaW4tbGVmdDogMTZweDtcclxuICAgIG1hcmdpbi1yaWdodDogMTZweDtcclxuICB9XHJcbn1cclxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
+    });
+  }
 }
-GitBranchDialogComponent.ɵfac = function GitBranchDialogComponent_Factory(t) {
-  return new (t || GitBranchDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatSnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialog), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService));
-};
-GitBranchDialogComponent.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({
-  type: GitBranchDialogComponent,
-  selectors: [["app-git-branch-dialog"]],
-  decls: 16,
-  vars: 8,
-  consts: [["mat-dialog-title", ""], [1, "dialog-icon"], [1, "branch-dialog-content"], ["class", "current-branch-card", 4, "ngIf"], ["class", "search-field", "appearance", "outline", 4, "ngIf"], ["class", "loading-container", 4, "ngIf"], ["class", "error-card", 4, "ngIf"], ["class", "branch-list-container", 4, "ngIf"], ["class", "switching-overlay", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], [1, "current-branch-card"], [1, "current-branch-header"], ["color", "primary"], [1, "branch-details"], [1, "current-label"], [1, "current-branch-name"], ["class", "branch-stats", 4, "ngIf"], [1, "branch-stats"], ["color", "warn", "selected", "", 4, "ngIf"], ["color", "accent", "selected", "", 4, "ngIf"], ["color", "warn", "selected", ""], ["color", "accent", "selected", ""], ["appearance", "outline", 1, "search-field"], ["matInput", "", "placeholder", "Nome del branch...", "autocomplete", "off", 3, "ngModel", "ngModelChange", "input"], ["matPrefix", ""], ["mat-icon-button", "", "matSuffix", "", "aria-label", "Clear", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "matSuffix", "", "aria-label", "Clear", 3, "click"], [1, "loading-container"], ["diameter", "50"], [1, "error-card"], ["color", "warn"], ["mat-raised-button", "", "color", "primary", 3, "click"], [1, "branch-list-container"], [1, "branch-count"], [1, "branch-tabs", 3, "selectedIndex", "selectedIndexChange"], [4, "ngFor", "ngForOf"], ["class", "empty-state", 4, "ngIf"], ["mat-tab-label", ""], [1, "branch-list"], ["class", "branch-item", 3, "current", "remote", "local", "disabled", "click", 4, "ngFor", "ngForOf"], [1, "tab-icon"], [1, "tab-label"], [1, "tab-count"], [1, "branch-item", 3, "click"], ["matListIcon", "", 3, "color"], ["matLine", "", 1, "branch-name-line"], [1, "branch-name"], ["class", "branch-badge current-badge", 4, "ngIf"], ["matLine", "", "class", "branch-info-line", 4, "ngIf"], ["mat-icon-button", "", "class", "switch-button", 3, "disabled", "click", 4, "ngIf"], [1, "branch-badge", "current-badge"], ["matLine", "", 1, "branch-info-line"], ["class", "upstream-info", 4, "ngIf"], ["class", "sync-info", 4, "ngIf"], [1, "upstream-info"], [1, "small-icon"], [1, "sync-info"], ["mat-icon-button", "", 1, "switch-button", 3, "disabled", "click"], [1, "empty-state"], ["mat-button", "", 3, "click", 4, "ngIf"], ["mat-button", "", 3, "click"], [1, "switching-overlay"], ["diameter", "40"]],
-  template: function GitBranchDialogComponent_Template(rf, ctx) {
-    if (rf & 1) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon", 1);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "account_tree");
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-dialog-content", 2);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, GitBranchDialogComponent_mat_card_5_Template, 11, 2, "mat-card", 3);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitBranchDialogComponent_mat_form_field_6_Template, 7, 2, "mat-form-field", 4);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitBranchDialogComponent_div_7_Template, 4, 0, "div", 5);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](8, GitBranchDialogComponent_mat_card_8_Template, 10, 1, "mat-card", 6);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, GitBranchDialogComponent_div_9_Template, 6, 4, "div", 7);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, GitBranchDialogComponent_div_10_Template, 4, 0, "div", 8);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](11, "mat-dialog-actions", 9)(12, "button", 10);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitBranchDialogComponent_Template_button_click_12_listener() {
-        return ctx.onClose();
-      });
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](13, "mat-icon");
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](14, "close");
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](15, " Chiudi ");
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-    }
-    if (rf & 2) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" Branch Manager ", ctx.data.projectName ? "- " + ctx.data.projectName : "", "\n");
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.currentBranch && !ctx.isLoading);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isLoading);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.error && !ctx.isLoading);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.error);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isSwitching);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.isSwitching);
-    }
-  },
-  dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLabel, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatPrefix, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatSuffix, _angular_material_input__WEBPACK_IMPORTED_MODULE_8__.MatInput, _angular_material_card__WEBPACK_IMPORTED_MODULE_9__.MatCard, _angular_material_card__WEBPACK_IMPORTED_MODULE_9__.MatCardContent, _angular_material_core__WEBPACK_IMPORTED_MODULE_10__.MatLine, _angular_material_list__WEBPACK_IMPORTED_MODULE_11__.MatList, _angular_material_list__WEBPACK_IMPORTED_MODULE_11__.MatListItem, _angular_material_list__WEBPACK_IMPORTED_MODULE_11__.MatListIconCssMatStyler, _angular_material_tabs__WEBPACK_IMPORTED_MODULE_12__.MatTabGroup, _angular_material_tabs__WEBPACK_IMPORTED_MODULE_12__.MatTabLabel, _angular_material_tabs__WEBPACK_IMPORTED_MODULE_12__.MatTab, _angular_material_button__WEBPACK_IMPORTED_MODULE_13__.MatButton, _angular_material_chips__WEBPACK_IMPORTED_MODULE_14__.MatChipList, _angular_material_chips__WEBPACK_IMPORTED_MODULE_14__.MatChip, _angular_material_icon__WEBPACK_IMPORTED_MODULE_15__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_16__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_17__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_17__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_17__.NgModel],
-  styles: ["h2.mat-dialog-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  margin: 0;\n  padding: 16px 24px;\n  border-bottom: 1px solid #e0e0e0;\n}\nh2.mat-dialog-title[_ngcontent-%COMP%]   .dialog-icon[_ngcontent-%COMP%] {\n  font-size: 28px;\n  height: 28px;\n  width: 28px;\n}\n.branch-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 !important;\n  min-width: 600px;\n  min-height: 400px;\n  max-height: 70vh;\n  display: flex;\n  flex-direction: column;\n  position: relative;\n}\n.current-branch-card[_ngcontent-%COMP%] {\n  margin: 16px 24px;\n  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n  color: white;\n}\n.current-branch-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%] {\n  padding: 16px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  margin-bottom: 12px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 32px;\n  height: 32px;\n  width: 32px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   .branch-details[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   .branch-details[_ngcontent-%COMP%]   .current-label[_ngcontent-%COMP%] {\n  font-size: 0.85em;\n  opacity: 0.9;\n}\n.current-branch-card[_ngcontent-%COMP%]   .current-branch-header[_ngcontent-%COMP%]   .branch-details[_ngcontent-%COMP%]   .current-branch-name[_ngcontent-%COMP%] {\n  font-size: 1.3em;\n  font-weight: 600;\n  font-family: \"Courier New\", monospace;\n}\n.current-branch-card[_ngcontent-%COMP%]   .branch-stats[_ngcontent-%COMP%]   mat-chip-list[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n}\n.current-branch-card[_ngcontent-%COMP%]   .branch-stats[_ngcontent-%COMP%]   mat-chip[_ngcontent-%COMP%] {\n  background-color: rgba(255, 255, 255, 0.2) !important;\n  color: white !important;\n}\n.current-branch-card[_ngcontent-%COMP%]   .branch-stats[_ngcontent-%COMP%]   mat-chip[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  margin-right: 4px;\n}\n.search-field[_ngcontent-%COMP%] {\n  margin: 16px 24px 0;\n  width: calc(100% - 48px);\n}\n.search-field[_ngcontent-%COMP%]   .mat-form-field-wrapper[_ngcontent-%COMP%] {\n  padding-bottom: 0;\n}\n.loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 60px 40px;\n  gap: 16px;\n}\n.loading-container[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  color: #666;\n  font-size: 1.1em;\n}\n.error-card[_ngcontent-%COMP%] {\n  margin: 16px 24px;\n  border: 2px solid #f44336;\n}\n.error-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n  gap: 16px;\n}\n.error-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  height: 48px;\n  width: 48px;\n}\n.error-card[_ngcontent-%COMP%]   .mat-card-content[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  color: #f44336;\n  font-size: 1.1em;\n  margin: 0;\n}\n.branch-list-container[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow-y: auto;\n  margin: 0 24px 16px;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-count[_ngcontent-%COMP%] {\n  padding: 8px 16px;\n  background-color: #f5f5f5;\n  border-radius: 4px 4px 0 0;\n  font-size: 0.9em;\n  color: #666;\n  font-weight: 500;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%] {\n  border: 1px solid #e0e0e0;\n  border-top: none;\n  border-radius: 0 0 4px 4px;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-header {\n  background-color: #fafafa;\n  border-bottom: 1px solid #e0e0e0;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-label {\n  min-width: 120px;\n  padding: 0 16px;\n  opacity: 0.8;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-label.mat-tab-label-active {\n  opacity: 1;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]     .mat-tab-body-wrapper {\n  max-height: calc(70vh - 300px);\n  overflow-y: auto;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]   .tab-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]   .tab-label[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-tabs[_ngcontent-%COMP%]   .tab-count[_ngcontent-%COMP%] {\n  margin-left: 4px;\n  font-size: 0.85em;\n  color: #666;\n}\n.branch-list-container[_ngcontent-%COMP%]   .branch-list[_ngcontent-%COMP%] {\n  padding: 0;\n}\n.branch-item[_ngcontent-%COMP%] {\n  cursor: pointer;\n  transition: all 0.2s ease;\n  border-bottom: 1px solid #f0f0f0;\n  padding: 12px 16px !important;\n  height: auto !important;\n  min-height: 60px;\n}\n.branch-item[_ngcontent-%COMP%]:hover:not(.disabled) {\n  background-color: #f5f5f5;\n}\n.branch-item.current[_ngcontent-%COMP%] {\n  background-color: #e3f2fd;\n  border-left: 4px solid #2196f3;\n}\n.branch-item.current[_ngcontent-%COMP%]:hover {\n  background-color: #bbdefb;\n}\n.branch-item.disabled[_ngcontent-%COMP%] {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n.branch-item[_ngcontent-%COMP%]:last-child {\n  border-bottom: none;\n}\n.branch-item[_ngcontent-%COMP%]   .mat-list-item-content[_ngcontent-%COMP%] {\n  padding: 0 !important;\n  height: auto !important;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n}\n.branch-item[_ngcontent-%COMP%]   mat-icon[matListIcon][_ngcontent-%COMP%] {\n  margin-right: 0;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 4px 0;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-name[_ngcontent-%COMP%] {\n  font-family: \"Courier New\", monospace;\n  font-size: 1.05em;\n  font-weight: 500;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-badge[_ngcontent-%COMP%] {\n  font-size: 0.7em;\n  padding: 2px 6px;\n  border-radius: 3px;\n  font-weight: 600;\n  letter-spacing: 0.5px;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-badge.current-badge[_ngcontent-%COMP%] {\n  background-color: #2196f3;\n  color: white;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-name-line[_ngcontent-%COMP%]   .branch-badge.remote-badge[_ngcontent-%COMP%] {\n  background-color: #9e9e9e;\n  color: white;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  font-size: 0.85em;\n  color: #666;\n  padding: 2px 0;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%]   .upstream-info[_ngcontent-%COMP%], .branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%]   .sync-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n}\n.branch-item[_ngcontent-%COMP%]   .branch-info-line[_ngcontent-%COMP%]   .small-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  height: 16px;\n  width: 16px;\n}\n.branch-item[_ngcontent-%COMP%]   .switch-button[_ngcontent-%COMP%] {\n  margin-left: auto;\n  color: #2196f3;\n}\n.branch-item[_ngcontent-%COMP%]   .switch-button[_ngcontent-%COMP%]:hover {\n  background-color: rgba(33, 150, 243, 0.1);\n}\n.empty-state[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 60px 40px;\n  text-align: center;\n  border: 1px solid #e0e0e0;\n  border-top: none;\n  border-radius: 0 0 4px 4px;\n}\n.empty-state[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 64px;\n  height: 64px;\n  width: 64px;\n  color: #bdbdbd;\n  margin-bottom: 16px;\n}\n.empty-state[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  font-size: 1.1em;\n  color: #666;\n  margin-bottom: 16px;\n}\n.switching-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background-color: rgba(255, 255, 255, 0.9);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 16px;\n  z-index: 1000;\n}\n.switching-overlay[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  font-size: 1.1em;\n  color: #666;\n  font-weight: 500;\n}\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n  border-top: 1px solid #e0e0e0;\n}\nmat-dialog-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n@media (max-width: 768px) {\n  .branch-dialog-content[_ngcontent-%COMP%] {\n    min-width: 90vw;\n    max-height: 80vh;\n  }\n  .current-branch-card[_ngcontent-%COMP%], .search-field[_ngcontent-%COMP%], .branch-list-container[_ngcontent-%COMP%] {\n    margin-left: 16px;\n    margin-right: 16px;\n  }\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImdpdC1icmFuY2gtZGlhbG9nLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUNBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtFQUNBLFNBQUE7RUFDQSxrQkFBQTtFQUNBLGdDQUFBO0FBQUY7QUFFRTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQUFKO0FBS0E7RUFDRSxxQkFBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxnQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLGtCQUFBO0FBRkY7QUFNQTtFQUNFLGlCQUFBO0VBQ0EsNkRBQUE7RUFDQSxZQUFBO0FBSEY7QUFLRTtFQUNFLGFBQUE7QUFISjtBQU1FO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtFQUNBLG1CQUFBO0FBSko7QUFNSTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQUpOO0FBT0k7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxRQUFBO0FBTE47QUFPTTtFQUNFLGlCQUFBO0VBQ0EsWUFBQTtBQUxSO0FBUU07RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EscUNBQUE7QUFOUjtBQVlJO0VBQ0UsYUFBQTtFQUNBLFFBQUE7QUFWTjtBQWFJO0VBQ0UscURBQUE7RUFDQSx1QkFBQTtBQVhOO0FBYU07RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxpQkFBQTtBQVhSO0FBa0JBO0VBQ0UsbUJBQUE7RUFDQSx3QkFBQTtBQWZGO0FBaUJFO0VBQ0UsaUJBQUE7QUFmSjtBQW9CQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLFNBQUE7QUFqQkY7QUFtQkU7RUFDRSxXQUFBO0VBQ0EsZ0JBQUE7QUFqQko7QUFzQkE7RUFDRSxpQkFBQTtFQUNBLHlCQUFBO0FBbkJGO0FBcUJFO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLGFBQUE7RUFDQSxTQUFBO0FBbkJKO0FBcUJJO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBbkJOO0FBc0JJO0VBQ0UsY0FBQTtFQUNBLGdCQUFBO0VBQ0EsU0FBQTtBQXBCTjtBQTBCQTtFQUNFLE9BQUE7RUFDQSxnQkFBQTtFQUNBLG1CQUFBO0FBdkJGO0FBeUJFO0VBQ0UsaUJBQUE7RUFDQSx5QkFBQTtFQUNBLDBCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUF2Qko7QUEwQkU7RUFDRSx5QkFBQTtFQUNBLGdCQUFBO0VBQ0EsMEJBQUE7QUF4Qko7QUEyQk07RUFDRSx5QkFBQTtFQUNBLGdDQUFBO0FBekJSO0FBNEJNO0VBQ0UsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsWUFBQTtBQTFCUjtBQTRCUTtFQUNFLFVBQUE7QUExQlY7QUE4Qk07RUFDRSw4QkFBQTtFQUNBLGdCQUFBO0FBNUJSO0FBZ0NJO0VBQ0UsaUJBQUE7RUFDQSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUE5Qk47QUFpQ0k7RUFDRSxnQkFBQTtBQS9CTjtBQWtDSTtFQUNFLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxXQUFBO0FBaENOO0FBb0NFO0VBQ0UsVUFBQTtBQWxDSjtBQXVDQTtFQUNFLGVBQUE7RUFDQSx5QkFBQTtFQUNBLGdDQUFBO0VBQ0EsNkJBQUE7RUFDQSx1QkFBQTtFQUNBLGdCQUFBO0FBcENGO0FBc0NFO0VBQ0UseUJBQUE7QUFwQ0o7QUF1Q0U7RUFDRSx5QkFBQTtFQUNBLDhCQUFBO0FBckNKO0FBdUNJO0VBQ0UseUJBQUE7QUFyQ047QUF5Q0U7RUFDRSxZQUFBO0VBQ0EsbUJBQUE7QUF2Q0o7QUEwQ0U7RUFDRSxtQkFBQTtBQXhDSjtBQTJDRTtFQUNFLHFCQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxTQUFBO0FBekNKO0FBNENFO0VBQ0UsZUFBQTtBQTFDSjtBQTZDRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxjQUFBO0FBM0NKO0FBNkNJO0VBQ0UscUNBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0FBM0NOO0FBOENJO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxxQkFBQTtBQTVDTjtBQThDTTtFQUNFLHlCQUFBO0VBQ0EsWUFBQTtBQTVDUjtBQStDTTtFQUNFLHlCQUFBO0VBQ0EsWUFBQTtBQTdDUjtBQWtERTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxpQkFBQTtFQUNBLFdBQUE7RUFDQSxjQUFBO0FBaERKO0FBa0RJOztFQUVFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUFoRE47QUFtREk7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFqRE47QUFxREU7RUFDRSxpQkFBQTtFQUNBLGNBQUE7QUFuREo7QUFxREk7RUFDRSx5Q0FBQTtBQW5ETjtBQXlEQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EseUJBQUE7RUFDQSxnQkFBQTtFQUNBLDBCQUFBO0FBdERGO0FBd0RFO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsY0FBQTtFQUNBLG1CQUFBO0FBdERKO0FBeURFO0VBQ0UsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7QUF2REo7QUE0REE7RUFDRSxrQkFBQTtFQUNBLE1BQUE7RUFDQSxPQUFBO0VBQ0EsUUFBQTtFQUNBLFNBQUE7RUFDQSwwQ0FBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxTQUFBO0VBQ0EsYUFBQTtBQXpERjtBQTJERTtFQUNFLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0FBekRKO0FBOERBO0VBQ0Usa0JBQUE7RUFDQSw2QkFBQTtBQTNERjtBQTZERTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUEzREo7QUFnRUE7RUFDRTtJQUNFLGVBQUE7SUFDQSxnQkFBQTtFQTdERjtFQWdFQTs7O0lBR0UsaUJBQUE7SUFDQSxrQkFBQTtFQTlERjtBQUNGIiwiZmlsZSI6ImdpdC1icmFuY2gtZGlhbG9nLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLy8gRGlhbG9nIFRpdGxlXHJcbmgyLm1hdC1kaWFsb2ctdGl0bGUge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDEycHg7XHJcbiAgbWFyZ2luOiAwO1xyXG4gIHBhZGRpbmc6IDE2cHggMjRweDtcclxuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2UwZTBlMDtcclxuXHJcbiAgLmRpYWxvZy1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogMjhweDtcclxuICAgIGhlaWdodDogMjhweDtcclxuICAgIHdpZHRoOiAyOHB4O1xyXG4gIH1cclxufVxyXG5cclxuLy8gRGlhbG9nIENvbnRlbnRcclxuLmJyYW5jaC1kaWFsb2ctY29udGVudCB7XHJcbiAgcGFkZGluZzogMCAhaW1wb3J0YW50O1xyXG4gIG1pbi13aWR0aDogNjAwcHg7XHJcbiAgbWluLWhlaWdodDogNDAwcHg7XHJcbiAgbWF4LWhlaWdodDogNzB2aDtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG59XHJcblxyXG4vLyBDdXJyZW50IEJyYW5jaCBTdW1tYXJ5IENhcmRcclxuLmN1cnJlbnQtYnJhbmNoLWNhcmQge1xyXG4gIG1hcmdpbjogMTZweCAyNHB4O1xyXG4gIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxMzVkZWcsICM2NjdlZWEgMCUsICM3NjRiYTIgMTAwJSk7XHJcbiAgY29sb3I6IHdoaXRlO1xyXG5cclxuICAubWF0LWNhcmQtY29udGVudCB7XHJcbiAgICBwYWRkaW5nOiAxNnB4O1xyXG4gIH1cclxuXHJcbiAgLmN1cnJlbnQtYnJhbmNoLWhlYWRlciB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogMTJweDtcclxuICAgIG1hcmdpbi1ib3R0b206IDEycHg7XHJcblxyXG4gICAgbWF0LWljb24ge1xyXG4gICAgICBmb250LXNpemU6IDMycHg7XHJcbiAgICAgIGhlaWdodDogMzJweDtcclxuICAgICAgd2lkdGg6IDMycHg7XHJcbiAgICB9XHJcblxyXG4gICAgLmJyYW5jaC1kZXRhaWxzIHtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgZ2FwOiA0cHg7XHJcblxyXG4gICAgICAuY3VycmVudC1sYWJlbCB7XHJcbiAgICAgICAgZm9udC1zaXplOiAwLjg1ZW07XHJcbiAgICAgICAgb3BhY2l0eTogMC45O1xyXG4gICAgICB9XHJcblxyXG4gICAgICAuY3VycmVudC1icmFuY2gtbmFtZSB7XHJcbiAgICAgICAgZm9udC1zaXplOiAxLjNlbTtcclxuICAgICAgICBmb250LXdlaWdodDogNjAwO1xyXG4gICAgICAgIGZvbnQtZmFtaWx5OiAnQ291cmllciBOZXcnLCBtb25vc3BhY2U7XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcblxyXG4gIC5icmFuY2gtc3RhdHMge1xyXG4gICAgbWF0LWNoaXAtbGlzdCB7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGdhcDogOHB4O1xyXG4gICAgfVxyXG5cclxuICAgIG1hdC1jaGlwIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjIpICFpbXBvcnRhbnQ7XHJcbiAgICAgIGNvbG9yOiB3aGl0ZSAhaW1wb3J0YW50O1xyXG5cclxuICAgICAgbWF0LWljb24ge1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgICAgICBoZWlnaHQ6IDE4cHg7XHJcbiAgICAgICAgd2lkdGg6IDE4cHg7XHJcbiAgICAgICAgbWFyZ2luLXJpZ2h0OiA0cHg7XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vIFNlYXJjaCBGaWVsZFxyXG4uc2VhcmNoLWZpZWxkIHtcclxuICBtYXJnaW46IDE2cHggMjRweCAwO1xyXG4gIHdpZHRoOiBjYWxjKDEwMCUgLSA0OHB4KTtcclxuXHJcbiAgLm1hdC1mb3JtLWZpZWxkLXdyYXBwZXIge1xyXG4gICAgcGFkZGluZy1ib3R0b206IDA7XHJcbiAgfVxyXG59XHJcblxyXG4vLyBMb2FkaW5nIENvbnRhaW5lclxyXG4ubG9hZGluZy1jb250YWluZXIge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIHBhZGRpbmc6IDYwcHggNDBweDtcclxuICBnYXA6IDE2cHg7XHJcblxyXG4gIHAge1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgICBmb250LXNpemU6IDEuMWVtO1xyXG4gIH1cclxufVxyXG5cclxuLy8gRXJyb3IgQ2FyZFxyXG4uZXJyb3ItY2FyZCB7XHJcbiAgbWFyZ2luOiAxNnB4IDI0cHg7XHJcbiAgYm9yZGVyOiAycHggc29saWQgI2Y0NDMzNjtcclxuXHJcbiAgLm1hdC1jYXJkLWNvbnRlbnQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICBwYWRkaW5nOiA0MHB4O1xyXG4gICAgZ2FwOiAxNnB4O1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiA0OHB4O1xyXG4gICAgICBoZWlnaHQ6IDQ4cHg7XHJcbiAgICAgIHdpZHRoOiA0OHB4O1xyXG4gICAgfVxyXG5cclxuICAgIHAge1xyXG4gICAgICBjb2xvcjogI2Y0NDMzNjtcclxuICAgICAgZm9udC1zaXplOiAxLjFlbTtcclxuICAgICAgbWFyZ2luOiAwO1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLy8gQnJhbmNoIExpc3QgQ29udGFpbmVyXHJcbi5icmFuY2gtbGlzdC1jb250YWluZXIge1xyXG4gIGZsZXg6IDE7XHJcbiAgb3ZlcmZsb3cteTogYXV0bztcclxuICBtYXJnaW46IDAgMjRweCAxNnB4O1xyXG5cclxuICAuYnJhbmNoLWNvdW50IHtcclxuICAgIHBhZGRpbmc6IDhweCAxNnB4O1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogI2Y1ZjVmNTtcclxuICAgIGJvcmRlci1yYWRpdXM6IDRweCA0cHggMCAwO1xyXG4gICAgZm9udC1zaXplOiAwLjllbTtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICB9XHJcblxyXG4gIC5icmFuY2gtdGFicyB7XHJcbiAgICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG4gICAgYm9yZGVyLXRvcDogbm9uZTtcclxuICAgIGJvcmRlci1yYWRpdXM6IDAgMCA0cHggNHB4O1xyXG5cclxuICAgIDo6bmctZGVlcCB7XHJcbiAgICAgIC5tYXQtdGFiLWhlYWRlciB7XHJcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2ZhZmFmYTtcclxuICAgICAgICBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2UwZTBlMDtcclxuICAgICAgfVxyXG5cclxuICAgICAgLm1hdC10YWItbGFiZWwge1xyXG4gICAgICAgIG1pbi13aWR0aDogMTIwcHg7XHJcbiAgICAgICAgcGFkZGluZzogMCAxNnB4O1xyXG4gICAgICAgIG9wYWNpdHk6IDAuODtcclxuXHJcbiAgICAgICAgJi5tYXQtdGFiLWxhYmVsLWFjdGl2ZSB7XHJcbiAgICAgICAgICBvcGFjaXR5OiAxO1xyXG4gICAgICAgIH1cclxuICAgICAgfVxyXG5cclxuICAgICAgLm1hdC10YWItYm9keS13cmFwcGVyIHtcclxuICAgICAgICBtYXgtaGVpZ2h0OiBjYWxjKDcwdmggLSAzMDBweCk7XHJcbiAgICAgICAgb3ZlcmZsb3cteTogYXV0bztcclxuICAgICAgfVxyXG4gICAgfVxyXG5cclxuICAgIC50YWItaWNvbiB7XHJcbiAgICAgIG1hcmdpbi1yaWdodDogOHB4O1xyXG4gICAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICAgIGhlaWdodDogMThweDtcclxuICAgICAgd2lkdGg6IDE4cHg7XHJcbiAgICB9XHJcblxyXG4gICAgLnRhYi1sYWJlbCB7XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICB9XHJcblxyXG4gICAgLnRhYi1jb3VudCB7XHJcbiAgICAgIG1hcmdpbi1sZWZ0OiA0cHg7XHJcbiAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xyXG4gICAgICBjb2xvcjogIzY2NjtcclxuICAgIH1cclxuICB9XHJcblxyXG4gIC5icmFuY2gtbGlzdCB7XHJcbiAgICBwYWRkaW5nOiAwO1xyXG4gIH1cclxufVxyXG5cclxuLy8gQnJhbmNoIExpc3QgSXRlbXNcclxuLmJyYW5jaC1pdGVtIHtcclxuICBjdXJzb3I6IHBvaW50ZXI7XHJcbiAgdHJhbnNpdGlvbjogYWxsIDAuMnMgZWFzZTtcclxuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2YwZjBmMDtcclxuICBwYWRkaW5nOiAxMnB4IDE2cHggIWltcG9ydGFudDtcclxuICBoZWlnaHQ6IGF1dG8gIWltcG9ydGFudDtcclxuICBtaW4taGVpZ2h0OiA2MHB4O1xyXG5cclxuICAmOmhvdmVyOm5vdCguZGlzYWJsZWQpIHtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XHJcbiAgfVxyXG5cclxuICAmLmN1cnJlbnQge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogI2UzZjJmZDtcclxuICAgIGJvcmRlci1sZWZ0OiA0cHggc29saWQgIzIxOTZmMztcclxuXHJcbiAgICAmOmhvdmVyIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2JiZGVmYjtcclxuICAgIH1cclxuICB9XHJcblxyXG4gICYuZGlzYWJsZWQge1xyXG4gICAgb3BhY2l0eTogMC41O1xyXG4gICAgY3Vyc29yOiBub3QtYWxsb3dlZDtcclxuICB9XHJcblxyXG4gICY6bGFzdC1jaGlsZCB7XHJcbiAgICBib3JkZXItYm90dG9tOiBub25lO1xyXG4gIH1cclxuXHJcbiAgLm1hdC1saXN0LWl0ZW0tY29udGVudCB7XHJcbiAgICBwYWRkaW5nOiAwICFpbXBvcnRhbnQ7XHJcbiAgICBoZWlnaHQ6IGF1dG8gIWltcG9ydGFudDtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgZ2FwOiAxMnB4O1xyXG4gIH1cclxuXHJcbiAgbWF0LWljb25bbWF0TGlzdEljb25dIHtcclxuICAgIG1hcmdpbi1yaWdodDogMDtcclxuICB9XHJcblxyXG4gIC5icmFuY2gtbmFtZS1saW5lIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgZ2FwOiA4cHg7XHJcbiAgICBwYWRkaW5nOiA0cHggMDtcclxuXHJcbiAgICAuYnJhbmNoLW5hbWUge1xyXG4gICAgICBmb250LWZhbWlseTogJ0NvdXJpZXIgTmV3JywgbW9ub3NwYWNlO1xyXG4gICAgICBmb250LXNpemU6IDEuMDVlbTtcclxuICAgICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgIH1cclxuXHJcbiAgICAuYnJhbmNoLWJhZGdlIHtcclxuICAgICAgZm9udC1zaXplOiAwLjdlbTtcclxuICAgICAgcGFkZGluZzogMnB4IDZweDtcclxuICAgICAgYm9yZGVyLXJhZGl1czogM3B4O1xyXG4gICAgICBmb250LXdlaWdodDogNjAwO1xyXG4gICAgICBsZXR0ZXItc3BhY2luZzogMC41cHg7XHJcblxyXG4gICAgICAmLmN1cnJlbnQtYmFkZ2Uge1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICMyMTk2ZjM7XHJcbiAgICAgICAgY29sb3I6IHdoaXRlO1xyXG4gICAgICB9XHJcblxyXG4gICAgICAmLnJlbW90ZS1iYWRnZSB7XHJcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogIzllOWU5ZTtcclxuICAgICAgICBjb2xvcjogd2hpdGU7XHJcbiAgICAgIH1cclxuICAgIH1cclxuICB9XHJcblxyXG4gIC5icmFuY2gtaW5mby1saW5lIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgZ2FwOiAxMnB4O1xyXG4gICAgZm9udC1zaXplOiAwLjg1ZW07XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICAgIHBhZGRpbmc6IDJweCAwO1xyXG5cclxuICAgIC51cHN0cmVhbS1pbmZvLFxyXG4gICAgLnN5bmMtaW5mbyB7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICAgIGdhcDogNHB4O1xyXG4gICAgfVxyXG5cclxuICAgIC5zbWFsbC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAxNnB4O1xyXG4gICAgICBoZWlnaHQ6IDE2cHg7XHJcbiAgICAgIHdpZHRoOiAxNnB4O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgLnN3aXRjaC1idXR0b24ge1xyXG4gICAgbWFyZ2luLWxlZnQ6IGF1dG87XHJcbiAgICBjb2xvcjogIzIxOTZmMztcclxuXHJcbiAgICAmOmhvdmVyIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgzMywgMTUwLCAyNDMsIDAuMSk7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4vLyBFbXB0eSBTdGF0ZVxyXG4uZW1wdHktc3RhdGUge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIHBhZGRpbmc6IDYwcHggNDBweDtcclxuICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgYm9yZGVyOiAxcHggc29saWQgI2UwZTBlMDtcclxuICBib3JkZXItdG9wOiBub25lO1xyXG4gIGJvcmRlci1yYWRpdXM6IDAgMCA0cHggNHB4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBmb250LXNpemU6IDY0cHg7XHJcbiAgICBoZWlnaHQ6IDY0cHg7XHJcbiAgICB3aWR0aDogNjRweDtcclxuICAgIGNvbG9yOiAjYmRiZGJkO1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICB9XHJcblxyXG4gIHAge1xyXG4gICAgZm9udC1zaXplOiAxLjFlbTtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICB9XHJcbn1cclxuXHJcbi8vIFN3aXRjaGluZyBPdmVybGF5XHJcbi5zd2l0Y2hpbmctb3ZlcmxheSB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogMDtcclxuICBsZWZ0OiAwO1xyXG4gIHJpZ2h0OiAwO1xyXG4gIGJvdHRvbTogMDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuOSk7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgZ2FwOiAxNnB4O1xyXG4gIHotaW5kZXg6IDEwMDA7XHJcblxyXG4gIHAge1xyXG4gICAgZm9udC1zaXplOiAxLjFlbTtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICB9XHJcbn1cclxuXHJcbi8vIERpYWxvZyBBY3Rpb25zXHJcbm1hdC1kaWFsb2ctYWN0aW9ucyB7XHJcbiAgcGFkZGluZzogMTZweCAyNHB4O1xyXG4gIGJvcmRlci10b3A6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBidXR0b24ge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICB9XHJcbn1cclxuXHJcbi8vIFJlc3BvbnNpdmUgYWRqdXN0bWVudHNcclxuQG1lZGlhIChtYXgtd2lkdGg6IDc2OHB4KSB7XHJcbiAgLmJyYW5jaC1kaWFsb2ctY29udGVudCB7XHJcbiAgICBtaW4td2lkdGg6IDkwdnc7XHJcbiAgICBtYXgtaGVpZ2h0OiA4MHZoO1xyXG4gIH1cclxuXHJcbiAgLmN1cnJlbnQtYnJhbmNoLWNhcmQsXHJcbiAgLnNlYXJjaC1maWVsZCxcclxuICAuYnJhbmNoLWxpc3QtY29udGFpbmVyIHtcclxuICAgIG1hcmdpbi1sZWZ0OiAxNnB4O1xyXG4gICAgbWFyZ2luLXJpZ2h0OiAxNnB4O1xyXG4gIH1cclxufVxyXG4iXX0= */"]
-});
 
 /***/ }),
 
@@ -1733,16 +1945,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitHistoryDialogComponent": () => (/* binding */ GitHistoryDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
-/* harmony import */ var _angular_material_table__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/material/table */ 5288);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/material/legacy-table */ 6538);
 /* harmony import */ var _angular_material_sort__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/sort */ 2197);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
-
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 
 
 
@@ -1756,105 +1967,144 @@ __webpack_require__.r(__webpack_exports__);
 
 
 const _c0 = ["graphCanvas"];
-function GitHistoryDialogComponent_div_3_Template(rf, ctx) { if (rf & 1) {
+function GitHistoryDialogComponent_div_3_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "mat-spinner");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "p");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3, "Caricamento cronologia commit...");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} }
-function GitHistoryDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_4_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 7)(1, "mat-icon", 8);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "error");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "p");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r1.error);
-} }
-function GitHistoryDialogComponent_div_5_div_10_th_3_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_th_3_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "th", 29);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " Hash ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_10_td_4_mat_icon_3_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_td_4_mat_icon_3_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-icon", 33);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, "merge_type");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_10_td_4_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_td_4_Template(rf, ctx) {
+  if (rf & 1) {
     const _r19 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "td", 30)(1, "span", 31);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_5_div_10_td_4_Template_span_click_1_listener() { const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r19); const commit_r16 = restoredCtx.$implicit; const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](3); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r18.copyHash(commit_r16.hash)); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_5_div_10_td_4_Template_span_click_1_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r19);
+      const commit_r16 = restoredCtx.$implicit;
+      const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r18.copyHash(commit_r16.hash));
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_5_div_10_td_4_mat_icon_3_Template, 2, 0, "mat-icon", 32);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const commit_r16 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", commit_r16.shortHash || commit_r16.hash.substring(0, 7), " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", commit_r16.isMerge);
-} }
-function GitHistoryDialogComponent_div_5_div_10_th_6_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_th_6_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "th", 29);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " Data ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_10_td_7_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_td_7_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "td", 34);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const commit_r20 = ctx.$implicit;
     const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", ctx_r8.formatDate(commit_r20.date), " ");
-} }
-function GitHistoryDialogComponent_div_5_div_10_th_9_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_th_9_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "th", 29);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " Autore ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_10_td_10_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_td_10_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "td", 35);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const commit_r21 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", commit_r21.author, " ");
-} }
-function GitHistoryDialogComponent_div_5_div_10_th_12_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_th_12_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "th", 36);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " Messaggio ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_10_td_13_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_td_13_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "td", 37);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const commit_r22 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", commit_r22.message, " ");
-} }
-function GitHistoryDialogComponent_div_5_div_10_tr_14_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_tr_14_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](0, "tr", 38);
-} }
-function GitHistoryDialogComponent_div_5_div_10_tr_15_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_tr_15_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](0, "tr", 39);
-} }
-function GitHistoryDialogComponent_div_5_div_10_div_16_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_div_16_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 40);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " Nessun commit trovato ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_10_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_10_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 14)(1, "table", 15);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementContainerStart"](2, 16);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_5_div_10_th_3_Template, 2, 0, "th", 17);
@@ -1877,7 +2127,8 @@ function GitHistoryDialogComponent_div_5_div_10_Template(rf, ctx) { if (rf & 1) 
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](16, GitHistoryDialogComponent_div_5_div_10_div_16_Template, 2, 0, "div", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("dataSource", ctx_r3.dataSource);
@@ -1887,33 +2138,48 @@ function GitHistoryDialogComponent_div_5_div_10_Template(rf, ctx) { if (rf & 1) 
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("matRowDefColumns", ctx_r3.displayedColumns);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r3.commits.length === 0);
-} }
-function GitHistoryDialogComponent_div_5_div_11_div_3_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_11_div_3_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 40);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1, " Nessun commit trovato ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} }
-function GitHistoryDialogComponent_div_5_div_11_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_div_11_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 41);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "canvas", 42, 43);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_5_div_11_div_3_Template, 2, 0, "div", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r4.commits.length === 0);
-} }
-function GitHistoryDialogComponent_div_5_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitHistoryDialogComponent_div_5_Template(rf, ctx) {
+  if (rf & 1) {
     const _r27 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 9)(1, "div", 10)(2, "button", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_5_Template_button_click_2_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r27); const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r26.switchView("table")); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_5_Template_button_click_2_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r27);
+      const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r26.switchView("table"));
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4, "table_chart");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](5, " Tabella ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "button", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_5_Template_button_click_6_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r27); const ctx_r28 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r28.switchView("graph")); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_5_Template_button_click_6_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r27);
+      const ctx_r28 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r28.switchView("graph"));
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](8, "account_tree");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
@@ -1922,7 +2188,8 @@ function GitHistoryDialogComponent_div_5_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](10, GitHistoryDialogComponent_div_5_div_10_Template, 17, 4, "div", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](11, GitHistoryDialogComponent_div_5_div_11_Template, 4, 1, "div", 13);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("color", ctx_r2.selectedView === "table" ? "primary" : "");
@@ -1932,149 +2199,172 @@ function GitHistoryDialogComponent_div_5_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r2.selectedView === "table");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r2.selectedView === "graph");
-} }
-class GitHistoryDialogComponent {
-    constructor(dialogRef, data, gitService) {
-        this.dialogRef = dialogRef;
-        this.data = data;
-        this.gitService = gitService;
-        this.isLoading = true;
-        this.error = null;
-        this.commits = [];
-        this.displayedColumns = ['hash', 'date', 'author', 'message'];
-        this.selectedView = 'table';
-        this.dataSource = new _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatTableDataSource([]);
-    }
-    ngOnInit() {
-        this.loadCommitHistory();
-    }
-    ngAfterViewInit() {
-        this.dataSource.sort = this.sort;
-    }
-    loadCommitHistory() {
-        this.isLoading = true;
-        this.error = null;
-        this.gitService.getCommitHistory(this.data.projectPath, 100).subscribe({
-            next: (commits) => {
-                this.isLoading = false;
-                this.commits = commits;
-                this.dataSource.data = commits;
-                // If graph view is selected and we have commits, render the graph
-                if (this.selectedView === 'graph' && commits.length > 0) {
-                    setTimeout(() => this.renderGraph(), 100);
-                }
-            },
-            error: (err) => {
-                this.isLoading = false;
-                this.error = 'Errore nel caricamento della cronologia dei commit';
-                console.error('Error loading commit history:', err);
-            }
-        });
-    }
-    switchView(view) {
-        this.selectedView = view;
-        if (view === 'graph' && this.commits.length > 0) {
-            setTimeout(() => this.renderGraph(), 100);
-        }
-    }
-    renderGraph() {
-        // Basic graph rendering using canvas
-        // This is a simplified implementation - you can enhance it with @gitgraph/js
-        if (!this.graphCanvas || !this.graphCanvas.nativeElement) {
-            return;
-        }
-        const canvas = this.graphCanvas.nativeElement;
-        const ctx = canvas.getContext('2d');
-        if (!ctx)
-            return;
-        // Set canvas size
-        canvas.width = canvas.offsetWidth;
-        canvas.height = this.commits.length * 60 + 40;
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Draw commits
-        const commitHeight = 60;
-        const nodeRadius = 6;
-        const leftMargin = 20;
-        this.commits.forEach((commit, index) => {
-            const y = index * commitHeight + 30;
-            // Draw line to next commit
-            if (index < this.commits.length - 1) {
-                ctx.strokeStyle = '#999';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(leftMargin, y);
-                ctx.lineTo(leftMargin, y + commitHeight);
-                ctx.stroke();
-            }
-            // Draw commit node
-            ctx.fillStyle = commit.isMerge ? '#ff6b6b' : '#4caf50';
-            ctx.beginPath();
-            ctx.arc(leftMargin, y, nodeRadius, 0, 2 * Math.PI);
-            ctx.fill();
-            // Draw commit info
-            ctx.fillStyle = '#333';
-            ctx.font = '12px monospace';
-            ctx.fillText(commit.shortHash || commit.hash.substring(0, 7), leftMargin + 20, y - 5);
-            ctx.font = '11px sans-serif';
-            ctx.fillStyle = '#666';
-            const dateStr = new Date(commit.date).toLocaleDateString();
-            ctx.fillText(`${dateStr} - ${commit.author}`, leftMargin + 20, y + 8);
-            // Truncate message if too long
-            const maxMessageWidth = canvas.width - leftMargin - 40;
-            let message = commit.message;
-            if (ctx.measureText(message).width > maxMessageWidth) {
-                while (ctx.measureText(message + '...').width > maxMessageWidth && message.length > 0) {
-                    message = message.substring(0, message.length - 1);
-                }
-                message += '...';
-            }
-            ctx.fillText(message, leftMargin + 20, y + 20);
-        });
-    }
-    formatDate(date) {
-        const d = typeof date === 'string' ? new Date(date) : date;
-        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
-    }
-    copyHash(hash) {
-        navigator.clipboard.writeText(hash);
-    }
-    onClose() {
-        this.dialogRef.close();
-    }
+  }
 }
-GitHistoryDialogComponent.ɵfac = function GitHistoryDialogComponent_Factory(t) { return new (t || GitHistoryDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_0__.GITService)); };
-GitHistoryDialogComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({ type: GitHistoryDialogComponent, selectors: [["app-git-history-dialog"]], viewQuery: function GitHistoryDialogComponent_Query(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_c0, 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_angular_material_sort__WEBPACK_IMPORTED_MODULE_4__.MatSort, 5);
-    } if (rf & 2) {
-        let _t;
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.graphCanvas = _t.first);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.sort = _t.first);
-    } }, decls: 9, vars: 4, consts: [["mat-dialog-title", ""], ["class", "loading-container", 4, "ngIf"], ["class", "error-container", 4, "ngIf"], ["class", "history-content", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], [1, "loading-container"], [1, "error-container"], ["color", "warn"], [1, "history-content"], [1, "view-toggle"], ["mat-button", "", 3, "color", "click"], ["class", "table-container", 4, "ngIf"], ["class", "graph-container", 4, "ngIf"], [1, "table-container"], ["mat-table", "", "matSort", "", 1, "commit-table", 3, "dataSource"], ["matColumnDef", "hash"], ["mat-header-cell", "", "mat-sort-header", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "hash-cell", 4, "matCellDef"], ["matColumnDef", "date"], ["mat-cell", "", "class", "date-cell", 4, "matCellDef"], ["matColumnDef", "author"], ["mat-cell", "", "class", "author-cell", 4, "matCellDef"], ["matColumnDef", "message"], ["mat-header-cell", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "message-cell", 4, "matCellDef"], ["mat-header-row", "", 4, "matHeaderRowDef"], ["mat-row", "", 4, "matRowDef", "matRowDefColumns"], ["class", "no-commits", 4, "ngIf"], ["mat-header-cell", "", "mat-sort-header", ""], ["mat-cell", "", 1, "hash-cell"], ["title", "Click to copy", 1, "hash-text", 3, "click"], ["class", "merge-icon", "title", "Merge commit", 4, "ngIf"], ["title", "Merge commit", 1, "merge-icon"], ["mat-cell", "", 1, "date-cell"], ["mat-cell", "", 1, "author-cell"], ["mat-header-cell", ""], ["mat-cell", "", 1, "message-cell"], ["mat-header-row", ""], ["mat-row", ""], [1, "no-commits"], [1, "graph-container"], [1, "graph-canvas"], ["graphCanvas", ""]], template: function GitHistoryDialogComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h2", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "mat-dialog-content");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_3_Template, 4, 0, "div", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](4, GitHistoryDialogComponent_div_4_Template, 5, 1, "div", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](5, GitHistoryDialogComponent_div_5_Template, 12, 4, "div", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "mat-dialog-actions", 4)(7, "button", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_Template_button_click_7_listener() { return ctx.onClose(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](8, "Chiudi");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"]("Git History ", ctx.data.projectName ? "- " + ctx.data.projectName : "", "");
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.error && !ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.error);
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_button__WEBPACK_IMPORTED_MODULE_6__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_8__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogActions, _angular_material_sort__WEBPACK_IMPORTED_MODULE_4__.MatSort, _angular_material_sort__WEBPACK_IMPORTED_MODULE_4__.MatSortHeader, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatTable, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatHeaderCellDef, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatHeaderRowDef, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatColumnDef, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatCellDef, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatRowDef, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatHeaderCell, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatCell, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatHeaderRow, _angular_material_table__WEBPACK_IMPORTED_MODULE_2__.MatRow], styles: [".loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n}\n\n.error-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n  color: #f44336;\n}\n\n.error-container[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  height: 48px;\n  width: 48px;\n  margin-bottom: 16px;\n}\n\n.history-content[_ngcontent-%COMP%] {\n  min-width: 800px;\n  max-height: 600px;\n  overflow: auto;\n}\n\n.view-toggle[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 16px;\n  padding: 8px;\n  border-bottom: 1px solid #e0e0e0;\n}\n\n.table-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n}\n\n.commit-table[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%] {\n  font-family: monospace;\n}\n\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .hash-text[_ngcontent-%COMP%] {\n  cursor: pointer;\n  padding: 2px 4px;\n  border-radius: 3px;\n}\n\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .hash-text[_ngcontent-%COMP%]:hover {\n  background-color: #f0f0f0;\n}\n\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .merge-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n  margin-left: 8px;\n  color: #ff6b6b;\n  vertical-align: middle;\n}\n\n.commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%] {\n  white-space: nowrap;\n  font-size: 0.9em;\n}\n\n.commit-table[_ngcontent-%COMP%]   .author-cell[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%] {\n  max-width: 400px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.commit-table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:hover {\n  background-color: #f5f5f5;\n}\n\n.graph-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n  padding: 16px;\n  background-color: #fafafa;\n  border-radius: 4px;\n}\n\n.graph-canvas[_ngcontent-%COMP%] {\n  width: 100%;\n  min-height: 400px;\n  background-color: white;\n  border: 1px solid #e0e0e0;\n  border-radius: 4px;\n}\n\n.no-commits[_ngcontent-%COMP%] {\n  text-align: center;\n  padding: 40px;\n  color: #666;\n  font-style: italic;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImdpdC1oaXN0b3J5LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0FBQ0Y7O0FBRUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsYUFBQTtFQUNBLGNBQUE7QUFDRjs7QUFDRTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLG1CQUFBO0FBQ0o7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLGlCQUFBO0VBQ0EsY0FBQTtBQUFGOztBQUdBO0VBQ0UsYUFBQTtFQUNBLFFBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxnQ0FBQTtBQUFGOztBQUdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0FBQUY7O0FBR0E7RUFDRSxXQUFBO0FBQUY7O0FBRUU7RUFDRSxzQkFBQTtBQUFKOztBQUVJO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7QUFBTjs7QUFFTTtFQUNFLHlCQUFBO0FBQVI7O0FBSUk7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxzQkFBQTtBQUZOOztBQU1FO0VBQ0UsbUJBQUE7RUFDQSxnQkFBQTtBQUpKOztBQU9FO0VBQ0UsZ0JBQUE7QUFMSjs7QUFRRTtFQUNFLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSx1QkFBQTtFQUNBLG1CQUFBO0FBTko7O0FBU0U7RUFDRSx5QkFBQTtBQVBKOztBQVdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsYUFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7QUFSRjs7QUFXQTtFQUNFLFdBQUE7RUFDQSxpQkFBQTtFQUNBLHVCQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtBQVJGOztBQVdBO0VBQ0Usa0JBQUE7RUFDQSxhQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0FBUkY7O0FBV0E7RUFDRSxlQUFBO0FBUkY7O0FBV0E7RUFDRSxrQkFBQTtBQVJGIiwiZmlsZSI6ImdpdC1oaXN0b3J5LWRpYWxvZy5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5sb2FkaW5nLWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgcGFkZGluZzogNDBweDtcclxufVxyXG5cclxuLmVycm9yLWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgcGFkZGluZzogNDBweDtcclxuICBjb2xvcjogI2Y0NDMzNjtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgZm9udC1zaXplOiA0OHB4O1xyXG4gICAgaGVpZ2h0OiA0OHB4O1xyXG4gICAgd2lkdGg6IDQ4cHg7XHJcbiAgICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG4gIH1cclxufVxyXG5cclxuLmhpc3RvcnktY29udGVudCB7XHJcbiAgbWluLXdpZHRoOiA4MDBweDtcclxuICBtYXgtaGVpZ2h0OiA2MDBweDtcclxuICBvdmVyZmxvdzogYXV0bztcclxufVxyXG5cclxuLnZpZXctdG9nZ2xlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGdhcDogOHB4O1xyXG4gIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbiAgcGFkZGluZzogOHB4O1xyXG4gIGJvcmRlci1ib3R0b206IDFweCBzb2xpZCAjZTBlMGUwO1xyXG59XHJcblxyXG4udGFibGUtY29udGFpbmVyIHtcclxuICBvdmVyZmxvdzogYXV0bztcclxuICBtYXgtaGVpZ2h0OiA1MDBweDtcclxufVxyXG5cclxuLmNvbW1pdC10YWJsZSB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcblxyXG4gIC5oYXNoLWNlbGwge1xyXG4gICAgZm9udC1mYW1pbHk6IG1vbm9zcGFjZTtcclxuXHJcbiAgICAuaGFzaC10ZXh0IHtcclxuICAgICAgY3Vyc29yOiBwb2ludGVyO1xyXG4gICAgICBwYWRkaW5nOiAycHggNHB4O1xyXG4gICAgICBib3JkZXItcmFkaXVzOiAzcHg7XHJcblxyXG4gICAgICAmOmhvdmVyIHtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjBmMGYwO1xyXG4gICAgICB9XHJcbiAgICB9XHJcblxyXG4gICAgLm1lcmdlLWljb24ge1xyXG4gICAgICBmb250LXNpemU6IDE2cHg7XHJcbiAgICAgIHdpZHRoOiAxNnB4O1xyXG4gICAgICBoZWlnaHQ6IDE2cHg7XHJcbiAgICAgIG1hcmdpbi1sZWZ0OiA4cHg7XHJcbiAgICAgIGNvbG9yOiAjZmY2YjZiO1xyXG4gICAgICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgLmRhdGUtY2VsbCB7XHJcbiAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xyXG4gICAgZm9udC1zaXplOiAwLjllbTtcclxuICB9XHJcblxyXG4gIC5hdXRob3ItY2VsbCB7XHJcbiAgICBmb250LXdlaWdodDogNTAwO1xyXG4gIH1cclxuXHJcbiAgLm1lc3NhZ2UtY2VsbCB7XHJcbiAgICBtYXgtd2lkdGg6IDQwMHB4O1xyXG4gICAgb3ZlcmZsb3c6IGhpZGRlbjtcclxuICAgIHRleHQtb3ZlcmZsb3c6IGVsbGlwc2lzO1xyXG4gICAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcclxuICB9XHJcblxyXG4gIHRyOmhvdmVyIHtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XHJcbiAgfVxyXG59XHJcblxyXG4uZ3JhcGgtY29udGFpbmVyIHtcclxuICBvdmVyZmxvdzogYXV0bztcclxuICBtYXgtaGVpZ2h0OiA1MDBweDtcclxuICBwYWRkaW5nOiAxNnB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNmYWZhZmE7XHJcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG59XHJcblxyXG4uZ3JhcGgtY2FudmFzIHtcclxuICB3aWR0aDogMTAwJTtcclxuICBtaW4taGVpZ2h0OiA0MDBweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiB3aGl0ZTtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxufVxyXG5cclxuLm5vLWNvbW1pdHMge1xyXG4gIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICBwYWRkaW5nOiA0MHB4O1xyXG4gIGNvbG9yOiAjNjY2O1xyXG4gIGZvbnQtc3R5bGU6IGl0YWxpYztcclxufVxyXG5cclxubWF0LWRpYWxvZy1jb250ZW50IHtcclxuICBwYWRkaW5nOiAwIDI0cHg7XHJcbn1cclxuXHJcbm1hdC1kaWFsb2ctYWN0aW9ucyB7XHJcbiAgcGFkZGluZzogMTZweCAyNHB4O1xyXG59Il19 */"] });
-
+class GitHistoryDialogComponent {
+  constructor(dialogRef, data, gitService) {
+    this.dialogRef = dialogRef;
+    this.data = data;
+    this.gitService = gitService;
+    this.isLoading = true;
+    this.error = null;
+    this.commits = [];
+    this.displayedColumns = ['hash', 'date', 'author', 'message'];
+    this.selectedView = 'table';
+    this.dataSource = new _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyTableDataSource([]);
+  }
+  ngOnInit() {
+    this.loadCommitHistory();
+  }
+  ngAfterViewInit() {
+    this.dataSource.sort = this.sort;
+  }
+  loadCommitHistory() {
+    this.isLoading = true;
+    this.error = null;
+    this.gitService.getCommitHistory(this.data.projectPath, 100).subscribe({
+      next: commits => {
+        this.isLoading = false;
+        this.commits = commits;
+        this.dataSource.data = commits;
+        // If graph view is selected and we have commits, render the graph
+        if (this.selectedView === 'graph' && commits.length > 0) {
+          setTimeout(() => this.renderGraph(), 100);
+        }
+      },
+      error: err => {
+        this.isLoading = false;
+        this.error = 'Errore nel caricamento della cronologia dei commit';
+        console.error('Error loading commit history:', err);
+      }
+    });
+  }
+  switchView(view) {
+    this.selectedView = view;
+    if (view === 'graph' && this.commits.length > 0) {
+      setTimeout(() => this.renderGraph(), 100);
+    }
+  }
+  renderGraph() {
+    // Basic graph rendering using canvas
+    // This is a simplified implementation - you can enhance it with @gitgraph/js
+    if (!this.graphCanvas || !this.graphCanvas.nativeElement) {
+      return;
+    }
+    const canvas = this.graphCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    // Set canvas size
+    canvas.width = canvas.offsetWidth;
+    canvas.height = this.commits.length * 60 + 40;
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Draw commits
+    const commitHeight = 60;
+    const nodeRadius = 6;
+    const leftMargin = 20;
+    this.commits.forEach((commit, index) => {
+      const y = index * commitHeight + 30;
+      // Draw line to next commit
+      if (index < this.commits.length - 1) {
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(leftMargin, y);
+        ctx.lineTo(leftMargin, y + commitHeight);
+        ctx.stroke();
+      }
+      // Draw commit node
+      ctx.fillStyle = commit.isMerge ? '#ff6b6b' : '#4caf50';
+      ctx.beginPath();
+      ctx.arc(leftMargin, y, nodeRadius, 0, 2 * Math.PI);
+      ctx.fill();
+      // Draw commit info
+      ctx.fillStyle = '#333';
+      ctx.font = '12px monospace';
+      ctx.fillText(commit.shortHash || commit.hash.substring(0, 7), leftMargin + 20, y - 5);
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#666';
+      const dateStr = new Date(commit.date).toLocaleDateString();
+      ctx.fillText(`${dateStr} - ${commit.author}`, leftMargin + 20, y + 8);
+      // Truncate message if too long
+      const maxMessageWidth = canvas.width - leftMargin - 40;
+      let message = commit.message;
+      if (ctx.measureText(message).width > maxMessageWidth) {
+        while (ctx.measureText(message + '...').width > maxMessageWidth && message.length > 0) {
+          message = message.substring(0, message.length - 1);
+        }
+        message += '...';
+      }
+      ctx.fillText(message, leftMargin + 20, y + 20);
+    });
+  }
+  formatDate(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+  }
+  copyHash(hash) {
+    navigator.clipboard.writeText(hash);
+  }
+  onClose() {
+    this.dialogRef.close();
+  }
+  static {
+    this.ɵfac = function GitHistoryDialogComponent_Factory(t) {
+      return new (t || GitHistoryDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_0__.GITService));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineComponent"]({
+      type: GitHistoryDialogComponent,
+      selectors: [["app-git-history-dialog"]],
+      viewQuery: function GitHistoryDialogComponent_Query(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_c0, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵviewQuery"](_angular_material_sort__WEBPACK_IMPORTED_MODULE_4__.MatSort, 5);
+        }
+        if (rf & 2) {
+          let _t;
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.graphCanvas = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵloadQuery"]()) && (ctx.sort = _t.first);
+        }
+      },
+      decls: 9,
+      vars: 4,
+      consts: [["mat-dialog-title", ""], ["class", "loading-container", 4, "ngIf"], ["class", "error-container", 4, "ngIf"], ["class", "history-content", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], [1, "loading-container"], [1, "error-container"], ["color", "warn"], [1, "history-content"], [1, "view-toggle"], ["mat-button", "", 3, "color", "click"], ["class", "table-container", 4, "ngIf"], ["class", "graph-container", 4, "ngIf"], [1, "table-container"], ["mat-table", "", "matSort", "", 1, "commit-table", 3, "dataSource"], ["matColumnDef", "hash"], ["mat-header-cell", "", "mat-sort-header", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "hash-cell", 4, "matCellDef"], ["matColumnDef", "date"], ["mat-cell", "", "class", "date-cell", 4, "matCellDef"], ["matColumnDef", "author"], ["mat-cell", "", "class", "author-cell", 4, "matCellDef"], ["matColumnDef", "message"], ["mat-header-cell", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "message-cell", 4, "matCellDef"], ["mat-header-row", "", 4, "matHeaderRowDef"], ["mat-row", "", 4, "matRowDef", "matRowDefColumns"], ["class", "no-commits", 4, "ngIf"], ["mat-header-cell", "", "mat-sort-header", ""], ["mat-cell", "", 1, "hash-cell"], ["title", "Click to copy", 1, "hash-text", 3, "click"], ["class", "merge-icon", "title", "Merge commit", 4, "ngIf"], ["title", "Merge commit", 1, "merge-icon"], ["mat-cell", "", 1, "date-cell"], ["mat-cell", "", 1, "author-cell"], ["mat-header-cell", ""], ["mat-cell", "", 1, "message-cell"], ["mat-header-row", ""], ["mat-row", ""], [1, "no-commits"], [1, "graph-container"], [1, "graph-canvas"], ["graphCanvas", ""]],
+      template: function GitHistoryDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "mat-dialog-content");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_3_Template, 4, 0, "div", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](4, GitHistoryDialogComponent_div_4_Template, 5, 1, "div", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](5, GitHistoryDialogComponent_div_5_Template, 12, 4, "div", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "mat-dialog-actions", 4)(7, "button", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function GitHistoryDialogComponent_Template_button_click_7_listener() {
+            return ctx.onClose();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](8, "Chiudi");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"]("Git History ", ctx.data.projectName ? "- " + ctx.data.projectName : "", "");
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx.error && !ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.error);
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_8__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogActions, _angular_material_sort__WEBPACK_IMPORTED_MODULE_4__.MatSort, _angular_material_sort__WEBPACK_IMPORTED_MODULE_4__.MatSortHeader, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyTable, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyHeaderCellDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyHeaderRowDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyColumnDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyCellDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyRowDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyHeaderCell, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyCell, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyHeaderRow, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_2__.MatLegacyRow],
+      styles: [".loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n}\n\n.error-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n  color: #f44336;\n}\n.error-container[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  height: 48px;\n  width: 48px;\n  margin-bottom: 16px;\n}\n\n.history-content[_ngcontent-%COMP%] {\n  min-width: 800px;\n  max-height: 600px;\n  overflow: auto;\n}\n\n.view-toggle[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 16px;\n  padding: 8px;\n  border-bottom: 1px solid #e0e0e0;\n}\n\n.table-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n}\n\n.commit-table[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%] {\n  font-family: monospace;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .hash-text[_ngcontent-%COMP%] {\n  cursor: pointer;\n  padding: 2px 4px;\n  border-radius: 3px;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .hash-text[_ngcontent-%COMP%]:hover {\n  background-color: #f0f0f0;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .merge-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n  margin-left: 8px;\n  color: #ff6b6b;\n  vertical-align: middle;\n}\n.commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%] {\n  white-space: nowrap;\n  font-size: 0.9em;\n}\n.commit-table[_ngcontent-%COMP%]   .author-cell[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%] {\n  max-width: 400px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.commit-table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:hover {\n  background-color: #f5f5f5;\n}\n\n.graph-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n  padding: 16px;\n  background-color: #fafafa;\n  border-radius: 4px;\n}\n\n.graph-canvas[_ngcontent-%COMP%] {\n  width: 100%;\n  min-height: 400px;\n  background-color: white;\n  border: 1px solid #e0e0e0;\n  border-radius: 4px;\n}\n\n.no-commits[_ngcontent-%COMP%] {\n  text-align: center;\n  padding: 40px;\n  color: #666;\n  font-style: italic;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LWhpc3RvcnktZGlhbG9nL2dpdC1oaXN0b3J5LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0FBQ0Y7O0FBRUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsYUFBQTtFQUNBLGNBQUE7QUFDRjtBQUNFO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7QUFDSjs7QUFHQTtFQUNFLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxjQUFBO0FBQUY7O0FBR0E7RUFDRSxhQUFBO0VBQ0EsUUFBQTtFQUNBLG1CQUFBO0VBQ0EsWUFBQTtFQUNBLGdDQUFBO0FBQUY7O0FBR0E7RUFDRSxjQUFBO0VBQ0EsaUJBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7QUFBRjtBQUVFO0VBQ0Usc0JBQUE7QUFBSjtBQUVJO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7QUFBTjtBQUVNO0VBQ0UseUJBQUE7QUFBUjtBQUlJO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0Esc0JBQUE7QUFGTjtBQU1FO0VBQ0UsbUJBQUE7RUFDQSxnQkFBQTtBQUpKO0FBT0U7RUFDRSxnQkFBQTtBQUxKO0FBUUU7RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsdUJBQUE7RUFDQSxtQkFBQTtBQU5KO0FBU0U7RUFDRSx5QkFBQTtBQVBKOztBQVdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsYUFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7QUFSRjs7QUFXQTtFQUNFLFdBQUE7RUFDQSxpQkFBQTtFQUNBLHVCQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtBQVJGOztBQVdBO0VBQ0Usa0JBQUE7RUFDQSxhQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0FBUkY7O0FBV0E7RUFDRSxlQUFBO0FBUkY7O0FBV0E7RUFDRSxrQkFBQTtBQVJGIiwic291cmNlc0NvbnRlbnQiOlsiLmxvYWRpbmctY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBwYWRkaW5nOiA0MHB4O1xyXG59XHJcblxyXG4uZXJyb3ItY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcclxuICBwYWRkaW5nOiA0MHB4O1xyXG4gIGNvbG9yOiAjZjQ0MzM2O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBmb250LXNpemU6IDQ4cHg7XHJcbiAgICBoZWlnaHQ6IDQ4cHg7XHJcbiAgICB3aWR0aDogNDhweDtcclxuICAgIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbiAgfVxyXG59XHJcblxyXG4uaGlzdG9yeS1jb250ZW50IHtcclxuICBtaW4td2lkdGg6IDgwMHB4O1xyXG4gIG1heC1oZWlnaHQ6IDYwMHB4O1xyXG4gIG92ZXJmbG93OiBhdXRvO1xyXG59XHJcblxyXG4udmlldy10b2dnbGUge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZ2FwOiA4cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICBwYWRkaW5nOiA4cHg7XHJcbiAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNlMGUwZTA7XHJcbn1cclxuXHJcbi50YWJsZS1jb250YWluZXIge1xyXG4gIG92ZXJmbG93OiBhdXRvO1xyXG4gIG1heC1oZWlnaHQ6IDUwMHB4O1xyXG59XHJcblxyXG4uY29tbWl0LXRhYmxlIHtcclxuICB3aWR0aDogMTAwJTtcclxuXHJcbiAgLmhhc2gtY2VsbCB7XHJcbiAgICBmb250LWZhbWlseTogbW9ub3NwYWNlO1xyXG5cclxuICAgIC5oYXNoLXRleHQge1xyXG4gICAgICBjdXJzb3I6IHBvaW50ZXI7XHJcbiAgICAgIHBhZGRpbmc6IDJweCA0cHg7XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDNweDtcclxuXHJcbiAgICAgICY6aG92ZXIge1xyXG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmMGYwZjA7XHJcbiAgICAgIH1cclxuICAgIH1cclxuXHJcbiAgICAubWVyZ2UtaWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMTZweDtcclxuICAgICAgd2lkdGg6IDE2cHg7XHJcbiAgICAgIGhlaWdodDogMTZweDtcclxuICAgICAgbWFyZ2luLWxlZnQ6IDhweDtcclxuICAgICAgY29sb3I6ICNmZjZiNmI7XHJcbiAgICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAuZGF0ZS1jZWxsIHtcclxuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XHJcbiAgICBmb250LXNpemU6IDAuOWVtO1xyXG4gIH1cclxuXHJcbiAgLmF1dGhvci1jZWxsIHtcclxuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgfVxyXG5cclxuICAubWVzc2FnZS1jZWxsIHtcclxuICAgIG1heC13aWR0aDogNDAwcHg7XHJcbiAgICBvdmVyZmxvdzogaGlkZGVuO1xyXG4gICAgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7XHJcbiAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xyXG4gIH1cclxuXHJcbiAgdHI6aG92ZXIge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogI2Y1ZjVmNTtcclxuICB9XHJcbn1cclxuXHJcbi5ncmFwaC1jb250YWluZXIge1xyXG4gIG92ZXJmbG93OiBhdXRvO1xyXG4gIG1heC1oZWlnaHQ6IDUwMHB4O1xyXG4gIHBhZGRpbmc6IDE2cHg7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2ZhZmFmYTtcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbn1cclxuXHJcbi5ncmFwaC1jYW52YXMge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIG1pbi1oZWlnaHQ6IDQwMHB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6IHdoaXRlO1xyXG4gIGJvcmRlcjogMXB4IHNvbGlkICNlMGUwZTA7XHJcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG59XHJcblxyXG4ubm8tY29tbWl0cyB7XHJcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gIHBhZGRpbmc6IDQwcHg7XHJcbiAgY29sb3I6ICM2NjY7XHJcbiAgZm9udC1zdHlsZTogaXRhbGljO1xyXG59XHJcblxyXG5tYXQtZGlhbG9nLWNvbnRlbnQge1xyXG4gIHBhZGRpbmc6IDAgMjRweDtcclxufVxyXG5cclxubWF0LWRpYWxvZy1hY3Rpb25zIHtcclxuICBwYWRkaW5nOiAxNnB4IDI0cHg7XHJcbn0iXSwic291cmNlUm9vdCI6IiJ9 */"]
+    });
+  }
+}
 
 /***/ }),
 
@@ -2088,20 +2378,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitInitWizardDialogComponent": () => (/* binding */ GitInitWizardDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _models_git_init_models__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../models/git-init.models */ 3601);
 /* harmony import */ var _git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component */ 8995);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
-/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/snack-bar */ 930);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/core */ 9121);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_select__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/select */ 7371);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-core */ 7090);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-select */ 6002);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/forms */ 2508);
 
 
@@ -2119,24 +2409,30 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function GitInitWizardDialogComponent_div_5_Template(rf, ctx) { if (rf & 1) {
+function GitInitWizardDialogComponent_div_5_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 6);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "mat-spinner", 7);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "p", 8);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "Initializing Git repository...");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} }
-function GitInitWizardDialogComponent_div_6_mat_option_21_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitInitWizardDialogComponent_div_6_mat_option_21_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-option", 21);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const template_r6 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("value", template_r6.value);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", template_r6.label, " ");
-} }
-function GitInitWizardDialogComponent_div_6_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitInitWizardDialogComponent_div_6_Template(rf, ctx) {
+  if (rf & 1) {
     const _r8 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div")(1, "p", 9);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, " Initialize a new Git repository in this project folder. ");
@@ -2145,7 +2441,11 @@ function GitInitWizardDialogComponent_div_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5, "Repository Path");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](6, "input", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitInitWizardDialogComponent_div_6_Template_input_ngModelChange_6_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r8); const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r7.repositoryPath = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitInitWizardDialogComponent_div_6_Template_input_ngModelChange_6_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r8);
+      const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r7.repositoryPath = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "mat-icon", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8, "folder");
@@ -2154,7 +2454,11 @@ function GitInitWizardDialogComponent_div_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](11, "Initial Branch Name");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](12, "input", 13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitInitWizardDialogComponent_div_6_Template_input_ngModelChange_12_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r8); const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r9.initialBranch = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitInitWizardDialogComponent_div_6_Template_input_ngModelChange_12_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r8);
+      const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r9.initialBranch = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](13, "mat-icon", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](14, "account_tree");
@@ -2166,7 +2470,11 @@ function GitInitWizardDialogComponent_div_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](19, "Select .gitignore Template");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](20, "mat-select", 14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitInitWizardDialogComponent_div_6_Template_mat_select_ngModelChange_20_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r8); const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r10.gitignoreTemplate = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitInitWizardDialogComponent_div_6_Template_mat_select_ngModelChange_20_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r8);
+      const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r10.gitignoreTemplate = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](21, GitInitWizardDialogComponent_div_6_mat_option_21_Template, 2, 2, "mat-option", 15);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](22, "mat-icon", 12);
@@ -2192,7 +2500,8 @@ function GitInitWizardDialogComponent_div_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](39, "strong");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](40);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r1.repositoryPath);
@@ -2208,8 +2517,10 @@ function GitInitWizardDialogComponent_div_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](".gitignore file (", ctx_r1.gitignoreTemplate, " template)");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r1.initialBranch);
-} }
-function GitInitWizardDialogComponent_div_7_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitInitWizardDialogComponent_div_7_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div")(1, "div", 22)(2, "mat-icon", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "check_circle");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -2228,190 +2539,229 @@ function GitInitWizardDialogComponent_div_7_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](14, "p", 28);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](15, " Would you like to connect this repository to a remote Git service (GitHub, GitLab, etc.)? This allows you to backup your code and collaborate with others. ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](7);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r2.initMessage);
-} }
-function GitInitWizardDialogComponent_div_9_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitInitWizardDialogComponent_div_9_Template(rf, ctx) {
+  if (rf & 1) {
     const _r12 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 29)(1, "button", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_9_Template_button_click_1_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r12); const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r11.cancel()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_9_Template_button_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r12);
+      const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r11.cancel());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, " Cancel ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "button", 31);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_9_Template_button_click_3_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r12); const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r13.initializeGit()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_9_Template_button_click_3_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r12);
+      const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r13.initializeGit());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5, "add_circle");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6, " Initialize Git ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx_r3.isLoading);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx_r3.isLoading);
-} }
-function GitInitWizardDialogComponent_div_10_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitInitWizardDialogComponent_div_10_Template(rf, ctx) {
+  if (rf & 1) {
     const _r15 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 29)(1, "button", 32);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_10_Template_button_click_1_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r15); const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r14.skipRemoteSetup()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_10_Template_button_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r15);
+      const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r14.skipRemoteSetup());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "skip_next");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4, " Skip for Now ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](5, "button", 33);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_10_Template_button_click_5_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r15); const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r16.setupRemote()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitInitWizardDialogComponent_div_10_Template_button_click_5_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r15);
+      const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r16.setupRemote());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](6, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](7, "cloud_upload");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8, " Setup Remote ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} }
-class GitInitWizardDialogComponent {
-    constructor(dialogRef, data, gitService, snackBar, dialog) {
-        this.dialogRef = dialogRef;
-        this.data = data;
-        this.gitService = gitService;
-        this.snackBar = snackBar;
-        this.dialog = dialog;
-        // Wizard state
-        this.currentStep = 0;
-        this.isLoading = false;
-        this.initialBranch = 'main';
-        this.gitignoreTemplate = 'mdexplorer';
-        this.gitignoreTemplates = _models_git_init_models__WEBPACK_IMPORTED_MODULE_0__.GITIGNORE_TEMPLATES;
-        // Results
-        this.initSuccess = false;
-        this.initMessage = '';
-        this.repositoryPath = data.repositoryPath;
-    }
-    ngOnInit() {
-        console.log('[GitInitWizard] Initialized for path:', this.repositoryPath);
-    }
-    /**
-     * Initialize Git repository (Step 1)
-     */
-    initializeGit() {
-        if (!this.repositoryPath) {
-            this.snackBar.open('Repository path is required', 'OK', {
-                duration: 3000,
-                verticalPosition: 'top'
-            });
-            return;
-        }
-        this.isLoading = true;
-        const request = {
-            repositoryPath: this.repositoryPath,
-            initialBranch: this.initialBranch,
-            gitignoreTemplate: this.gitignoreTemplate
-        };
-        console.log('[GitInitWizard] Initializing Git repository:', request);
-        this.gitService.initRepository(request).subscribe((response) => {
-            this.isLoading = false;
-            if (response.success) {
-                this.initSuccess = true;
-                this.initMessage = response.message;
-                console.log('[GitInitWizard] ✅ Git repository initialized successfully');
-                this.snackBar.open('Git repository initialized successfully!', 'OK', {
-                    duration: 3000,
-                    verticalPosition: 'top',
-                    panelClass: ['success-snackbar']
-                });
-                // Move to step 2 (Remote Setup)
-                this.currentStep = 1;
-            }
-            else {
-                console.error('[GitInitWizard] ❌ Initialization failed:', response.message);
-                this.snackBar.open(`Initialization failed: ${response.message}`, 'OK', {
-                    duration: 5000,
-                    verticalPosition: 'top',
-                    panelClass: ['error-snackbar']
-                });
-            }
-        }, (error) => {
-            this.isLoading = false;
-            console.error('[GitInitWizard] ❌ Error initializing repository:', error);
-            const errorMessage = error?.error?.message || error?.message || 'Unknown error';
-            this.snackBar.open(`Error: ${errorMessage}`, 'OK', {
-                duration: 5000,
-                verticalPosition: 'top',
-                panelClass: ['error-snackbar']
-            });
-        });
-    }
-    /**
-     * Open remote setup dialog (Step 2)
-     */
-    setupRemote() {
-        const projectName = this.repositoryPath.split(/[/\\]/).pop() || 'repository';
-        const remoteDialogRef = this.dialog.open(_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_1__.GitSetupRemoteGenericDialogComponent, {
-            width: '650px',
-            data: {
-                projectPath: this.repositoryPath,
-                projectName: projectName
-            }
-        });
-        remoteDialogRef.afterClosed().subscribe(result => {
-            if (result) {
-                console.log('[GitInitWizard] Remote setup completed');
-                // Close wizard after successful remote setup
-                this.dialogRef.close(true);
-            }
-        });
-    }
-    /**
-     * Skip remote setup and close wizard
-     */
-    skipRemoteSetup() {
-        console.log('[GitInitWizard] Skipping remote setup');
-        this.dialogRef.close(true);
-    }
-    /**
-     * Cancel wizard
-     */
-    cancel() {
-        this.dialogRef.close(false);
-    }
-    /**
-     * Get selected template description
-     */
-    getSelectedTemplateDescription() {
-        const template = this.gitignoreTemplates.find(t => t.value === this.gitignoreTemplate);
-        return template ? template.description : '';
-    }
+  }
 }
-GitInitWizardDialogComponent.ɵfac = function GitInitWizardDialogComponent_Factory(t) { return new (t || GitInitWizardDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_2__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatSnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialog)); };
-GitInitWizardDialogComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: GitInitWizardDialogComponent, selectors: [["app-git-init-wizard-dialog"]], decls: 11, vars: 5, consts: [["mat-dialog-title", ""], [2, "vertical-align", "middle"], ["style", "text-align: center; padding: 40px;", 4, "ngIf"], [4, "ngIf"], ["align", "end"], ["style", "display: flex; gap: 8px; width: 100%; justify-content: flex-end;", 4, "ngIf"], [2, "text-align", "center", "padding", "40px"], ["diameter", "50", 2, "margin", "0 auto"], [2, "margin-top", "20px", "color", "#666"], [2, "margin-bottom", "20px", "color", "#666"], ["appearance", "outline", 2, "width", "100%", "margin-bottom", "16px"], ["matInput", "", "readonly", "", 3, "ngModel", "ngModelChange"], ["matSuffix", ""], ["matInput", "", "placeholder", "main", 3, "ngModel", "ngModelChange"], [3, "ngModel", "ngModelChange"], [3, "value", 4, "ngFor", "ngForOf"], [2, "background", "#f5f5f5", "padding", "12px", "border-radius", "4px", "margin-bottom", "16px"], [2, "display", "flex", "align-items", "center", "gap", "8px", "margin-bottom", "8px"], [2, "color", "#666", "font-size", "20px"], [2, "color", "#333"], [2, "margin", "0", "padding-left", "24px", "color", "#666"], [3, "value"], [2, "text-align", "center", "padding", "20px"], [2, "color", "#4caf50", "font-size", "64px", "width", "64px", "height", "64px"], [2, "color", "#4caf50", "margin", "16px 0 8px 0"], [2, "color", "#666", "margin-bottom", "24px"], [2, "background", "#e3f2fd", "padding", "16px", "border-radius", "4px", "border-left", "4px solid #2196f3", "text-align", "left"], [2, "color", "#2196f3"], [2, "margin", "0", "color", "#666"], [2, "display", "flex", "gap", "8px", "width", "100%", "justify-content", "flex-end"], ["mat-button", "", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "click"]], template: function GitInitWizardDialogComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "settings");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, " Initialize Git Repository\n");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-dialog-content");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, GitInitWizardDialogComponent_div_5_Template, 4, 0, "div", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitInitWizardDialogComponent_div_6_Template, 41, 7, "div", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitInitWizardDialogComponent_div_7_Template, 16, 1, "div", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "mat-dialog-actions", 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, GitInitWizardDialogComponent_div_9_Template, 7, 2, "div", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, GitInitWizardDialogComponent_div_10_Template, 9, 0, "div", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && ctx.currentStep === 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && ctx.currentStep === 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.currentStep === 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.currentStep === 1);
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_core__WEBPACK_IMPORTED_MODULE_7__.MatOption, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_8__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_8__.MatHint, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLabel, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_8__.MatSuffix, _angular_material_input__WEBPACK_IMPORTED_MODULE_9__.MatInput, _angular_material_select__WEBPACK_IMPORTED_MODULE_10__.MatSelect, _angular_material_button__WEBPACK_IMPORTED_MODULE_11__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_13__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgModel], styles: ["mat-dialog-content[_ngcontent-%COMP%] {\n  min-height: 300px;\n  max-height: 70vh;\n  padding: 24px;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.success-snackbar[_ngcontent-%COMP%] {\n  background-color: #4caf50 !important;\n  color: white !important;\n}\n\n.error-snackbar[_ngcontent-%COMP%] {\n  background-color: #f44336 !important;\n  color: white !important;\n}\n\nmat-icon[_ngcontent-%COMP%] {\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImdpdC1pbml0LXdpemFyZC1kaWFsb2cuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsYUFBQTtBQUNGOztBQUVBO0VBQ0UsV0FBQTtBQUNGOztBQUVBO0VBQ0Usb0NBQUE7RUFDQSx1QkFBQTtBQUNGOztBQUVBO0VBQ0Usb0NBQUE7RUFDQSx1QkFBQTtBQUNGOztBQUVBO0VBQ0Usc0JBQUE7QUFDRiIsImZpbGUiOiJnaXQtaW5pdC13aXphcmQtZGlhbG9nLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsibWF0LWRpYWxvZy1jb250ZW50IHtcclxuICBtaW4taGVpZ2h0OiAzMDBweDtcclxuICBtYXgtaGVpZ2h0OiA3MHZoO1xyXG4gIHBhZGRpbmc6IDI0cHg7XHJcbn1cclxuXHJcbm1hdC1mb3JtLWZpZWxkIHtcclxuICB3aWR0aDogMTAwJTtcclxufVxyXG5cclxuLnN1Y2Nlc3Mtc25hY2tiYXIge1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICM0Y2FmNTAgIWltcG9ydGFudDtcclxuICBjb2xvcjogd2hpdGUgIWltcG9ydGFudDtcclxufVxyXG5cclxuLmVycm9yLXNuYWNrYmFyIHtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjQ0MzM2ICFpbXBvcnRhbnQ7XHJcbiAgY29sb3I6IHdoaXRlICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbm1hdC1pY29uIHtcclxuICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xyXG59XHJcbiJdfQ== */"] });
-
+class GitInitWizardDialogComponent {
+  constructor(dialogRef, data, gitService, snackBar, dialog) {
+    this.dialogRef = dialogRef;
+    this.data = data;
+    this.gitService = gitService;
+    this.snackBar = snackBar;
+    this.dialog = dialog;
+    // Wizard state
+    this.currentStep = 0;
+    this.isLoading = false;
+    this.initialBranch = 'main';
+    this.gitignoreTemplate = 'mdexplorer';
+    this.gitignoreTemplates = _models_git_init_models__WEBPACK_IMPORTED_MODULE_0__.GITIGNORE_TEMPLATES;
+    // Results
+    this.initSuccess = false;
+    this.initMessage = '';
+    this.repositoryPath = data.repositoryPath;
+  }
+  ngOnInit() {
+    console.log('[GitInitWizard] Initialized for path:', this.repositoryPath);
+  }
+  /**
+   * Initialize Git repository (Step 1)
+   */
+  initializeGit() {
+    if (!this.repositoryPath) {
+      this.snackBar.open('Repository path is required', 'OK', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+      return;
+    }
+    this.isLoading = true;
+    const request = {
+      repositoryPath: this.repositoryPath,
+      initialBranch: this.initialBranch,
+      gitignoreTemplate: this.gitignoreTemplate
+    };
+    console.log('[GitInitWizard] Initializing Git repository:', request);
+    this.gitService.initRepository(request).subscribe(response => {
+      this.isLoading = false;
+      if (response.success) {
+        this.initSuccess = true;
+        this.initMessage = response.message;
+        console.log('[GitInitWizard] ✅ Git repository initialized successfully');
+        this.snackBar.open('Git repository initialized successfully!', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top',
+          panelClass: ['success-snackbar']
+        });
+        // Move to step 2 (Remote Setup)
+        this.currentStep = 1;
+      } else {
+        console.error('[GitInitWizard] ❌ Initialization failed:', response.message);
+        this.snackBar.open(`Initialization failed: ${response.message}`, 'OK', {
+          duration: 5000,
+          verticalPosition: 'top',
+          panelClass: ['error-snackbar']
+        });
+      }
+    }, error => {
+      this.isLoading = false;
+      console.error('[GitInitWizard] ❌ Error initializing repository:', error);
+      const errorMessage = error?.error?.message || error?.message || 'Unknown error';
+      this.snackBar.open(`Error: ${errorMessage}`, 'OK', {
+        duration: 5000,
+        verticalPosition: 'top',
+        panelClass: ['error-snackbar']
+      });
+    });
+  }
+  /**
+   * Open remote setup dialog (Step 2)
+   */
+  setupRemote() {
+    const projectName = this.repositoryPath.split(/[/\\]/).pop() || 'repository';
+    const remoteDialogRef = this.dialog.open(_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_1__.GitSetupRemoteGenericDialogComponent, {
+      width: '650px',
+      data: {
+        projectPath: this.repositoryPath,
+        projectName: projectName
+      }
+    });
+    remoteDialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        console.log('[GitInitWizard] Remote setup completed');
+        // Close wizard after successful remote setup
+        this.dialogRef.close(true);
+      }
+    });
+  }
+  /**
+   * Skip remote setup and close wizard
+   */
+  skipRemoteSetup() {
+    console.log('[GitInitWizard] Skipping remote setup');
+    this.dialogRef.close(true);
+  }
+  /**
+   * Cancel wizard
+   */
+  cancel() {
+    this.dialogRef.close(false);
+  }
+  /**
+   * Get selected template description
+   */
+  getSelectedTemplateDescription() {
+    const template = this.gitignoreTemplates.find(t => t.value === this.gitignoreTemplate);
+    return template ? template.description : '';
+  }
+  static {
+    this.ɵfac = function GitInitWizardDialogComponent_Factory(t) {
+      return new (t || GitInitWizardDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_2__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialog));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({
+      type: GitInitWizardDialogComponent,
+      selectors: [["app-git-init-wizard-dialog"]],
+      decls: 11,
+      vars: 5,
+      consts: [["mat-dialog-title", ""], [2, "vertical-align", "middle"], ["style", "text-align: center; padding: 40px;", 4, "ngIf"], [4, "ngIf"], ["align", "end"], ["style", "display: flex; gap: 8px; width: 100%; justify-content: flex-end;", 4, "ngIf"], [2, "text-align", "center", "padding", "40px"], ["diameter", "50", 2, "margin", "0 auto"], [2, "margin-top", "20px", "color", "#666"], [2, "margin-bottom", "20px", "color", "#666"], ["appearance", "outline", 2, "width", "100%", "margin-bottom", "16px"], ["matInput", "", "readonly", "", 3, "ngModel", "ngModelChange"], ["matSuffix", ""], ["matInput", "", "placeholder", "main", 3, "ngModel", "ngModelChange"], [3, "ngModel", "ngModelChange"], [3, "value", 4, "ngFor", "ngForOf"], [2, "background", "#f5f5f5", "padding", "12px", "border-radius", "4px", "margin-bottom", "16px"], [2, "display", "flex", "align-items", "center", "gap", "8px", "margin-bottom", "8px"], [2, "color", "#666", "font-size", "20px"], [2, "color", "#333"], [2, "margin", "0", "padding-left", "24px", "color", "#666"], [3, "value"], [2, "text-align", "center", "padding", "20px"], [2, "color", "#4caf50", "font-size", "64px", "width", "64px", "height", "64px"], [2, "color", "#4caf50", "margin", "16px 0 8px 0"], [2, "color", "#666", "margin-bottom", "24px"], [2, "background", "#e3f2fd", "padding", "16px", "border-radius", "4px", "border-left", "4px solid #2196f3", "text-align", "left"], [2, "color", "#2196f3"], [2, "margin", "0", "color", "#666"], [2, "display", "flex", "gap", "8px", "width", "100%", "justify-content", "flex-end"], ["mat-button", "", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "click"]],
+      template: function GitInitWizardDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "settings");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, " Initialize Git Repository\n");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-dialog-content");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, GitInitWizardDialogComponent_div_5_Template, 4, 0, "div", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitInitWizardDialogComponent_div_6_Template, 41, 7, "div", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitInitWizardDialogComponent_div_7_Template, 16, 1, "div", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "mat-dialog-actions", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, GitInitWizardDialogComponent_div_9_Template, 7, 2, "div", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, GitInitWizardDialogComponent_div_10_Template, 9, 0, "div", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && ctx.currentStep === 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && ctx.currentStep === 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.currentStep === 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.currentStep === 1);
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_7__.MatLegacyOption, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyLabel, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacySuffix, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_9__.MatLegacyInput, _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_10__.MatLegacySelect, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_11__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_13__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgModel],
+      styles: ["mat-dialog-content[_ngcontent-%COMP%] {\n  min-height: 300px;\n  max-height: 70vh;\n  padding: 24px;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.success-snackbar[_ngcontent-%COMP%] {\n  background-color: #4caf50 !important;\n  color: white !important;\n}\n\n.error-snackbar[_ngcontent-%COMP%] {\n  background-color: #f44336 !important;\n  color: white !important;\n}\n\nmat-icon[_ngcontent-%COMP%] {\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LWluaXQtd2l6YXJkL2dpdC1pbml0LXdpemFyZC1kaWFsb2cuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsYUFBQTtBQUNGOztBQUVBO0VBQ0UsV0FBQTtBQUNGOztBQUVBO0VBQ0Usb0NBQUE7RUFDQSx1QkFBQTtBQUNGOztBQUVBO0VBQ0Usb0NBQUE7RUFDQSx1QkFBQTtBQUNGOztBQUVBO0VBQ0Usc0JBQUE7QUFDRiIsInNvdXJjZXNDb250ZW50IjpbIm1hdC1kaWFsb2ctY29udGVudCB7XHJcbiAgbWluLWhlaWdodDogMzAwcHg7XHJcbiAgbWF4LWhlaWdodDogNzB2aDtcclxuICBwYWRkaW5nOiAyNHB4O1xyXG59XHJcblxyXG5tYXQtZm9ybS1maWVsZCB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbn1cclxuXHJcbi5zdWNjZXNzLXNuYWNrYmFyIHtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjNGNhZjUwICFpbXBvcnRhbnQ7XHJcbiAgY29sb3I6IHdoaXRlICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbi5lcnJvci1zbmFja2JhciB7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2Y0NDMzNiAhaW1wb3J0YW50O1xyXG4gIGNvbG9yOiB3aGl0ZSAhaW1wb3J0YW50O1xyXG59XHJcblxyXG5tYXQtaWNvbiB7XHJcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcclxufVxyXG4iXSwic291cmNlUm9vdCI6IiJ9 */"]
+    });
+  }
+}
 
 /***/ }),
 
@@ -2425,20 +2775,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitSetupRemoteDialogComponent": () => (/* binding */ GitSetupRemoteDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../git-token-dialog/git-token-dialog.component */ 3701);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
-/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/snack-bar */ 930);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_checkbox__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/checkbox */ 4792);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_radio__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/radio */ 2922);
+/* harmony import */ var _angular_material_legacy_checkbox__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-checkbox */ 8469);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-radio */ 3493);
 /* harmony import */ var _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/expansion */ 7591);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/forms */ 2508);
 
 
@@ -2456,14 +2806,17 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function GitSetupRemoteDialogComponent_div_3_Template(rf, ctx) { if (rf & 1) {
+function GitSetupRemoteDialogComponent_div_3_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 7);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "mat-spinner", 8);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "Caricamento configurazione...");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-} }
-function GitSetupRemoteDialogComponent_div_4_div_6_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteDialogComponent_div_4_div_6_Template(rf, ctx) {
+  if (rf & 1) {
     const _r7 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 28)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "warning");
@@ -2474,35 +2827,47 @@ function GitSetupRemoteDialogComponent_div_4_div_6_Template(rf, ctx) { if (rf & 
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](6, "br");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, " Per creare automaticamente il repository, \u00E8 necessario configurare un Personal Access Token GitHub. ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "a", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitSetupRemoteDialogComponent_div_4_div_6_Template_a_click_8_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r7); const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r6.openTokenSettings()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitSetupRemoteDialogComponent_div_4_div_6_Template_a_click_8_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r7);
+      const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r6.openTokenSettings());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Configura token");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
-} }
-function GitSetupRemoteDialogComponent_div_4_div_42_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteDialogComponent_div_4_div_42_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 30)(1, "strong");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "URL Repository:");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "code");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r4.getGitHubUrl());
-} }
-function GitSetupRemoteDialogComponent_div_4_div_48_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteDialogComponent_div_4_div_48_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 31)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "error");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r5.error);
-} }
-function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) {
+  if (rf & 1) {
     const _r9 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 9)(1, "div", 10)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "info");
@@ -2515,7 +2880,11 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Organizzazione GitHub / Username");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](10, "input", 13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_input_ngModelChange_10_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r8.organization = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_input_ngModelChange_10_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
+      const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r8.organization = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](11, "mat-icon", 14);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](12, "business");
@@ -2527,7 +2896,11 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](17, "Nome Repository");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](18, "input", 15);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_input_ngModelChange_18_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r10.repositoryName = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_input_ngModelChange_18_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
+      const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r10.repositoryName = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](19, "mat-icon", 14);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](20, "folder_open");
@@ -2539,7 +2912,11 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](25, "Descrizione Repository (opzionale)");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](26, "textarea", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_textarea_ngModelChange_26_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r11.repositoryDescription = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_textarea_ngModelChange_26_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
+      const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r11.repositoryDescription = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](27, "      ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](28, "mat-icon", 14);
@@ -2549,7 +2926,11 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](32, "Visibilit\u00E0 Repository:");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](33, "mat-radio-group", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_mat_radio_group_ngModelChange_33_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r12.isPrivate = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_mat_radio_group_ngModelChange_33_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
+      const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r12.isPrivate = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](34, "mat-radio-button", 20)(35, "mat-icon", 21);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](36, "lock");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
@@ -2562,11 +2943,19 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](42, GitSetupRemoteDialogComponent_div_4_div_42_Template, 5, 1, "div", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](43, "div", 24)(44, "mat-checkbox", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_mat_checkbox_ngModelChange_44_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r13.saveOrganization = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_mat_checkbox_ngModelChange_44_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
+      const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r13.saveOrganization = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](45, " Ricorda organizzazione per progetti futuri ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](46, "mat-checkbox", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_mat_checkbox_ngModelChange_46_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9); const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r14.pushAfterAdd = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteDialogComponent_div_4_Template_mat_checkbox_ngModelChange_46_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
+      const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r14.pushAfterAdd = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](47, " Push automatico dei commit esistenti ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](48, GitSetupRemoteDialogComponent_div_4_div_48_Template, 5, 1, "div", 25);
@@ -2601,7 +2990,8 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](73, "li");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](74, "Torna qui e clicca su \"Configura\"");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", !ctx_r1.hasToken);
@@ -2628,152 +3018,178 @@ function GitSetupRemoteDialogComponent_div_4_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r1.error);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](15);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r1.repositoryName || "nome-repository");
-} }
-function GitSetupRemoteDialogComponent_mat_spinner_9_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "mat-spinner", 32);
-} }
-class GitSetupRemoteDialogComponent {
-    constructor(dialogRef, data, gitService, snackBar, dialog) {
-        this.dialogRef = dialogRef;
-        this.data = data;
-        this.gitService = gitService;
-        this.snackBar = snackBar;
-        this.dialog = dialog;
-        this.organization = '';
-        this.repositoryName = '';
-        this.repositoryDescription = '';
-        this.isPrivate = true;
-        this.saveOrganization = true;
-        this.pushAfterAdd = true;
-        this.hasToken = false;
-        this.isLoading = false;
-        this.isSetting = false;
-        this.error = null;
-        // Initialize repository name with project name
-        this.repositoryName = this.extractProjectName(data.projectName);
-    }
-    ngOnInit() {
-        this.loadSavedOrganization();
-        this.checkToken();
-    }
-    loadSavedOrganization() {
-        this.isLoading = true;
-        this.gitService.getGitHubOrganization().subscribe({
-            next: (org) => {
-                this.organization = org;
-                this.isLoading = false;
-            },
-            error: (err) => {
-                console.error('Error loading organization:', err);
-                this.isLoading = false;
-            }
-        });
-    }
-    checkToken() {
-        this.gitService.getGitHubToken().subscribe({
-            next: (result) => {
-                this.hasToken = result.hasToken && result.tokenValid;
-            },
-            error: (err) => {
-                console.error('Error checking token:', err);
-                this.hasToken = false;
-            }
-        });
-    }
-    openTokenSettings() {
-        const dialogRef = this.dialog.open(_git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_0__.GitTokenDialogComponent, {
-            width: '650px',
-            data: {}
-        });
-        dialogRef.afterClosed().subscribe(result => {
-            if (result === true) {
-                // Token was configured successfully, update the status
-                this.checkToken();
-                this.snackBar.open('Token configurato con successo!', 'OK', {
-                    duration: 3000,
-                    verticalPosition: 'top'
-                });
-            }
-        });
-    }
-    extractProjectName(fullPath) {
-        // Extract the folder name from the full path
-        const parts = fullPath.replace(/\\/g, '/').split('/');
-        return parts[parts.length - 1] || 'repository';
-    }
-    getGitHubUrl() {
-        if (this.organization && this.repositoryName) {
-            return `https://github.com/${this.organization}/${this.repositoryName}.git`;
-        }
-        return '';
-    }
-    onCancel() {
-        this.dialogRef.close(false);
-    }
-    onSetup() {
-        if (!this.organization || !this.repositoryName) {
-            this.error = 'Organizzazione e nome repository sono richiesti';
-            return;
-        }
-        this.isSetting = true;
-        this.error = null;
-        // Save organization if requested
-        if (this.saveOrganization && this.organization) {
-            this.gitService.saveGitHubOrganization(this.organization).subscribe();
-        }
-        // Setup the remote with additional parameters
-        this.gitService.setupGitHubRemote(this.data.projectPath, this.organization, this.repositoryName, this.saveOrganization, this.pushAfterAdd, this.repositoryDescription, this.isPrivate).subscribe({
-            next: (response) => {
-                this.isSetting = false;
-                if (response.success) {
-                    this.snackBar.open(response.message || 'Remote configurato con successo', 'OK', { duration: 5000, verticalPosition: 'top' });
-                    this.dialogRef.close(true);
-                }
-                else {
-                    this.error = response.error || 'Errore durante la configurazione del remote';
-                }
-            },
-            error: (err) => {
-                this.isSetting = false;
-                this.error = 'Errore durante la configurazione: ' + (err.message || 'Errore sconosciuto');
-                console.error('Error setting up remote:', err);
-            }
-        });
-    }
+  }
 }
-GitSetupRemoteDialogComponent.ɵfac = function GitSetupRemoteDialogComponent_Factory(t) { return new (t || GitSetupRemoteDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__.MatSnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialog)); };
-GitSetupRemoteDialogComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: GitSetupRemoteDialogComponent, selectors: [["app-git-setup-remote-dialog"]], decls: 11, vars: 6, consts: [["mat-dialog-title", ""], ["class", "loading-container", 4, "ngIf"], ["class", "setup-form", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "style", "display: inline-block; margin-right: 8px;", 4, "ngIf"], [1, "loading-container"], ["diameter", "30"], [1, "setup-form"], [1, "instructions"], ["class", "warning-message", 4, "ngIf"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "es. mia-azienda o mio-username", 3, "ngModel", "disabled", "ngModelChange"], ["matSuffix", ""], ["matInput", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange"], ["matInput", "", "placeholder", "Una breve descrizione del progetto", "rows", "2", 3, "ngModel", "disabled", "ngModelChange"], [1, "visibility-option"], [2, "display", "block", "margin-bottom", "8px"], [3, "ngModel", "disabled", "ngModelChange"], [3, "value"], [2, "vertical-align", "middle"], [2, "margin-left", "20px", 3, "value"], ["class", "url-preview", 4, "ngIf"], [1, "options"], ["class", "error-message", 4, "ngIf"], [1, "github-instructions"], ["href", "https://github.com/new", "target", "_blank"], [1, "warning-message"], [2, "cursor", "pointer", "text-decoration", "underline", 3, "click"], [1, "url-preview"], [1, "error-message"], ["diameter", "20", 2, "display", "inline-block", "margin-right", "8px"]], template: function GitSetupRemoteDialogComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1, "Setup GitHub Remote");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "mat-dialog-content");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](3, GitSetupRemoteDialogComponent_div_3_Template, 4, 0, "div", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](4, GitSetupRemoteDialogComponent_div_4_Template, 75, 19, "div", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](5, "mat-dialog-actions", 3)(6, "button", 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitSetupRemoteDialogComponent_Template_button_click_6_listener() { return ctx.onCancel(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, "Annulla");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "button", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitSetupRemoteDialogComponent_Template_button_click_8_listener() { return ctx.onSetup(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](9, GitSetupRemoteDialogComponent_mat_spinner_9_Template, 1, 0, "mat-spinner", 6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", !ctx.isLoading);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.isSetting || !ctx.organization || !ctx.repositoryName);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx.isSetting ? "Configurazione..." : "Configura", " ");
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_checkbox__WEBPACK_IMPORTED_MODULE_6__.MatCheckbox, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatHint, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLabel, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_7__.MatSuffix, _angular_material_input__WEBPACK_IMPORTED_MODULE_8__.MatInput, _angular_material_radio__WEBPACK_IMPORTED_MODULE_9__.MatRadioGroup, _angular_material_radio__WEBPACK_IMPORTED_MODULE_9__.MatRadioButton, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__.MatExpansionPanel, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__.MatExpansionPanelHeader, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__.MatExpansionPanelTitle, _angular_material_button__WEBPACK_IMPORTED_MODULE_11__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_13__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgModel], styles: [".loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 16px;\n  padding: 20px;\n  min-height: 200px;\n}\n\n.setup-form[_ngcontent-%COMP%] {\n  min-width: 500px;\n  padding: 16px 0;\n}\n\n.instructions[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 12px;\n  padding: 16px;\n  background-color: #e3f2fd;\n  border-radius: 4px;\n  margin-bottom: 24px;\n}\n\n.instructions[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #1976d2;\n  margin-top: 2px;\n}\n\n.instructions[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #424242;\n  line-height: 1.5;\n}\n\n.full-width[_ngcontent-%COMP%] {\n  width: 100%;\n  margin-bottom: 16px;\n}\n\n.url-preview[_ngcontent-%COMP%] {\n  padding: 12px;\n  background-color: #f5f5f5;\n  border-radius: 4px;\n  margin-bottom: 20px;\n  font-family: monospace;\n}\n\n.url-preview[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 8px;\n  font-family: Roboto, sans-serif;\n  color: #666;\n  font-size: 0.9em;\n}\n\n.url-preview[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  color: #1976d2;\n  word-break: break-all;\n  font-size: 0.95em;\n}\n\n.warning-message[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 12px;\n  padding: 16px;\n  background-color: #fff3cd;\n  border: 1px solid #ffc107;\n  border-radius: 4px;\n  margin-bottom: 24px;\n}\n\n.warning-message[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #ff9800;\n  margin-top: 2px;\n}\n\n.warning-message[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #424242;\n  line-height: 1.5;\n}\n\n.visibility-option[_ngcontent-%COMP%] {\n  margin: 20px 0;\n  padding: 12px;\n  background-color: #f5f5f5;\n  border-radius: 4px;\n}\n\n.visibility-option[_ngcontent-%COMP%]   mat-radio-group[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 24px;\n}\n\n.visibility-option[_ngcontent-%COMP%]   mat-radio-button[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n}\n\n.options[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\n.options[_ngcontent-%COMP%]   mat-checkbox[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 12px;\n}\n\n.error-message[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 12px;\n  background-color: #ffebee;\n  border-radius: 4px;\n  margin-top: 16px;\n  color: #c62828;\n}\n\n.error-message[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #c62828;\n}\n\n.github-instructions[_ngcontent-%COMP%] {\n  margin-top: 24px;\n  box-shadow: none;\n  border: 1px solid #e0e0e0;\n}\n\n.github-instructions[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 0.95em;\n}\n\n.github-instructions[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%] {\n  margin: 0;\n  padding-left: 24px;\n  line-height: 1.8;\n}\n\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  margin-bottom: 8px;\n}\n\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   a[_ngcontent-%COMP%] {\n  color: #1976d2;\n  text-decoration: none;\n}\n\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   a[_ngcontent-%COMP%]:hover {\n  text-decoration: underline;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px !important;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px !important;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%] {\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImdpdC1zZXR1cC1yZW1vdGUtZGlhbG9nLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxTQUFBO0VBQ0EsYUFBQTtFQUNBLGlCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxnQkFBQTtFQUNBLGVBQUE7QUFDRjs7QUFFQTtFQUNFLGFBQUE7RUFDQSx1QkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0FBQ0Y7O0FBQ0U7RUFDRSxjQUFBO0VBQ0EsZUFBQTtBQUNKOztBQUVFO0VBQ0UsU0FBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtBQUFKOztBQUlBO0VBQ0UsV0FBQTtFQUNBLG1CQUFBO0FBREY7O0FBSUE7RUFDRSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0VBQ0Esc0JBQUE7QUFERjs7QUFHRTtFQUNFLGNBQUE7RUFDQSxrQkFBQTtFQUNBLCtCQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0FBREo7O0FBSUU7RUFDRSxjQUFBO0VBQ0EscUJBQUE7RUFDQSxpQkFBQTtBQUZKOztBQU1BO0VBQ0UsYUFBQTtFQUNBLHVCQUFBO0VBQ0EsU0FBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxtQkFBQTtBQUhGOztBQUtFO0VBQ0UsY0FBQTtFQUNBLGVBQUE7QUFISjs7QUFNRTtFQUNFLFNBQUE7RUFDQSxjQUFBO0VBQ0EsZ0JBQUE7QUFKSjs7QUFRQTtFQUNFLGNBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtBQUxGOztBQU9FO0VBQ0UsYUFBQTtFQUNBLFNBQUE7QUFMSjs7QUFRRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtBQU5KOztBQVVBO0VBQ0UsY0FBQTtBQVBGOztBQVNFO0VBQ0UsY0FBQTtFQUNBLG1CQUFBO0FBUEo7O0FBV0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsYUFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7QUFSRjs7QUFVRTtFQUNFLGNBQUE7QUFSSjs7QUFZQTtFQUNFLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSx5QkFBQTtBQVRGOztBQVdFO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0FBVEo7O0FBV0k7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFUTjs7QUFhRTtFQUNFLFNBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0FBWEo7O0FBYUk7RUFDRSxrQkFBQTtBQVhOOztBQWNJO0VBQ0UsY0FBQTtFQUNBLHFCQUFBO0FBWk47O0FBY007RUFDRSwwQkFBQTtBQVpSOztBQWtCQTtFQUNFLDBCQUFBO0FBZkY7O0FBa0JBO0VBQ0UsNkJBQUE7QUFmRjs7QUFpQkU7RUFDRSxzQkFBQTtBQWZKIiwiZmlsZSI6ImdpdC1zZXR1cC1yZW1vdGUtZGlhbG9nLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLmxvYWRpbmctY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgZ2FwOiAxNnB4O1xyXG4gIHBhZGRpbmc6IDIwcHg7XHJcbiAgbWluLWhlaWdodDogMjAwcHg7XHJcbn1cclxuXHJcbi5zZXR1cC1mb3JtIHtcclxuICBtaW4td2lkdGg6IDUwMHB4O1xyXG4gIHBhZGRpbmc6IDE2cHggMDtcclxufVxyXG5cclxuLmluc3RydWN0aW9ucyB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxuICBnYXA6IDEycHg7XHJcbiAgcGFkZGluZzogMTZweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZTNmMmZkO1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tYm90dG9tOiAyNHB4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBjb2xvcjogIzE5NzZkMjtcclxuICAgIG1hcmdpbi10b3A6IDJweDtcclxuICB9XHJcblxyXG4gIHAge1xyXG4gICAgbWFyZ2luOiAwO1xyXG4gICAgY29sb3I6ICM0MjQyNDI7XHJcbiAgICBsaW5lLWhlaWdodDogMS41O1xyXG4gIH1cclxufVxyXG5cclxuLmZ1bGwtd2lkdGgge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbn1cclxuXHJcbi51cmwtcHJldmlldyB7XHJcbiAgcGFkZGluZzogMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tYm90dG9tOiAyMHB4O1xyXG4gIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XHJcblxyXG4gIHN0cm9uZyB7XHJcbiAgICBkaXNwbGF5OiBibG9jaztcclxuICAgIG1hcmdpbi1ib3R0b206IDhweDtcclxuICAgIGZvbnQtZmFtaWx5OiBSb2JvdG8sIHNhbnMtc2VyaWY7XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICAgIGZvbnQtc2l6ZTogMC45ZW07XHJcbiAgfVxyXG5cclxuICBjb2RlIHtcclxuICAgIGNvbG9yOiAjMTk3NmQyO1xyXG4gICAgd29yZC1icmVhazogYnJlYWstYWxsO1xyXG4gICAgZm9udC1zaXplOiAwLjk1ZW07XHJcbiAgfVxyXG59XHJcblxyXG4ud2FybmluZy1tZXNzYWdlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gIGdhcDogMTJweDtcclxuICBwYWRkaW5nOiAxNnB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNmZmYzY2Q7XHJcbiAgYm9yZGVyOiAxcHggc29saWQgI2ZmYzEwNztcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMjRweDtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgY29sb3I6ICNmZjk4MDA7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGNvbG9yOiAjNDI0MjQyO1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICB9XHJcbn1cclxuXHJcbi52aXNpYmlsaXR5LW9wdGlvbiB7XHJcbiAgbWFyZ2luOiAyMHB4IDA7XHJcbiAgcGFkZGluZzogMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuXHJcbiAgbWF0LXJhZGlvLWdyb3VwIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBnYXA6IDI0cHg7XHJcbiAgfVxyXG5cclxuICBtYXQtcmFkaW8tYnV0dG9uIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIH1cclxufVxyXG5cclxuLm9wdGlvbnMge1xyXG4gIG1hcmdpbjogMjBweCAwO1xyXG5cclxuICBtYXQtY2hlY2tib3gge1xyXG4gICAgZGlzcGxheTogYmxvY2s7XHJcbiAgICBtYXJnaW4tYm90dG9tOiAxMnB4O1xyXG4gIH1cclxufVxyXG5cclxuLmVycm9yLW1lc3NhZ2Uge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDhweDtcclxuICBwYWRkaW5nOiAxMnB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNmZmViZWU7XHJcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gIG1hcmdpbi10b3A6IDE2cHg7XHJcbiAgY29sb3I6ICNjNjI4Mjg7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiAjYzYyODI4O1xyXG4gIH1cclxufVxyXG5cclxuLmdpdGh1Yi1pbnN0cnVjdGlvbnMge1xyXG4gIG1hcmdpbi10b3A6IDI0cHg7XHJcbiAgYm94LXNoYWRvdzogbm9uZTtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBtYXQtcGFuZWwtdGl0bGUge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgb2wge1xyXG4gICAgbWFyZ2luOiAwO1xyXG4gICAgcGFkZGluZy1sZWZ0OiAyNHB4O1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuODtcclxuXHJcbiAgICBsaSB7XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDhweDtcclxuICAgIH1cclxuXHJcbiAgICBhIHtcclxuICAgICAgY29sb3I6ICMxOTc2ZDI7XHJcbiAgICAgIHRleHQtZGVjb3JhdGlvbjogbm9uZTtcclxuXHJcbiAgICAgICY6aG92ZXIge1xyXG4gICAgICAgIHRleHQtZGVjb3JhdGlvbjogdW5kZXJsaW5lO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG5tYXQtZGlhbG9nLWNvbnRlbnQge1xyXG4gIHBhZGRpbmc6IDAgMjRweCAhaW1wb3J0YW50O1xyXG59XHJcblxyXG5tYXQtZGlhbG9nLWFjdGlvbnMge1xyXG4gIHBhZGRpbmc6IDE2cHggMjRweCAhaW1wb3J0YW50O1xyXG5cclxuICBtYXQtc3Bpbm5lciB7XHJcbiAgICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xyXG4gIH1cclxufSJdfQ== */"] });
-
+function GitSetupRemoteDialogComponent_mat_spinner_9_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "mat-spinner", 32);
+  }
+}
+class GitSetupRemoteDialogComponent {
+  constructor(dialogRef, data, gitService, snackBar, dialog) {
+    this.dialogRef = dialogRef;
+    this.data = data;
+    this.gitService = gitService;
+    this.snackBar = snackBar;
+    this.dialog = dialog;
+    this.organization = '';
+    this.repositoryName = '';
+    this.repositoryDescription = '';
+    this.isPrivate = true;
+    this.saveOrganization = true;
+    this.pushAfterAdd = true;
+    this.hasToken = false;
+    this.isLoading = false;
+    this.isSetting = false;
+    this.error = null;
+    // Initialize repository name with project name
+    this.repositoryName = this.extractProjectName(data.projectName);
+  }
+  ngOnInit() {
+    this.loadSavedOrganization();
+    this.checkToken();
+  }
+  loadSavedOrganization() {
+    this.isLoading = true;
+    this.gitService.getGitHubOrganization().subscribe({
+      next: org => {
+        this.organization = org;
+        this.isLoading = false;
+      },
+      error: err => {
+        console.error('Error loading organization:', err);
+        this.isLoading = false;
+      }
+    });
+  }
+  checkToken() {
+    this.gitService.getGitHubToken().subscribe({
+      next: result => {
+        this.hasToken = result.hasToken && result.tokenValid;
+      },
+      error: err => {
+        console.error('Error checking token:', err);
+        this.hasToken = false;
+      }
+    });
+  }
+  openTokenSettings() {
+    const dialogRef = this.dialog.open(_git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_0__.GitTokenDialogComponent, {
+      width: '650px',
+      data: {}
+    });
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        // Token was configured successfully, update the status
+        this.checkToken();
+        this.snackBar.open('Token configurato con successo!', 'OK', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+      }
+    });
+  }
+  extractProjectName(fullPath) {
+    // Extract the folder name from the full path
+    const parts = fullPath.replace(/\\/g, '/').split('/');
+    return parts[parts.length - 1] || 'repository';
+  }
+  getGitHubUrl() {
+    if (this.organization && this.repositoryName) {
+      return `https://github.com/${this.organization}/${this.repositoryName}.git`;
+    }
+    return '';
+  }
+  onCancel() {
+    this.dialogRef.close(false);
+  }
+  onSetup() {
+    if (!this.organization || !this.repositoryName) {
+      this.error = 'Organizzazione e nome repository sono richiesti';
+      return;
+    }
+    this.isSetting = true;
+    this.error = null;
+    // Save organization if requested
+    if (this.saveOrganization && this.organization) {
+      this.gitService.saveGitHubOrganization(this.organization).subscribe();
+    }
+    // Setup the remote with additional parameters
+    this.gitService.setupGitHubRemote(this.data.projectPath, this.organization, this.repositoryName, this.saveOrganization, this.pushAfterAdd, this.repositoryDescription, this.isPrivate).subscribe({
+      next: response => {
+        this.isSetting = false;
+        if (response.success) {
+          this.snackBar.open(response.message || 'Remote configurato con successo', 'OK', {
+            duration: 5000,
+            verticalPosition: 'top'
+          });
+          this.dialogRef.close(true);
+        } else {
+          this.error = response.error || 'Errore durante la configurazione del remote';
+        }
+      },
+      error: err => {
+        this.isSetting = false;
+        this.error = 'Errore durante la configurazione: ' + (err.message || 'Errore sconosciuto');
+        console.error('Error setting up remote:', err);
+      }
+    });
+  }
+  static {
+    this.ɵfac = function GitSetupRemoteDialogComponent_Factory(t) {
+      return new (t || GitSetupRemoteDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialog));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
+      type: GitSetupRemoteDialogComponent,
+      selectors: [["app-git-setup-remote-dialog"]],
+      decls: 11,
+      vars: 6,
+      consts: [["mat-dialog-title", ""], ["class", "loading-container", 4, "ngIf"], ["class", "setup-form", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "style", "display: inline-block; margin-right: 8px;", 4, "ngIf"], [1, "loading-container"], ["diameter", "30"], [1, "setup-form"], [1, "instructions"], ["class", "warning-message", 4, "ngIf"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "es. mia-azienda o mio-username", 3, "ngModel", "disabled", "ngModelChange"], ["matSuffix", ""], ["matInput", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange"], ["matInput", "", "placeholder", "Una breve descrizione del progetto", "rows", "2", 3, "ngModel", "disabled", "ngModelChange"], [1, "visibility-option"], [2, "display", "block", "margin-bottom", "8px"], [3, "ngModel", "disabled", "ngModelChange"], [3, "value"], [2, "vertical-align", "middle"], [2, "margin-left", "20px", 3, "value"], ["class", "url-preview", 4, "ngIf"], [1, "options"], ["class", "error-message", 4, "ngIf"], [1, "github-instructions"], ["href", "https://github.com/new", "target", "_blank"], [1, "warning-message"], [2, "cursor", "pointer", "text-decoration", "underline", 3, "click"], [1, "url-preview"], [1, "error-message"], ["diameter", "20", 2, "display", "inline-block", "margin-right", "8px"]],
+      template: function GitSetupRemoteDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1, "Setup GitHub Remote");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "mat-dialog-content");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](3, GitSetupRemoteDialogComponent_div_3_Template, 4, 0, "div", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](4, GitSetupRemoteDialogComponent_div_4_Template, 75, 19, "div", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](5, "mat-dialog-actions", 3)(6, "button", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitSetupRemoteDialogComponent_Template_button_click_6_listener() {
+            return ctx.onCancel();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, "Annulla");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "button", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitSetupRemoteDialogComponent_Template_button_click_8_listener() {
+            return ctx.onSetup();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](9, GitSetupRemoteDialogComponent_mat_spinner_9_Template, 1, 0, "mat-spinner", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", !ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.isSetting || !ctx.organization || !ctx.repositoryName);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx.isSetting ? "Configurazione..." : "Configura", " ");
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_legacy_checkbox__WEBPACK_IMPORTED_MODULE_6__.MatLegacyCheckbox, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacyLabel, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_7__.MatLegacySuffix, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_8__.MatLegacyInput, _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_9__.MatLegacyRadioGroup, _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_9__.MatLegacyRadioButton, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__.MatExpansionPanel, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__.MatExpansionPanelHeader, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_10__.MatExpansionPanelTitle, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_11__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_13__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgModel],
+      styles: [".loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 16px;\n  padding: 20px;\n  min-height: 200px;\n}\n\n.setup-form[_ngcontent-%COMP%] {\n  min-width: 500px;\n  padding: 16px 0;\n}\n\n.instructions[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 12px;\n  padding: 16px;\n  background-color: #e3f2fd;\n  border-radius: 4px;\n  margin-bottom: 24px;\n}\n.instructions[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #1976d2;\n  margin-top: 2px;\n}\n.instructions[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #424242;\n  line-height: 1.5;\n}\n\n.full-width[_ngcontent-%COMP%] {\n  width: 100%;\n  margin-bottom: 16px;\n}\n\n.url-preview[_ngcontent-%COMP%] {\n  padding: 12px;\n  background-color: #f5f5f5;\n  border-radius: 4px;\n  margin-bottom: 20px;\n  font-family: monospace;\n}\n.url-preview[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 8px;\n  font-family: Roboto, sans-serif;\n  color: #666;\n  font-size: 0.9em;\n}\n.url-preview[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  color: #1976d2;\n  word-break: break-all;\n  font-size: 0.95em;\n}\n\n.warning-message[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 12px;\n  padding: 16px;\n  background-color: #fff3cd;\n  border: 1px solid #ffc107;\n  border-radius: 4px;\n  margin-bottom: 24px;\n}\n.warning-message[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #ff9800;\n  margin-top: 2px;\n}\n.warning-message[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #424242;\n  line-height: 1.5;\n}\n\n.visibility-option[_ngcontent-%COMP%] {\n  margin: 20px 0;\n  padding: 12px;\n  background-color: #f5f5f5;\n  border-radius: 4px;\n}\n.visibility-option[_ngcontent-%COMP%]   mat-radio-group[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 24px;\n}\n.visibility-option[_ngcontent-%COMP%]   mat-radio-button[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n}\n\n.options[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n.options[_ngcontent-%COMP%]   mat-checkbox[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 12px;\n}\n\n.error-message[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 12px;\n  background-color: #ffebee;\n  border-radius: 4px;\n  margin-top: 16px;\n  color: #c62828;\n}\n.error-message[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #c62828;\n}\n\n.github-instructions[_ngcontent-%COMP%] {\n  margin-top: 24px;\n  box-shadow: none;\n  border: 1px solid #e0e0e0;\n}\n.github-instructions[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 0.95em;\n}\n.github-instructions[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%] {\n  margin: 0;\n  padding-left: 24px;\n  line-height: 1.8;\n}\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  margin-bottom: 8px;\n}\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   a[_ngcontent-%COMP%] {\n  color: #1976d2;\n  text-decoration: none;\n}\n.github-instructions[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   a[_ngcontent-%COMP%]:hover {\n  text-decoration: underline;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px !important;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px !important;\n}\nmat-dialog-actions[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%] {\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LXNldHVwLXJlbW90ZS1kaWFsb2cvZ2l0LXNldHVwLXJlbW90ZS1kaWFsb2cuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0VBQ0EsaUJBQUE7QUFDRjs7QUFFQTtFQUNFLGdCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsYUFBQTtFQUNBLHVCQUFBO0VBQ0EsU0FBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7QUFDRjtBQUNFO0VBQ0UsY0FBQTtFQUNBLGVBQUE7QUFDSjtBQUVFO0VBQ0UsU0FBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtBQUFKOztBQUlBO0VBQ0UsV0FBQTtFQUNBLG1CQUFBO0FBREY7O0FBSUE7RUFDRSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0VBQ0Esc0JBQUE7QUFERjtBQUdFO0VBQ0UsY0FBQTtFQUNBLGtCQUFBO0VBQ0EsK0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUFESjtBQUlFO0VBQ0UsY0FBQTtFQUNBLHFCQUFBO0VBQ0EsaUJBQUE7QUFGSjs7QUFNQTtFQUNFLGFBQUE7RUFDQSx1QkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7QUFIRjtBQUtFO0VBQ0UsY0FBQTtFQUNBLGVBQUE7QUFISjtBQU1FO0VBQ0UsU0FBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtBQUpKOztBQVFBO0VBQ0UsY0FBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0FBTEY7QUFPRTtFQUNFLGFBQUE7RUFDQSxTQUFBO0FBTEo7QUFRRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtBQU5KOztBQVVBO0VBQ0UsY0FBQTtBQVBGO0FBU0U7RUFDRSxjQUFBO0VBQ0EsbUJBQUE7QUFQSjs7QUFXQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0VBQ0EsY0FBQTtBQVJGO0FBVUU7RUFDRSxjQUFBO0FBUko7O0FBWUE7RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EseUJBQUE7QUFURjtBQVdFO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0FBVEo7QUFXSTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQVROO0FBYUU7RUFDRSxTQUFBO0VBQ0Esa0JBQUE7RUFDQSxnQkFBQTtBQVhKO0FBYUk7RUFDRSxrQkFBQTtBQVhOO0FBY0k7RUFDRSxjQUFBO0VBQ0EscUJBQUE7QUFaTjtBQWNNO0VBQ0UsMEJBQUE7QUFaUjs7QUFrQkE7RUFDRSwwQkFBQTtBQWZGOztBQWtCQTtFQUNFLDZCQUFBO0FBZkY7QUFpQkU7RUFDRSxzQkFBQTtBQWZKIiwic291cmNlc0NvbnRlbnQiOlsiLmxvYWRpbmctY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgZ2FwOiAxNnB4O1xyXG4gIHBhZGRpbmc6IDIwcHg7XHJcbiAgbWluLWhlaWdodDogMjAwcHg7XHJcbn1cclxuXHJcbi5zZXR1cC1mb3JtIHtcclxuICBtaW4td2lkdGg6IDUwMHB4O1xyXG4gIHBhZGRpbmc6IDE2cHggMDtcclxufVxyXG5cclxuLmluc3RydWN0aW9ucyB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxuICBnYXA6IDEycHg7XHJcbiAgcGFkZGluZzogMTZweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZTNmMmZkO1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tYm90dG9tOiAyNHB4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBjb2xvcjogIzE5NzZkMjtcclxuICAgIG1hcmdpbi10b3A6IDJweDtcclxuICB9XHJcblxyXG4gIHAge1xyXG4gICAgbWFyZ2luOiAwO1xyXG4gICAgY29sb3I6ICM0MjQyNDI7XHJcbiAgICBsaW5lLWhlaWdodDogMS41O1xyXG4gIH1cclxufVxyXG5cclxuLmZ1bGwtd2lkdGgge1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcbn1cclxuXHJcbi51cmwtcHJldmlldyB7XHJcbiAgcGFkZGluZzogMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tYm90dG9tOiAyMHB4O1xyXG4gIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XHJcblxyXG4gIHN0cm9uZyB7XHJcbiAgICBkaXNwbGF5OiBibG9jaztcclxuICAgIG1hcmdpbi1ib3R0b206IDhweDtcclxuICAgIGZvbnQtZmFtaWx5OiBSb2JvdG8sIHNhbnMtc2VyaWY7XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICAgIGZvbnQtc2l6ZTogMC45ZW07XHJcbiAgfVxyXG5cclxuICBjb2RlIHtcclxuICAgIGNvbG9yOiAjMTk3NmQyO1xyXG4gICAgd29yZC1icmVhazogYnJlYWstYWxsO1xyXG4gICAgZm9udC1zaXplOiAwLjk1ZW07XHJcbiAgfVxyXG59XHJcblxyXG4ud2FybmluZy1tZXNzYWdlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gIGdhcDogMTJweDtcclxuICBwYWRkaW5nOiAxNnB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNmZmYzY2Q7XHJcbiAgYm9yZGVyOiAxcHggc29saWQgI2ZmYzEwNztcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMjRweDtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgY29sb3I6ICNmZjk4MDA7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGNvbG9yOiAjNDI0MjQyO1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICB9XHJcbn1cclxuXHJcbi52aXNpYmlsaXR5LW9wdGlvbiB7XHJcbiAgbWFyZ2luOiAyMHB4IDA7XHJcbiAgcGFkZGluZzogMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuXHJcbiAgbWF0LXJhZGlvLWdyb3VwIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBnYXA6IDI0cHg7XHJcbiAgfVxyXG5cclxuICBtYXQtcmFkaW8tYnV0dG9uIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIH1cclxufVxyXG5cclxuLm9wdGlvbnMge1xyXG4gIG1hcmdpbjogMjBweCAwO1xyXG5cclxuICBtYXQtY2hlY2tib3gge1xyXG4gICAgZGlzcGxheTogYmxvY2s7XHJcbiAgICBtYXJnaW4tYm90dG9tOiAxMnB4O1xyXG4gIH1cclxufVxyXG5cclxuLmVycm9yLW1lc3NhZ2Uge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDhweDtcclxuICBwYWRkaW5nOiAxMnB4O1xyXG4gIGJhY2tncm91bmQtY29sb3I6ICNmZmViZWU7XHJcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gIG1hcmdpbi10b3A6IDE2cHg7XHJcbiAgY29sb3I6ICNjNjI4Mjg7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiAjYzYyODI4O1xyXG4gIH1cclxufVxyXG5cclxuLmdpdGh1Yi1pbnN0cnVjdGlvbnMge1xyXG4gIG1hcmdpbi10b3A6IDI0cHg7XHJcbiAgYm94LXNoYWRvdzogbm9uZTtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBtYXQtcGFuZWwtdGl0bGUge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgb2wge1xyXG4gICAgbWFyZ2luOiAwO1xyXG4gICAgcGFkZGluZy1sZWZ0OiAyNHB4O1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuODtcclxuXHJcbiAgICBsaSB7XHJcbiAgICAgIG1hcmdpbi1ib3R0b206IDhweDtcclxuICAgIH1cclxuXHJcbiAgICBhIHtcclxuICAgICAgY29sb3I6ICMxOTc2ZDI7XHJcbiAgICAgIHRleHQtZGVjb3JhdGlvbjogbm9uZTtcclxuXHJcbiAgICAgICY6aG92ZXIge1xyXG4gICAgICAgIHRleHQtZGVjb3JhdGlvbjogdW5kZXJsaW5lO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG5tYXQtZGlhbG9nLWNvbnRlbnQge1xyXG4gIHBhZGRpbmc6IDAgMjRweCAhaW1wb3J0YW50O1xyXG59XHJcblxyXG5tYXQtZGlhbG9nLWFjdGlvbnMge1xyXG4gIHBhZGRpbmc6IDE2cHggMjRweCAhaW1wb3J0YW50O1xyXG5cclxuICBtYXQtc3Bpbm5lciB7XHJcbiAgICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xyXG4gIH1cclxufSJdLCJzb3VyY2VSb290IjoiIn0= */"]
+    });
+  }
+}
 
 /***/ }),
 
@@ -2787,24 +3203,24 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitSetupRemoteGenericDialogComponent": () => (/* binding */ GitSetupRemoteGenericDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _models_remote_setup_models__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../models/remote-setup.models */ 3204);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
 /* harmony import */ var _services_git_credential_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../services/git-credential.service */ 7554);
-/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/snack-bar */ 930);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/core */ 9121);
-/* harmony import */ var _angular_material_checkbox__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/checkbox */ 4792);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_radio__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/radio */ 2922);
-/* harmony import */ var _angular_material_select__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/select */ 7371);
+/* harmony import */ var _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-core */ 7090);
+/* harmony import */ var _angular_material_legacy_checkbox__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-checkbox */ 8469);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/legacy-radio */ 3493);
+/* harmony import */ var _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/legacy-select */ 6002);
 /* harmony import */ var _angular_material_divider__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/divider */ 1528);
 /* harmony import */ var _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/expansion */ 7591);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/progress-spinner */ 1708);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/forms */ 2508);
 
 
@@ -2826,30 +3242,41 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function GitSetupRemoteGenericDialogComponent_mat_icon_13_Template(rf, ctx) { if (rf & 1) {
+function GitSetupRemoteGenericDialogComponent_mat_icon_13_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-icon", 36);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, "link");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} }
-function GitSetupRemoteGenericDialogComponent_mat_spinner_14_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_mat_spinner_14_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "mat-spinner", 37);
-} }
-function GitSetupRemoteGenericDialogComponent_mat_icon_15_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_mat_icon_15_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-icon", 38);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, "check_circle");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} }
-function GitSetupRemoteGenericDialogComponent_mat_icon_16_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_mat_icon_16_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-icon", 39);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, "error");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} }
-function GitSetupRemoteGenericDialogComponent_div_19_span_5_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_19_span_5_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "span", 42);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, " Creazione automatica disponibile ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} }
-function GitSetupRemoteGenericDialogComponent_div_19_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_19_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 40)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -2858,7 +3285,8 @@ function GitSetupRemoteGenericDialogComponent_div_19_Template(rf, ctx) { if (rf 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, GitSetupRemoteGenericDialogComponent_div_19_span_5_Template, 2, 0, "span", 41);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const provider_r14 = ctx.ngIf;
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
@@ -2869,26 +3297,39 @@ function GitSetupRemoteGenericDialogComponent_div_19_Template(rf, ctx) { if (rf 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"]("", provider_r14.name, " rilevato");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r4.urlInfo == null ? null : ctx_r4.urlInfo.supportsAutoCreate);
-} }
-function GitSetupRemoteGenericDialogComponent_div_25_mat_option_10_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_25_mat_option_10_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-option", 44)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "account_circle");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const credential_r17 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("value", credential_r17.id);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", credential_r17.username || credential_r17.accountName, " ");
-} }
-function GitSetupRemoteGenericDialogComponent_div_25_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_25_Template(rf, ctx) {
+  if (rf & 1) {
     const _r19 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 43)(1, "mat-form-field", 3)(2, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "Account GitHub");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-select", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_25_Template_mat_select_ngModelChange_4_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r19); const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r18.selectedCredentialId = $event); })("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_25_Template_mat_select_ngModelChange_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r19); const ctx_r20 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r20.onCredentialSelectionChange()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_25_Template_mat_select_ngModelChange_4_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r19);
+      const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r18.selectedCredentialId = $event);
+    })("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_25_Template_mat_select_ngModelChange_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r19);
+      const ctx_r20 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r20.onCredentialSelectionChange());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](5, "mat-option", 44)(6, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](7, "add");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -2900,7 +3341,8 @@ function GitSetupRemoteGenericDialogComponent_div_25_Template(rf, ctx) { if (rf 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](11, "mat-hint");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](12, "Seleziona un account salvato o inserisci nuove credenziali");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r5.selectedCredentialId)("disabled", ctx_r5.isSetting);
@@ -2908,28 +3350,41 @@ function GitSetupRemoteGenericDialogComponent_div_25_Template(rf, ctx) { if (rf 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("value", null);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", ctx_r5.savedGitHubCredentials);
-} }
-function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_7_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_7_Template(rf, ctx) {
+  if (rf & 1) {
     const _r25 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-form-field", 3)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "Password / Token");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "input", 49);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_7_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r25); const ctx_r24 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r24.password = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_7_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r25);
+      const ctx_r24 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r24.password = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "button", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_7_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r25); const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r26.showPassword = !ctx_r26.showPassword); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_7_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r25);
+      const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r26.showPassword = !ctx_r26.showPassword);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r21.password)("type", ctx_r21.showPassword ? "text" : "password")("disabled", ctx_r21.isSetting);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r21.showPassword ? "visibility_off" : "visibility");
-} }
-function GitSetupRemoteGenericDialogComponent_ng_container_26_div_8_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_ng_container_26_div_8_Template(rf, ctx) {
+  if (rf & 1) {
     const _r28 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 51)(1, "mat-icon", 52);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "warning");
@@ -2943,33 +3398,58 @@ function GitSetupRemoteGenericDialogComponent_ng_container_26_div_8_Template(rf,
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](9, " invece della password. ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](10, "a", 53);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_div_8_Template_a_click_10_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r28); const ctx_r27 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r27.openTokenCreationUrl()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_div_8_Template_a_click_10_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r28);
+      const ctx_r27 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r27.openTokenCreationUrl());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](11, " Crea un token qui ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
-} }
-function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_mat_hint_7_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_mat_hint_7_Template(rf, ctx) {
+  if (rf & 1) {
     const _r31 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-hint")(1, "a", 55);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_mat_hint_7_Template_a_click_1_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r31); const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r30.openTokenCreationUrl()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_mat_hint_7_Template_a_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r31);
+      const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r30.openTokenCreationUrl());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, " Crea un nuovo token ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} }
-function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template(rf, ctx) {
+  if (rf & 1) {
     const _r33 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-form-field", 3)(1, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "Personal Access Token");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "input", 54);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template_input_ngModelChange_3_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r33); const ctx_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r32.token = $event); })("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template_input_ngModelChange_3_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r33); const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r34.onTokenChange()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r33);
+      const ctx_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r32.token = $event);
+    })("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template_input_ngModelChange_3_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r33);
+      const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r34.onTokenChange());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "button", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template_button_click_4_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r33); const ctx_r35 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r35.showPassword = !ctx_r35.showPassword); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r33);
+      const ctx_r35 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r35.showPassword = !ctx_r35.showPassword);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_mat_hint_7_Template, 3, 0, "mat-hint", 13);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r23 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r23.token)("type", ctx_r23.showPassword ? "text" : "password")("disabled", ctx_r23.isSetting);
@@ -2977,15 +3457,21 @@ function GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_T
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r23.showPassword ? "visibility_off" : "visibility");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r23.urlInfo == null ? null : ctx_r23.urlInfo.tokenCreationUrl);
-} }
-function GitSetupRemoteGenericDialogComponent_ng_container_26_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_ng_container_26_Template(rf, ctx) {
+  if (rf & 1) {
     const _r37 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](0);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "mat-form-field", 3)(2, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "Username");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "input", 46);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_Template_input_ngModelChange_4_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r37); const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r36.username = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_ng_container_26_Template_input_ngModelChange_4_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r37);
+      const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r36.username = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](5, "mat-icon", 36);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6, "person");
@@ -2994,7 +3480,8 @@ function GitSetupRemoteGenericDialogComponent_ng_container_26_Template(rf, ctx) 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](8, GitSetupRemoteGenericDialogComponent_ng_container_26_div_8_Template, 12, 0, "div", 48);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, GitSetupRemoteGenericDialogComponent_ng_container_26_mat_form_field_9_Template, 8, 5, "mat-form-field", 47);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r6.username)("disabled", ctx_r6.isSetting);
@@ -3004,35 +3491,49 @@ function GitSetupRemoteGenericDialogComponent_ng_container_26_Template(rf, ctx) 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx_r6.urlInfo == null ? null : ctx_r6.urlInfo.provider) === "github" && ctx_r6.authMethod === "username_password");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r6.authMethod === "pat");
-} }
-function GitSetupRemoteGenericDialogComponent_mat_spinner_28_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_mat_spinner_28_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "mat-spinner", 56);
-} }
-function GitSetupRemoteGenericDialogComponent_mat_icon_29_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_mat_icon_29_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, "wifi_tethering");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} }
-function GitSetupRemoteGenericDialogComponent_div_31_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_31_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 57)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "check_circle");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4, "Connessione verificata - Credenziali valide");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} }
-function GitSetupRemoteGenericDialogComponent_div_32_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_32_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 58)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "warning");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4, "Repository non trovato. Verr\u00E0 creato se l'opzione \u00E8 attiva.");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} }
-function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template(rf, ctx) {
+  if (rf & 1) {
     const _r40 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 61)(1, "div", 62)(2, "mat-radio-group", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template_mat_radio_group_ngModelChange_2_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r40); const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r39.isPrivate = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template_mat_radio_group_ngModelChange_2_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r40);
+      const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r39.isPrivate = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "mat-radio-button", 44)(4, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5, "lock");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -3047,9 +3548,14 @@ function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template(rf, ctx) { i
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](13, "Descrizione (opzionale)");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](14, "input", 63);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template_input_ngModelChange_14_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r40); const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r41.repoDescription = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template_input_ngModelChange_14_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r40);
+      const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r41.repoDescription = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r38.isPrivate)("disabled", ctx_r38.isSetting);
@@ -3059,8 +3565,10 @@ function GitSetupRemoteGenericDialogComponent_div_63_div_6_Template(rf, ctx) { i
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("value", false);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](7);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r38.repoDescription)("disabled", ctx_r38.isSetting);
-} }
-function GitSetupRemoteGenericDialogComponent_div_63_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_63_Template(rf, ctx) {
+  if (rf & 1) {
     const _r43 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 59);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "mat-divider");
@@ -3068,12 +3576,17 @@ function GitSetupRemoteGenericDialogComponent_div_63_Template(rf, ctx) { if (rf 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "mat-checkbox", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_63_Template_mat_checkbox_ngModelChange_4_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r43); const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r42.createRemoteRepo = $event); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_div_63_Template_mat_checkbox_ngModelChange_4_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r43);
+      const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r42.createRemoteRepo = $event);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5, " Crea repository automaticamente se non esiste ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitSetupRemoteGenericDialogComponent_div_63_div_6_Template, 15, 6, "div", 60);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     let tmp_0_0;
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
@@ -3082,457 +3595,496 @@ function GitSetupRemoteGenericDialogComponent_div_63_Template(rf, ctx) { if (rf 
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx_r11.createRemoteRepo)("disabled", ctx_r11.isSetting);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r11.createRemoteRepo);
-} }
-function GitSetupRemoteGenericDialogComponent_div_64_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function GitSetupRemoteGenericDialogComponent_div_64_Template(rf, ctx) {
+  if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 64)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "error");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r12.error);
-} }
-function GitSetupRemoteGenericDialogComponent_mat_spinner_92_Template(rf, ctx) { if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "mat-spinner", 65);
-} }
-class GitSetupRemoteGenericDialogComponent {
-    constructor(dialogRef, data, gitService, gitCredentialService, snackBar) {
-        this.dialogRef = dialogRef;
-        this.data = data;
-        this.gitService = gitService;
-        this.gitCredentialService = gitCredentialService;
-        this.snackBar = snackBar;
-        // Main form fields
-        this.remoteUrl = '';
-        this.username = '';
-        this.password = '';
-        this.token = '';
-        // Options
-        this.saveCredentials = true;
-        this.pushAfterAdd = true;
-        this.remoteName = 'origin';
-        // Advanced options
-        this.authMethod = 'username_password';
-        this.createRemoteRepo = false;
-        this.repoDescription = '';
-        this.isPrivate = true;
-        // State
-        this.isLoading = false;
-        this.isValidating = false;
-        this.isSetting = false;
-        this.showAdvanced = false;
-        this.showPassword = false;
-        this.error = null;
-        // URL parsing result
-        this.urlInfo = null;
-        this.validationResult = null;
-        // Multi-account support (uses unique credentials)
-        this.savedGitHubCredentials = [];
-        this.selectedCredentialId = null;
-        // Provider info for display
-        this.providerInfo = _models_remote_setup_models__WEBPACK_IMPORTED_MODULE_0__.PROVIDER_INFO;
-    }
-    ngOnInit() {
-        // Use pre-filled URL if available (from toolbar when reconfiguring credentials)
-        if (this.data?.prefilledRemoteUrl) {
-            this.remoteUrl = this.data.prefilledRemoteUrl;
-            this.onUrlChange(); // Trigger provider detection and GitHub token check
-        }
-    }
-    /**
-     * Handle URL input change - parse and detect provider
-     */
-    onUrlChange() {
-        this.error = null;
-        this.validationResult = null;
-        if (!this.remoteUrl || this.remoteUrl.trim().length < 10) {
-            this.urlInfo = null;
-            this.savedGitHubCredentials = [];
-            return;
-        }
-        this.isValidating = true;
-        this.gitService.parseRemoteUrl(this.remoteUrl.trim()).subscribe({
-            next: (result) => {
-                this.urlInfo = result;
-                this.isValidating = false;
-                if (!result.isValid) {
-                    this.error = result.error || 'URL non valido';
-                }
-                // If GitHub detected, load saved credentials
-                if (result.provider === 'github') {
-                    this.loadSavedGitHubCredentials();
-                    // GitHub requires PAT, auto-select it
-                    this.authMethod = 'pat';
-                }
-                else {
-                    this.savedGitHubCredentials = [];
-                    this.selectedCredentialId = null;
-                }
-            },
-            error: (err) => {
-                console.error('Error parsing URL:', err);
-                this.isValidating = false;
-                this.urlInfo = null;
-            }
-        });
-    }
-    /**
-     * Validate connection with credentials
-     */
-    validateConnection() {
-        if (!this.remoteUrl || !this.urlInfo?.isValid) {
-            return;
-        }
-        this.isValidating = true;
-        this.error = null;
-        this.validationResult = null;
-        const effectivePassword = this.getEffectivePassword();
-        this.gitService.validateRemoteAuth({
-            remoteUrl: this.remoteUrl,
-            username: this.username,
-            password: effectivePassword,
-            authMethod: this.authMethod
-        }).subscribe({
-            next: (result) => {
-                this.validationResult = result;
-                this.isValidating = false;
-                if (result.isReachable && result.credentialsValid) {
-                    this.snackBar.open('Connessione verificata con successo!', 'OK', {
-                        duration: 3000,
-                        verticalPosition: 'top'
-                    });
-                }
-                else if (result.error) {
-                    this.error = result.error;
-                }
-            },
-            error: (err) => {
-                console.error('Error validating connection:', err);
-                this.isValidating = false;
-                this.error = 'Errore durante la verifica della connessione';
-            }
-        });
-    }
-    /**
-     * Open token creation URL for the detected provider
-     */
-    openTokenCreationUrl() {
-        if (this.urlInfo?.tokenCreationUrl) {
-            window.open(this.urlInfo.tokenCreationUrl, '_blank');
-        }
-    }
-    /**
-     * Get effective password based on auth method
-     */
-    getEffectivePassword() {
-        if (this.authMethod === 'pat' && this.token) {
-            return this.token;
-        }
-        return this.password;
-    }
-    /**
-     * Auto-select PAT auth method when user types in token field
-     */
-    onTokenChange() {
-        if (this.token && this.token.length > 0) {
-            this.authMethod = 'pat';
-        }
-    }
-    /**
-     * Load saved GitHub credentials from credential service
-     * Now returns unique credentials directly (no more deduplication needed)
-     */
-    loadSavedGitHubCredentials() {
-        this.gitCredentialService.getCredentialsByType('GitHub').subscribe({
-            next: (credentials) => {
-                this.savedGitHubCredentials = credentials;
-            },
-            error: (err) => {
-                console.error('Error loading saved GitHub credentials:', err);
-                this.savedGitHubCredentials = [];
-            }
-        });
-    }
-    /**
-     * Get display names of saved GitHub credentials
-     */
-    getSavedCredentialNames() {
-        return this.savedGitHubCredentials
-            .map(c => c.username || c.accountName)
-            .join(', ');
-    }
-    /**
-     * Handle credential selection change
-     */
-    onCredentialSelectionChange() {
-        if (!this.selectedCredentialId) {
-            // When deselected (new credentials), clear manual input fields
-            this.username = '';
-            this.token = '';
-            this.password = '';
-        }
-    }
-    /**
-     * Get provider display info
-     */
-    getProviderInfo() {
-        if (!this.urlInfo?.provider)
-            return null;
-        return this.providerInfo[this.urlInfo.provider] || this.providerInfo['generic'];
-    }
-    /**
-     * Check if form is valid for setup
-     */
-    isFormValid() {
-        if (!this.remoteUrl || !this.urlInfo?.isValid) {
-            return false;
-        }
-        // If using a saved credential
-        if (this.selectedCredentialId) {
-            return true;
-        }
-        // Must have credentials (username + password/token)
-        const hasCredentials = this.username &&
-            (this.authMethod === 'pat' ? this.token : this.password);
-        return !!hasCredentials;
-    }
-    /**
-     * Toggle advanced options panel
-     */
-    toggleAdvanced() {
-        this.showAdvanced = !this.showAdvanced;
-    }
-    /**
-     * Cancel and close dialog
-     */
-    onCancel() {
-        this.dialogRef.close(false);
-    }
-    /**
-     * Setup the remote
-     */
-    onSetup() {
-        if (!this.isFormValid()) {
-            this.error = 'Compila tutti i campi richiesti';
-            return;
-        }
-        this.isSetting = true;
-        this.error = null;
-        const effectivePassword = this.getEffectivePassword();
-        const useExistingCredential = !!this.selectedCredentialId;
-        const request = {
-            repositoryPath: this.data.projectPath,
-            remoteUrl: this.remoteUrl,
-            remoteName: this.remoteName || 'origin',
-            authMethod: this.authMethod || 'username_password',
-            username: useExistingCredential ? '' : (this.username || ''),
-            password: useExistingCredential ? '' : (this.authMethod === 'username_password' ? (this.password || '') : ''),
-            token: useExistingCredential ? '' : (this.authMethod === 'pat' ? (this.token || '') : ''),
-            saveCredentials: this.saveCredentials === true,
-            pushAfterAdd: this.pushAfterAdd === true,
-            createRemoteRepo: this.createRemoteRepo === true && this.urlInfo?.supportsAutoCreate === true,
-            repoDescription: this.repoDescription || '',
-            isPrivate: this.isPrivate !== false,
-            useSavedToken: false,
-            copyFromCredentialId: this.selectedCredentialId || undefined
-        };
-        console.log('Setup remote request:', request);
-        this.gitService.setupRemoteGeneric(request).subscribe({
-            next: (response) => {
-                this.isSetting = false;
-                if (response.success) {
-                    this.snackBar.open(response.message || 'Remote configurato con successo', 'OK', { duration: 5000, verticalPosition: 'top' });
-                    this.dialogRef.close(true);
-                }
-                else {
-                    this.error = response.error || 'Errore durante la configurazione del remote';
-                }
-            },
-            error: (err) => {
-                this.isSetting = false;
-                this.error = 'Errore durante la configurazione: ' + (err.message || 'Errore sconosciuto');
-                console.error('Error setting up remote:', err);
-            }
-        });
-    }
+  }
 }
-GitSetupRemoteGenericDialogComponent.ɵfac = function GitSetupRemoteGenericDialogComponent_Factory(t) { return new (t || GitSetupRemoteGenericDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_git_credential_service__WEBPACK_IMPORTED_MODULE_2__.GitCredentialService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatSnackBar)); };
-GitSetupRemoteGenericDialogComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: GitSetupRemoteGenericDialogComponent, selectors: [["app-git-setup-remote-generic-dialog"]], decls: 94, vars: 30, consts: [["mat-dialog-title", ""], [1, "setup-form"], [1, "instructions"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "https://github.com/org/repo.git", 3, "ngModel", "disabled", "ngModelChange"], ["matSuffix", "", 4, "ngIf"], ["matSuffix", "", "diameter", "20", 4, "ngIf"], ["matSuffix", "", "style", "color: #4caf50;", 4, "ngIf"], ["matSuffix", "", "style", "color: #f44336;", 4, "ngIf"], ["class", "provider-badge", 4, "ngIf"], [1, "section-divider"], [1, "section-title"], ["class", "saved-credentials-section", 4, "ngIf"], [4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 1, "validate-button", 3, "disabled", "click"], ["diameter", "18", "style", "display: inline-block; margin-right: 8px;", 4, "ngIf"], ["class", "validation-result success", 4, "ngIf"], ["class", "validation-result warning", 4, "ngIf"], [1, "options"], [3, "ngModel", "disabled", "ngModelChange"], [1, "advanced-panel", 3, "expanded"], [3, "click"], [1, "advanced-content"], [1, "auth-method-section"], [1, "field-label"], ["value", "username_password"], ["value", "pat"], ["matInput", "", "placeholder", "origin", 3, "ngModel", "disabled", "ngModelChange"], ["class", "auto-create-section", 4, "ngIf"], ["class", "error-message", 4, "ngIf"], [1, "help-panel"], [1, "help-content"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "style", "display: inline-block; margin-right: 8px;", 4, "ngIf"], ["matSuffix", ""], ["matSuffix", "", "diameter", "20"], ["matSuffix", "", 2, "color", "#4caf50"], ["matSuffix", "", 2, "color", "#f44336"], [1, "provider-badge"], ["class", "auto-create-badge", 4, "ngIf"], [1, "auto-create-badge"], [1, "saved-credentials-section"], [3, "value"], [3, "value", 4, "ngFor", "ngForOf"], ["matInput", "", "placeholder", "Il tuo username", 3, "ngModel", "disabled", "ngModelChange"], ["appearance", "outline", "class", "full-width", 4, "ngIf"], ["class", "github-pat-warning", 4, "ngIf"], ["matInput", "", "placeholder", "Password o Personal Access Token", 3, "ngModel", "type", "disabled", "ngModelChange"], ["mat-icon-button", "", "matSuffix", "", "type", "button", 3, "click"], [1, "github-pat-warning"], ["color", "warn"], [2, "cursor", "pointer", "color", "#1976d2", "text-decoration", "underline", 3, "click"], ["matInput", "", "placeholder", "ghp_xxxxx o glpat-xxxxx", 3, "ngModel", "type", "disabled", "ngModelChange"], [2, "cursor", "pointer", "color", "#1976d2", 3, "click"], ["diameter", "18", 2, "display", "inline-block", "margin-right", "8px"], [1, "validation-result", "success"], [1, "validation-result", "warning"], [1, "auto-create-section"], ["class", "create-repo-options", 4, "ngIf"], [1, "create-repo-options"], [1, "visibility-option"], ["matInput", "", "placeholder", "Descrizione del repository", 3, "ngModel", "disabled", "ngModelChange"], [1, "error-message"], ["diameter", "20", 2, "display", "inline-block", "margin-right", "8px"]], template: function GitSetupRemoteGenericDialogComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, "Setup Remote Repository");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "mat-dialog-content")(3, "div", 1)(4, "div", 2)(5, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6, "info");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "p");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8, " Configura il repository remoto per sincronizzare il tuo progetto. Puoi usare GitHub, GitLab, BitBucket o qualsiasi server Git. ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](9, "mat-form-field", 3)(10, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](11, "URL Repository Remoto");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](12, "input", 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_input_ngModelChange_12_listener($event) { return ctx.remoteUrl = $event; })("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_input_ngModelChange_12_listener() { return ctx.onUrlChange(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](13, GitSetupRemoteGenericDialogComponent_mat_icon_13_Template, 2, 0, "mat-icon", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](14, GitSetupRemoteGenericDialogComponent_mat_spinner_14_Template, 1, 0, "mat-spinner", 6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](15, GitSetupRemoteGenericDialogComponent_mat_icon_15_Template, 2, 0, "mat-icon", 7);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](16, GitSetupRemoteGenericDialogComponent_mat_icon_16_Template, 2, 0, "mat-icon", 8);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](17, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](18, "URL HTTPS o SSH del repository remoto");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](19, GitSetupRemoteGenericDialogComponent_div_19_Template, 6, 5, "div", 9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](20, "mat-divider", 10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](21, "h3", 11)(22, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](23, "key");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](24, " Autenticazione ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](25, GitSetupRemoteGenericDialogComponent_div_25_Template, 13, 4, "div", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](26, GitSetupRemoteGenericDialogComponent_ng_container_26_Template, 10, 5, "ng-container", 13);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](27, "button", 14);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_button_click_27_listener() { return ctx.validateConnection(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](28, GitSetupRemoteGenericDialogComponent_mat_spinner_28_Template, 1, 0, "mat-spinner", 15);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](29, GitSetupRemoteGenericDialogComponent_mat_icon_29_Template, 2, 0, "mat-icon", 13);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](30);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](31, GitSetupRemoteGenericDialogComponent_div_31_Template, 5, 0, "div", 16);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](32, GitSetupRemoteGenericDialogComponent_div_32_Template, 5, 0, "div", 17);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](33, "div", 18)(34, "mat-checkbox", 19);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_mat_checkbox_ngModelChange_34_listener($event) { return ctx.saveCredentials = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](35, " Salva credenziali per questo repository ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](36, "mat-checkbox", 19);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_mat_checkbox_ngModelChange_36_listener($event) { return ctx.pushAfterAdd = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](37, " Push automatico dei commit esistenti ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](38, "mat-expansion-panel", 20)(39, "mat-expansion-panel-header", 21);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_mat_expansion_panel_header_click_39_listener() { return ctx.toggleAdvanced(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](40, "mat-panel-title")(41, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](42, "settings");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](43, " Opzioni Avanzate ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](44, "div", 22)(45, "div", 23)(46, "mat-label", 24);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](47, "Metodo di autenticazione:");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](48, "mat-radio-group", 19);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_mat_radio_group_ngModelChange_48_listener($event) { return ctx.authMethod = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](49, "mat-radio-button", 25)(50, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](51, "vpn_key");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](52, " Username / Password ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](53, "mat-radio-button", 26)(54, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](55, "token");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](56, " Personal Access Token ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](57, "mat-form-field", 3)(58, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](59, "Nome Remote");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](60, "input", 27);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_input_ngModelChange_60_listener($event) { return ctx.remoteName = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](61, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](62, "Default: origin");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](63, GitSetupRemoteGenericDialogComponent_div_63_Template, 7, 4, "div", 28);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](64, GitSetupRemoteGenericDialogComponent_div_64_Template, 5, 1, "div", 29);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](65, "mat-expansion-panel", 30)(66, "mat-expansion-panel-header")(67, "mat-panel-title")(68, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](69, "help_outline");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](70, " Aiuto: Come configurare il remote ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](71, "div", 31)(72, "h4");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](73, "1. Crea il repository sul tuo provider Git");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](74, "p");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](75, "Vai su GitHub, GitLab, o il tuo server Git e crea un nuovo repository vuoto.");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](76, "h4");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](77, "2. Copia l'URL del repository");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](78, "p");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](79, "Copia l'URL HTTPS (es. https://github.com/utente/repo.git)");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](80, "h4");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](81, "3. Inserisci le tue credenziali");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](82, "p");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](83, "Username e password, oppure un Personal Access Token.");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](84, "h4");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](85, "4. Verifica e Configura");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](86, "p");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](87, "Usa \"Verifica Connessione\" per testare, poi clicca \"Configura\".");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](88, "mat-dialog-actions", 32)(89, "button", 33);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_button_click_89_listener() { return ctx.onCancel(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](90, "Annulla");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](91, "button", 34);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_button_click_91_listener() { return ctx.onSetup(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](92, GitSetupRemoteGenericDialogComponent_mat_spinner_92_Template, 1, 0, "mat-spinner", 35);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](93);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.remoteUrl)("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isValidating && !ctx.urlInfo);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isValidating);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.urlInfo == null ? null : ctx.urlInfo.isValid);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.urlInfo && !ctx.urlInfo.isValid);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.urlInfo == null ? null : ctx.urlInfo.isValid) && ctx.getProviderInfo());
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.urlInfo == null ? null : ctx.urlInfo.provider) === "github" && ctx.savedGitHubCredentials.length > 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.selectedCredentialId);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", !ctx.remoteUrl || !(ctx.urlInfo == null ? null : ctx.urlInfo.isValid) || ctx.isValidating || ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isValidating);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isValidating);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx.isValidating ? "Verifica..." : "Verifica Connessione", " ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.validationResult == null ? null : ctx.validationResult.isReachable) && (ctx.validationResult == null ? null : ctx.validationResult.credentialsValid));
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.validationResult == null ? null : ctx.validationResult.isReachable) && !(ctx.validationResult == null ? null : ctx.validationResult.repositoryExists));
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.saveCredentials)("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.pushAfterAdd)("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("expanded", ctx.showAdvanced);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.authMethod)("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.remoteName)("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.urlInfo == null ? null : ctx.urlInfo.supportsAutoCreate);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.error);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](25);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.isSetting || !ctx.isFormValid());
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isSetting);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx.isSetting ? "Configurazione..." : "Configura", " ");
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_core__WEBPACK_IMPORTED_MODULE_7__.MatOption, _angular_material_checkbox__WEBPACK_IMPORTED_MODULE_8__.MatCheckbox, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_9__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_9__.MatHint, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_9__.MatLabel, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_9__.MatSuffix, _angular_material_input__WEBPACK_IMPORTED_MODULE_10__.MatInput, _angular_material_radio__WEBPACK_IMPORTED_MODULE_11__.MatRadioGroup, _angular_material_radio__WEBPACK_IMPORTED_MODULE_11__.MatRadioButton, _angular_material_select__WEBPACK_IMPORTED_MODULE_12__.MatSelect, _angular_material_divider__WEBPACK_IMPORTED_MODULE_13__.MatDivider, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__.MatExpansionPanel, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__.MatExpansionPanelHeader, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__.MatExpansionPanelTitle, _angular_material_button__WEBPACK_IMPORTED_MODULE_15__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_16__.MatIcon, _angular_material_progress_spinner__WEBPACK_IMPORTED_MODULE_17__.MatProgressSpinner, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_4__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.NgModel], styles: [".setup-form[_ngcontent-%COMP%] {\n  min-width: 550px;\n  max-width: 600px;\n  padding: 16px 0;\n}\n\n.instructions[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 12px;\n  padding: 16px;\n  background-color: #e3f2fd;\n  border-radius: 4px;\n  margin-bottom: 24px;\n}\n\n.instructions[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #1976d2;\n  margin-top: 2px;\n}\n\n.instructions[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #424242;\n  line-height: 1.5;\n}\n\n.full-width[_ngcontent-%COMP%] {\n  width: 100%;\n  margin-bottom: 16px;\n}\n\n.github-pat-warning[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 8px;\n  padding: 12px;\n  background-color: #fff3e0;\n  border-radius: 4px;\n  margin-bottom: 16px;\n  border-left: 4px solid #ff9800;\n}\n\n.github-pat-warning[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #ff9800;\n  flex-shrink: 0;\n  margin-top: 2px;\n}\n\n.github-pat-warning[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  color: #5d4037;\n  font-size: 0.9em;\n  line-height: 1.5;\n}\n\n.github-pat-warning[_ngcontent-%COMP%]   span[_ngcontent-%COMP%]   a[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n\n.provider-badge[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 8px 12px;\n  background-color: #f5f5f5;\n  border-radius: 4px;\n  margin-bottom: 16px;\n  font-size: 0.9em;\n}\n\n.provider-badge[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.provider-badge[_ngcontent-%COMP%]   .auto-create-badge[_ngcontent-%COMP%] {\n  margin-left: auto;\n  padding: 2px 8px;\n  background-color: #e8f5e9;\n  color: #2e7d32;\n  border-radius: 12px;\n  font-size: 0.85em;\n}\n\n.section-divider[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\n.section-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 1em;\n  font-weight: 500;\n  color: #424242;\n  margin: 16px 0;\n}\n\n.section-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n  color: #666;\n}\n\n.saved-token-section[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%] {\n  padding: 16px;\n  background-color: #f5f5f5;\n  border-radius: 8px;\n  border: 2px solid transparent;\n  transition: border-color 0.2s, background-color 0.2s;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card.selected[_ngcontent-%COMP%] {\n  border-color: #1976d2;\n  background-color: #e3f2fd;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-header[_ngcontent-%COMP%] {\n  margin-bottom: 8px;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-header[_ngcontent-%COMP%]   mat-checkbox[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 12px;\n  background-color: rgba(255, 255, 255, 0.7);\n  border-radius: 4px;\n  margin-top: 8px;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%] {\n  font-size: 24px;\n  height: 24px;\n  width: 24px;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]    > mat-icon.valid[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]    > mat-icon.invalid[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .username[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  font-size: 1em;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .username[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  color: #666;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .status[_ngcontent-%COMP%] {\n  font-size: 0.85em;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .status.valid[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .status.invalid[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-warning[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 8px;\n  padding: 8px 12px;\n  background-color: #fff3e0;\n  border-radius: 4px;\n  margin-top: 12px;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-warning[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  flex-shrink: 0;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-warning[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  font-size: 0.85em;\n  color: #5d4037;\n  line-height: 1.4;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .or-divider[_ngcontent-%COMP%] {\n  text-align: center;\n  margin: 16px 0;\n  color: #666;\n  font-size: 0.9em;\n}\n\n.saved-token-section[_ngcontent-%COMP%]   .or-divider[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  background-color: white;\n  padding: 0 12px;\n}\n\n.saved-accounts-section[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n\n.saved-accounts-section[_ngcontent-%COMP%]   .account-repo-hint[_ngcontent-%COMP%] {\n  font-size: 0.8em;\n  color: #666;\n  margin-left: 4px;\n}\n\n.saved-accounts-section[_ngcontent-%COMP%]   mat-option[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n  vertical-align: middle;\n}\n\n.validate-button[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n\n.validate-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n}\n\n.validation-result[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 12px;\n  border-radius: 4px;\n  margin-bottom: 16px;\n}\n\n.validation-result.success[_ngcontent-%COMP%] {\n  background-color: #e8f5e9;\n  color: #2e7d32;\n}\n\n.validation-result.success[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n\n.validation-result.warning[_ngcontent-%COMP%] {\n  background-color: #fff3e0;\n  color: #e65100;\n}\n\n.validation-result.warning[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #ff9800;\n}\n\n.validation-result.error[_ngcontent-%COMP%] {\n  background-color: #ffebee;\n  color: #c62828;\n}\n\n.validation-result.error[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n\n.options[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\n.options[_ngcontent-%COMP%]   mat-checkbox[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 12px;\n}\n\n.advanced-panel[_ngcontent-%COMP%] {\n  margin: 16px 0;\n  box-shadow: none !important;\n  border: 1px solid #e0e0e0;\n}\n\n.advanced-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 0.95em;\n}\n\n.advanced-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.advanced-content[_ngcontent-%COMP%] {\n  padding-top: 16px;\n}\n\n.auth-method-section[_ngcontent-%COMP%] {\n  margin-bottom: 20px;\n}\n\n.auth-method-section[_ngcontent-%COMP%]   .field-label[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 12px;\n  font-size: 0.9em;\n  color: #666;\n}\n\n.auth-method-section[_ngcontent-%COMP%]   mat-radio-group[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n.auth-method-section[_ngcontent-%COMP%]   mat-radio-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  vertical-align: middle;\n}\n\n.auto-create-section[_ngcontent-%COMP%] {\n  margin-top: 16px;\n}\n\n.auto-create-section[_ngcontent-%COMP%]   mat-divider[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n\n.auto-create-section[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  font-size: 0.95em;\n  font-weight: 500;\n  color: #424242;\n  margin: 0 0 12px 0;\n}\n\n.create-repo-options[_ngcontent-%COMP%] {\n  margin-top: 12px;\n  padding-left: 28px;\n}\n\n.visibility-option[_ngcontent-%COMP%] {\n  margin: 12px 0 16px 0;\n}\n\n.visibility-option[_ngcontent-%COMP%]   mat-radio-group[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 24px;\n}\n\n.visibility-option[_ngcontent-%COMP%]   mat-radio-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  vertical-align: middle;\n}\n\n.error-message[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 12px;\n  background-color: #ffebee;\n  border-radius: 4px;\n  margin-top: 16px;\n  color: #c62828;\n}\n\n.error-message[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #c62828;\n}\n\n.help-panel[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  box-shadow: none !important;\n  border: 1px solid #e0e0e0;\n}\n\n.help-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 0.95em;\n}\n\n.help-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.help-content[_ngcontent-%COMP%] {\n  padding-top: 8px;\n}\n\n.help-content[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  font-size: 0.95em;\n  font-weight: 500;\n  color: #424242;\n  margin: 16px 0 8px 0;\n}\n\n.help-content[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%]:first-child {\n  margin-top: 0;\n}\n\n.help-content[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #666;\n  font-size: 0.9em;\n  line-height: 1.5;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px !important;\n  max-height: 70vh;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px !important;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%] {\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImdpdC1zZXR1cC1yZW1vdGUtZ2VuZXJpYy1kaWFsb2cuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsYUFBQTtFQUNBLHVCQUFBO0VBQ0EsU0FBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7QUFDRjs7QUFDRTtFQUNFLGNBQUE7RUFDQSxlQUFBO0FBQ0o7O0FBRUU7RUFDRSxTQUFBO0VBQ0EsY0FBQTtFQUNBLGdCQUFBO0FBQUo7O0FBSUE7RUFDRSxXQUFBO0VBQ0EsbUJBQUE7QUFERjs7QUFJQTtFQUNFLGFBQUE7RUFDQSx1QkFBQTtFQUNBLFFBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0VBQ0EsOEJBQUE7QUFERjs7QUFHRTtFQUNFLGNBQUE7RUFDQSxjQUFBO0VBQ0EsZUFBQTtBQURKOztBQUlFO0VBQ0UsY0FBQTtFQUNBLGdCQUFBO0VBQ0EsZ0JBQUE7QUFGSjs7QUFJSTtFQUNFLGdCQUFBO0FBRk47O0FBT0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsaUJBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7RUFDQSxnQkFBQTtBQUpGOztBQU1FO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBSko7O0FBT0U7RUFDRSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EseUJBQUE7RUFDQSxjQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtBQUxKOztBQVNBO0VBQ0UsY0FBQTtBQU5GOztBQVNBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxjQUFBO0FBTkY7O0FBUUU7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxXQUFBO0FBTko7O0FBVUE7RUFDRSxtQkFBQTtBQVBGOztBQVNFO0VBQ0UsYUFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7RUFDQSw2QkFBQTtFQUNBLG9EQUFBO0FBUEo7O0FBU0k7RUFDRSxxQkFBQTtFQUNBLHlCQUFBO0FBUE47O0FBVUk7RUFDRSxrQkFBQTtBQVJOOztBQVVNO0VBQ0UsZ0JBQUE7QUFSUjs7QUFZSTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0VBQ0EsMENBQUE7RUFDQSxrQkFBQTtFQUNBLGVBQUE7QUFWTjs7QUFZTTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQVZSOztBQVlRO0VBQ0UsY0FBQTtBQVZWOztBQWFRO0VBQ0UsY0FBQTtBQVhWOztBQWVNO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsUUFBQTtBQWJSOztBQWVRO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGNBQUE7QUFiVjs7QUFlVTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLFdBQUE7QUFiWjs7QUFpQlE7RUFDRSxpQkFBQTtBQWZWOztBQWlCVTtFQUNFLGNBQUE7QUFmWjs7QUFrQlU7RUFDRSxjQUFBO0FBaEJaOztBQXNCSTtFQUNFLGFBQUE7RUFDQSx1QkFBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxnQkFBQTtBQXBCTjs7QUFzQk07RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxjQUFBO0FBcEJSOztBQXVCTTtFQUNFLGlCQUFBO0VBQ0EsY0FBQTtFQUNBLGdCQUFBO0FBckJSOztBQTBCRTtFQUNFLGtCQUFBO0VBQ0EsY0FBQTtFQUNBLFdBQUE7RUFDQSxnQkFBQTtBQXhCSjs7QUEwQkk7RUFDRSx1QkFBQTtFQUNBLGVBQUE7QUF4Qk47O0FBNkJBO0VBQ0UsbUJBQUE7QUExQkY7O0FBNEJFO0VBQ0UsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUExQko7O0FBNkJFO0VBQ0UsaUJBQUE7RUFDQSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxzQkFBQTtBQTNCSjs7QUErQkE7RUFDRSxtQkFBQTtBQTVCRjs7QUE4QkU7RUFDRSxpQkFBQTtBQTVCSjs7QUFnQ0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsYUFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7QUE3QkY7O0FBK0JFO0VBQ0UseUJBQUE7RUFDQSxjQUFBO0FBN0JKOztBQStCSTtFQUNFLGNBQUE7QUE3Qk47O0FBaUNFO0VBQ0UseUJBQUE7RUFDQSxjQUFBO0FBL0JKOztBQWlDSTtFQUNFLGNBQUE7QUEvQk47O0FBbUNFO0VBQ0UseUJBQUE7RUFDQSxjQUFBO0FBakNKOztBQW1DSTtFQUNFLGNBQUE7QUFqQ047O0FBc0NBO0VBQ0UsY0FBQTtBQW5DRjs7QUFxQ0U7RUFDRSxjQUFBO0VBQ0EsbUJBQUE7QUFuQ0o7O0FBdUNBO0VBQ0UsY0FBQTtFQUNBLDJCQUFBO0VBQ0EseUJBQUE7QUFwQ0Y7O0FBc0NFO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0FBcENKOztBQXNDSTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQXBDTjs7QUF5Q0E7RUFDRSxpQkFBQTtBQXRDRjs7QUF5Q0E7RUFDRSxtQkFBQTtBQXRDRjs7QUF3Q0U7RUFDRSxjQUFBO0VBQ0EsbUJBQUE7RUFDQSxnQkFBQTtFQUNBLFdBQUE7QUF0Q0o7O0FBeUNFO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsUUFBQTtBQXZDSjs7QUEyQ0k7RUFDRSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLHNCQUFBO0FBekNOOztBQThDQTtFQUNFLGdCQUFBO0FBM0NGOztBQTZDRTtFQUNFLG1CQUFBO0FBM0NKOztBQThDRTtFQUNFLGlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0Esa0JBQUE7QUE1Q0o7O0FBZ0RBO0VBQ0UsZ0JBQUE7RUFDQSxrQkFBQTtBQTdDRjs7QUFnREE7RUFDRSxxQkFBQTtBQTdDRjs7QUErQ0U7RUFDRSxhQUFBO0VBQ0EsU0FBQTtBQTdDSjs7QUFpREk7RUFDRSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLHNCQUFBO0FBL0NOOztBQW9EQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0VBQ0EsY0FBQTtBQWpERjs7QUFtREU7RUFDRSxjQUFBO0FBakRKOztBQXFEQTtFQUNFLGdCQUFBO0VBQ0EsMkJBQUE7RUFDQSx5QkFBQTtBQWxERjs7QUFvREU7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsaUJBQUE7QUFsREo7O0FBb0RJO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBbEROOztBQXVEQTtFQUNFLGdCQUFBO0FBcERGOztBQXNERTtFQUNFLGlCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0Esb0JBQUE7QUFwREo7O0FBc0RJO0VBQ0UsYUFBQTtBQXBETjs7QUF3REU7RUFDRSxTQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0VBQ0EsZ0JBQUE7QUF0REo7O0FBMERBO0VBQ0UsMEJBQUE7RUFDQSxnQkFBQTtBQXZERjs7QUEwREE7RUFDRSw2QkFBQTtBQXZERjs7QUF5REU7RUFDRSxzQkFBQTtBQXZESiIsImZpbGUiOiJnaXQtc2V0dXAtcmVtb3RlLWdlbmVyaWMtZGlhbG9nLmNvbXBvbmVudC5zY3NzIiwic291cmNlc0NvbnRlbnQiOlsiLnNldHVwLWZvcm0ge1xyXG4gIG1pbi13aWR0aDogNTUwcHg7XHJcbiAgbWF4LXdpZHRoOiA2MDBweDtcclxuICBwYWRkaW5nOiAxNnB4IDA7XHJcbn1cclxuXHJcbi5pbnN0cnVjdGlvbnMge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGZsZXgtc3RhcnQ7XHJcbiAgZ2FwOiAxMnB4O1xyXG4gIHBhZGRpbmc6IDE2cHg7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2UzZjJmZDtcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMjRweDtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgY29sb3I6ICMxOTc2ZDI7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGNvbG9yOiAjNDI0MjQyO1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICB9XHJcbn1cclxuXHJcbi5mdWxsLXdpZHRoIHtcclxuICB3aWR0aDogMTAwJTtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG59XHJcblxyXG4uZ2l0aHViLXBhdC13YXJuaW5nIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gIGdhcDogOHB4O1xyXG4gIHBhZGRpbmc6IDEycHg7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2ZmZjNlMDtcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICBib3JkZXItbGVmdDogNHB4IHNvbGlkICNmZjk4MDA7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiAjZmY5ODAwO1xyXG4gICAgZmxleC1zaHJpbms6IDA7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgfVxyXG5cclxuICBzcGFuIHtcclxuICAgIGNvbG9yOiAjNWQ0MDM3O1xyXG4gICAgZm9udC1zaXplOiAwLjllbTtcclxuICAgIGxpbmUtaGVpZ2h0OiAxLjU7XHJcblxyXG4gICAgYSB7XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4ucHJvdmlkZXItYmFkZ2Uge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDhweDtcclxuICBwYWRkaW5nOiA4cHggMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG4gIGZvbnQtc2l6ZTogMC45ZW07XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgIGhlaWdodDogMjBweDtcclxuICAgIHdpZHRoOiAyMHB4O1xyXG4gIH1cclxuXHJcbiAgLmF1dG8tY3JlYXRlLWJhZGdlIHtcclxuICAgIG1hcmdpbi1sZWZ0OiBhdXRvO1xyXG4gICAgcGFkZGluZzogMnB4IDhweDtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNlOGY1ZTk7XHJcbiAgICBjb2xvcjogIzJlN2QzMjtcclxuICAgIGJvcmRlci1yYWRpdXM6IDEycHg7XHJcbiAgICBmb250LXNpemU6IDAuODVlbTtcclxuICB9XHJcbn1cclxuXHJcbi5zZWN0aW9uLWRpdmlkZXIge1xyXG4gIG1hcmdpbjogMjBweCAwO1xyXG59XHJcblxyXG4uc2VjdGlvbi10aXRsZSB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGdhcDogOHB4O1xyXG4gIGZvbnQtc2l6ZTogMWVtO1xyXG4gIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgY29sb3I6ICM0MjQyNDI7XHJcbiAgbWFyZ2luOiAxNnB4IDA7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgIGhlaWdodDogMjBweDtcclxuICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgfVxyXG59XHJcblxyXG4uc2F2ZWQtdG9rZW4tc2VjdGlvbiB7XHJcbiAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuXHJcbiAgLnNhdmVkLXRva2VuLWNhcmQge1xyXG4gICAgcGFkZGluZzogMTZweDtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XHJcbiAgICBib3JkZXItcmFkaXVzOiA4cHg7XHJcbiAgICBib3JkZXI6IDJweCBzb2xpZCB0cmFuc3BhcmVudDtcclxuICAgIHRyYW5zaXRpb246IGJvcmRlci1jb2xvciAwLjJzLCBiYWNrZ3JvdW5kLWNvbG9yIDAuMnM7XHJcblxyXG4gICAgJi5zZWxlY3RlZCB7XHJcbiAgICAgIGJvcmRlci1jb2xvcjogIzE5NzZkMjtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2UzZjJmZDtcclxuICAgIH1cclxuXHJcbiAgICAuc2F2ZWQtdG9rZW4taGVhZGVyIHtcclxuICAgICAgbWFyZ2luLWJvdHRvbTogOHB4O1xyXG5cclxuICAgICAgbWF0LWNoZWNrYm94IHtcclxuICAgICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgICB9XHJcbiAgICB9XHJcblxyXG4gICAgLnNhdmVkLXRva2VuLWluZm8ge1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICBnYXA6IDEycHg7XHJcbiAgICAgIHBhZGRpbmc6IDEycHg7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC43KTtcclxuICAgICAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gICAgICBtYXJnaW4tdG9wOiA4cHg7XHJcblxyXG4gICAgICA+IG1hdC1pY29uIHtcclxuICAgICAgICBmb250LXNpemU6IDI0cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAyNHB4O1xyXG4gICAgICAgIHdpZHRoOiAyNHB4O1xyXG5cclxuICAgICAgICAmLnZhbGlkIHtcclxuICAgICAgICAgIGNvbG9yOiAjNGNhZjUwO1xyXG4gICAgICAgIH1cclxuXHJcbiAgICAgICAgJi5pbnZhbGlkIHtcclxuICAgICAgICAgIGNvbG9yOiAjZjQ0MzM2O1xyXG4gICAgICAgIH1cclxuICAgICAgfVxyXG5cclxuICAgICAgLnRva2VuLWRldGFpbHMge1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgICBnYXA6IDRweDtcclxuXHJcbiAgICAgICAgLnVzZXJuYW1lIHtcclxuICAgICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgICAgZ2FwOiA0cHg7XHJcbiAgICAgICAgICBmb250LXNpemU6IDFlbTtcclxuXHJcbiAgICAgICAgICBtYXQtaWNvbiB7XHJcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgICAgICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICAgICAgICB3aWR0aDogMThweDtcclxuICAgICAgICAgICAgY29sb3I6ICM2NjY7XHJcbiAgICAgICAgICB9XHJcbiAgICAgICAgfVxyXG5cclxuICAgICAgICAuc3RhdHVzIHtcclxuICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xyXG5cclxuICAgICAgICAgICYudmFsaWQge1xyXG4gICAgICAgICAgICBjb2xvcjogIzRjYWY1MDtcclxuICAgICAgICAgIH1cclxuXHJcbiAgICAgICAgICAmLmludmFsaWQge1xyXG4gICAgICAgICAgICBjb2xvcjogI2Y0NDMzNjtcclxuICAgICAgICAgIH1cclxuICAgICAgICB9XHJcbiAgICAgIH1cclxuICAgIH1cclxuXHJcbiAgICAuc2F2ZWQtdG9rZW4td2FybmluZyB7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gICAgICBnYXA6IDhweDtcclxuICAgICAgcGFkZGluZzogOHB4IDEycHg7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmZmYzZTA7XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICAgICAgbWFyZ2luLXRvcDogMTJweDtcclxuXHJcbiAgICAgIG1hdC1pY29uIHtcclxuICAgICAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICAgIHdpZHRoOiAxOHB4O1xyXG4gICAgICAgIGZsZXgtc2hyaW5rOiAwO1xyXG4gICAgICB9XHJcblxyXG4gICAgICBzcGFuIHtcclxuICAgICAgICBmb250LXNpemU6IDAuODVlbTtcclxuICAgICAgICBjb2xvcjogIzVkNDAzNztcclxuICAgICAgICBsaW5lLWhlaWdodDogMS40O1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAub3ItZGl2aWRlciB7XHJcbiAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICBtYXJnaW46IDE2cHggMDtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgZm9udC1zaXplOiAwLjllbTtcclxuXHJcbiAgICBzcGFuIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogd2hpdGU7XHJcbiAgICAgIHBhZGRpbmc6IDAgMTJweDtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5zYXZlZC1hY2NvdW50cy1zZWN0aW9uIHtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG5cclxuICAuYWNjb3VudC1yZXBvLWhpbnQge1xyXG4gICAgZm9udC1zaXplOiAwLjhlbTtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgbWFyZ2luLWxlZnQ6IDRweDtcclxuICB9XHJcblxyXG4gIG1hdC1vcHRpb24gbWF0LWljb24ge1xyXG4gICAgbWFyZ2luLXJpZ2h0OiA4cHg7XHJcbiAgICBmb250LXNpemU6IDIwcHg7XHJcbiAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICB3aWR0aDogMjBweDtcclxuICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbiAgfVxyXG59XHJcblxyXG4udmFsaWRhdGUtYnV0dG9uIHtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBtYXJnaW4tcmlnaHQ6IDhweDtcclxuICB9XHJcbn1cclxuXHJcbi52YWxpZGF0aW9uLXJlc3VsdCB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGdhcDogOHB4O1xyXG4gIHBhZGRpbmc6IDEycHg7XHJcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcblxyXG4gICYuc3VjY2VzcyB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZThmNWU5O1xyXG4gICAgY29sb3I6ICMyZTdkMzI7XHJcblxyXG4gICAgbWF0LWljb24ge1xyXG4gICAgICBjb2xvcjogIzRjYWY1MDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gICYud2FybmluZyB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmM2UwO1xyXG4gICAgY29sb3I6ICNlNjUxMDA7XHJcblxyXG4gICAgbWF0LWljb24ge1xyXG4gICAgICBjb2xvcjogI2ZmOTgwMDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gICYuZXJyb3Ige1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogI2ZmZWJlZTtcclxuICAgIGNvbG9yOiAjYzYyODI4O1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgY29sb3I6ICNmNDQzMzY7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4ub3B0aW9ucyB7XHJcbiAgbWFyZ2luOiAyMHB4IDA7XHJcblxyXG4gIG1hdC1jaGVja2JveCB7XHJcbiAgICBkaXNwbGF5OiBibG9jaztcclxuICAgIG1hcmdpbi1ib3R0b206IDEycHg7XHJcbiAgfVxyXG59XHJcblxyXG4uYWR2YW5jZWQtcGFuZWwge1xyXG4gIG1hcmdpbjogMTZweCAwO1xyXG4gIGJveC1zaGFkb3c6IG5vbmUgIWltcG9ydGFudDtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBtYXQtcGFuZWwtdGl0bGUge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLmFkdmFuY2VkLWNvbnRlbnQge1xyXG4gIHBhZGRpbmctdG9wOiAxNnB4O1xyXG59XHJcblxyXG4uYXV0aC1tZXRob2Qtc2VjdGlvbiB7XHJcbiAgbWFyZ2luLWJvdHRvbTogMjBweDtcclxuXHJcbiAgLmZpZWxkLWxhYmVsIHtcclxuICAgIGRpc3BsYXk6IGJsb2NrO1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTJweDtcclxuICAgIGZvbnQtc2l6ZTogMC45ZW07XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICB9XHJcblxyXG4gIG1hdC1yYWRpby1ncm91cCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGdhcDogOHB4O1xyXG4gIH1cclxuXHJcbiAgbWF0LXJhZGlvLWJ1dHRvbiB7XHJcbiAgICBtYXQtaWNvbiB7XHJcbiAgICAgIG1hcmdpbi1yaWdodDogNHB4O1xyXG4gICAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICAgIGhlaWdodDogMThweDtcclxuICAgICAgd2lkdGg6IDE4cHg7XHJcbiAgICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4uYXV0by1jcmVhdGUtc2VjdGlvbiB7XHJcbiAgbWFyZ2luLXRvcDogMTZweDtcclxuXHJcbiAgbWF0LWRpdmlkZXIge1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICB9XHJcblxyXG4gIGg0IHtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgIGNvbG9yOiAjNDI0MjQyO1xyXG4gICAgbWFyZ2luOiAwIDAgMTJweCAwO1xyXG4gIH1cclxufVxyXG5cclxuLmNyZWF0ZS1yZXBvLW9wdGlvbnMge1xyXG4gIG1hcmdpbi10b3A6IDEycHg7XHJcbiAgcGFkZGluZy1sZWZ0OiAyOHB4O1xyXG59XHJcblxyXG4udmlzaWJpbGl0eS1vcHRpb24ge1xyXG4gIG1hcmdpbjogMTJweCAwIDE2cHggMDtcclxuXHJcbiAgbWF0LXJhZGlvLWdyb3VwIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBnYXA6IDI0cHg7XHJcbiAgfVxyXG5cclxuICBtYXQtcmFkaW8tYnV0dG9uIHtcclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgbWFyZ2luLXJpZ2h0OiA0cHg7XHJcbiAgICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICB3aWR0aDogMThweDtcclxuICAgICAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5lcnJvci1tZXNzYWdlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgZ2FwOiA4cHg7XHJcbiAgcGFkZGluZzogMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZlYmVlO1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tdG9wOiAxNnB4O1xyXG4gIGNvbG9yOiAjYzYyODI4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBjb2xvcjogI2M2MjgyODtcclxuICB9XHJcbn1cclxuXHJcbi5oZWxwLXBhbmVsIHtcclxuICBtYXJnaW4tdG9wOiAxNnB4O1xyXG4gIGJveC1zaGFkb3c6IG5vbmUgIWltcG9ydGFudDtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBtYXQtcGFuZWwtdGl0bGUge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLmhlbHAtY29udGVudCB7XHJcbiAgcGFkZGluZy10b3A6IDhweDtcclxuXHJcbiAgaDQge1xyXG4gICAgZm9udC1zaXplOiAwLjk1ZW07XHJcbiAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgY29sb3I6ICM0MjQyNDI7XHJcbiAgICBtYXJnaW46IDE2cHggMCA4cHggMDtcclxuXHJcbiAgICAmOmZpcnN0LWNoaWxkIHtcclxuICAgICAgbWFyZ2luLXRvcDogMDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gIHAge1xyXG4gICAgbWFyZ2luOiAwO1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgICBmb250LXNpemU6IDAuOWVtO1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICB9XHJcbn1cclxuXHJcbm1hdC1kaWFsb2ctY29udGVudCB7XHJcbiAgcGFkZGluZzogMCAyNHB4ICFpbXBvcnRhbnQ7XHJcbiAgbWF4LWhlaWdodDogNzB2aDtcclxufVxyXG5cclxubWF0LWRpYWxvZy1hY3Rpb25zIHtcclxuICBwYWRkaW5nOiAxNnB4IDI0cHggIWltcG9ydGFudDtcclxuXHJcbiAgbWF0LXNwaW5uZXIge1xyXG4gICAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcclxuICB9XHJcbn1cclxuIl19 */"] });
-
+function GitSetupRemoteGenericDialogComponent_mat_spinner_92_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "mat-spinner", 65);
+  }
+}
+class GitSetupRemoteGenericDialogComponent {
+  constructor(dialogRef, data, gitService, gitCredentialService, snackBar) {
+    this.dialogRef = dialogRef;
+    this.data = data;
+    this.gitService = gitService;
+    this.gitCredentialService = gitCredentialService;
+    this.snackBar = snackBar;
+    // Main form fields
+    this.remoteUrl = '';
+    this.username = '';
+    this.password = '';
+    this.token = '';
+    // Options
+    this.saveCredentials = true;
+    this.pushAfterAdd = true;
+    this.remoteName = 'origin';
+    // Advanced options
+    this.authMethod = 'username_password';
+    this.createRemoteRepo = false;
+    this.repoDescription = '';
+    this.isPrivate = true;
+    // State
+    this.isLoading = false;
+    this.isValidating = false;
+    this.isSetting = false;
+    this.showAdvanced = false;
+    this.showPassword = false;
+    this.error = null;
+    // URL parsing result
+    this.urlInfo = null;
+    this.validationResult = null;
+    // Multi-account support (uses unique credentials)
+    this.savedGitHubCredentials = [];
+    this.selectedCredentialId = null;
+    // Provider info for display
+    this.providerInfo = _models_remote_setup_models__WEBPACK_IMPORTED_MODULE_0__.PROVIDER_INFO;
+  }
+  ngOnInit() {
+    // Use pre-filled URL if available (from toolbar when reconfiguring credentials)
+    if (this.data?.prefilledRemoteUrl) {
+      this.remoteUrl = this.data.prefilledRemoteUrl;
+      this.onUrlChange(); // Trigger provider detection and GitHub token check
+    }
+  }
+  /**
+   * Handle URL input change - parse and detect provider
+   */
+  onUrlChange() {
+    this.error = null;
+    this.validationResult = null;
+    if (!this.remoteUrl || this.remoteUrl.trim().length < 10) {
+      this.urlInfo = null;
+      this.savedGitHubCredentials = [];
+      return;
+    }
+    this.isValidating = true;
+    this.gitService.parseRemoteUrl(this.remoteUrl.trim()).subscribe({
+      next: result => {
+        this.urlInfo = result;
+        this.isValidating = false;
+        if (!result.isValid) {
+          this.error = result.error || 'URL non valido';
+        }
+        // If GitHub detected, load saved credentials
+        if (result.provider === 'github') {
+          this.loadSavedGitHubCredentials();
+          // GitHub requires PAT, auto-select it
+          this.authMethod = 'pat';
+        } else {
+          this.savedGitHubCredentials = [];
+          this.selectedCredentialId = null;
+        }
+      },
+      error: err => {
+        console.error('Error parsing URL:', err);
+        this.isValidating = false;
+        this.urlInfo = null;
+      }
+    });
+  }
+  /**
+   * Validate connection with credentials
+   */
+  validateConnection() {
+    if (!this.remoteUrl || !this.urlInfo?.isValid) {
+      return;
+    }
+    this.isValidating = true;
+    this.error = null;
+    this.validationResult = null;
+    const effectivePassword = this.getEffectivePassword();
+    this.gitService.validateRemoteAuth({
+      remoteUrl: this.remoteUrl,
+      username: this.username,
+      password: effectivePassword,
+      authMethod: this.authMethod
+    }).subscribe({
+      next: result => {
+        this.validationResult = result;
+        this.isValidating = false;
+        if (result.isReachable && result.credentialsValid) {
+          this.snackBar.open('Connessione verificata con successo!', 'OK', {
+            duration: 3000,
+            verticalPosition: 'top'
+          });
+        } else if (result.error) {
+          this.error = result.error;
+        }
+      },
+      error: err => {
+        console.error('Error validating connection:', err);
+        this.isValidating = false;
+        this.error = 'Errore durante la verifica della connessione';
+      }
+    });
+  }
+  /**
+   * Open token creation URL for the detected provider
+   */
+  openTokenCreationUrl() {
+    if (this.urlInfo?.tokenCreationUrl) {
+      window.open(this.urlInfo.tokenCreationUrl, '_blank');
+    }
+  }
+  /**
+   * Get effective password based on auth method
+   */
+  getEffectivePassword() {
+    if (this.authMethod === 'pat' && this.token) {
+      return this.token;
+    }
+    return this.password;
+  }
+  /**
+   * Auto-select PAT auth method when user types in token field
+   */
+  onTokenChange() {
+    if (this.token && this.token.length > 0) {
+      this.authMethod = 'pat';
+    }
+  }
+  /**
+   * Load saved GitHub credentials from credential service
+   * Now returns unique credentials directly (no more deduplication needed)
+   */
+  loadSavedGitHubCredentials() {
+    this.gitCredentialService.getCredentialsByType('GitHub').subscribe({
+      next: credentials => {
+        this.savedGitHubCredentials = credentials;
+      },
+      error: err => {
+        console.error('Error loading saved GitHub credentials:', err);
+        this.savedGitHubCredentials = [];
+      }
+    });
+  }
+  /**
+   * Get display names of saved GitHub credentials
+   */
+  getSavedCredentialNames() {
+    return this.savedGitHubCredentials.map(c => c.username || c.accountName).join(', ');
+  }
+  /**
+   * Handle credential selection change
+   */
+  onCredentialSelectionChange() {
+    if (!this.selectedCredentialId) {
+      // When deselected (new credentials), clear manual input fields
+      this.username = '';
+      this.token = '';
+      this.password = '';
+    }
+  }
+  /**
+   * Get provider display info
+   */
+  getProviderInfo() {
+    if (!this.urlInfo?.provider) return null;
+    return this.providerInfo[this.urlInfo.provider] || this.providerInfo['generic'];
+  }
+  /**
+   * Check if form is valid for setup
+   */
+  isFormValid() {
+    if (!this.remoteUrl || !this.urlInfo?.isValid) {
+      return false;
+    }
+    // If using a saved credential
+    if (this.selectedCredentialId) {
+      return true;
+    }
+    // Must have credentials (username + password/token)
+    const hasCredentials = this.username && (this.authMethod === 'pat' ? this.token : this.password);
+    return !!hasCredentials;
+  }
+  /**
+   * Toggle advanced options panel
+   */
+  toggleAdvanced() {
+    this.showAdvanced = !this.showAdvanced;
+  }
+  /**
+   * Cancel and close dialog
+   */
+  onCancel() {
+    this.dialogRef.close(false);
+  }
+  /**
+   * Setup the remote
+   */
+  onSetup() {
+    if (!this.isFormValid()) {
+      this.error = 'Compila tutti i campi richiesti';
+      return;
+    }
+    this.isSetting = true;
+    this.error = null;
+    const effectivePassword = this.getEffectivePassword();
+    const useExistingCredential = !!this.selectedCredentialId;
+    const request = {
+      repositoryPath: this.data.projectPath,
+      remoteUrl: this.remoteUrl,
+      remoteName: this.remoteName || 'origin',
+      authMethod: this.authMethod || 'username_password',
+      username: useExistingCredential ? '' : this.username || '',
+      password: useExistingCredential ? '' : this.authMethod === 'username_password' ? this.password || '' : '',
+      token: useExistingCredential ? '' : this.authMethod === 'pat' ? this.token || '' : '',
+      saveCredentials: this.saveCredentials === true,
+      pushAfterAdd: this.pushAfterAdd === true,
+      createRemoteRepo: this.createRemoteRepo === true && this.urlInfo?.supportsAutoCreate === true,
+      repoDescription: this.repoDescription || '',
+      isPrivate: this.isPrivate !== false,
+      useSavedToken: false,
+      copyFromCredentialId: this.selectedCredentialId || undefined
+    };
+    console.log('Setup remote request:', request);
+    this.gitService.setupRemoteGeneric(request).subscribe({
+      next: response => {
+        this.isSetting = false;
+        if (response.success) {
+          this.snackBar.open(response.message || 'Remote configurato con successo', 'OK', {
+            duration: 5000,
+            verticalPosition: 'top'
+          });
+          this.dialogRef.close(true);
+        } else {
+          this.error = response.error || 'Errore durante la configurazione del remote';
+        }
+      },
+      error: err => {
+        this.isSetting = false;
+        this.error = 'Errore durante la configurazione: ' + (err.message || 'Errore sconosciuto');
+        console.error('Error setting up remote:', err);
+      }
+    });
+  }
+  static {
+    this.ɵfac = function GitSetupRemoteGenericDialogComponent_Factory(t) {
+      return new (t || GitSetupRemoteGenericDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_git_credential_service__WEBPACK_IMPORTED_MODULE_2__.GitCredentialService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatLegacySnackBar));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({
+      type: GitSetupRemoteGenericDialogComponent,
+      selectors: [["app-git-setup-remote-generic-dialog"]],
+      decls: 94,
+      vars: 30,
+      consts: [["mat-dialog-title", ""], [1, "setup-form"], [1, "instructions"], ["appearance", "outline", 1, "full-width"], ["matInput", "", "placeholder", "https://github.com/org/repo.git", 3, "ngModel", "disabled", "ngModelChange"], ["matSuffix", "", 4, "ngIf"], ["matSuffix", "", "diameter", "20", 4, "ngIf"], ["matSuffix", "", "style", "color: #4caf50;", 4, "ngIf"], ["matSuffix", "", "style", "color: #f44336;", 4, "ngIf"], ["class", "provider-badge", 4, "ngIf"], [1, "section-divider"], [1, "section-title"], ["class", "saved-credentials-section", 4, "ngIf"], [4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 1, "validate-button", 3, "disabled", "click"], ["diameter", "18", "style", "display: inline-block; margin-right: 8px;", 4, "ngIf"], ["class", "validation-result success", 4, "ngIf"], ["class", "validation-result warning", 4, "ngIf"], [1, "options"], [3, "ngModel", "disabled", "ngModelChange"], [1, "advanced-panel", 3, "expanded"], [3, "click"], [1, "advanced-content"], [1, "auth-method-section"], [1, "field-label"], ["value", "username_password"], ["value", "pat"], ["matInput", "", "placeholder", "origin", 3, "ngModel", "disabled", "ngModelChange"], ["class", "auto-create-section", 4, "ngIf"], ["class", "error-message", 4, "ngIf"], [1, "help-panel"], [1, "help-content"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "style", "display: inline-block; margin-right: 8px;", 4, "ngIf"], ["matSuffix", ""], ["matSuffix", "", "diameter", "20"], ["matSuffix", "", 2, "color", "#4caf50"], ["matSuffix", "", 2, "color", "#f44336"], [1, "provider-badge"], ["class", "auto-create-badge", 4, "ngIf"], [1, "auto-create-badge"], [1, "saved-credentials-section"], [3, "value"], [3, "value", 4, "ngFor", "ngForOf"], ["matInput", "", "placeholder", "Il tuo username", 3, "ngModel", "disabled", "ngModelChange"], ["appearance", "outline", "class", "full-width", 4, "ngIf"], ["class", "github-pat-warning", 4, "ngIf"], ["matInput", "", "placeholder", "Password o Personal Access Token", 3, "ngModel", "type", "disabled", "ngModelChange"], ["mat-icon-button", "", "matSuffix", "", "type", "button", 3, "click"], [1, "github-pat-warning"], ["color", "warn"], [2, "cursor", "pointer", "color", "#1976d2", "text-decoration", "underline", 3, "click"], ["matInput", "", "placeholder", "ghp_xxxxx o glpat-xxxxx", 3, "ngModel", "type", "disabled", "ngModelChange"], [2, "cursor", "pointer", "color", "#1976d2", 3, "click"], ["diameter", "18", 2, "display", "inline-block", "margin-right", "8px"], [1, "validation-result", "success"], [1, "validation-result", "warning"], [1, "auto-create-section"], ["class", "create-repo-options", 4, "ngIf"], [1, "create-repo-options"], [1, "visibility-option"], ["matInput", "", "placeholder", "Descrizione del repository", 3, "ngModel", "disabled", "ngModelChange"], [1, "error-message"], ["diameter", "20", 2, "display", "inline-block", "margin-right", "8px"]],
+      template: function GitSetupRemoteGenericDialogComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1, "Setup Remote Repository");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "mat-dialog-content")(3, "div", 1)(4, "div", 2)(5, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](6, "info");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "p");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8, " Configura il repository remoto per sincronizzare il tuo progetto. Puoi usare GitHub, GitLab, BitBucket o qualsiasi server Git. ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](9, "mat-form-field", 3)(10, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](11, "URL Repository Remoto");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](12, "input", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_input_ngModelChange_12_listener($event) {
+            return ctx.remoteUrl = $event;
+          })("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_input_ngModelChange_12_listener() {
+            return ctx.onUrlChange();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](13, GitSetupRemoteGenericDialogComponent_mat_icon_13_Template, 2, 0, "mat-icon", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](14, GitSetupRemoteGenericDialogComponent_mat_spinner_14_Template, 1, 0, "mat-spinner", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](15, GitSetupRemoteGenericDialogComponent_mat_icon_15_Template, 2, 0, "mat-icon", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](16, GitSetupRemoteGenericDialogComponent_mat_icon_16_Template, 2, 0, "mat-icon", 8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](17, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](18, "URL HTTPS o SSH del repository remoto");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](19, GitSetupRemoteGenericDialogComponent_div_19_Template, 6, 5, "div", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](20, "mat-divider", 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](21, "h3", 11)(22, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](23, "key");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](24, " Autenticazione ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](25, GitSetupRemoteGenericDialogComponent_div_25_Template, 13, 4, "div", 12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](26, GitSetupRemoteGenericDialogComponent_ng_container_26_Template, 10, 5, "ng-container", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](27, "button", 14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_button_click_27_listener() {
+            return ctx.validateConnection();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](28, GitSetupRemoteGenericDialogComponent_mat_spinner_28_Template, 1, 0, "mat-spinner", 15);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](29, GitSetupRemoteGenericDialogComponent_mat_icon_29_Template, 2, 0, "mat-icon", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](30);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](31, GitSetupRemoteGenericDialogComponent_div_31_Template, 5, 0, "div", 16);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](32, GitSetupRemoteGenericDialogComponent_div_32_Template, 5, 0, "div", 17);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](33, "div", 18)(34, "mat-checkbox", 19);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_mat_checkbox_ngModelChange_34_listener($event) {
+            return ctx.saveCredentials = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](35, " Salva credenziali per questo repository ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](36, "mat-checkbox", 19);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_mat_checkbox_ngModelChange_36_listener($event) {
+            return ctx.pushAfterAdd = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](37, " Push automatico dei commit esistenti ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](38, "mat-expansion-panel", 20)(39, "mat-expansion-panel-header", 21);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_mat_expansion_panel_header_click_39_listener() {
+            return ctx.toggleAdvanced();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](40, "mat-panel-title")(41, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](42, "settings");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](43, " Opzioni Avanzate ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](44, "div", 22)(45, "div", 23)(46, "mat-label", 24);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](47, "Metodo di autenticazione:");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](48, "mat-radio-group", 19);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_mat_radio_group_ngModelChange_48_listener($event) {
+            return ctx.authMethod = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](49, "mat-radio-button", 25)(50, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](51, "vpn_key");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](52, " Username / Password ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](53, "mat-radio-button", 26)(54, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](55, "token");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](56, " Personal Access Token ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](57, "mat-form-field", 3)(58, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](59, "Nome Remote");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](60, "input", 27);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("ngModelChange", function GitSetupRemoteGenericDialogComponent_Template_input_ngModelChange_60_listener($event) {
+            return ctx.remoteName = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](61, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](62, "Default: origin");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](63, GitSetupRemoteGenericDialogComponent_div_63_Template, 7, 4, "div", 28);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](64, GitSetupRemoteGenericDialogComponent_div_64_Template, 5, 1, "div", 29);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](65, "mat-expansion-panel", 30)(66, "mat-expansion-panel-header")(67, "mat-panel-title")(68, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](69, "help_outline");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](70, " Aiuto: Come configurare il remote ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](71, "div", 31)(72, "h4");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](73, "1. Crea il repository sul tuo provider Git");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](74, "p");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](75, "Vai su GitHub, GitLab, o il tuo server Git e crea un nuovo repository vuoto.");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](76, "h4");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](77, "2. Copia l'URL del repository");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](78, "p");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](79, "Copia l'URL HTTPS (es. https://github.com/utente/repo.git)");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](80, "h4");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](81, "3. Inserisci le tue credenziali");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](82, "p");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](83, "Username e password, oppure un Personal Access Token.");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](84, "h4");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](85, "4. Verifica e Configura");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](86, "p");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](87, "Usa \"Verifica Connessione\" per testare, poi clicca \"Configura\".");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](88, "mat-dialog-actions", 32)(89, "button", 33);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_button_click_89_listener() {
+            return ctx.onCancel();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](90, "Annulla");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](91, "button", 34);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitSetupRemoteGenericDialogComponent_Template_button_click_91_listener() {
+            return ctx.onSetup();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](92, GitSetupRemoteGenericDialogComponent_mat_spinner_92_Template, 1, 0, "mat-spinner", 35);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](93);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.remoteUrl)("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isValidating && !ctx.urlInfo);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isValidating);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.urlInfo == null ? null : ctx.urlInfo.isValid);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.urlInfo && !ctx.urlInfo.isValid);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.urlInfo == null ? null : ctx.urlInfo.isValid) && ctx.getProviderInfo());
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.urlInfo == null ? null : ctx.urlInfo.provider) === "github" && ctx.savedGitHubCredentials.length > 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.selectedCredentialId);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", !ctx.remoteUrl || !(ctx.urlInfo == null ? null : ctx.urlInfo.isValid) || ctx.isValidating || ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isValidating);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isValidating);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx.isValidating ? "Verifica..." : "Verifica Connessione", " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.validationResult == null ? null : ctx.validationResult.isReachable) && (ctx.validationResult == null ? null : ctx.validationResult.credentialsValid));
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", (ctx.validationResult == null ? null : ctx.validationResult.isReachable) && !(ctx.validationResult == null ? null : ctx.validationResult.repositoryExists));
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.saveCredentials)("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.pushAfterAdd)("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("expanded", ctx.showAdvanced);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.authMethod)("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngModel", ctx.remoteName)("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.urlInfo == null ? null : ctx.urlInfo.supportsAutoCreate);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.error);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](25);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("disabled", ctx.isSetting || !ctx.isFormValid());
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isSetting);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx.isSetting ? "Configurazione..." : "Configura", " ");
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_7__.MatLegacyOption, _angular_material_legacy_checkbox__WEBPACK_IMPORTED_MODULE_8__.MatLegacyCheckbox, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_9__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_9__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_9__.MatLegacyLabel, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_9__.MatLegacySuffix, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_10__.MatLegacyInput, _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_11__.MatLegacyRadioGroup, _angular_material_legacy_radio__WEBPACK_IMPORTED_MODULE_11__.MatLegacyRadioButton, _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_12__.MatLegacySelect, _angular_material_divider__WEBPACK_IMPORTED_MODULE_13__.MatDivider, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__.MatExpansionPanel, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__.MatExpansionPanelHeader, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_14__.MatExpansionPanelTitle, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_15__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_16__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_17__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.NgModel],
+      styles: [".setup-form[_ngcontent-%COMP%] {\n  min-width: 550px;\n  max-width: 600px;\n  padding: 16px 0;\n}\n\n.instructions[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 12px;\n  padding: 16px;\n  background-color: #e3f2fd;\n  border-radius: 4px;\n  margin-bottom: 24px;\n}\n.instructions[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #1976d2;\n  margin-top: 2px;\n}\n.instructions[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #424242;\n  line-height: 1.5;\n}\n\n.full-width[_ngcontent-%COMP%] {\n  width: 100%;\n  margin-bottom: 16px;\n}\n\n.github-pat-warning[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 8px;\n  padding: 12px;\n  background-color: #fff3e0;\n  border-radius: 4px;\n  margin-bottom: 16px;\n  border-left: 4px solid #ff9800;\n}\n.github-pat-warning[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #ff9800;\n  flex-shrink: 0;\n  margin-top: 2px;\n}\n.github-pat-warning[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  color: #5d4037;\n  font-size: 0.9em;\n  line-height: 1.5;\n}\n.github-pat-warning[_ngcontent-%COMP%]   span[_ngcontent-%COMP%]   a[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n\n.provider-badge[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 8px 12px;\n  background-color: #f5f5f5;\n  border-radius: 4px;\n  margin-bottom: 16px;\n  font-size: 0.9em;\n}\n.provider-badge[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n.provider-badge[_ngcontent-%COMP%]   .auto-create-badge[_ngcontent-%COMP%] {\n  margin-left: auto;\n  padding: 2px 8px;\n  background-color: #e8f5e9;\n  color: #2e7d32;\n  border-radius: 12px;\n  font-size: 0.85em;\n}\n\n.section-divider[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\n.section-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 1em;\n  font-weight: 500;\n  color: #424242;\n  margin: 16px 0;\n}\n.section-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n  color: #666;\n}\n\n.saved-token-section[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%] {\n  padding: 16px;\n  background-color: #f5f5f5;\n  border-radius: 8px;\n  border: 2px solid transparent;\n  transition: border-color 0.2s, background-color 0.2s;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card.selected[_ngcontent-%COMP%] {\n  border-color: #1976d2;\n  background-color: #e3f2fd;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-header[_ngcontent-%COMP%] {\n  margin-bottom: 8px;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-header[_ngcontent-%COMP%]   mat-checkbox[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 12px;\n  background-color: rgba(255, 255, 255, 0.7);\n  border-radius: 4px;\n  margin-top: 8px;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%] {\n  font-size: 24px;\n  height: 24px;\n  width: 24px;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]    > mat-icon.valid[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]    > mat-icon.invalid[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .username[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  font-size: 1em;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .username[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  color: #666;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .status[_ngcontent-%COMP%] {\n  font-size: 0.85em;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .status.valid[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-info[_ngcontent-%COMP%]   .token-details[_ngcontent-%COMP%]   .status.invalid[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-warning[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: flex-start;\n  gap: 8px;\n  padding: 8px 12px;\n  background-color: #fff3e0;\n  border-radius: 4px;\n  margin-top: 12px;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-warning[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  flex-shrink: 0;\n}\n.saved-token-section[_ngcontent-%COMP%]   .saved-token-card[_ngcontent-%COMP%]   .saved-token-warning[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  font-size: 0.85em;\n  color: #5d4037;\n  line-height: 1.4;\n}\n.saved-token-section[_ngcontent-%COMP%]   .or-divider[_ngcontent-%COMP%] {\n  text-align: center;\n  margin: 16px 0;\n  color: #666;\n  font-size: 0.9em;\n}\n.saved-token-section[_ngcontent-%COMP%]   .or-divider[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  background-color: white;\n  padding: 0 12px;\n}\n\n.saved-accounts-section[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n.saved-accounts-section[_ngcontent-%COMP%]   .account-repo-hint[_ngcontent-%COMP%] {\n  font-size: 0.8em;\n  color: #666;\n  margin-left: 4px;\n}\n.saved-accounts-section[_ngcontent-%COMP%]   mat-option[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n  vertical-align: middle;\n}\n\n.validate-button[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n.validate-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n}\n\n.validation-result[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 12px;\n  border-radius: 4px;\n  margin-bottom: 16px;\n}\n.validation-result.success[_ngcontent-%COMP%] {\n  background-color: #e8f5e9;\n  color: #2e7d32;\n}\n.validation-result.success[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #4caf50;\n}\n.validation-result.warning[_ngcontent-%COMP%] {\n  background-color: #fff3e0;\n  color: #e65100;\n}\n.validation-result.warning[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #ff9800;\n}\n.validation-result.error[_ngcontent-%COMP%] {\n  background-color: #ffebee;\n  color: #c62828;\n}\n.validation-result.error[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #f44336;\n}\n\n.options[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n.options[_ngcontent-%COMP%]   mat-checkbox[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 12px;\n}\n\n.advanced-panel[_ngcontent-%COMP%] {\n  margin: 16px 0;\n  box-shadow: none !important;\n  border: 1px solid #e0e0e0;\n}\n.advanced-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 0.95em;\n}\n.advanced-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.advanced-content[_ngcontent-%COMP%] {\n  padding-top: 16px;\n}\n\n.auth-method-section[_ngcontent-%COMP%] {\n  margin-bottom: 20px;\n}\n.auth-method-section[_ngcontent-%COMP%]   .field-label[_ngcontent-%COMP%] {\n  display: block;\n  margin-bottom: 12px;\n  font-size: 0.9em;\n  color: #666;\n}\n.auth-method-section[_ngcontent-%COMP%]   mat-radio-group[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n.auth-method-section[_ngcontent-%COMP%]   mat-radio-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  vertical-align: middle;\n}\n\n.auto-create-section[_ngcontent-%COMP%] {\n  margin-top: 16px;\n}\n.auto-create-section[_ngcontent-%COMP%]   mat-divider[_ngcontent-%COMP%] {\n  margin-bottom: 16px;\n}\n.auto-create-section[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  font-size: 0.95em;\n  font-weight: 500;\n  color: #424242;\n  margin: 0 0 12px 0;\n}\n\n.create-repo-options[_ngcontent-%COMP%] {\n  margin-top: 12px;\n  padding-left: 28px;\n}\n\n.visibility-option[_ngcontent-%COMP%] {\n  margin: 12px 0 16px 0;\n}\n.visibility-option[_ngcontent-%COMP%]   mat-radio-group[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 24px;\n}\n.visibility-option[_ngcontent-%COMP%]   mat-radio-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  vertical-align: middle;\n}\n\n.error-message[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 12px;\n  background-color: #ffebee;\n  border-radius: 4px;\n  margin-top: 16px;\n  color: #c62828;\n}\n.error-message[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: #c62828;\n}\n\n.help-panel[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  box-shadow: none !important;\n  border: 1px solid #e0e0e0;\n}\n.help-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 0.95em;\n}\n.help-panel[_ngcontent-%COMP%]   mat-panel-title[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.help-content[_ngcontent-%COMP%] {\n  padding-top: 8px;\n}\n.help-content[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  font-size: 0.95em;\n  font-weight: 500;\n  color: #424242;\n  margin: 16px 0 8px 0;\n}\n.help-content[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%]:first-child {\n  margin-top: 0;\n}\n.help-content[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n  color: #666;\n  font-size: 0.9em;\n  line-height: 1.5;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px !important;\n  max-height: 70vh;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px !important;\n}\nmat-dialog-actions[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%] {\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LXNldHVwLXJlbW90ZS1nZW5lcmljLWRpYWxvZy9naXQtc2V0dXAtcmVtb3RlLWdlbmVyaWMtZGlhbG9nLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7QUFDRjs7QUFFQTtFQUNFLGFBQUE7RUFDQSx1QkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0FBQ0Y7QUFDRTtFQUNFLGNBQUE7RUFDQSxlQUFBO0FBQ0o7QUFFRTtFQUNFLFNBQUE7RUFDQSxjQUFBO0VBQ0EsZ0JBQUE7QUFBSjs7QUFJQTtFQUNFLFdBQUE7RUFDQSxtQkFBQTtBQURGOztBQUlBO0VBQ0UsYUFBQTtFQUNBLHVCQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7RUFDQSw4QkFBQTtBQURGO0FBR0U7RUFDRSxjQUFBO0VBQ0EsY0FBQTtFQUNBLGVBQUE7QUFESjtBQUlFO0VBQ0UsY0FBQTtFQUNBLGdCQUFBO0VBQ0EsZ0JBQUE7QUFGSjtBQUlJO0VBQ0UsZ0JBQUE7QUFGTjs7QUFPQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxtQkFBQTtFQUNBLGdCQUFBO0FBSkY7QUFNRTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtBQUpKO0FBT0U7RUFDRSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EseUJBQUE7RUFDQSxjQUFBO0VBQ0EsbUJBQUE7RUFDQSxpQkFBQTtBQUxKOztBQVNBO0VBQ0UsY0FBQTtBQU5GOztBQVNBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxjQUFBO0FBTkY7QUFRRTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLFdBQUE7QUFOSjs7QUFVQTtFQUNFLG1CQUFBO0FBUEY7QUFTRTtFQUNFLGFBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsNkJBQUE7RUFDQSxvREFBQTtBQVBKO0FBU0k7RUFDRSxxQkFBQTtFQUNBLHlCQUFBO0FBUE47QUFVSTtFQUNFLGtCQUFBO0FBUk47QUFVTTtFQUNFLGdCQUFBO0FBUlI7QUFZSTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxhQUFBO0VBQ0EsMENBQUE7RUFDQSxrQkFBQTtFQUNBLGVBQUE7QUFWTjtBQVlNO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBVlI7QUFZUTtFQUNFLGNBQUE7QUFWVjtBQWFRO0VBQ0UsY0FBQTtBQVhWO0FBZU07RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxRQUFBO0FBYlI7QUFlUTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxjQUFBO0FBYlY7QUFlVTtFQUNFLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLFdBQUE7QUFiWjtBQWlCUTtFQUNFLGlCQUFBO0FBZlY7QUFpQlU7RUFDRSxjQUFBO0FBZlo7QUFrQlU7RUFDRSxjQUFBO0FBaEJaO0FBc0JJO0VBQ0UsYUFBQTtFQUNBLHVCQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0FBcEJOO0FBc0JNO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsY0FBQTtBQXBCUjtBQXVCTTtFQUNFLGlCQUFBO0VBQ0EsY0FBQTtFQUNBLGdCQUFBO0FBckJSO0FBMEJFO0VBQ0Usa0JBQUE7RUFDQSxjQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0FBeEJKO0FBMEJJO0VBQ0UsdUJBQUE7RUFDQSxlQUFBO0FBeEJOOztBQTZCQTtFQUNFLG1CQUFBO0FBMUJGO0FBNEJFO0VBQ0UsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsZ0JBQUE7QUExQko7QUE2QkU7RUFDRSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLHNCQUFBO0FBM0JKOztBQStCQTtFQUNFLG1CQUFBO0FBNUJGO0FBOEJFO0VBQ0UsaUJBQUE7QUE1Qko7O0FBZ0NBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0FBN0JGO0FBK0JFO0VBQ0UseUJBQUE7RUFDQSxjQUFBO0FBN0JKO0FBK0JJO0VBQ0UsY0FBQTtBQTdCTjtBQWlDRTtFQUNFLHlCQUFBO0VBQ0EsY0FBQTtBQS9CSjtBQWlDSTtFQUNFLGNBQUE7QUEvQk47QUFtQ0U7RUFDRSx5QkFBQTtFQUNBLGNBQUE7QUFqQ0o7QUFtQ0k7RUFDRSxjQUFBO0FBakNOOztBQXNDQTtFQUNFLGNBQUE7QUFuQ0Y7QUFxQ0U7RUFDRSxjQUFBO0VBQ0EsbUJBQUE7QUFuQ0o7O0FBdUNBO0VBQ0UsY0FBQTtFQUNBLDJCQUFBO0VBQ0EseUJBQUE7QUFwQ0Y7QUFzQ0U7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsaUJBQUE7QUFwQ0o7QUFzQ0k7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFwQ047O0FBeUNBO0VBQ0UsaUJBQUE7QUF0Q0Y7O0FBeUNBO0VBQ0UsbUJBQUE7QUF0Q0Y7QUF3Q0U7RUFDRSxjQUFBO0VBQ0EsbUJBQUE7RUFDQSxnQkFBQTtFQUNBLFdBQUE7QUF0Q0o7QUF5Q0U7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxRQUFBO0FBdkNKO0FBMkNJO0VBQ0UsaUJBQUE7RUFDQSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxzQkFBQTtBQXpDTjs7QUE4Q0E7RUFDRSxnQkFBQTtBQTNDRjtBQTZDRTtFQUNFLG1CQUFBO0FBM0NKO0FBOENFO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxrQkFBQTtBQTVDSjs7QUFnREE7RUFDRSxnQkFBQTtFQUNBLGtCQUFBO0FBN0NGOztBQWdEQTtFQUNFLHFCQUFBO0FBN0NGO0FBK0NFO0VBQ0UsYUFBQTtFQUNBLFNBQUE7QUE3Q0o7QUFpREk7RUFDRSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLHNCQUFBO0FBL0NOOztBQW9EQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLGdCQUFBO0VBQ0EsY0FBQTtBQWpERjtBQW1ERTtFQUNFLGNBQUE7QUFqREo7O0FBcURBO0VBQ0UsZ0JBQUE7RUFDQSwyQkFBQTtFQUNBLHlCQUFBO0FBbERGO0FBb0RFO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0FBbERKO0FBb0RJO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBbEROOztBQXVEQTtFQUNFLGdCQUFBO0FBcERGO0FBc0RFO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7RUFDQSxvQkFBQTtBQXBESjtBQXNESTtFQUNFLGFBQUE7QUFwRE47QUF3REU7RUFDRSxTQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0VBQ0EsZ0JBQUE7QUF0REo7O0FBMERBO0VBQ0UsMEJBQUE7RUFDQSxnQkFBQTtBQXZERjs7QUEwREE7RUFDRSw2QkFBQTtBQXZERjtBQXlERTtFQUNFLHNCQUFBO0FBdkRKIiwic291cmNlc0NvbnRlbnQiOlsiLnNldHVwLWZvcm0ge1xyXG4gIG1pbi13aWR0aDogNTUwcHg7XHJcbiAgbWF4LXdpZHRoOiA2MDBweDtcclxuICBwYWRkaW5nOiAxNnB4IDA7XHJcbn1cclxuXHJcbi5pbnN0cnVjdGlvbnMge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGZsZXgtc3RhcnQ7XHJcbiAgZ2FwOiAxMnB4O1xyXG4gIHBhZGRpbmc6IDE2cHg7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2UzZjJmZDtcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMjRweDtcclxuXHJcbiAgbWF0LWljb24ge1xyXG4gICAgY29sb3I6ICMxOTc2ZDI7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgfVxyXG5cclxuICBwIHtcclxuICAgIG1hcmdpbjogMDtcclxuICAgIGNvbG9yOiAjNDI0MjQyO1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICB9XHJcbn1cclxuXHJcbi5mdWxsLXdpZHRoIHtcclxuICB3aWR0aDogMTAwJTtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG59XHJcblxyXG4uZ2l0aHViLXBhdC13YXJuaW5nIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gIGdhcDogOHB4O1xyXG4gIHBhZGRpbmc6IDEycHg7XHJcbiAgYmFja2dyb3VuZC1jb2xvcjogI2ZmZjNlMDtcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbiAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICBib3JkZXItbGVmdDogNHB4IHNvbGlkICNmZjk4MDA7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGNvbG9yOiAjZmY5ODAwO1xyXG4gICAgZmxleC1zaHJpbms6IDA7XHJcbiAgICBtYXJnaW4tdG9wOiAycHg7XHJcbiAgfVxyXG5cclxuICBzcGFuIHtcclxuICAgIGNvbG9yOiAjNWQ0MDM3O1xyXG4gICAgZm9udC1zaXplOiAwLjllbTtcclxuICAgIGxpbmUtaGVpZ2h0OiAxLjU7XHJcblxyXG4gICAgYSB7XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4ucHJvdmlkZXItYmFkZ2Uge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDhweDtcclxuICBwYWRkaW5nOiA4cHggMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG4gIGZvbnQtc2l6ZTogMC45ZW07XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgIGhlaWdodDogMjBweDtcclxuICAgIHdpZHRoOiAyMHB4O1xyXG4gIH1cclxuXHJcbiAgLmF1dG8tY3JlYXRlLWJhZGdlIHtcclxuICAgIG1hcmdpbi1sZWZ0OiBhdXRvO1xyXG4gICAgcGFkZGluZzogMnB4IDhweDtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNlOGY1ZTk7XHJcbiAgICBjb2xvcjogIzJlN2QzMjtcclxuICAgIGJvcmRlci1yYWRpdXM6IDEycHg7XHJcbiAgICBmb250LXNpemU6IDAuODVlbTtcclxuICB9XHJcbn1cclxuXHJcbi5zZWN0aW9uLWRpdmlkZXIge1xyXG4gIG1hcmdpbjogMjBweCAwO1xyXG59XHJcblxyXG4uc2VjdGlvbi10aXRsZSB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGdhcDogOHB4O1xyXG4gIGZvbnQtc2l6ZTogMWVtO1xyXG4gIGZvbnQtd2VpZ2h0OiA1MDA7XHJcbiAgY29sb3I6ICM0MjQyNDI7XHJcbiAgbWFyZ2luOiAxNnB4IDA7XHJcblxyXG4gIG1hdC1pY29uIHtcclxuICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgIGhlaWdodDogMjBweDtcclxuICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgfVxyXG59XHJcblxyXG4uc2F2ZWQtdG9rZW4tc2VjdGlvbiB7XHJcbiAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuXHJcbiAgLnNhdmVkLXRva2VuLWNhcmQge1xyXG4gICAgcGFkZGluZzogMTZweDtcclxuICAgIGJhY2tncm91bmQtY29sb3I6ICNmNWY1ZjU7XHJcbiAgICBib3JkZXItcmFkaXVzOiA4cHg7XHJcbiAgICBib3JkZXI6IDJweCBzb2xpZCB0cmFuc3BhcmVudDtcclxuICAgIHRyYW5zaXRpb246IGJvcmRlci1jb2xvciAwLjJzLCBiYWNrZ3JvdW5kLWNvbG9yIDAuMnM7XHJcblxyXG4gICAgJi5zZWxlY3RlZCB7XHJcbiAgICAgIGJvcmRlci1jb2xvcjogIzE5NzZkMjtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2UzZjJmZDtcclxuICAgIH1cclxuXHJcbiAgICAuc2F2ZWQtdG9rZW4taGVhZGVyIHtcclxuICAgICAgbWFyZ2luLWJvdHRvbTogOHB4O1xyXG5cclxuICAgICAgbWF0LWNoZWNrYm94IHtcclxuICAgICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgICB9XHJcbiAgICB9XHJcblxyXG4gICAgLnNhdmVkLXRva2VuLWluZm8ge1xyXG4gICAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICBnYXA6IDEycHg7XHJcbiAgICAgIHBhZGRpbmc6IDEycHg7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC43KTtcclxuICAgICAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gICAgICBtYXJnaW4tdG9wOiA4cHg7XHJcblxyXG4gICAgICA+IG1hdC1pY29uIHtcclxuICAgICAgICBmb250LXNpemU6IDI0cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAyNHB4O1xyXG4gICAgICAgIHdpZHRoOiAyNHB4O1xyXG5cclxuICAgICAgICAmLnZhbGlkIHtcclxuICAgICAgICAgIGNvbG9yOiAjNGNhZjUwO1xyXG4gICAgICAgIH1cclxuXHJcbiAgICAgICAgJi5pbnZhbGlkIHtcclxuICAgICAgICAgIGNvbG9yOiAjZjQ0MzM2O1xyXG4gICAgICAgIH1cclxuICAgICAgfVxyXG5cclxuICAgICAgLnRva2VuLWRldGFpbHMge1xyXG4gICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgICAgICBnYXA6IDRweDtcclxuXHJcbiAgICAgICAgLnVzZXJuYW1lIHtcclxuICAgICAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgICAgZ2FwOiA0cHg7XHJcbiAgICAgICAgICBmb250LXNpemU6IDFlbTtcclxuXHJcbiAgICAgICAgICBtYXQtaWNvbiB7XHJcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgICAgICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICAgICAgICB3aWR0aDogMThweDtcclxuICAgICAgICAgICAgY29sb3I6ICM2NjY7XHJcbiAgICAgICAgICB9XHJcbiAgICAgICAgfVxyXG5cclxuICAgICAgICAuc3RhdHVzIHtcclxuICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xyXG5cclxuICAgICAgICAgICYudmFsaWQge1xyXG4gICAgICAgICAgICBjb2xvcjogIzRjYWY1MDtcclxuICAgICAgICAgIH1cclxuXHJcbiAgICAgICAgICAmLmludmFsaWQge1xyXG4gICAgICAgICAgICBjb2xvcjogI2Y0NDMzNjtcclxuICAgICAgICAgIH1cclxuICAgICAgICB9XHJcbiAgICAgIH1cclxuICAgIH1cclxuXHJcbiAgICAuc2F2ZWQtdG9rZW4td2FybmluZyB7XHJcbiAgICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICAgIGFsaWduLWl0ZW1zOiBmbGV4LXN0YXJ0O1xyXG4gICAgICBnYXA6IDhweDtcclxuICAgICAgcGFkZGluZzogOHB4IDEycHg7XHJcbiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmZmYzZTA7XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICAgICAgbWFyZ2luLXRvcDogMTJweDtcclxuXHJcbiAgICAgIG1hdC1pY29uIHtcclxuICAgICAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICAgIHdpZHRoOiAxOHB4O1xyXG4gICAgICAgIGZsZXgtc2hyaW5rOiAwO1xyXG4gICAgICB9XHJcblxyXG4gICAgICBzcGFuIHtcclxuICAgICAgICBmb250LXNpemU6IDAuODVlbTtcclxuICAgICAgICBjb2xvcjogIzVkNDAzNztcclxuICAgICAgICBsaW5lLWhlaWdodDogMS40O1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAub3ItZGl2aWRlciB7XHJcbiAgICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgICBtYXJnaW46IDE2cHggMDtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgZm9udC1zaXplOiAwLjllbTtcclxuXHJcbiAgICBzcGFuIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogd2hpdGU7XHJcbiAgICAgIHBhZGRpbmc6IDAgMTJweDtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5zYXZlZC1hY2NvdW50cy1zZWN0aW9uIHtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG5cclxuICAuYWNjb3VudC1yZXBvLWhpbnQge1xyXG4gICAgZm9udC1zaXplOiAwLjhlbTtcclxuICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgbWFyZ2luLWxlZnQ6IDRweDtcclxuICB9XHJcblxyXG4gIG1hdC1vcHRpb24gbWF0LWljb24ge1xyXG4gICAgbWFyZ2luLXJpZ2h0OiA4cHg7XHJcbiAgICBmb250LXNpemU6IDIwcHg7XHJcbiAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICB3aWR0aDogMjBweDtcclxuICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbiAgfVxyXG59XHJcblxyXG4udmFsaWRhdGUtYnV0dG9uIHtcclxuICBtYXJnaW4tYm90dG9tOiAxNnB4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBtYXJnaW4tcmlnaHQ6IDhweDtcclxuICB9XHJcbn1cclxuXHJcbi52YWxpZGF0aW9uLXJlc3VsdCB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGdhcDogOHB4O1xyXG4gIHBhZGRpbmc6IDEycHg7XHJcbiAgYm9yZGVyLXJhZGl1czogNHB4O1xyXG4gIG1hcmdpbi1ib3R0b206IDE2cHg7XHJcblxyXG4gICYuc3VjY2VzcyB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZThmNWU5O1xyXG4gICAgY29sb3I6ICMyZTdkMzI7XHJcblxyXG4gICAgbWF0LWljb24ge1xyXG4gICAgICBjb2xvcjogIzRjYWY1MDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gICYud2FybmluZyB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmM2UwO1xyXG4gICAgY29sb3I6ICNlNjUxMDA7XHJcblxyXG4gICAgbWF0LWljb24ge1xyXG4gICAgICBjb2xvcjogI2ZmOTgwMDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gICYuZXJyb3Ige1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogI2ZmZWJlZTtcclxuICAgIGNvbG9yOiAjYzYyODI4O1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgY29sb3I6ICNmNDQzMzY7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4ub3B0aW9ucyB7XHJcbiAgbWFyZ2luOiAyMHB4IDA7XHJcblxyXG4gIG1hdC1jaGVja2JveCB7XHJcbiAgICBkaXNwbGF5OiBibG9jaztcclxuICAgIG1hcmdpbi1ib3R0b206IDEycHg7XHJcbiAgfVxyXG59XHJcblxyXG4uYWR2YW5jZWQtcGFuZWwge1xyXG4gIG1hcmdpbjogMTZweCAwO1xyXG4gIGJveC1zaGFkb3c6IG5vbmUgIWltcG9ydGFudDtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBtYXQtcGFuZWwtdGl0bGUge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLmFkdmFuY2VkLWNvbnRlbnQge1xyXG4gIHBhZGRpbmctdG9wOiAxNnB4O1xyXG59XHJcblxyXG4uYXV0aC1tZXRob2Qtc2VjdGlvbiB7XHJcbiAgbWFyZ2luLWJvdHRvbTogMjBweDtcclxuXHJcbiAgLmZpZWxkLWxhYmVsIHtcclxuICAgIGRpc3BsYXk6IGJsb2NrO1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTJweDtcclxuICAgIGZvbnQtc2l6ZTogMC45ZW07XHJcbiAgICBjb2xvcjogIzY2NjtcclxuICB9XHJcblxyXG4gIG1hdC1yYWRpby1ncm91cCB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICAgIGdhcDogOHB4O1xyXG4gIH1cclxuXHJcbiAgbWF0LXJhZGlvLWJ1dHRvbiB7XHJcbiAgICBtYXQtaWNvbiB7XHJcbiAgICAgIG1hcmdpbi1yaWdodDogNHB4O1xyXG4gICAgICBmb250LXNpemU6IDE4cHg7XHJcbiAgICAgIGhlaWdodDogMThweDtcclxuICAgICAgd2lkdGg6IDE4cHg7XHJcbiAgICAgIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4uYXV0by1jcmVhdGUtc2VjdGlvbiB7XHJcbiAgbWFyZ2luLXRvcDogMTZweDtcclxuXHJcbiAgbWF0LWRpdmlkZXIge1xyXG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcclxuICB9XHJcblxyXG4gIGg0IHtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG4gICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgIGNvbG9yOiAjNDI0MjQyO1xyXG4gICAgbWFyZ2luOiAwIDAgMTJweCAwO1xyXG4gIH1cclxufVxyXG5cclxuLmNyZWF0ZS1yZXBvLW9wdGlvbnMge1xyXG4gIG1hcmdpbi10b3A6IDEycHg7XHJcbiAgcGFkZGluZy1sZWZ0OiAyOHB4O1xyXG59XHJcblxyXG4udmlzaWJpbGl0eS1vcHRpb24ge1xyXG4gIG1hcmdpbjogMTJweCAwIDE2cHggMDtcclxuXHJcbiAgbWF0LXJhZGlvLWdyb3VwIHtcclxuICAgIGRpc3BsYXk6IGZsZXg7XHJcbiAgICBnYXA6IDI0cHg7XHJcbiAgfVxyXG5cclxuICBtYXQtcmFkaW8tYnV0dG9uIHtcclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgbWFyZ2luLXJpZ2h0OiA0cHg7XHJcbiAgICAgIGZvbnQtc2l6ZTogMThweDtcclxuICAgICAgaGVpZ2h0OiAxOHB4O1xyXG4gICAgICB3aWR0aDogMThweDtcclxuICAgICAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi5lcnJvci1tZXNzYWdlIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgZ2FwOiA4cHg7XHJcbiAgcGFkZGluZzogMTJweDtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZlYmVlO1xyXG4gIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICBtYXJnaW4tdG9wOiAxNnB4O1xyXG4gIGNvbG9yOiAjYzYyODI4O1xyXG5cclxuICBtYXQtaWNvbiB7XHJcbiAgICBjb2xvcjogI2M2MjgyODtcclxuICB9XHJcbn1cclxuXHJcbi5oZWxwLXBhbmVsIHtcclxuICBtYXJnaW4tdG9wOiAxNnB4O1xyXG4gIGJveC1zaGFkb3c6IG5vbmUgIWltcG9ydGFudDtcclxuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xyXG5cclxuICBtYXQtcGFuZWwtdGl0bGUge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBnYXA6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMC45NWVtO1xyXG5cclxuICAgIG1hdC1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAyMHB4O1xyXG4gICAgICBoZWlnaHQ6IDIwcHg7XHJcbiAgICAgIHdpZHRoOiAyMHB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLmhlbHAtY29udGVudCB7XHJcbiAgcGFkZGluZy10b3A6IDhweDtcclxuXHJcbiAgaDQge1xyXG4gICAgZm9udC1zaXplOiAwLjk1ZW07XHJcbiAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgY29sb3I6ICM0MjQyNDI7XHJcbiAgICBtYXJnaW46IDE2cHggMCA4cHggMDtcclxuXHJcbiAgICAmOmZpcnN0LWNoaWxkIHtcclxuICAgICAgbWFyZ2luLXRvcDogMDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gIHAge1xyXG4gICAgbWFyZ2luOiAwO1xyXG4gICAgY29sb3I6ICM2NjY7XHJcbiAgICBmb250LXNpemU6IDAuOWVtO1xyXG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICB9XHJcbn1cclxuXHJcbm1hdC1kaWFsb2ctY29udGVudCB7XHJcbiAgcGFkZGluZzogMCAyNHB4ICFpbXBvcnRhbnQ7XHJcbiAgbWF4LWhlaWdodDogNzB2aDtcclxufVxyXG5cclxubWF0LWRpYWxvZy1hY3Rpb25zIHtcclxuICBwYWRkaW5nOiAxNnB4IDI0cHggIWltcG9ydGFudDtcclxuXHJcbiAgbWF0LXNwaW5uZXIge1xyXG4gICAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcclxuICB9XHJcbn1cclxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
+    });
+  }
+}
 
 /***/ }),
 
@@ -3573,31 +4125,29 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class GitModule {
+  static {
+    this.ɵfac = function GitModule_Factory(t) {
+      return new (t || GitModule)();
+    };
+  }
+  static {
+    this.ɵmod = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineNgModule"]({
+      type: GitModule
+    });
+  }
+  static {
+    this.ɵinj = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineInjector"]({
+      imports: [_angular_common__WEBPACK_IMPORTED_MODULE_11__.CommonModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_9__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.FormsModule]
+    });
+  }
 }
-GitModule.ɵfac = function GitModule_Factory(t) { return new (t || GitModule)(); };
-GitModule.ɵmod = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineNgModule"]({ type: GitModule });
-GitModule.ɵinj = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineInjector"]({ imports: [_angular_common__WEBPACK_IMPORTED_MODULE_11__.CommonModule,
-        _shared_material_module__WEBPACK_IMPORTED_MODULE_9__.MaterialModule,
-        _angular_forms__WEBPACK_IMPORTED_MODULE_12__.FormsModule] });
-(function () { (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵsetNgModuleScope"](GitModule, { declarations: [_components_git_messages_git_messages_component__WEBPACK_IMPORTED_MODULE_0__.GitMessagesComponent,
-        _dialogs_commit_message_dialog_commit_message_dialog_component__WEBPACK_IMPORTED_MODULE_1__.CommitMessageDialogComponent,
-        _dialogs_git_history_dialog_git_history_dialog_component__WEBPACK_IMPORTED_MODULE_2__.GitHistoryDialogComponent,
-        _dialogs_git_branch_dialog_git_branch_dialog_component__WEBPACK_IMPORTED_MODULE_3__.GitBranchDialogComponent,
-        _dialogs_git_setup_remote_dialog_git_setup_remote_dialog_component__WEBPACK_IMPORTED_MODULE_4__.GitSetupRemoteDialogComponent,
-        _dialogs_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_5__.GitSetupRemoteGenericDialogComponent,
-        _dialogs_git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_6__.GitTokenDialogComponent,
-        _dialogs_git_account_management_dialog_git_account_management_dialog_component__WEBPACK_IMPORTED_MODULE_7__.GitAccountManagementDialogComponent,
-        _dialogs_git_init_wizard_git_init_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_8__.GitInitWizardDialogComponent], imports: [_angular_common__WEBPACK_IMPORTED_MODULE_11__.CommonModule,
-        _shared_material_module__WEBPACK_IMPORTED_MODULE_9__.MaterialModule,
-        _angular_forms__WEBPACK_IMPORTED_MODULE_12__.FormsModule], exports: [_dialogs_commit_message_dialog_commit_message_dialog_component__WEBPACK_IMPORTED_MODULE_1__.CommitMessageDialogComponent,
-        _dialogs_git_history_dialog_git_history_dialog_component__WEBPACK_IMPORTED_MODULE_2__.GitHistoryDialogComponent,
-        _dialogs_git_branch_dialog_git_branch_dialog_component__WEBPACK_IMPORTED_MODULE_3__.GitBranchDialogComponent,
-        _dialogs_git_setup_remote_dialog_git_setup_remote_dialog_component__WEBPACK_IMPORTED_MODULE_4__.GitSetupRemoteDialogComponent,
-        _dialogs_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_5__.GitSetupRemoteGenericDialogComponent,
-        _dialogs_git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_6__.GitTokenDialogComponent,
-        _dialogs_git_account_management_dialog_git_account_management_dialog_component__WEBPACK_IMPORTED_MODULE_7__.GitAccountManagementDialogComponent,
-        _dialogs_git_init_wizard_git_init_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_8__.GitInitWizardDialogComponent] }); })();
-
+(function () {
+  (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵsetNgModuleScope"](GitModule, {
+    declarations: [_components_git_messages_git_messages_component__WEBPACK_IMPORTED_MODULE_0__.GitMessagesComponent, _dialogs_commit_message_dialog_commit_message_dialog_component__WEBPACK_IMPORTED_MODULE_1__.CommitMessageDialogComponent, _dialogs_git_history_dialog_git_history_dialog_component__WEBPACK_IMPORTED_MODULE_2__.GitHistoryDialogComponent, _dialogs_git_branch_dialog_git_branch_dialog_component__WEBPACK_IMPORTED_MODULE_3__.GitBranchDialogComponent, _dialogs_git_setup_remote_dialog_git_setup_remote_dialog_component__WEBPACK_IMPORTED_MODULE_4__.GitSetupRemoteDialogComponent, _dialogs_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_5__.GitSetupRemoteGenericDialogComponent, _dialogs_git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_6__.GitTokenDialogComponent, _dialogs_git_account_management_dialog_git_account_management_dialog_component__WEBPACK_IMPORTED_MODULE_7__.GitAccountManagementDialogComponent, _dialogs_git_init_wizard_git_init_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_8__.GitInitWizardDialogComponent],
+    imports: [_angular_common__WEBPACK_IMPORTED_MODULE_11__.CommonModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_9__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.FormsModule],
+    exports: [_dialogs_commit_message_dialog_commit_message_dialog_component__WEBPACK_IMPORTED_MODULE_1__.CommitMessageDialogComponent, _dialogs_git_history_dialog_git_history_dialog_component__WEBPACK_IMPORTED_MODULE_2__.GitHistoryDialogComponent, _dialogs_git_branch_dialog_git_branch_dialog_component__WEBPACK_IMPORTED_MODULE_3__.GitBranchDialogComponent, _dialogs_git_setup_remote_dialog_git_setup_remote_dialog_component__WEBPACK_IMPORTED_MODULE_4__.GitSetupRemoteDialogComponent, _dialogs_git_setup_remote_generic_dialog_git_setup_remote_generic_dialog_component__WEBPACK_IMPORTED_MODULE_5__.GitSetupRemoteGenericDialogComponent, _dialogs_git_token_dialog_git_token_dialog_component__WEBPACK_IMPORTED_MODULE_6__.GitTokenDialogComponent, _dialogs_git_account_management_dialog_git_account_management_dialog_component__WEBPACK_IMPORTED_MODULE_7__.GitAccountManagementDialogComponent, _dialogs_git_init_wizard_git_init_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_8__.GitInitWizardDialogComponent]
+  });
+})();
 
 /***/ }),
 
@@ -3614,34 +4164,27 @@ __webpack_require__.r(__webpack_exports__);
 /**
  * Available .gitignore templates
  */
-const GITIGNORE_TEMPLATES = [
-    {
-        value: 'mdexplorer',
-        label: 'MdExplorer (Default)',
-        description: 'Ignores .md/, database files, logs, and temporary files'
-    },
-    {
-        value: 'node',
-        label: 'Node.js',
-        description: 'Ignores node_modules/, npm logs, build outputs, and .env files'
-    },
-    {
-        value: 'python',
-        label: 'Python',
-        description: 'Ignores __pycache__/, virtual environments, and distribution files'
-    },
-    {
-        value: 'csharp',
-        label: '.NET / C#',
-        description: 'Ignores bin/, obj/, Visual Studio files, and build outputs'
-    },
-    {
-        value: 'none',
-        label: 'None',
-        description: 'Creates an empty .gitignore file'
-    }
-];
-
+const GITIGNORE_TEMPLATES = [{
+  value: 'mdexplorer',
+  label: 'MdExplorer (Default)',
+  description: 'Ignores .md/, database files, logs, and temporary files'
+}, {
+  value: 'node',
+  label: 'Node.js',
+  description: 'Ignores node_modules/, npm logs, build outputs, and .env files'
+}, {
+  value: 'python',
+  label: 'Python',
+  description: 'Ignores __pycache__/, virtual environments, and distribution files'
+}, {
+  value: 'csharp',
+  label: '.NET / C#',
+  description: 'Ignores bin/, obj/, Visual Studio files, and build outputs'
+}, {
+  value: 'none',
+  label: 'None',
+  description: 'Creates an empty .gitignore file'
+}];
 
 /***/ }),
 
@@ -3659,44 +4202,43 @@ __webpack_require__.r(__webpack_exports__);
  * Provider display configurations
  */
 const PROVIDER_INFO = {
-    github: {
-        id: 'github',
-        name: 'GitHub',
-        icon: 'code',
-        color: '#24292e'
-    },
-    gitlab: {
-        id: 'gitlab',
-        name: 'GitLab',
-        icon: 'code',
-        color: '#fc6d26'
-    },
-    bitbucket: {
-        id: 'bitbucket',
-        name: 'Bitbucket',
-        icon: 'cloud',
-        color: '#0052cc'
-    },
-    gitea: {
-        id: 'gitea',
-        name: 'Gitea',
-        icon: 'pets',
-        color: '#609926'
-    },
-    azure: {
-        id: 'azure',
-        name: 'Azure DevOps',
-        icon: 'cloud_queue',
-        color: '#0078d4'
-    },
-    generic: {
-        id: 'generic',
-        name: 'Git',
-        icon: 'source',
-        color: '#666666'
-    }
+  github: {
+    id: 'github',
+    name: 'GitHub',
+    icon: 'code',
+    color: '#24292e'
+  },
+  gitlab: {
+    id: 'gitlab',
+    name: 'GitLab',
+    icon: 'code',
+    color: '#fc6d26'
+  },
+  bitbucket: {
+    id: 'bitbucket',
+    name: 'Bitbucket',
+    icon: 'cloud',
+    color: '#0052cc'
+  },
+  gitea: {
+    id: 'gitea',
+    name: 'Gitea',
+    icon: 'pets',
+    color: '#609926'
+  },
+  azure: {
+    id: 'azure',
+    name: 'Azure DevOps',
+    icon: 'cloud_queue',
+    color: '#0078d4'
+  },
+  generic: {
+    id: 'generic',
+    name: 'Git',
+    icon: 'source',
+    color: '#666666'
+  }
 };
-
 
 /***/ }),
 
@@ -3718,86 +4260,99 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class GitAccountService {
-    constructor(http) {
-        this.http = http;
-        this.API_BASE = '/api/gitaccount';
-    }
-    /**
-     * Gets the Git account configuration for a specific repository
-     */
-    getAccountForRepository(repositoryPath) {
-        const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpParams().set('repositoryPath', repositoryPath);
-        return this.http.get(`${this.API_BASE}/for-repository`, { params }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(account => {
-            // Convert dates from strings to Date objects
-            if (account && account.createdAt) {
-                account.createdAt = new Date(account.createdAt);
-            }
-            if (account && account.updatedAt) {
-                account.updatedAt = new Date(account.updatedAt);
-            }
-            return account;
-        }));
-    }
-    /**
-     * Gets all configured Git accounts
-     */
-    getAllAccounts() {
-        return this.http.get(this.API_BASE).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(accounts => accounts.map(account => {
-            // Convert dates from strings to Date objects
-            if (account.createdAt) {
-                account.createdAt = new Date(account.createdAt);
-            }
-            if (account.updatedAt) {
-                account.updatedAt = new Date(account.updatedAt);
-            }
-            return account;
-        })));
-    }
-    /**
-     * Creates a new Git account configuration
-     */
-    createAccount(request) {
-        return this.http.post(this.API_BASE, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(account => {
-            if (account.createdAt) {
-                account.createdAt = new Date(account.createdAt);
-            }
-            if (account.updatedAt) {
-                account.updatedAt = new Date(account.updatedAt);
-            }
-            return account;
-        }));
-    }
-    /**
-     * Updates an existing Git account configuration
-     */
-    updateAccount(id, request) {
-        return this.http.put(`${this.API_BASE}/${id}`, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(account => {
-            if (account.createdAt) {
-                account.createdAt = new Date(account.createdAt);
-            }
-            if (account.updatedAt) {
-                account.updatedAt = new Date(account.updatedAt);
-            }
-            return account;
-        }));
-    }
-    /**
-     * Deletes a Git account configuration
-     */
-    deleteAccount(id) {
-        return this.http.delete(`${this.API_BASE}/${id}`);
-    }
-    /**
-     * Checks if a Git account exists for a specific repository
-     */
-    hasAccountForRepository(repositoryPath) {
-        const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpParams().set('repositoryPath', repositoryPath);
-        return this.http.get(`${this.API_BASE}/exists`, { params }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(response => response.exists));
-    }
+  constructor(http) {
+    this.http = http;
+    this.API_BASE = '/api/gitaccount';
+  }
+  /**
+   * Gets the Git account configuration for a specific repository
+   */
+  getAccountForRepository(repositoryPath) {
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpParams().set('repositoryPath', repositoryPath);
+    return this.http.get(`${this.API_BASE}/for-repository`, {
+      params
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(account => {
+      // Convert dates from strings to Date objects
+      if (account && account.createdAt) {
+        account.createdAt = new Date(account.createdAt);
+      }
+      if (account && account.updatedAt) {
+        account.updatedAt = new Date(account.updatedAt);
+      }
+      return account;
+    }));
+  }
+  /**
+   * Gets all configured Git accounts
+   */
+  getAllAccounts() {
+    return this.http.get(this.API_BASE).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(accounts => accounts.map(account => {
+      // Convert dates from strings to Date objects
+      if (account.createdAt) {
+        account.createdAt = new Date(account.createdAt);
+      }
+      if (account.updatedAt) {
+        account.updatedAt = new Date(account.updatedAt);
+      }
+      return account;
+    })));
+  }
+  /**
+   * Creates a new Git account configuration
+   */
+  createAccount(request) {
+    return this.http.post(this.API_BASE, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(account => {
+      if (account.createdAt) {
+        account.createdAt = new Date(account.createdAt);
+      }
+      if (account.updatedAt) {
+        account.updatedAt = new Date(account.updatedAt);
+      }
+      return account;
+    }));
+  }
+  /**
+   * Updates an existing Git account configuration
+   */
+  updateAccount(id, request) {
+    return this.http.put(`${this.API_BASE}/${id}`, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(account => {
+      if (account.createdAt) {
+        account.createdAt = new Date(account.createdAt);
+      }
+      if (account.updatedAt) {
+        account.updatedAt = new Date(account.updatedAt);
+      }
+      return account;
+    }));
+  }
+  /**
+   * Deletes a Git account configuration
+   */
+  deleteAccount(id) {
+    return this.http.delete(`${this.API_BASE}/${id}`);
+  }
+  /**
+   * Checks if a Git account exists for a specific repository
+   */
+  hasAccountForRepository(repositoryPath) {
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpParams().set('repositoryPath', repositoryPath);
+    return this.http.get(`${this.API_BASE}/exists`, {
+      params
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(response => response.exists));
+  }
+  static {
+    this.ɵfac = function GitAccountService_Factory(t) {
+      return new (t || GitAccountService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpClient));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
+      token: GitAccountService,
+      factory: GitAccountService.ɵfac,
+      providedIn: 'root'
+    });
+  }
 }
-GitAccountService.ɵfac = function GitAccountService_Factory(t) { return new (t || GitAccountService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpClient)); };
-GitAccountService.ɵprov = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: GitAccountService, factory: GitAccountService.ɵfac, providedIn: 'root' });
-
 
 /***/ }),
 
@@ -3819,84 +4374,95 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class GitCredentialService {
-    constructor(http) {
-        this.http = http;
-        this.API_BASE = '/api/gitaccount/credentials';
-    }
-    /**
-     * Gets all Git credentials
-     */
-    getAllCredentials() {
-        return this.http.get(this.API_BASE).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credentials => credentials.map(credential => {
-            // Convert dates from strings to Date objects
-            if (credential.createdAt) {
-                credential.createdAt = new Date(credential.createdAt);
-            }
-            if (credential.updatedAt) {
-                credential.updatedAt = new Date(credential.updatedAt);
-            }
-            return credential;
-        })));
-    }
-    /**
-     * Gets a specific Git credential by ID
-     */
-    getCredential(id) {
-        return this.http.get(`${this.API_BASE}/${id}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credential => {
-            if (credential.createdAt) {
-                credential.createdAt = new Date(credential.createdAt);
-            }
-            if (credential.updatedAt) {
-                credential.updatedAt = new Date(credential.updatedAt);
-            }
-            return credential;
-        }));
-    }
-    /**
-     * Gets credentials by account type (GitHub, GitLab, etc.)
-     */
-    getCredentialsByType(accountType) {
-        const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpParams().set('accountType', accountType);
-        return this.http.get('/api/gitaccount/usernames-by-type', { params });
-    }
-    /**
-     * Creates a new Git credential
-     */
-    createCredential(request) {
-        return this.http.post(this.API_BASE, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credential => {
-            if (credential.createdAt) {
-                credential.createdAt = new Date(credential.createdAt);
-            }
-            if (credential.updatedAt) {
-                credential.updatedAt = new Date(credential.updatedAt);
-            }
-            return credential;
-        }));
-    }
-    /**
-     * Updates an existing Git credential
-     */
-    updateCredential(id, request) {
-        return this.http.put(`${this.API_BASE}/${id}`, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credential => {
-            if (credential.createdAt) {
-                credential.createdAt = new Date(credential.createdAt);
-            }
-            if (credential.updatedAt) {
-                credential.updatedAt = new Date(credential.updatedAt);
-            }
-            return credential;
-        }));
-    }
-    /**
-     * Deletes a Git credential
-     */
-    deleteCredential(id) {
-        return this.http.delete(`${this.API_BASE}/${id}`);
-    }
+  constructor(http) {
+    this.http = http;
+    this.API_BASE = '/api/gitaccount/credentials';
+  }
+  /**
+   * Gets all Git credentials
+   */
+  getAllCredentials() {
+    return this.http.get(this.API_BASE).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credentials => credentials.map(credential => {
+      // Convert dates from strings to Date objects
+      if (credential.createdAt) {
+        credential.createdAt = new Date(credential.createdAt);
+      }
+      if (credential.updatedAt) {
+        credential.updatedAt = new Date(credential.updatedAt);
+      }
+      return credential;
+    })));
+  }
+  /**
+   * Gets a specific Git credential by ID
+   */
+  getCredential(id) {
+    return this.http.get(`${this.API_BASE}/${id}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credential => {
+      if (credential.createdAt) {
+        credential.createdAt = new Date(credential.createdAt);
+      }
+      if (credential.updatedAt) {
+        credential.updatedAt = new Date(credential.updatedAt);
+      }
+      return credential;
+    }));
+  }
+  /**
+   * Gets credentials by account type (GitHub, GitLab, etc.)
+   */
+  getCredentialsByType(accountType) {
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpParams().set('accountType', accountType);
+    return this.http.get('/api/gitaccount/usernames-by-type', {
+      params
+    });
+  }
+  /**
+   * Creates a new Git credential
+   */
+  createCredential(request) {
+    return this.http.post(this.API_BASE, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credential => {
+      if (credential.createdAt) {
+        credential.createdAt = new Date(credential.createdAt);
+      }
+      if (credential.updatedAt) {
+        credential.updatedAt = new Date(credential.updatedAt);
+      }
+      return credential;
+    }));
+  }
+  /**
+   * Updates an existing Git credential
+   */
+  updateCredential(id, request) {
+    return this.http.put(`${this.API_BASE}/${id}`, request).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_0__.map)(credential => {
+      if (credential.createdAt) {
+        credential.createdAt = new Date(credential.createdAt);
+      }
+      if (credential.updatedAt) {
+        credential.updatedAt = new Date(credential.updatedAt);
+      }
+      return credential;
+    }));
+  }
+  /**
+   * Deletes a Git credential
+   */
+  deleteCredential(id) {
+    return this.http.delete(`${this.API_BASE}/${id}`);
+  }
+  static {
+    this.ɵfac = function GitCredentialService_Factory(t) {
+      return new (t || GitCredentialService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
+      token: GitCredentialService,
+      factory: GitCredentialService.ɵfac,
+      providedIn: 'root'
+    });
+  }
 }
-GitCredentialService.ɵfac = function GitCredentialService_Factory(t) { return new (t || GitCredentialService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient)); };
-GitCredentialService.ɵprov = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({ token: GitCredentialService, factory: GitCredentialService.ɵfac, providedIn: 'root' });
-
 
 /***/ }),
 
@@ -3912,15 +4478,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../services/app-current-metadata.service */ 1804);
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
-/* harmony import */ var _angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/snack-bar */ 930);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../services/file-change-notification.service */ 322);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/form-field */ 5074);
-/* harmony import */ var _angular_material_input__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/input */ 8562);
-/* harmony import */ var _angular_material_slide_toggle__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/slide-toggle */ 4714);
-/* harmony import */ var _angular_material_card__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/card */ 2156);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_slide_toggle__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-slide-toggle */ 3921);
+/* harmony import */ var _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-card */ 7315);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/icon */ 7822);
 /* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/forms */ 2508);
 
@@ -3936,181 +4502,232 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function SettingsComponent_mat_card_47_Template(rf, ctx) { if (rf & 1) {
+function SettingsComponent_mat_card_47_Template(rf, ctx) {
+  if (rf & 1) {
     const _r2 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "mat-card", 2)(1, "mat-card-header")(2, "mat-card-title");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "Notifications");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "mat-card-content")(5, "div", 15)(6, "mat-slide-toggle", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_mat_card_47_Template_mat_slide_toggle_ngModelChange_6_listener($event) { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r2); const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r1.fileChangeNotificationEnabled = $event); })("change", function SettingsComponent_mat_card_47_Template_mat_slide_toggle_change_6_listener() { _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r2); const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r3.onFileChangeNotificationToggle()); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_mat_card_47_Template_mat_slide_toggle_ngModelChange_6_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r2);
+      const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r1.fileChangeNotificationEnabled = $event);
+    })("change", function SettingsComponent_mat_card_47_Template_mat_slide_toggle_change_6_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r2);
+      const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r3.onFileChangeNotificationToggle());
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, " Flash taskbar for file changes ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "p", 17);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Flash the taskbar icon when files are modified externally while MdExplorer is in the background");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const ctx_r0 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx_r0.fileChangeNotificationEnabled);
-} }
-class SettingsComponent {
-    constructor(appCurrentFolder, dialogRef, _snackBar, fileChangeNotificationService) {
-        this.appCurrentFolder = appCurrentFolder;
-        this.dialogRef = dialogRef;
-        this._snackBar = _snackBar;
-        this.fileChangeNotificationService = fileChangeNotificationService;
-        // File change notification settings
-        this.fileChangeNotificationEnabled = true;
-        this.isElectronEnvironment = false;
-        // Check if running in Electron
-        this.isElectronEnvironment = !!window.electronAPI?.flashTaskbarIcon;
-    }
-    ngOnInit() {
-        this.appCurrentFolder.loadSettings();
-        this.appCurrentFolder.settings.subscribe((settings) => {
-            if (settings != undefined && settings.length > 0) {
-                this._settings = settings;
-                this.vscodePath = settings.find(_ => _.name === "EditorPath")?.valueString || null;
-                this.intellijPath = settings.find(_ => _.name === "IntelliJPath")?.valueString || null;
-                this.jiraServer = settings.find(_ => _.name === "JiraServer")?.valueString || null;
-                this.plantumlLocalPath = settings.find(_ => _.name === "PlantumlLocalPath")?.valueString || null;
-                this.javaPath = settings.find(_ => _.name === "JavaPath")?.valueString || null;
-                this.localGraphvizDotPath = settings.find(_ => _.name === "LocalGraphvizDotPath")?.valueString || null;
-            }
-        });
-        // Load file change notification setting
-        this.fileChangeNotificationEnabled = this.fileChangeNotificationService.isEnabled();
-    }
-    onFileChangeNotificationToggle() {
-        this.fileChangeNotificationService.setEnabled(this.fileChangeNotificationEnabled);
-    }
-    save() {
-        this.updateSetting("EditorPath", this.vscodePath);
-        this.updateSetting("IntelliJPath", this.intellijPath);
-        this.updateSetting("JiraServer", this.jiraServer);
-        this.updateSetting("PlantumlLocalPath", this.plantumlLocalPath);
-        this.updateSetting("JavaPath", this.javaPath);
-        this.updateSetting("LocalGraphvizDotPath", this.localGraphvizDotPath);
-        // Pass the updated settings to the service
-        this.appCurrentFolder.saveSettings(this._settings).subscribe(data => {
-            this._snackBar.open("settings saved", "", { duration: 1000 });
-        });
-        this.dialogRef.close(null);
-    }
-    updateSetting(name, value) {
-        const setting = this._settings.find(_ => _.name === name);
-        if (setting) {
-            setting.valueString = value;
-        }
-        else {
-            // Create new setting if it doesn't exist
-            this._settings.push({ name: name, valueString: value });
-        }
-    }
-    dismiss() {
-        this.dialogRef.close(null);
-    }
+  }
 }
-SettingsComponent.ɵfac = function SettingsComponent_Factory(t) { return new (t || SettingsComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_0__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_snack_bar__WEBPACK_IMPORTED_MODULE_4__.MatSnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_1__.FileChangeNotificationService)); };
-SettingsComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({ type: SettingsComponent, selectors: [["app-settings"]], decls: 57, vars: 7, consts: [["mat-dialog-title", "", 2, "display", "inline"], ["src", "/assets/IconReady.png", 2, "display", "inline", "vertical-align", "middle"], [2, "margin-top", "10px", "margin-bottom", "10px"], [1, "vertical-form-container"], ["appearance", "outline"], ["matPrefix", "", 1, "ide-icon", "vscode-color"], ["matInput", "", "placeholder", "Visual studio code path", 3, "ngModel", "ngModelChange"], ["matPrefix", "", 1, "ide-icon", "intellij-color"], ["matInput", "", "placeholder", "IntelliJ IDEA path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "plantuml local path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Java folder", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "LocalGraphvizDot Path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Jira path", 3, "ngModel", "ngModelChange"], ["style", "margin-top:10px; margin-bottom:10px", 4, "ngIf"], ["mat-button", "", "color", "primary", 3, "click"], [1, "notification-setting"], ["color", "primary", 3, "ngModel", "ngModelChange", "change"], [1, "setting-hint"]], template: function SettingsComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "img", 1);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "span");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "MdExplorer Settings");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "mat-dialog-content")(5, "mat-card", 2)(6, "div", 3)(7, "mat-form-field", 4)(8, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Visual Studio Code path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](10, "mat-icon", 5);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](11, "code");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](12, "input", 6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_12_listener($event) { return ctx.vscodePath = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](13, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](14, "Set Visual Studio Code installation path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](15, "mat-form-field", 4)(16, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](17, "IntelliJ IDEA path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](18, "mat-icon", 7);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](19, "terminal");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](20, "input", 8);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_20_listener($event) { return ctx.intellijPath = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](21, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](22, "Set IntelliJ IDEA installation path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](23, "mat-form-field", 4)(24, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](25, "Plantuml local path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](26, "input", 9);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_26_listener($event) { return ctx.plantumlLocalPath = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](27, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](28, "Set path for plantuml server");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](29, "mat-form-field", 4)(30, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](31, "Java path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](32, "input", 10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_32_listener($event) { return ctx.javaPath = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](33, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](34, "Set java path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](35, "mat-form-field", 4)(36, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](37, "LocalGraphvizDot path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](38, "input", 11);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_38_listener($event) { return ctx.localGraphvizDotPath = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](39, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](40, "Set graphiz internal path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](41, "mat-form-field", 4)(42, "mat-label");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](43, "Jira path");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](44, "input", 12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_44_listener($event) { return ctx.jiraServer = $event; });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](45, "mat-hint");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](46, "Set http to jira");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](47, SettingsComponent_mat_card_47_Template, 10, 1, "mat-card", 13);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](48, "mat-dialog-actions")(49, "button", 14);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_49_listener() { return ctx.save(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](50, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](51, "save");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](52, "Save ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](53, "button", 14);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_53_listener() { return ctx.dismiss(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](54, "mat-icon");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](55, "cancel");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](56, "Cancel ");
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.vscodePath);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](8);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.intellijPath);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.plantumlLocalPath);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.javaPath);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.localGraphvizDotPath);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.jiraServer);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isElectronEnvironment);
-    } }, dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatFormField, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatHint, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLabel, _angular_material_form_field__WEBPACK_IMPORTED_MODULE_6__.MatPrefix, _angular_material_input__WEBPACK_IMPORTED_MODULE_7__.MatInput, _angular_material_slide_toggle__WEBPACK_IMPORTED_MODULE_8__.MatSlideToggle, _angular_material_card__WEBPACK_IMPORTED_MODULE_9__.MatCard, _angular_material_card__WEBPACK_IMPORTED_MODULE_9__.MatCardHeader, _angular_material_card__WEBPACK_IMPORTED_MODULE_9__.MatCardContent, _angular_material_card__WEBPACK_IMPORTED_MODULE_9__.MatCardTitle, _angular_material_button__WEBPACK_IMPORTED_MODULE_10__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__.MatIcon, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogTitle, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogContent, _angular_material_dialog__WEBPACK_IMPORTED_MODULE_3__.MatDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.NgModel], styles: [".vertical-form-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n}\n\n.vertical-form-container[_ngcontent-%COMP%]    > *[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.ide-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n}\n\n.ide-icon.vscode-color[_ngcontent-%COMP%] {\n  color: #007ACC;\n}\n\n.ide-icon.intellij-color[_ngcontent-%COMP%] {\n  color: #FF6B00;\n}\n\n.notification-setting[_ngcontent-%COMP%] {\n  padding: 8px 0;\n}\n\n.notification-setting[_ngcontent-%COMP%]   .setting-hint[_ngcontent-%COMP%] {\n  margin-top: 8px;\n  font-size: 12px;\n  color: rgba(0, 0, 0, 0.6);\n  line-height: 1.4;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInNldHRpbmdzLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxXQUFBO0FBQ0Y7O0FBR0E7RUFDRSxpQkFBQTtBQUFGOztBQUVFO0VBQ0UsY0FBQTtBQUFKOztBQUdFO0VBQ0UsY0FBQTtBQURKOztBQU1BO0VBQ0UsY0FBQTtBQUhGOztBQUtFO0VBQ0UsZUFBQTtFQUNBLGVBQUE7RUFDQSx5QkFBQTtFQUNBLGdCQUFBO0FBSEoiLCJmaWxlIjoic2V0dGluZ3MuY29tcG9uZW50LnNjc3MiLCJzb3VyY2VzQ29udGVudCI6WyIudmVydGljYWwtZm9ybS1jb250YWluZXIge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxufVxyXG5cclxuLnZlcnRpY2FsLWZvcm0tY29udGFpbmVyID4gKiB7XHJcbiAgd2lkdGg6IDEwMCVcclxufVxyXG5cclxuLy8gSURFIGljb25zIHN0eWxpbmdcclxuLmlkZS1pY29uIHtcclxuICBtYXJnaW4tcmlnaHQ6IDhweDtcclxuXHJcbiAgJi52c2NvZGUtY29sb3Ige1xyXG4gICAgY29sb3I6ICMwMDdBQ0M7IC8vIFZTIENvZGUgYmx1ZVxyXG4gIH1cclxuXHJcbiAgJi5pbnRlbGxpai1jb2xvciB7XHJcbiAgICBjb2xvcjogI0ZGNkIwMDsgLy8gSW50ZWxsaUogb3JhbmdlXHJcbiAgfVxyXG59XHJcblxyXG4vLyBOb3RpZmljYXRpb24gc2V0dGluZ3Mgc3R5bGluZ1xyXG4ubm90aWZpY2F0aW9uLXNldHRpbmcge1xyXG4gIHBhZGRpbmc6IDhweCAwO1xyXG5cclxuICAuc2V0dGluZy1oaW50IHtcclxuICAgIG1hcmdpbi10b3A6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMTJweDtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNik7XHJcbiAgICBsaW5lLWhlaWdodDogMS40O1xyXG4gIH1cclxufVxyXG4iXX0= */"], data: { animation: [] } });
-
+class SettingsComponent {
+  constructor(appCurrentFolder, dialogRef, _snackBar, fileChangeNotificationService) {
+    this.appCurrentFolder = appCurrentFolder;
+    this.dialogRef = dialogRef;
+    this._snackBar = _snackBar;
+    this.fileChangeNotificationService = fileChangeNotificationService;
+    // File change notification settings
+    this.fileChangeNotificationEnabled = true;
+    this.isElectronEnvironment = false;
+    // Check if running in Electron
+    this.isElectronEnvironment = !!window.electronAPI?.flashTaskbarIcon;
+  }
+  ngOnInit() {
+    this.appCurrentFolder.loadSettings();
+    this.appCurrentFolder.settings.subscribe(settings => {
+      if (settings != undefined && settings.length > 0) {
+        this._settings = settings;
+        this.vscodePath = settings.find(_ => _.name === "EditorPath")?.valueString || null;
+        this.intellijPath = settings.find(_ => _.name === "IntelliJPath")?.valueString || null;
+        this.jiraServer = settings.find(_ => _.name === "JiraServer")?.valueString || null;
+        this.plantumlLocalPath = settings.find(_ => _.name === "PlantumlLocalPath")?.valueString || null;
+        this.javaPath = settings.find(_ => _.name === "JavaPath")?.valueString || null;
+        this.localGraphvizDotPath = settings.find(_ => _.name === "LocalGraphvizDotPath")?.valueString || null;
+      }
+    });
+    // Load file change notification setting
+    this.fileChangeNotificationEnabled = this.fileChangeNotificationService.isEnabled();
+  }
+  onFileChangeNotificationToggle() {
+    this.fileChangeNotificationService.setEnabled(this.fileChangeNotificationEnabled);
+  }
+  save() {
+    this.updateSetting("EditorPath", this.vscodePath);
+    this.updateSetting("IntelliJPath", this.intellijPath);
+    this.updateSetting("JiraServer", this.jiraServer);
+    this.updateSetting("PlantumlLocalPath", this.plantumlLocalPath);
+    this.updateSetting("JavaPath", this.javaPath);
+    this.updateSetting("LocalGraphvizDotPath", this.localGraphvizDotPath);
+    // Pass the updated settings to the service
+    this.appCurrentFolder.saveSettings(this._settings).subscribe(data => {
+      this._snackBar.open("settings saved", "", {
+        duration: 1000
+      });
+    });
+    this.dialogRef.close(null);
+  }
+  updateSetting(name, value) {
+    const setting = this._settings.find(_ => _.name === name);
+    if (setting) {
+      setting.valueString = value;
+    } else {
+      // Create new setting if it doesn't exist
+      this._settings.push({
+        name: name,
+        valueString: value
+      });
+    }
+  }
+  dismiss() {
+    this.dialogRef.close(null);
+  }
+  static {
+    this.ɵfac = function SettingsComponent_Factory(t) {
+      return new (t || SettingsComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_0__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_1__.FileChangeNotificationService));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
+      type: SettingsComponent,
+      selectors: [["app-settings"]],
+      decls: 57,
+      vars: 7,
+      consts: [["mat-dialog-title", "", 2, "display", "inline"], ["src", "/assets/IconReady.png", 2, "display", "inline", "vertical-align", "middle"], [2, "margin-top", "10px", "margin-bottom", "10px"], [1, "vertical-form-container"], ["appearance", "outline"], ["matPrefix", "", 1, "ide-icon", "vscode-color"], ["matInput", "", "placeholder", "Visual studio code path", 3, "ngModel", "ngModelChange"], ["matPrefix", "", 1, "ide-icon", "intellij-color"], ["matInput", "", "placeholder", "IntelliJ IDEA path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "plantuml local path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Java folder", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "LocalGraphvizDot Path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Jira path", 3, "ngModel", "ngModelChange"], ["style", "margin-top:10px; margin-bottom:10px", 4, "ngIf"], ["mat-button", "", "color", "primary", 3, "click"], [1, "notification-setting"], ["color", "primary", 3, "ngModel", "ngModelChange", "change"], [1, "setting-hint"]],
+      template: function SettingsComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "img", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "span");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "MdExplorer Settings");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "mat-dialog-content")(5, "mat-card", 2)(6, "div", 3)(7, "mat-form-field", 4)(8, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Visual Studio Code path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](10, "mat-icon", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](11, "code");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](12, "input", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_12_listener($event) {
+            return ctx.vscodePath = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](13, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](14, "Set Visual Studio Code installation path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](15, "mat-form-field", 4)(16, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](17, "IntelliJ IDEA path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](18, "mat-icon", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](19, "terminal");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](20, "input", 8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_20_listener($event) {
+            return ctx.intellijPath = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](21, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](22, "Set IntelliJ IDEA installation path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](23, "mat-form-field", 4)(24, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](25, "Plantuml local path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](26, "input", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_26_listener($event) {
+            return ctx.plantumlLocalPath = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](27, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](28, "Set path for plantuml server");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](29, "mat-form-field", 4)(30, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](31, "Java path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](32, "input", 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_32_listener($event) {
+            return ctx.javaPath = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](33, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](34, "Set java path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](35, "mat-form-field", 4)(36, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](37, "LocalGraphvizDot path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](38, "input", 11);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_38_listener($event) {
+            return ctx.localGraphvizDotPath = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](39, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](40, "Set graphiz internal path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](41, "mat-form-field", 4)(42, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](43, "Jira path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](44, "input", 12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_44_listener($event) {
+            return ctx.jiraServer = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](45, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](46, "Set http to jira");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](47, SettingsComponent_mat_card_47_Template, 10, 1, "mat-card", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](48, "mat-dialog-actions")(49, "button", 14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_49_listener() {
+            return ctx.save();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](50, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](51, "save");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](52, "Save ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](53, "button", 14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_53_listener() {
+            return ctx.dismiss();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](54, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](55, "cancel");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](56, "Cancel ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.vscodePath);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.intellijPath);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.plantumlLocalPath);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.javaPath);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.localGraphvizDotPath);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.jiraServer);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isElectronEnvironment);
+        }
+      },
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyLabel, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyPrefix, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_7__.MatLegacyInput, _angular_material_legacy_slide_toggle__WEBPACK_IMPORTED_MODULE_8__.MatLegacySlideToggle, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__.MatLegacyCard, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__.MatLegacyCardHeader, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__.MatLegacyCardContent, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_9__.MatLegacyCardTitle, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_10__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__.MatIcon, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_12__.NgModel],
+      styles: [".vertical-form-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n}\n\n.vertical-form-container[_ngcontent-%COMP%]    > *[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.ide-icon[_ngcontent-%COMP%] {\n  margin-right: 8px;\n}\n.ide-icon.vscode-color[_ngcontent-%COMP%] {\n  color: #007ACC;\n}\n.ide-icon.intellij-color[_ngcontent-%COMP%] {\n  color: #FF6B00;\n}\n\n.notification-setting[_ngcontent-%COMP%] {\n  padding: 8px 0;\n}\n.notification-setting[_ngcontent-%COMP%]   .setting-hint[_ngcontent-%COMP%] {\n  margin-top: 8px;\n  font-size: 12px;\n  color: rgba(0, 0, 0, 0.6);\n  line-height: 1.4;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9kaWFsb2dzL3NldHRpbmdzL3NldHRpbmdzLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxXQUFBO0FBQ0Y7O0FBR0E7RUFDRSxpQkFBQTtBQUFGO0FBRUU7RUFDRSxjQUFBO0FBQUo7QUFHRTtFQUNFLGNBQUE7QUFESjs7QUFNQTtFQUNFLGNBQUE7QUFIRjtBQUtFO0VBQ0UsZUFBQTtFQUNBLGVBQUE7RUFDQSx5QkFBQTtFQUNBLGdCQUFBO0FBSEoiLCJzb3VyY2VzQ29udGVudCI6WyIudmVydGljYWwtZm9ybS1jb250YWluZXIge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxufVxyXG5cclxuLnZlcnRpY2FsLWZvcm0tY29udGFpbmVyID4gKiB7XHJcbiAgd2lkdGg6IDEwMCVcclxufVxyXG5cclxuLy8gSURFIGljb25zIHN0eWxpbmdcclxuLmlkZS1pY29uIHtcclxuICBtYXJnaW4tcmlnaHQ6IDhweDtcclxuXHJcbiAgJi52c2NvZGUtY29sb3Ige1xyXG4gICAgY29sb3I6ICMwMDdBQ0M7IC8vIFZTIENvZGUgYmx1ZVxyXG4gIH1cclxuXHJcbiAgJi5pbnRlbGxpai1jb2xvciB7XHJcbiAgICBjb2xvcjogI0ZGNkIwMDsgLy8gSW50ZWxsaUogb3JhbmdlXHJcbiAgfVxyXG59XHJcblxyXG4vLyBOb3RpZmljYXRpb24gc2V0dGluZ3Mgc3R5bGluZ1xyXG4ubm90aWZpY2F0aW9uLXNldHRpbmcge1xyXG4gIHBhZGRpbmc6IDhweCAwO1xyXG5cclxuICAuc2V0dGluZy1oaW50IHtcclxuICAgIG1hcmdpbi10b3A6IDhweDtcclxuICAgIGZvbnQtc2l6ZTogMTJweDtcclxuICAgIGNvbG9yOiByZ2JhKDAsIDAsIDAsIDAuNik7XHJcbiAgICBsaW5lLWhlaWdodDogMS40O1xyXG4gIH1cclxufVxyXG4iXSwic291cmNlUm9vdCI6IiJ9 */"],
+      data: {
+        animation: []
+      }
+    });
+  }
+}
 
 /***/ }),
 
@@ -4134,10 +4751,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../md-explorer/services/md-file.service */ 4169);
 /* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../md-explorer/services/projects.service */ 9753);
-/* harmony import */ var _angular_material_dialog__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/dialog */ 1484);
-/* harmony import */ var _angular_material_card__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/card */ 2156);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-card */ 7315);
 /* harmony import */ var _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/tree */ 3453);
-/* harmony import */ var _angular_material_button__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/button */ 4522);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
 /* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/icon */ 7822);
 
 
@@ -4152,33 +4769,53 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-
-function NewProjectComponent_mat_tree_node_5_Template(rf, ctx) { if (rf & 1) {
+function NewProjectComponent_mat_tree_node_5_Template(rf, ctx) {
+  if (rf & 1) {
     const _r4 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-tree-node", 8)(1, "button", 9)(2, "mat-icon", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "folder");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "a", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_mat_tree_node_5_Template_a_click_4_listener() { const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r4); const node_r2 = restoredCtx.$implicit; const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); ctx_r3.getFolder(node_r2); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r3.activeNode = node_r2); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_mat_tree_node_5_Template_a_click_4_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r4);
+      const node_r2 = restoredCtx.$implicit;
+      const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      ctx_r3.getFolder(node_r2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r3.activeNode = node_r2);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const node_r2 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](node_r2.name);
-} }
-function NewProjectComponent_mat_tree_node_6_Template(rf, ctx) { if (rf & 1) {
+  }
+}
+function NewProjectComponent_mat_tree_node_6_Template(rf, ctx) {
+  if (rf & 1) {
     const _r7 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-tree-node", 12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_mat_tree_node_6_Template_mat_tree_node_click_0_listener() { const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r7); const node_r5 = restoredCtx.$implicit; const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r6.activeNode = node_r5); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_mat_tree_node_6_Template_mat_tree_node_click_0_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r7);
+      const node_r5 = restoredCtx.$implicit;
+      const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r6.activeNode = node_r5);
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "button", 13)(2, "mat-icon", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "a", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_mat_tree_node_6_Template_a_click_4_listener() { const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r7); const node_r5 = restoredCtx.$implicit; const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](); return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r8.getFolder(node_r5)); });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_mat_tree_node_6_Template_a_click_4_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r7);
+      const node_r5 = restoredCtx.$implicit;
+      const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r8.getFolder(node_r5));
+    });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-} if (rf & 2) {
+  }
+  if (rf & 2) {
     const node_r5 = ctx.$implicit;
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
@@ -4187,7 +4824,8 @@ function NewProjectComponent_mat_tree_node_6_Template(rf, ctx) { if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", ctx_r1.treeControl.isExpanded(node_r5) ? "folder_open" : "folder", " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](node_r5.name);
-} }
+  }
+}
 // IFileInfoNode è interfaccia
 // MdFile è la classe -> DynamicFlatNode
 /**
@@ -4195,164 +4833,196 @@ function NewProjectComponent_mat_tree_node_6_Template(rf, ctx) { if (rf & 1) {
  * the descendants data from the database.
  */
 class DynamicDatabase {
-    constructor(mdFileService) {
-        this.mdFileService = mdFileService;
-        this.dataMap = new Map();
-        this.mdFileService.loadDynFolders('root', 1);
-        var md1 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('12Folder', 'c:primoFolder', 0, true);
-        var md2 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('2Folder', 'c:primoFoldersottoFolder', 1, true);
-        var md3 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('3Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
-        var md4 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('4Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
-        var md5 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('5Folder', 'c:cuccu', 3, false);
-        this.dataMap.set(md1, [md2]);
-        this.dataMap.set(md2, [md3, md4]);
-        //this.dataMap.set(md3, [md4]);
-        this.dataMap.set(md4, [md5]);
-        var test = this.dataMap.get(md1);
-        this.rootLevelNodes = [md1];
-    }
-    /** Initial data from database */
-    initialData() {
-        return this.rootLevelNodes;
-    }
-    getChildren(node) {
-        var test = this.dataMap.get(node);
-        return test;
-    }
-    isExpandable(node) {
-        return this.dataMap.has(node);
-    }
+  constructor(mdFileService) {
+    this.mdFileService = mdFileService;
+    this.dataMap = new Map();
+    this.mdFileService.loadDynFolders('root', 1);
+    var md1 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('12Folder', 'c:primoFolder', 0, true);
+    var md2 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('2Folder', 'c:primoFoldersottoFolder', 1, true);
+    var md3 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('3Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
+    var md4 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('4Folder', 'c:primoFoldersottoFoldersottoFolder', 2, true);
+    var md5 = new _md_explorer_models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile('5Folder', 'c:cuccu', 3, false);
+    this.dataMap.set(md1, [md2]);
+    this.dataMap.set(md2, [md3, md4]);
+    //this.dataMap.set(md3, [md4]);
+    this.dataMap.set(md4, [md5]);
+    var test = this.dataMap.get(md1);
+    this.rootLevelNodes = [md1];
+  }
+  /** Initial data from database */
+  initialData() {
+    return this.rootLevelNodes;
+  }
+  getChildren(node) {
+    var test = this.dataMap.get(node);
+    return test;
+  }
+  isExpandable(node) {
+    return this.dataMap.has(node);
+  }
+  static {
+    this.ɵfac = function DynamicDatabase_Factory(t) {
+      return new (t || DynamicDatabase)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_1__.MdFileService));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({
+      token: DynamicDatabase,
+      factory: DynamicDatabase.ɵfac,
+      providedIn: 'root'
+    });
+  }
 }
-DynamicDatabase.ɵfac = function DynamicDatabase_Factory(t) { return new (t || DynamicDatabase)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_1__.MdFileService)); };
-DynamicDatabase.ɵprov = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({ token: DynamicDatabase, factory: DynamicDatabase.ɵfac, providedIn: 'root' });
 class DynamicDataSource {
-    constructor(_treeControl, _database, _mdFileService) {
-        this._treeControl = _treeControl;
-        this._database = _database;
-        this._mdFileService = _mdFileService;
-        this.dataChange = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
-        this.data = _database.initialData();
-        this._mdFileService.loadDocumentFolder('root', 0, "Folders").subscribe(_ => {
-            this.data = _;
-        });
-        //this.dataChange = _mdFileService._mdDynFolderDocument;
-        //_mdFileService.loadDynFolders('root', 1);
+  get data() {
+    return this.dataChange.value;
+  }
+  set data(value) {
+    this._treeControl.dataNodes = value;
+    this.dataChange.next(value);
+  }
+  constructor(_treeControl, _database, _mdFileService) {
+    this._treeControl = _treeControl;
+    this._database = _database;
+    this._mdFileService = _mdFileService;
+    this.dataChange = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
+    this.data = _database.initialData();
+    this._mdFileService.loadDocumentFolder('root', 0, "Folders").subscribe(_ => {
+      this.data = _;
+    });
+    //this.dataChange = _mdFileService._mdDynFolderDocument;
+    //_mdFileService.loadDynFolders('root', 1);
+  }
+  connect(collectionViewer) {
+    this._treeControl.expansionModel.changed.subscribe(change => {
+      if (change.added || change.removed) {
+        this.handleTreeControl(change);
+      }
+    });
+    return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.merge)(collectionViewer.viewChange, this.dataChange).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(() => this.data));
+  }
+  disconnect(collectionViewer) {}
+  /** Handle expand/collapse behaviors */
+  handleTreeControl(change) {
+    if (change.added) {
+      change.added.forEach(node => this.toggleNode(node, true));
     }
-    get data() { return this.dataChange.value; }
-    set data(value) {
-        this._treeControl.dataNodes = value;
-        this.dataChange.next(value);
+    if (change.removed) {
+      change.removed.slice().reverse().forEach(node => this.toggleNode(node, false));
     }
-    connect(collectionViewer) {
-        this._treeControl.expansionModel.changed.subscribe(change => {
-            if (change.added ||
-                change.removed) {
-                this.handleTreeControl(change);
-            }
-        });
-        return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.merge)(collectionViewer.viewChange, this.dataChange).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(() => this.data));
-    }
-    disconnect(collectionViewer) { }
-    /** Handle expand/collapse behaviors */
-    handleTreeControl(change) {
-        if (change.added) {
-            change.added.forEach(node => this.toggleNode(node, true));
+  }
+  /**
+   * Toggle the node, remove from display list
+   */
+  toggleNode(node, expand) {
+    this._mdFileService.loadDocumentFolder(node.path, node.level + 1, "Folders").subscribe(_ => {
+      const children = _;
+      const index = this.data.indexOf(node);
+      if (!children || index < 0) {
+        // If no children, or cannot find the node, no op
+        return;
+      }
+      node.isLoading = true;
+      setTimeout(() => {
+        if (expand) {
+          const nodes = children; // punto per fare chiamata remota
+          this.data.splice(index + 1, 0, ...nodes);
+        } else {
+          let count = 0;
+          for (let i = index + 1; i < this.data.length && this.data[i].level > node.level; i++, count++) {}
+          this.data.splice(index + 1, count);
         }
-        if (change.removed) {
-            change.removed.slice().reverse().forEach(node => this.toggleNode(node, false));
-        }
-    }
-    /**
-     * Toggle the node, remove from display list
-     */
-    toggleNode(node, expand) {
-        this._mdFileService.loadDocumentFolder(node.path, node.level + 1, "Folders").subscribe(_ => {
-            const children = _;
-            const index = this.data.indexOf(node);
-            if (!children || index < 0) { // If no children, or cannot find the node, no op
-                return;
-            }
-            node.isLoading = true;
-            setTimeout(() => {
-                if (expand) {
-                    const nodes = children; // punto per fare chiamata remota
-                    this.data.splice(index + 1, 0, ...nodes);
-                }
-                else {
-                    let count = 0;
-                    for (let i = index + 1; i < this.data.length
-                        && this.data[i].level > node.level; i++, count++) { }
-                    this.data.splice(index + 1, count);
-                }
-                // notify the change
-                this.dataChange.next(this.data);
-                node.isLoading = false;
-            });
-        });
-    }
+        // notify the change
+        this.dataChange.next(this.data);
+        node.isLoading = false;
+      });
+    });
+  }
 }
 class NewProjectComponent {
-    constructor(database, mdFileService, router, projectService, dialogRef) {
-        this.database = database;
-        this.mdFileService = mdFileService;
-        this.router = router;
-        this.projectService = projectService;
-        this.dialogRef = dialogRef;
-        this.getLevel = (node) => node.level;
-        this.isExpandable = (node) => node.expandable;
-        this.hasChild = (_, _nodeData) => _nodeData.expandable;
-        this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_7__.FlatTreeControl(this.getLevel, this.isExpandable);
-        this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
-    }
-    ngOnInit() {
-        this.folder = { name: "<select project>", path: "" };
-        // when the project change, then switch to navigation environment
-        this.projectService.currentProjects$.subscribe(_ => {
-            if (_ != null && _ != undefined) {
-                var dateTime = new Date();
-                this.router.navigate(['/main/navigation/document']); //main
-                this.dialogRef.close();
-            }
-        });
-    }
-    getFolder(node) {
-        this.folder.name = node.name;
-        this.folder.path = node.path;
-    }
-    closeDialog() {
-        this.projectService.setNewFolderProject(this.folder.path);
-    }
+  constructor(database, mdFileService, router, projectService, dialogRef) {
+    this.database = database;
+    this.mdFileService = mdFileService;
+    this.router = router;
+    this.projectService = projectService;
+    this.dialogRef = dialogRef;
+    this.getLevel = node => node.level;
+    this.isExpandable = node => node.expandable;
+    this.hasChild = (_, _nodeData) => _nodeData.expandable;
+    this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_7__.FlatTreeControl(this.getLevel, this.isExpandable);
+    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
+  }
+  ngOnInit() {
+    this.folder = {
+      name: "<select project>",
+      path: ""
+    };
+    // when the project change, then switch to navigation environment
+    this.projectService.currentProjects$.subscribe(_ => {
+      if (_ != null && _ != undefined) {
+        var dateTime = new Date();
+        this.router.navigate(['/main/navigation/document']); //main
+        this.dialogRef.close();
+      }
+    });
+  }
+  getFolder(node) {
+    this.folder.name = node.name;
+    this.folder.path = node.path;
+  }
+  closeDialog() {
+    this.projectService.setNewFolderProject(this.folder.path);
+  }
+  static {
+    this.ɵfac = function NewProjectComponent_Factory(t) {
+      return new (t || NewProjectComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](DynamicDatabase), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_1__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_8__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_2__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_9__.MatLegacyDialogRef));
+    };
+  }
+  static {
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({
+      type: NewProjectComponent,
+      selectors: [["app-new-project"]],
+      decls: 16,
+      vars: 5,
+      consts: [[1, "flex-container"], [1, "flex-items-overflow"], [3, "dataSource", "treeControl"], ["matTreeNodePadding", "", 4, "matTreeNodeDef"], ["matTreeNodePadding", "", 3, "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], [1, "flex-selected-folder"], [1, "flex-items"], ["mat-stroked-button", "", "color", "primary", 3, "click"], ["matTreeNodePadding", ""], ["mat-icon-button", ""], [1, "mat-icon-rtl-mirror"], [2, "cursor", "pointer", 3, "click"], ["matTreeNodePadding", "", 3, "click"], ["mat-icon-button", "", "matTreeNodeToggle", ""]],
+      template: function NewProjectComponent_Template(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0)(1, "h1");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "Document's Folder");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "div", 1)(4, "mat-tree", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, NewProjectComponent_mat_tree_node_5_Template, 6, 1, "mat-tree-node", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, NewProjectComponent_mat_tree_node_6_Template, 6, 3, "mat-tree-node", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "div", 5)(8, "div", 6)(9, "mat-card-title");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](11, "mat-card-subtitle");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](13, "div")(14, "button", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_Template_button_click_14_listener() {
+            return ctx.closeDialog();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](15, "Open");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()();
+        }
+        if (rf & 2) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("dataSource", ctx.dataSource)("treeControl", ctx.treeControl);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.hasChild);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.folder.name);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.folder.path);
+        }
+      },
+      dependencies: [_angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardTitle, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_10__.MatLegacyCardSubtitle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNodeDef, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNodePadding, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNodeToggle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTree, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNode, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_12__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__.MatIcon],
+      styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n}\n\n.flex-items-overflow[_ngcontent-%COMP%] {\n  max-height: 400px;\n  overflow-x: scroll;\n  overflow-y: scroll;\n  background: tomato;\n  color: white;\n  text-align: center;\n  font-size: 3em;\n  flex: 1;\n}\n\n.flex-items[_ngcontent-%COMP%] {\n  width: 500px;\n  text-align: center;\n  font-size: 3em;\n}\n\n.flex-selected-folder[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvcHJvamVjdHMvbmV3LXByb2plY3QvbmV3LXByb2plY3QuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7QUFDRjs7QUFFQTtFQUNFLGlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EsWUFBQTtFQUNBLGtCQUFBO0VBQ0EsY0FBQTtFQUNBLE9BQUE7QUFDRjs7QUFFQTtFQUNFLFlBQUE7RUFFQSxrQkFBQTtFQUNBLGNBQUE7QUFBRjs7QUFHQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtBQUFGIiwic291cmNlc0NvbnRlbnQiOlsiLmZsZXgtY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbn1cclxuXHJcbi5mbGV4LWl0ZW1zLW92ZXJmbG93IHtcclxuICBtYXgtaGVpZ2h0OiA0MDBweDtcclxuICBvdmVyZmxvdy14OiBzY3JvbGw7XHJcbiAgb3ZlcmZsb3cteTogc2Nyb2xsO1xyXG4gIGJhY2tncm91bmQ6IHRvbWF0bztcclxuICBjb2xvcjogd2hpdGU7XHJcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gIGZvbnQtc2l6ZTogM2VtO1xyXG4gIGZsZXg6IDE7XHJcbn1cclxuXHJcbi5mbGV4LWl0ZW1zIHtcclxuICB3aWR0aDo1MDBweDtcclxuICBcclxuICB0ZXh0LWFsaWduOiBjZW50ZXI7XHJcbiAgZm9udC1zaXplOiAzZW07XHJcbn1cclxuXHJcbi5mbGV4LXNlbGVjdGVkLWZvbGRlciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogcm93O1xyXG59XHJcbiJdLCJzb3VyY2VSb290IjoiIn0= */"]
+    });
+  }
 }
-NewProjectComponent.ɵfac = function NewProjectComponent_Factory(t) { return new (t || NewProjectComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](DynamicDatabase), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_1__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_8__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_2__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_dialog__WEBPACK_IMPORTED_MODULE_9__.MatDialogRef)); };
-NewProjectComponent.ɵcmp = /*@__PURE__*/ _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({ type: NewProjectComponent, selectors: [["app-new-project"]], decls: 16, vars: 5, consts: [[1, "flex-container"], [1, "flex-items-overflow"], [3, "dataSource", "treeControl"], ["matTreeNodePadding", "", 4, "matTreeNodeDef"], ["matTreeNodePadding", "", 3, "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], [1, "flex-selected-folder"], [1, "flex-items"], ["mat-stroked-button", "", "color", "primary", 3, "click"], ["matTreeNodePadding", ""], ["mat-icon-button", ""], [1, "mat-icon-rtl-mirror"], [2, "cursor", "pointer", 3, "click"], ["matTreeNodePadding", "", 3, "click"], ["mat-icon-button", "", "matTreeNodeToggle", ""]], template: function NewProjectComponent_Template(rf, ctx) { if (rf & 1) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0)(1, "h1");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "Document's Folder");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "div", 1)(4, "mat-tree", 2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, NewProjectComponent_mat_tree_node_5_Template, 6, 1, "mat-tree-node", 3);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, NewProjectComponent_mat_tree_node_6_Template, 6, 3, "mat-tree-node", 4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "div", 5)(8, "div", 6)(9, "mat-card-title");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](10);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](11, "mat-card-subtitle");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](12);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](13, "div")(14, "button", 7);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function NewProjectComponent_Template_button_click_14_listener() { return ctx.closeDialog(); });
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](15, "Open");
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()();
-    } if (rf & 2) {
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("dataSource", ctx.dataSource)("treeControl", ctx.treeControl);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.hasChild);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.folder.name);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-        _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx.folder.path);
-    } }, dependencies: [_angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardTitle, _angular_material_card__WEBPACK_IMPORTED_MODULE_10__.MatCardSubtitle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNodeDef, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNodePadding, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNodeToggle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTree, _angular_material_tree__WEBPACK_IMPORTED_MODULE_11__.MatTreeNode, _angular_material_button__WEBPACK_IMPORTED_MODULE_12__.MatButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__.MatIcon], styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n}\n\n.flex-items-overflow[_ngcontent-%COMP%] {\n  max-height: 400px;\n  overflow-x: scroll;\n  overflow-y: scroll;\n  background: tomato;\n  color: white;\n  text-align: center;\n  font-size: 3em;\n  flex: 1;\n}\n\n.flex-items[_ngcontent-%COMP%] {\n  width: 500px;\n  text-align: center;\n  font-size: 3em;\n}\n\n.flex-selected-folder[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: row;\n}\n/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIm5ldy1wcm9qZWN0LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxpQkFBQTtFQUNBLGtCQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQkFBQTtFQUNBLFlBQUE7RUFDQSxrQkFBQTtFQUNBLGNBQUE7RUFDQSxPQUFBO0FBQ0Y7O0FBRUE7RUFDRSxZQUFBO0VBRUEsa0JBQUE7RUFDQSxjQUFBO0FBQUY7O0FBR0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7QUFBRiIsImZpbGUiOiJuZXctcHJvamVjdC5jb21wb25lbnQuc2NzcyIsInNvdXJjZXNDb250ZW50IjpbIi5mbGV4LWNvbnRhaW5lciB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG59XHJcblxyXG4uZmxleC1pdGVtcy1vdmVyZmxvdyB7XHJcbiAgbWF4LWhlaWdodDogNDAwcHg7XHJcbiAgb3ZlcmZsb3cteDogc2Nyb2xsO1xyXG4gIG92ZXJmbG93LXk6IHNjcm9sbDtcclxuICBiYWNrZ3JvdW5kOiB0b21hdG87XHJcbiAgY29sb3I6IHdoaXRlO1xyXG4gIHRleHQtYWxpZ246IGNlbnRlcjtcclxuICBmb250LXNpemU6IDNlbTtcclxuICBmbGV4OiAxO1xyXG59XHJcblxyXG4uZmxleC1pdGVtcyB7XHJcbiAgd2lkdGg6NTAwcHg7XHJcbiAgXHJcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gIGZvbnQtc2l6ZTogM2VtO1xyXG59XHJcblxyXG4uZmxleC1zZWxlY3RlZC1mb2xkZXIge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxufVxyXG4iXX0= */"] });
-
 
 /***/ }),
 
