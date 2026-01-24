@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { MdFileService } from '../md-explorer/services/md-file.service';

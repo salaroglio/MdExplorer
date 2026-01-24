@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { IMdSetting } from '../../../../models/IMdSetting'
 import { AppCurrentMetadataService } from '../../../../services/app-current-metadata.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { FileChangeNotificationService } from '../../../../services/file-change-notification.service';
 
 

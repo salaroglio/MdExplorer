@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
 import { IDocumentSettings } from '../../services/Types/IDocumentSettings';

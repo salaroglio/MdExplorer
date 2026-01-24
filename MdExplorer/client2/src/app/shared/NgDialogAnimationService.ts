@@ -1,5 +1,5 @@
 import { Inject, Injectable, NgZone, Optional, TemplateRef } from '@angular/core';
-import { DialogPosition, MatDialog, MatDialogConfig as _MatDialogConfig, MatDialogRef } from '@angular/material/dialog';
+import { LegacyDialogPosition as DialogPosition, MatLegacyDialog as MatDialog, MatLegacyDialogConfig as _MatDialogConfig, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { ComponentType } from '@angular/cdk/portal';
 import { Subject } from 'rxjs';
 

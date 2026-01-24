@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { TocProgressDialogComponent } from '../components/dialogs/toc-progress-dialog/toc-progress-dialog.component';
 
 @Injectable({

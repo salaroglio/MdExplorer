@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { MdFile } from '../../../md-explorer/models/md-file';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { NewDirectoryDialogData } from '../show-file-system/show-file-metadata';

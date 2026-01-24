@@ -8,7 +8,7 @@ import { MdFile } from '../../md-explorer/models/md-file';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
 import { Router } from '@angular/router';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 
 // IFileInfoNode è interfaccia
 // MdFile è la classe -> DynamicFlatNode

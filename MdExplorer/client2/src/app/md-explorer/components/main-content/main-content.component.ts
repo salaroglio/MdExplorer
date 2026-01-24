@@ -6,7 +6,7 @@ import { BehaviorSubject, Observable, Subject, timer, combineLatest } from 'rxjs
 import { takeUntil, debounceTime, distinctUntilChanged, map, filter } from 'rxjs/operators';
 
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
-import { MatDialog } from '@angular/material/dialog';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { IndexingStateService } from '../../services/indexing-state.service';
 import { FileEventsService } from '../../services/file-events.service';
 

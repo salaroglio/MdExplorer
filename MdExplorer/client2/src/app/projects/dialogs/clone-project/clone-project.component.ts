@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { Router } from '@angular/router';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';

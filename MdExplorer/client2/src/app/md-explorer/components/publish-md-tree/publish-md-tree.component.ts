@@ -1,7 +1,7 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CollectionViewer, SelectionChange, DataSource } from '@angular/cdk/collections';
-import { MatMenuTrigger } from '@angular/material/menu';
+import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
 import { Router } from '@angular/router';
 import { IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
@@ -11,10 +11,10 @@ import { MdFileService } from '../../services/md-file.service';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
-import { MatDialog } from '@angular/material/dialog';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
 

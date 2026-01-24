@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { bounceInLeftOnEnterAnimation } from 'angular-animations';
 import { Observable } from 'rxjs';
 import { MdProject } from '../../md-explorer/models/md-project';
