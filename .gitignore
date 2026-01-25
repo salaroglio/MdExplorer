@@ -423,3 +423,7 @@ AI-Models/
 # Website managed as submodule
 # /mdExplorerWebSite/.development.yml
 MdExplorer.AI.Premium/
+
+# Experiments and temp files
+experiments/
+nul
