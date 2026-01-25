@@ -10198,6 +10198,8 @@ class SidenavComponent {
         document.body.style.cursor = '';
         const finalWidth = this.validateWidth(event.clientX);
         this.saveWidthDebounced(finalWidth);
+        // Notify iframe to refresh auto-fit for images
+        this.notifyIframeAutoFitRefresh();
       }
     };
     document.addEventListener("mousemove", this.mouseMoveListener);
@@ -10274,21 +10276,27 @@ class SidenavComponent {
   }
   onSidenavToggle(isOpen) {
     this.layoutService.setSidenavOpen(isOpen);
-    // Log delle dimensioni dopo un breve delay per permettere l'animazione
+    // Notify iframe to refresh auto-fit after animation completes
     setTimeout(() => {
-      const sidenavContent = document.querySelector('mat-sidenav-content');
-      const documentShow = document.querySelector('app-document-show');
-      console.log('Layout dimensions:', {
-        sidenavContent: {
-          width: sidenavContent?.offsetWidth || 0,
-          style: sidenavContent ? window.getComputedStyle(sidenavContent) : null
-        },
-        documentShow: {
-          width: documentShow?.offsetWidth || 0,
-          style: documentShow ? window.getComputedStyle(documentShow) : null
-        }
-      });
-    }, 300);
+      this.notifyIframeAutoFitRefresh();
+    }, 350);
+  }
+  /**
+   * Notify the markdown iframe to refresh auto-fit for images
+   * Called after sidenav resize is complete
+   */
+  notifyIframeAutoFitRefresh() {
+    const iframe = document.getElementById('mdIframe');
+    if (iframe?.contentWindow) {
+      try {
+        iframe.contentWindow.postMessage({
+          action: 'refreshAutoFit'
+        }, '*');
+        console.log('[Sidenav] Sent refreshAutoFit message to iframe');
+      } catch (error) {
+        console.error('[Sidenav] Error sending message to iframe:', error);
+      }
+    }
   }
   /**
    * Check if the project has a remote origin configured

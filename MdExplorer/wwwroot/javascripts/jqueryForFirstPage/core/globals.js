@@ -34,6 +34,10 @@ window.arrayLinksResizeToggle = [];
 window.moving = false;
 window.image = null;
 
+// Auto-fit state tracking
+// Stores { id: string, originalDivStyle: string, originalImgStyle: string, originalImgClass: string, isAutoFit: boolean }
+window.arrayAutoFitState = [];
+
 // Image Magnifier
 window.magnifierActive = {};
 window.magnifierCanvas = null;
