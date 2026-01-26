@@ -565,7 +565,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle click on a P2P link from iframe
    */
   private handleP2PLinkClick(data: { href: string; filename: string; projectPath: string }): void {
-    const projectPath = this.projectsService.currentProject?.path || data.projectPath;
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path || data.projectPath;
 
     if (!projectPath) {
       console.error('[P2P] No project path available');
@@ -596,7 +596,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle hover on a P2P link - send status back to iframe
    */
   private handleP2PLinkHover(data: { href: string; filename: string; projectPath: string; linkId: string }): void {
-    const projectPath = this.projectsService.currentProject?.path || data.projectPath;
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path || data.projectPath;
 
     if (!projectPath) return;
 
