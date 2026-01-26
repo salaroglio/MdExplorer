@@ -229,6 +229,28 @@ function initializeConnectionIdForLinks() {
 }
 
 /**
+ * Simple debounce function
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Wait time in milliseconds
+ * @returns {Function} Debounced function
+ */
+function debounce(func, wait) {
+    var timeout;
+    return function() {
+        var context = this;
+        var args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(function() {
+            func.apply(context, args);
+        }, wait);
+    };
+}
+
+// Cache for P2P status to avoid repeated API calls
+var p2pStatusCache = {};
+var P2P_CACHE_TTL = 30000; // 30 seconds cache
+
+/**
  * Initialize P2P link handling for .p2pshare/ links
  * When clicking a P2P link:
  * - Check if file exists locally
@@ -268,6 +290,31 @@ function initializeP2PLinkHandling() {
         }
     });
 
+    // Debounced function to request P2P status
+    var debouncedStatusRequest = debounce(function($link, href, filename, projectPath) {
+        var linkId = $link.attr('id');
+        var cacheKey = projectPath + '/' + filename;
+
+        // Check cache first
+        var cached = p2pStatusCache[cacheKey];
+        if (cached && (Date.now() - cached.timestamp) < P2P_CACHE_TTL) {
+            // Use cached status
+            applyP2PStatus($link, cached.status);
+            return;
+        }
+
+        // Request status from Angular parent
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'p2p-link-hover',
+                href: href,
+                filename: filename,
+                projectPath: projectPath,
+                linkId: linkId
+            }, '*');
+        }
+    }, 300); // 300ms debounce delay
+
     // Setup hover/tooltip for P2P links (send message to get status)
     $(document).on('mouseenter', 'a[href*=".p2pshare/"]', function(e) {
         var $link = $(this);
@@ -278,25 +325,26 @@ function initializeP2PLinkHandling() {
         // Add visual indicator that this is a P2P link
         if (!$link.hasClass('p2p-link-styled')) {
             $link.addClass('p2p-link-styled');
-            // Small P2P icon or indicator
-            $link.attr('title', 'P2P Shared File - Loading status...');
         }
 
-        // Request status from Angular parent
-        if (window.parent && window.parent !== window) {
-            window.parent.postMessage({
-                type: 'p2p-link-hover',
-                href: href,
-                filename: filename,
-                projectPath: projectPath,
-                linkId: $link.attr('id') || ('p2p-' + Math.random().toString(36).substr(2, 9))
-            }, '*');
-
-            // Store ID for later tooltip update
-            if (!$link.attr('id')) {
-                $link.attr('id', 'p2p-' + Math.random().toString(36).substr(2, 9));
-            }
+        // Ensure link has an ID for status updates
+        if (!$link.attr('id')) {
+            $link.attr('id', 'p2p-' + Math.random().toString(36).substr(2, 9));
         }
+
+        // Set initial loading tooltip if no status yet
+        var cacheKey = projectPath + '/' + filename;
+        if (!p2pStatusCache[cacheKey]) {
+            $link.attr('title', 'P2P Shared File - Caricamento stato...');
+        }
+
+        // Request status with debounce
+        debouncedStatusRequest($link, href, filename, projectPath);
+    });
+
+    // Cancel pending status request when mouse leaves
+    $(document).on('mouseleave', 'a[href*=".p2pshare/"]', function(e) {
+        // Debounce will handle cancellation automatically
     });
 
     // Listen for messages from Angular parent (e.g., tooltip updates)
@@ -307,18 +355,40 @@ function initializeP2PLinkHandling() {
             var $link = $('#' + linkId);
 
             if ($link.length) {
-                // Update tooltip based on status
-                var tooltipText = getP2PTooltipText(status);
-                $link.attr('title', tooltipText);
+                // Get filename for caching
+                var href = $link.attr('href');
+                var filename = href ? href.split('/').pop() : '';
+                var projectPath = $('body').attr('ProjectPath') || '';
+                var cacheKey = projectPath + '/' + filename;
 
-                // Update visual styling based on status
-                $link.removeClass('p2p-local p2p-seeding p2p-download p2p-downloading p2p-no-peers');
-                $link.addClass('p2p-' + status.statusClass);
+                // Cache the status
+                p2pStatusCache[cacheKey] = {
+                    status: status,
+                    timestamp: Date.now()
+                };
+
+                // Apply the status to the link
+                applyP2PStatus($link, status);
             }
         }
     });
 
     console.log('[MdExplorer P2P] P2P link handling initialized');
+}
+
+/**
+ * Apply P2P status to a link element
+ * @param {jQuery} $link - The link element
+ * @param {Object} status - Status object with state, statusClass, numPeers, etc.
+ */
+function applyP2PStatus($link, status) {
+    // Update tooltip based on status
+    var tooltipText = getP2PTooltipText(status);
+    $link.attr('title', tooltipText);
+
+    // Update visual styling based on status
+    $link.removeClass('p2p-local p2p-seeding p2p-to-download p2p-downloading p2p-no-peers p2p-unknown');
+    $link.addClass('p2p-' + status.statusClass);
 }
 
 /**

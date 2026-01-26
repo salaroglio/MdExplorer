@@ -705,3 +705,116 @@ s
 .tippy-tooltip.sharepoint-team-theme .tippy-arrow {
     color: #ff8c00;
 }
+
+/* ============================================
+   P2P Link Styles
+   ============================================ */
+
+/* Base style for P2P links */
+a[href*=".p2pshare/"],
+a.p2p-link-styled {
+    position: relative;
+    padding-left: 20px;
+    transition: all 0.2s ease;
+}
+
+/* P2P icon indicator (::before pseudo-element) */
+a[href*=".p2pshare/"]::before,
+a.p2p-link-styled::before {
+    content: "⛓";
+    position: absolute;
+    left: 0;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* State: Local (file available locally) - Green */
+a.p2p-local,
+a[href*=".p2pshare/"].p2p-local {
+    color: #28a745 !important;
+}
+a.p2p-local::before,
+a[href*=".p2pshare/"].p2p-local::before {
+    content: "✓";
+    color: #28a745;
+}
+
+/* State: Seeding (sharing with peers) - Blue */
+a.p2p-seeding,
+a[href*=".p2pshare/"].p2p-seeding {
+    color: #007bff !important;
+}
+a.p2p-seeding::before,
+a[href*=".p2pshare/"].p2p-seeding::before {
+    content: "↑";
+    color: #007bff;
+    animation: pulse-seeding 1.5s infinite;
+}
+
+@keyframes pulse-seeding {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+/* State: To Download (available from peers) - Orange */
+a.p2p-to-download,
+a[href*=".p2pshare/"].p2p-to-download {
+    color: #fd7e14 !important;
+}
+a.p2p-to-download::before,
+a[href*=".p2pshare/"].p2p-to-download::before {
+    content: "↓";
+    color: #fd7e14;
+}
+
+/* State: Downloading (in progress) - Blue with animation */
+a.p2p-downloading,
+a[href*=".p2pshare/"].p2p-downloading {
+    color: #17a2b8 !important;
+}
+a.p2p-downloading::before,
+a[href*=".p2pshare/"].p2p-downloading::before {
+    content: "⟳";
+    color: #17a2b8;
+    animation: spin-download 1s linear infinite;
+}
+
+@keyframes spin-download {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* State: No Peers (file not available) - Red/Warning */
+a.p2p-no-peers,
+a[href*=".p2pshare/"].p2p-no-peers {
+    color: #dc3545 !important;
+    opacity: 0.7;
+}
+a.p2p-no-peers::before,
+a[href*=".p2pshare/"].p2p-no-peers::before {
+    content: "⚠";
+    color: #dc3545;
+}
+
+/* State: Unknown (status not yet determined) - Gray */
+a.p2p-unknown,
+a[href*=".p2pshare/"].p2p-unknown {
+    color: #6c757d !important;
+}
+a.p2p-unknown::before,
+a[href*=".p2pshare/"].p2p-unknown::before {
+    content: "?";
+    color: #6c757d;
+}
+
+/* Hover effect for all P2P links */
+a[href*=".p2pshare/"]:hover,
+a.p2p-link-styled:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Enhanced tooltip styling for P2P links */
+a[href*=".p2pshare/"][title] {
+    cursor: help;
+}
