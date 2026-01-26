@@ -24,6 +24,9 @@ import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
 import { ProjectsService } from '../../services/projects.service';
 import { UrlHandlerService } from '../../../services/url-handler.service';
+import { P2PService } from '../../../services/p2p.service';
+import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
+import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -108,6 +111,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   ///////////////////////////////
 
 
+  // P2P availability state
+  isP2PAvailable = false;
+
   constructor(private router: Router,
     private mdFileService: MdFileService,
     private navService: MdNavigationService,
@@ -119,7 +125,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private tocService: TocGenerationService,
     private tocProgressService: TocProgressService,
     private projectsService: ProjectsService,
-    private urlHandlerService: UrlHandlerService
+    private urlHandlerService: UrlHandlerService,
+    private p2pService: P2PService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -228,6 +235,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
  
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
+    // Subscribe to P2P availability
+    this.p2pService.isAvailable$.subscribe(available => {
+      this.isP2PAvailable = available;
+    });
+
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
       // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
@@ -741,6 +753,103 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.clipboard.copy(mdExplorerUrl);
     this.snackBar.open('MdExplorer link copied to clipboard', 'OK', { duration: 2000 });
+  }
+
+  /**
+   * Share a file via P2P (WebTorrent)
+   * Creates a torrent and provides a magnet link
+   */
+  shareViaP2P(node: MdFile): void {
+    if (!this.isP2PAvailable) {
+      this.snackBar.open('P2P service not available', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const filePath = node.fullPath;
+    this.snackBar.open('Creating P2P share...', '', { duration: 0 });
+
+    this.p2pService.shareFile(filePath, node.name).subscribe({
+      next: (result) => {
+        if (result.success && result.magnetUri) {
+          // Copy magnet link to clipboard
+          this.clipboard.copy(result.magnetUri);
+          this.snackBar.open('Magnet link copied to clipboard! File is now being shared.', 'OK', { duration: 5000 });
+        } else {
+          this.snackBar.open('Error sharing file: ' + (result.error || 'Unknown error'), 'OK', { duration: 5000 });
+        }
+      },
+      error: (err) => {
+        console.error('[MdTree] P2P share error:', err);
+        this.snackBar.open('Error sharing file: ' + err.message, 'OK', { duration: 5000 });
+      }
+    });
+  }
+
+  /**
+   * Add an external file to the project and share it via P2P.
+   * Opens a file picker, copies the selected file to .p2pshare/files/,
+   * starts seeding it, and appends a P2P link to the current markdown document.
+   * @param node The markdown file where the P2P link will be appended
+   */
+  addFileToShareViaP2P(node: MdFile): void {
+    if (!this.isP2PAvailable) {
+      this.snackBar.open('P2P service not available', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const documentPath = node.fullPath;
+
+    // Open file picker dialog
+    const data = new ShowFileMetadata();
+    data.title = 'Select file to share via P2P';
+    data.typeOfSelection = 'FoldersAndFiles';
+    data.buttonText = 'Add and Share';
+    data.start = 'root'; // Start from root to allow selection from anywhere
+
+    const dialogRef = this.dialog.open(ShowFileSystemComponent, {
+      width: '900px',
+      height: '700px',
+      data: data
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result?.data) {
+        const sourcePath = result.data;
+
+        // Show progress snackbar
+        const snackbarRef = this.snackBar.open('Copying and sharing file...', '', { duration: 0 });
+
+        this.p2pService.copyAndShareFile(sourcePath, documentPath).subscribe({
+          next: (shareResult) => {
+            snackbarRef.dismiss();
+
+            // Show success message with option to copy magnet link
+            const successSnackbarRef = this.snackBar.open(
+              'File shared! Link added to document.',
+              'Copy Magnet',
+              { duration: 10000 }
+            );
+
+            successSnackbarRef.onAction().subscribe(() => {
+              if (shareResult.magnetUri) {
+                this.clipboard.copy(shareResult.magnetUri);
+                this.snackBar.open('Magnet link copied to clipboard', 'OK', { duration: 2000 });
+              }
+            });
+
+            // Refresh the document to show the new link
+            // Trigger a reload of the current document
+            this.mdFileService.setSelectedMdFileFromSideNav(node);
+          },
+          error: (err) => {
+            snackbarRef.dismiss();
+            console.error('[MdTree] P2P copy-and-share error:', err);
+            const errorMessage = err.error?.error || err.message || 'Unknown error';
+            this.snackBar.open('Error: ' + errorMessage, 'OK', { duration: 5000 });
+          }
+        });
+      }
+    });
   }
 
   deleteFile(node: MdFile) {

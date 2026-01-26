@@ -155,13 +155,13 @@ __webpack_require__.r(__webpack_exports__);
 
 const routes = [{
   path: 'main',
-  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-cd23d8"), __webpack_require__.e("src_app_md-explorer_md-explorer_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./md-explorer/md-explorer.module */ 6567)).then(m => m.MdExplorerModule),
+  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-6c226f"), __webpack_require__.e("src_app_md-explorer_md-explorer_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./md-explorer/md-explorer.module */ 6567)).then(m => m.MdExplorerModule),
   data: {
     animation: 'main'
   }
 }, {
   path: 'projects',
-  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-cd23d8"), __webpack_require__.e("src_app_projects_projects_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./projects/projects.module */ 132)).then(m => m.ProjectsModule),
+  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-6c226f"), __webpack_require__.e("src_app_projects_projects_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./projects/projects.module */ 132)).then(m => m.ProjectsModule),
   data: {
     animation: 'projects'
   }
@@ -8201,8 +8201,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.01.24.40',
-  buildTime: '2026.01.24 19:24:39'
+  version: '2026.01.26.3',
+  buildTime: '2026.01.26 18:15:08'
 };
 
 /***/ }),

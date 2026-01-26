@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MdExplorer.P2P.Premium</RootNamespace>
+    <AssemblyName>MdExplorer.P2P.Premium</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference to main Abstractions project -->
+    <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Microsoft Extensions for DI, Logging, and HTTP -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+
+    <!-- ASP.NET Core for Controllers and SignalR -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
+  </ItemGroup>
+
+  <!-- Auto-copy Premium DLL to open source bin for Development -->
+  <Target Name="CopyP2PPremiumDllToOpenSource" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <OpenSourceBinPath>$(MSBuildProjectDirectory)\..\MdExplorer\bin\$(Configuration)\net8.0\</OpenSourceBinPath>
+    </PropertyGroup>
+
+    <Message Importance="high" Text="[P2P Premium] Copying DLL to: $(OpenSourceBinPath)" />
+
+    <MakeDir Directories="$(OpenSourceBinPath)" Condition="!Exists('$(OpenSourceBinPath)')" />
+
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFolder="$(OpenSourceBinPath)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb"
+          DestinationFolder="$(OpenSourceBinPath)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true"
+          Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+
+    <Message Importance="high" Text="[P2P Premium] DLL copied successfully" />
+  </Target>
+
+</Project>

@@ -43,6 +43,14 @@
     <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)"><b style="color:violet">Add</b> existing file<b style="color:blue"> as link</b></button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>Clone timed document</b></button>
+    <!-- Add file to share via P2P - only on markdown files -->
+    <button *ngIf="(item.type==='mdFile' || item.type==='mdFileTimer') && isP2PAvailable"
+            mat-menu-item
+            (click)="addFileToShareViaP2P(item)"
+            style="color: #11998e;">
+      <mat-icon>add_circle</mat-icon>
+      <span><b>Add file to share via P2P</b></span>
+    </button>
     <button *ngIf="isFileWaiting(item)" 
             mat-menu-item 
             (click)="forceOpenFile(item)"

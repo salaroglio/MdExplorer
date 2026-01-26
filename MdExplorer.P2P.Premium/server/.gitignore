@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# SSL certificates (managed separately)
+*.pem
+*.key
+*.crt
+
+# Docker
+.docker/
+
+# Nginx config (derived from example)
+nginx.conf

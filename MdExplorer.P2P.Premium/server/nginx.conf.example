@@ -1,0 +1,85 @@
+# Nginx configuration for MdExplorer P2P Tracker
+# Provides SSL termination and WebSocket proxying
+#
+# Usage:
+# 1. Copy this file to nginx.conf
+# 2. Update server_name to your domain
+# 3. Update SSL certificate paths
+# 4. Uncomment nginx service in docker-compose.yml
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    # Logging
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log warn;
+
+    # WebSocket upgrade map
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    # Upstream tracker server
+    upstream tracker {
+        server tracker:8000;
+    }
+
+    # HTTP -> HTTPS redirect
+    server {
+        listen 80;
+        server_name p2p.mdexplorer.net;
+        return 301 https://$server_name$request_uri;
+    }
+
+    # HTTPS server with WebSocket support
+    server {
+        listen 443 ssl http2;
+        server_name p2p.mdexplorer.net;
+
+        # SSL certificates (Let's Encrypt)
+        ssl_certificate /etc/letsencrypt/live/p2p.mdexplorer.net/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/p2p.mdexplorer.net/privkey.pem;
+
+        # SSL settings
+        ssl_session_timeout 1d;
+        ssl_session_cache shared:SSL:50m;
+        ssl_session_tickets off;
+
+        # Modern SSL configuration
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+
+        # HSTS
+        add_header Strict-Transport-Security "max-age=63072000" always;
+
+        # Proxy settings for WebSocket
+        location / {
+            proxy_pass http://tracker;
+            proxy_http_version 1.1;
+
+            # WebSocket headers
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+
+            # Standard proxy headers
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # Timeouts for long-lived WebSocket connections
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+
+            # Buffer settings
+            proxy_buffering off;
+        }
+    }
+}

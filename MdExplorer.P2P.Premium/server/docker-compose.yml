@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  tracker:
+    build: .
+    container_name: mdexplorer-p2p-tracker
+    restart: unless-stopped
+    ports:
+      # HTTP/WebSocket port
+      - "8000:8000"
+      # UDP port (for native BitTorrent clients)
+      - "8000:8000/udp"
+    environment:
+      - NODE_ENV=production
+      - TRACKER_HTTP_PORT=8000
+      - TRACKER_UDP_PORT=8000
+      - TRACKER_WS_PORT=8000
+      - TRACKER_HTTP=true
+      - TRACKER_UDP=true
+      - TRACKER_WS=true
+      - TRACKER_STATS_INTERVAL=60000
+      - TRUST_PROXY=true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Optional: Nginx reverse proxy for SSL termination
+  # Uncomment if you want HTTPS/WSS support
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: mdexplorer-p2p-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "443:443"
+  #     - "80:80"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - /etc/letsencrypt:/etc/letsencrypt:ro
+  #   depends_on:
+  #     - tracker

@@ -1,0 +1,28 @@
+{
+  "name": "mdexplorer-p2p-tracker",
+  "version": "1.0.0",
+  "description": "WebTorrent tracker server for MdExplorer P2P file sharing",
+  "type": "module",
+  "main": "tracker.js",
+  "scripts": {
+    "start": "node tracker.js",
+    "start:prod": "NODE_ENV=production node tracker.js",
+    "dev": "node --watch tracker.js"
+  },
+  "keywords": [
+    "bittorrent",
+    "tracker",
+    "webtorrent",
+    "p2p",
+    "mdexplorer"
+  ],
+  "author": "MdExplorer",
+  "license": "MIT",
+  "dependencies": {
+    "bittorrent-tracker": "^11.1.1",
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

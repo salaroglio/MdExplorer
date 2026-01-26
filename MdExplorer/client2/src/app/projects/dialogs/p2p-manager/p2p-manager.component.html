@@ -1,0 +1,197 @@
+<h1 mat-dialog-title>
+  <mat-icon>share</mat-icon>
+  P2P File Sharing
+</h1>
+
+<div mat-dialog-content class="p2p-content">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Checking P2P service...</p>
+  </div>
+
+  <!-- Not Available State -->
+  <div *ngIf="!isLoading && !status?.enabled" class="not-available">
+    <mat-icon class="warning-icon">warning</mat-icon>
+    <h3>P2P Service Not Available</h3>
+    <p>The P2P sharing service is not running. Make sure:</p>
+    <ul>
+      <li>You are running MdExplorer from Electron</li>
+      <li>The P2P addon is installed (check tray menu)</li>
+      <li>P2P Sharing is enabled in the tray menu</li>
+    </ul>
+    <button mat-stroked-button color="primary" (click)="p2pService.checkAvailability()">
+      <mat-icon>refresh</mat-icon>
+      Retry
+    </button>
+  </div>
+
+  <!-- Available State -->
+  <div *ngIf="!isLoading && status?.enabled" class="p2p-available">
+    <!-- Stats Bar -->
+    <div class="stats-bar" *ngIf="status?.stats">
+      <div class="stat-item">
+        <mat-icon>download</mat-icon>
+        <span>{{ formatSpeed(status.stats.downloadSpeed) }}</span>
+      </div>
+      <div class="stat-item">
+        <mat-icon>upload</mat-icon>
+        <span>{{ formatSpeed(status.stats.uploadSpeed) }}</span>
+      </div>
+      <div class="stat-item">
+        <mat-icon>people</mat-icon>
+        <span>{{ status.stats.peersConnected }} peers</span>
+      </div>
+      <div class="stat-item">
+        <mat-icon>swap_horiz</mat-icon>
+        <span>{{ status.stats.activeTransfers }} active</span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <mat-tab-group [(selectedIndex)]="selectedTab">
+      <!-- Transfers Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>sync</mat-icon>
+          Transfers
+          <span class="badge" *ngIf="activeTransfers.length > 0">{{ activeTransfers.length }}</span>
+        </ng-template>
+
+        <div class="tab-content">
+          <div class="transfers-header">
+            <button mat-icon-button (click)="refreshTransfers()" matTooltip="Refresh">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </div>
+
+          <!-- No Transfers -->
+          <div *ngIf="transfers.length === 0" class="empty-state">
+            <mat-icon>cloud_off</mat-icon>
+            <p>No active transfers</p>
+            <span class="hint">Share a file or paste a magnet link to start</span>
+          </div>
+
+          <!-- Transfer List -->
+          <div class="transfer-list" *ngIf="transfers.length > 0">
+            <div class="transfer-item" *ngFor="let transfer of transfers">
+              <div class="transfer-icon">
+                <mat-icon [color]="getStatusColor(transfer)">{{ getStatusIcon(transfer) }}</mat-icon>
+              </div>
+
+              <div class="transfer-info">
+                <div class="transfer-name">{{ transfer.name }}</div>
+                <div class="transfer-details">
+                  <span>{{ formatBytes(transfer.downloaded) }} / {{ formatBytes(transfer.size) }}</span>
+                  <span *ngIf="transfer.isDownloading"> - {{ formatSpeed(transfer.downloadSpeed) }}</span>
+                  <span *ngIf="transfer.isSeeding"> - {{ formatSpeed(transfer.uploadSpeed) }} up</span>
+                  <span *ngIf="transfer.isDownloading && transfer.eta > 0"> - ETA: {{ formatEta(transfer.eta) }}</span>
+                </div>
+                <mat-progress-bar
+                  [mode]="transfer.status === 'paused' ? 'buffer' : 'determinate'"
+                  [value]="transfer.progress">
+                </mat-progress-bar>
+              </div>
+
+              <div class="transfer-actions">
+                <button mat-icon-button
+                        *ngIf="transfer.magnetUri"
+                        (click)="copyMagnetLink(transfer)"
+                        matTooltip="Copy Magnet Link">
+                  <mat-icon>link</mat-icon>
+                </button>
+                <button mat-icon-button
+                        *ngIf="transfer.status !== 'paused' && (transfer.isDownloading || transfer.isSeeding)"
+                        (click)="pauseTransfer(transfer)"
+                        matTooltip="Pause">
+                  <mat-icon>pause</mat-icon>
+                </button>
+                <button mat-icon-button
+                        *ngIf="transfer.status === 'paused'"
+                        (click)="resumeTransfer(transfer)"
+                        matTooltip="Resume">
+                  <mat-icon>play_arrow</mat-icon>
+                </button>
+                <button mat-icon-button
+                        (click)="stopTransfer(transfer, false)"
+                        matTooltip="Stop"
+                        color="warn">
+                  <mat-icon>stop</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Download Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>cloud_download</mat-icon>
+          Download
+        </ng-template>
+
+        <div class="tab-content download-tab">
+          <h3>Download from Magnet Link</h3>
+          <p class="hint">Paste a magnet link to start downloading a file shared by someone else.</p>
+
+          <mat-form-field appearance="outline" class="magnet-input">
+            <mat-label>Magnet Link</mat-label>
+            <input matInput
+                   [(ngModel)]="magnetInput"
+                   placeholder="magnet:?xt=urn:btih:..."
+                   (keyup.enter)="startDownload()">
+            <mat-icon matPrefix>link</mat-icon>
+          </mat-form-field>
+
+          <button mat-raised-button
+                  color="primary"
+                  [disabled]="!magnetInput.trim()"
+                  (click)="startDownload()">
+            <mat-icon>cloud_download</mat-icon>
+            Start Download
+          </button>
+        </div>
+      </mat-tab>
+
+      <!-- Info Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>info</mat-icon>
+          Info
+        </ng-template>
+
+        <div class="tab-content info-tab">
+          <h3>About P2P Sharing</h3>
+          <p>
+            P2P (peer-to-peer) sharing allows you to transfer large files directly between MdExplorer users
+            without uploading to a server. This is ideal for:
+          </p>
+          <ul>
+            <li>Large video files that shouldn't be in Git</li>
+            <li>Media assets and resources</li>
+            <li>Quick file transfers between team members</li>
+          </ul>
+
+          <h4>How to share a file:</h4>
+          <ol>
+            <li>Right-click on a file in the file tree</li>
+            <li>Select "Share via P2P"</li>
+            <li>Copy the generated magnet link</li>
+            <li>Send the link to your recipient</li>
+          </ol>
+
+          <h4>Privacy:</h4>
+          <p class="hint">
+            Files are transferred directly between peers. Your IP address is visible to connected peers.
+            No files are stored on any central server.
+          </p>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Close</button>
+</div>

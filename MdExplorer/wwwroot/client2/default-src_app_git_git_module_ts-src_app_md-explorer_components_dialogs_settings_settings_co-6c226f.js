@@ -1,5 +1,5 @@
 "use strict";
-(self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-cd23d8"],{
+(self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-6c226f"],{
 
 /***/ 4386:
 /*!**************************************************************************************!*\
@@ -5026,6 +5026,278 @@ class NewProjectComponent {
 
 /***/ }),
 
+/***/ 9811:
+/*!*****************************************!*\
+  !*** ./src/app/services/p2p.service.ts ***!
+  \*****************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "P2PService": () => (/* binding */ P2PService)
+/* harmony export */ });
+/* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ 8987);
+
+
+
+
+
+class P2PService {
+  constructor(http) {
+    this.http = http;
+    this.hubConnection = null;
+    this.baseUrl = '/api/P2P';
+    // Observables for state
+    this._status$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this.status$ = this._status$.asObservable();
+    this._transfers$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject([]);
+    this.transfers$ = this._transfers$.asObservable();
+    this._transferProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.transferProgress$ = this._transferProgress$.asObservable();
+    this._transferComplete$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.transferComplete$ = this._transferComplete$.asObservable();
+    this._transferError$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.transferError$ = this._transferError$.asObservable();
+    this._isAvailable$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
+    this.isAvailable$ = this._isAvailable$.asObservable();
+    this.checkAvailability();
+  }
+  /**
+   * Check if P2P service is available (Premium module loaded and Electron plugin running)
+   */
+  checkAvailability() {
+    this.http.get(`${this.baseUrl}/status`).subscribe({
+      next: status => {
+        this._status$.next(status);
+        this._isAvailable$.next(status?.enabled || false);
+        if (status?.enabled) {
+          this.initializeSignalR();
+          this.refreshTransfers();
+        }
+      },
+      error: () => {
+        this._isAvailable$.next(false);
+        this._status$.next(null);
+      }
+    });
+  }
+  initializeSignalR() {
+    if (this.hubConnection) {
+      return; // Already initialized
+    }
+    this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.HubConnectionBuilder().withUrl('/signalr/p2p').configureLogging(_microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.LogLevel.Information).withAutomaticReconnect().build();
+    // Setup event handlers
+    this.hubConnection.on('TransferProgress', transfer => {
+      this._transferProgress$.next(transfer);
+      this.updateTransferInList(transfer);
+    });
+    this.hubConnection.on('TransferComplete', transfer => {
+      this._transferComplete$.next(transfer);
+      this.updateTransferInList(transfer);
+    });
+    this.hubConnection.on('TransferError', data => {
+      this._transferError$.next(data);
+    });
+    // Start connection
+    this.startConnection();
+  }
+  startConnection() {
+    var _this = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      if (!_this.hubConnection) return;
+      try {
+        yield _this.hubConnection.start();
+        console.log('[P2PService] SignalR connection established');
+        // Subscribe to all transfer updates
+        yield _this.hubConnection.invoke('SubscribeToAllTransfers');
+      } catch (err) {
+        console.error('[P2PService] Error establishing SignalR connection:', err);
+        setTimeout(() => _this.startConnection(), 5000);
+      }
+    })();
+  }
+  updateTransferInList(transfer) {
+    const transfers = this._transfers$.value;
+    const index = transfers.findIndex(t => t.infoHash === transfer.infoHash);
+    if (index >= 0) {
+      transfers[index] = transfer;
+    } else {
+      transfers.push(transfer);
+    }
+    this._transfers$.next([...transfers]);
+  }
+  // API Methods
+  /**
+   * Get P2P service status
+   */
+  getStatus() {
+    return this.http.get(`${this.baseUrl}/status`);
+  }
+  /**
+   * Get P2P health check
+   */
+  getHealth() {
+    return this.http.get(`${this.baseUrl}/health`);
+  }
+  /**
+   * Get P2P statistics
+   */
+  getStats() {
+    return this.http.get(`${this.baseUrl}/stats`);
+  }
+  /**
+   * Get all active transfers
+   */
+  getTransfers() {
+    return this.http.get(`${this.baseUrl}/transfers`);
+  }
+  /**
+   * Refresh the transfers list
+   */
+  refreshTransfers() {
+    this.getTransfers().subscribe({
+      next: transfers => {
+        this._transfers$.next(transfers);
+      },
+      error: err => {
+        console.error('[P2PService] Error fetching transfers:', err);
+      }
+    });
+  }
+  /**
+   * Get a specific transfer by info hash
+   */
+  getTransfer(infoHash) {
+    return this.http.get(`${this.baseUrl}/transfers/${infoHash}`);
+  }
+  /**
+   * Share a file via P2P
+   * @param filePath Full path to the file to share
+   * @param name Optional display name
+   */
+  shareFile(filePath, name) {
+    return this.http.post(`${this.baseUrl}/share`, {
+      filePath,
+      name
+    });
+  }
+  /**
+   * Download from a magnet link
+   * @param magnetUri Magnet URI to download
+   * @param destPath Optional destination path
+   */
+  download(magnetUri, destPath) {
+    return this.http.post(`${this.baseUrl}/download`, {
+      magnetUri,
+      destPath
+    });
+  }
+  /**
+   * Pause a transfer
+   */
+  pauseTransfer(infoHash) {
+    return this.http.post(`${this.baseUrl}/transfers/${infoHash}/pause`, {});
+  }
+  /**
+   * Resume a transfer
+   */
+  resumeTransfer(infoHash) {
+    return this.http.post(`${this.baseUrl}/transfers/${infoHash}/resume`, {});
+  }
+  /**
+   * Stop and remove a transfer
+   * @param deleteFiles Whether to delete the downloaded files
+   */
+  stopTransfer(infoHash, deleteFiles = false) {
+    return this.http.delete(`${this.baseUrl}/transfers/${infoHash}?deleteFiles=${deleteFiles}`);
+  }
+  /**
+   * Parse a magnet URI to get info before downloading
+   */
+  parseMagnet(magnetUri) {
+    return this.http.post(`${this.baseUrl}/parse-magnet`, {
+      magnetUri
+    });
+  }
+  /**
+   * Copy a file to .p2pshare/files/, start seeding it, and append a P2P link to the markdown document.
+   * This is the main method for the "Add file to share via P2P" feature.
+   * @param sourcePath Full path to the source file to copy and share
+   * @param documentPath Full path to the markdown document where the link will be appended
+   */
+  copyAndShareFile(sourcePath, documentPath) {
+    return this.http.post(`${this.baseUrl}/copy-and-share`, {
+      sourcePath,
+      documentPath
+    });
+  }
+  /**
+   * Check if a file exists at a relative path within the project
+   * @param path Relative path to check (e.g., ".p2pshare/files/video.mp4")
+   * @param projectPath Full path to the project root
+   */
+  checkFile(path, projectPath) {
+    return this.http.get(`${this.baseUrl}/check-file?path=${encodeURIComponent(path)}&projectPath=${encodeURIComponent(projectPath)}`);
+  }
+  /**
+   * Format bytes to human readable string
+   */
+  formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+  /**
+   * Format speed to human readable string
+   */
+  formatSpeed(bytesPerSecond) {
+    return this.formatBytes(bytesPerSecond) + '/s';
+  }
+  /**
+   * Format ETA to human readable string
+   */
+  formatEta(seconds) {
+    if (seconds <= 0 || !isFinite(seconds)) return '--';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  }
+  ngOnDestroy() {
+    if (this.hubConnection) {
+      this.hubConnection.stop();
+    }
+  }
+  static {
+    this.ɵfac = function P2PService_Factory(t) {
+      return new (t || P2PService)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpClient));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
+      token: P2PService,
+      factory: P2PService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+
+/***/ }),
+
 /***/ 9862:
 /*!*************************************************************************************!*\
   !*** ./node_modules/angular-animations/__ivy_ngcc__/fesm2015/angular-animations.js ***!
@@ -9039,4 +9311,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-cd23d8.js.map
+//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_components_dialogs_settings_settings_co-6c226f.js.map
