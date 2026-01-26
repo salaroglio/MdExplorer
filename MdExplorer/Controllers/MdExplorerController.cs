@@ -619,7 +619,8 @@ namespace MdExplorer.Controllers
                      
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId);
+            var projectPath = GetProjectPath();
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, projectPath);
 
             try
             {
@@ -660,7 +661,7 @@ namespace MdExplorer.Controllers
             return doc1;
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId)
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "")
         {
             var html = doc1.CreateElement("html");
             // IFRAME SCROLLING FIX: Permetti scrolling naturale nell'iframe
@@ -687,15 +688,18 @@ namespace MdExplorer.Controllers
             var BodyId = doc1.CreateAttribute("Id");
             var ConnectionId = doc1.CreateAttribute("ConnectionId");
             var DocumentPath = doc1.CreateAttribute("DocumentPath");
+            var ProjectPath = doc1.CreateAttribute("ProjectPath");
             var bodyStyle = doc1.CreateAttribute("style");
             // IFRAME SCROLLING FIX: Permetti scrolling naturale nel body
             bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
             BodyId.Value = "MdBody";
             ConnectionId.Value = connectionId;
             DocumentPath.Value = filePathSystem1;
+            ProjectPath.Value = projectPath ?? "";
             body.Attributes.Append(BodyId);
             body.Attributes.Append(ConnectionId);
             body.Attributes.Append(DocumentPath);
+            body.Attributes.Append(ProjectPath);
             body.Attributes.Append(bodyStyle);
             html.AppendChild(body);
 
@@ -722,7 +726,7 @@ namespace MdExplorer.Controllers
     <link rel=""stylesheet"" href=""/common.css"" />
     <script src=""/common.js""></script>
 </head>
-<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}
 </body>
 </html>";

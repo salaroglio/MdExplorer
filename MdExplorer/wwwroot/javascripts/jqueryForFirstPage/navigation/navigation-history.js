@@ -228,8 +228,142 @@ function initializeConnectionIdForLinks() {
     console.log('[MdExplorer] ConnectionId link injection initialized');
 }
 
+/**
+ * Initialize P2P link handling for .p2pshare/ links
+ * When clicking a P2P link:
+ * - Check if file exists locally
+ * - If exists, open the file
+ * - If not exists, send message to Angular parent to initiate download
+ */
+function initializeP2PLinkHandling() {
+    // Intercept clicks on P2P share links
+    $(document).on('click', 'a[href*=".p2pshare/"]', function(e) {
+        var href = $(this).attr('href');
+
+        // Skip if no href
+        if (!href) return;
+
+        // Prevent default navigation - we'll handle it
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Extract filename from the path
+        var filename = href.split('/').pop();
+
+        // Get project path from body attribute (set by backend)
+        var projectPath = $('body').attr('ProjectPath') || '';
+
+        console.log('[MdExplorer P2P] Intercepted P2P link click:', href, 'filename:', filename);
+
+        // Send message to Angular parent to handle the P2P link
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'p2p-link-click',
+                href: href,
+                filename: filename,
+                projectPath: projectPath
+            }, '*');
+        } else {
+            console.warn('[MdExplorer P2P] No parent window found for P2P message');
+        }
+    });
+
+    // Setup hover/tooltip for P2P links (send message to get status)
+    $(document).on('mouseenter', 'a[href*=".p2pshare/"]', function(e) {
+        var $link = $(this);
+        var href = $link.attr('href');
+        var filename = href.split('/').pop();
+        var projectPath = $('body').attr('ProjectPath') || '';
+
+        // Add visual indicator that this is a P2P link
+        if (!$link.hasClass('p2p-link-styled')) {
+            $link.addClass('p2p-link-styled');
+            // Small P2P icon or indicator
+            $link.attr('title', 'P2P Shared File - Loading status...');
+        }
+
+        // Request status from Angular parent
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'p2p-link-hover',
+                href: href,
+                filename: filename,
+                projectPath: projectPath,
+                linkId: $link.attr('id') || ('p2p-' + Math.random().toString(36).substr(2, 9))
+            }, '*');
+
+            // Store ID for later tooltip update
+            if (!$link.attr('id')) {
+                $link.attr('id', 'p2p-' + Math.random().toString(36).substr(2, 9));
+            }
+        }
+    });
+
+    // Listen for messages from Angular parent (e.g., tooltip updates)
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'p2p-link-status') {
+            var linkId = event.data.linkId;
+            var status = event.data.status;
+            var $link = $('#' + linkId);
+
+            if ($link.length) {
+                // Update tooltip based on status
+                var tooltipText = getP2PTooltipText(status);
+                $link.attr('title', tooltipText);
+
+                // Update visual styling based on status
+                $link.removeClass('p2p-local p2p-seeding p2p-download p2p-downloading p2p-no-peers');
+                $link.addClass('p2p-' + status.statusClass);
+            }
+        }
+    });
+
+    console.log('[MdExplorer P2P] P2P link handling initialized');
+}
+
+/**
+ * Get tooltip text based on P2P status
+ */
+function getP2PTooltipText(status) {
+    if (!status) return 'P2P Shared File';
+
+    switch (status.state) {
+        case 'local':
+            return 'File disponibile - Click per aprire\nDimensione: ' + formatBytes(status.size);
+        case 'seeding':
+            return 'In condivisione\nPeer connessi: ' + status.numPeers + '\nUpload: ' + formatSpeed(status.uploadSpeed);
+        case 'to_download':
+            return 'Click per scaricare\nDimensione: ' + formatBytes(status.size) + '\nPeer disponibili: ' + status.numPeers;
+        case 'downloading':
+            return 'Download in corso... ' + Math.round(status.progress * 100) + '%\nVelocità: ' + formatSpeed(status.downloadSpeed);
+        case 'no_peers':
+            return 'Nessun peer disponibile al momento\nRiprova più tardi';
+        default:
+            return 'P2P Shared File';
+    }
+}
+
+/**
+ * Format bytes to human readable string
+ */
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    var k = 1024;
+    var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Format speed to human readable string
+ */
+function formatSpeed(bytesPerSecond) {
+    return formatBytes(bytesPerSecond) + '/s';
+}
+
 // Initialize navigation when document is ready
 $(document).ready(function() {
     initializeInternalNavigation();
     initializeConnectionIdForLinks();
+    initializeP2PLinkHandling();
 });

@@ -45,6 +45,32 @@ export interface P2PStatus {
   stats?: P2PStats;
 }
 
+export interface PeerStatus {
+  found: boolean;
+  status: 'seeding' | 'seeding_no_peers' | 'downloading' | 'downloading_no_peers' | 'completed' | 'unknown';
+  numPeers: number;
+  downloadSpeed?: number;
+  uploadSpeed?: number;
+  progress?: number;
+  size?: number;
+  name?: string;
+  timeRemaining?: number;
+  message?: string;
+}
+
+export interface P2PFileInfo {
+  found: boolean;
+  magnetUri?: string;
+  infoHash?: string;
+  size?: number;
+  addedAt?: string;
+  error?: string;
+}
+
+export interface P2PMetadata {
+  files: { [filename: string]: P2PFileInfo };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -273,6 +299,38 @@ export class P2PService implements OnDestroy {
   checkFile(path: string, projectPath: string): Observable<{ exists: boolean; fullPath: string }> {
     return this.http.get<{ exists: boolean; fullPath: string }>(
       `${this.baseUrl}/check-file?path=${encodeURIComponent(path)}&projectPath=${encodeURIComponent(projectPath)}`
+    );
+  }
+
+  /**
+   * Get peer status for a specific torrent by infoHash.
+   * Returns number of peers, download/upload speeds, and transfer status.
+   * @param infoHash The torrent info hash
+   */
+  getPeerStatus(infoHash: string): Observable<PeerStatus> {
+    return this.http.get<PeerStatus>(`${this.baseUrl}/peer-status/${infoHash}`);
+  }
+
+  /**
+   * Get P2P metadata for a project.
+   * Returns the contents of .p2pshare/metadata.json if it exists.
+   * @param projectPath Full path to the project root
+   */
+  getMetadata(projectPath: string): Observable<P2PMetadata> {
+    return this.http.get<P2PMetadata>(
+      `${this.baseUrl}/metadata?projectPath=${encodeURIComponent(projectPath)}`
+    );
+  }
+
+  /**
+   * Get P2P info for a specific file by filename.
+   * Returns magnetUri, infoHash, size from metadata.json.
+   * @param filename The filename to look up
+   * @param projectPath Full path to the project root
+   */
+  getFileInfo(filename: string, projectPath: string): Observable<P2PFileInfo> {
+    return this.http.get<P2PFileInfo>(
+      `${this.baseUrl}/file-info/${encodeURIComponent(filename)}?projectPath=${encodeURIComponent(projectPath)}`
     );
   }
 

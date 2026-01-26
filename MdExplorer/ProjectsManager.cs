@@ -393,6 +393,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     gitignoreContent.AppendLine(".md/");
                     gitignoreContent.AppendLine(".mdword/");
                     gitignoreContent.AppendLine("");
+                    gitignoreContent.AppendLine("# P2P shared files (metadata.json is tracked for P2P info sharing)");
+                    gitignoreContent.AppendLine(".p2pshare/files/");
+                    gitignoreContent.AppendLine(".p2pshare/received/");
+                    gitignoreContent.AppendLine("");
                     gitignoreContent.AppendLine("# Database files");
                     gitignoreContent.AppendLine("*.db");
                     gitignoreContent.AppendLine("*.db-shm");

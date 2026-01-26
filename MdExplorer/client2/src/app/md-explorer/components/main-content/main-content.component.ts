@@ -9,6 +9,9 @@ import { MdServerMessagesService } from '../../../signalR/services/server-messag
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { IndexingStateService } from '../../services/indexing-state.service';
 import { FileEventsService } from '../../services/file-events.service';
+import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.service';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { ProjectsService } from '../../services/projects.service';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -64,7 +67,10 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     public dialog: MatDialog,
     private ref: ChangeDetectorRef,
     private indexingStateService: IndexingStateService,
-    private fileEventsService: FileEventsService
+    private fileEventsService: FileEventsService,
+    private p2pService: P2PService,
+    private snackBar: MatSnackBar,
+    private projectsService: ProjectsService
   ) {
     
     // Initialize observables from state
@@ -97,6 +103,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Initialize P2P message listener for iframe communication
+    this.setupP2PMessageListener();
 
     // Enhanced subscription with loading state management
     this.service.selectedMdFileFromSideNav.pipe(
@@ -535,6 +543,250 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const currentState = this.contentState$.value;
   }
 
+  /**
+   * Setup listener for P2P messages from iframe
+   */
+  private setupP2PMessageListener(): void {
+    window.addEventListener('message', (event: MessageEvent) => {
+      if (!event.data || !event.data.type) return;
 
+      switch (event.data.type) {
+        case 'p2p-link-click':
+          this.handleP2PLinkClick(event.data);
+          break;
+        case 'p2p-link-hover':
+          this.handleP2PLinkHover(event.data);
+          break;
+      }
+    });
+  }
+
+  /**
+   * Handle click on a P2P link from iframe
+   */
+  private handleP2PLinkClick(data: { href: string; filename: string; projectPath: string }): void {
+    const projectPath = this.projectsService.currentProject?.path || data.projectPath;
+
+    if (!projectPath) {
+      console.error('[P2P] No project path available');
+      this.snackBar.open('Errore: progetto non trovato', 'OK', { duration: 3000 });
+      return;
+    }
+
+    // First, check if the file exists locally
+    this.p2pService.checkFile(data.href, projectPath).subscribe({
+      next: (result) => {
+        if (result.exists) {
+          // File exists locally, open it
+          console.log('[P2P] File exists locally, opening:', result.fullPath);
+          this.openLocalFile(result.fullPath);
+        } else {
+          // File doesn't exist, check P2P metadata and offer download
+          this.handleP2PDownloadOffer(data.filename, projectPath);
+        }
+      },
+      error: (err) => {
+        console.error('[P2P] Error checking file:', err);
+        this.snackBar.open('Errore nel verificare il file', 'OK', { duration: 3000 });
+      }
+    });
+  }
+
+  /**
+   * Handle hover on a P2P link - send status back to iframe
+   */
+  private handleP2PLinkHover(data: { href: string; filename: string; projectPath: string; linkId: string }): void {
+    const projectPath = this.projectsService.currentProject?.path || data.projectPath;
+
+    if (!projectPath) return;
+
+    // Get file info from metadata
+    this.p2pService.getFileInfo(data.filename, projectPath).subscribe({
+      next: (fileInfo) => {
+        if (fileInfo.found && fileInfo.infoHash) {
+          // Get peer status for this torrent
+          this.p2pService.getPeerStatus(fileInfo.infoHash).subscribe({
+            next: (peerStatus) => {
+              // Check if file exists locally
+              this.p2pService.checkFile(data.href, projectPath).subscribe({
+                next: (checkResult) => {
+                  // Determine the display state
+                  const state = this.determineP2PState(checkResult.exists, peerStatus, fileInfo);
+
+                  // Send status back to iframe
+                  this.sendP2PStatusToIframe(data.linkId, {
+                    state: state,
+                    statusClass: state.replace('_', '-'),
+                    numPeers: peerStatus.numPeers,
+                    size: fileInfo.size || 0,
+                    progress: peerStatus.progress || 0,
+                    downloadSpeed: peerStatus.downloadSpeed || 0,
+                    uploadSpeed: peerStatus.uploadSpeed || 0
+                  });
+                }
+              });
+            },
+            error: () => {
+              // Can't get peer status, assume unknown
+              this.sendP2PStatusToIframe(data.linkId, {
+                state: 'unknown',
+                statusClass: 'unknown',
+                numPeers: 0,
+                size: fileInfo.size || 0
+              });
+            }
+          });
+        } else {
+          // File not in metadata
+          this.sendP2PStatusToIframe(data.linkId, {
+            state: 'unknown',
+            statusClass: 'unknown',
+            numPeers: 0,
+            size: 0
+          });
+        }
+      },
+      error: () => {
+        // Error getting file info
+        this.sendP2PStatusToIframe(data.linkId, {
+          state: 'unknown',
+          statusClass: 'unknown',
+          numPeers: 0,
+          size: 0
+        });
+      }
+    });
+  }
+
+  /**
+   * Determine the P2P state based on local existence and peer status
+   */
+  private determineP2PState(existsLocally: boolean, peerStatus: PeerStatus, fileInfo: P2PFileInfo): string {
+    if (existsLocally) {
+      if (peerStatus.found && peerStatus.status === 'seeding') {
+        return 'seeding';
+      }
+      return 'local';
+    } else {
+      if (peerStatus.found) {
+        if (peerStatus.status === 'downloading') {
+          return 'downloading';
+        }
+        if (peerStatus.numPeers > 0) {
+          return 'to_download';
+        }
+      }
+      return 'no_peers';
+    }
+  }
+
+  /**
+   * Send P2P status back to iframe for tooltip update
+   */
+  private sendP2PStatusToIframe(linkId: string, status: any): void {
+    const iframeWindow = this.iframe?.nativeElement?.contentWindow;
+    if (iframeWindow) {
+      iframeWindow.postMessage({
+        type: 'p2p-link-status',
+        linkId: linkId,
+        status: status
+      }, '*');
+    }
+  }
+
+  /**
+   * Handle download offer for P2P file
+   */
+  private handleP2PDownloadOffer(filename: string, projectPath: string): void {
+    // Get file info to show size and check peer availability
+    this.p2pService.getFileInfo(filename, projectPath).subscribe({
+      next: (fileInfo) => {
+        if (!fileInfo.found || !fileInfo.magnetUri) {
+          this.snackBar.open('File non trovato nei metadati P2P', 'OK', { duration: 3000 });
+          return;
+        }
+
+        // Check peer availability
+        if (fileInfo.infoHash) {
+          this.p2pService.getPeerStatus(fileInfo.infoHash).subscribe({
+            next: (peerStatus) => {
+              this.showDownloadConfirmation(filename, fileInfo, peerStatus, projectPath);
+            },
+            error: () => {
+              // Show anyway without peer info
+              this.showDownloadConfirmation(filename, fileInfo, null, projectPath);
+            }
+          });
+        } else {
+          this.showDownloadConfirmation(filename, fileInfo, null, projectPath);
+        }
+      },
+      error: (err) => {
+        console.error('[P2P] Error getting file info:', err);
+        this.snackBar.open('Errore nel recuperare le informazioni del file', 'OK', { duration: 3000 });
+      }
+    });
+  }
+
+  /**
+   * Show download confirmation dialog/snackbar
+   */
+  private showDownloadConfirmation(filename: string, fileInfo: P2PFileInfo, peerStatus: PeerStatus | null, projectPath: string): void {
+    const sizeStr = this.p2pService.formatBytes(fileInfo.size || 0);
+    const peersStr = peerStatus?.numPeers ? `${peerStatus.numPeers} peer disponibili` : 'Peer sconosciuti';
+
+    const snackRef = this.snackBar.open(
+      `Scaricare "${filename}"? (${sizeStr}, ${peersStr})`,
+      'Scarica',
+      { duration: 10000 }
+    );
+
+    snackRef.onAction().subscribe(() => {
+      this.startP2PDownload(filename, fileInfo, projectPath);
+    });
+  }
+
+  /**
+   * Start P2P download
+   */
+  private startP2PDownload(filename: string, fileInfo: P2PFileInfo, projectPath: string): void {
+    if (!fileInfo.magnetUri) {
+      this.snackBar.open('Magnet URI non disponibile', 'OK', { duration: 3000 });
+      return;
+    }
+
+    // Destination path inside .p2pshare/received/
+    const destPath = `${projectPath}/.p2pshare/received`;
+
+    this.snackBar.open(`Avvio download di "${filename}"...`, '', { duration: 2000 });
+
+    this.p2pService.download(fileInfo.magnetUri, destPath).subscribe({
+      next: (result) => {
+        if (result.success) {
+          this.snackBar.open(`Download avviato per "${filename}"`, 'OK', { duration: 3000 });
+          // TODO: Could show progress in P2P Manager or a dedicated component
+        } else {
+          this.snackBar.open(`Errore: ${result.error}`, 'OK', { duration: 5000 });
+        }
+      },
+      error: (err) => {
+        console.error('[P2P] Download error:', err);
+        this.snackBar.open('Errore durante il download', 'OK', { duration: 5000 });
+      }
+    });
+  }
+
+  /**
+   * Open a local file (e.g., using shell open)
+   */
+  private openLocalFile(fullPath: string): void {
+    // For now, just log - actual implementation would use Electron shell.openPath
+    // or a backend endpoint to open the file
+    console.log('[P2P] Opening local file:', fullPath);
+    this.snackBar.open(`Apertura file: ${fullPath}`, '', { duration: 2000 });
+
+    // TODO: Implement actual file opening via backend or Electron IPC
+    // For example: this.http.post('/api/System/OpenFile', { path: fullPath }).subscribe();
+  }
 
 }

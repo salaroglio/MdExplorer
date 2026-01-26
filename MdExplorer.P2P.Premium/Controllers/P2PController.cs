@@ -376,8 +376,8 @@ namespace MdExplorer.P2P.Premium.Controllers
                 // 5. Save metadata to .p2pshare/metadata.json
                 SaveP2PMetadata(projectPath, fileName, shareResult);
 
-                // 6. Append P2P link to the markdown document
-                var linkMarkdown = $"\n\n<!-- p2p:{shareResult.MagnetUri} -->\n[{fileName}](.p2pshare/files/{fileName})\n";
+                // 6. Append clean P2P link to the markdown document (metadata is in metadata.json)
+                var linkMarkdown = $"\n\n[{fileName}](.p2pshare/files/{fileName})\n";
                 System.IO.File.AppendAllText(request.DocumentPath, linkMarkdown);
                 _logger.LogInformation("P2P link appended to document: {DocumentPath}", request.DocumentPath);
 
@@ -417,6 +417,164 @@ namespace MdExplorer.P2P.Premium.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking file existence");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get peer status for a specific torrent by infoHash.
+        /// Returns number of peers, download/upload speeds, and transfer status.
+        /// </summary>
+        [HttpGet("peer-status/{infoHash}")]
+        public async Task<ActionResult> GetPeerStatus(string infoHash)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(infoHash))
+                {
+                    return BadRequest(new { error = "infoHash is required" });
+                }
+
+                var transfer = await _p2pService.GetTransferAsync(infoHash);
+
+                if (transfer == null)
+                {
+                    // Transfer not found - could be not seeding or not known
+                    return Ok(new
+                    {
+                        found = false,
+                        status = "unknown",
+                        numPeers = 0,
+                        message = "Torrent not active on this node"
+                    });
+                }
+
+                // Determine status based on transfer type and state
+                string status;
+                if (transfer.Type == "seeding")
+                {
+                    status = transfer.NumPeers > 0 ? "seeding" : "seeding_no_peers";
+                }
+                else if (transfer.Type == "downloading")
+                {
+                    if (transfer.Progress >= 1.0)
+                    {
+                        status = "completed";
+                    }
+                    else if (transfer.NumPeers > 0)
+                    {
+                        status = "downloading";
+                    }
+                    else
+                    {
+                        status = "downloading_no_peers";
+                    }
+                }
+                else
+                {
+                    status = "unknown";
+                }
+
+                return Ok(new
+                {
+                    found = true,
+                    status,
+                    numPeers = transfer.NumPeers,
+                    downloadSpeed = transfer.DownloadSpeed,
+                    uploadSpeed = transfer.UploadSpeed,
+                    progress = transfer.Progress,
+                    size = transfer.Size,
+                    name = transfer.Name,
+                    timeRemaining = transfer.TimeRemaining
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting peer status for {InfoHash}", infoHash);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get P2P metadata for a project.
+        /// Returns the contents of .p2pshare/metadata.json if it exists.
+        /// </summary>
+        [HttpGet("metadata")]
+        public ActionResult GetMetadata([FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(projectPath))
+                {
+                    return BadRequest(new { error = "projectPath is required" });
+                }
+
+                var metadataPath = System.IO.Path.Combine(projectPath, ".p2pshare", "metadata.json");
+
+                if (!System.IO.File.Exists(metadataPath))
+                {
+                    return Ok(new { files = new Dictionary<string, object>() });
+                }
+
+                var content = System.IO.File.ReadAllText(metadataPath);
+                var metadata = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(content);
+
+                return Ok(metadata ?? new Dictionary<string, object> { ["files"] = new Dictionary<string, object>() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading P2P metadata for project {ProjectPath}", projectPath);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get P2P info for a specific file by filename.
+        /// Returns magnetUri, infoHash, size from metadata.json.
+        /// </summary>
+        [HttpGet("file-info/{filename}")]
+        public ActionResult GetFileInfo(string filename, [FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filename))
+                {
+                    return BadRequest(new { error = "filename is required" });
+                }
+
+                if (string.IsNullOrEmpty(projectPath))
+                {
+                    return BadRequest(new { error = "projectPath is required" });
+                }
+
+                var metadataPath = System.IO.Path.Combine(projectPath, ".p2pshare", "metadata.json");
+
+                if (!System.IO.File.Exists(metadataPath))
+                {
+                    return Ok(new { found = false, error = "No P2P metadata found for this project" });
+                }
+
+                var content = System.IO.File.ReadAllText(metadataPath);
+                var metadata = System.Text.Json.JsonDocument.Parse(content);
+
+                if (metadata.RootElement.TryGetProperty("files", out var filesElement) &&
+                    filesElement.TryGetProperty(filename, out var fileInfo))
+                {
+                    return Ok(new
+                    {
+                        found = true,
+                        magnetUri = fileInfo.TryGetProperty("magnetUri", out var m) ? m.GetString() : null,
+                        infoHash = fileInfo.TryGetProperty("infoHash", out var h) ? h.GetString() : null,
+                        size = fileInfo.TryGetProperty("size", out var s) ? s.GetInt64() : 0,
+                        addedAt = fileInfo.TryGetProperty("addedAt", out var a) ? a.GetString() : null
+                    });
+                }
+
+                return Ok(new { found = false, error = "File not found in P2P metadata" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting file info for {Filename}", filename);
                 return StatusCode(500, new { error = ex.Message });
             }
         }
