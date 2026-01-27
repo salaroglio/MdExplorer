@@ -6571,26 +6571,34 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MainContentComponent": () => (/* binding */ MainContentComponent)
 /* harmony export */ });
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! rxjs */ 8947);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 635);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 8977);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 8951);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 1989);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! rxjs/operators */ 116);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! rxjs */ 8947);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 8977);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! rxjs/operators */ 8951);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! rxjs/operators */ 1989);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../services/md-file.service */ 4169);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _services_indexing_state_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../services/indexing-state.service */ 1700);
 /* harmony import */ var _services_file_events_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../services/file-events.service */ 6575);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
-/* harmony import */ var _pipes_safePipe__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../pipes/safePipe */ 3016);
+/* harmony import */ var _services_p2p_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../services/p2p.service */ 9811);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _services_projects_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../services/projects.service */ 9753);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/common */ 4666);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! @angular/material/icon */ 7822);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
+/* harmony import */ var _pipes_safePipe__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../pipes/safePipe */ 3016);
+
+
+
+
 
 
 
@@ -6608,86 +6616,86 @@ __webpack_require__.r(__webpack_exports__);
 const _c0 = ["iframe"];
 function MainContentComponent_div_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 7)(1, "div", 8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](2, "mat-progress-spinner", 9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](3, "p", 10);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](4, "Caricamento documento...");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](5, "p", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](6, "Attendere prego");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 7)(1, "div", 8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](2, "mat-progress-spinner", 9);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "p", 10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4, "Caricamento documento...");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](5, "p", 11);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](6, "Attendere prego");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()();
   }
 }
 function MainContentComponent_div_3_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 12)(1, "div", 13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](2, "mat-progress-spinner", 14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](3, "p", 15);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](4, "Indicizzazione in corso...");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](5, "p", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](6, "Il documento sar\u00E0 disponibile a breve");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](7, "div", 17)(8, "mat-icon", 18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](9, "info");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](10, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](11, "Prima visualizzazione del file");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 12)(1, "div", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](2, "mat-progress-spinner", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "p", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4, "Indicizzazione in corso...");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](5, "p", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](6, "Il documento sar\u00E0 disponibile a breve");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "div", 17)(8, "mat-icon", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](9, "info");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](10, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](11, "Prima visualizzazione del file");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()()();
   }
 }
 function MainContentComponent_div_5_Template(rf, ctx) {
   if (rf & 1) {
-    const _r6 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 19)(1, "div", 20)(2, "mat-icon", 21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3, "error_outline");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](4, "h3", 22);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](5, "Errore di caricamento");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](6, "p", 23);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](8, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](9, "div", 24)(10, "button", 25);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function MainContentComponent_div_5_Template_button_click_10_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r6);
-      const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r5.retry());
+    const _r6 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 19)(1, "div", 20)(2, "mat-icon", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3, "error_outline");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](4, "h3", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5, "Errore di caricamento");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](6, "p", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "div", 24)(10, "button", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function MainContentComponent_div_5_Template_button_click_10_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r6);
+      const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r5.retry());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](11, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](12, "refresh");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](13, " Riprova ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](11, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](12, "refresh");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](13, " Riprova ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()()();
   }
   if (rf & 2) {
-    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](8, 1, ctx_r2.errorMessage$));
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 1, ctx_r2.errorMessage$));
   }
 }
 function MainContentComponent_div_7_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 26)(1, "div", 27)(2, "mat-icon", 28);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3, "description");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](4, "h3", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](5, "Benvenuto in MdExplorer");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](6, "p", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](7, "Seleziona un file Markdown dalla barra laterale per iniziare la visualizzazione.");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](8, "div", 31)(9, "p", 32)(10, "mat-icon", 33);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](11, "info");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](12, " Usa la navigazione a sinistra per esplorare i tuoi documenti ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 26)(1, "div", 27)(2, "mat-icon", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3, "description");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](4, "h3", 29);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5, "Benvenuto in MdExplorer");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](6, "p", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](7, "Seleziona un file Markdown dalla barra laterale per iniziare la visualizzazione.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](8, "div", 31)(9, "p", 32)(10, "mat-icon", 33);
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](11, "info");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](12, " Usa la navigazione a sinistra per esplorare i tuoi documenti ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()()();
   }
 }
 class MainContentComponent {
   // Layout tracking - RIMOSSO, usiamo solo CSS
-  constructor(service, sanitizer, monitorMDService, dialog, ref, indexingStateService, fileEventsService) {
+  constructor(service, sanitizer, monitorMDService, dialog, ref, indexingStateService, fileEventsService, p2pService, snackBar, projectsService, http) {
     this.service = service;
     this.sanitizer = sanitizer;
     this.monitorMDService = monitorMDService;
@@ -6695,12 +6703,16 @@ class MainContentComponent {
     this.ref = ref;
     this.indexingStateService = indexingStateService;
     this.fileEventsService = fileEventsService;
+    this.p2pService = p2pService;
+    this.snackBar = snackBar;
+    this.projectsService = projectsService;
+    this.http = http;
     this.classForContent = "hundredPercentContent";
     this.htmlSource = '../welcome.html';
     this._HideIFrame = false;
     // New state management properties
-    this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
-    this.contentState$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject({
+    this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    this.contentState$ = new rxjs__WEBPACK_IMPORTED_MODULE_9__.BehaviorSubject({
       status: 'idle',
       retryCount: 0
     });
@@ -6709,33 +6721,35 @@ class MainContentComponent {
     this.iframeListenersAdded = false;
     // Initialize observables from state
     this.currentState$ = this.contentState$.asObservable();
-    this.isLoading$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(state => {
+    this.isLoading$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.map)(state => {
       const isLoading = state.status === 'loading';
       return isLoading;
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$));
-    this.hasError$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(state => {
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$));
+    this.hasError$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.map)(state => {
       const hasError = state.status === 'error';
       return hasError;
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$));
-    this.errorMessage$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(state => state.errorMessage || 'Errore di caricamento sconosciuto'), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$));
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$));
+    this.errorMessage$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.map)(state => state.errorMessage || 'Errore di caricamento sconosciuto'), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$));
     this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
   }
   ngOnInit() {
+    // Initialize P2P message listener for iframe communication
+    this.setupP2PMessageListener();
     // Enhanced subscription with loading state management
-    this.service.selectedMdFileFromSideNav.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.debounceTime)(100) // Prevent rapid-fire selections
+    this.service.selectedMdFileFromSideNav.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.debounceTime)(100) // Prevent rapid-fire selections
     ).subscribe(file => {
       if (file) {
         this.loadMarkdownFile(file);
       }
     });
-    this.service.selectedMdFileFromToolbar.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.debounceTime)(100)).subscribe(files => {
+    this.service.selectedMdFileFromToolbar.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.debounceTime)(100)).subscribe(files => {
       const current = files?.[0];
       if (current) {
         this.loadMarkdownFile(current);
       }
     });
     // Integration with IndexingStateService for file indexing awareness
-    this.indexingStateService.indexedFiles$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.filter)(indexedFiles => {
+    this.indexingStateService.indexedFiles$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_14__.filter)(indexedFiles => {
       const currentPath = this.contentState$.value.currentPath;
       return !!currentPath && indexedFiles.has(currentPath);
     })).subscribe(indexedFiles => {
@@ -6746,7 +6760,7 @@ class MainContentComponent {
       }
     });
     // Listen to file indexed events
-    this.fileEventsService.fileIndexed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(event => {
+    this.fileEventsService.fileIndexed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$)).subscribe(event => {
       const currentPath = this.contentState$.value.currentPath;
       if (event.fullPath === currentPath) {
         // Refresh the view if the current file was just indexed
@@ -6754,7 +6768,7 @@ class MainContentComponent {
       }
     });
     // Listen to file renamed events
-    this.fileEventsService.fileRenamed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(event => {
+    this.fileEventsService.fileRenamed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.takeUntil)(this.destroy$)).subscribe(event => {
       const currentPath = this.contentState$.value.currentPath;
       if (event.oldPath === currentPath) {
         this.handleFileRenamed(event.oldPath, event.newPath);
@@ -6957,7 +6971,7 @@ class MainContentComponent {
     }
     // Exponential backoff for retries
     const delay = this.retryDelay * Math.pow(2, currentState.retryCount);
-    (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.timer)(delay).subscribe(() => {
+    (0,rxjs__WEBPACK_IMPORTED_MODULE_15__.timer)(delay).subscribe(() => {
       this.updateState({
         status: 'loading',
         retryCount: (currentState.retryCount || 0) + 1,
@@ -7084,29 +7098,296 @@ class MainContentComponent {
   debugCurrentState() {
     const currentState = this.contentState$.value;
   }
+  /**
+   * Setup listener for P2P messages from iframe
+   */
+  setupP2PMessageListener() {
+    console.log('[P2P Angular] Setting up P2P message listener');
+    window.addEventListener('message', event => {
+      if (!event.data || !event.data.type) return;
+      // Only log P2P messages
+      if (event.data.type.startsWith('p2p-')) {
+        console.log('[P2P Angular] Received message from iframe:', event.data.type, event.data);
+      }
+      switch (event.data.type) {
+        case 'p2p-link-click':
+          this.handleP2PLinkClick(event.data);
+          break;
+        case 'p2p-link-hover':
+          this.handleP2PLinkHover(event.data);
+          break;
+      }
+    });
+  }
+  /**
+   * Handle click on a P2P link from iframe
+   */
+  handleP2PLinkClick(data) {
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path || data.projectPath;
+    if (!projectPath) {
+      console.error('[P2P] No project path available');
+      this.snackBar.open('Errore: progetto non trovato', 'OK', {
+        duration: 3000
+      });
+      return;
+    }
+    // First, check if the file exists locally
+    this.p2pService.checkFile(data.href, projectPath).subscribe({
+      next: result => {
+        if (result.exists) {
+          // File exists locally, open it
+          console.log('[P2P] File exists locally, opening:', result.fullPath);
+          this.openLocalFile(result.fullPath);
+        } else {
+          // File doesn't exist, check P2P metadata and offer download
+          this.handleP2PDownloadOffer(data.filename, projectPath);
+        }
+      },
+      error: err => {
+        console.error('[P2P] Error checking file:', err);
+        this.snackBar.open('Errore nel verificare il file', 'OK', {
+          duration: 3000
+        });
+      }
+    });
+  }
+  /**
+   * Handle hover on a P2P link - send status back to iframe
+   */
+  handleP2PLinkHover(data) {
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path || data.projectPath;
+    console.log('[P2P Angular] handleP2PLinkHover called:', {
+      filename: data.filename,
+      projectPath,
+      linkId: data.linkId
+    });
+    if (!projectPath) {
+      console.warn('[P2P Angular] No project path available, skipping');
+      return;
+    }
+    // Get file info from metadata
+    console.log('[P2P Angular] Calling getFileInfo API...');
+    this.p2pService.getFileInfo(data.filename, projectPath).subscribe({
+      next: fileInfo => {
+        console.log('[P2P Angular] getFileInfo response:', fileInfo);
+        if (fileInfo.found && fileInfo.infoHash) {
+          // Get peer status for this torrent
+          console.log('[P2P Angular] Calling getPeerStatus for:', fileInfo.infoHash);
+          this.p2pService.getPeerStatus(fileInfo.infoHash).subscribe({
+            next: peerStatus => {
+              console.log('[P2P Angular] getPeerStatus response:', peerStatus);
+              // Check if file exists locally
+              this.p2pService.checkFile(data.href, projectPath).subscribe({
+                next: checkResult => {
+                  console.log('[P2P Angular] checkFile response:', checkResult);
+                  // Determine the display state
+                  const state = this.determineP2PState(checkResult.exists, peerStatus, fileInfo);
+                  // Send status back to iframe
+                  this.sendP2PStatusToIframe(data.linkId, {
+                    state: state,
+                    statusClass: state.replace('_', '-'),
+                    numPeers: peerStatus.numPeers,
+                    size: fileInfo.size || 0,
+                    progress: peerStatus.progress || 0,
+                    downloadSpeed: peerStatus.downloadSpeed || 0,
+                    uploadSpeed: peerStatus.uploadSpeed || 0
+                  });
+                }
+              });
+            },
+            error: () => {
+              // Can't get peer status, assume unknown
+              this.sendP2PStatusToIframe(data.linkId, {
+                state: 'unknown',
+                statusClass: 'unknown',
+                numPeers: 0,
+                size: fileInfo.size || 0
+              });
+            }
+          });
+        } else {
+          // File not in metadata
+          this.sendP2PStatusToIframe(data.linkId, {
+            state: 'unknown',
+            statusClass: 'unknown',
+            numPeers: 0,
+            size: 0
+          });
+        }
+      },
+      error: () => {
+        // Error getting file info
+        this.sendP2PStatusToIframe(data.linkId, {
+          state: 'unknown',
+          statusClass: 'unknown',
+          numPeers: 0,
+          size: 0
+        });
+      }
+    });
+  }
+  /**
+   * Determine the P2P state based on local existence and peer status
+   */
+  determineP2PState(existsLocally, peerStatus, fileInfo) {
+    if (existsLocally) {
+      if (peerStatus.found && peerStatus.status === 'seeding') {
+        return 'seeding';
+      }
+      return 'local';
+    } else {
+      if (peerStatus.found) {
+        if (peerStatus.status === 'downloading') {
+          return 'downloading';
+        }
+        if (peerStatus.numPeers > 0) {
+          return 'to_download';
+        }
+      }
+      return 'no_peers';
+    }
+  }
+  /**
+   * Send P2P status back to iframe for tooltip update
+   */
+  sendP2PStatusToIframe(linkId, status) {
+    console.log('[P2P Angular] Sending status to iframe:', {
+      linkId,
+      status
+    });
+    const iframeWindow = this.iframe?.nativeElement?.contentWindow;
+    if (iframeWindow) {
+      iframeWindow.postMessage({
+        type: 'p2p-link-status',
+        linkId: linkId,
+        status: status
+      }, '*');
+      console.log('[P2P Angular] Status sent successfully');
+    } else {
+      console.warn('[P2P Angular] Could not send status - iframe not available');
+    }
+  }
+  /**
+   * Handle download offer for P2P file
+   */
+  handleP2PDownloadOffer(filename, projectPath) {
+    // Get file info to show size and check peer availability
+    this.p2pService.getFileInfo(filename, projectPath).subscribe({
+      next: fileInfo => {
+        if (!fileInfo.found || !fileInfo.magnetUri) {
+          this.snackBar.open('File non trovato nei metadati P2P', 'OK', {
+            duration: 3000
+          });
+          return;
+        }
+        // Check peer availability
+        if (fileInfo.infoHash) {
+          this.p2pService.getPeerStatus(fileInfo.infoHash).subscribe({
+            next: peerStatus => {
+              this.showDownloadConfirmation(filename, fileInfo, peerStatus, projectPath);
+            },
+            error: () => {
+              // Show anyway without peer info
+              this.showDownloadConfirmation(filename, fileInfo, null, projectPath);
+            }
+          });
+        } else {
+          this.showDownloadConfirmation(filename, fileInfo, null, projectPath);
+        }
+      },
+      error: err => {
+        console.error('[P2P] Error getting file info:', err);
+        this.snackBar.open('Errore nel recuperare le informazioni del file', 'OK', {
+          duration: 3000
+        });
+      }
+    });
+  }
+  /**
+   * Show download confirmation dialog/snackbar
+   */
+  showDownloadConfirmation(filename, fileInfo, peerStatus, projectPath) {
+    const sizeStr = this.p2pService.formatBytes(fileInfo.size || 0);
+    const peersStr = peerStatus?.numPeers ? `${peerStatus.numPeers} peer disponibili` : 'Peer sconosciuti';
+    const snackRef = this.snackBar.open(`Scaricare "${filename}"? (${sizeStr}, ${peersStr})`, 'Scarica', {
+      duration: 10000
+    });
+    snackRef.onAction().subscribe(() => {
+      this.startP2PDownload(filename, fileInfo, projectPath);
+    });
+  }
+  /**
+   * Start P2P download
+   */
+  startP2PDownload(filename, fileInfo, projectPath) {
+    if (!fileInfo.magnetUri) {
+      this.snackBar.open('Magnet URI non disponibile', 'OK', {
+        duration: 3000
+      });
+      return;
+    }
+    // Destination path inside .p2pshare/received/
+    const destPath = `${projectPath}/.p2pshare/received`;
+    this.snackBar.open(`Avvio download di "${filename}"...`, '', {
+      duration: 2000
+    });
+    this.p2pService.download(fileInfo.magnetUri, destPath).subscribe({
+      next: result => {
+        if (result.success) {
+          this.snackBar.open(`Download avviato per "${filename}"`, 'OK', {
+            duration: 3000
+          });
+          // TODO: Could show progress in P2P Manager or a dedicated component
+        } else {
+          this.snackBar.open(`Errore: ${result.error}`, 'OK', {
+            duration: 5000
+          });
+        }
+      },
+      error: err => {
+        console.error('[P2P] Download error:', err);
+        this.snackBar.open('Errore durante il download', 'OK', {
+          duration: 5000
+        });
+      }
+    });
+  }
+  /**
+   * Open a local file (e.g., using shell open)
+   */
+  openLocalFile(fullPath) {
+    // For now, just log - actual implementation would use Electron shell.openPath
+    // or a backend endpoint to open the file
+    console.log('[P2P] Opening local file:', fullPath);
+    this.snackBar.open(`Apertura file: ${fullPath}`, '', {
+      duration: 2000
+    });
+    // TODO: Implement actual file opening via backend or Electron IPC
+    // For example: this.http.post('/api/System/OpenFile', { path: fullPath }).subscribe();
+  }
   static {
     this.ɵfac = function MainContentComponent_Factory(t) {
-      return new (t || MainContentComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_0__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_14__.DomSanitizer), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_15__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_5__.ChangeDetectorRef), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_services_indexing_state_service__WEBPACK_IMPORTED_MODULE_2__.IndexingStateService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdirectiveInject"](_services_file_events_service__WEBPACK_IMPORTED_MODULE_3__.FileEventsService));
+      return new (t || MainContentComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_0__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_16__.DomSanitizer), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_17__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.ChangeDetectorRef), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_services_indexing_state_service__WEBPACK_IMPORTED_MODULE_2__.IndexingStateService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_services_file_events_service__WEBPACK_IMPORTED_MODULE_3__.FileEventsService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_services_p2p_service__WEBPACK_IMPORTED_MODULE_4__.P2PService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_18__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_5__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_19__.HttpClient));
     };
   }
   static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineComponent"]({
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineComponent"]({
       type: MainContentComponent,
       selectors: [["app-main-content"]],
       viewQuery: function MainContentComponent_Query(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵviewQuery"](_c0, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵviewQuery"](_c0, 5);
         }
         if (rf & 2) {
           let _t;
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵloadQuery"]()) && (ctx.iframe = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵloadQuery"]()) && (ctx.iframe = _t.first);
         }
       },
       hostBindings: function MainContentComponent_HostBindings(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("keydown", function MainContentComponent_keydown_HostBindingHandler($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("keydown", function MainContentComponent_keydown_HostBindingHandler($event) {
             return ctx.handleGlobalKeydown($event);
-          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresolveWindow"]);
+          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresolveWindow"]);
         }
       },
       decls: 17,
@@ -7114,44 +7395,44 @@ class MainContentComponent {
       consts: [[1, "main-content-container", 3, "ngClass"], ["class", "loading-overlay", "role", "status", "aria-label", "Caricamento documento in corso", 4, "ngIf"], ["class", "indexing-overlay", "role", "status", "aria-label", "Indicizzazione documento in corso", 4, "ngIf"], ["class", "error-state", "role", "alert", "aria-label", "Errore di caricamento", 4, "ngIf"], ["class", "empty-state", "role", "main", "aria-label", "Stato vuoto - nessun documento selezionato", 4, "ngIf"], ["id", "mdIframe", "name", "mdIframe", "tabindex", "0", "role", "document", "scrolling", "yes", 1, "content-iframe", 3, "hidden", "src"], ["iframe", ""], ["role", "status", "aria-label", "Caricamento documento in corso", 1, "loading-overlay"], [1, "loading-content"], ["diameter", "40", "mode", "indeterminate", "color", "primary"], [1, "loading-text"], [1, "loading-subtext"], ["role", "status", "aria-label", "Indicizzazione documento in corso", 1, "indexing-overlay"], [1, "indexing-content"], ["diameter", "40", "mode", "indeterminate", "color", "accent"], [1, "indexing-text"], [1, "indexing-subtext"], [1, "indexing-info"], [1, "info-icon"], ["role", "alert", "aria-label", "Errore di caricamento", 1, "error-state"], [1, "error-content"], ["color", "warn", 1, "error-icon"], [1, "error-title"], [1, "error-message"], [1, "error-actions"], ["mat-raised-button", "", "color", "primary", 1, "retry-button", 3, "click"], ["role", "main", "aria-label", "Stato vuoto - nessun documento selezionato", 1, "empty-state"], [1, "empty-content"], [1, "empty-icon"], [1, "empty-title"], [1, "empty-message"], [1, "empty-actions"], [1, "empty-hint"], [1, "hint-icon"]],
       template: function MainContentComponent_Template(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, MainContentComponent_div_1_Template, 7, 0, "div", 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](2, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](3, MainContentComponent_div_3_Template, 12, 0, "div", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](4, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](5, MainContentComponent_div_5_Template, 14, 3, "div", 3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](6, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](7, MainContentComponent_div_7_Template, 13, 0, "div", 4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](8, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](9, "iframe", 5, 6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](11, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](12, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](13, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](14, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](15, "safe");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](16, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](1, MainContentComponent_div_1_Template, 7, 0, "div", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](3, MainContentComponent_div_3_Template, 12, 0, "div", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](5, MainContentComponent_div_5_Template, 14, 3, "div", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](7, MainContentComponent_div_7_Template, 13, 0, "div", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](9, "iframe", 5, 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](11, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](12, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](13, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](14, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](15, "safe");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](16, "async");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
         }
         if (rf & 2) {
           let tmp_2_0;
           let tmp_4_0;
           let tmp_5_0;
           let tmp_7_0;
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngClass", ctx.classForContent);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](2, 8, ctx.isLoading$));
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ((tmp_2_0 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](4, 10, ctx.currentState$)) == null ? null : tmp_2_0.status) === "indexing");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](6, 12, ctx.hasError$));
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ((tmp_4_0 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](8, 14, ctx.currentState$)) == null ? null : tmp_4_0.status) === "idle");
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("hidden", ctx._HideIFrame || _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](11, 16, ctx.isLoading$) || _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](12, 18, ctx.hasError$) || ((tmp_5_0 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](13, 20, ctx.currentState$)) == null ? null : tmp_5_0.status) === "indexing" || ((tmp_5_0 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](14, 22, ctx.currentState$)) == null ? null : tmp_5_0.status) === "idle")("src", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](15, 24, ctx.htmlSource), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵsanitizeResourceUrl"]);
-          _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵattribute"]("aria-label", "Contenuto del documento: " + (((tmp_7_0 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](16, 26, ctx.currentState$)) == null ? null : tmp_7_0.currentPath) || "documento"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngClass", ctx.classForContent);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 8, ctx.isLoading$));
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ((tmp_2_0 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 10, ctx.currentState$)) == null ? null : tmp_2_0.status) === "indexing");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 12, ctx.hasError$));
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ((tmp_4_0 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 14, ctx.currentState$)) == null ? null : tmp_4_0.status) === "idle");
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("hidden", ctx._HideIFrame || _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](11, 16, ctx.isLoading$) || _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](12, 18, ctx.hasError$) || ((tmp_5_0 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](13, 20, ctx.currentState$)) == null ? null : tmp_5_0.status) === "indexing" || ((tmp_5_0 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](14, 22, ctx.currentState$)) == null ? null : tmp_5_0.status) === "idle")("src", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](15, 24, ctx.htmlSource), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵsanitizeResourceUrl"]);
+          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵattribute"]("aria-label", "Contenuto del documento: " + (((tmp_7_0 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](16, 26, ctx.currentState$)) == null ? null : tmp_7_0.currentPath) || "documento"));
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_16__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_16__.NgIf, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_17__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_18__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_19__.MatLegacyProgressSpinner, _angular_common__WEBPACK_IMPORTED_MODULE_16__.AsyncPipe, _pipes_safePipe__WEBPACK_IMPORTED_MODULE_4__.SafePipe],
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_20__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_20__.NgIf, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_21__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_22__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_23__.MatLegacyProgressSpinner, _angular_common__WEBPACK_IMPORTED_MODULE_20__.AsyncPipe, _pipes_safePipe__WEBPACK_IMPORTED_MODULE_6__.SafePipe],
       styles: ["[_nghost-%COMP%] {\n  height: 100%;\n  width: 100%;\n  border: 1px solid #e0e0e0;\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.main-content-container[_ngcontent-%COMP%] {\n  position: relative;\n  height: 100%;\n  width: 100%;\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  min-width: 0;\n}\n\n.hideToolbar[_ngcontent-%COMP%] {\n  height: 0px;\n  transition: height 300ms ease-out;\n}\n\n.hideToolbarNone[_ngcontent-%COMP%] {\n  display: none;\n}\n\n.hundredPercentContent[_ngcontent-%COMP%] {\n  height: 100%;\n  width: 100%;\n}\n\n.contentWithToolbar[_ngcontent-%COMP%] {\n  height: calc(100% - 72px);\n  width: 100%;\n}\n\n.loading-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: rgba(255, 255, 255, 0.95);\n  backdrop-filter: blur(2px);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 1000;\n  animation: _ngcontent-%COMP%_fadeIn 0.3s ease-out;\n}\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 2rem;\n}\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  margin-bottom: 1rem;\n  animation: _ngcontent-%COMP%_pulse 2s infinite ease-in-out;\n}\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   .loading-text[_ngcontent-%COMP%] {\n  font-size: 1.1rem;\n  font-weight: 500;\n  color: #333;\n  margin: 0.5rem 0;\n  letter-spacing: 0.5px;\n}\n.loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   .loading-subtext[_ngcontent-%COMP%] {\n  font-size: 0.9rem;\n  color: #666;\n  margin: 0;\n  opacity: 0.8;\n}\n\n.indexing-overlay[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%);\n  backdrop-filter: blur(2px);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 1000;\n  animation: _ngcontent-%COMP%_slideInFromLeft 0.4s ease-out;\n}\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 2rem;\n  background: rgba(255, 255, 255, 0.95);\n  border-radius: 12px;\n  box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);\n  border: 1px solid rgba(255, 193, 7, 0.4);\n}\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  margin-bottom: 1rem;\n  animation: _ngcontent-%COMP%_indexingPulse 2.5s infinite ease-in-out;\n}\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-text[_ngcontent-%COMP%] {\n  font-size: 1.1rem;\n  font-weight: 600;\n  color: #ff8f00;\n  margin: 0.5rem 0;\n  letter-spacing: 0.5px;\n}\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-subtext[_ngcontent-%COMP%] {\n  font-size: 0.9rem;\n  color: #f57c00;\n  margin: 0 0 1rem 0;\n  opacity: 0.9;\n}\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  background: rgba(255, 193, 7, 0.1);\n  padding: 0.5rem 1rem;\n  border-radius: 6px;\n  font-size: 0.85rem;\n  color: #e65100;\n}\n.indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%]   .info-icon[_ngcontent-%COMP%] {\n  font-size: 1.1rem;\n  width: 1.1rem;\n  height: 1.1rem;\n  margin-right: 0.5rem;\n  color: #ff9800;\n}\n\n.error-state[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 1000;\n  animation: _ngcontent-%COMP%_slideInFromTop 0.4s ease-out;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 2rem;\n  max-width: 400px;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-icon[_ngcontent-%COMP%] {\n  font-size: 3rem;\n  width: 3rem;\n  height: 3rem;\n  margin-bottom: 1rem;\n  animation: _ngcontent-%COMP%_shake 0.5s ease-in-out;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-title[_ngcontent-%COMP%] {\n  font-size: 1.3rem;\n  font-weight: 600;\n  color: #d32f2f;\n  margin: 0 0 1rem 0;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-message[_ngcontent-%COMP%] {\n  font-size: 1rem;\n  color: #666;\n  line-height: 1.5;\n  margin: 0 0 1.5rem 0;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-actions[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%] {\n  font-weight: 500;\n  padding: 0.5rem 1.5rem;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-actions[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  margin-right: 0.5rem;\n}\n.error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-actions[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%]:hover {\n  transform: translateY(-2px);\n  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);\n  transition: all 0.2s ease;\n}\n\n.empty-state[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 500;\n  animation: _ngcontent-%COMP%_fadeIn 0.5s ease-out;\n}\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  text-align: center;\n  padding: 3rem 2rem;\n  max-width: 500px;\n}\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-icon[_ngcontent-%COMP%] {\n  font-size: 4rem;\n  width: 4rem;\n  height: 4rem;\n  color: #90a4ae;\n  margin-bottom: 1.5rem;\n  animation: _ngcontent-%COMP%_float 3s ease-in-out infinite;\n}\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-title[_ngcontent-%COMP%] {\n  font-size: 1.5rem;\n  font-weight: 600;\n  color: #37474f;\n  margin: 0 0 1rem 0;\n}\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-message[_ngcontent-%COMP%] {\n  font-size: 1rem;\n  color: #78909c;\n  line-height: 1.6;\n  margin: 0 0 2rem 0;\n}\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-actions[_ngcontent-%COMP%]   .empty-hint[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 0.9rem;\n  color: #90a4ae;\n  margin: 0;\n}\n.empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-actions[_ngcontent-%COMP%]   .empty-hint[_ngcontent-%COMP%]   .hint-icon[_ngcontent-%COMP%] {\n  font-size: 1.2rem;\n  width: 1.2rem;\n  height: 1.2rem;\n  margin-right: 0.5rem;\n}\n\n.content-iframe[_ngcontent-%COMP%] {\n  width: 100%;\n  height: 100%;\n  border: none;\n  background: white;\n  flex: 1 1 auto;\n  display: block;\n  transition: opacity 0.3s ease-in-out;\n}\n.content-iframe[hidden][_ngcontent-%COMP%] {\n  opacity: 0;\n  display: none;\n}\n.content-iframe[_ngcontent-%COMP%]:not([hidden]) {\n  opacity: 1;\n  display: block;\n}\n.content-iframe[_ngcontent-%COMP%]:focus {\n  outline: 2px solid #2196f3;\n  outline-offset: -2px;\n}\n\n@keyframes _ngcontent-%COMP%_fadeIn {\n  from {\n    opacity: 0;\n    transform: scale(0.95);\n  }\n  to {\n    opacity: 1;\n    transform: scale(1);\n  }\n}\n@keyframes _ngcontent-%COMP%_slideInFromTop {\n  from {\n    opacity: 0;\n    transform: translateY(-20px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\n@keyframes _ngcontent-%COMP%_slideInFromLeft {\n  from {\n    opacity: 0;\n    transform: translateX(-30px) scale(0.95);\n  }\n  to {\n    opacity: 1;\n    transform: translateX(0) scale(1);\n  }\n}\n@keyframes _ngcontent-%COMP%_pulse {\n  0%, 100% {\n    transform: scale(1);\n    opacity: 1;\n  }\n  50% {\n    transform: scale(1.05);\n    opacity: 0.8;\n  }\n}\n@keyframes _ngcontent-%COMP%_shake {\n  0%, 100% {\n    transform: translateX(0);\n  }\n  25% {\n    transform: translateX(-5px);\n  }\n  75% {\n    transform: translateX(5px);\n  }\n}\n@keyframes _ngcontent-%COMP%_float {\n  0%, 100% {\n    transform: translateY(0);\n  }\n  50% {\n    transform: translateY(-10px);\n  }\n}\n@keyframes _ngcontent-%COMP%_indexingPulse {\n  0%, 100% {\n    transform: scale(1);\n    opacity: 1;\n  }\n  50% {\n    transform: scale(1.1);\n    opacity: 0.7;\n  }\n}\n@media (max-width: 768px) {\n  .loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%], .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%], .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%] {\n    padding: 1.5rem 1rem;\n  }\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-icon[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-icon[_ngcontent-%COMP%] {\n    font-size: 2.5rem;\n    width: 2.5rem;\n    height: 2.5rem;\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%]   .empty-title[_ngcontent-%COMP%] {\n    font-size: 1.3rem;\n  }\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .error-title[_ngcontent-%COMP%] {\n    font-size: 1.1rem;\n  }\n}\n@media (max-width: 480px) {\n  .loading-overlay[_ngcontent-%COMP%]   .loading-content[_ngcontent-%COMP%]   .loading-text[_ngcontent-%COMP%], .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%]   .indexing-text[_ngcontent-%COMP%] {\n    font-size: 1rem;\n  }\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-content[_ngcontent-%COMP%], .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%] {\n    padding: 1rem;\n  }\n  .error-state[_ngcontent-%COMP%]   .error-content[_ngcontent-%COMP%]   .retry-button[_ngcontent-%COMP%] {\n    width: 100%;\n    margin-top: 0.5rem;\n  }\n}\n@media (prefers-color-scheme: dark) {\n  [_nghost-%COMP%] {\n    border-color: #424242;\n  }\n  .loading-overlay[_ngcontent-%COMP%] {\n    background: rgba(33, 33, 33, 0.95);\n  }\n  .loading-overlay[_ngcontent-%COMP%]   .loading-text[_ngcontent-%COMP%] {\n    color: #e0e0e0;\n  }\n  .loading-overlay[_ngcontent-%COMP%]   .loading-subtext[_ngcontent-%COMP%] {\n    color: #bdbdbd;\n  }\n  .indexing-overlay[_ngcontent-%COMP%] {\n    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.2) 100%);\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-content[_ngcontent-%COMP%] {\n    background: rgba(48, 48, 48, 0.95);\n    border-color: rgba(255, 193, 7, 0.6);\n    box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-text[_ngcontent-%COMP%] {\n    color: #ffb74d;\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-subtext[_ngcontent-%COMP%] {\n    color: #ffa726;\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%] {\n    background: rgba(255, 193, 7, 0.2);\n    color: #ffcc02;\n  }\n  .indexing-overlay[_ngcontent-%COMP%]   .indexing-info[_ngcontent-%COMP%]   .info-icon[_ngcontent-%COMP%] {\n    color: #ffc107;\n  }\n  .error-state[_ngcontent-%COMP%] {\n    background: linear-gradient(135deg, #303030 0%, #424242 100%);\n  }\n  .error-state[_ngcontent-%COMP%]   .error-title[_ngcontent-%COMP%] {\n    color: #f48fb1;\n  }\n  .error-state[_ngcontent-%COMP%]   .error-message[_ngcontent-%COMP%] {\n    color: #bdbdbd;\n  }\n  .empty-state[_ngcontent-%COMP%] {\n    background: linear-gradient(135deg, #303030 0%, #424242 100%);\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-title[_ngcontent-%COMP%] {\n    color: #e0e0e0;\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-message[_ngcontent-%COMP%] {\n    color: #bdbdbd;\n  }\n  .empty-state[_ngcontent-%COMP%]   .empty-icon[_ngcontent-%COMP%], .empty-state[_ngcontent-%COMP%]   .empty-hint[_ngcontent-%COMP%] {\n    color: #90a4ae;\n  }\n  .content-iframe[_ngcontent-%COMP%] {\n    background: #1e1e1e;\n  }\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9tYWluLWNvbnRlbnQvbWFpbi1jb250ZW50LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsWUFBQTtFQUNBLFdBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0VBQ0EsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsY0FBQTtFQUNBLFlBQUE7QUFDRjs7QUFHQTtFQUNFLGtCQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxjQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUlBO0VBQ0UsV0FBQTtFQUNBLGlDQUFBO0FBREY7O0FBSUE7RUFDRSxhQUFBO0FBREY7O0FBSUE7RUFDRSxZQUFBO0VBQ0EsV0FBQTtBQURGOztBQUlBO0VBQ0UseUJBQUE7RUFDQSxXQUFBO0FBREY7O0FBS0E7RUFDRSxrQkFBQTtFQUNBLE1BQUE7RUFDQSxPQUFBO0VBQ0EsUUFBQTtFQUNBLFNBQUE7RUFDQSxxQ0FBQTtFQUNBLDBCQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0VBR0EsK0JBQUE7QUFKRjtBQU1FO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLGFBQUE7QUFKSjtBQU1JO0VBQ0UsbUJBQUE7RUFHQSx3Q0FBQTtBQU5OO0FBU0k7RUFDRSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLGdCQUFBO0VBQ0EscUJBQUE7QUFQTjtBQVVJO0VBQ0UsaUJBQUE7RUFDQSxXQUFBO0VBQ0EsU0FBQTtFQUNBLFlBQUE7QUFSTjs7QUFjQTtFQUNFLGtCQUFBO0VBQ0EsTUFBQTtFQUNBLE9BQUE7RUFDQSxRQUFBO0VBQ0EsU0FBQTtFQUNBLDJGQUFBO0VBQ0EsMEJBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLGFBQUE7RUFHQSx3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SUFDRSxjQUFBO0VBOUVKO0VBaUZFO0lBQ0UsY0FBQTtFQS9FSjtFQWtGRTs7SUFFRSxjQUFBO0VBaEZKO0VBb0ZBO0lBQ0UsbUJBQUE7RUFsRkY7QUFDRiIsInNvdXJjZXNDb250ZW50IjpbIjpob3N0IHtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgd2lkdGg6IDEwMCU7XHJcbiAgYm9yZGVyOiAxcHggc29saWQgI2UwZTBlMDtcclxuICBwb3NpdGlvbjogcmVsYXRpdmU7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xyXG4gIGZsZXg6IDEgMSBhdXRvO1xyXG4gIG1pbi13aWR0aDogMDsgLy8gSW1wb3J0YW50IGZvciBmbGV4IGl0ZW1zIHRvIHNocmluayBwcm9wZXJseVxyXG59XHJcblxyXG4vLyBNYWluIGNvbnRhaW5lciBmb3IgYWxsIGNvbnRlbnQgc3RhdGVzXHJcbi5tYWluLWNvbnRlbnQtY29udGFpbmVyIHtcclxuICBwb3NpdGlvbjogcmVsYXRpdmU7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIHdpZHRoOiAxMDAlO1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxuICBmbGV4OiAxIDEgYXV0bztcclxuICBtaW4td2lkdGg6IDA7IC8vIEltcG9ydGFudCBmb3IgZmxleCBpdGVtcyB0byBzaHJpbmsgcHJvcGVybHlcclxufVxyXG5cclxuLy8gTGVnYWN5IGNsYXNzZXMgbWFpbnRhaW5lZCBmb3IgYmFja3dhcmQgY29tcGF0aWJpbGl0eVxyXG4uaGlkZVRvb2xiYXIge1xyXG4gIGhlaWdodDogMHB4O1xyXG4gIHRyYW5zaXRpb246IGhlaWdodCAzMDBtcyBlYXNlLW91dDtcclxufVxyXG5cclxuLmhpZGVUb29sYmFyTm9uZSB7XHJcbiAgZGlzcGxheTogbm9uZTtcclxufVxyXG5cclxuLmh1bmRyZWRQZXJjZW50Q29udGVudCB7XHJcbiAgaGVpZ2h0OiAxMDAlO1xyXG4gIHdpZHRoOiAxMDAlO1xyXG59XHJcblxyXG4uY29udGVudFdpdGhUb29sYmFyIHtcclxuICBoZWlnaHQ6IGNhbGMoMTAwJSAtIDcycHgpO1xyXG4gIHdpZHRoOiAxMDAlO1xyXG59XHJcblxyXG4vLyA9PT0gTE9BRElORyBTVEFURSBTVFlMRVMgPT09XHJcbi5sb2FkaW5nLW92ZXJsYXkge1xyXG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICB0b3A6IDA7XHJcbiAgbGVmdDogMDtcclxuICByaWdodDogMDtcclxuICBib3R0b206IDA7XHJcbiAgYmFja2dyb3VuZDogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjk1KTtcclxuICBiYWNrZHJvcC1maWx0ZXI6IGJsdXIoMnB4KTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgei1pbmRleDogMTAwMDtcclxuICBcclxuICAvLyBTbW9vdGggZmFkZS1pbiBhbmltYXRpb25cclxuICBhbmltYXRpb246IGZhZGVJbiAwLjNzIGVhc2Utb3V0O1xyXG4gIFxyXG4gIC5sb2FkaW5nLWNvbnRlbnQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gICAgcGFkZGluZzogMnJlbTtcclxuICAgIFxyXG4gICAgbWF0LXByb2dyZXNzLXNwaW5uZXIge1xyXG4gICAgICBtYXJnaW4tYm90dG9tOiAxcmVtO1xyXG4gICAgICBcclxuICAgICAgLy8gUHVsc2UgYW5pbWF0aW9uIGZvciBlbmhhbmNlZCB2aXN1YWwgZmVlZGJhY2tcclxuICAgICAgYW5pbWF0aW9uOiBwdWxzZSAycyBpbmZpbml0ZSBlYXNlLWluLW91dDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmxvYWRpbmctdGV4dCB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMS4xcmVtO1xyXG4gICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgICBjb2xvcjogIzMzMztcclxuICAgICAgbWFyZ2luOiAwLjVyZW0gMDtcclxuICAgICAgbGV0dGVyLXNwYWNpbmc6IDAuNXB4O1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAubG9hZGluZy1zdWJ0ZXh0IHtcclxuICAgICAgZm9udC1zaXplOiAwLjlyZW07XHJcbiAgICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgICBtYXJnaW46IDA7XHJcbiAgICAgIG9wYWNpdHk6IDAuODtcclxuICAgIH1cclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBJTkRFWElORyBTVEFURSBTVFlMRVMgPT09XHJcbi5pbmRleGluZy1vdmVybGF5IHtcclxuICBwb3NpdGlvbjogYWJzb2x1dGU7XHJcbiAgdG9wOiAwO1xyXG4gIGxlZnQ6IDA7XHJcbiAgcmlnaHQ6IDA7XHJcbiAgYm90dG9tOiAwO1xyXG4gIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxMzVkZWcsIHJnYmEoMjU1LCAxOTMsIDcsIDAuMSkgMCUsIHJnYmEoMjU1LCAxNTIsIDAsIDAuMSkgMTAwJSk7XHJcbiAgYmFja2Ryb3AtZmlsdGVyOiBibHVyKDJweCk7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gIHotaW5kZXg6IDEwMDA7XHJcbiAgXHJcbiAgLy8gR2VudGxlIHNsaWRlLWluIGFuaW1hdGlvblxyXG4gIGFuaW1hdGlvbjogc2xpZGVJbkZyb21MZWZ0IDAuNHMgZWFzZS1vdXQ7XHJcbiAgXHJcbiAgLmluZGV4aW5nLWNvbnRlbnQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gICAgcGFkZGluZzogMnJlbTtcclxuICAgIGJhY2tncm91bmQ6IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC45NSk7XHJcbiAgICBib3JkZXItcmFkaXVzOiAxMnB4O1xyXG4gICAgYm94LXNoYWRvdzogMCA0cHggMjBweCByZ2JhKDI1NSwgMTkzLCA3LCAwLjMpO1xyXG4gICAgYm9yZGVyOiAxcHggc29saWQgcmdiYSgyNTUsIDE5MywgNywgMC40KTtcclxuICAgIFxyXG4gICAgbWF0LXByb2dyZXNzLXNwaW5uZXIge1xyXG4gICAgICBtYXJnaW4tYm90dG9tOiAxcmVtO1xyXG4gICAgICBcclxuICAgICAgLy8gR2VudGxlIHB1bHNpbmcgZm9yIGluZGV4aW5nXHJcbiAgICAgIGFuaW1hdGlvbjogaW5kZXhpbmdQdWxzZSAyLjVzIGluZmluaXRlIGVhc2UtaW4tb3V0O1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuaW5kZXhpbmctdGV4dCB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMS4xcmVtO1xyXG4gICAgICBmb250LXdlaWdodDogNjAwO1xyXG4gICAgICBjb2xvcjogI2ZmOGYwMDtcclxuICAgICAgbWFyZ2luOiAwLjVyZW0gMDtcclxuICAgICAgbGV0dGVyLXNwYWNpbmc6IDAuNXB4O1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuaW5kZXhpbmctc3VidGV4dCB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMC45cmVtO1xyXG4gICAgICBjb2xvcjogI2Y1N2MwMDtcclxuICAgICAgbWFyZ2luOiAwIDAgMXJlbSAwO1xyXG4gICAgICBvcGFjaXR5OiAwLjk7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5pbmRleGluZy1pbmZvIHtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgIGJhY2tncm91bmQ6IHJnYmEoMjU1LCAxOTMsIDcsIDAuMSk7XHJcbiAgICAgIHBhZGRpbmc6IDAuNXJlbSAxcmVtO1xyXG4gICAgICBib3JkZXItcmFkaXVzOiA2cHg7XHJcbiAgICAgIGZvbnQtc2l6ZTogMC44NXJlbTtcclxuICAgICAgY29sb3I6ICNlNjUxMDA7XHJcbiAgICAgIFxyXG4gICAgICAuaW5mby1pY29uIHtcclxuICAgICAgICBmb250LXNpemU6IDEuMXJlbTtcclxuICAgICAgICB3aWR0aDogMS4xcmVtO1xyXG4gICAgICAgIGhlaWdodDogMS4xcmVtO1xyXG4gICAgICAgIG1hcmdpbi1yaWdodDogMC41cmVtO1xyXG4gICAgICAgIGNvbG9yOiAjZmY5ODAwO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT0gRVJST1IgU1RBVEUgU1RZTEVTID09PVxyXG4uZXJyb3Itc3RhdGUge1xyXG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICB0b3A6IDA7XHJcbiAgbGVmdDogMDtcclxuICByaWdodDogMDtcclxuICBib3R0b206IDA7XHJcbiAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDEzNWRlZywgI2ZhZmFmYSAwJSwgI2Y1ZjVmNSAxMDAlKTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgei1pbmRleDogMTAwMDtcclxuICBcclxuICBhbmltYXRpb246IHNsaWRlSW5Gcm9tVG9wIDAuNHMgZWFzZS1vdXQ7XHJcbiAgXHJcbiAgLmVycm9yLWNvbnRlbnQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gICAgcGFkZGluZzogMnJlbTtcclxuICAgIG1heC13aWR0aDogNDAwcHg7XHJcbiAgICBcclxuICAgIC5lcnJvci1pY29uIHtcclxuICAgICAgZm9udC1zaXplOiAzcmVtO1xyXG4gICAgICB3aWR0aDogM3JlbTtcclxuICAgICAgaGVpZ2h0OiAzcmVtO1xyXG4gICAgICBtYXJnaW4tYm90dG9tOiAxcmVtO1xyXG4gICAgICBcclxuICAgICAgLy8gU3VidGxlIHNoYWtlIGFuaW1hdGlvbiBmb3IgYXR0ZW50aW9uXHJcbiAgICAgIGFuaW1hdGlvbjogc2hha2UgMC41cyBlYXNlLWluLW91dDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVycm9yLXRpdGxlIHtcclxuICAgICAgZm9udC1zaXplOiAxLjNyZW07XHJcbiAgICAgIGZvbnQtd2VpZ2h0OiA2MDA7XHJcbiAgICAgIGNvbG9yOiAjZDMyZjJmO1xyXG4gICAgICBtYXJnaW46IDAgMCAxcmVtIDA7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5lcnJvci1tZXNzYWdlIHtcclxuICAgICAgZm9udC1zaXplOiAxcmVtO1xyXG4gICAgICBjb2xvcjogIzY2NjtcclxuICAgICAgbGluZS1oZWlnaHQ6IDEuNTtcclxuICAgICAgbWFyZ2luOiAwIDAgMS41cmVtIDA7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5lcnJvci1hY3Rpb25zIHtcclxuICAgICAgLnJldHJ5LWJ1dHRvbiB7XHJcbiAgICAgICAgZm9udC13ZWlnaHQ6IDUwMDtcclxuICAgICAgICBwYWRkaW5nOiAwLjVyZW0gMS41cmVtO1xyXG4gICAgICAgIFxyXG4gICAgICAgIG1hdC1pY29uIHtcclxuICAgICAgICAgIG1hcmdpbi1yaWdodDogMC41cmVtO1xyXG4gICAgICAgIH1cclxuICAgICAgICBcclxuICAgICAgICAvLyBIb3ZlciBlZmZlY3QgZm9yIGJldHRlciBpbnRlcmFjdGlvbiBmZWVkYmFja1xyXG4gICAgICAgICY6aG92ZXIge1xyXG4gICAgICAgICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0ycHgpO1xyXG4gICAgICAgICAgYm94LXNoYWRvdzogMCA0cHggOHB4IHJnYmEoMCwgMCwgMCwgMC4yKTtcclxuICAgICAgICAgIHRyYW5zaXRpb246IGFsbCAwLjJzIGVhc2U7XHJcbiAgICAgICAgfVxyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT0gRU1QVFkgU1RBVEUgU1RZTEVTID09PVxyXG4uZW1wdHktc3RhdGUge1xyXG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICB0b3A6IDA7XHJcbiAgbGVmdDogMDtcclxuICByaWdodDogMDtcclxuICBib3R0b206IDA7XHJcbiAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDEzNWRlZywgI2Y4ZjlmYSAwJSwgI2U5ZWNlZiAxMDAlKTtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgei1pbmRleDogNTAwO1xyXG4gIFxyXG4gIGFuaW1hdGlvbjogZmFkZUluIDAuNXMgZWFzZS1vdXQ7XHJcbiAgXHJcbiAgLmVtcHR5LWNvbnRlbnQge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XHJcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgdGV4dC1hbGlnbjogY2VudGVyO1xyXG4gICAgcGFkZGluZzogM3JlbSAycmVtO1xyXG4gICAgbWF4LXdpZHRoOiA1MDBweDtcclxuICAgIFxyXG4gICAgLmVtcHR5LWljb24ge1xyXG4gICAgICBmb250LXNpemU6IDRyZW07XHJcbiAgICAgIHdpZHRoOiA0cmVtO1xyXG4gICAgICBoZWlnaHQ6IDRyZW07XHJcbiAgICAgIGNvbG9yOiAjOTBhNGFlO1xyXG4gICAgICBtYXJnaW4tYm90dG9tOiAxLjVyZW07XHJcbiAgICAgIFxyXG4gICAgICAvLyBHZW50bGUgZmxvYXRpbmcgYW5pbWF0aW9uXHJcbiAgICAgIGFuaW1hdGlvbjogZmxvYXQgM3MgZWFzZS1pbi1vdXQgaW5maW5pdGU7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5lbXB0eS10aXRsZSB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMS41cmVtO1xyXG4gICAgICBmb250LXdlaWdodDogNjAwO1xyXG4gICAgICBjb2xvcjogIzM3NDc0ZjtcclxuICAgICAgbWFyZ2luOiAwIDAgMXJlbSAwO1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAuZW1wdHktbWVzc2FnZSB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMXJlbTtcclxuICAgICAgY29sb3I6ICM3ODkwOWM7XHJcbiAgICAgIGxpbmUtaGVpZ2h0OiAxLjY7XHJcbiAgICAgIG1hcmdpbjogMCAwIDJyZW0gMDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVtcHR5LWFjdGlvbnMge1xyXG4gICAgICAuZW1wdHktaGludCB7XHJcbiAgICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xyXG4gICAgICAgIGZvbnQtc2l6ZTogMC45cmVtO1xyXG4gICAgICAgIGNvbG9yOiAjOTBhNGFlO1xyXG4gICAgICAgIG1hcmdpbjogMDtcclxuICAgICAgICBcclxuICAgICAgICAuaGludC1pY29uIHtcclxuICAgICAgICAgIGZvbnQtc2l6ZTogMS4ycmVtO1xyXG4gICAgICAgICAgd2lkdGg6IDEuMnJlbTtcclxuICAgICAgICAgIGhlaWdodDogMS4ycmVtO1xyXG4gICAgICAgICAgbWFyZ2luLXJpZ2h0OiAwLjVyZW07XHJcbiAgICAgICAgfVxyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT0gSUZSQU1FIFNUWUxFUyA9PT1cclxuLmNvbnRlbnQtaWZyYW1lIHtcclxuICB3aWR0aDogMTAwJTtcclxuICBoZWlnaHQ6IDEwMCU7XHJcbiAgYm9yZGVyOiBub25lO1xyXG4gIGJhY2tncm91bmQ6IHdoaXRlO1xyXG4gIGZsZXg6IDEgMSBhdXRvO1xyXG4gIGRpc3BsYXk6IGJsb2NrOyAvLyBGSVg6IGVzcGxpY2l0byBwZXIgZXZpdGFyZSBzcGFjaW5nIGlzc3Vlc1xyXG4gIFxyXG4gIC8vIFNtb290aCB0cmFuc2l0aW9uIHdoZW4gc2hvd2luZy9oaWRpbmdcclxuICB0cmFuc2l0aW9uOiBvcGFjaXR5IDAuM3MgZWFzZS1pbi1vdXQ7XHJcbiAgXHJcbiAgJltoaWRkZW5dIHtcclxuICAgIG9wYWNpdHk6IDA7XHJcbiAgICBkaXNwbGF5OiBub25lO1xyXG4gIH1cclxuICBcclxuICAmOm5vdChbaGlkZGVuXSkge1xyXG4gICAgb3BhY2l0eTogMTtcclxuICAgIGRpc3BsYXk6IGJsb2NrO1xyXG4gIH1cclxuICBcclxuICAvLyBGb2N1cyBzdHlsZXMgZm9yIGFjY2Vzc2liaWxpdHlcclxuICAmOmZvY3VzIHtcclxuICAgIG91dGxpbmU6IDJweCBzb2xpZCAjMjE5NmYzO1xyXG4gICAgb3V0bGluZS1vZmZzZXQ6IC0ycHg7XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT0gQU5JTUFUSU9OUyA9PT1cclxuQGtleWZyYW1lcyBmYWRlSW4ge1xyXG4gIGZyb20ge1xyXG4gICAgb3BhY2l0eTogMDtcclxuICAgIHRyYW5zZm9ybTogc2NhbGUoMC45NSk7XHJcbiAgfVxyXG4gIHRvIHtcclxuICAgIG9wYWNpdHk6IDE7XHJcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEpO1xyXG4gIH1cclxufVxyXG5cclxuQGtleWZyYW1lcyBzbGlkZUluRnJvbVRvcCB7XHJcbiAgZnJvbSB7XHJcbiAgICBvcGFjaXR5OiAwO1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0yMHB4KTtcclxuICB9XHJcbiAgdG8ge1xyXG4gICAgb3BhY2l0eTogMTtcclxuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTtcclxuICB9XHJcbn1cclxuXHJcbkBrZXlmcmFtZXMgc2xpZGVJbkZyb21MZWZ0IHtcclxuICBmcm9tIHtcclxuICAgIG9wYWNpdHk6IDA7XHJcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoLTMwcHgpIHNjYWxlKDAuOTUpO1xyXG4gIH1cclxuICB0byB7XHJcbiAgICBvcGFjaXR5OiAxO1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVYKDApIHNjYWxlKDEpO1xyXG4gIH1cclxufVxyXG5cclxuQGtleWZyYW1lcyBwdWxzZSB7XHJcbiAgMCUsIDEwMCUge1xyXG4gICAgdHJhbnNmb3JtOiBzY2FsZSgxKTtcclxuICAgIG9wYWNpdHk6IDE7XHJcbiAgfVxyXG4gIDUwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEuMDUpO1xyXG4gICAgb3BhY2l0eTogMC44O1xyXG4gIH1cclxufVxyXG5cclxuQGtleWZyYW1lcyBzaGFrZSB7XHJcbiAgMCUsIDEwMCUgeyB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoMCk7IH1cclxuICAyNSUgeyB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoLTVweCk7IH1cclxuICA3NSUgeyB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoNXB4KTsgfVxyXG59XHJcblxyXG5Aa2V5ZnJhbWVzIGZsb2F0IHtcclxuICAwJSwgMTAwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoMCk7XHJcbiAgfVxyXG4gIDUwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoLTEwcHgpO1xyXG4gIH1cclxufVxyXG5cclxuQGtleWZyYW1lcyBpbmRleGluZ1B1bHNlIHtcclxuICAwJSwgMTAwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEpO1xyXG4gICAgb3BhY2l0eTogMTtcclxuICB9XHJcbiAgNTAlIHtcclxuICAgIHRyYW5zZm9ybTogc2NhbGUoMS4xKTtcclxuICAgIG9wYWNpdHk6IDAuNztcclxuICB9XHJcbn1cclxuXHJcbi8vID09PSBSRVNQT05TSVZFIERFU0lHTiA9PT1cclxuQG1lZGlhIChtYXgtd2lkdGg6IDc2OHB4KSB7XHJcbiAgLmxvYWRpbmctb3ZlcmxheSAubG9hZGluZy1jb250ZW50LFxyXG4gIC5pbmRleGluZy1vdmVybGF5IC5pbmRleGluZy1jb250ZW50LFxyXG4gIC5lcnJvci1zdGF0ZSAuZXJyb3ItY29udGVudCxcclxuICAuZW1wdHktc3RhdGUgLmVtcHR5LWNvbnRlbnQge1xyXG4gICAgcGFkZGluZzogMS41cmVtIDFyZW07XHJcbiAgfVxyXG4gIFxyXG4gIC5lcnJvci1zdGF0ZSAuZXJyb3ItY29udGVudCAuZXJyb3ItaWNvbixcclxuICAuZW1wdHktc3RhdGUgLmVtcHR5LWNvbnRlbnQgLmVtcHR5LWljb24ge1xyXG4gICAgZm9udC1zaXplOiAyLjVyZW07XHJcbiAgICB3aWR0aDogMi41cmVtO1xyXG4gICAgaGVpZ2h0OiAyLjVyZW07XHJcbiAgfVxyXG4gIFxyXG4gIC5lbXB0eS1zdGF0ZSAuZW1wdHktY29udGVudCAuZW1wdHktdGl0bGUge1xyXG4gICAgZm9udC1zaXplOiAxLjNyZW07XHJcbiAgfVxyXG4gIFxyXG4gIC5lcnJvci1zdGF0ZSAuZXJyb3ItY29udGVudCAuZXJyb3ItdGl0bGUge1xyXG4gICAgZm9udC1zaXplOiAxLjFyZW07XHJcbiAgfVxyXG59XHJcblxyXG5AbWVkaWEgKG1heC13aWR0aDogNDgwcHgpIHtcclxuICAubG9hZGluZy1vdmVybGF5IC5sb2FkaW5nLWNvbnRlbnQgLmxvYWRpbmctdGV4dCxcclxuICAuaW5kZXhpbmctb3ZlcmxheSAuaW5kZXhpbmctY29udGVudCAuaW5kZXhpbmctdGV4dCB7XHJcbiAgICBmb250LXNpemU6IDFyZW07XHJcbiAgfVxyXG4gIFxyXG4gIC5lcnJvci1zdGF0ZSAuZXJyb3ItY29udGVudCxcclxuICAuZW1wdHktc3RhdGUgLmVtcHR5LWNvbnRlbnQsXHJcbiAgLmluZGV4aW5nLW92ZXJsYXkgLmluZGV4aW5nLWNvbnRlbnQge1xyXG4gICAgcGFkZGluZzogMXJlbTtcclxuICB9XHJcbiAgXHJcbiAgLmVycm9yLXN0YXRlIC5lcnJvci1jb250ZW50IC5yZXRyeS1idXR0b24ge1xyXG4gICAgd2lkdGg6IDEwMCU7XHJcbiAgICBtYXJnaW4tdG9wOiAwLjVyZW07XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT0gREFSSyBNT0RFIFNVUFBPUlQgPT09XHJcbkBtZWRpYSAocHJlZmVycy1jb2xvci1zY2hlbWU6IGRhcmspIHtcclxuICA6aG9zdCB7XHJcbiAgICBib3JkZXItY29sb3I6ICM0MjQyNDI7XHJcbiAgfVxyXG4gIFxyXG4gIC5sb2FkaW5nLW92ZXJsYXkge1xyXG4gICAgYmFja2dyb3VuZDogcmdiYSgzMywgMzMsIDMzLCAwLjk1KTtcclxuICAgIFxyXG4gICAgLmxvYWRpbmctdGV4dCB7XHJcbiAgICAgIGNvbG9yOiAjZTBlMGUwO1xyXG4gICAgfVxyXG4gICAgXHJcbiAgICAubG9hZGluZy1zdWJ0ZXh0IHtcclxuICAgICAgY29sb3I6ICNiZGJkYmQ7XHJcbiAgICB9XHJcbiAgfVxyXG4gIFxyXG4gIC5pbmRleGluZy1vdmVybGF5IHtcclxuICAgIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxMzVkZWcsIHJnYmEoMjU1LCAxOTMsIDcsIDAuMikgMCUsIHJnYmEoMjU1LCAxNTIsIDAsIDAuMikgMTAwJSk7XHJcbiAgICBcclxuICAgIC5pbmRleGluZy1jb250ZW50IHtcclxuICAgICAgYmFja2dyb3VuZDogcmdiYSg0OCwgNDgsIDQ4LCAwLjk1KTtcclxuICAgICAgYm9yZGVyLWNvbG9yOiByZ2JhKDI1NSwgMTkzLCA3LCAwLjYpO1xyXG4gICAgICBib3gtc2hhZG93OiAwIDRweCAyMHB4IHJnYmEoMjU1LCAxOTMsIDcsIDAuNCk7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5pbmRleGluZy10ZXh0IHtcclxuICAgICAgY29sb3I6ICNmZmI3NGQ7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5pbmRleGluZy1zdWJ0ZXh0IHtcclxuICAgICAgY29sb3I6ICNmZmE3MjY7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5pbmRleGluZy1pbmZvIHtcclxuICAgICAgYmFja2dyb3VuZDogcmdiYSgyNTUsIDE5MywgNywgMC4yKTtcclxuICAgICAgY29sb3I6ICNmZmNjMDI7XHJcbiAgICAgIFxyXG4gICAgICAuaW5mby1pY29uIHtcclxuICAgICAgICBjb2xvcjogI2ZmYzEwNztcclxuICAgICAgfVxyXG4gICAgfVxyXG4gIH1cclxuICBcclxuICAuZXJyb3Itc3RhdGUge1xyXG4gICAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDEzNWRlZywgIzMwMzAzMCAwJSwgIzQyNDI0MiAxMDAlKTtcclxuICAgIFxyXG4gICAgLmVycm9yLXRpdGxlIHtcclxuICAgICAgY29sb3I6ICNmNDhmYjE7XHJcbiAgICB9XHJcbiAgICBcclxuICAgIC5lcnJvci1tZXNzYWdlIHtcclxuICAgICAgY29sb3I6ICNiZGJkYmQ7XHJcbiAgICB9XHJcbiAgfVxyXG4gIFxyXG4gIC5lbXB0eS1zdGF0ZSB7XHJcbiAgICBiYWNrZ3JvdW5kOiBsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjMzAzMDMwIDAlLCAjNDI0MjQyIDEwMCUpO1xyXG4gICAgXHJcbiAgICAuZW1wdHktdGl0bGUge1xyXG4gICAgICBjb2xvcjogI2UwZTBlMDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVtcHR5LW1lc3NhZ2Uge1xyXG4gICAgICBjb2xvcjogI2JkYmRiZDtcclxuICAgIH1cclxuICAgIFxyXG4gICAgLmVtcHR5LWljb24sXHJcbiAgICAuZW1wdHktaGludCB7XHJcbiAgICAgIGNvbG9yOiAjOTBhNGFlO1xyXG4gICAgfVxyXG4gIH1cclxuICBcclxuICAuY29udGVudC1pZnJhbWUge1xyXG4gICAgYmFja2dyb3VuZDogIzFlMWUxZTtcclxuICB9XHJcbn1cclxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }

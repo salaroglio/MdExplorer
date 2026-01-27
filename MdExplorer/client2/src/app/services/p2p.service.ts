@@ -71,6 +71,27 @@ export interface P2PMetadata {
   files: { [filename: string]: P2PFileInfo };
 }
 
+export interface P2PProjectFile {
+  filename: string;
+  magnetUri?: string;
+  infoHash?: string;
+  size?: number;
+  addedAt?: string;
+}
+
+export interface P2PProject {
+  id: string;
+  name: string;
+  path: string;
+  files: { [filename: string]: P2PProjectFile } | any;
+}
+
+export interface RestoreSeedingResult {
+  message: string;
+  restored: number;
+  errors?: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -332,6 +353,25 @@ export class P2PService implements OnDestroy {
     return this.http.get<P2PFileInfo>(
       `${this.baseUrl}/file-info/${encodeURIComponent(filename)}?projectPath=${encodeURIComponent(projectPath)}`
     );
+  }
+
+  /**
+   * Get all projects that have P2P sharing enabled, along with their metadata.
+   * Accepts a list of projects and returns only those that have .p2pshare/metadata.json.
+   * Used by the P2P Manager to show files organized by project.
+   * @param projects List of projects with id, name, and path
+   */
+  getProjectsWithP2P(projects: { id: string; name: string; path: string }[]): Observable<P2PProject[]> {
+    return this.http.post<P2PProject[]>(`${this.baseUrl}/projects-with-p2p`, { projects });
+  }
+
+  /**
+   * Restore seeding for all files in a project's metadata.json.
+   * Called when opening a project to resume P2P sharing.
+   * @param projectPath Full path to the project root
+   */
+  restoreSeeding(projectPath: string): Observable<RestoreSeedingResult> {
+    return this.http.post<RestoreSeedingResult>(`${this.baseUrl}/restore-seeding`, { projectPath });
   }
 
   /**

@@ -1,10 +1,17 @@
 import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { P2PService, TransferInfo, P2PStatus } from '../../../services/p2p.service';
+import { takeUntil, switchMap } from 'rxjs/operators';
+import { P2PService, TransferInfo, P2PStatus, P2PProject } from '../../../services/p2p.service';
+
+interface MdProjectBasic {
+  id: string;
+  name: string;
+  path: string;
+}
 
 export interface P2PManagerDialogData {
   projectPath?: string;
@@ -20,14 +27,18 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
 
   status: P2PStatus | null = null;
   transfers: TransferInfo[] = [];
+  projects: P2PProject[] = [];
   isLoading = true;
+  isLoadingProjects = false;
   magnetInput = '';
   selectedTab = 0;
+  expandedProjects: Set<string> = new Set();
 
   constructor(
     public dialogRef: MatDialogRef<P2PManagerComponent>,
     @Inject(MAT_DIALOG_DATA) public data: P2PManagerDialogData,
-    private p2pService: P2PService,
+    private http: HttpClient,
+    public p2pService: P2PService,
     private snackBar: MatSnackBar,
     private clipboard: Clipboard
   ) {}
@@ -63,6 +74,80 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
 
     // Check availability and load data
     this.p2pService.checkAvailability();
+
+    // Load projects with P2P
+    this.loadProjects();
+  }
+
+  loadProjects(): void {
+    this.isLoadingProjects = true;
+
+    // First fetch all projects, then filter for those with P2P metadata
+    this.http.get<MdProjectBasic[]>('../api/MdProjects/GetProjects')
+      .pipe(
+        takeUntil(this.destroy$),
+        switchMap(allProjects => {
+          // Pass all projects to the P2P service to check which have metadata.json
+          const projectsToCheck = allProjects.map(p => ({
+            id: p.id,
+            name: p.name,
+            path: p.path
+          }));
+          return this.p2pService.getProjectsWithP2P(projectsToCheck);
+        })
+      )
+      .subscribe({
+        next: (projects) => {
+          this.projects = projects;
+          this.isLoadingProjects = false;
+        },
+        error: (err) => {
+          console.error('[P2PManager] Error loading projects:', err);
+          this.isLoadingProjects = false;
+        }
+      });
+  }
+
+  toggleProject(projectId: string): void {
+    if (this.expandedProjects.has(projectId)) {
+      this.expandedProjects.delete(projectId);
+    } else {
+      this.expandedProjects.add(projectId);
+    }
+  }
+
+  isProjectExpanded(projectId: string): boolean {
+    return this.expandedProjects.has(projectId);
+  }
+
+  getProjectFiles(project: P2PProject): { filename: string; info: any }[] {
+    if (!project.files || typeof project.files !== 'object') {
+      return [];
+    }
+    return Object.entries(project.files).map(([filename, info]) => ({
+      filename,
+      info
+    }));
+  }
+
+  restoreSeeding(project: P2PProject): void {
+    this.snackBar.open(`Restoring seeding for ${project.name}...`, '', { duration: 0 });
+    this.p2pService.restoreSeeding(project.path).subscribe({
+      next: (result) => {
+        this.snackBar.open(result.message, 'OK', { duration: 5000 });
+        this.refreshTransfers();
+      },
+      error: (err) => {
+        this.snackBar.open('Error: ' + err.message, 'OK', { duration: 5000 });
+      }
+    });
+  }
+
+  copyFileMagnet(info: any): void {
+    if (info?.magnetUri) {
+      this.clipboard.copy(info.magnetUri);
+      this.snackBar.open('Magnet link copied to clipboard', 'OK', { duration: 2000 });
+    }
   }
 
   ngOnDestroy(): void {

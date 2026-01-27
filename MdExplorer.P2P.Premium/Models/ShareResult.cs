@@ -56,4 +56,36 @@ namespace MdExplorer.P2P.Premium.Models
     {
         public string Path { get; set; } = string.Empty;
     }
+
+    /// <summary>
+    /// Request to restore seeding for a project
+    /// </summary>
+    public class RestoreSeedingRequest
+    {
+        /// <summary>
+        /// Path to the project folder
+        /// </summary>
+        public string ProjectPath { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Request to get projects with P2P metadata
+    /// </summary>
+    public class ProjectsWithP2PRequest
+    {
+        /// <summary>
+        /// List of projects to check for P2P metadata
+        /// </summary>
+        public List<ProjectInfo> Projects { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Basic project info for P2P queries
+    /// </summary>
+    public class ProjectInfo
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+    }
 }

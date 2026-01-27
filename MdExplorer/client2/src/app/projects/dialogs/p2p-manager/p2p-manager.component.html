@@ -124,6 +124,75 @@
         </div>
       </mat-tab>
 
+      <!-- Projects Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>folder_special</mat-icon>
+          Projects
+          <span class="badge" *ngIf="projects.length > 0">{{ projects.length }}</span>
+        </ng-template>
+
+        <div class="tab-content projects-tab">
+          <div class="projects-header">
+            <h3>P2P-Enabled Projects</h3>
+            <button mat-icon-button (click)="loadProjects()" matTooltip="Refresh Projects">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          </div>
+
+          <!-- Loading State -->
+          <div *ngIf="isLoadingProjects" class="loading-state">
+            <mat-spinner diameter="30"></mat-spinner>
+            <span>Loading projects...</span>
+          </div>
+
+          <!-- No Projects -->
+          <div *ngIf="!isLoadingProjects && projects.length === 0" class="empty-state">
+            <mat-icon>folder_off</mat-icon>
+            <p>No P2P-enabled projects found</p>
+            <span class="hint">Share a file via P2P to enable a project</span>
+          </div>
+
+          <!-- Project List -->
+          <div class="project-list" *ngIf="!isLoadingProjects && projects.length > 0">
+            <div class="project-card" *ngFor="let project of projects">
+              <div class="project-header" (click)="toggleProject(project.id)">
+                <mat-icon>{{ isProjectExpanded(project.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+                <mat-icon color="primary">folder</mat-icon>
+                <span class="project-name">{{ project.name }}</span>
+                <span class="file-count">({{ getProjectFiles(project).length }} files)</span>
+                <div class="project-actions" (click)="$event.stopPropagation()">
+                  <button mat-icon-button
+                          (click)="restoreSeeding(project)"
+                          matTooltip="Restore seeding for all files"
+                          color="primary">
+                    <mat-icon>play_circle</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="project-files" *ngIf="isProjectExpanded(project.id)">
+                <div class="file-item" *ngFor="let file of getProjectFiles(project)">
+                  <mat-icon>insert_drive_file</mat-icon>
+                  <div class="file-info">
+                    <span class="file-name">{{ file.filename }}</span>
+                    <span class="file-size" *ngIf="file.info?.size">{{ formatBytes(file.info.size) }}</span>
+                  </div>
+                  <div class="file-actions">
+                    <button mat-icon-button
+                            *ngIf="file.info?.magnetUri"
+                            (click)="copyFileMagnet(file.info)"
+                            matTooltip="Copy Magnet Link">
+                      <mat-icon>link</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
       <!-- Download Tab -->
       <mat-tab>
         <ng-template mat-tab-label>

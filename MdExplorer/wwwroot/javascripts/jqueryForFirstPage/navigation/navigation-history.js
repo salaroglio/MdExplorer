@@ -191,6 +191,11 @@ function initializeConnectionIdForLinks() {
         // Skip if no href
         if (!href) return;
 
+        // Skip P2P links - handled by initializeP2PLinkHandling
+        if (href.indexOf('.p2pshare/') !== -1) {
+            return;
+        }
+
         // Skip external links (http:// or https:// except localhost)
         if (/^https?:\/\/(?!localhost)/i.test(href)) {
             return; // Let the default behavior handle external links
@@ -258,6 +263,12 @@ var P2P_CACHE_TTL = 30000; // 30 seconds cache
  * - If not exists, send message to Angular parent to initiate download
  */
 function initializeP2PLinkHandling() {
+    console.log('[MdExplorer P2P] Initializing P2P link handling...');
+
+    // Check how many P2P links exist on page load
+    var p2pLinks = $('a[href*=".p2pshare/"]');
+    console.log('[MdExplorer P2P] Found', p2pLinks.length, 'P2P links on page');
+
     // Intercept clicks on P2P share links
     $(document).on('click', 'a[href*=".p2pshare/"]', function(e) {
         var href = $(this).attr('href');
@@ -275,19 +286,50 @@ function initializeP2PLinkHandling() {
         // Get project path from body attribute (set by backend)
         var projectPath = $('body').attr('ProjectPath') || '';
 
-        console.log('[MdExplorer P2P] Intercepted P2P link click:', href, 'filename:', filename);
+        console.log('[MdExplorer P2P] Click intercepted:', { href: href, filename: filename, projectPath: projectPath });
 
-        // Send message to Angular parent to handle the P2P link
-        if (window.parent && window.parent !== window) {
-            window.parent.postMessage({
-                type: 'p2p-link-click',
-                href: href,
-                filename: filename,
-                projectPath: projectPath
-            }, '*');
-        } else {
-            console.warn('[MdExplorer P2P] No parent window found for P2P message');
-        }
+        // Call check-file API directly to see if file exists locally
+        $.ajax({
+            url: '/api/P2P/check-file',
+            type: 'GET',
+            data: { path: href, projectPath: projectPath },
+            success: function(result) {
+                console.log('[MdExplorer P2P] check-file result:', result);
+                if (result.exists && result.fullPath) {
+                    // File exists locally - open it directly using existing openApplication function
+                    console.log('[MdExplorer P2P] Opening file:', result.fullPath);
+                    if (typeof openApplication === 'function') {
+                        openApplication(result.fullPath);
+                    } else {
+                        console.error('[MdExplorer P2P] openApplication function not found');
+                    }
+                } else {
+                    // File doesn't exist - send message to Angular for download handling
+                    console.log('[MdExplorer P2P] File not found locally, requesting download...');
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'p2p-link-click',
+                            href: href,
+                            filename: filename,
+                            projectPath: projectPath,
+                            needsDownload: true
+                        }, '*');
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('[MdExplorer P2P] Error checking file:', error);
+                // Fallback: send to Angular to handle
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'p2p-link-click',
+                        href: href,
+                        filename: filename,
+                        projectPath: projectPath
+                    }, '*');
+                }
+            }
+        });
     });
 
     // Debounced function to request P2P status
@@ -318,43 +360,50 @@ function initializeP2PLinkHandling() {
     // Setup hover/tooltip for P2P links (send message to get status)
     $(document).on('mouseenter', 'a[href*=".p2pshare/"]', function(e) {
         var $link = $(this);
+        var link = $link[0];
         var href = $link.attr('href');
         var filename = href.split('/').pop();
         var projectPath = $('body').attr('ProjectPath') || '';
 
-        // Add visual indicator that this is a P2P link
-        if (!$link.hasClass('p2p-link-styled')) {
-            $link.addClass('p2p-link-styled');
-        }
+        console.log('[MdExplorer P2P] Hover on P2P link:', { href: href, filename: filename, projectPath: projectPath });
 
         // Ensure link has an ID for status updates
         if (!$link.attr('id')) {
             $link.attr('id', 'p2p-' + Math.random().toString(36).substr(2, 9));
         }
 
-        // Set initial loading tooltip if no status yet
-        var cacheKey = projectPath + '/' + filename;
-        if (!p2pStatusCache[cacheKey]) {
-            $link.attr('title', 'P2P Shared File - Caricamento stato...');
+        // Initialize Tippy if not already done
+        if (!link._tippy) {
+            var cacheKey = projectPath + '/' + filename;
+            var cached = p2pStatusCache[cacheKey];
+            var initialContent = cached ? getP2PTooltipText(cached.status) : 'P2P: Verifica stato...';
+            var initialTheme = cached ? 'p2p-' + cached.status.statusClass : 'p2p-unknown';
+
+            tippy(link, {
+                content: initialContent,
+                theme: initialTheme,
+                placement: 'top',
+                arrow: true,
+                delay: [200, 0],
+                allowHTML: true
+            });
         }
 
         // Request status with debounce
         debouncedStatusRequest($link, href, filename, projectPath);
     });
 
-    // Cancel pending status request when mouse leaves
-    $(document).on('mouseleave', 'a[href*=".p2pshare/"]', function(e) {
-        // Debounce will handle cancellation automatically
-    });
-
     // Listen for messages from Angular parent (e.g., tooltip updates)
     window.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'p2p-link-status') {
+            console.log('[MdExplorer P2P] Received status from Angular:', event.data);
+
             var linkId = event.data.linkId;
             var status = event.data.status;
             var $link = $('#' + linkId);
 
             if ($link.length) {
+                console.log('[MdExplorer P2P] Applying status to link:', linkId, status);
                 // Get filename for caching
                 var href = $link.attr('href');
                 var filename = href ? href.split('/').pop() : '';
@@ -382,32 +431,38 @@ function initializeP2PLinkHandling() {
  * @param {Object} status - Status object with state, statusClass, numPeers, etc.
  */
 function applyP2PStatus($link, status) {
-    // Update tooltip based on status
+    var link = $link[0];
     var tooltipText = getP2PTooltipText(status);
-    $link.attr('title', tooltipText);
+    var theme = 'p2p-' + status.statusClass;
 
-    // Update visual styling based on status
+    // Update Tippy tooltip if it exists
+    if (link._tippy) {
+        link._tippy.setContent(tooltipText);
+        link._tippy.setProps({ theme: theme });
+    }
+
+    // Update visual styling (icon only, not link color)
     $link.removeClass('p2p-local p2p-seeding p2p-to-download p2p-downloading p2p-no-peers p2p-unknown');
     $link.addClass('p2p-' + status.statusClass);
 }
 
 /**
- * Get tooltip text based on P2P status
+ * Get tooltip text based on P2P status (HTML format for Tippy)
  */
 function getP2PTooltipText(status) {
     if (!status) return 'P2P Shared File';
 
     switch (status.state) {
         case 'local':
-            return 'File disponibile - Click per aprire\nDimensione: ' + formatBytes(status.size);
+            return '<b>File disponibile</b><br>Click per aprire<br><small>' + formatBytes(status.size) + '</small>';
         case 'seeding':
-            return 'In condivisione\nPeer connessi: ' + status.numPeers + '\nUpload: ' + formatSpeed(status.uploadSpeed);
+            return '<b>In condivisione</b><br>Peer: ' + status.numPeers + '<br><small>↑ ' + formatSpeed(status.uploadSpeed) + '</small>';
         case 'to_download':
-            return 'Click per scaricare\nDimensione: ' + formatBytes(status.size) + '\nPeer disponibili: ' + status.numPeers;
+            return '<b>Da scaricare</b><br>Click per avviare<br><small>' + formatBytes(status.size) + ' · ' + status.numPeers + ' peer</small>';
         case 'downloading':
-            return 'Download in corso... ' + Math.round(status.progress * 100) + '%\nVelocità: ' + formatSpeed(status.downloadSpeed);
+            return '<b>Download ' + Math.round(status.progress * 100) + '%</b><br><small>↓ ' + formatSpeed(status.downloadSpeed) + '</small>';
         case 'no_peers':
-            return 'Nessun peer disponibile al momento\nRiprova più tardi';
+            return '<b>Nessun peer</b><br><small>File non disponibile</small>';
         default:
             return 'P2P Shared File';
     }

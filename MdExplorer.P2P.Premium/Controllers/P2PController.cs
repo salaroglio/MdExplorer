@@ -343,8 +343,9 @@ namespace MdExplorer.P2P.Premium.Controllers
                 // 2. Create the .p2pshare/files directory if it doesn't exist
                 System.IO.Directory.CreateDirectory(p2pSharePath);
 
-                // 3. Copy the file
-                var fileName = System.IO.Path.GetFileName(request.SourcePath);
+                // 3. Copy the file with sanitized filename (replace spaces with underscores)
+                var originalFileName = System.IO.Path.GetFileName(request.SourcePath);
+                var fileName = originalFileName.Replace(' ', '_');
                 var destPath = System.IO.Path.Combine(p2pSharePath, fileName);
 
                 // Handle file name conflicts
@@ -362,7 +363,7 @@ namespace MdExplorer.P2P.Premium.Controllers
                 }
 
                 System.IO.File.Copy(request.SourcePath, destPath, overwrite: false);
-                _logger.LogInformation("File copied to: {DestPath}", destPath);
+                _logger.LogInformation("File copied to: {DestPath} (original: {OriginalFileName})", destPath, originalFileName);
 
                 // 4. Start seeding via P2P plugin
                 var shareResult = await _p2pService.ShareFileAsync(destPath, fileName);
@@ -377,7 +378,24 @@ namespace MdExplorer.P2P.Premium.Controllers
                 SaveP2PMetadata(projectPath, fileName, shareResult);
 
                 // 6. Append clean P2P link to the markdown document (metadata is in metadata.json)
-                var linkMarkdown = $"\n\n[{fileName}](.p2pshare/files/{fileName})\n";
+                // Calculate relative path from document location to project root
+                var documentDir = System.IO.Path.GetDirectoryName(request.DocumentPath);
+                var relativePath = System.IO.Path.GetRelativePath(documentDir, projectPath);
+
+                // Build the link path: relative path to project root + .p2pshare/files/filename
+                // If document is at project root, relativePath will be "." so we handle that
+                string linkPath;
+                if (relativePath == ".")
+                {
+                    linkPath = $".p2pshare/files/{fileName}";
+                }
+                else
+                {
+                    // Replace backslashes with forward slashes for markdown compatibility
+                    linkPath = $"{relativePath.Replace('\\', '/')}/.p2pshare/files/{fileName}";
+                }
+
+                var linkMarkdown = $"\n\n[{fileName}]({linkPath})\n";
                 System.IO.File.AppendAllText(request.DocumentPath, linkMarkdown);
                 _logger.LogInformation("P2P link appended to document: {DocumentPath}", request.DocumentPath);
 
@@ -391,7 +409,8 @@ namespace MdExplorer.P2P.Premium.Controllers
         }
 
         /// <summary>
-        /// Check if a file exists at the given relative path within the current project
+        /// Check if a file exists in the .p2pshare/files/ directory
+        /// The path parameter can be a relative path like "../.p2pshare/files/file.mp4" or just the filename
         /// </summary>
         [HttpGet("check-file")]
         public ActionResult CheckFile([FromQuery] string path, [FromQuery] string projectPath)
@@ -408,9 +427,15 @@ namespace MdExplorer.P2P.Premium.Controllers
                     return BadRequest(new { error = "projectPath is required" });
                 }
 
-                // Resolve relative path against project path
-                var fullPath = System.IO.Path.Combine(projectPath, path.TrimStart('.', '/', '\\'));
+                // Extract just the filename from the path (handles relative paths like "../.p2pshare/files/file.mp4")
+                var fileName = System.IO.Path.GetFileName(path);
+
+                // Always look in projectPath/.p2pshare/files/
+                var fullPath = System.IO.Path.Combine(projectPath, ".p2pshare", "files", fileName);
                 var exists = System.IO.File.Exists(fullPath);
+
+                _logger.LogDebug("CheckFile: path={Path}, fileName={FileName}, fullPath={FullPath}, exists={Exists}",
+                    path, fileName, fullPath, exists);
 
                 return Ok(new { exists, fullPath });
             }
@@ -634,6 +659,140 @@ namespace MdExplorer.P2P.Premium.Controllers
             {
                 _logger.LogWarning(ex, "Failed to save P2P metadata (non-critical)");
                 // Non-critical error - don't fail the whole operation
+            }
+        }
+
+        /// <summary>
+        /// Get all projects that have P2P sharing enabled, along with their metadata.
+        /// Accepts a list of project paths and returns only those that have .p2pshare/metadata.json.
+        /// Used by the P2P Manager to show files organized by project.
+        /// </summary>
+        [HttpPost("projects-with-p2p")]
+        public ActionResult GetProjectsWithP2P([FromBody] ProjectsWithP2PRequest request)
+        {
+            try
+            {
+                if (request?.Projects == null || request.Projects.Count == 0)
+                {
+                    return Ok(new List<object>());
+                }
+
+                var projectsWithP2P = new List<object>();
+
+                foreach (var project in request.Projects)
+                {
+                    if (string.IsNullOrEmpty(project.Path))
+                        continue;
+
+                    var metadataPath = System.IO.Path.Combine(project.Path, ".p2pshare", "metadata.json");
+
+                    if (!System.IO.File.Exists(metadataPath))
+                        continue;
+
+                    object files = new Dictionary<string, object>();
+                    try
+                    {
+                        var content = System.IO.File.ReadAllText(metadataPath);
+                        var metadata = System.Text.Json.JsonDocument.Parse(content);
+                        if (metadata.RootElement.TryGetProperty("files", out var filesElement))
+                        {
+                            files = filesElement;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to read metadata for project {ProjectPath}", project.Path);
+                        continue;
+                    }
+
+                    projectsWithP2P.Add(new
+                    {
+                        id = project.Id,
+                        name = project.Name,
+                        path = project.Path,
+                        files
+                    });
+                }
+
+                return Ok(projectsWithP2P);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting projects with P2P");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Restore seeding for all files in a project's metadata.json.
+        /// Called when opening a project to resume P2P sharing.
+        /// </summary>
+        [HttpPost("restore-seeding")]
+        public async Task<ActionResult> RestoreSeeding([FromBody] RestoreSeedingRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request?.ProjectPath))
+                {
+                    return BadRequest(new { error = "projectPath is required" });
+                }
+
+                var metadataPath = System.IO.Path.Combine(request.ProjectPath, ".p2pshare", "metadata.json");
+                if (!System.IO.File.Exists(metadataPath))
+                {
+                    return Ok(new { message = "No P2P metadata found", restored = 0 });
+                }
+
+                var content = System.IO.File.ReadAllText(metadataPath);
+                var metadata = System.Text.Json.JsonDocument.Parse(content);
+
+                if (!metadata.RootElement.TryGetProperty("files", out var filesElement))
+                {
+                    return Ok(new { message = "No files in metadata", restored = 0 });
+                }
+
+                var restored = 0;
+                var errors = new List<string>();
+
+                foreach (var fileProp in filesElement.EnumerateObject())
+                {
+                    var fileName = fileProp.Name;
+                    var filePath = System.IO.Path.Combine(request.ProjectPath, ".p2pshare", "files", fileName);
+
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        try
+                        {
+                            var result = await _p2pService.ShareFileAsync(filePath, fileName);
+                            if (result != null)
+                            {
+                                restored++;
+                                _logger.LogInformation("Restored seeding for: {FileName}", fileName);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"{fileName}: {ex.Message}");
+                            _logger.LogWarning(ex, "Failed to restore seeding for {FileName}", fileName);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("File not found for seeding: {FilePath}", filePath);
+                    }
+                }
+
+                return Ok(new
+                {
+                    message = $"Restored {restored} files for seeding",
+                    restored,
+                    errors = errors.Count > 0 ? errors : null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error restoring seeding");
+                return StatusCode(500, new { error = ex.Message });
             }
         }
     }
