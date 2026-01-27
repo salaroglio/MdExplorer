@@ -72,6 +72,7 @@ h1[mat-dialog-title] {
   background: #f5f5f5;
   border-radius: 8px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 
   .stat-item {
     display: flex;
@@ -86,6 +87,51 @@ h1[mat-dialog-title] {
       height: 18px;
       color: #1976d2;
     }
+
+    &.tracker-status {
+      cursor: pointer;
+      padding: 4px 8px;
+      margin: -4px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      &.tracker-connected mat-icon {
+        color: #28a745;
+      }
+
+      &.tracker-error mat-icon {
+        color: #dc3545;
+      }
+    }
+  }
+}
+
+.tracker-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+
+  span {
+    flex: 1;
+    color: #856404;
+  }
+
+  button {
+    flex-shrink: 0;
   }
 }
 
@@ -335,6 +381,51 @@ h1[mat-dialog-title] {
           .file-size {
             font-size: 12px;
             color: rgba(0, 0, 0, 0.5);
+          }
+        }
+
+        .file-status {
+          flex-shrink: 0;
+          margin-right: 8px;
+
+          .peer-count {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.6);
+
+            mat-icon {
+              font-size: 16px;
+              width: 16px;
+              height: 16px;
+
+              &.status-local {
+                color: #28a745;
+              }
+              &.status-seeding {
+                color: #007bff;
+              }
+              &.status-downloading {
+                color: #17a2b8;
+              }
+              &.status-completed {
+                color: #28a745;
+              }
+              &.status-available {
+                color: #fd7e14;
+              }
+              &.status-unavailable {
+                color: #6c757d;
+              }
+              &.status-unknown {
+                color: #6c757d;
+              }
+            }
+
+            .status-text {
+              white-space: nowrap;
+            }
           }
         }
 

@@ -92,6 +92,26 @@ export interface RestoreSeedingResult {
   errors?: string[];
 }
 
+export interface TrackerInfo {
+  url: string;
+  reachable: boolean;
+  authenticated: boolean;
+  error?: string;
+  latency?: number;
+}
+
+export interface TrackerOverallStatus {
+  reachable: boolean;
+  authenticated: boolean;
+  status: 'connected' | 'unauthorized' | 'unreachable';
+}
+
+export interface TrackerStatusResponse {
+  hasToken: boolean;
+  trackers: TrackerInfo[];
+  overall: TrackerOverallStatus;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -215,6 +235,14 @@ export class P2PService implements OnDestroy {
    */
   getHealth(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/health`);
+  }
+
+  /**
+   * Get tracker connectivity status
+   * Returns information about whether the tracker is reachable and authenticated
+   */
+  getTrackerStatus(): Observable<TrackerStatusResponse> {
+    return this.http.get<TrackerStatusResponse>(`${this.baseUrl}/tracker-status`);
   }
 
   /**

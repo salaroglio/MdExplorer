@@ -5145,6 +5145,13 @@ class P2PService {
     return this.http.get(`${this.baseUrl}/health`);
   }
   /**
+   * Get tracker connectivity status
+   * Returns information about whether the tracker is reachable and authenticated
+   */
+  getTrackerStatus() {
+    return this.http.get(`${this.baseUrl}/tracker-status`);
+  }
+  /**
    * Get P2P statistics
    */
   getStats() {

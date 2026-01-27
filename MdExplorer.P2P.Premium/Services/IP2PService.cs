@@ -62,5 +62,10 @@ namespace MdExplorer.P2P.Premium.Services
         /// Parse a magnet URI to get info
         /// </summary>
         Task<object?> ParseMagnetAsync(string magnetUri);
+
+        /// <summary>
+        /// Check tracker connectivity status
+        /// </summary>
+        Task<TrackerStatusResponse?> GetTrackerStatusAsync();
     }
 }

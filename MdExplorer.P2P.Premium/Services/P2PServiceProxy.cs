@@ -234,5 +234,23 @@ namespace MdExplorer.P2P.Premium.Services
                 return null;
             }
         }
+
+        public async Task<TrackerStatusResponse?> GetTrackerStatusAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("/tracker-status");
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<TrackerStatusResponse>(_jsonOptions);
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tracker status");
+                return null;
+            }
+        }
     }
 }

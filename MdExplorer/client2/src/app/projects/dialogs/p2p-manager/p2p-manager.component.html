@@ -30,6 +30,14 @@
   <div *ngIf="!isLoading && status?.enabled" class="p2p-available">
     <!-- Stats Bar -->
     <div class="stats-bar" *ngIf="status?.stats">
+      <div class="stat-item tracker-status"
+           [class.tracker-connected]="trackerStatus?.overall?.status === 'connected'"
+           [class.tracker-error]="trackerStatus?.overall?.status === 'unauthorized' || trackerStatus?.overall?.status === 'unreachable'"
+           (click)="checkTrackerStatus()"
+           matTooltip="Click per aggiornare lo stato del tracker">
+        <mat-icon [color]="getTrackerStatusColor()">{{ getTrackerStatusIcon() }}</mat-icon>
+        <span>Tracker: {{ getTrackerStatusText() }}</span>
+      </div>
       <div class="stat-item">
         <mat-icon>download</mat-icon>
         <span>{{ formatSpeed(status.stats.downloadSpeed) }}</span>
@@ -46,6 +54,20 @@
         <mat-icon>swap_horiz</mat-icon>
         <span>{{ status.stats.activeTransfers }} active</span>
       </div>
+    </div>
+
+    <!-- Tracker Warning -->
+    <div class="tracker-warning" *ngIf="trackerStatus && trackerStatus.overall.status !== 'connected'">
+      <mat-icon color="warn">warning</mat-icon>
+      <span *ngIf="trackerStatus.overall.status === 'unauthorized'">
+        Il tracker ha rifiutato l'autenticazione. Verifica il token P2P nelle impostazioni.
+      </span>
+      <span *ngIf="trackerStatus.overall.status === 'unreachable'">
+        Il tracker non è raggiungibile. Controlla la connessione internet.
+      </span>
+      <button mat-button color="primary" (click)="checkTrackerStatus()">
+        Riprova
+      </button>
     </div>
 
     <!-- Tabs -->
@@ -178,12 +200,19 @@
                     <span class="file-name">{{ file.filename }}</span>
                     <span class="file-size" *ngIf="file.info?.size">{{ formatBytes(file.info.size) }}</span>
                   </div>
+                  <div class="file-status">
+                    <span class="peer-count" *ngIf="getFileStatus(file.info?.infoHash) as status">
+                      <mat-icon [class]="'status-' + status.statusClass">{{ status.icon }}</mat-icon>
+                      <span class="status-text">{{ status.text }}</span>
+                    </span>
+                  </div>
                   <div class="file-actions">
                     <button mat-icon-button
-                            *ngIf="file.info?.magnetUri"
-                            (click)="copyFileMagnet(file.info)"
-                            matTooltip="Copy Magnet Link">
-                      <mat-icon>link</mat-icon>
+                            *ngIf="file.info?.magnetUri && canDownloadFile(file.info?.infoHash)"
+                            (click)="downloadFile(file.info)"
+                            matTooltip="Download file"
+                            color="primary">
+                      <mat-icon>cloud_download</mat-icon>
                     </button>
                   </div>
                 </div>

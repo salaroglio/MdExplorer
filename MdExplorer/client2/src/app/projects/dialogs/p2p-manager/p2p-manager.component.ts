@@ -5,12 +5,20 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Subject } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
-import { P2PService, TransferInfo, P2PStatus, P2PProject } from '../../../services/p2p.service';
+import { P2PService, TransferInfo, P2PStatus, P2PProject, PeerStatus, TrackerStatusResponse } from '../../../services/p2p.service';
 
 interface MdProjectBasic {
   id: string;
   name: string;
   path: string;
+}
+
+interface FileStatusInfo {
+  icon: string;
+  text: string;
+  statusClass: string;
+  canDownload: boolean;
+  numPeers: number;
 }
 
 export interface P2PManagerDialogData {
@@ -31,8 +39,11 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
   isLoading = true;
   isLoadingProjects = false;
   magnetInput = '';
-  selectedTab = 0;
+  selectedTab = 1;  // Default to Projects tab
   expandedProjects: Set<string> = new Set();
+  fileStatuses: Map<string, FileStatusInfo> = new Map();
+  trackerStatus: TrackerStatusResponse | null = null;
+  isCheckingTracker = false;
 
   constructor(
     public dialogRef: MatDialogRef<P2PManagerComponent>,
@@ -75,8 +86,61 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
     // Check availability and load data
     this.p2pService.checkAvailability();
 
+    // Check tracker status
+    this.checkTrackerStatus();
+
     // Load projects with P2P
     this.loadProjects();
+  }
+
+  checkTrackerStatus(): void {
+    this.isCheckingTracker = true;
+    this.p2pService.getTrackerStatus()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (status) => {
+          this.trackerStatus = status;
+          this.isCheckingTracker = false;
+        },
+        error: (err) => {
+          console.error('[P2PManager] Error checking tracker status:', err);
+          this.trackerStatus = null;
+          this.isCheckingTracker = false;
+        }
+      });
+  }
+
+  getTrackerStatusIcon(): string {
+    if (!this.trackerStatus) return 'help_outline';
+    switch (this.trackerStatus.overall.status) {
+      case 'connected': return 'cloud_done';
+      case 'unauthorized': return 'lock';
+      case 'unreachable': return 'cloud_off';
+      default: return 'help_outline';
+    }
+  }
+
+  getTrackerStatusText(): string {
+    if (this.isCheckingTracker) return 'Verifica...';
+    if (!this.trackerStatus) return 'Stato sconosciuto';
+    switch (this.trackerStatus.overall.status) {
+      case 'connected':
+        const latency = this.trackerStatus.trackers[0]?.latency;
+        return latency ? `Connesso (${latency}ms)` : 'Connesso';
+      case 'unauthorized': return 'Non autorizzato';
+      case 'unreachable': return 'Non raggiungibile';
+      default: return 'Stato sconosciuto';
+    }
+  }
+
+  getTrackerStatusColor(): string {
+    if (!this.trackerStatus) return '';
+    switch (this.trackerStatus.overall.status) {
+      case 'connected': return 'primary';
+      case 'unauthorized': return 'warn';
+      case 'unreachable': return 'warn';
+      default: return '';
+    }
   }
 
   loadProjects(): void {
@@ -113,7 +177,133 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
       this.expandedProjects.delete(projectId);
     } else {
       this.expandedProjects.add(projectId);
+      // Load file statuses for this project
+      const project = this.projects.find(p => p.id === projectId);
+      if (project) {
+        this.loadFileStatuses(project);
+      }
     }
+  }
+
+  loadFileStatuses(project: P2PProject): void {
+    const files = this.getProjectFiles(project);
+    files.forEach(file => {
+      if (file.info?.infoHash) {
+        this.p2pService.getPeerStatus(file.info.infoHash).subscribe({
+          next: (status) => {
+            this.fileStatuses.set(file.info.infoHash, this.mapPeerStatusToFileStatus(status));
+          },
+          error: () => {
+            // If error, set as unknown
+            this.fileStatuses.set(file.info.infoHash, {
+              icon: 'help_outline',
+              text: 'Stato sconosciuto',
+              statusClass: 'unknown',
+              canDownload: false,
+              numPeers: 0
+            });
+          }
+        });
+      }
+    });
+  }
+
+  mapPeerStatusToFileStatus(status: PeerStatus): FileStatusInfo {
+    if (!status.found) {
+      // Torrent not active - file might still be downloadable if peers exist elsewhere
+      return {
+        icon: 'cloud_off',
+        text: 'Non attivo',
+        statusClass: 'unavailable',
+        canDownload: true,  // Allow trying to download
+        numPeers: 0
+      };
+    }
+
+    switch (status.status) {
+      case 'seeding':
+        return {
+          icon: 'folder',
+          text: status.numPeers > 0 ? `File locale · ${status.numPeers} peer connessi` : 'File locale · In condivisione',
+          statusClass: 'local',
+          canDownload: false,  // Already have it
+          numPeers: status.numPeers
+        };
+      case 'seeding_no_peers':
+        return {
+          icon: 'folder',
+          text: 'File locale · In condivisione',
+          statusClass: 'local',
+          canDownload: false,  // Already have it
+          numPeers: 0
+        };
+      case 'downloading':
+        return {
+          icon: 'downloading',
+          text: `Download ${Math.round((status.progress || 0) * 100)}%`,
+          statusClass: 'downloading',
+          canDownload: false,  // Already downloading
+          numPeers: status.numPeers
+        };
+      case 'downloading_no_peers':
+        return {
+          icon: 'downloading',
+          text: 'Download · Cercando peer...',
+          statusClass: 'downloading',
+          canDownload: false,
+          numPeers: 0
+        };
+      case 'completed':
+        return {
+          icon: 'folder',
+          text: 'File locale · Download completato',
+          statusClass: 'local',
+          canDownload: false,  // Already have it
+          numPeers: status.numPeers
+        };
+      default:
+        return {
+          icon: 'cloud_queue',
+          text: status.numPeers > 0 ? `${status.numPeers} peer disponibili` : 'Disponibile per download',
+          statusClass: 'available',
+          canDownload: true,
+          numPeers: status.numPeers
+        };
+    }
+  }
+
+  getFileStatus(infoHash: string | undefined): FileStatusInfo | null {
+    if (!infoHash) return null;
+    return this.fileStatuses.get(infoHash) || null;
+  }
+
+  canDownloadFile(infoHash: string | undefined): boolean {
+    if (!infoHash) return false;
+    const status = this.fileStatuses.get(infoHash);
+    return status?.canDownload || false;
+  }
+
+  downloadFile(fileInfo: any): void {
+    if (!fileInfo?.magnetUri) {
+      this.snackBar.open('Magnet link non disponibile', 'OK', { duration: 3000 });
+      return;
+    }
+
+    this.snackBar.open('Avvio download...', '', { duration: 2000 });
+    this.p2pService.download(fileInfo.magnetUri).subscribe({
+      next: (result) => {
+        if (result.success) {
+          this.snackBar.open(`Download avviato: ${result.name}`, 'OK', { duration: 3000 });
+          this.selectedTab = 0; // Switch to Transfers tab
+          this.refreshTransfers();
+        } else {
+          this.snackBar.open('Errore: ' + result.error, 'OK', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        this.snackBar.open('Errore download: ' + err.message, 'OK', { duration: 3000 });
+      }
+    });
   }
 
   isProjectExpanded(projectId: string): boolean {

@@ -70,6 +70,28 @@ namespace MdExplorer.P2P.Premium.Controllers
         }
 
         /// <summary>
+        /// Get tracker connectivity status
+        /// </summary>
+        [HttpGet("tracker-status")]
+        public async Task<ActionResult<TrackerStatusResponse>> GetTrackerStatus()
+        {
+            try
+            {
+                var status = await _p2pService.GetTrackerStatusAsync();
+                if (status == null)
+                {
+                    return StatusCode(503, new { error = "P2P service not available" });
+                }
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tracker status");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Get P2P statistics
         /// </summary>
         [HttpGet("stats")]
