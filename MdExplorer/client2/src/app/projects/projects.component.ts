@@ -11,11 +11,13 @@ import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { GITService } from '../git/services/gitservice.service';
+import { P2PService } from '../services/p2p.service';
 import { NewProjectComponent } from './new-project/new-project.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
+import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
 import { SettingsComponent } from '../md-explorer/components/dialogs/settings/settings.component';
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
@@ -33,6 +35,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public recentProjects: Observable<MdProject[]>;
   public searchQuery: string = '';
   public lastOpenedProjectId: string = null;
+  public isP2PAvailable: boolean = false;
 
   // Flag to prevent multiple clicks when opening a project
   private isOpeningProject = false;
@@ -48,7 +51,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     private gitService: GITService,
     private clipboard: Clipboard,
     private snackBar: MatSnackBar,
-    private http: HttpClient
+    private http: HttpClient,
+    private p2pService: P2PService
   ) { }
 
     ngOnDestroy(): void {
@@ -59,6 +63,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]
 
   ngOnInit(): void {
+    // Check P2P availability
+    this.p2pService.isAvailable$.subscribe(available => {
+      this.isP2PAvailable = available;
+    });
+    this.p2pService.checkAvailability();
+
     // Load recent projects and sort by lastUpdate descending (most recent first)
     this.projectService.fetchProjects();
     this.recentProjects = this.projectService.mdProjects.pipe(
@@ -249,7 +259,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Open the application log file
+   * Open the application log file (.NET backend)
    */
   openLog(): void {
     this.http.post<any>('../api/Diagnostics/OpenLog', {}).subscribe({
@@ -260,6 +270,46 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         console.error('[Projects] Error opening log:', err);
         this.snackBar.open('Error opening log file: ' + (err.error?.error || err.message), 'OK', { duration: 5000 });
       }
+    });
+  }
+
+  /**
+   * Open the Electron log file (only available in Electron environment)
+   */
+  openElectronLog(): void {
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.openElectronLog) {
+      electronAPI.openElectronLog().then((result: any) => {
+        if (result.success) {
+          console.log('[Projects] Electron log opened:', result.path);
+        } else {
+          console.error('[Projects] Electron log not found:', result.error);
+          this.snackBar.open('Electron log not found: ' + result.path, 'OK', { duration: 5000 });
+        }
+      }).catch((err: any) => {
+        console.error('[Projects] Error opening Electron log:', err);
+        this.snackBar.open('Error opening Electron log', 'OK', { duration: 5000 });
+      });
+    } else {
+      this.snackBar.open('Electron log only available in desktop app', 'OK', { duration: 3000 });
+    }
+  }
+
+  /**
+   * Check if running in Electron environment
+   */
+  isElectron(): boolean {
+    return !!(window as any).electronAPI;
+  }
+
+  /**
+   * Open the P2P Manager dialog
+   */
+  openP2PManager(): void {
+    const dialogRef = this.dialog.open(P2PManagerComponent, {
+      width: '700px',
+      maxHeight: '80vh',
+      data: {}
     });
   }
 }

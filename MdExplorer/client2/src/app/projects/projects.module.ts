@@ -7,6 +7,7 @@ import { CloneProjectComponent } from './dialogs/clone-project/clone-project.com
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
+import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms'
@@ -32,7 +33,8 @@ const routes: Routes = [
     CloneProjectComponent,
     ModernCloneProjectComponent,
     ProjectCreateConfigDialogComponent,
-    ProjectSettingsComponent
+    ProjectSettingsComponent,
+    P2PManagerComponent
   ],
   imports: [
     RouterModule.forChild(routes),

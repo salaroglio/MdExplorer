@@ -140,6 +140,22 @@
         </mat-card-content>
       </mat-card>
 
+      <!-- P2P Sharing Card -->
+      <mat-card class="action-card p2p-card" *ngIf="isP2PAvailable" data-test="p2p-button" (click)="openP2PManager()">
+        <mat-card-content class="card-content">
+          <div class="icon-wrapper p2p-icon">
+            <mat-icon>share</mat-icon>
+          </div>
+          <div class="card-text">
+            <h2 class="card-title">P2P Sharing</h2>
+            <p class="card-description">Share large files directly with other MdExplorer users</p>
+          </div>
+          <div class="card-action">
+            <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
         </div>
 
         <!-- Diagnostics Section -->
@@ -147,9 +163,17 @@
           <button mat-stroked-button
                   color="primary"
                   (click)="openLog()"
-                  matTooltip="Open application log file for debugging">
+                  matTooltip="Open .NET application log file for debugging">
             <mat-icon>description</mat-icon>
-            Open Log
+            .NET Log
+          </button>
+          <button mat-stroked-button
+                  color="primary"
+                  *ngIf="isElectron()"
+                  (click)="openElectronLog()"
+                  matTooltip="Open Electron log file for debugging">
+            <mat-icon>monitor</mat-icon>
+            Electron Log
           </button>
         </div>
       </div>

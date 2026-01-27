@@ -41,8 +41,6 @@ Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "MdExplorer.Bootstrapper", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deploy", "Deploy", "{097A94E4-D4DE-40E8-A7A1-D45494385869}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "InternalTools", "InternalTools", "{10048F8F-B693-42BA-9290-77E1F1EA1C70}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

@@ -146,6 +146,10 @@
   &.settings-card .icon-wrapper {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   }
+
+  &.p2p-card .icon-wrapper {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  }
 }
 
 // Section title
@@ -562,6 +566,9 @@
   margin-top: 24px;
   padding-top: 16px;
   border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 
   button {
     font-size: 0.85rem;

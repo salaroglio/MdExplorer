@@ -34,6 +34,7 @@ using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Service.Services;
 using MdExplorer.Abstractions.Services;
+using System.Reflection;
 
 namespace MdExplorer
 {
@@ -113,7 +114,27 @@ namespace MdExplorer
             services.AddSingleton<Services.TeamChat.ITeamChatService, Services.TeamChat.TeamChatService>();
 
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
-            services.AddControllers(config =>
+
+            // Try to load P2P Premium module if available
+            Assembly? p2pAssembly = null;
+            try
+            {
+                var p2pDllPath = Path.Combine(AppContext.BaseDirectory, "MdExplorer.P2P.Premium.dll");
+                if (File.Exists(p2pDllPath))
+                {
+                    p2pAssembly = Assembly.LoadFrom(p2pDllPath);
+                    var extensionsType = p2pAssembly.GetType("MdExplorer.P2P.Premium.DependencyInjection.ServiceCollectionExtensions");
+                    var addMethod = extensionsType?.GetMethod("AddP2PServices");
+                    addMethod?.Invoke(null, new object[] { services });
+                    Console.WriteLine("[Startup] P2P Premium module loaded successfully");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Startup] Warning: Could not load P2P Premium module: {ex.Message}");
+            }
+
+            var mvcBuilder = services.AddControllers(config =>
             {
                 //config.Filters.Add<TransactionActionFilter>();
             }).AddJsonOptions(options =>
@@ -122,6 +143,13 @@ namespace MdExplorer
                 // Don't ignore properties with default values (like empty lists)
                 options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never;
             });
+
+            // Add P2P Premium controllers if assembly was loaded
+            if (p2pAssembly != null)
+            {
+                mvcBuilder.AddApplicationPart(p2pAssembly);
+                Console.WriteLine("[Startup] P2P Premium controllers registered");
+            }
 
         }
 
@@ -225,6 +253,31 @@ namespace MdExplorer
                 endpoints.MapHub<MonitorMDHub>("/signalr/monitormd");
                 endpoints.MapHub<AiChatHub>("/signalr/aichat");
                 endpoints.MapHub<TeamChatHub>("/signalr/teamchat");
+
+                // Map P2P hub if available (loaded dynamically)
+                try
+                {
+                    var p2pDllPath = Path.Combine(AppContext.BaseDirectory, "MdExplorer.P2P.Premium.dll");
+                    if (File.Exists(p2pDllPath))
+                    {
+                        var p2pAssembly = Assembly.LoadFrom(p2pDllPath);
+                        var hubType = p2pAssembly.GetType("MdExplorer.P2P.Premium.Hubs.P2PTransferHub");
+                        if (hubType != null)
+                        {
+                            // Use reflection to map the hub
+                            var mapHubMethod = typeof(HubEndpointRouteBuilderExtensions)
+                                .GetMethods()
+                                .First(m => m.Name == "MapHub" && m.GetParameters().Length == 2);
+                            var genericMapHub = mapHubMethod.MakeGenericMethod(hubType);
+                            genericMapHub.Invoke(null, new object[] { endpoints, "/signalr/p2p" });
+                            Console.WriteLine("[Startup] P2P SignalR hub mapped to /signalr/p2p");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Startup] Warning: Could not map P2P hub: {ex.Message}");
+                }
             });
 
             //#if !DEBUG

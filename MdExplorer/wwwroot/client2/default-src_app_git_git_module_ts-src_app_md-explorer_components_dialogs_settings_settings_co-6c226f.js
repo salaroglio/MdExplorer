@@ -5245,6 +5245,52 @@ class P2PService {
     return this.http.get(`${this.baseUrl}/check-file?path=${encodeURIComponent(path)}&projectPath=${encodeURIComponent(projectPath)}`);
   }
   /**
+   * Get peer status for a specific torrent by infoHash.
+   * Returns number of peers, download/upload speeds, and transfer status.
+   * @param infoHash The torrent info hash
+   */
+  getPeerStatus(infoHash) {
+    return this.http.get(`${this.baseUrl}/peer-status/${infoHash}`);
+  }
+  /**
+   * Get P2P metadata for a project.
+   * Returns the contents of .p2pshare/metadata.json if it exists.
+   * @param projectPath Full path to the project root
+   */
+  getMetadata(projectPath) {
+    return this.http.get(`${this.baseUrl}/metadata?projectPath=${encodeURIComponent(projectPath)}`);
+  }
+  /**
+   * Get P2P info for a specific file by filename.
+   * Returns magnetUri, infoHash, size from metadata.json.
+   * @param filename The filename to look up
+   * @param projectPath Full path to the project root
+   */
+  getFileInfo(filename, projectPath) {
+    return this.http.get(`${this.baseUrl}/file-info/${encodeURIComponent(filename)}?projectPath=${encodeURIComponent(projectPath)}`);
+  }
+  /**
+   * Get all projects that have P2P sharing enabled, along with their metadata.
+   * Accepts a list of projects and returns only those that have .p2pshare/metadata.json.
+   * Used by the P2P Manager to show files organized by project.
+   * @param projects List of projects with id, name, and path
+   */
+  getProjectsWithP2P(projects) {
+    return this.http.post(`${this.baseUrl}/projects-with-p2p`, {
+      projects
+    });
+  }
+  /**
+   * Restore seeding for all files in a project's metadata.json.
+   * Called when opening a project to resume P2P sharing.
+   * @param projectPath Full path to the project root
+   */
+  restoreSeeding(projectPath) {
+    return this.http.post(`${this.baseUrl}/restore-seeding`, {
+      projectPath
+    });
+  }
+  /**
    * Format bytes to human readable string
    */
   formatBytes(bytes, decimals = 2) {

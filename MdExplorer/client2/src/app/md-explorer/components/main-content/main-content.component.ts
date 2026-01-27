@@ -12,6 +12,7 @@ import { FileEventsService } from '../../services/file-events.service';
 import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ProjectsService } from '../../services/projects.service';
+import { HttpClient } from '@angular/common/http';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -70,7 +71,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private fileEventsService: FileEventsService,
     private p2pService: P2PService,
     private snackBar: MatSnackBar,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private http: HttpClient
   ) {
     
     // Initialize observables from state
@@ -547,8 +549,14 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Setup listener for P2P messages from iframe
    */
   private setupP2PMessageListener(): void {
+    console.log('[P2P Angular] Setting up P2P message listener');
     window.addEventListener('message', (event: MessageEvent) => {
       if (!event.data || !event.data.type) return;
+
+      // Only log P2P messages
+      if (event.data.type.startsWith('p2p-')) {
+        console.log('[P2P Angular] Received message from iframe:', event.data.type, event.data);
+      }
 
       switch (event.data.type) {
         case 'p2p-link-click':
@@ -598,18 +606,28 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private handleP2PLinkHover(data: { href: string; filename: string; projectPath: string; linkId: string }): void {
     const projectPath = this.projectsService.currentProjects$.getValue()?.path || data.projectPath;
 
-    if (!projectPath) return;
+    console.log('[P2P Angular] handleP2PLinkHover called:', { filename: data.filename, projectPath, linkId: data.linkId });
+
+    if (!projectPath) {
+      console.warn('[P2P Angular] No project path available, skipping');
+      return;
+    }
 
     // Get file info from metadata
+    console.log('[P2P Angular] Calling getFileInfo API...');
     this.p2pService.getFileInfo(data.filename, projectPath).subscribe({
       next: (fileInfo) => {
+        console.log('[P2P Angular] getFileInfo response:', fileInfo);
         if (fileInfo.found && fileInfo.infoHash) {
           // Get peer status for this torrent
+          console.log('[P2P Angular] Calling getPeerStatus for:', fileInfo.infoHash);
           this.p2pService.getPeerStatus(fileInfo.infoHash).subscribe({
             next: (peerStatus) => {
+              console.log('[P2P Angular] getPeerStatus response:', peerStatus);
               // Check if file exists locally
               this.p2pService.checkFile(data.href, projectPath).subscribe({
                 next: (checkResult) => {
+                  console.log('[P2P Angular] checkFile response:', checkResult);
                   // Determine the display state
                   const state = this.determineP2PState(checkResult.exists, peerStatus, fileInfo);
 
@@ -684,6 +702,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Send P2P status back to iframe for tooltip update
    */
   private sendP2PStatusToIframe(linkId: string, status: any): void {
+    console.log('[P2P Angular] Sending status to iframe:', { linkId, status });
     const iframeWindow = this.iframe?.nativeElement?.contentWindow;
     if (iframeWindow) {
       iframeWindow.postMessage({
@@ -691,6 +710,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         linkId: linkId,
         status: status
       }, '*');
+      console.log('[P2P Angular] Status sent successfully');
+    } else {
+      console.warn('[P2P Angular] Could not send status - iframe not available');
     }
   }
 
