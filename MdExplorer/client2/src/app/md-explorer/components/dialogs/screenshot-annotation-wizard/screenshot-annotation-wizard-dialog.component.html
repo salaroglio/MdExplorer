@@ -1,25 +1,25 @@
 <h2 mat-dialog-title>
   <mat-icon style="vertical-align: middle;">edit</mat-icon>
-  Annota Screenshot
-  <span class="step-indicator">Passo {{ currentStep + 1 }} di 2</span>
+  Annotate Screenshot
+  <span class="step-indicator">Step {{ currentStep + 1 }} of 2</span>
 </h2>
 
 <mat-dialog-content>
   <!-- Loading Spinner -->
   <div *ngIf="isLoading" class="loading-container">
     <mat-spinner diameter="50"></mat-spinner>
-    <p>Salvataggio in corso...</p>
+    <p>Saving...</p>
   </div>
 
   <!-- Step 0: Annotation - use [hidden] to keep canvas alive for export -->
   <div [hidden]="isLoading || currentStep !== 0" class="step-content">
     <p class="step-description">
-      Clicca sull'immagine per posizionare i marker numerati. Puoi scegliere il colore dalla tavolozza.
+      Click on the image to place numbered markers. You can choose the color from the palette.
     </p>
 
     <!-- Image name input -->
     <mat-form-field appearance="outline" class="image-name-field">
-      <input matInput [(ngModel)]="imageName" placeholder="Nome immagine">
+      <input matInput [(ngModel)]="imageName" placeholder="Image name">
     </mat-form-field>
 
     <!-- Annotation Canvas -->
@@ -33,16 +33,16 @@
   <!-- Step 1: Descriptions -->
   <div *ngIf="!isLoading && currentStep === 1" class="step-content">
     <p class="step-description" *ngIf="descriptions.length > 0">
-      Inserisci una descrizione per ogni marker posizionato.
+      Enter a description for each marker placed.
     </p>
     <p class="step-description" *ngIf="descriptions.length === 0">
-      Nessun marker posizionato. Puoi salvare lo screenshot senza annotazioni oppure tornare indietro per aggiungerne.
+      No markers placed. You can save the screenshot without annotations or go back to add some.
     </p>
 
     <div class="step1-layout">
       <!-- Reference image -->
       <div class="reference-image">
-        <img *ngIf="annotatedImageUrl" [src]="annotatedImageUrl" alt="Screenshot annotato">
+        <img *ngIf="annotatedImageUrl" [src]="annotatedImageUrl" alt="Annotated screenshot">
       </div>
 
       <!-- Description form -->
@@ -52,12 +52,12 @@
             {{ desc.markerId }}
           </div>
           <mat-form-field appearance="outline" class="description-field">
-            <mat-label>Descrizione marker {{ desc.markerId }}</mat-label>
+            <mat-label>Marker {{ desc.markerId }} description</mat-label>
             <textarea
               matInput
               [(ngModel)]="desc.text"
               rows="2"
-              placeholder="Inserisci la descrizione...">
+              placeholder="Enter description...">
             </textarea>
           </mat-form-field>
         </div>
@@ -70,7 +70,7 @@
   <!-- Step 0 Actions -->
   <div *ngIf="currentStep === 0" class="actions">
     <button mat-button (click)="cancel()" [disabled]="isLoading">
-      Annulla
+      Cancel
     </button>
     <button
       mat-raised-button
@@ -78,7 +78,7 @@
       (click)="goToStep1()"
       [disabled]="isLoading">
       <mat-icon>arrow_forward</mat-icon>
-      Avanti
+      Next
     </button>
   </div>
 
@@ -86,10 +86,10 @@
   <div *ngIf="currentStep === 1" class="actions">
     <button mat-button (click)="goToStep0()" [disabled]="isLoading">
       <mat-icon>arrow_back</mat-icon>
-      Indietro
+      Back
     </button>
     <button mat-button (click)="cancel()" [disabled]="isLoading">
-      Annulla
+      Cancel
     </button>
     <button
       mat-raised-button
@@ -97,7 +97,7 @@
       (click)="complete()"
       [disabled]="!allDescriptionsFilled() || isLoading">
       <mat-icon>save</mat-icon>
-      Salva
+      Save
     </button>
   </div>
 </mat-dialog-actions>

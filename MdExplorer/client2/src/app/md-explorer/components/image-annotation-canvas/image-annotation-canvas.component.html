@@ -13,31 +13,39 @@
         class="annotation-canvas">
       </canvas>
     </div>
-    <div class="marker-count">
-      <mat-icon>pin_drop</mat-icon>
-      <span>{{ markers.length }} marker{{ markers.length !== 1 ? 's' : '' }} posizionati</span>
+    <div class="canvas-footer">
+      <div class="marker-count">
+        <mat-icon>pin_drop</mat-icon>
+        <span>{{ markers.length }} marker{{ markers.length !== 1 ? 's' : '' }} placed</span>
+      </div>
+      <div class="zoom-indicator">
+        <button mat-icon-button (click)="resetZoom()" title="Fit to view">
+          <mat-icon>fit_screen</mat-icon>
+        </button>
+        <span class="zoom-value">{{ zoomPercent }}%</span>
+      </div>
     </div>
   </div>
 
   <!-- Right side: Controls -->
   <div class="controls-panel">
-    <h4 class="panel-title">Strumenti</h4>
+    <h4 class="panel-title">Tools</h4>
 
     <!-- Tool selector -->
     <div class="control-group">
-      <span class="control-label">Tipo marker:</span>
+      <span class="control-label">Marker type:</span>
       <div class="tool-options">
         <button
           [class.selected]="currentTool === 'ball'"
           (click)="setTool('ball')"
-          title="Palla numerata (click per posizionare)"
+          title="Numbered ball (click to place)"
           class="tool-btn">
           <mat-icon>radio_button_checked</mat-icon>
         </button>
         <button
           [class.selected]="currentTool === 'box'"
           (click)="setTool('box')"
-          title="Box numerato (click e trascina)"
+          title="Numbered box (click and drag)"
           class="tool-btn">
           <mat-icon>crop_square</mat-icon>
         </button>
@@ -46,7 +54,7 @@
 
     <!-- Color palette -->
     <div class="control-group">
-      <span class="control-label">Colore:</span>
+      <span class="control-label">Color:</span>
       <div class="color-options">
         <button
           *ngFor="let color of availableColors"
@@ -61,7 +69,7 @@
 
     <!-- Marker size slider -->
     <div class="control-group">
-      <span class="control-label">Dim. marker:</span>
+      <span class="control-label">Marker size:</span>
       <div class="slider-row">
         <mat-slider
           [min]="MIN_MARKER_RADIUS"
@@ -77,7 +85,7 @@
 
     <!-- Image padding slider -->
     <div class="control-group">
-      <span class="control-label">Margine:</span>
+      <span class="control-label">Margin:</span>
       <div class="slider-row">
         <mat-slider
           [min]="0"
@@ -96,8 +104,8 @@
     <!-- Tool hint -->
     <div class="tool-hint">
       <mat-icon>info_outline</mat-icon>
-      <span *ngIf="currentTool === 'ball'">Click sull'immagine per posizionare una palla numerata. Trascina i marker esistenti per spostarli.</span>
-      <span *ngIf="currentTool === 'box'">Click e trascina per disegnare un box. Usa gli handle per ridimensionare.</span>
+      <span *ngIf="currentTool === 'ball'">Click on the image to place a numbered ball. Drag existing markers to move them.</span>
+      <span *ngIf="currentTool === 'box'">Click and drag to draw a box. Use the handles to resize.</span>
     </div>
 
     <mat-divider></mat-divider>
@@ -110,7 +118,7 @@
         [disabled]="markers.length === 0"
         class="undo-btn">
         <mat-icon>undo</mat-icon>
-        Annulla ultimo
+        Undo last
       </button>
       <button
         mat-stroked-button
@@ -119,7 +127,7 @@
         [disabled]="markers.length === 0"
         class="clear-btn">
         <mat-icon>clear_all</mat-icon>
-        Cancella tutti
+        Clear all
       </button>
     </div>
   </div>

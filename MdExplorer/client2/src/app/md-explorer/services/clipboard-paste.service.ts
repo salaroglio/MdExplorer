@@ -99,7 +99,7 @@ export class ClipboardPasteService {
     if (!selectedFile || !selectedFile.fullPath) {
       console.log('[ClipboardPasteService] No document selected');
       this.ngZone.run(() => {
-        this.snackBar.open('Seleziona un documento markdown prima di incollare', 'OK', {
+        this.snackBar.open('Select a markdown document before pasting', 'OK', {
           duration: 3000,
           verticalPosition: 'top'
         });
@@ -182,7 +182,7 @@ export class ClipboardPasteService {
       console.log('[ClipboardPasteService] SignalR paste failed:', data.errorMessage);
       this.ngZone.run(() => {
         this.snackBar.open(
-          data.errorMessage || 'Nessuna immagine negli appunti',
+          data.errorMessage || 'No image in clipboard',
           'OK',
           {
             duration: 4000,
@@ -206,7 +206,7 @@ export class ClipboardPasteService {
       if (!selectedFile || !selectedFile.fullPath) {
         console.log('[ClipboardPasteService] No document selected');
         this.ngZone.run(() => {
-          this.snackBar.open('Seleziona un documento markdown prima di incollare', 'OK', {
+          this.snackBar.open('Select a markdown document before pasting', 'OK', {
             duration: 3000,
             verticalPosition: 'top'
           });

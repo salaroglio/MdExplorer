@@ -93,7 +93,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
       console.log('[ScreenshotAnnotationWizard] Blobs cached and URL created:', this.annotatedImageBlobUrl);
     } catch (err) {
       console.error('[ScreenshotAnnotationWizard] Failed to export annotated image:', err);
-      this.snackBar.open('Errore nell\'esportazione dell\'immagine', 'OK', {
+      this.snackBar.open('Error exporting image', 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -147,7 +147,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
    */
   async complete(): Promise<void> {
     if (!this.allDescriptionsFilled()) {
-      this.snackBar.open('Inserisci una descrizione per ogni marker', 'OK', {
+      this.snackBar.open('Enter a description for each marker', 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -178,7 +178,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
 
           if (response.success) {
             console.log('[ScreenshotAnnotationWizard] Screenshot saved successfully');
-            this.snackBar.open('Screenshot annotato salvato con successo!', 'OK', {
+            this.snackBar.open('Annotated screenshot saved successfully!', 'OK', {
               duration: 3000,
               verticalPosition: 'top',
               panelClass: ['success-snackbar']
@@ -186,7 +186,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
             this.dialogRef.close(true);
           } else {
             console.error('[ScreenshotAnnotationWizard] Save failed:', response.errorMessage);
-            this.snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
+            this.snackBar.open(`Error: ${response.errorMessage}`, 'OK', {
               duration: 5000,
               verticalPosition: 'top',
               panelClass: ['error-snackbar']
@@ -196,8 +196,8 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
         error: (error) => {
           this.isLoading = false;
           console.error('[ScreenshotAnnotationWizard] Save error:', error);
-          const errorMessage = error?.error?.errorMessage || error?.message || 'Errore sconosciuto';
-          this.snackBar.open(`Errore: ${errorMessage}`, 'OK', {
+          const errorMessage = error?.error?.errorMessage || error?.message || 'Unknown error';
+          this.snackBar.open(`Error: ${errorMessage}`, 'OK', {
             duration: 5000,
             verticalPosition: 'top',
             panelClass: ['error-snackbar']
@@ -207,7 +207,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
     } catch (err) {
       this.isLoading = false;
       console.error('[ScreenshotAnnotationWizard] Error preparing data:', err);
-      this.snackBar.open('Errore durante la preparazione dei dati', 'OK', {
+      this.snackBar.open('Error preparing data', 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
