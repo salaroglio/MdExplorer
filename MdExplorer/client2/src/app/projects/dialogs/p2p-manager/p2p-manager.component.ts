@@ -36,6 +36,7 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
   status: P2PStatus | null = null;
   transfers: TransferInfo[] = [];
   projects: P2PProject[] = [];
+  allProjects: MdProjectBasic[] = [];  // All projects for download selector
   isLoading = true;
   isLoadingProjects = false;
   magnetInput = '';
@@ -44,6 +45,7 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
   fileStatuses: Map<string, FileStatusInfo> = new Map();
   trackerStatus: TrackerStatusResponse | null = null;
   isCheckingTracker = false;
+  selectedProjectForDownload: MdProjectBasic | null = null;
 
   constructor(
     public dialogRef: MatDialogRef<P2PManagerComponent>,
@@ -151,6 +153,14 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         switchMap(allProjects => {
+          // Store all projects for download selector
+          this.allProjects = allProjects;
+
+          // Auto-select first project if none selected
+          if (!this.selectedProjectForDownload && allProjects.length > 0) {
+            this.selectedProjectForDownload = allProjects[0];
+          }
+
           // Pass all projects to the P2P service to check which have metadata.json
           const projectsToCheck = allProjects.map(p => ({
             id: p.id,
@@ -413,7 +423,15 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.p2pService.download(this.magnetInput.trim()).subscribe({
+    if (!this.selectedProjectForDownload) {
+      this.snackBar.open('Please select a destination project', 'OK', { duration: 2000 });
+      return;
+    }
+
+    // Build destination path: projectPath/.p2pshare/received
+    const destPath = `${this.selectedProjectForDownload.path}/.p2pshare/received`;
+
+    this.p2pService.download(this.magnetInput.trim(), destPath).subscribe({
       next: (result) => {
         if (result.success) {
           this.snackBar.open(`Download started: ${result.name}`, 'OK', { duration: 3000 });

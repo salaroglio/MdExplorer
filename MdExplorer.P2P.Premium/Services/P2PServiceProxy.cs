@@ -252,5 +252,101 @@ namespace MdExplorer.P2P.Premium.Services
                 return null;
             }
         }
+
+        public async Task<AutoRestoreAllResult?> AutoRestoreAllAsync(List<ProjectInfo> projects)
+        {
+            try
+            {
+                var request = new { projects };
+                var response = await _httpClient.PostAsJsonAsync("/auto-restore-all", request, _jsonOptions);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<AutoRestoreAllResult>(_jsonOptions);
+                }
+
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Error auto-restoring all: {Error}", error);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error auto-restoring all projects");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Subscribe to real-time P2P events via Server-Sent Events (SSE).
+        /// Events include: peer-connected, upload-activity
+        /// </summary>
+        /// <param name="onEvent">Callback for each event received</param>
+        /// <param name="ct">Cancellation token to stop subscription</param>
+        public async Task SubscribeToEventsAsync(Action<string, JsonElement> onEvent, CancellationToken ct)
+        {
+            try
+            {
+                _logger.LogInformation("[P2P] Subscribing to SSE events...");
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, "/events");
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+
+                response.EnsureSuccessStatusCode();
+
+                await using var stream = await response.Content.ReadAsStreamAsync(ct);
+                using var reader = new StreamReader(stream);
+
+                string? eventType = null;
+
+                while (!ct.IsCancellationRequested)
+                {
+                    var line = await reader.ReadLineAsync(ct);
+
+                    if (line == null)
+                    {
+                        // Stream ended
+                        break;
+                    }
+
+                    if (line.StartsWith("event: "))
+                    {
+                        eventType = line.Substring(7);
+                    }
+                    else if (line.StartsWith("data: "))
+                    {
+                        var json = line.Substring(6);
+                        if (!string.IsNullOrEmpty(eventType) && !string.IsNullOrWhiteSpace(json))
+                        {
+                            try
+                            {
+                                var data = JsonSerializer.Deserialize<JsonElement>(json, _jsonOptions);
+                                _logger.LogDebug("[P2P Event] {EventType}: {Json}", eventType, json);
+                                onEvent(eventType, data);
+                            }
+                            catch (JsonException ex)
+                            {
+                                _logger.LogWarning(ex, "[P2P Event] Failed to parse JSON: {Json}", json);
+                            }
+                        }
+                        eventType = null;
+                    }
+                    else if (line.StartsWith(": keepalive"))
+                    {
+                        // Ignore keepalive comments
+                    }
+                }
+
+                _logger.LogInformation("[P2P] SSE subscription ended");
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("[P2P] SSE subscription cancelled");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[P2P] SSE subscription error");
+                throw;
+            }
+        }
     }
 }

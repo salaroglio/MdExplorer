@@ -33,6 +33,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public titleProject: string;
   public currentBranch: string = null;
   public hasRemote: boolean = false;
+  public fileSystemWatcherEnabled: boolean = true;
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
   
   // Memory leak prevention
@@ -67,6 +68,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
         // Check if project has remote for Team Chat
         console.log('[Sidenav] project.path:', project.path);
         this.checkRemoteStatus(project.path);
+        // Load FileSystemWatcher status when project changes
+        this.loadFileSystemWatcherStatus();
       } else {
         console.log('[Sidenav] No project or no name, setting hasRemote=false');
         this.hasRemote = false;
@@ -260,6 +263,43 @@ export class SidenavComponent implements OnInit, OnDestroy {
           this.hasRemote = false;
         }
       });
+  }
+
+  /**
+   * Load FileSystemWatcher status from backend
+   */
+  private loadFileSystemWatcherStatus(): void {
+    this.http.get<{ enabled: boolean }>('/api/mdfiles/GetFileSystemWatcherStatus')
+      .subscribe({
+        next: (response) => {
+          this.fileSystemWatcherEnabled = response?.enabled ?? true;
+          console.log('[Sidenav] FileSystemWatcher status loaded:', this.fileSystemWatcherEnabled);
+        },
+        error: (err) => {
+          console.error('[Sidenav] Error loading FileSystemWatcher status:', err);
+          this.fileSystemWatcherEnabled = true; // Default to enabled
+        }
+      });
+  }
+
+  /**
+   * Toggle FileSystemWatcher on/off
+   * When disabled, file changes won't trigger auto-reload
+   */
+  onFileSystemWatcherToggle(): void {
+    this.http.post<{ enabled: boolean }>(
+      `/api/mdfiles/ToggleFileSystemWatcher?enabled=${this.fileSystemWatcherEnabled}`,
+      {}
+    ).subscribe({
+      next: (response) => {
+        console.log('[Sidenav] FileSystemWatcher set to:', response.enabled);
+      },
+      error: (err) => {
+        console.error('[Sidenav] Error toggling FileSystemWatcher:', err);
+        // Revert state on error
+        this.fileSystemWatcherEnabled = !this.fileSystemWatcherEnabled;
+      }
+    });
   }
 
 }

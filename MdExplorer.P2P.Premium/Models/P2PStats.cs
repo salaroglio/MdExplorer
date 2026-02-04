@@ -6,8 +6,8 @@ namespace MdExplorer.P2P.Premium.Models
     public class P2PStats
     {
         public int Torrents { get; set; }
-        public long DownloadSpeed { get; set; }
-        public long UploadSpeed { get; set; }
+        public double DownloadSpeed { get; set; }
+        public double UploadSpeed { get; set; }
         public double Progress { get; set; }
         public double Ratio { get; set; }
     }
@@ -62,5 +62,24 @@ namespace MdExplorer.P2P.Premium.Models
         public bool HasToken { get; set; }
         public List<TrackerInfo> Trackers { get; set; } = new();
         public TrackerOverallStatus Overall { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Request for auto-restore all operation
+    /// </summary>
+    public class AutoRestoreAllRequest
+    {
+        public List<ProjectInfo> Projects { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Result of auto-restore all operation
+    /// </summary>
+    public class AutoRestoreAllResult
+    {
+        public int Total { get; set; }
+        public int WithP2P { get; set; }
+        public int Restored { get; set; }
+        public List<string>? Errors { get; set; }
     }
 }

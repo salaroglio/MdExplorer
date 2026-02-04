@@ -135,6 +135,34 @@ export class P2PService implements OnDestroy {
   private _transferError$ = new Subject<{ infoHash: string; error: string }>();
   public transferError$ = this._transferError$.asObservable();
 
+  // New observables for peer activity feedback
+  private _peerConnected$ = new Subject<{
+    infoHash: string;
+    peerAddress: string;
+    numPeers: number;
+    torrentName: string;
+    timestamp: string;
+  }>();
+  public peerConnected$ = this._peerConnected$.asObservable();
+
+  private _uploadActivity$ = new Subject<{
+    infoHash: string;
+    bytes: number;
+    uploadSpeed: number;
+    totalUploaded: number;
+    numPeers: number;
+    torrentName: string;
+    timestamp: string;
+  }>();
+  public uploadActivity$ = this._uploadActivity$.asObservable();
+
+  // Aggregated state for UI widget
+  private _activeUploads$ = new BehaviorSubject<number>(0);
+  public activeUploads$ = this._activeUploads$.asObservable();
+
+  private _totalPeers$ = new BehaviorSubject<number>(0);
+  public totalPeers$ = this._totalPeers$.asObservable();
+
   private _isAvailable$ = new BehaviorSubject<boolean>(false);
   public isAvailable$ = this._isAvailable$.asObservable();
 
@@ -154,11 +182,42 @@ export class P2PService implements OnDestroy {
         if (status?.enabled) {
           this.initializeSignalR();
           this.refreshTransfers();
+          // Auto-restore seeding for all projects with P2P files
+          this.autoRestoreAll();
         }
       },
       error: () => {
         this._isAvailable$.next(false);
         this._status$.next(null);
+      }
+    });
+  }
+
+  /**
+   * Auto-restore seeding for all projects that have P2P metadata
+   * Called automatically when P2P service becomes available
+   */
+  private autoRestoreAll(): void {
+    // First get all projects from MdExplorer
+    this.http.get<{ id: string; name: string; path: string }[]>('../api/MdProjects/GetProjects').subscribe({
+      next: (projects) => {
+        if (projects && projects.length > 0) {
+          // Send to P2P plugin to restore seeding
+          this.http.post<{ total: number; withP2P: number; restored: number }>(`${this.baseUrl}/auto-restore-all`, { projects }).subscribe({
+            next: (result) => {
+              if (result.restored > 0) {
+                console.log(`[P2P] Auto-restored ${result.restored} files from ${result.withP2P} projects`);
+                this.refreshTransfers();
+              }
+            },
+            error: (err) => {
+              console.error('[P2P] Auto-restore error:', err);
+            }
+          });
+        }
+      },
+      error: (err) => {
+        console.error('[P2P] Failed to get projects for auto-restore:', err);
       }
     });
   }
@@ -187,6 +246,38 @@ export class P2PService implements OnDestroy {
 
     this.hubConnection.on('TransferError', (data: { infoHash: string; error: string }) => {
       this._transferError$.next(data);
+    });
+
+    // Peer connected event - when a remote peer connects to download from us
+    this.hubConnection.on('PeerConnected', (data: {
+      infoHash: string;
+      peerAddress: string;
+      numPeers: number;
+      torrentName: string;
+      timestamp: string;
+    }) => {
+      console.log('[P2PService] Peer connected:', data);
+      this._peerConnected$.next(data);
+      this._totalPeers$.next(data.numPeers);
+    });
+
+    // Upload activity event - periodic updates while uploading
+    this.hubConnection.on('UploadActivity', (data: {
+      infoHash: string;
+      bytes: number;
+      uploadSpeed: number;
+      totalUploaded: number;
+      numPeers: number;
+      torrentName: string;
+      timestamp: string;
+    }) => {
+      console.log('[P2PService] Upload activity:', data);
+      this._uploadActivity$.next(data);
+      this._totalPeers$.next(data.numPeers);
+      // Count active uploads (those with speed > 0)
+      if (data.uploadSpeed > 0) {
+        this._activeUploads$.next(1); // Simplified: at least one active
+      }
     });
 
     // Start connection

@@ -27,6 +27,9 @@ namespace MdExplorer.P2P.Premium.DependencyInjection
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
 
+            // Register background service that bridges P2P events (SSE) to SignalR
+            services.AddHostedService<P2PEventBridgeService>();
+
             return services;
         }
 

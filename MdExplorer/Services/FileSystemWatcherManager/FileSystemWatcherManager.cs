@@ -185,6 +185,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
             if (_watchers.TryGetValue(connectionId, out var context))
             {
+                // If the user explicitly disabled the watcher, skip internal re-enable requests
+                if (enabled && context.UserDisabledWatcher)
+                {
+                    _logger.LogDebug($"[{connectionId}] SetWatcherEnabled(true) skipped - user disabled watcher");
+                    return;
+                }
+
                 context.Watcher.EnableRaisingEvents = enabled;
                 _logger.LogDebug($"[{connectionId}] FileSystemWatcher EnableRaisingEvents set to {enabled}");
             }
@@ -192,6 +199,41 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 _logger.LogWarning($"SetWatcherEnabled: No watcher found for connection {connectionId}");
             }
+        }
+
+        public void SetUserWatcherPreference(string connectionId, bool enabled)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                _logger.LogWarning("SetUserWatcherPreference called with null/empty connectionId");
+                return;
+            }
+
+            if (_watchers.TryGetValue(connectionId, out var context))
+            {
+                context.UserDisabledWatcher = !enabled;
+                context.Watcher.EnableRaisingEvents = enabled;
+                _logger.LogInformation($"[{connectionId}] User watcher preference set to {enabled}");
+            }
+            else
+            {
+                _logger.LogWarning($"SetUserWatcherPreference: No watcher found for connection {connectionId}");
+            }
+        }
+
+        public bool? IsWatcherEnabled(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                return null;
+            }
+
+            if (_watchers.TryGetValue(connectionId, out var context))
+            {
+                return context.Watcher.EnableRaisingEvents;
+            }
+
+            return null;
         }
 
         private FileChangeIgnoreConfiguration LoadIgnoreConfiguration(string projectPath)

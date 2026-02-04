@@ -245,4 +245,53 @@ mat-toolbar {
       background-color: transparent !important;
     }
   }
+
+  .fsw-toggle {
+    margin-left: 8px;
+    margin-right: 12px;
+
+    // Barra del toggle (track)
+    ::ng-deep .mat-slide-toggle-bar {
+      background-color: rgba(255, 255, 255, 0.3);
+      height: 14px;
+      width: 36px;
+      border-radius: 7px;
+    }
+
+    // Barra quando attivo
+    &.mat-checked ::ng-deep .mat-slide-toggle-bar {
+      background-color: rgba(105, 240, 174, 0.5); // Verde chiaro trasparente
+    }
+
+    // Pallino (thumb)
+    ::ng-deep .mat-slide-toggle-thumb-container {
+      top: -3px;
+    }
+
+    ::ng-deep .mat-slide-toggle-thumb {
+      background-color: #bdbdbd;
+      height: 20px;
+      width: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    // Pallino quando attivo
+    &.mat-checked ::ng-deep .mat-slide-toggle-thumb {
+      background-color: #69f0ae; // Verde Material
+    }
+
+    // Rimuovi il ripple gigante
+    ::ng-deep .mat-slide-toggle-ripple {
+      display: none;
+    }
+
+    // Hover effect
+    &:hover ::ng-deep .mat-slide-toggle-bar {
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+
+    &.mat-checked:hover ::ng-deep .mat-slide-toggle-bar {
+      background-color: rgba(105, 240, 174, 0.6);
+    }
+  }
 }

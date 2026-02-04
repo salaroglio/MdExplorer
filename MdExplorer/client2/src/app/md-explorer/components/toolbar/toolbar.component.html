@@ -22,6 +22,10 @@
 
 
     <span class="flexExpand"></span>
+
+    <!-- P2P Status Widget -->
+    <app-p2p-status-widget></app-p2p-status-widget>
+
     <!-- Git Account Missing: show button to configure credentials -->
     <button *ngIf="isGitRepository && authenticationMissing && !isCheckingConnection"
             mat-icon-button

@@ -43,6 +43,22 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// <param name="connectionId">SignalR ConnectionId</param>
         /// <param name="enabled">True to enable monitoring, false to disable</param>
         void SetWatcherEnabled(string connectionId, bool enabled);
+
+        /// <summary>
+        /// Gets the current enabled state of the FileSystemWatcher for a connection.
+        /// </summary>
+        /// <param name="connectionId">SignalR ConnectionId</param>
+        /// <returns>True if watcher is enabled (raising events), false if disabled, null if no watcher exists</returns>
+        bool? IsWatcherEnabled(string connectionId);
+
+        /// <summary>
+        /// Sets the user's explicit preference for file system monitoring.
+        /// Unlike SetWatcherEnabled (used internally for temporary disable/enable),
+        /// this persists the user's choice so that internal re-enables are ignored.
+        /// </summary>
+        /// <param name="connectionId">SignalR ConnectionId</param>
+        /// <param name="enabled">True to enable monitoring, false to disable</param>
+        void SetUserWatcherPreference(string connectionId, bool enabled);
     }
 
     /// <summary>
@@ -84,6 +100,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// Tracks processing count per file to prevent infinite loops
         /// </summary>
         public System.Collections.Generic.Dictionary<string, int> FileProcessingCount { get; set; }
+
+        /// <summary>
+        /// When true, the user has explicitly disabled the watcher via the UI toggle.
+        /// Internal SetWatcherEnabled(true) calls will be ignored while this is set.
+        /// </summary>
+        public bool UserDisabledWatcher { get; set; }
 
         /// <summary>
         /// Event handler delegate for Changed events (for proper cleanup before Dispose)

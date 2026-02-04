@@ -2870,6 +2870,35 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return StatusCode(500, new { error = "Error processing clipboard", details = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Toggle FileSystemWatcher for the current connection.
+        /// When disabled, file changes won't trigger auto-reload.
+        /// </summary>
+        [HttpPost]
+        public IActionResult ToggleFileSystemWatcher([FromQuery] bool enabled)
+        {
+            SetUserFileSystemWatcherPreference(enabled);
+            _logger.LogInformation($"[ToggleFileSystemWatcher] User watcher preference set to: {enabled}");
+            return Ok(new { enabled });
+        }
+
+        /// <summary>
+        /// Get current FileSystemWatcher status for the connection.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetFileSystemWatcherStatus()
+        {
+            var connectionId = Request.Query["ConnectionId"].ToString();
+
+            if (string.IsNullOrEmpty(connectionId) || _fileSystemWatcherManager == null)
+            {
+                return Ok(new { enabled = true }); // Default enabled
+            }
+
+            var isEnabled = _fileSystemWatcherManager.IsWatcherEnabled(connectionId);
+            return Ok(new { enabled = isEnabled ?? true }); // Default to true if no watcher
+        }
     }
 }
 

@@ -233,6 +233,19 @@
           <h3>Download from Magnet Link</h3>
           <p class="hint">Paste a magnet link to start downloading a file shared by someone else.</p>
 
+          <!-- Project Selector -->
+          <mat-form-field appearance="outline" class="project-selector">
+            <mat-label>Destination Project</mat-label>
+            <mat-select [(ngModel)]="selectedProjectForDownload" required>
+              <mat-option *ngFor="let project of allProjects" [value]="project">
+                <mat-icon>folder</mat-icon>
+                {{ project.name }}
+              </mat-option>
+            </mat-select>
+            <mat-icon matPrefix>folder_special</mat-icon>
+            <mat-hint>Il file verrà salvato in .p2pshare/received/ del progetto</mat-hint>
+          </mat-form-field>
+
           <mat-form-field appearance="outline" class="magnet-input">
             <mat-label>Magnet Link</mat-label>
             <input matInput
@@ -244,11 +257,16 @@
 
           <button mat-raised-button
                   color="primary"
-                  [disabled]="!magnetInput.trim()"
+                  [disabled]="!magnetInput.trim() || !selectedProjectForDownload"
                   (click)="startDownload()">
             <mat-icon>cloud_download</mat-icon>
             Start Download
           </button>
+
+          <p class="download-path-preview" *ngIf="selectedProjectForDownload">
+            <mat-icon>info</mat-icon>
+            Download in: <code>{{ selectedProjectForDownload.path }}/.p2pshare/received/</code>
+          </p>
         </div>
       </mat-tab>
 

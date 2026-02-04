@@ -452,6 +452,13 @@ namespace MdExplorer.P2P.Premium.Controllers
                 // Extract just the filename from the path (handles relative paths like "../.p2pshare/files/file.mp4")
                 var fileName = System.IO.Path.GetFileName(path);
 
+                // Remove querystring if present (e.g., "file.mp4?connectionId=xxx" -> "file.mp4")
+                var queryIndex = fileName.IndexOf('?');
+                if (queryIndex >= 0)
+                {
+                    fileName = fileName.Substring(0, queryIndex);
+                }
+
                 // Always look in projectPath/.p2pshare/files/
                 var fullPath = System.IO.Path.Combine(projectPath, ".p2pshare", "files", fileName);
                 var exists = System.IO.File.Exists(fullPath);
@@ -592,6 +599,13 @@ namespace MdExplorer.P2P.Premium.Controllers
                 if (string.IsNullOrEmpty(projectPath))
                 {
                     return BadRequest(new { error = "projectPath is required" });
+                }
+
+                // Remove querystring if present (e.g., "file.mp4?connectionId=xxx" -> "file.mp4")
+                var queryIndex = filename.IndexOf('?');
+                if (queryIndex >= 0)
+                {
+                    filename = filename.Substring(0, queryIndex);
                 }
 
                 var metadataPath = System.IO.Path.Combine(projectPath, ".p2pshare", "metadata.json");
@@ -814,6 +828,41 @@ namespace MdExplorer.P2P.Premium.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error restoring seeding");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Auto-restore seeding for all projects with P2P metadata.
+        /// Called automatically when P2P service becomes available.
+        /// Scans each project for .p2pshare/metadata.json and restores seeding for all files.
+        /// </summary>
+        [HttpPost("auto-restore-all")]
+        public async Task<ActionResult<AutoRestoreAllResult>> AutoRestoreAll([FromBody] AutoRestoreAllRequest request)
+        {
+            try
+            {
+                if (request?.Projects == null || request.Projects.Count == 0)
+                {
+                    return Ok(new AutoRestoreAllResult { Total = 0, WithP2P = 0, Restored = 0 });
+                }
+
+                _logger.LogInformation("Auto-restore all: scanning {Count} projects for P2P files", request.Projects.Count);
+
+                var result = await _p2pService.AutoRestoreAllAsync(request.Projects);
+                if (result == null)
+                {
+                    return StatusCode(503, new { error = "P2P service not available" });
+                }
+
+                _logger.LogInformation("Auto-restore all completed: {Restored} files from {WithP2P} projects",
+                    result.Restored, result.WithP2P);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in auto-restore all");
                 return StatusCode(500, new { error = ex.Message });
             }
         }

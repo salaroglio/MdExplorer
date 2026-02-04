@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MdExplorer.P2P.Premium.Models;
 
 namespace MdExplorer.P2P.Premium.Services
@@ -67,5 +68,19 @@ namespace MdExplorer.P2P.Premium.Services
         /// Check tracker connectivity status
         /// </summary>
         Task<TrackerStatusResponse?> GetTrackerStatusAsync();
+
+        /// <summary>
+        /// Auto-restore seeding for all projects with P2P metadata.
+        /// Scans each project for .p2pshare/metadata.json and restores seeding for all files.
+        /// </summary>
+        Task<AutoRestoreAllResult?> AutoRestoreAllAsync(List<ProjectInfo> projects);
+
+        /// <summary>
+        /// Subscribe to real-time P2P events via Server-Sent Events (SSE).
+        /// Events include: peer-connected, upload-activity
+        /// </summary>
+        /// <param name="onEvent">Callback for each event received (eventType, data)</param>
+        /// <param name="ct">Cancellation token to stop subscription</param>
+        Task SubscribeToEventsAsync(Action<string, JsonElement> onEvent, CancellationToken ct);
     }
 }

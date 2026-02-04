@@ -9,8 +9,8 @@ namespace MdExplorer.P2P.Premium.Models
         public string Type { get; set; } = string.Empty; // "seeding" or "downloading"
         public string Name { get; set; } = string.Empty;
         public double Progress { get; set; }
-        public long DownloadSpeed { get; set; }
-        public long UploadSpeed { get; set; }
+        public double DownloadSpeed { get; set; }
+        public double UploadSpeed { get; set; }
         public int NumPeers { get; set; }
         public long Size { get; set; }
         public long Downloaded { get; set; }

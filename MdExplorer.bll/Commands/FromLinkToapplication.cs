@@ -74,7 +74,8 @@ namespace MdExplorer.Features.Commands
                     var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
 
                     var relativePath =  item1.Groups[3].Value.Replace("/api/mdexplorer","").Replace('/',Path.DirectorySeparatorChar);
-                    var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{requestInfo.CurrentRoot + Path.DirectorySeparatorChar +relativePath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
+                    var resolvedPath = Path.GetFullPath(Path.Combine(requestInfo.CurrentRoot, relativePath.TrimStart(Path.DirectorySeparatorChar)));
+                    var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{resolvedPath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');
                     html = html.Replace(item1.Groups[0].Value, openApplication);
                 }
             }
@@ -107,7 +108,7 @@ namespace MdExplorer.Features.Commands
                         // Relative path, build full path
                         var documentRelativePath = Path.GetDirectoryName(requestInfo.RootQueryRequest);
                         var relativePath = documentRelativePath + Path.DirectorySeparatorChar + hrefValue;
-                        fullPath = requestInfo.CurrentRoot + Path.DirectorySeparatorChar + relativePath;
+                        fullPath = Path.GetFullPath(Path.Combine(requestInfo.CurrentRoot, relativePath.TrimStart(Path.DirectorySeparatorChar)));
                     }
 
                     var openApplication = $@"{item1.Groups[1].Value}href=""#"" onclick=""openApplication('{fullPath}')""{item1.Groups[5].Value}".Replace(Path.DirectorySeparatorChar, '/');

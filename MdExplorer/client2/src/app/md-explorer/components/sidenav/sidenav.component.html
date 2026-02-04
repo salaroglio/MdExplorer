@@ -12,13 +12,15 @@
         <button mat-icon-button id="projectcss" class="btn-projects" matTooltip="projects list" (click)="openProject()">
           <mat-icon>ballot</mat-icon>
         </button>
-        <!--<button mat-icon-button>
-      <mat-icon>developer_board</mat-icon>
-    </button>
-    <button mat-icon-button>
-      <mat-icon>rule</mat-icon>
-    </button>-->
       </div>
+      <!-- Toggle FileSystemWatcher -->
+      <mat-slide-toggle
+        [(ngModel)]="fileSystemWatcherEnabled"
+        (change)="onFileSystemWatcherToggle()"
+        color="accent"
+        matTooltip="Auto-reload on file changes"
+        class="fsw-toggle">
+      </mat-slide-toggle>
       <span>{{titleProject}}</span>
       <span class="flexExpand"></span>
     </mat-toolbar>

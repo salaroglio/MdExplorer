@@ -150,5 +150,67 @@ namespace MdExplorer.P2P.Premium.Hubs
                 .Group("all-transfers")
                 .SendAsync("TransferError", new { infoHash, error });
         }
+
+        /// <summary>
+        /// Send peer connected event to all subscribers.
+        /// Called when a remote peer connects to download from us.
+        /// </summary>
+        public static async Task SendPeerConnected(
+            this IHubContext<P2PTransferHub> hubContext,
+            string infoHash,
+            string peerAddress,
+            int numPeers,
+            string torrentName)
+        {
+            var data = new
+            {
+                infoHash,
+                peerAddress,
+                numPeers,
+                torrentName,
+                timestamp = DateTime.UtcNow
+            };
+
+            await hubContext.Clients
+                .Group($"transfer-{infoHash}")
+                .SendAsync("PeerConnected", data);
+
+            await hubContext.Clients
+                .Group("all-transfers")
+                .SendAsync("PeerConnected", data);
+        }
+
+        /// <summary>
+        /// Send upload activity event to all subscribers.
+        /// Called periodically when actively uploading to peers.
+        /// </summary>
+        public static async Task SendUploadActivity(
+            this IHubContext<P2PTransferHub> hubContext,
+            string infoHash,
+            long bytes,
+            double uploadSpeed,
+            long totalUploaded,
+            int numPeers,
+            string torrentName)
+        {
+            var data = new
+            {
+                infoHash,
+                bytes,
+                uploadSpeed,
+                totalUploaded,
+                numPeers,
+                torrentName,
+                timestamp = DateTime.UtcNow
+            };
+
+            await hubContext.Clients
+                .Group($"transfer-{infoHash}")
+                .SendAsync("UploadActivity", data);
+
+            await hubContext.Clients
+                .Group("all-transfers")
+                .SendAsync("UploadActivity", data);
+        }
     }
 }

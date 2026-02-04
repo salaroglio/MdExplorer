@@ -211,6 +211,25 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
+        /// <summary>
+        /// Sets the user's explicit preference for file system monitoring.
+        /// Unlike SetFileSystemWatcherEnabled (used for temporary internal disable/enable),
+        /// this persists the user's choice so that internal re-enables are ignored.
+        /// </summary>
+        protected void SetUserFileSystemWatcherPreference(bool enabled)
+        {
+            var connectionId = Request.Query["ConnectionId"].ToString();
+
+            if (!string.IsNullOrEmpty(connectionId) && _fileSystemWatcherManager != null)
+            {
+                _fileSystemWatcherManager.SetUserWatcherPreference(connectionId, enabled);
+            }
+            else
+            {
+                _logger?.LogWarning("⚠️ Unable to set user watcher preference - connectionId or manager unavailable");
+            }
+        }
+
         protected string GetRelativePathFileSystem(string controllerName)
         {
             // Use case-insensitive replace since URL paths may have different casing

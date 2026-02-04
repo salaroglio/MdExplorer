@@ -1,0 +1,11 @@
+<button *ngIf="isAvailable"
+        mat-icon-button
+        class="p2p-widget-btn"
+        [class.uploading]="isUploading"
+        [class.has-peers]="totalPeers > 0"
+        [matTooltip]="getTooltip()">
+  <mat-icon [class.pulse]="isUploading">
+    {{ isUploading ? 'cloud_upload' : (totalPeers > 0 ? 'people' : 'cloud_queue') }}
+  </mat-icon>
+  <span *ngIf="totalPeers > 0" class="peer-badge">{{ totalPeers }}</span>
+</button>

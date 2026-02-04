@@ -40,6 +40,7 @@ import { TocProgressService } from './services/toc-progress.service';
 import { ConfirmDialogComponent } from '../commons/components/confirm-dialog/confirm-dialog.component';
 import { ImageAnnotationCanvasComponent } from './components/image-annotation-canvas/image-annotation-canvas.component';
 import { ScreenshotAnnotationWizardDialogComponent } from './components/dialogs/screenshot-annotation-wizard/screenshot-annotation-wizard-dialog.component';
+import { P2PStatusWidgetComponent } from './components/toolbar/p2p-status-widget/p2p-status-widget.component';
 
 
 
@@ -97,7 +98,8 @@ const routes: Routes = [
     ConfirmDialogComponent,
     GitChatComponent,
     ImageAnnotationCanvasComponent,
-    ScreenshotAnnotationWizardDialogComponent
+    ScreenshotAnnotationWizardDialogComponent,
+    P2PStatusWidgetComponent
   ],
   imports: [
     CommonModule,
