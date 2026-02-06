@@ -28,4 +28,14 @@ export class ProjectSettingsService {
     const url = '../api/ProjectSettings/SetRule1Setting';
     return this.http.post<any>(url, { enabled });
   }
+
+  getLinkIndexingSetting(projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/GetLinkIndexingSetting';
+    return this.http.get<any>(url, { params: { projectPath } });
+  }
+
+  setLinkIndexingSetting(enabled: boolean, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetLinkIndexingSetting';
+    return this.http.post<any>(url, { enabled, projectPath });
+  }
 }

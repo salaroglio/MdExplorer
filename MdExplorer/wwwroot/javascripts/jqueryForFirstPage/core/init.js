@@ -29,6 +29,10 @@ $(function() {
     if (typeof InteractiveSvgSequence !== 'undefined') {
         InteractiveSvgSequence.initAll();
     }
+    // YAML diagram links (url, link, href keys become clickable)
+    if (typeof InteractiveSvgYamlLinks !== 'undefined') {
+        InteractiveSvgYamlLinks.initAll();
+    }
 
     // Initialize scroll tracking for TOC/Refs positioning
     window.addEventListener("scroll", function () {

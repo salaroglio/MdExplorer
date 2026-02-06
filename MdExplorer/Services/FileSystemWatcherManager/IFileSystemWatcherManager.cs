@@ -126,5 +126,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// Event handler delegate for Deleted events (for proper cleanup before Dispose)
         /// </summary>
         public System.IO.FileSystemEventHandler DeletedHandler { get; set; }
+
+        /// <summary>
+        /// Cached value of the LinkIndexing_Enabled project setting.
+        /// When false, link parsing is skipped in ParseNewFileIntoDB/RemoveFileFromDB.
+        /// Defaults to true for backward compatibility.
+        /// </summary>
+        public bool LinkIndexingEnabled { get; set; } = true;
     }
 }

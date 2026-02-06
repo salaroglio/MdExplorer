@@ -19,6 +19,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.LastUpdate).Not.Nullable();
             Map(_ => _.SidenavWidth).Nullable();
             Map(_ => _.SelectedIde).Length(50).Nullable();
+            Map(_ => _.LinkIndexingEnabled).Not.Nullable().Default("1");
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();
         }
     }

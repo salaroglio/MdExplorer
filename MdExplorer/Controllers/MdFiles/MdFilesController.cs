@@ -235,22 +235,28 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
                     fromRelativePathFileName, toRelativePathFileName);
 
-                var refSourceAct = _refactoringManager
-                    .SaveRefactoringActionForMoveFile(fileName,
-                    Path.GetDirectoryName(fromFullPathFileName),
-                    requestMoveMdFile.DestinationPath); // Save the concept of change
+                if (IsLinkIndexingEnabled())
+                {
+                    var refSourceAct = _refactoringManager
+                        .SaveRefactoringActionForMoveFile(fileName,
+                        Path.GetDirectoryName(fromFullPathFileName),
+                        requestMoveMdFile.DestinationPath);
 
+                    _refactoringManager.SetExternalLinks(
+                       toRelativePathFileName,
+                       refSourceAct);
 
-                _refactoringManager.SetExternalLinks(
-                   toRelativePathFileName,
-                   refSourceAct);
+                    _refactoringManager.SetInternalLinks(
+                        toRelativePathFileName,
+                        projectBasePath,
+                        refSourceAct);
 
-                _refactoringManager.SetInternalLinks(
-                    toRelativePathFileName,
-                    projectBasePath,
-                    refSourceAct);
-                // After save, get back the list of links inside involved files
-                _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct); //newFullPath,
+                    _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct);
+                }
+                else
+                {
+                    _logger.LogInformation("[MoveMdFile] Link indexing disabled, skipping link recalculation");
+                }
 
                 GetEngineDB().Commit();
                 _logger.LogInformation("[MoveMdFile] Completed successfully");
@@ -400,9 +406,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     
                     _logger.LogInformation($"Successfully pasted image from clipboard: {sanitizedTitle}");
                     
-                    // Send SignalR notification to refresh the document
+                    // Send SignalR notification to refresh the document (only the requesting client)
                     try
                     {
+                        var connectionId = Request.Query["ConnectionId"].ToString();
                         var monitoredMd = new MonitoredMDModel
                         {
                             Path = fileData.FileInfoNode.Path.Replace("\\", "/"),
@@ -411,8 +418,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                             FullPath = fileData.FileInfoNode.FullPath,
                             FullDirectoryPath = Path.GetDirectoryName(fileData.FileInfoNode.FullPath)
                         };
-                        
-                        await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
+
+                        await _hubContext.Clients.Client(connectionId).SendAsync("markdownfileischanged", monitoredMd);
                         _logger.LogInformation($"SignalR notification 'markdownfileischanged' sent for: {fileData.FileInfoNode.Path}");
                     }
                     catch (Exception signalrEx)
@@ -652,9 +659,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     _logger.LogInformation("SaveAnnotatedScreenshot: Updated markdown document");
 
-                    // Send SignalR notification to refresh the document
+                    // Send SignalR notification to refresh the document (only the requesting client)
                     try
                     {
+                        var connectionId = Request.Query["ConnectionId"].ToString();
                         var documentDirectory = Path.GetDirectoryName(request.DocumentPath);
                         var documentName = Path.GetFileName(request.DocumentPath);
                         // projectPath already declared above
@@ -672,7 +680,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                             FullDirectoryPath = documentDirectory
                         };
 
-                        await _hubContext.Clients.All.SendAsync("markdownfileischanged", monitoredMd);
+                        await _hubContext.Clients.Client(connectionId).SendAsync("markdownfileischanged", monitoredMd);
                         _logger.LogInformation("SignalR notification 'markdownfileischanged' sent for: {Path}", docRelativePath);
                     }
                     catch (Exception signalrEx)
@@ -1492,6 +1500,54 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return false;
         }
 
+        private bool IsLinkIndexingEnabled()
+        {
+            try
+            {
+                var currentPath = GetProjectPath();
+                if (string.IsNullOrEmpty(currentPath))
+                {
+                    _logger.LogWarning("[IsLinkIndexingEnabled] No project path available, defaulting to enabled");
+                    return true;
+                }
+
+                // Clear NHibernate first-level cache to ensure we read fresh data from the database.
+                // This prevents stale cached entities from a previous query in the same scoped session.
+                _userSettingsDB.Clear();
+
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == currentPath);
+
+                if (project == null)
+                {
+                    // Path from DatabaseManager (normalized via Path.GetFullPath) might differ from DB value.
+                    // Try case-insensitive comparison as fallback on Windows.
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, currentPath, StringComparison.OrdinalIgnoreCase));
+
+                    if (project != null)
+                    {
+                        _logger.LogWarning($"[IsLinkIndexingEnabled] Project found with case-insensitive match. DB path: '{project.Path}', Query path: '{currentPath}'");
+                    }
+                }
+
+                if (project == null)
+                {
+                    _logger.LogWarning($"[IsLinkIndexingEnabled] Project not found for path '{currentPath}', defaulting to enabled");
+                    return true;
+                }
+
+                _logger.LogInformation($"[IsLinkIndexingEnabled] Project '{project.Name}' LinkIndexingEnabled={project.LinkIndexingEnabled}");
+                return project.LinkIndexingEnabled;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[IsLinkIndexingEnabled] Could not read LinkIndexingEnabled setting, defaulting to enabled");
+                return true;
+            }
+        }
+
         private void CleanupDatabaseDuplicates()
         {
             try
@@ -1538,9 +1594,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             
             // PULIZIA E REINDICIZZAZIONE DEL DATABASE
-            // Prima pulisce completamente, poi reindicizza tutti i file
-            CleanupDatabaseDuplicates();
-            IndexAllMarkdownFiles();
+            var linkIndexingEnabled = IsLinkIndexingEnabled();
+            if (linkIndexingEnabled)
+            {
+                // Full cleanup: delete all LinkInsideMarkdown + MarkdownFile, then re-index
+                CleanupDatabaseDuplicates();
+                IndexAllMarkdownFiles();
+            }
+            else
+            {
+                _logger.LogInformation("[GetShallowStructure] Link indexing disabled - skipping database cleanup and file indexing");
+            }
             
             // Carica solo primo livello di cartelle che contengono file markdown
             // Ordina: .github primo, poi folder "program", poi alfabetico
@@ -1565,12 +1629,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     // Imposta le proprietà per il caricamento incrementale
                     node.Level = 0;
-                    node.IsIndexed = false;
-                    node.IndexingStatus = "idle";
-                    
-                    // Marca tutti i file children come non indicizzati
-                    MarkChildrenAsNotIndexed(node);
-                    
+                    if (linkIndexingEnabled)
+                    {
+                        node.IsIndexed = false;
+                        node.IndexingStatus = "idle";
+                        MarkChildrenAsNotIndexed(node);
+                    }
+                    else
+                    {
+                        // When link indexing is disabled, mark everything as already indexed
+                        // so the UI doesn't block interaction waiting for indexing to complete
+                        node.IsIndexed = true;
+                        node.IndexingStatus = "completed";
+                        MarkChildrenAsIndexed(node);
+                    }
+
                     list.Add(node);
                 }
             }
@@ -1586,8 +1659,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var relativePath = itemFile.Substring(GetProjectPath().Length)
                     .TrimStart(Path.DirectorySeparatorChar, '/');
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, relativePath);
-                nodeFile.IsIndexed = false;
-                nodeFile.IndexingStatus = "idle";
+                nodeFile.IsIndexed = !linkIndexingEnabled;
+                nodeFile.IndexingStatus = linkIndexingEnabled ? "idle" : "completed";
                 list.Add(nodeFile);
             }
             
@@ -1603,19 +1676,25 @@ namespace MdExplorer.Service.Controllers.MdFiles
             };
             list.Add(nodeempty);
             
-            // Avvia indicizzazione in background senza modificare la struttura visibile
-            // Avvia indicizzazione in background
-            _ = Task.Run(async () => 
+            // Avvia indicizzazione link in background solo se abilitata nel setting di progetto
+            if (linkIndexingEnabled)
             {
-                try 
+                _ = Task.Run(async () =>
                 {
-                    await IndexLinksInBackground(connectionId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error during background indexing");
-                }
-            });
+                    try
+                    {
+                        await IndexLinksInBackground(connectionId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error during background indexing");
+                    }
+                });
+            }
+            else
+            {
+                _logger.LogInformation("[GetShallowStructure] Link indexing is disabled for this project");
+            }
             
             return Ok(list);
         }
@@ -2808,6 +2887,23 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 foreach (var child in node.Childrens)
                 {
                     MarkChildrenAsNotIndexed(child);
+                }
+            }
+        }
+
+        private void MarkChildrenAsIndexed(IFileInfoNode node)
+        {
+            if (node.Type == "mdFile" || node.Type == "mdFileTimer")
+            {
+                node.IsIndexed = true;
+                node.IndexingStatus = "completed";
+            }
+
+            if (node.Childrens != null)
+            {
+                foreach (var child in node.Childrens)
+                {
+                    MarkChildrenAsIndexed(child);
                 }
             }
         }

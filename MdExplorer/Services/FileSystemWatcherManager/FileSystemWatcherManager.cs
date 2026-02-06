@@ -18,6 +18,8 @@ using System.Threading.Tasks;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.Entities.UserDB;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MdExplorer.Services.FileSystemWatcherManager
 {
@@ -27,6 +29,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<FileSystemWatcherManager> _logger;
         private readonly IDatabaseManager _databaseManager;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IWorkLink[] _linkManagers;
         private readonly IHelper _helper;
 
@@ -34,12 +37,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             IHubContext<MonitorMDHub> hubContext,
             ILogger<FileSystemWatcherManager> logger,
             IDatabaseManager databaseManager,
+            IServiceScopeFactory serviceScopeFactory,
             IWorkLink[] linkManagers,
             IHelper helper)
         {
             _hubContext = hubContext;
             _logger = logger;
             _databaseManager = databaseManager;
+            _serviceScopeFactory = serviceScopeFactory;
             _linkManagers = linkManagers;
             _helper = helper;
         }
@@ -102,6 +107,38 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 watcher.Created += createdHandler;
                 watcher.Renamed += renamedHandler;
                 watcher.Deleted += deletedHandler;
+
+                // Cache LinkIndexingEnabled setting from UserDB (Project table)
+                // Use IServiceScopeFactory because FileSystemWatcherManager is Singleton
+                // and IUserSettingsDB is Scoped
+                try
+                {
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var userSettingsDB = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                    userSettingsDB.Clear(); // Ensure fresh session data
+                    var projectDal = userSettingsDB.GetDal<Project>();
+                    var project = projectDal.GetList()
+                        .FirstOrDefault(p => p.Path == normalizedPath);
+
+                    if (project == null)
+                    {
+                        // Fallback: case-insensitive comparison for path matching
+                        project = projectDal.GetList().ToList()
+                            .FirstOrDefault(p => string.Equals(p.Path, normalizedPath, StringComparison.OrdinalIgnoreCase));
+                        if (project != null)
+                        {
+                            _logger.LogWarning($"[{connectionId}] Project found with case-insensitive match. DB: '{project.Path}', Query: '{normalizedPath}'");
+                        }
+                    }
+
+                    context.LinkIndexingEnabled = project?.LinkIndexingEnabled ?? true;
+                    _logger.LogInformation($"[{connectionId}] LinkIndexingEnabled = {context.LinkIndexingEnabled}");
+                }
+                catch (Exception settingEx)
+                {
+                    _logger.LogWarning(settingEx, $"[{connectionId}] Could not read LinkIndexingEnabled, defaulting to true");
+                    context.LinkIndexingEnabled = true;
+                }
 
                 _watchers[connectionId] = context;
 
@@ -284,6 +321,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                // Double-check: skip if user explicitly disabled the watcher
+                // (catches .NET FileSystemWatcher buffered events that fire after EnableRaisingEvents=false)
+                if (context.UserDisabledWatcher)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileChanged skipped - user disabled watcher");
+                    return;
+                }
+
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
 
@@ -344,7 +389,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                         Path = relativePath,
                         Name = Path.GetFileName(e.FullPath),
                         FullPath = e.FullPath,
-                        RelativePath = relativePath
+                        RelativePath = relativePath,
+                        Source = "watcher"
                     };
 
                     // Notify ONLY this specific client
@@ -363,6 +409,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                if (context.UserDisabledWatcher)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileCreated skipped - user disabled watcher");
+                    return;
+                }
+
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
 
@@ -416,6 +468,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                if (context.UserDisabledWatcher)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileRenamed skipped - user disabled watcher");
+                    return;
+                }
+
                 bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
 
@@ -492,6 +550,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                if (context.UserDisabledWatcher)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileDeleted skipped - user disabled watcher");
+                    return;
+                }
+
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
 
@@ -616,34 +680,43 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 engineDB.Flush();
-                var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
-                var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf);
 
-                _logger.LogDebug($"[{context.ConnectionId}] Deleting {listLinks.Count()} existing links");
-                foreach (var item in listLinks)
+                // Skip link parsing if link indexing is disabled for this project
+                if (context.LinkIndexingEnabled)
                 {
-                    linkDal.Delete(item);
-                }
+                    var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
+                    var listLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf);
 
-                engineDB.Flush();
-
-                foreach (var getModifier in _linkManagers)
-                {
-                    var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
-                    foreach (var singleLink in linksToStore)
+                    _logger.LogDebug($"[{context.ConnectionId}] Deleting {listLinks.Count()} existing links");
+                    foreach (var item in listLinks)
                     {
-                        var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
-                        var linkToStore = new LinkInsideMarkdown
-                        {
-                            FullPath = _helper.NormalizePath(fullPath),
-                            Path = singleLink.FullPath,
-                            Source = getModifier.GetType().Name,
-                            LinkedCommand = singleLink.LinkedCommand,
-                            SectionIndex = singleLink.SectionIndex,
-                            MarkdownFile = mdf
-                        };
-                        linkDal.Save(linkToStore);
+                        linkDal.Delete(item);
                     }
+
+                    engineDB.Flush();
+
+                    foreach (var getModifier in _linkManagers)
+                    {
+                        var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
+                        foreach (var singleLink in linksToStore)
+                        {
+                            var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
+                            var linkToStore = new LinkInsideMarkdown
+                            {
+                                FullPath = _helper.NormalizePath(fullPath),
+                                Path = singleLink.FullPath,
+                                Source = getModifier.GetType().Name,
+                                LinkedCommand = singleLink.LinkedCommand,
+                                SectionIndex = singleLink.SectionIndex,
+                                MarkdownFile = mdf
+                            };
+                            linkDal.Save(linkToStore);
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] Link indexing disabled, skipping link parsing for: {Path.GetFileName(e.FullPath)}");
                 }
 
                 engineDB.Commit();

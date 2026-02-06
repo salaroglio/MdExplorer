@@ -40,19 +40,27 @@ var InteractiveSvg = (function() {
      * @param {string} linkId - The link element ID
      * @returns {Object|null} - { from: string, to: string } or null if invalid
      */
-    function parseLinkId(linkId) {
+    function parseLinkId(linkId, knownNames) {
         // Remove "link_" prefix
         var withoutPrefix = linkId.replace(/^link_/, '');
         // Remove any suffix like "-1", "-2" etc.
         var withoutSuffix = withoutPrefix.replace(/-\d+$/, '');
-        // Split by underscore - first part is source, rest is target
         var parts = withoutSuffix.split('_');
-        if (parts.length >= 2) {
-            return {
-                from: parts[0],
-                to: parts.slice(1).join('_')  // Handle target names with underscores
-            };
+
+        if (parts.length < 2) return null;
+
+        // Context-aware parsing: when element names contain underscores (e.g. API_CLIENT),
+        // try all possible split points and match against known element names
+        if (knownNames && knownNames.size > 0) {
+            for (var i = 1; i < parts.length; i++) {
+                var candidateFrom = parts.slice(0, i).join('_');
+                var candidateTo = parts.slice(i).join('_');
+                if (knownNames.has(candidateFrom) && knownNames.has(candidateTo)) {
+                    return { from: candidateFrom, to: candidateTo };
+                }
+            }
         }
+
         return null;
     }
 
@@ -91,13 +99,20 @@ var InteractiveSvg = (function() {
     function buildLinkMap(svg) {
         var linkMap = { outgoing: {}, incoming: {} };
 
+        // Collect all known element names for context-aware link parsing
+        var knownNames = new Set();
+        svg.querySelectorAll('g[id^="elem_"], g[id^="cluster_"]').forEach(function(el) {
+            knownNames.add(getElementName(el.id));
+        });
+        linkMap.knownNames = knownNames;
+
         svg.querySelectorAll('g[id^="link_"]').forEach(function(link) {
             // Try data attributes first, fallback to parsing ID
             var from = link.dataset.from;
             var to = link.dataset.to;
 
             if (!from || !to) {
-                var parsed = parseLinkId(link.id);
+                var parsed = parseLinkId(link.id, knownNames);
                 if (parsed) {
                     from = from || parsed.from;
                     to = to || parsed.to;
@@ -131,7 +146,29 @@ var InteractiveSvg = (function() {
             });
         });
 
+        // Restore original inline styles on ellipses
+        svg.querySelectorAll('ellipse[data-orig-style]').forEach(function(el) {
+            el.setAttribute('style', el.getAttribute('data-orig-style'));
+            el.removeAttribute('data-orig-style');
+        });
+
         svg.classList.remove('has-selection', 'interactive-svg-active');
+    }
+
+    /**
+     * Apply highlight styles directly on ellipse elements inside a group.
+     * PlantUML use-case diagrams render use cases as <ellipse> with inline styles
+     * that can prevent CSS class-based overrides from taking effect.
+     */
+    function highlightEllipses(gElement, color) {
+        gElement.querySelectorAll('ellipse').forEach(function(el) {
+            if (!el.hasAttribute('data-orig-style')) {
+                el.setAttribute('data-orig-style', el.getAttribute('style') || '');
+            }
+            el.style.stroke = color;
+            el.style.strokeWidth = '3';
+            el.style.filter = 'drop-shadow(0 0 8px ' + color + ') drop-shadow(0 0 16px ' + color + ')';
+        });
     }
 
     /**
@@ -150,6 +187,7 @@ var InteractiveSvg = (function() {
 
         // Mark source as selected (BLUE)
         boxElement.classList.add('source-selected');
+        highlightEllipses(boxElement, '#2196F3');
         svg.classList.add('has-selection');
         svg.classList.add('interactive-svg-active');
 
@@ -172,8 +210,10 @@ var InteractiveSvg = (function() {
                 // Note boxes (GMN*) = YELLOW, others = GREEN (receiving info)
                 if (item.to.startsWith('GMN')) {
                     destElem.classList.add('destination-note');
+                    highlightEllipses(destElem, '#FFC107');
                 } else {
                     destElem.classList.add('destination-outgoing');
+                    highlightEllipses(destElem, '#4CAF50');
                 }
             }
         });
@@ -194,8 +234,10 @@ var InteractiveSvg = (function() {
                 // Note boxes (GMN*) = YELLOW, others = RED (sending info)
                 if (item.from.startsWith('GMN')) {
                     sourceElem.classList.add('destination-note');
+                    highlightEllipses(sourceElem, '#FFC107');
                 } else {
                     sourceElem.classList.add('destination-incoming');
+                    highlightEllipses(sourceElem, '#f44336');
                 }
             }
         });
@@ -313,7 +355,7 @@ var InteractiveSvg = (function() {
                     var from = linkGroup.dataset.from;
                     var to = linkGroup.dataset.to;
                     if (!from || !to) {
-                        var parsed = parseLinkId(linkGroup.id);
+                        var parsed = parseLinkId(linkGroup.id, linkMap.knownNames);
                         if (parsed) {
                             from = from || parsed.from;
                             to = to || parsed.to;

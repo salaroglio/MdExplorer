@@ -5063,6 +5063,16 @@ class P2PService {
     this.transferComplete$ = this._transferComplete$.asObservable();
     this._transferError$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     this.transferError$ = this._transferError$.asObservable();
+    // New observables for peer activity feedback
+    this._peerConnected$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.peerConnected$ = this._peerConnected$.asObservable();
+    this._uploadActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.uploadActivity$ = this._uploadActivity$.asObservable();
+    // Aggregated state for UI widget
+    this._activeUploads$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(0);
+    this.activeUploads$ = this._activeUploads$.asObservable();
+    this._totalPeers$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(0);
+    this.totalPeers$ = this._totalPeers$.asObservable();
     this._isAvailable$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
     this.isAvailable$ = this._isAvailable$.asObservable();
     this.checkAvailability();
@@ -5078,11 +5088,43 @@ class P2PService {
         if (status?.enabled) {
           this.initializeSignalR();
           this.refreshTransfers();
+          // Auto-restore seeding for all projects with P2P files
+          this.autoRestoreAll();
         }
       },
       error: () => {
         this._isAvailable$.next(false);
         this._status$.next(null);
+      }
+    });
+  }
+  /**
+   * Auto-restore seeding for all projects that have P2P metadata
+   * Called automatically when P2P service becomes available
+   */
+  autoRestoreAll() {
+    // First get all projects from MdExplorer
+    this.http.get('../api/MdProjects/GetProjects').subscribe({
+      next: projects => {
+        if (projects && projects.length > 0) {
+          // Send to P2P plugin to restore seeding
+          this.http.post(`${this.baseUrl}/auto-restore-all`, {
+            projects
+          }).subscribe({
+            next: result => {
+              if (result.restored > 0) {
+                console.log(`[P2P] Auto-restored ${result.restored} files from ${result.withP2P} projects`);
+                this.refreshTransfers();
+              }
+            },
+            error: err => {
+              console.error('[P2P] Auto-restore error:', err);
+            }
+          });
+        }
+      },
+      error: err => {
+        console.error('[P2P] Failed to get projects for auto-restore:', err);
       }
     });
   }
@@ -5102,6 +5144,22 @@ class P2PService {
     });
     this.hubConnection.on('TransferError', data => {
       this._transferError$.next(data);
+    });
+    // Peer connected event - when a remote peer connects to download from us
+    this.hubConnection.on('PeerConnected', data => {
+      console.log('[P2PService] Peer connected:', data);
+      this._peerConnected$.next(data);
+      this._totalPeers$.next(data.numPeers);
+    });
+    // Upload activity event - periodic updates while uploading
+    this.hubConnection.on('UploadActivity', data => {
+      console.log('[P2PService] Upload activity:', data);
+      this._uploadActivity$.next(data);
+      this._totalPeers$.next(data.numPeers);
+      // Count active uploads (those with speed > 0)
+      if (data.uploadSpeed > 0) {
+        this._activeUploads$.next(1); // Simplified: at least one active
+      }
     });
     // Start connection
     this.startConnection();

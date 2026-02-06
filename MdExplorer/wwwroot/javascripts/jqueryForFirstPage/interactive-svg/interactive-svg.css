@@ -41,8 +41,10 @@ svg.interactive-svg g[id^="link_"] * {
 
 svg.interactive-svg g[id^="elem_"]:hover > rect,
 svg.interactive-svg g[id^="elem_"]:hover > path,
+svg.interactive-svg g[id^="elem_"]:hover  ellipse,
 svg.interactive-svg g[id^="cluster_"]:hover > rect,
 svg.interactive-svg g[id^="cluster_"]:hover > path,
+svg.interactive-svg g[id^="cluster_"]:hover  ellipse,
 svg.interactive-svg g[id^="GMN"]:hover > rect,
 svg.interactive-svg g[id^="GMN"]:hover > path {
     stroke-width: 2 !important;
@@ -62,7 +64,8 @@ svg.interactive-svg g[id^="link_"]:hover polygon {
 /* === SELECTED SOURCE BOX - BLUE === */
 
 svg.interactive-svg g.source-selected > rect,
-svg.interactive-svg g.source-selected > path {
+svg.interactive-svg g.source-selected > path,
+svg.interactive-svg g.source-selected  ellipse {
     stroke: #2196F3 !important;
     stroke-width: 3 !important;
     filter: drop-shadow(0 0 8px #2196F3) drop-shadow(0 0 16px #2196F3) !important;
@@ -72,8 +75,10 @@ svg.interactive-svg g.source-selected > path {
 
 svg.interactive-svg g.destination > rect,
 svg.interactive-svg g.destination > path,
+svg.interactive-svg g.destination  ellipse,
 svg.interactive-svg g.destination-incoming > rect,
-svg.interactive-svg g.destination-incoming > path {
+svg.interactive-svg g.destination-incoming > path,
+svg.interactive-svg g.destination-incoming  ellipse {
     stroke: #f44336 !important;
     stroke-width: 3 !important;
     filter: drop-shadow(0 0 8px #f44336) drop-shadow(0 0 16px #f44336) !important;
@@ -82,7 +87,8 @@ svg.interactive-svg g.destination-incoming > path {
 /* === DESTINATION BOXES - OUTGOING (receivers) - GREEN === */
 
 svg.interactive-svg g.destination-outgoing > rect,
-svg.interactive-svg g.destination-outgoing > path {
+svg.interactive-svg g.destination-outgoing > path,
+svg.interactive-svg g.destination-outgoing  ellipse {
     stroke: #4CAF50 !important;
     stroke-width: 3 !important;
     filter: drop-shadow(0 0 8px #4CAF50) drop-shadow(0 0 16px #4CAF50) !important;
@@ -91,7 +97,8 @@ svg.interactive-svg g.destination-outgoing > path {
 /* === NOTE BOXES - YELLOW === */
 
 svg.interactive-svg g.destination-note > rect,
-svg.interactive-svg g.destination-note > path {
+svg.interactive-svg g.destination-note > path,
+svg.interactive-svg g.destination-note  ellipse {
     stroke: #FFC107 !important;
     stroke-width: 3 !important;
     filter: drop-shadow(0 0 8px #FFC107) drop-shadow(0 0 16px #FFC107) !important;
@@ -196,8 +203,10 @@ svg.interactive-svg g[id^="link_"] {
 
 svg.interactive-svg g[id^="elem_"] > rect,
 svg.interactive-svg g[id^="elem_"] > path,
+svg.interactive-svg g[id^="elem_"]  ellipse,
 svg.interactive-svg g[id^="cluster_"] > rect,
 svg.interactive-svg g[id^="cluster_"] > path,
+svg.interactive-svg g[id^="cluster_"]  ellipse,
 svg.interactive-svg g[id^="GMN"] > rect,
 svg.interactive-svg g[id^="GMN"] > path,
 svg.interactive-svg g[id^="link_"] path,

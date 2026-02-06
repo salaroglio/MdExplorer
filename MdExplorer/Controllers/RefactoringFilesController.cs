@@ -4,6 +4,7 @@ using AutoMapper;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Refactoring;
 using MdExplorer.Features.Refactoring.Analysis;
@@ -31,12 +32,14 @@ namespace MdExplorer.Service.Controllers
         private readonly RefactoringManager _refactoringManager;
         private readonly ProcessUtil _visualStudioCode;
         private readonly IDatabaseManager _databaseManager;
+        private readonly IUserSettingsDB _userSettingsDB;
         private readonly ILogger<RefactoringFilesController> _logger;
 
         public RefactoringFilesController(IEngineDB engineDB,
                     IMapper mapper,
                     RefactoringManager refactoringManager,
                     ProcessUtil visualStudioCode,
+                    IUserSettingsDB userSettingsDB,
                     IDatabaseManager databaseManager = null,
                     ILogger<RefactoringFilesController> logger = null)
         {
@@ -44,6 +47,7 @@ namespace MdExplorer.Service.Controllers
             _mapper = mapper;
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
+            _userSettingsDB = userSettingsDB;
             _databaseManager = databaseManager;
             _logger = logger;
         }
@@ -74,6 +78,41 @@ namespace MdExplorer.Service.Controllers
             {
                 _logger?.LogError(ex, $"Failed to get database context for connection {connectionId}");
                 return _engineDB;
+            }
+        }
+
+        private bool IsLinkIndexingEnabled()
+        {
+            try
+            {
+                string projectPath = null;
+                if (_databaseManager != null)
+                {
+                    var connectionId = Request.Query["ConnectionId"].ToString();
+                    if (!string.IsNullOrEmpty(connectionId))
+                    {
+                        var context = _databaseManager.GetContext(connectionId);
+                        projectPath = context?.ProjectPath;
+                    }
+                }
+                if (string.IsNullOrEmpty(projectPath)) return true;
+
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return project?.LinkIndexingEnabled ?? true;
+            }
+            catch
+            {
+                return true;
             }
         }
 
@@ -121,16 +160,27 @@ namespace MdExplorer.Service.Controllers
                 // Step 1: Rinomina il file nel filesystem
                 RenameFileOnFilesystem(fileData);
 
-                GetEngineDB().BeginTransaction();            
-                var refSourceAct = _refactoringManager
-                    .SaveRefactoringActionForRenameFile(fileData.FullPath,
-                    fileData.FromFileName, fileData.ToFileName); // Save the concept of change
-                _refactoringManager
-                    .SetRefactoringInvolvedFilesActionsForRenameFile(
-                    fileData.FromFileName, fileData.ToFileName, oldFullPath, refSourceAct);
-                // After save, get back the list of links inside involved files
-                _refactoringManager
-                    .UpdateAllInvolvedFilesAndReferencesToDB( refSourceAct);//newFullPath
+                GetEngineDB().BeginTransaction();
+
+                Guid? refSourceActionId = null;
+
+                if (IsLinkIndexingEnabled())
+                {
+                    var refSourceAct = _refactoringManager
+                        .SaveRefactoringActionForRenameFile(fileData.FullPath,
+                        fileData.FromFileName, fileData.ToFileName);
+                    _refactoringManager
+                        .SetRefactoringInvolvedFilesActionsForRenameFile(
+                        fileData.FromFileName, fileData.ToFileName, oldFullPath, refSourceAct);
+                    _refactoringManager
+                        .UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct);
+                    refSourceActionId = refSourceAct.Id;
+                }
+                else
+                {
+                    _logger?.LogInformation("[RenameFileName] Link indexing disabled, skipping link recalculation");
+                }
+
                 _refactoringManager
                     .RenameTheMdFileIntoEngineDB(fileData.FullPath,
                     fileData.FromFileName, fileData.ToFileName);
@@ -139,7 +189,7 @@ namespace MdExplorer.Service.Controllers
 
                 var toReturn = new ChangeFileData
                 {
-                    RefactoringSourceActionId = refSourceAct.Id,
+                    RefactoringSourceActionId = refSourceActionId ?? Guid.Empty,
                     OldName = fileData.FromFileName,
                     OldPath = oldFullPath,
                     OldLevel = fileData.Level,

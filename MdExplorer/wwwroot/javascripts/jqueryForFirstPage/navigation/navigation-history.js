@@ -280,8 +280,8 @@ function initializeP2PLinkHandling() {
         e.preventDefault();
         e.stopPropagation();
 
-        // Extract filename from the path
-        var filename = href.split('/').pop();
+        // Extract filename from the path (remove querystring if present)
+        var filename = href.split('/').pop().split('?')[0];
 
         // Get project path from body attribute (set by backend)
         var projectPath = $('body').attr('ProjectPath') || '';
@@ -362,7 +362,7 @@ function initializeP2PLinkHandling() {
         var $link = $(this);
         var link = $link[0];
         var href = $link.attr('href');
-        var filename = href.split('/').pop();
+        var filename = href.split('/').pop().split('?')[0];  // Remove querystring
         var projectPath = $('body').attr('ProjectPath') || '';
 
         console.log('[MdExplorer P2P] Hover on P2P link:', { href: href, filename: filename, projectPath: projectPath });
@@ -404,9 +404,9 @@ function initializeP2PLinkHandling() {
 
             if ($link.length) {
                 console.log('[MdExplorer P2P] Applying status to link:', linkId, status);
-                // Get filename for caching
+                // Get filename for caching (remove querystring if present)
                 var href = $link.attr('href');
-                var filename = href ? href.split('/').pop() : '';
+                var filename = href ? href.split('/').pop().split('?')[0] : '';
                 var projectPath = $('body').attr('ProjectPath') || '';
                 var cacheKey = projectPath + '/' + filename;
 

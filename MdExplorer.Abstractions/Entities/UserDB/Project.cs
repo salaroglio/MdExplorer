@@ -15,6 +15,7 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual IList<Bookmark> Bookmarks { get; set; }
         public virtual int? SidenavWidth {  get; set; }
         public virtual string SelectedIde { get; set; }
+        public virtual bool LinkIndexingEnabled { get; set; } = true;
 
     }
 }

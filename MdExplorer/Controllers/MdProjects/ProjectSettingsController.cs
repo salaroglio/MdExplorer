@@ -2,6 +2,7 @@ using Ad.Tools.Dal;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -14,11 +15,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
     public class ProjectSettingsController : ControllerBase
     {
         private readonly IProjectDB _projectDB;
+        private readonly IUserSettingsDB _userSettingsDB;
         private readonly ILogger<ProjectSettingsController> _logger;
 
-        public ProjectSettingsController(IProjectDB projectDB, ILogger<ProjectSettingsController> logger)
+        public ProjectSettingsController(IProjectDB projectDB, IUserSettingsDB userSettingsDB, ILogger<ProjectSettingsController> logger)
         {
             _projectDB = projectDB;
+            _userSettingsDB = userSettingsDB;
             _logger = logger;
         }
 
@@ -136,6 +139,75 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             return SaveProjectSetting(saveRequest);
         }
+
+        [HttpGet]
+        public IActionResult GetLinkIndexingSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+
+                if (project == null)
+                {
+                    // Fallback: case-insensitive comparison for path matching
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return Ok(new
+                {
+                    enabled = project?.LinkIndexingEnabled ?? true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting LinkIndexing setting");
+                return StatusCode(500, new { error = "Failed to get LinkIndexing setting" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetLinkIndexingSetting([FromBody] SetLinkIndexingRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == request.ProjectPath);
+
+                if (project == null)
+                {
+                    // Fallback: case-insensitive comparison for path matching
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetLinkIndexingSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                _logger.LogInformation($"[SetLinkIndexingSetting] Setting LinkIndexingEnabled={request.Enabled} for project '{project.Name}' (path: '{project.Path}')");
+                project.LinkIndexingEnabled = request.Enabled;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "LinkIndexing setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving LinkIndexing setting");
+                return StatusCode(500, new { error = "Failed to save LinkIndexing setting" });
+            }
+        }
     }
 
     public class SaveProjectSettingRequest
@@ -152,5 +224,11 @@ namespace MdExplorer.Service.Controllers.MdProjects
     public class SetRule1Request
     {
         public bool Enabled { get; set; }
+    }
+
+    public class SetLinkIndexingRequest
+    {
+        public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
     }
 }

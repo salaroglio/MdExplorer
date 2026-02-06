@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
@@ -103,6 +104,26 @@ namespace MdExplorer.Service.Controllers.TabBar
         [HttpGet]
         public IActionResult GetRefsData([FromQuery] string fullPathFile)
         {
+            // Return empty list if link indexing is disabled
+            try
+            {
+                var projectPath = GetProjectPath();
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+                if (project?.LinkIndexingEnabled == false)
+                {
+                    return Ok(new List<LinkInsideMarkdownDto>());
+                }
+            }
+            catch { /* fallthrough to normal behavior */ }
+
             //_session.BeginTransaction();
             _logger.LogInformation($"[GetRefsData] Searching references for: '{fullPathFile}'");
 

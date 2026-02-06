@@ -1,0 +1,23 @@
+/**
+ * MdExplorer - Interactive SVG YAML Links Styles
+ * ===============================================
+ * Visual styles for clickable links in PlantUML YAML diagrams
+ *
+ * Color Scheme:
+ * - BLUE (#1976D2): Link text
+ * - DARK BLUE (#1565C0): Link text on hover
+ */
+
+/* === CLICKABLE YAML LINK TEXT === */
+
+.yaml-link-text {
+    cursor: pointer;
+    fill: #1976D2;
+    text-decoration: underline;
+    transition: fill 0.15s ease;
+}
+
+.yaml-link-text:hover {
+    fill: #1565C0;
+    filter: drop-shadow(0 0 2px rgba(25, 118, 210, 0.4));
+}

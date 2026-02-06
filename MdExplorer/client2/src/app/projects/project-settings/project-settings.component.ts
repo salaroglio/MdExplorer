@@ -11,6 +11,7 @@ import { IdeConfigurationService } from '../services/ide-configuration.service';
 })
 export class ProjectSettingsComponent implements OnInit {
   rule1Enabled: boolean = false;
+  linkIndexingEnabled: boolean = true;
   githubModeEnabled: boolean = false;
   selectedIde: string = 'vscode';
   vscodePath: string = '';
@@ -40,11 +41,12 @@ export class ProjectSettingsComponent implements OnInit {
   loadSettings(): void {
     this.loading = true;
     let rule1Loaded = false;
+    let linkIndexingLoaded = false;
     let compatibilityLoaded = false;
     let ideConfigLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && compatibilityLoaded && ideConfigLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded) {
         this.loading = false;
       }
     };
@@ -59,6 +61,20 @@ export class ProjectSettingsComponent implements OnInit {
       error: (error) => {
         console.error('Error loading Rule 1 setting:', error);
         rule1Loaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load Link Indexing setting
+    this.projectSettingsService.getLinkIndexingSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.linkIndexingEnabled = response.enabled;
+        linkIndexingLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Link Indexing setting:', error);
+        linkIndexingLoaded = true;
         checkIfDone();
       }
     });
@@ -108,6 +124,21 @@ export class ProjectSettingsComponent implements OnInit {
         this.saving = false;
         // Revert the change on error
         this.rule1Enabled = !this.rule1Enabled;
+      }
+    });
+  }
+
+  onLinkIndexingChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setLinkIndexingSetting(this.linkIndexingEnabled, this.projectPath).subscribe({
+      next: () => {
+        console.log('Link Indexing setting saved successfully');
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Link Indexing setting:', error);
+        this.saving = false;
+        this.linkIndexingEnabled = !this.linkIndexingEnabled;
       }
     });
   }

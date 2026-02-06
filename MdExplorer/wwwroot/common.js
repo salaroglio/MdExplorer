@@ -146,6 +146,10 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.js');
 
+        // INTERACTIVE-SVG-YAML-LINKS: Clickable links in PlantUML YAML diagrams
+        document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml-links.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml-links.js');
+
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 

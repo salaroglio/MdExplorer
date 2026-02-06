@@ -275,7 +275,14 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private markdownFileIsChanged(data: any, objectThis: MainContentComponent): void {
-    
+    // Client-side guard: skip automatic refresh (from FileSystemWatcher) if user disabled autoload.
+    // User-initiated events (editor save, paste, screenshot) have no source field and are always allowed.
+    const isWatcherEvent = data?.source === 'watcher' || data?.Source === 'watcher';
+    if (isWatcherEvent && localStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
+      console.log('[MainContent] ⏸️ Autoload disabled by user, ignoring watcher file change event');
+      return;
+    }
+
     try {
       // Extract relative path with multiple fallbacks
       const relativePath = data.relativePath || data.RelativePath || data.path || data.Path;

@@ -21,6 +21,11 @@ namespace MdExplorer.Models
         public string FromFileName { get; set; }
         public string ToFileName { get; set; }
         public string FullPath { get; set; }
+        /// <summary>
+        /// Origin of the event: "watcher" for FileSystemWatcher, null/empty for user-initiated actions.
+        /// Used by the client to distinguish automatic refresh (blockable) from user-triggered refresh.
+        /// </summary>
+        public string Source { get; set; }
         public int ExecutionTimeInSeconds { get {
                 var span = StopExportTime - StartExportTime;
                 return span.Seconds;

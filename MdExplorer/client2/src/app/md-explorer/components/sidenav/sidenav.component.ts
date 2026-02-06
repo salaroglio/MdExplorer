@@ -269,6 +269,26 @@ export class SidenavComponent implements OnInit, OnDestroy {
    * Load FileSystemWatcher status from backend
    */
   private loadFileSystemWatcherStatus(): void {
+    // Check if user had explicitly disabled autoload (survives SignalR reconnection)
+    const wasDisabledByUser = localStorage.getItem('mdexplorer_autoload_disabled') === 'true';
+
+    if (wasDisabledByUser) {
+      // Re-apply the user's preference to the new watcher (created after reconnection)
+      this.fileSystemWatcherEnabled = false;
+      this.http.post<{ enabled: boolean }>(
+        `/api/mdfiles/ToggleFileSystemWatcher?enabled=false`,
+        {}
+      ).subscribe({
+        next: (response) => {
+          console.log('[Sidenav] FileSystemWatcher re-disabled after reconnection:', response.enabled);
+        },
+        error: (err) => {
+          console.error('[Sidenav] Error re-disabling FileSystemWatcher:', err);
+        }
+      });
+      return;
+    }
+
     this.http.get<{ enabled: boolean }>('/api/mdfiles/GetFileSystemWatcherStatus')
       .subscribe({
         next: (response) => {
@@ -287,6 +307,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
    * When disabled, file changes won't trigger auto-reload
    */
   onFileSystemWatcherToggle(): void {
+    // Persist preference in localStorage for client-side guard and reconnection recovery
+    localStorage.setItem('mdexplorer_autoload_disabled', (!this.fileSystemWatcherEnabled).toString());
+
     this.http.post<{ enabled: boolean }>(
       `/api/mdfiles/ToggleFileSystemWatcher?enabled=${this.fileSystemWatcherEnabled}`,
       {}
@@ -296,8 +319,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('[Sidenav] Error toggling FileSystemWatcher:', err);
-        // Revert state on error
+        // Revert state and localStorage on error
         this.fileSystemWatcherEnabled = !this.fileSystemWatcherEnabled;
+        localStorage.setItem('mdexplorer_autoload_disabled', (!this.fileSystemWatcherEnabled).toString());
       }
     });
   }

@@ -164,6 +164,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 // Each client now has its own dedicated FileSystemWatcher via FileSystemWatcherManager
 
                 // renew project data
+                _userSettingsDB.Clear(); // Ensure fresh data from DB, no stale session cache
                 _userSettingsDB.BeginTransaction();
                 var projectDal = _userSettingsDB.GetDal<Project>();
                 var project = projectDal.GetList().Where(_ => _.Path == request.Path).FirstOrDefault();
@@ -174,10 +175,16 @@ namespace MdExplorer.Service.Controllers.MdProjects
                         Path = request.Path,
                         Name = System.IO.Path.GetFileName(request.Path)
                     };
+                    logger?.LogInformation($"📝 Creating new Project record for: {request.Path}");
+                }
+                else
+                {
+                    logger?.LogInformation($"📝 Loaded existing Project: LinkIndexingEnabled={project.LinkIndexingEnabled}");
                 }
                 project.LastUpdate = DateTime.Now;
                 projectDal.Save(project);
                 _userSettingsDB.Commit();
+                logger?.LogInformation($"📝 Project saved. LinkIndexingEnabled={project.LinkIndexingEnabled}");
 
                 // Log Git initialization status
                 if (gitInitialized)
