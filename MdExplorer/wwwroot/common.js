@@ -150,6 +150,10 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml-links.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml-links.js');
 
+        // INTERACTIVE-SVG-YAML: Click-to-highlight for PlantUML YAML tree diagrams
+        document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.js');
+
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 

@@ -33,6 +33,10 @@ $(function() {
     if (typeof InteractiveSvgYamlLinks !== 'undefined') {
         InteractiveSvgYamlLinks.initAll();
     }
+    // YAML tree diagrams (click-to-highlight ancestors/descendants)
+    if (typeof InteractiveSvgYaml !== 'undefined') {
+        InteractiveSvgYaml.initAll();
+    }
 
     // Initialize scroll tracking for TOC/Refs positioning
     window.addEventListener("scroll", function () {

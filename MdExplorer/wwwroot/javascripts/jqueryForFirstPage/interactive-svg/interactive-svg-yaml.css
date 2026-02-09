@@ -1,0 +1,148 @@
+/**
+ * MdExplorer - Interactive SVG YAML Tree Diagram Styles
+ * ======================================================
+ * Visual styles for interactive PlantUML @startyaml tree diagrams
+ *
+ * Color Scheme (consistent with other interactive-svg scripts):
+ * - BLUE (#2196F3): Selected box (source)
+ * - RED (#f44336): Upstream boxes (ancestors)
+ * - GREEN (#4CAF50): Downstream boxes (descendants)
+ * - ORANGE (#FF9800): Highlighted connections
+ */
+
+/* === BASE STYLES === */
+
+svg.interactive-svg-yaml {
+    cursor: default;
+}
+
+/* === HOVER EFFECTS ON BOXES === */
+
+svg.interactive-svg-yaml rect[fill="#F1F1F1"][rx="5"] {
+    cursor: pointer;
+    transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+}
+
+svg.interactive-svg-yaml rect[fill="#F1F1F1"][rx="5"]:hover {
+    stroke: #2196F3 !important;
+    stroke-width: 2 !important;
+    filter: drop-shadow(0 0 4px rgba(33, 150, 243, 0.5));
+}
+
+/* === SELECTED BOX (SOURCE) - BLUE === */
+
+svg.interactive-svg-yaml rect.yaml-box-source[fill="#F1F1F1"] {
+    stroke: #2196F3 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #2196F3) drop-shadow(0 0 16px #2196F3) !important;
+}
+
+svg.interactive-svg-yaml text.yaml-box-source {
+    fill: #1565C0 !important;
+}
+
+/* === UPSTREAM BOXES (ANCESTORS) - RED === */
+
+svg.interactive-svg-yaml rect.yaml-box-upstream[fill="#F1F1F1"] {
+    stroke: #f44336 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #f44336) drop-shadow(0 0 16px #f44336) !important;
+}
+
+svg.interactive-svg-yaml text.yaml-box-upstream {
+    fill: #C62828 !important;
+}
+
+/* === DOWNSTREAM BOXES (DESCENDANTS) - GREEN === */
+
+svg.interactive-svg-yaml rect.yaml-box-downstream[fill="#F1F1F1"] {
+    stroke: #4CAF50 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 8px #4CAF50) drop-shadow(0 0 16px #4CAF50) !important;
+}
+
+svg.interactive-svg-yaml text.yaml-box-downstream {
+    fill: #2E7D32 !important;
+}
+
+/* === SELECTED ROW TEXT - CYAN HALO === */
+
+svg.interactive-svg-yaml text.yaml-row-selected {
+    stroke: #00BCD4 !important;
+    stroke-width: 4px !important;
+    paint-order: stroke fill !important;
+    filter: drop-shadow(0 0 4px #00BCD4) drop-shadow(0 0 8px rgba(0, 188, 212, 0.6)) !important;
+}
+
+/* === LEAF ROW (no outgoing connection) - YELLOW HIGHLIGHT === */
+
+svg.interactive-svg-yaml text.yaml-row-leaf {
+    stroke: #FFC107 !important;
+    stroke-width: 4px !important;
+    paint-order: stroke fill !important;
+    filter: drop-shadow(0 0 4px #FFC107) drop-shadow(0 0 8px rgba(255, 193, 7, 0.6)) !important;
+}
+
+/* === HIGHLIGHTED CONNECTIONS - ORANGE === */
+
+svg.interactive-svg-yaml path.yaml-connection-highlighted {
+    stroke: #FF9800 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 6px #FF9800) drop-shadow(0 0 12px #FF9800) !important;
+}
+
+svg.interactive-svg-yaml ellipse.yaml-connection-highlighted {
+    fill: #FF9800 !important;
+    stroke: #FF9800 !important;
+    filter: drop-shadow(0 0 6px #FF9800) !important;
+}
+
+/* === DIM NON-RELATED ELEMENTS WHEN SELECTION IS ACTIVE === */
+
+/* Dim box rects not involved */
+svg.interactive-svg-yaml.yaml-has-selection rect[fill="#F1F1F1"]:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-tooltip-bg) {
+    opacity: 0.3;
+}
+
+/* Dim text not involved */
+svg.interactive-svg-yaml.yaml-has-selection text:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-link-text):not(.yaml-row-selected):not(.yaml-tooltip-text):not(.yaml-row-leaf) {
+    opacity: 0.3;
+}
+
+/* Dim separator lines not involved */
+svg.interactive-svg-yaml.yaml-has-selection line:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream) {
+    opacity: 0.3;
+}
+
+/* Dim connections not highlighted */
+svg.interactive-svg-yaml.yaml-has-selection path:not(.yaml-connection-highlighted) {
+    opacity: 0.15;
+}
+
+svg.interactive-svg-yaml.yaml-has-selection ellipse:not(.yaml-connection-highlighted) {
+    opacity: 0.15;
+}
+
+/* === KEEP HIGHLIGHTED ELEMENTS FULLY VISIBLE === */
+
+svg.interactive-svg-yaml.yaml-has-selection .yaml-box-source,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-box-upstream,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-box-downstream,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-connection-highlighted,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-row-selected,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-row-leaf,
+svg.interactive-svg-yaml .yaml-tooltip-text,
+svg.interactive-svg-yaml .yaml-tooltip-bg,
+svg.interactive-svg-yaml .yaml-tooltip-arrow {
+    opacity: 1 !important;
+}
+
+/* === TRANSITIONS === */
+
+svg.interactive-svg-yaml rect,
+svg.interactive-svg-yaml text,
+svg.interactive-svg-yaml line,
+svg.interactive-svg-yaml path,
+svg.interactive-svg-yaml ellipse {
+    transition: opacity 0.2s ease, stroke 0.2s ease, stroke-width 0.2s ease, fill 0.2s ease, filter 0.2s ease;
+}
