@@ -92,14 +92,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         public MdExplorer.Service.Models.FileChangeIgnoreConfiguration IgnoreConfiguration { get; set; }
 
         /// <summary>
-        /// Last read timestamp for change detection
+        /// Per-file debounce: tracks the last time each file was processed.
+        /// Events for the same file within the debounce window are ignored.
         /// </summary>
-        public DateTime LastRead { get; set; }
-
-        /// <summary>
-        /// Tracks processing count per file to prevent infinite loops
-        /// </summary>
-        public System.Collections.Generic.Dictionary<string, int> FileProcessingCount { get; set; }
+        public System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> LastProcessedPerFile { get; set; }
 
         /// <summary>
         /// When true, the user has explicitly disabled the watcher via the UI toggle.

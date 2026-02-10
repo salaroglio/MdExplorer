@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 #if WINDOWS
@@ -716,6 +717,7 @@ namespace MdExplorer.Features.Exports
         /// This preserves all pixels but changes how Word interprets the physical size.
         /// Formula: DPI = pixels / inches, where inches = TargetWidthCm / 2.54
         /// </summary>
+        [SupportedOSPlatform("windows")]
         private void AdjustImageDpiForTargetWidth(string imagePath, int pixelWidth)
         {
 #if WINDOWS

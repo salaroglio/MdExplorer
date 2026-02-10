@@ -884,25 +884,25 @@ namespace MdExplorer.Features.Services
             return $"{len:0.##} {sizes[order]}";
         }
         
-        private async Task<bool> IsAiAvailableAsync()
+        private Task<bool> IsAiAvailableAsync()
         {
             // Check which AI system is currently active
             var settings = GetAiModeSettings();
-            
+
             if (settings.useGemini)
             {
                 _useGemini = true;
                 _geminiModel = settings.geminiModel;
                 var isConfigured = _geminiService.IsConfigured();
                 _logger.LogInformation($"[TocGeneration] Using Gemini API: {isConfigured}, Model: {_geminiModel}");
-                return isConfigured;
+                return Task.FromResult(isConfigured);
             }
             else
             {
                 _useGemini = false;
                 var isLoaded = _aiChatService.IsModelLoaded();
                 _logger.LogInformation($"[TocGeneration] Using local AI model: {isLoaded}");
-                return isLoaded;
+                return Task.FromResult(isLoaded);
             }
         }
         

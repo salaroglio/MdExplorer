@@ -4668,6 +4668,85 @@ class MdFileService {
       node.childrens.forEach(child => this.compactSingleNode(child));
     }
   }
+  /**
+   * Aggiunge un file direttamente nella cartella parent specificata.
+   * Gestisce correttamente le compact folders (VS Code-style).
+   * @param file Il nuovo file da aggiungere
+   * @param parentFullPath Il fullPath della cartella parent
+   * @returns true se il file è stato aggiunto, false se la cartella parent non è stata trovata
+   */
+  addFileToParent(file, parentFullPath) {
+    // Cerca la cartella parent nel dataStore (incluse compact folders)
+    const parentFolder = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+    if (parentFolder) {
+      // Assicura proprietà di indicizzazione
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        file.isIndexed = file.isIndexed ?? true;
+        file.indexingStatus = file.indexingStatus ?? 'completed';
+      }
+      parentFolder.childrens.push(file);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
+    // Controlla se il file va nella root (parentFullPath coincide con la root del progetto)
+    // In questo caso parentFullPath non corrisponde a nessuna cartella perché È la root
+    if (this.dataStore.mdFiles.length > 0) {
+      // Verifica: se nessuna cartella di primo livello ha un fullPath che inizia con parentFullPath,
+      // allora parentFullPath non è una cartella nel tree. Ma se il file ha level === 0,
+      // è un file root.
+      if (file.level === 0) {
+        if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+          file.isIndexed = file.isIndexed ?? true;
+          file.indexingStatus = file.indexingStatus ?? 'completed';
+        }
+        const dummyItem = this.dataStore.mdFiles.pop();
+        this.dataStore.mdFiles.push(file, dummyItem);
+        this._mdFiles.next([...this.dataStore.mdFiles]);
+        return true;
+      }
+    }
+    return false;
+  }
+  /**
+   * Cerca ricorsivamente una cartella nel dataStore, gestendo le compact folders.
+   * Per le compact folders, controlla se l'ultimo segmento compattato corrisponde
+   * al targetFullPath — in quel caso node.childrens è il posto giusto.
+   */
+  findFolderInDataStore(nodes, targetFullPath) {
+    if (!nodes) return null;
+    for (const node of nodes) {
+      if (node.type !== 'folder') continue;
+      // Match diretto sul fullPath del nodo
+      if (node.fullPath && node.fullPath.toLowerCase() === targetFullPath.toLowerCase()) {
+        return node;
+      }
+      // Se il nodo è compattato, controlla i segmenti compattati
+      if (node.isCompacted && node.compactedSegments) {
+        const lastSegment = node.compactedSegments[node.compactedSegments.length - 1];
+        if (lastSegment && lastSegment.fullPath.toLowerCase() === targetFullPath.toLowerCase()) {
+          // L'ultimo segmento compattato corrisponde: node.childrens punta ai figli
+          // della cartella più profonda nella catena compattata
+          return node;
+        }
+        // Controlla anche i segmenti intermedi (non l'ultimo)
+        // Se il target corrisponde a un segmento intermedio, la cartella è stata assorbita
+        // e non esiste come nodo separato nel tree
+        for (let i = 0; i < node.compactedSegments.length - 1; i++) {
+          if (node.compactedSegments[i].fullPath.toLowerCase() === targetFullPath.toLowerCase()) {
+            // Il target è un segmento intermedio della compattazione
+            // Non possiamo inserire qui direttamente, ritorna null per usare il fallback
+            return null;
+          }
+        }
+      }
+      // Ricerca ricorsiva nei figli
+      if (node.childrens && node.childrens.length > 0) {
+        const found = this.findFolderInDataStore(node.childrens, targetFullPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
   updateFileIndexStatus(path, isIndexed) {
     // Ricostruisce completamente l'array invece di modificare gli oggetti esistenti
     const updateNodeInArray = nodes => {
@@ -8201,8 +8280,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.02.06.1',
-  buildTime: '2026.02.06 11:22:25'
+  version: '2026.02.09.1',
+  buildTime: '2026.02.09 19:41:01'
 };
 
 /***/ }),

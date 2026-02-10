@@ -8,7 +8,7 @@
  * - Makes the corresponding value text clickable
  * - Supports internal relative links (./path, ../path), root links (/path), and external URLs
  * - External links open in a new window (Electron uses setWindowOpenHandler)
- * - Internal links navigate via window.location.href with connectionId
+ * - Internal links navigate via postMessage to Angular (prevents double load)
  *
  * Usage:
  *   InteractiveSvgYamlLinks.init(svgElement);
@@ -70,28 +70,8 @@ var InteractiveSvgYamlLinks = (function() {
     }
 
     /**
-     * Build the navigation URL for an internal link
-     * @param {string} path - The link path
-     * @returns {string} - Full navigation URL with connectionId
-     */
-    function buildInternalUrl(path) {
-        var connectionId = $('body').attr('connectionid') || '';
-        var documentPath = $('body').attr('documentpath') || '';
-        var resolvedPath;
-
-        if (path.charAt(0) === '/') {
-            // Root-relative path: /docs/readme.md
-            resolvedPath = path;
-        } else {
-            // Relative path: ./doc.md or ../folder/doc.md
-            resolvedPath = resolveRelativePath(path, documentPath);
-        }
-
-        return '/api/mdexplorer' + resolvedPath + '?connectionId=' + connectionId;
-    }
-
-    /**
-     * Handle click on a link text element
+     * Handle click on a link text element.
+     * Internal links use postMessage to let Angular handle navigation (single load, no flickering).
      * @param {string} url - The URL to navigate to
      */
     function handleLinkClick(url) {
@@ -104,8 +84,21 @@ var InteractiveSvgYamlLinks = (function() {
             // In Electron, setWindowOpenHandler in index.js will handle this
             window.open(url, '_blank');
         } else {
-            // Internal link: navigate via location
-            window.location.href = buildInternalUrl(url);
+            // Internal link: communicate with Angular via postMessage (avoids double load)
+            var documentPath = $('body').attr('documentpath') || '';
+            var resolvedPath;
+
+            if (url.charAt(0) === '/') {
+                resolvedPath = url;
+            } else {
+                resolvedPath = resolveRelativePath(url, documentPath);
+            }
+
+            window.parent.postMessage({
+                type: 'md-navigate',
+                relativePath: resolvedPath,
+                name: resolvedPath.split('/').pop()
+            }, '*');
         }
     }
 

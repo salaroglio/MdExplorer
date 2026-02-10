@@ -9,7 +9,11 @@
  * - Ancestors (upstream) = RED, Descendants (downstream) = GREEN
  * - Selected box = BLUE, Selected row = CYAN, Highlighted connections = ORANGE
  * - Non-related elements are dimmed
- * - ESC key or click outside to clear selection
+ * - Collapse/Expand sub-trees via toggle buttons on non-leaf boxes
+ * - Collapse All / Expand All controls (top-right of SVG)
+ * - ViewBox auto-resizes when collapsing/expanding
+ * - Nested collapse: expanding a parent preserves child collapse state
+ * - ESC key: first clears highlight, then expands all if no highlight
  * - Coexists with InteractiveSvgYamlLinks (clickable url/link/href values)
  *
  * PlantUML @startyaml SVG Structure:
@@ -90,6 +94,17 @@ var InteractiveSvgYaml = (function() {
         var allTexts = Array.prototype.slice.call(svg.querySelectorAll('text'));
         var allLines = Array.prototype.slice.call(svg.querySelectorAll('line'));
 
+        // PlantUML generates TWO rects per box:
+        // 1. fill="#F1F1F1" rx="5" - the background rect
+        // 2. fill="none" stroke:#000000 - the outline/border rect (no rx)
+        // We need to track BOTH to properly hide boxes.
+        var outlineRects = Array.prototype.slice.call(
+            svg.querySelectorAll('rect[fill="none"]')
+        ).filter(function(r) {
+            var style = r.getAttribute('style') || '';
+            return style.indexOf('stroke:#000000') > -1;
+        });
+
         for (var i = 0; i < boxRects.length; i++) {
             var rect = boxRects[i];
 
@@ -97,6 +112,20 @@ var InteractiveSvgYaml = (function() {
             var y = parseFloat(rect.getAttribute('y'));
             var w = parseFloat(rect.getAttribute('width'));
             var h = parseFloat(rect.getAttribute('height'));
+
+            // Find the matching outline rect (fill="none", stroke:#000000)
+            // by overlapping position (same x,y origin within tolerance)
+            var matchedOutline = null;
+            for (var o = 0; o < outlineRects.length; o++) {
+                var oRect = outlineRects[o];
+                var ox = parseFloat(oRect.getAttribute('x'));
+                var oy = parseFloat(oRect.getAttribute('y'));
+                if (Math.abs(ox - x) < 3 && Math.abs(oy - y) < 3) {
+                    matchedOutline = oRect;
+                    outlineRects.splice(o, 1); // remove to avoid double-matching
+                    break;
+                }
+            }
 
             // Find text elements inside this box
             var textElements = [];
@@ -127,10 +156,12 @@ var InteractiveSvgYaml = (function() {
 
             // Collect all SVG elements belonging to this box
             var elements = [rect];
+            if (matchedOutline) elements.push(matchedOutline);
             elements = elements.concat(textElements).concat(innerLines);
 
             boxes.push({
                 rect: rect,
+                outlineRect: matchedOutline,
                 textElements: textElements,
                 lines: innerLines,
                 elements: elements,
@@ -352,6 +383,625 @@ var InteractiveSvgYaml = (function() {
             incoming: incoming
         };
     }
+
+    // ================================================================
+    // COLLAPSE / EXPAND FUNCTIONALITY
+    // ================================================================
+
+    /**
+     * Check if a box is a leaf (no outgoing connections)
+     * @param {Object} box
+     * @param {Object} graph
+     * @returns {boolean}
+     */
+    function isLeafBox(box, graph) {
+        var out = graph.outgoing.get(box);
+        return !out || out.length === 0;
+    }
+
+    /**
+     * Compute which elements should be hidden based on the current set of collapsed boxes.
+     * Uses DFS from each collapsed box's children to find all hidden descendants.
+     * Handles nested collapse: if A is collapsed and contains B (also collapsed),
+     * B's descendants are already hidden transitively.
+     * @param {SVGElement} svg
+     * @returns {{ hiddenBoxes: Set, hiddenConnections: Set }}
+     */
+    function computeHiddenElements(svg) {
+        var data = svg._yamlData;
+        var graph = data.graph;
+        var collapsedBoxes = data.collapsedBoxes;
+        var hiddenBoxes = new Set();
+        var hiddenConnections = new Set();
+
+        collapsedBoxes.forEach(function(collapsedBox) {
+            // DFS from direct children of the collapsed box
+            var outConns = graph.outgoing.get(collapsedBox) || [];
+            var stack = [];
+
+            for (var i = 0; i < outConns.length; i++) {
+                hiddenConnections.add(outConns[i]);
+                stack.push(outConns[i].targetBox);
+            }
+
+            while (stack.length > 0) {
+                var current = stack.pop();
+                if (hiddenBoxes.has(current)) continue;
+                hiddenBoxes.add(current);
+
+                var childConns = graph.outgoing.get(current) || [];
+                for (var j = 0; j < childConns.length; j++) {
+                    hiddenConnections.add(childConns[j]);
+                    if (!hiddenBoxes.has(childConns[j].targetBox)) {
+                        stack.push(childConns[j].targetBox);
+                    }
+                }
+            }
+        });
+
+        return {
+            hiddenBoxes: hiddenBoxes,
+            hiddenConnections: hiddenConnections
+        };
+    }
+
+    /**
+     * Apply visibility to all elements based on the current collapsed state.
+     * Hidden elements get the .yaml-collapsed-hidden class (display: none).
+     * @param {SVGElement} svg
+     */
+    function hideElement(el) {
+        el.style.display = 'none';
+        el.setAttribute('display', 'none');
+        el.style.visibility = 'hidden';
+    }
+
+    function showElement(el) {
+        el.style.display = '';
+        el.removeAttribute('display');
+        el.style.visibility = '';
+    }
+
+    function isElementHidden(el) {
+        return el.style.display === 'none' || el.getAttribute('display') === 'none';
+    }
+
+    function applyVisibility(svg) {
+        var data = svg._yamlData;
+        var hidden = computeHiddenElements(svg);
+
+        // Apply to boxes - triple hiding: style.display + SVG display attr + visibility
+        data.boxes.forEach(function(box) {
+            var isHidden = hidden.hiddenBoxes.has(box);
+
+            // Box elements (rect, text, lines)
+            box.elements.forEach(function(el) {
+                if (el) {
+                    if (isHidden) { hideElement(el); } else { showElement(el); }
+                }
+            });
+
+            // Toggle button for this box
+            var toggleInfo = data.toggleElements.get(box);
+            if (toggleInfo) {
+                if (isHidden) { hideElement(toggleInfo.group); } else { showElement(toggleInfo.group); }
+            }
+
+            // Collapsed indicator class on box rect
+            if (data.collapsedBoxes.has(box) && !isHidden) {
+                box.elements.forEach(function(el) {
+                    if (el) el.classList.add('yaml-box-collapsed');
+                });
+            } else {
+                box.elements.forEach(function(el) {
+                    if (el) el.classList.remove('yaml-box-collapsed');
+                });
+            }
+        });
+
+        // Apply to connections
+        data.connections.forEach(function(conn) {
+            var isHidden = hidden.hiddenConnections.has(conn);
+            conn.elements.forEach(function(el) {
+                if (el) {
+                    if (isHidden) { hideElement(el); } else { showElement(el); }
+                }
+            });
+        });
+
+        // POST-APPLY diagnostic: verify hiding actually worked
+        var allRects = svg.querySelectorAll('rect');
+        var f1Rects = svg.querySelectorAll('rect[fill="#F1F1F1"][rx="5"]');
+        var hiddenF1 = 0, visibleF1 = 0;
+        f1Rects.forEach(function(r) {
+            if (isElementHidden(r)) hiddenF1++;
+            else visibleF1++;
+        });
+        var otherRectsCount = allRects.length - f1Rects.length;
+        console.log('[Collapse POST-APPLY] F1F1F1 rects:', f1Rects.length,
+            '| hidden:', hiddenF1, '| visible:', visibleF1,
+            '| should-hide:', hidden.hiddenBoxes.size,
+            '| other rects in SVG:', otherRectsCount);
+
+        // Check for ghost rects (non-F1F1F1 rects that may look like borders)
+        if (otherRectsCount > 0) {
+            var ghostInfo = [];
+            allRects.forEach(function(r) {
+                if (r.getAttribute('fill') !== '#F1F1F1' || r.getAttribute('rx') !== '5') {
+                    if (!r.classList.contains('yaml-toggle-bg') &&
+                        !r.classList.contains('yaml-tooltip-bg') &&
+                        !r.classList.contains('yaml-collapse-ctrl-bg')) {
+                        ghostInfo.push('fill=' + r.getAttribute('fill') +
+                            ' stroke=' + (r.getAttribute('style') || '').substring(0, 40) +
+                            ' w=' + r.getAttribute('width') + ' h=' + r.getAttribute('height'));
+                    }
+                }
+            });
+            if (ghostInfo.length > 0) {
+                console.log('[Collapse POST-APPLY] Ghost rects:', ghostInfo);
+            }
+        }
+
+        // Verify no mismatches
+        var mismatches = [];
+        data.boxes.forEach(function(box) {
+            var shouldHide = hidden.hiddenBoxes.has(box);
+            var actuallyHidden = isElementHidden(box.rect);
+            if (shouldHide !== actuallyHidden) {
+                mismatches.push(box.label.substring(0, 30) + ' @(' + box.x + ',' + box.y + ')');
+            }
+        });
+        if (mismatches.length > 0) {
+            console.log('[Collapse POST-APPLY] MISMATCHES:', mismatches);
+        }
+
+        // Check all SVG lines/paths not tracked by any box or connection
+        var trackedElements = new Set();
+        data.boxes.forEach(function(b) { b.elements.forEach(function(e) { trackedElements.add(e); }); });
+        data.connections.forEach(function(c) { c.elements.forEach(function(e) { trackedElements.add(e); }); });
+        var untrackedLines = 0, untrackedPaths = 0;
+        svg.querySelectorAll('line').forEach(function(l) { if (!trackedElements.has(l)) untrackedLines++; });
+        svg.querySelectorAll('path').forEach(function(p) { if (!trackedElements.has(p)) untrackedPaths++; });
+        if (untrackedLines > 0 || untrackedPaths > 0) {
+            console.log('[Collapse POST-APPLY] Untracked elements: lines=' + untrackedLines + ' paths=' + untrackedPaths);
+        }
+
+        // If we have an active highlight selection and the selected box is now hidden, clear it
+        if (svg.classList.contains('yaml-has-selection')) {
+            var anySelectedHidden = false;
+            svg.querySelectorAll('.yaml-box-source').forEach(function(el) {
+                if (isElementHidden(el)) {
+                    anySelectedHidden = true;
+                }
+            });
+            if (anySelectedHidden) {
+                clearSelection(svg);
+            }
+        }
+    }
+
+    /**
+     * Save the original SVG dimensions (viewBox, width, height, style) on first call.
+     * PlantUML SVGs have width/height attributes AND inline style with pixel dimensions,
+     * all matching the viewBox 1:1. We must update all of them together to avoid zoom issues.
+     * @param {SVGElement} svg
+     */
+    function saveOriginalDimensions(svg) {
+        var data = svg._yamlData;
+        if (data.originalViewBox) return; // already saved
+
+        data.originalViewBox = svg.getAttribute('viewBox');
+        data.originalWidth = svg.getAttribute('width');
+        data.originalHeight = svg.getAttribute('height');
+        data.originalStyle = svg.getAttribute('style');
+
+        // Parse original viewBox to get the scale factor
+        var parts = data.originalViewBox.split(/\s+/).map(Number);
+        data.originalVbW = parts[2];
+        data.originalVbH = parts[3];
+
+        // Parse original pixel width/height (strip "px" suffix)
+        var origW = parseFloat(data.originalWidth) || data.originalVbW;
+        var origH = parseFloat(data.originalHeight) || data.originalVbH;
+        data.scaleX = origW / data.originalVbW;
+        data.scaleY = origH / data.originalVbH;
+    }
+
+    /**
+     * Restore the original SVG dimensions (viewBox, width, height, style).
+     * @param {SVGElement} svg
+     */
+    function restoreOriginalDimensions(svg) {
+        var data = svg._yamlData;
+        if (!data.originalViewBox) return;
+
+        svg.setAttribute('viewBox', data.originalViewBox);
+        if (data.originalWidth) svg.setAttribute('width', data.originalWidth);
+        if (data.originalHeight) svg.setAttribute('height', data.originalHeight);
+        if (data.originalStyle) svg.setAttribute('style', data.originalStyle);
+    }
+
+    /**
+     * Recalculate the SVG viewBox AND width/height to fit only visible elements.
+     * Maintains the same zoom level by scaling width/height proportionally.
+     * @param {SVGElement} svg
+     */
+    function recalcViewBox(svg) {
+        var data = svg._yamlData;
+
+        // Save original dimensions on first call
+        saveOriginalDimensions(svg);
+
+        // If nothing is collapsed, restore original
+        if (data.collapsedBoxes.size === 0) {
+            restoreOriginalDimensions(svg);
+            repositionControls(svg);
+            return;
+        }
+
+        // Collect bounding boxes of all visible elements
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        var found = false;
+
+        // Visible boxes
+        data.boxes.forEach(function(box) {
+            if (box.elements[0] && isElementHidden(box.elements[0])) return;
+            minX = Math.min(minX, box.x);
+            minY = Math.min(minY, box.y);
+            maxX = Math.max(maxX, box.x + box.width);
+            maxY = Math.max(maxY, box.y + box.height);
+            found = true;
+        });
+
+        // Visible connections - use getBBox for accurate path bounds
+        data.connections.forEach(function(conn) {
+            if (conn.elements[0] && isElementHidden(conn.elements[0])) return;
+            conn.elements.forEach(function(el) {
+                if (el) {
+                    try {
+                        var bbox = el.getBBox();
+                        if (bbox.width > 0 || bbox.height > 0) {
+                            minX = Math.min(minX, bbox.x);
+                            minY = Math.min(minY, bbox.y);
+                            maxX = Math.max(maxX, bbox.x + bbox.width);
+                            maxY = Math.max(maxY, bbox.y + bbox.height);
+                            found = true;
+                        }
+                    } catch(e) { /* getBBox can throw on hidden elements */ }
+                }
+            });
+        });
+
+        // Include toggle buttons in bounds
+        data.toggleElements.forEach(function(toggleInfo) {
+            if (isElementHidden(toggleInfo.group)) return;
+            try {
+                var bbox = toggleInfo.group.getBBox();
+                if (bbox.width > 0 || bbox.height > 0) {
+                    minX = Math.min(minX, bbox.x);
+                    minY = Math.min(minY, bbox.y);
+                    maxX = Math.max(maxX, bbox.x + bbox.width);
+                    maxY = Math.max(maxY, bbox.y + bbox.height);
+                }
+            } catch(e) {}
+        });
+
+        if (!found) {
+            restoreOriginalDimensions(svg);
+            repositionControls(svg);
+            return;
+        }
+
+        var padding = 20;
+        var newVbX = minX - padding;
+        var newVbY = minY - padding;
+        var newVbW = maxX - minX + padding * 2;
+        var newVbH = maxY - minY + padding * 2;
+
+        var newViewBox = newVbX + ' ' + newVbY + ' ' + newVbW + ' ' + newVbH;
+        svg.setAttribute('viewBox', newViewBox);
+
+        // Scale width/height proportionally to maintain the same zoom level
+        var newPixelW = Math.round(newVbW * data.scaleX);
+        var newPixelH = Math.round(newVbH * data.scaleY);
+
+        svg.setAttribute('width', newPixelW + 'px');
+        svg.setAttribute('height', newPixelH + 'px');
+
+        // Also update inline style if it has width/height
+        var style = svg.getAttribute('style') || '';
+        if (style) {
+            style = style.replace(/width:\s*[\d.]+px/, 'width:' + newPixelW + 'px');
+            style = style.replace(/height:\s*[\d.]+px/, 'height:' + newPixelH + 'px');
+            svg.setAttribute('style', style);
+        }
+
+        // Reposition controls if they exist
+        repositionControls(svg);
+    }
+
+    /**
+     * Toggle collapse/expand state for a box
+     * @param {Object} box
+     * @param {SVGElement} svg
+     */
+    function toggleCollapse(box, svg) {
+        var data = svg._yamlData;
+        var graph = data.graph;
+
+        if (data.collapsedBoxes.has(box)) {
+            // Expand: show only direct children (one level at a time)
+            data.collapsedBoxes.delete(box);
+            var toggleInfo = data.toggleElements.get(box);
+            if (toggleInfo) {
+                toggleInfo.symbol.textContent = '\u2212'; // minus sign
+            }
+
+            // Auto-collapse direct non-leaf children so only one level is revealed
+            var outConns = graph.outgoing.get(box) || [];
+            for (var i = 0; i < outConns.length; i++) {
+                var child = outConns[i].targetBox;
+                if (!isLeafBox(child, graph) && !data.collapsedBoxes.has(child)) {
+                    data.collapsedBoxes.add(child);
+                    var childToggle = data.toggleElements.get(child);
+                    if (childToggle) {
+                        childToggle.symbol.textContent = '+';
+                    }
+                }
+            }
+        } else {
+            // Collapse
+            data.collapsedBoxes.add(box);
+            var toggleInfo = data.toggleElements.get(box);
+            if (toggleInfo) {
+                toggleInfo.symbol.textContent = '+';
+            }
+        }
+
+        applyVisibility(svg);
+        recalcViewBox(svg);
+    }
+
+    /**
+     * Create toggle buttons for all non-leaf boxes
+     * @param {SVGElement} svg
+     * @param {Array} boxes
+     * @param {Object} graph
+     */
+    function createToggleButtons(svg, boxes, graph) {
+        var data = svg._yamlData;
+        data.toggleElements = new Map();
+        data.collapsedBoxes = new Set();
+
+        boxes.forEach(function(box) {
+            if (isLeafBox(box, graph)) return;
+
+            var g = document.createElementNS(SVG_NS, 'g');
+            g.classList.add('yaml-collapse-toggle');
+
+            // Position on the right edge of the box
+            var cx = box.x + box.width + 2;
+            var cy = box.y + box.height / 2;
+            var radius = 8;
+
+            var circle = document.createElementNS(SVG_NS, 'circle');
+            circle.setAttribute('cx', cx);
+            circle.setAttribute('cy', cy);
+            circle.setAttribute('r', radius);
+            circle.classList.add('yaml-toggle-bg');
+
+            var text = document.createElementNS(SVG_NS, 'text');
+            text.setAttribute('x', cx);
+            text.setAttribute('y', cy);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('dominant-baseline', 'central');
+            text.classList.add('yaml-toggle-symbol');
+            text.textContent = '\u2212'; // minus sign (expanded state)
+
+            g.appendChild(circle);
+            g.appendChild(text);
+            svg.appendChild(g);
+
+            // Click handler - stopPropagation to avoid triggering box highlight
+            g.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                toggleCollapse(box, svg);
+            });
+
+            data.toggleElements.set(box, { group: g, symbol: text });
+        });
+    }
+
+    /**
+     * Remove all toggle buttons from the SVG
+     * @param {SVGElement} svg
+     */
+    function removeToggleButtons(svg) {
+        var data = svg._yamlData;
+        if (!data || !data.toggleElements) return;
+
+        data.toggleElements.forEach(function(toggleInfo) {
+            if (toggleInfo.group && toggleInfo.group.parentNode) {
+                toggleInfo.group.parentNode.removeChild(toggleInfo.group);
+            }
+        });
+        data.toggleElements.clear();
+    }
+
+    /**
+     * Reposition the collapse/expand all controls relative to the current viewBox.
+     * @param {SVGElement} svg
+     */
+    function repositionControls(svg) {
+        var data = svg._yamlData;
+        if (!data || !data.controlsGroup) return;
+
+        var vb = svg.getAttribute('viewBox');
+        if (!vb) return;
+        var parts = vb.split(/\s+/).map(Number);
+        var vbX = parts[0], vbY = parts[1], vbW = parts[2];
+
+        // Position top-right of viewBox
+        var ctrlX = vbX + vbW - 62;
+        var ctrlY = vbY + 6;
+        data.controlsGroup.setAttribute('transform', 'translate(' + ctrlX + ',' + ctrlY + ')');
+    }
+
+    /**
+     * Create Collapse All / Expand All controls inside the SVG
+     * @param {SVGElement} svg
+     */
+    function createCollapseControls(svg) {
+        var data = svg._yamlData;
+
+        // Only create if there are non-leaf boxes
+        var hasNonLeaf = false;
+        data.boxes.forEach(function(box) {
+            if (!isLeafBox(box, data.graph)) hasNonLeaf = true;
+        });
+        if (!hasNonLeaf) return;
+
+        var g = document.createElementNS(SVG_NS, 'g');
+        g.classList.add('yaml-collapse-controls');
+
+        // Collapse All button (left)
+        var collapseBtn = document.createElementNS(SVG_NS, 'g');
+        collapseBtn.classList.add('yaml-collapse-ctrl-btn');
+
+        var collapseBg = document.createElementNS(SVG_NS, 'rect');
+        collapseBg.setAttribute('x', '0');
+        collapseBg.setAttribute('y', '0');
+        collapseBg.setAttribute('width', '26');
+        collapseBg.setAttribute('height', '22');
+        collapseBg.setAttribute('rx', '4');
+        collapseBg.setAttribute('ry', '4');
+        collapseBg.classList.add('yaml-collapse-ctrl-bg');
+
+        var collapseTxt = document.createElementNS(SVG_NS, 'text');
+        collapseTxt.setAttribute('x', '13');
+        collapseTxt.setAttribute('y', '11');
+        collapseTxt.setAttribute('text-anchor', 'middle');
+        collapseTxt.setAttribute('dominant-baseline', 'central');
+        collapseTxt.classList.add('yaml-collapse-ctrl-text');
+        collapseTxt.textContent = '\u229F'; // ⊟
+
+        collapseBtn.appendChild(collapseBg);
+        collapseBtn.appendChild(collapseTxt);
+
+        collapseBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            collapseAll(svg);
+        });
+
+        // Expand All button (right)
+        var expandBtn = document.createElementNS(SVG_NS, 'g');
+        expandBtn.classList.add('yaml-collapse-ctrl-btn');
+        expandBtn.setAttribute('transform', 'translate(30,0)');
+
+        var expandBg = document.createElementNS(SVG_NS, 'rect');
+        expandBg.setAttribute('x', '0');
+        expandBg.setAttribute('y', '0');
+        expandBg.setAttribute('width', '26');
+        expandBg.setAttribute('height', '22');
+        expandBg.setAttribute('rx', '4');
+        expandBg.setAttribute('ry', '4');
+        expandBg.classList.add('yaml-collapse-ctrl-bg');
+
+        var expandTxt = document.createElementNS(SVG_NS, 'text');
+        expandTxt.setAttribute('x', '13');
+        expandTxt.setAttribute('y', '11');
+        expandTxt.setAttribute('text-anchor', 'middle');
+        expandTxt.setAttribute('dominant-baseline', 'central');
+        expandTxt.classList.add('yaml-collapse-ctrl-text');
+        expandTxt.textContent = '\u229E'; // ⊞
+
+        expandBtn.appendChild(expandBg);
+        expandBtn.appendChild(expandTxt);
+
+        expandBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            expandAll(svg);
+        });
+
+        g.appendChild(collapseBtn);
+        g.appendChild(expandBtn);
+        svg.appendChild(g);
+
+        data.controlsGroup = g;
+        repositionControls(svg);
+    }
+
+    /**
+     * Remove the collapse/expand all controls from the SVG
+     * @param {SVGElement} svg
+     */
+    function removeCollapseControls(svg) {
+        var data = svg._yamlData;
+        if (!data || !data.controlsGroup) return;
+
+        if (data.controlsGroup.parentNode) {
+            data.controlsGroup.parentNode.removeChild(data.controlsGroup);
+        }
+        data.controlsGroup = null;
+    }
+
+    /**
+     * Collapse all non-leaf boxes
+     * @param {SVGElement} svg
+     */
+    function collapseAll(svg) {
+        var data = svg._yamlData;
+
+        data.boxes.forEach(function(box) {
+            if (!isLeafBox(box, data.graph)) {
+                data.collapsedBoxes.add(box);
+                var toggleInfo = data.toggleElements.get(box);
+                if (toggleInfo) {
+                    toggleInfo.symbol.textContent = '+';
+                }
+            }
+        });
+
+        clearSelection(svg);
+        applyVisibility(svg);
+        recalcViewBox(svg);
+    }
+
+    /**
+     * Expand all collapsed boxes
+     * @param {SVGElement} svg
+     */
+    function expandAll(svg) {
+        var data = svg._yamlData;
+
+        data.collapsedBoxes.forEach(function(box) {
+            var toggleInfo = data.toggleElements.get(box);
+            if (toggleInfo) {
+                toggleInfo.symbol.textContent = '\u2212'; // minus sign
+            }
+        });
+        data.collapsedBoxes.clear();
+
+        applyVisibility(svg);
+
+        // Restore original dimensions (viewBox + width/height + style)
+        restoreOriginalDimensions(svg);
+        repositionControls(svg);
+    }
+
+    /**
+     * Check if there are any collapsed boxes in the SVG
+     * @param {SVGElement} svg
+     * @returns {boolean}
+     */
+    function hasCollapsedBoxes(svg) {
+        return svg._yamlData && svg._yamlData.collapsedBoxes && svg._yamlData.collapsedBoxes.size > 0;
+    }
+
+    // ================================================================
+    // END COLLAPSE / EXPAND
+    // ================================================================
 
     /**
      * Find the outgoing connection that corresponds to a specific text row.
@@ -1026,11 +1676,19 @@ var InteractiveSvgYaml = (function() {
             }
         });
 
-        // ESC key to clear
+        // Create collapse/expand toggle buttons and controls
+        createToggleButtons(svg, boxes, graph);
+        createCollapseControls(svg);
+
+        // ESC key to clear (priority: highlight first, then collapse)
         var escHandler = function(e) {
-            if (e.key === 'Escape' && svg.classList.contains('yaml-has-selection')) {
-                clearSelection(svg);
-                if (options.onClear) options.onClear();
+            if (e.key === 'Escape') {
+                if (svg.classList.contains('yaml-has-selection')) {
+                    clearSelection(svg);
+                    if (options.onClear) options.onClear();
+                } else if (hasCollapsedBoxes(svg)) {
+                    expandAll(svg);
+                }
             }
         };
         document.addEventListener('keydown', escHandler);
@@ -1059,6 +1717,30 @@ var InteractiveSvgYaml = (function() {
 
         if (svg._yamlData && svg._yamlData.escHandler) {
             document.removeEventListener('keydown', svg._yamlData.escHandler);
+        }
+
+        // Remove collapse/expand elements
+        removeToggleButtons(svg);
+        removeCollapseControls(svg);
+
+        // Restore original dimensions (viewBox + width/height + style)
+        restoreOriginalDimensions(svg);
+
+        // Restore visibility: remove inline display/visibility and CSS classes
+        if (svg._yamlData) {
+            svg._yamlData.boxes.forEach(function(box) {
+                box.elements.forEach(function(el) {
+                    if (el) {
+                        showElement(el);
+                        el.classList.remove('yaml-box-collapsed');
+                    }
+                });
+            });
+            svg._yamlData.connections.forEach(function(conn) {
+                conn.elements.forEach(function(el) {
+                    if (el) showElement(el);
+                });
+            });
         }
 
         clearSelection(svg);

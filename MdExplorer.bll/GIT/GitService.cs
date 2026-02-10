@@ -179,7 +179,7 @@ namespace MdExplorer.Features.GIT
                     ).ToArray();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -690,14 +690,11 @@ namespace MdExplorer.Features.GIT
             var isAuthenticationMissing = false;
             var thereAreConflicts = false;
 
-            var isAuthMissingIntoDB = false;
-
             var dalGitlabSetting = _userSettingDb.GetDal<GitlabSetting>();
             var currentGitlab = dalGitlabSetting.GetList()
                 .Where(_ => _.LocalPath == pullInfo.ProjectPath).FirstOrDefault();
             if (currentGitlab == null)
             {
-                isAuthMissingIntoDB = true;
                 if (pullInfo.UserName == null)
                 {
                     return (isConnectionMissing, true, thereAreConflicts, null);

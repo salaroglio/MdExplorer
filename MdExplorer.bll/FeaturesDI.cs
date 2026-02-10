@@ -23,7 +23,6 @@ using MdExplorer.Features.snippets.slide;
 using MdExplorer.Features.snippets.text_document;
 using MdExplorer.Features.snippets.workflow;
 using MdExplorer.Features.Utilities;
-using MdExplorer.Features.Yaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PlantUml.Net;

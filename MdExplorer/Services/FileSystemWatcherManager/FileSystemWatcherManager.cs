@@ -69,11 +69,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // Create FileSystemWatcher
                 var watcher = new System.IO.FileSystemWatcher(normalizedPath)
                 {
-                    NotifyFilter = NotifyFilters.CreationTime
+                    NotifyFilter = NotifyFilters.FileName
                                  | NotifyFilters.DirectoryName
-                                 | NotifyFilters.FileName
-                                 | NotifyFilters.LastWrite
-                                 | NotifyFilters.Size,
+                                 | NotifyFilters.LastWrite,
                     IncludeSubdirectories = true,
                     EnableRaisingEvents = true
                 };
@@ -86,8 +84,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     Watcher = watcher,
                     RegisteredAt = DateTime.UtcNow,
                     IgnoreConfiguration = ignoreConfig,
-                    LastRead = DateTime.MinValue,
-                    FileProcessingCount = new Dictionary<string, int>()
+                    LastProcessedPerFile = new System.Collections.Concurrent.ConcurrentDictionary<string, DateTime>()
                 };
 
                 // Create named event handlers (instead of inline lambdas) for proper cleanup
@@ -183,8 +180,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                         context.Watcher.Dispose();
                     }
 
-                    // Clear FileProcessingCount to prevent memory leak
-                    context.FileProcessingCount?.Clear();
+                    // Clear per-file debounce tracking to prevent memory leak
+                    context.LastProcessedPerFile?.Clear();
 
                     _logger.LogInformation($"✅ FileSystemWatcher disposed for connection {connectionId}");
                 }
@@ -357,47 +354,48 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
-                var lastWriteTime = File.GetLastWriteTime(e.FullPath);
+                // Per-file debounce: ignore duplicate events within 2 seconds
+                var now = DateTime.UtcNow;
+                var debounceWindow = TimeSpan.FromSeconds(2);
 
-                // Periodic cleanup of FileProcessingCount to prevent memory leak
-                if (context.FileProcessingCount.Count > 100)
+                if (context.LastProcessedPerFile.TryGetValue(e.FullPath, out var lastProcessed)
+                    && (now - lastProcessed) < debounceWindow)
                 {
-                    context.FileProcessingCount.Clear();
-                    _logger.LogDebug($"[{context.ConnectionId}] FileProcessingCount cleaned up (exceeded 100 entries)");
+                    _logger.LogDebug($"[{context.ConnectionId}] Debounce: skipping duplicate Changed for {Path.GetFileName(e.FullPath)}");
+                    return;
                 }
 
-                // Loop detection
-                if (!context.FileProcessingCount.ContainsKey(e.FullPath))
+                // Periodic cleanup to prevent unbounded memory growth
+                if (context.LastProcessedPerFile.Count > 200)
                 {
-                    context.FileProcessingCount[e.FullPath] = 0;
-                }
-                context.FileProcessingCount[e.FullPath]++;
-
-                if (context.FileProcessingCount[e.FullPath] > 5)
-                {
-                    _logger.LogError($"⚠️ [{context.ConnectionId}] LOOP DETECTED! File {e.FullPath} processed {context.FileProcessingCount[e.FullPath]} times");
-                }
-
-                if (lastWriteTime > context.LastRead)
-                {
-                    _logger.LogInformation($"✅ [{context.ConnectionId}] Markdown file changed: {e.FullPath}");
-                    ParseNewFileIntoDB(context, e);
-
-                    var relativePath = GetRelativePath(context, e.FullPath);
-                    var monitoredMd = new MonitoredMDModel
+                    var cutoff = now - TimeSpan.FromMinutes(5);
+                    foreach (var key in context.LastProcessedPerFile.Keys)
                     {
-                        Path = relativePath,
-                        Name = Path.GetFileName(e.FullPath),
-                        FullPath = e.FullPath,
-                        RelativePath = relativePath,
-                        Source = "watcher"
-                    };
-
-                    // Notify ONLY this specific client
-                    await _hubContext.Clients.Client(context.ConnectionId).SendAsync("markdownfileischanged", monitoredMd);
-
-                    context.LastRead = lastWriteTime.AddSeconds(1);
+                        if (context.LastProcessedPerFile.TryGetValue(key, out var ts) && ts < cutoff)
+                        {
+                            context.LastProcessedPerFile.TryRemove(key, out _);
+                        }
+                    }
                 }
+
+                // Mark as processed BEFORE doing work (prevents re-entry from buffered events)
+                context.LastProcessedPerFile[e.FullPath] = now;
+
+                _logger.LogInformation($"✅ [{context.ConnectionId}] Markdown file changed: {e.FullPath}");
+                ParseNewFileIntoDB(context, e);
+
+                var relativePath = GetRelativePath(context, e.FullPath);
+                var monitoredMd = new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(e.FullPath),
+                    FullPath = e.FullPath,
+                    RelativePath = relativePath,
+                    Source = "watcher"
+                };
+
+                // Notify ONLY this specific client
+                await _hubContext.Clients.Client(context.ConnectionId).SendAsync("markdownfileischanged", monitoredMd);
             }
             catch (Exception ex)
             {

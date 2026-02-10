@@ -100,12 +100,12 @@ svg.interactive-svg-yaml ellipse.yaml-connection-highlighted {
 /* === DIM NON-RELATED ELEMENTS WHEN SELECTION IS ACTIVE === */
 
 /* Dim box rects not involved */
-svg.interactive-svg-yaml.yaml-has-selection rect[fill="#F1F1F1"]:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-tooltip-bg) {
+svg.interactive-svg-yaml.yaml-has-selection rect[fill="#F1F1F1"]:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-tooltip-bg):not(.yaml-collapsed-hidden) {
     opacity: 0.3;
 }
 
 /* Dim text not involved */
-svg.interactive-svg-yaml.yaml-has-selection text:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-link-text):not(.yaml-row-selected):not(.yaml-tooltip-text):not(.yaml-row-leaf) {
+svg.interactive-svg-yaml.yaml-has-selection text:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-link-text):not(.yaml-row-selected):not(.yaml-tooltip-text):not(.yaml-row-leaf):not(.yaml-toggle-symbol):not(.yaml-collapse-ctrl-text) {
     opacity: 0.3;
 }
 
@@ -115,11 +115,11 @@ svg.interactive-svg-yaml.yaml-has-selection line:not(.yaml-box-source):not(.yaml
 }
 
 /* Dim connections not highlighted */
-svg.interactive-svg-yaml.yaml-has-selection path:not(.yaml-connection-highlighted) {
+svg.interactive-svg-yaml.yaml-has-selection path:not(.yaml-connection-highlighted):not(.yaml-collapsed-hidden) {
     opacity: 0.15;
 }
 
-svg.interactive-svg-yaml.yaml-has-selection ellipse:not(.yaml-connection-highlighted) {
+svg.interactive-svg-yaml.yaml-has-selection ellipse:not(.yaml-connection-highlighted):not(.yaml-collapsed-hidden) {
     opacity: 0.15;
 }
 
@@ -133,7 +133,11 @@ svg.interactive-svg-yaml.yaml-has-selection .yaml-row-selected,
 svg.interactive-svg-yaml.yaml-has-selection .yaml-row-leaf,
 svg.interactive-svg-yaml .yaml-tooltip-text,
 svg.interactive-svg-yaml .yaml-tooltip-bg,
-svg.interactive-svg-yaml .yaml-tooltip-arrow {
+svg.interactive-svg-yaml .yaml-tooltip-arrow,
+svg.interactive-svg-yaml .yaml-collapse-toggle,
+svg.interactive-svg-yaml .yaml-collapse-toggle *,
+svg.interactive-svg-yaml .yaml-collapse-controls,
+svg.interactive-svg-yaml .yaml-collapse-controls * {
     opacity: 1 !important;
 }
 
@@ -145,4 +149,73 @@ svg.interactive-svg-yaml line,
 svg.interactive-svg-yaml path,
 svg.interactive-svg-yaml ellipse {
     transition: opacity 0.2s ease, stroke 0.2s ease, stroke-width 0.2s ease, fill 0.2s ease, filter 0.2s ease;
+}
+
+/* === COLLAPSE/EXPAND TOGGLE BUTTONS === */
+
+.yaml-collapse-toggle {
+    cursor: pointer;
+}
+
+.yaml-toggle-bg {
+    fill: #ffffff;
+    stroke: #999;
+    stroke-width: 1.5;
+    transition: all 0.2s ease;
+}
+
+.yaml-collapse-toggle:hover .yaml-toggle-bg {
+    stroke: #2196F3;
+    fill: #E3F2FD;
+}
+
+.yaml-toggle-symbol {
+    fill: #555;
+    font-size: 14px;
+    font-weight: bold;
+    pointer-events: none;
+    font-family: Arial, sans-serif;
+}
+
+/* === COLLAPSED BOX INDICATOR === */
+
+svg.interactive-svg-yaml rect.yaml-box-collapsed[fill="#F1F1F1"] {
+    stroke: #FF9800 !important;
+    stroke-width: 2 !important;
+    stroke-dasharray: 4,2;
+}
+
+/* === HIDDEN ELEMENTS (collapsed descendants) === */
+
+.yaml-collapsed-hidden {
+    display: none !important;
+}
+
+/* === COLLAPSE ALL / EXPAND ALL CONTROLS === */
+
+.yaml-collapse-controls {
+    cursor: pointer;
+}
+
+.yaml-collapse-ctrl-bg {
+    fill: #ffffff;
+    stroke: #ccc;
+    stroke-width: 1;
+    transition: all 0.2s ease;
+}
+
+.yaml-collapse-ctrl-btn:hover .yaml-collapse-ctrl-bg {
+    stroke: #2196F3;
+    fill: #E3F2FD;
+}
+
+.yaml-collapse-ctrl-text {
+    fill: #555;
+    font-size: 16px;
+    pointer-events: none;
+    font-family: Arial, sans-serif;
+}
+
+.yaml-collapse-ctrl-btn {
+    cursor: pointer;
 }

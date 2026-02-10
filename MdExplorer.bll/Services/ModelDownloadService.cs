@@ -134,7 +134,7 @@ namespace MdExplorer.Features.Services
             return Path.Combine(_modelsDirectory, modelName);
         }
 
-        public async Task<bool> DeleteModelAsync(string modelName)
+        public Task<bool> DeleteModelAsync(string modelName)
         {
             try
             {
@@ -143,14 +143,14 @@ namespace MdExplorer.Features.Services
                 {
                     File.Delete(modelPath);
                     _logger.LogInformation($"Deleted model: {modelName}");
-                    return true;
+                    return Task.FromResult(true);
                 }
-                return false;
+                return Task.FromResult(false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to delete model: {modelName}");
-                return false;
+                return Task.FromResult(false);
             }
         }
 

@@ -144,6 +144,13 @@
   }
 }
 
+// ==================== Drag & Drop ====================
+.drag-over {
+  background-color: rgba(33, 150, 243, 0.15) !important;
+  border: 2px dashed #2196F3;
+  border-radius: 4px;
+}
+
 // ==================== Folder Row Clickable ====================
 .folder-row-clickable {
   width: 100%;

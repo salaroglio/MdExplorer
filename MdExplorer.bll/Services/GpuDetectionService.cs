@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Features.Services
@@ -93,6 +94,7 @@ namespace MdExplorer.Features.Services
             return gpuInfo;
         }
 
+        [SupportedOSPlatform("windows")]
         private void DetectGpuWindows(GpuInfo gpuInfo)
         {
             try

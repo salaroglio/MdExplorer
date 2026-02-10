@@ -65,6 +65,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   hoveredSegment: CompactSegment | null = null;
   selectedCompactSegment: CompactSegment | null = null;
 
+  // Drag & Drop state
+  draggedNode: MdFile | null = null;
+  dragOverNode: MdFile | null = null;
+
   // Skeleton loader state
   isLoading = true;
 
@@ -391,6 +395,73 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.snackBar.open('Errore di navigazione', 'OK', { duration: 3000 });
     }
   }
+
+  // ==================== Drag & Drop ====================
+
+  onDragStart(event: DragEvent, node: MdFile): void {
+    if (node.type !== 'mdFile' && node.type !== 'mdFileTimer') {
+      event.preventDefault();
+      return;
+    }
+    this.draggedNode = node;
+    event.dataTransfer.effectAllowed = 'move';
+    event.stopPropagation();
+  }
+
+  onDragEnd(event: DragEvent): void {
+    this.draggedNode = null;
+    this.dragOverNode = null;
+  }
+
+  onDragOver(event: DragEvent, node: MdFile): void {
+    if (node.type !== 'folder' || !this.draggedNode) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    this.dragOverNode = node;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    this.dragOverNode = null;
+  }
+
+  onDrop(event: DragEvent, node: MdFile): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!this.draggedNode || node.type !== 'folder') {
+      this.draggedNode = null;
+      this.dragOverNode = null;
+      return;
+    }
+
+    // Skip if file is already in the target folder
+    const fileDirPath = this.draggedNode.fullPath.substring(0, this.draggedNode.fullPath.lastIndexOf('\\'));
+    if (fileDirPath === node.fullPath) {
+      this.snackBar.open('File is already in this folder', '', { duration: 2000 });
+      this.draggedNode = null;
+      this.dragOverNode = null;
+      return;
+    }
+
+    const draggedFile = this.draggedNode;
+    this.draggedNode = null;
+    this.dragOverNode = null;
+
+    this.mdFileService.moveMdFile(draggedFile, node.fullPath).subscribe({
+      next: () => {
+        this.snackBar.open(`Moved "${draggedFile.name}" to "${node.name}"`, 'OK', { duration: 3000 });
+        this.mdFileService.loadAll(null, this);
+      },
+      error: (err) => {
+        console.error('Error moving file:', err);
+        this.snackBar.open('Error moving file: ' + (err.error?.message || err.message), 'OK', { duration: 5000 });
+      }
+    });
+  }
+
+  // ==================== End Drag & Drop ====================
 
   // Manu management
 
@@ -1146,67 +1217,68 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       childrens: []
     };
 
-    // STEP 3: Costruisce la gerarchia completa (directories + file)
-    const hierarchyPath = this.buildFileHierarchy(newMdFile);
-    console.log('📂 [STEP 3] hierarchyPath costruito:', JSON.stringify(hierarchyPath, null, 2));
+    // STEP 3: Inserimento diretto nel parent folder (gestisce compact folders)
+    const parentDirPath = fileData.fullPath.substring(0, fileData.fullPath.lastIndexOf('\\'));
+    const added = this.mdFileService.addFileToParent(newMdFile as any, parentDirPath);
+    console.log('📂 [STEP 3] addFileToParent result:', added, 'parentDirPath:', parentDirPath);
 
-    // STEP 4: Usa il nuovo metodo che crea directory mancanti e poi aggiunge il file
-    console.log('➡️ [STEP 4] Chiamo addNewFileWithDirectories...');
-    // Il metodo restituisce un Subject che emette quando l'operazione è completa
-    this.mdFileService.addNewFileWithDirectories(hierarchyPath).subscribe(() => {
-      console.log('✅ [STEP 4] addNewFileWithDirectories COMPLETATO');
+    if (!added) {
+      // STEP 3b: Fallback per caso raro (nuova cartella + file creati insieme)
+      console.log('⚠️ [STEP 3b] Fallback: buildFileHierarchy + addNewFileWithDirectories');
+      const hierarchyPath = this.buildFileHierarchy(newMdFile);
+      this.mdFileService.addNewFileWithDirectories(hierarchyPath);
+    }
 
-      // STEP 5: Aggiungi il file al Set di tracking (già indicizzato)
-      const currentSet = this.indexedFilesSubject.value;
-      const newSet = new Set(currentSet);
-      newSet.add(newMdFile.fullPath);
-      this.indexedFilesSubject.next(newSet);
+    // STEP 5: Aggiungi il file al Set di tracking (già indicizzato)
+    const currentSet = this.indexedFilesSubject.value;
+    const newSet = new Set(currentSet);
+    newSet.add(newMdFile.fullPath);
+    this.indexedFilesSubject.next(newSet);
 
-      // STEP 6: Forza change detection per aggiornare il tree
-      this.changeDetectorRef.detectChanges();
+    // STEP 6: Forza change detection per aggiornare il tree
+    this.changeDetectorRef.detectChanges();
 
-      // STEP 7: Crea un MdFile valido per la navigazione
-      const mdFileForNavigation: MdFile = {
-        name: newMdFile.name,
-        path: newMdFile.path,
-        relativePath: newMdFile.relativePath,
-        fullPath: newMdFile.fullPath,
-        fullDirectoryPath: newMdFile.fullPath.substring(0, newMdFile.fullPath.lastIndexOf('\\')),
-        type: 'mdFile',
-        level: newMdFile.level,
-        expandable: false,
-        isLoading: false,
-        childrens: [],
-        index: 0,
-        isIndexed: true,
-        indexingStatus: 'completed'
-      };
+    // STEP 7: Crea un MdFile valido per la navigazione
+    const mdFileForNavigation: MdFile = {
+      name: newMdFile.name,
+      path: newMdFile.path,
+      relativePath: newMdFile.relativePath,
+      fullPath: newMdFile.fullPath,
+      fullDirectoryPath: newMdFile.fullPath.substring(0, newMdFile.fullPath.lastIndexOf('\\')),
+      type: 'mdFile',
+      level: newMdFile.level,
+      expandable: false,
+      isLoading: false,
+      childrens: [],
+      index: 0,
+      isIndexed: true,
+      indexingStatus: 'completed'
+    };
 
-      // STEP 8: Espandi il tree fino al file (triggera il subscriber che espande i nodi)
-      this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+    // STEP 8: Espandi il tree fino al file (triggera il subscriber che espande i nodi)
+    this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
 
-      // STEP 9: Seleziona il file nel tree
-      this.activeNode = mdFileForNavigation;
-      this.selectedNode = mdFileForNavigation;
-      this.changeDetectorRef.markForCheck();
+    // STEP 9: Seleziona il file nel tree
+    this.activeNode = mdFileForNavigation;
+    this.selectedNode = mdFileForNavigation;
+    this.changeDetectorRef.markForCheck();
 
-      // STEP 10: Naviga al documento e imposta il file selezionato
-      this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
-      this.navService.setNewNavigation(mdFileForNavigation);
-      this.router.navigate(['/main/navigation/document']);
+    // STEP 10: Naviga al documento e imposta il file selezionato
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+    this.navService.setNewNavigation(mdFileForNavigation);
+    this.router.navigate(['/main/navigation/document']);
 
-      // STEP 11: Mostra notifica di successo (dopo la navigazione)
-      this.snackBar.open(
-        `Nuovo file creato: ${newMdFile.name}`,
-        'Chiudi',
-        {
-          duration: 3000,
-          horizontalPosition: 'right',
-          verticalPosition: 'bottom',
-          panelClass: ['success-snackbar']
-        }
-      );
-    });
+    // STEP 11: Mostra notifica di successo (dopo la navigazione)
+    this.snackBar.open(
+      `Nuovo file creato: ${newMdFile.name}`,
+      'Chiudi',
+      {
+        duration: 3000,
+        horizontalPosition: 'right',
+        verticalPosition: 'bottom',
+        panelClass: ['success-snackbar']
+      }
+    );
   }
 
   // Costruisce la gerarchia completa per un file

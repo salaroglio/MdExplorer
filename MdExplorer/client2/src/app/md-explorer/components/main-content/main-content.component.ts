@@ -572,6 +572,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         case 'p2p-link-hover':
           this.handleP2PLinkHover(event.data);
           break;
+        case 'md-navigate':
+          this.handleMdNavigate(event.data);
+          break;
       }
     });
   }
@@ -605,6 +608,27 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         this.snackBar.open('Errore nel verificare il file', 'OK', { duration: 3000 });
       }
     });
+  }
+
+  /**
+   * Handle navigation request from iframe (YAML links in PlantUML diagrams).
+   * Loads the document once via Angular, avoiding the double-load caused by window.location.href.
+   */
+  private handleMdNavigate(data: { relativePath: string; name: string }): void {
+    const mdFile: MdFile = {
+      name: data.name,
+      path: data.relativePath,
+      relativePath: data.relativePath,
+      fullPath: '',
+      fullDirectoryPath: '',
+      level: 0,
+      expandable: false,
+      type: 'file',
+      index: 0,
+      isLoading: false,
+      childrens: []
+    };
+    this.loadMarkdownFile(mdFile);
   }
 
   /**

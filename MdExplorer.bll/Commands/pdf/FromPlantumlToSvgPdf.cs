@@ -95,7 +95,7 @@ namespace MdExplorer.Features.Commands.pdf
             return matches;
         }
 
-        protected MatchCollection GetMetaDataMatches(string markDown)
+        protected new MatchCollection GetMetaDataMatches(string markDown)
         {
             var reg = @"{?([^\s{}]+)}?";
             Regex rx = new Regex(reg,

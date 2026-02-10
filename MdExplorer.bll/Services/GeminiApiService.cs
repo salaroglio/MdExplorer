@@ -287,9 +287,9 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
         }
 
-        public async Task<List<GeminiModel>> GetAvailableModelsAsync()
+        public Task<List<GeminiModel>> GetAvailableModelsAsync()
         {
-            return _availableModels;
+            return Task.FromResult(_availableModels);
         }
 
         public async Task<string> ChatAsync(string prompt, string modelName = "gemini-1.5-flash")
