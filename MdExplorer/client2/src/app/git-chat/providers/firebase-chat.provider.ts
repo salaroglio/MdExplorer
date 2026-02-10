@@ -19,7 +19,6 @@ import {
 } from 'firebase/database';
 import { IChatProvider } from './chat-provider.interface';
 import { ChatMessage, ChatUser, PresenceInfo, FirebaseConfig } from '../models/chat.models';
-import { environment } from '../../../../../environments/environment';
 
 /**
  * Firebase Realtime Database implementation of IChatProvider
@@ -58,7 +57,7 @@ export class FirebaseChatProvider implements IChatProvider {
    */
   private initializeFirebase(): void {
     try {
-      const config: FirebaseConfig = environment.firebase;
+      const config: FirebaseConfig | undefined = undefined;
       if (!config || !config.apiKey) {
         console.warn('[FirebaseChatProvider] Firebase config not found in environment');
         return;

@@ -427,3 +427,6 @@ MdExplorer.AI.Premium/
 # Experiments and temp files
 experiments/
 nul
+
+# Development settings with secrets
+**/appsettings.Development.json
