@@ -69,6 +69,8 @@ using MdExplorer.Service.Services;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Features.Services;
+using MdExplorer.Features.Services.AI;
 
 namespace MdExplorer.Service.Controllers.MdFiles
 {
@@ -91,6 +93,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IMdIgnoreService _mdIgnoreService;
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IModelDownloadService _downloadService;
+        private readonly IEmbeddingService _embeddingService;
+        private readonly IMarkdownChunkingService _chunkingService;
+        private readonly IVectorSearchService _vectorSearchService;
 
 
         public MdFilesController(
@@ -114,7 +120,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
         IMdIgnoreService mdIgnoreService,
         FoldersIgnoreService foldersIgnoreService,
         IServiceScopeFactory serviceScopeFactory,
-        IDatabaseManager databaseManager = null
+        IDatabaseManager databaseManager = null,
+        IModelDownloadService downloadService = null,
+        IEmbeddingService embeddingService = null,
+        IMarkdownChunkingService chunkingService = null,
+        IVectorSearchService vectorSearchService = null
             ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager)
         {
 
@@ -129,6 +139,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _mdIgnoreService = mdIgnoreService;
             _foldersIgnoreService = foldersIgnoreService;
             _serviceScopeFactory = serviceScopeFactory;
+            _downloadService = downloadService;
+            _embeddingService = embeddingService;
+            _chunkingService = chunkingService;
+            _vectorSearchService = vectorSearchService;
         }
 
         [HttpGet]
@@ -2670,6 +2684,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             await ParseAllLinks(connectionId);
             _logger.LogInformation("[IndexLinksInBackground] Link parsing completed");
 
+            // Phase 7: RAG embedding generation (if enabled and embedding service available)
+            await EmbedDocumentsInBackground(connectionId);
+
             // Notifica che i file sono stati indicizzati
             await NotifyFilesIndexed(fullStructure, connectionId);
         }
@@ -2851,6 +2868,184 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     }
                 }
             });
+        }
+
+        private async Task EmbedDocumentsInBackground(string connectionId)
+        {
+            // Guard: check if RAG services are available
+            if (_embeddingService == null || _chunkingService == null)
+            {
+                _logger.LogDebug("[EmbedDocuments] Embedding or chunking service not available, skipping RAG embedding");
+                return;
+            }
+
+            // Guard: check if RAG is enabled for this project
+            try
+            {
+                var settingsDal = _projectDB.GetDal<ProjectSetting>();
+                var ragSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "RagEnabled");
+                if (ragSetting?.ValueBool != true)
+                {
+                    _logger.LogDebug("[EmbedDocuments] RAG not enabled for this project, skipping");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[EmbedDocuments] Could not check RAG setting, skipping");
+                return;
+            }
+
+            // Guard: check if embedding model is installed and loaded
+            if (!_embeddingService.IsModelLoaded())
+            {
+                var modelPath = _downloadService?.GetInstalledEmbeddingModelPath();
+
+                if (modelPath != null)
+                {
+                    _logger.LogInformation("[EmbedDocuments] Auto-loading embedding model from {Path}", modelPath);
+                    var loaded = await _embeddingService.LoadModelAsync(modelPath);
+                    if (!loaded)
+                    {
+                        _logger.LogWarning("[EmbedDocuments] Failed to load embedding model, skipping");
+                        return;
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("[EmbedDocuments] No embedding model installed, skipping");
+                    return;
+                }
+            }
+
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    using (var serviceScope = _serviceScopeFactory.CreateScope())
+                    {
+                        var databaseManager = serviceScope.ServiceProvider.GetService<IDatabaseManager>();
+                        var context = databaseManager?.GetContext(connectionId);
+                        if (context == null)
+                        {
+                            _logger.LogError("[EmbedDocuments] No database context for connection {ConnectionId}", connectionId);
+                            return;
+                        }
+
+                        var engineDB = context.EngineDB;
+                        var markdownFileDal = engineDB.GetDal<MarkdownFile>();
+                        var chunkDal = engineDB.GetDal<DocumentChunk>();
+                        var allFiles = markdownFileDal.GetList().ToList();
+
+                        _logger.LogInformation("[EmbedDocuments] Processing {Count} files for RAG embedding", allFiles.Count);
+
+                        await _hubContext.Clients.Client(connectionId)
+                            .SendAsync("embeddingProgress", new { status = "started", total = allFiles.Count, processed = 0 });
+
+                        int processedCount = 0;
+                        int skippedCount = 0;
+
+                        foreach (var mdf in allFiles)
+                        {
+                            try
+                            {
+                                if (!System.IO.File.Exists(mdf.Path))
+                                {
+                                    skippedCount++;
+                                    continue;
+                                }
+
+                                var content = System.IO.File.ReadAllText(mdf.Path);
+                                var fileHash = ComputeSimpleHash(content);
+
+                                // Check if file has changed since last embedding
+                                var existingChunks = chunkDal.GetList()
+                                    .Where(c => c.MarkdownFile.Id == mdf.Id)
+                                    .ToList();
+
+                                if (existingChunks.Count > 0 && existingChunks[0].FileHash == fileHash)
+                                {
+                                    skippedCount++;
+                                    processedCount++;
+                                    continue; // File unchanged, skip
+                                }
+
+                                // Delete old chunks for this file
+                                engineDB.BeginTransaction();
+                                foreach (var oldChunk in existingChunks)
+                                {
+                                    chunkDal.Delete(oldChunk);
+                                }
+                                engineDB.Commit();
+
+                                // Chunk the file
+                                var relativePath = mdf.Path.Replace(context.ProjectPath, "").TrimStart(Path.DirectorySeparatorChar);
+                                var chunks = _chunkingService.ChunkFile(relativePath, content);
+
+                                // Generate embeddings and save chunks
+                                foreach (var chunk in chunks)
+                                {
+                                    var embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                                    var embeddingBytes = MdExplorer.Features.Services.AI.VectorSearchService.SerializeEmbedding(embedding);
+
+                                    engineDB.BeginTransaction();
+                                    chunkDal.Save(new DocumentChunk
+                                    {
+                                        MarkdownFile = mdf,
+                                        FilePath = chunk.FilePath,
+                                        SectionTitle = chunk.SectionTitle,
+                                        Content = chunk.Content,
+                                        StartLine = chunk.StartLine,
+                                        EndLine = chunk.EndLine,
+                                        Embedding = embeddingBytes,
+                                        EmbeddingDimension = _embeddingService.GetEmbeddingDimension(),
+                                        LastUpdated = DateTime.UtcNow.ToString("o"),
+                                        FileHash = fileHash
+                                    });
+                                    engineDB.Commit();
+                                }
+
+                                processedCount++;
+
+                                // Notify progress every 5 files
+                                if (processedCount % 5 == 0)
+                                {
+                                    await _hubContext.Clients.Client(connectionId)
+                                        .SendAsync("embeddingProgress", new { status = "processing", total = allFiles.Count, processed = processedCount });
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "[EmbedDocuments] Error processing file {Path}", mdf.Path);
+                                processedCount++;
+                                try { engineDB.Rollback(); } catch { }
+                            }
+                        }
+
+                        _vectorSearchService?.InvalidateCache();
+
+                        _logger.LogInformation("[EmbedDocuments] Completed: {Processed} processed, {Skipped} skipped",
+                            processedCount, skippedCount);
+
+                        await _hubContext.Clients.Client(connectionId)
+                            .SendAsync("embeddingProgress", new { status = "completed", total = allFiles.Count, processed = processedCount });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[EmbedDocuments] Error in embedding pipeline");
+                }
+            });
+        }
+
+        private static string ComputeSimpleHash(string content)
+        {
+            using (var sha256 = System.Security.Cryptography.SHA256.Create())
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+                var hash = sha256.ComputeHash(bytes);
+                return Convert.ToBase64String(hash).Substring(0, 16);
+            }
         }
 
         private async Task NotifyFilesIndexed(List<IFileInfoNode> structure, string connectionId)

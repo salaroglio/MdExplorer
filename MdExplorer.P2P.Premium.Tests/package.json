@@ -1,0 +1,14 @@
+{
+  "name": "mdexplorer-p2p-test-client",
+  "version": "1.0.0",
+  "description": "Test client for MdExplorer P2P download with STUN and authenticated tracker",
+  "type": "module",
+  "main": "test-download-client.js",
+  "scripts": {
+    "download": "node test-download-client.js",
+    "test-stun": "node test-stun.js"
+  },
+  "dependencies": {
+    "webtorrent": "^2.5.2"
+  }
+}

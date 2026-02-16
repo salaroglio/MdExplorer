@@ -245,3 +245,13 @@
     background-position: -200% 0;
   }
 }
+
+// ==================== Reveal in Tree Highlight ====================
+.mat-tree-node.reveal-highlight {
+  animation: reveal-flash 1.5s ease-out;
+}
+
+@keyframes reveal-flash {
+  0% { background-color: rgba(255, 193, 7, 0.4); }
+  100% { background-color: transparent; }
+}

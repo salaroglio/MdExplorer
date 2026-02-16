@@ -25,6 +25,7 @@ import { TocProgressService } from '../../services/toc-progress.service';
 import { ProjectsService } from '../../services/projects.service';
 import { UrlHandlerService } from '../../../services/url-handler.service';
 import { P2PService } from '../../../services/p2p.service';
+import { ProjectSettingsService } from '../../../projects/services/project-settings.service';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 
@@ -118,6 +119,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // P2P availability state
   isP2PAvailable = false;
 
+  // RAG availability state
+  isRagEnabled = false;
+
   constructor(private router: Router,
     private mdFileService: MdFileService,
     private navService: MdNavigationService,
@@ -130,7 +134,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private tocProgressService: TocProgressService,
     private projectsService: ProjectsService,
     private urlHandlerService: UrlHandlerService,
-    private p2pService: P2PService
+    private p2pService: P2PService,
+    private projectSettingsService: ProjectSettingsService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -235,6 +240,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.isLoading = true;
       this.changeDetectorRef.markForCheck();
     });
+
+    // Listener per "Reveal in Tree" dal pulsante mirino nel sidenav
+    this.mdFileService.revealInTree$.subscribe(file => {
+      this.revealAndScrollToNode(file);
+    });
   }
  
   //="{ value: '', params: { delay: node.index * 100 } }"
@@ -242,6 +252,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Subscribe to P2P availability
     this.p2pService.isAvailable$.subscribe(available => {
       this.isP2PAvailable = available;
+    });
+
+    // Subscribe to RAG enabled status
+    this.projectsService.ragEnabled$.subscribe(enabled => {
+      this.isRagEnabled = enabled;
+      this.changeDetectorRef.markForCheck();
     });
 
     this.mdFiles = this.mdFileService.mdFiles;
@@ -923,6 +939,60 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  indexFileForRag(node: MdFile): void {
+    const project = this.projectsService.currentProjects$.value;
+    if (!project) return;
+
+    // Notify title bar: indexing started
+    this.mdServerMessages.ragIndexingProgress$.next({
+      status: 'processing', processed: 0, total: 1,
+      message: `Indexing ${node.name}...`
+    });
+
+    this.projectSettingsService.indexRagFile(node.fullPath, project.path).subscribe({
+      next: (result) => {
+        const msg = result.skipped
+          ? (result.message || 'File already up to date')
+          : (result.message || `Indexed ${result.chunksEmbedded} chunks`);
+        this.snackBar.open(msg, 'OK', { duration: 3000 });
+        // Notify title bar: done
+        this.mdServerMessages.ragIndexingProgress$.next({
+          status: 'completed', processed: 1, total: 1, message: msg
+        });
+      },
+      error: (err) => {
+        console.error('[MdTree] RAG index file error:', err);
+        const errMsg = err.error?.error || err.message;
+        this.snackBar.open('Error: ' + errMsg, 'OK', { duration: 5000 });
+        this.mdServerMessages.ragIndexingProgress$.next({
+          status: 'error', processed: 0, total: 1, message: 'Error: ' + errMsg
+        });
+      }
+    });
+  }
+
+  indexDirectoryForRag(node: MdFile): void {
+    const project = this.projectsService.currentProjects$.value;
+    if (!project) return;
+
+    this.snackBar.open('Starting directory RAG indexing...', '', { duration: 3000 });
+    this.projectSettingsService.indexRagDirectory(node.fullPath, project.path).subscribe({
+      next: (result) => {
+        if (result.started) {
+          this.snackBar.open('Directory indexing started. Progress via notifications.', 'OK', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        console.error('[MdTree] RAG index directory error:', err);
+        if (err.status === 409) {
+          this.snackBar.open('Indexing already in progress. Please wait.', 'OK', { duration: 5000 });
+        } else {
+          this.snackBar.open('Error: ' + (err.error?.error || err.message), 'OK', { duration: 5000 });
+        }
+      }
+    });
+  }
+
   deleteFile(node: MdFile) {
     this.dialog.open(DeleteMarkdownComponent, {
       width: '300px',
@@ -1435,6 +1505,56 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Larghezze variabili tra 40% e 80%
     const widthPattern = [65, 55, 45, 70, 60, 40, 75, 50, 80, 55];
     return widthPattern[(index - 1) % widthPattern.length];
+  }
+
+  /**
+   * Reveal a file in the tree: expand parents, select it, scroll into view with highlight
+   */
+  private revealAndScrollToNode(targetFile: MdFile): void {
+    if (!this.treeControl.dataNodes || this.treeControl.dataNodes.length === 0) {
+      this.snackBar.open('Tree not loaded yet', '', { duration: 2000 });
+      return;
+    }
+
+    // Find the node in the flat tree (case-insensitive)
+    const targetNode = this.treeControl.dataNodes.find(
+      n => n.fullPath?.toLowerCase() === targetFile.fullPath?.toLowerCase()
+    );
+
+    if (!targetNode) {
+      this.snackBar.open('File not found in tree', '', { duration: 3000 });
+      return;
+    }
+
+    // Expand all parent folders using the existing helper
+    this.expandToLandingPage(targetFile);
+
+    // Select the node
+    this.activeNode = targetNode;
+    this.selectedNode = targetNode as any;
+    this.changeDetectorRef.detectChanges();
+
+    // Scroll into view after DOM update
+    setTimeout(() => {
+      this.scrollNodeIntoView(targetNode);
+    }, 100);
+  }
+
+  /**
+   * Scroll a tree node into view and flash-highlight it
+   */
+  private scrollNodeIntoView(node: IFileInfoNode): void {
+    // Escape the fullPath for use in CSS selector (handle backslashes and special chars)
+    const escapedPath = CSS.escape(node.fullPath);
+    const el = document.querySelector(`mat-tree-node[data-fullpath="${escapedPath}"]`);
+
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('reveal-highlight');
+      setTimeout(() => {
+        el.classList.remove('reveal-highlight');
+      }, 1500);
+    }
   }
 
   ngOnDestroy(): void {

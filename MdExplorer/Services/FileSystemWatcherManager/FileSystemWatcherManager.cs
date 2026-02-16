@@ -7,6 +7,7 @@ using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Features.Services.AI;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
@@ -396,11 +397,117 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 // Notify ONLY this specific client
                 await _hubContext.Clients.Client(context.ConnectionId).SendAsync("markdownfileischanged", monitoredMd);
+
+                // RAG: re-embed changed file in background (fire-and-forget)
+                _ = ReEmbedFileAsync(context.ConnectionId, e.FullPath);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"❗ [{context.ConnectionId}] ERROR in OnFileChanged for: {e.FullPath}");
             }
+        }
+
+        private async Task ReEmbedFileAsync(string connectionId, string fullPath)
+        {
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var embeddingService = scope.ServiceProvider.GetService<Abstractions.Services.IEmbeddingService>();
+                var chunkingService = scope.ServiceProvider.GetService<Abstractions.Services.IMarkdownChunkingService>();
+                var vectorSearchService = scope.ServiceProvider.GetService<Abstractions.Services.IVectorSearchService>();
+
+                if (embeddingService == null || chunkingService == null || !embeddingService.IsModelLoaded())
+                    return;
+
+                // Check if RAG is enabled
+                var dbContext = _databaseManager?.GetContext(connectionId);
+                if (dbContext == null) return;
+
+                var projectDB = scope.ServiceProvider.GetService<Abstractions.DB.IProjectDB>();
+                if (projectDB == null) return;
+
+                var settingsDal = projectDB.GetDal<Abstractions.Entities.ProjectDB.ProjectSetting>();
+                var ragSetting = settingsDal.GetList()
+                    .FirstOrDefault(s => s.Name == "RagEnabled");
+                if (ragSetting?.ValueBool != true) return;
+
+                var engineDB = dbContext.EngineDB;
+                var content = File.ReadAllText(fullPath);
+                var fileHash = ComputeSimpleHash(content);
+
+                var mdFileDal = engineDB.GetDal<MarkdownFile>();
+                var chunkDal = engineDB.GetDal<Abstractions.Entities.EngineDB.DocumentChunk>();
+
+                var mdf = mdFileDal.GetList().FirstOrDefault(f => f.Path == fullPath);
+                if (mdf == null)
+                {
+                    // Auto-create MarkdownFile record for RAG
+                    engineDB.BeginTransaction();
+                    mdf = new MarkdownFile
+                    {
+                        FileName = Path.GetFileName(fullPath),
+                        Path = fullPath,
+                        FileType = ".md"
+                    };
+                    mdFileDal.Save(mdf);
+                    engineDB.Commit();
+                    _logger.LogDebug($"[RAG] Created MarkdownFile record for {Path.GetFileName(fullPath)}");
+                }
+
+                // Check if changed
+                var existingChunks = chunkDal.GetList().Where(c => c.MarkdownFile.Id == mdf.Id).ToList();
+                if (existingChunks.Count > 0 && existingChunks[0].FileHash == fileHash)
+                    return;
+
+                // Delete old chunks
+                engineDB.BeginTransaction();
+                foreach (var old in existingChunks)
+                    chunkDal.Delete(old);
+                engineDB.Commit();
+
+                // Re-chunk and re-embed
+                var relativePath = fullPath.Replace(dbContext.ProjectPath, "").TrimStart(Path.DirectorySeparatorChar);
+                var chunks = chunkingService.ChunkFile(relativePath, content);
+
+                foreach (var chunk in chunks)
+                {
+                    var embedding = await embeddingService.GenerateEmbeddingAsync(chunk.Content);
+                    var embeddingBytes = Features.Services.AI.VectorSearchService.SerializeEmbedding(embedding);
+
+                    engineDB.BeginTransaction();
+                    chunkDal.Save(new Abstractions.Entities.EngineDB.DocumentChunk
+                    {
+                        MarkdownFile = mdf,
+                        FilePath = chunk.FilePath,
+                        SectionTitle = chunk.SectionTitle,
+                        Content = chunk.Content,
+                        StartLine = chunk.StartLine,
+                        EndLine = chunk.EndLine,
+                        Embedding = embeddingBytes,
+                        EmbeddingDimension = embeddingService.GetEmbeddingDimension(),
+                        LastUpdated = DateTime.UtcNow.ToString("o"),
+                        FileHash = fileHash,
+                        FileLastWriteUtc = File.GetLastWriteTimeUtc(fullPath).ToString("o"),
+                        ChunkType = chunk.ChunkType ?? "document"
+                    });
+                    engineDB.Commit();
+                }
+
+                vectorSearchService?.InvalidateCache();
+                _logger.LogInformation($"[RAG] Re-embedded file: {Path.GetFileName(fullPath)} ({chunks.Count} chunks)");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[RAG] Error re-embedding file: {fullPath}");
+            }
+        }
+
+        private static string ComputeSimpleHash(string content)
+        {
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            var hash = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hash).Substring(0, 16);
         }
 
         private async void OnFileCreated(WatcherContext context, FileSystemEventArgs e)

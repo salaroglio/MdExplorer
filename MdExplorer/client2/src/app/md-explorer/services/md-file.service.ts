@@ -20,7 +20,7 @@ export class MdFileService {
   private _selectedMdFileFromToolbar: BehaviorSubject<MdFile[]>;
   private _selectedMdFileFromSideNav: BehaviorSubject<MdFile>;
   private _selectedDirectoryFromNewDirectory: BehaviorSubject<MdFile>;
-  
+  private _revealInTree = new Subject<MdFile>();
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -101,6 +101,14 @@ export class MdFileService {
    */
   get currentSelectedMdFile(): MdFile | null {
     return this._selectedMdFileFromSideNav.value;
+  }
+
+  get revealInTree$(): Observable<MdFile> {
+    return this._revealInTree.asObservable();
+  }
+
+  requestRevealInTree(file: MdFile): void {
+    this._revealInTree.next(file);
   }
 
   get selectedDirectoryFromNewDirectory(): Observable<MdFile> {

@@ -40,6 +40,22 @@
       <span>Mark as development environment</span>
     </button>
 
+    <!-- RAG Indexing - Directory -->
+    <button *ngIf="item.type==='folder' && isRagEnabled"
+            mat-menu-item (click)="indexDirectoryForRag(item)"
+            style="color: #7c4dff;">
+      <mat-icon>memory</mat-icon>
+      <span>Index directory for RAG</span>
+    </button>
+
+    <!-- RAG Indexing - File -->
+    <button *ngIf="(item.type==='mdFile' || item.type==='mdFileTimer') && isRagEnabled"
+            mat-menu-item (click)="indexFileForRag(item)"
+            style="color: #7c4dff;">
+      <mat-icon>memory</mat-icon>
+      <span>Index for RAG</span>
+    </button>
+
     <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)"><b style="color:violet">Add</b> existing file<b style="color:blue"> as link</b></button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>Set as project's landing page</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>Clone timed document</b></button>
@@ -83,6 +99,7 @@
                  draggable="true"
                  (dragstart)="onDragStart($event, node)"
                  (dragend)="onDragEnd($event)"
+                 [attr.data-fullpath]="node.fullPath"
                  [ngClass]="{
                    'md-file': node.type === 'mdFile' || node.type === 'mdFileTimer',
                    'indexed': isFileIndexed(node),
@@ -114,6 +131,7 @@
                  (dragover)="onDragOver($event, node)"
                  (dragleave)="onDragLeave($event)"
                  (drop)="onDrop($event, node)"
+                 [attr.data-fullpath]="node.fullPath"
                  [ngClass]="{
                    'folder-node': true,
                    'folder-row-clickable': true,

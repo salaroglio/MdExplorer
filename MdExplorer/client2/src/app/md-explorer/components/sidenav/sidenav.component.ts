@@ -34,6 +34,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public currentBranch: string = null;
   public hasRemote: boolean = false;
   public fileSystemWatcherEnabled: boolean = true;
+  public selectedTabIndex: number = 0;
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
   
   // Memory leak prevention
@@ -300,6 +301,17 @@ export class SidenavComponent implements OnInit, OnDestroy {
           this.fileSystemWatcherEnabled = true; // Default to enabled
         }
       });
+  }
+
+  hasCurrentFile(): boolean {
+    return this.mdFileService.currentSelectedMdFile != null;
+  }
+
+  revealInTree(): void {
+    const currentFile = this.mdFileService.currentSelectedMdFile;
+    if (!currentFile) return;
+    this.selectedTabIndex = 0;
+    this.mdFileService.requestRevealInTree(currentFile);
   }
 
   /**

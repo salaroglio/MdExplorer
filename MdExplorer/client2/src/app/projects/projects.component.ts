@@ -19,7 +19,7 @@ import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-con
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
-import { SettingsComponent } from '../md-explorer/components/dialogs/settings/settings.component';
+import { UnifiedSettingsDialogComponent } from '../components/unified-settings-dialog/unified-settings-dialog.component';
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
 import { versionInfo } from '../../environments/version'; // Importa la versione
 
@@ -198,9 +198,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   openSettings(): void {
-    const dialogRef = this.dialogAn.open(SettingsComponent, {
-      width: '600px',
-      animation: {},
+    this.dialog.open(UnifiedSettingsDialogComponent, {
+      width: '900px',
+      maxHeight: '80vh',
+      data: { initialTab: 'application' }
     });
   }
 

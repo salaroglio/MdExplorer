@@ -1,0 +1,331 @@
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+
+  mat-icon {
+    color: #1976d2;
+  }
+}
+
+.settings-container {
+  display: flex;
+  min-height: 500px;
+  max-height: 70vh;
+  padding: 0 !important;
+}
+
+.settings-nav {
+  width: 200px;
+  min-width: 200px;
+  border-right: 1px solid #e0e0e0;
+  background: #fafafa;
+
+  mat-list {
+    padding-top: 8px;
+  }
+
+  mat-list-item {
+    cursor: pointer;
+    height: 48px !important;
+    transition: background-color 0.2s;
+
+    mat-icon {
+      color: #666;
+      margin-right: 12px;
+    }
+
+    span {
+      font-size: 14px;
+    }
+
+    &:hover {
+      background-color: #e8e8e8;
+    }
+
+    &.active {
+      background-color: #e3f2fd;
+      border-left: 3px solid #1976d2;
+
+      mat-icon {
+        color: #1976d2;
+      }
+
+      span {
+        color: #1976d2;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+.tab-panel {
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+  }
+
+  h4 {
+    font-size: 14px;
+    font-weight: 500;
+    color: #666;
+    margin: 12px 0 8px 0;
+  }
+}
+
+.vertical-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.tab-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+// AI Models tab
+.ai-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #e8f5e9;
+  margin-bottom: 16px;
+  font-size: 14px;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &.disconnected {
+    background: #fafafa;
+    color: #888;
+  }
+
+  .gpu-badge {
+    margin-left: auto;
+    background: #1976d2;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+}
+
+.actions-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.model-card {
+  .model-description {
+    font-size: 13px;
+    color: #666;
+    margin: 8px 0;
+  }
+
+  .model-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .file-size {
+    font-size: 12px;
+    color: #888;
+  }
+
+  &.compact {
+    mat-card-actions {
+      padding: 8px;
+    }
+  }
+}
+
+.status-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+
+  &.installed {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &.loaded {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+
+  &.not-installed {
+    background: #fafafa;
+    color: #999;
+  }
+}
+
+.config-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 13px;
+}
+
+.download-progress {
+  margin-top: 8px;
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+}
+
+// Embedding tab
+.embedding-model-card {
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  &.active-model {
+    border: 2px solid #1976d2;
+  }
+
+  .active-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #1976d2;
+    color: white;
+    font-size: 11px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+}
+
+.info-card {
+  background: #f5f5f5;
+
+  mat-card-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+
+    mat-icon {
+      color: #1976d2;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13px;
+      color: #666;
+    }
+  }
+
+  &.warning {
+    background: #fff3e0;
+
+    mat-icon {
+      color: #e65100;
+    }
+  }
+}
+
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+
+  .status-item {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+
+    .status-label {
+      color: #888;
+      min-width: 140px;
+    }
+
+    .status-ok {
+      color: #2e7d32;
+      font-weight: 500;
+    }
+
+    .status-missing {
+      color: #c62828;
+      font-weight: 500;
+    }
+
+    .path-text {
+      font-family: monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+  }
+}
+
+.gpu-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .gpu-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 12px;
+
+    &.warn {
+      background: #fff3e0;
+      color: #e65100;
+    }
+  }
+}

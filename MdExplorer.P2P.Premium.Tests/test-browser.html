@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MdExplorer P2P Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #0f0; }
+        #log { white-space: pre-wrap; height: 400px; overflow-y: auto; border: 1px solid #0f0; padding: 10px; }
+        input, button { font-family: monospace; padding: 8px; margin: 5px; }
+        input { width: 600px; background: #333; color: #0f0; border: 1px solid #0f0; }
+        button { background: #0f0; color: #000; cursor: pointer; }
+        h1 { color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>MdExplorer P2P Test Client (Browser)</h1>
+
+    <div>
+        <input type="text" id="magnet" placeholder="Inserisci magnet link o infohash..."
+               value="magnet:?xt=urn:btih:b9f9af2f6a6202ae828c02df76194c82bad9168d">
+        <button onclick="startDownload()">Download</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <h3>Config:</h3>
+    <div style="font-size: 12px;">
+        Tracker: wss://errantia.net/p2p/?token=mdexp_2026_premium_abc123xyz<br>
+        STUN: stun:errantia.net:3478<br>
+        TURN: turn:errantia.net:3478 (user: mdexplorer)
+    </div>
+
+    <h3>Log:</h3>
+    <div id="log"></div>
+
+    <h3>Download Progress:</h3>
+    <div id="progress">-</div>
+
+<script>
+const CONFIG = {
+    token: 'mdexp_2026_premium_abc123xyz',
+    trackerUrl: 'wss://errantia.net/p2p/?token=mdexp_2026_premium_abc123xyz',
+    iceServers: [
+        { urls: 'stun:errantia.net:3478' },
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+            urls: 'turn:errantia.net:3478',
+            username: 'mdexplorer',
+            credential: 'MdExp2026P2P!'
+        }
+    ]
+};
+
+let client = null;
+
+function log(msg) {
+    const el = document.getElementById('log');
+    const time = new Date().toLocaleTimeString();
+    el.textContent += `[${time}] ${msg}\n`;
+    el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('log').textContent = '';
+    document.getElementById('progress').textContent = '-';
+}
+
+function startDownload() {
+    if (client) {
+        client.destroy();
+    }
+
+    clearLog();
+    log('Inizializzazione WebTorrent...');
+
+    client = new WebTorrent({
+        tracker: {
+            rtcConfig: {
+                iceServers: CONFIG.iceServers
+            }
+        }
+    });
+
+    client.on('error', (err) => log('[CLIENT ERROR] ' + err.message));
+
+    let magnetInput = document.getElementById('magnet').value.trim();
+
+    // Se è solo un infohash, costruisci il magnet
+    if (!magnetInput.startsWith('magnet:')) {
+        magnetInput = 'magnet:?xt=urn:btih:' + magnetInput;
+    }
+
+    // Aggiungi il tracker se non presente
+    if (!magnetInput.includes('errantia.net')) {
+        magnetInput += '&tr=' + encodeURIComponent(CONFIG.trackerUrl);
+    }
+
+    log('Magnet: ' + magnetInput.substring(0, 80) + '...');
+    log('Connessione al tracker...');
+
+    const torrent = client.add(magnetInput, {
+        announce: [CONFIG.trackerUrl]
+    });
+
+    torrent.on('infoHash', () => {
+        log('[TORRENT] InfoHash: ' + torrent.infoHash);
+    });
+
+    torrent.on('metadata', () => {
+        log('[TORRENT] Metadata ricevuti!');
+        log('[TORRENT] Nome: ' + torrent.name);
+        log('[TORRENT] Dimensione: ' + formatBytes(torrent.length));
+        log('[TORRENT] Files: ' + torrent.files.length);
+    });
+
+    torrent.on('ready', () => {
+        log('[TORRENT] Pronto per il download');
+    });
+
+    torrent.on('wire', (wire) => {
+        log('[WIRE] Connesso a peer: ' + (wire.remoteAddress || 'WebRTC'));
+    });
+
+    torrent.on('download', (bytes) => {
+        const progress = (torrent.progress * 100).toFixed(1);
+        const speed = formatBytes(torrent.downloadSpeed) + '/s';
+        document.getElementById('progress').textContent =
+            progress + '% - ' + formatBytes(torrent.downloaded) + ' / ' +
+            formatBytes(torrent.length) + ' - ' + speed + ' - Peers: ' + torrent.numPeers;
+    });
+
+    torrent.on('done', () => {
+        log('');
+        log('========================================');
+        log('[DONE] Download completato!');
+        log('========================================');
+    });
+
+    torrent.on('warning', (err) => log('[WARN] ' + (err.message || err)));
+    torrent.on('error', (err) => log('[ERROR] ' + err.message));
+
+    // Timeout
+    setTimeout(() => {
+        if (torrent.progress === 0) {
+            log('');
+            log('[TIMEOUT] Nessun progresso dopo 120 secondi');
+            log('[DEBUG] Peers connessi: ' + torrent.numPeers);
+        }
+    }, 120000);
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+log('Client pronto. Inserisci un magnet link e clicca Download.');
+</script>
+</body>
+</html>

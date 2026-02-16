@@ -17,8 +17,8 @@ namespace MdExplorer.bll.Services.AI
                 CreateMarkdownFileTool(),
                 ReadMarkdownFileTool(),
                 UpdateMarkdownFileTool(),
-                CreateSlidePresentationTool()
-                // search_documents tool will be added in Phase 7 (RAG)
+                CreateSlidePresentationTool(),
+                SearchDocumentsTool()
             };
         }
 
@@ -133,6 +133,34 @@ namespace MdExplorer.bll.Services.AI
                         }
                     },
                     Required = new List<string> { "content", "mode" }
+                }
+            };
+        }
+
+        private static ToolDefinition SearchDocumentsTool()
+        {
+            return new ToolDefinition
+            {
+                Name = "search_documents",
+                Description = "Search documents semantically in the current project using RAG (Retrieval Augmented Generation). Returns the most relevant document chunks matching the query. Results include related content from the same document sections (e.g., if a text chunk matches, associated PlantUML diagrams are automatically included, and vice versa). Use this when the user asks questions about their documents, wants to find information across files, or needs context from the project.",
+                Parameters = new ToolParameters
+                {
+                    Type = "object",
+                    Properties = new Dictionary<string, ToolProperty>
+                    {
+                        ["query"] = new ToolProperty
+                        {
+                            Type = "string",
+                            Description = "The search query. Use natural language to describe what you're looking for. Examples: 'authentication flow', 'database schema', 'deployment instructions'"
+                        },
+                        ["topK"] = new ToolProperty
+                        {
+                            Type = "integer",
+                            Description = "Maximum number of results to return. Default: 5",
+                            Default = 5
+                        }
+                    },
+                    Required = new List<string> { "query" }
                 }
             };
         }

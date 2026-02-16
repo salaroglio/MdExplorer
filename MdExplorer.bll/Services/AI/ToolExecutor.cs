@@ -20,13 +20,16 @@ namespace MdExplorer.bll.Services.AI
     {
         private readonly ILogger<ToolExecutor> _logger;
         private readonly IAiFileOperationNotifier _notifier;
+        private readonly IVectorSearchService _vectorSearchService;
 
         public ToolExecutor(
             ILogger<ToolExecutor> logger,
-            IAiFileOperationNotifier notifier)
+            IAiFileOperationNotifier notifier,
+            IVectorSearchService vectorSearchService = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
+            _vectorSearchService = vectorSearchService;
         }
 
         /// <summary>
@@ -77,11 +80,12 @@ namespace MdExplorer.bll.Services.AI
                     "read_markdown_file" => await ReadMarkdownFileAsync(arguments, pathValidator, connectionId),
                     "update_markdown_file" => await UpdateMarkdownFileAsync(arguments, pathValidator, connectionId, currentDocumentPath),
                     "create_slide_presentation" => await CreateSlidePresentationAsync(arguments, pathValidator, connectionId),
+                    "search_documents" => await SearchDocumentsAsync(arguments, connectionId),
                     _ => FileOperationResult.CreateError(
                         FileOperationType.Create,
                         null,
                         $"Unknown tool: {toolName}",
-                        "Available tools: create_markdown_file, read_markdown_file, update_markdown_file, create_slide_presentation")
+                        "Available tools: create_markdown_file, read_markdown_file, update_markdown_file, create_slide_presentation, search_documents")
                 };
             }
             catch (SecurityException ex)
@@ -552,6 +556,103 @@ namespace MdExplorer.bll.Services.AI
                 var errorMessage = $"Unexpected error validating XML: {ex.Message}";
                 _logger.LogError(ex, "[ValidateHtmlAsXml] {ErrorMessage}", errorMessage);
                 return (false, errorMessage);
+            }
+        }
+
+        private async Task<FileOperationResult> SearchDocumentsAsync(dynamic args, string connectionId = null)
+        {
+            var argsDict = args as Dictionary<string, object> ?? new Dictionary<string, object>();
+
+            string query = argsDict.ContainsKey("query")
+                ? argsDict["query"]?.ToString()
+                : null;
+            int topK = argsDict.ContainsKey("topK")
+                ? Convert.ToInt32(argsDict["topK"])
+                : 5;
+
+            if (string.IsNullOrEmpty(query))
+                return FileOperationResult.CreateError(FileOperationType.Read, null, "query is required");
+
+            if (_vectorSearchService == null)
+            {
+                return FileOperationResult.CreateError(FileOperationType.Read, null,
+                    "RAG search is not available. Enable RAG in MdExplorer project settings and ensure the embedding model is installed.");
+            }
+
+            try
+            {
+                var results = await _vectorSearchService.SearchAsync(query, topK);
+
+                if (results.Count == 0)
+                {
+                    return FileOperationResult.CreateSuccess(
+                        FileOperationType.Read,
+                        null,
+                        "No relevant documents found for the query. The project may not have RAG enabled, or no documents match your query.");
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Found {results.Count} relevant document chunks for query: \"{query}\"\n");
+
+                for (int i = 0; i < results.Count; i++)
+                {
+                    var r = results[i];
+                    sb.AppendLine($"--- Result {i + 1} (score: {r.SimilarityScore:F3}, type: {r.ChunkType ?? "document"}) ---");
+                    sb.AppendLine($"File: {r.FilePath}");
+                    if (!string.IsNullOrEmpty(r.SectionTitle))
+                        sb.AppendLine($"Section: {r.SectionTitle}");
+                    sb.AppendLine($"Lines: {r.StartLine}-{r.EndLine}");
+                    sb.AppendLine(r.ChunkText);
+                    sb.AppendLine();
+                }
+
+                // Bidirectional group expansion: fetch siblings for matched chunks
+                var groupIds = results
+                    .Where(r => !string.IsNullOrEmpty(r.GroupId))
+                    .Select(r => r.GroupId)
+                    .Distinct()
+                    .ToList();
+
+                if (groupIds.Count > 0)
+                {
+                    var excludeIds = results.Select(r => r.ChunkId).ToList();
+                    var siblings = _vectorSearchService.GetGroupSiblings(groupIds, excludeIds);
+
+                    if (siblings.Count > 0)
+                    {
+                        sb.AppendLine("=== RELATED CONTEXT (from same document sections) ===\n");
+
+                        // Group siblings by their GroupId and link back to original results
+                        var resultsByGroup = results
+                            .Where(r => !string.IsNullOrEmpty(r.GroupId))
+                            .GroupBy(r => r.GroupId)
+                            .ToDictionary(g => g.Key, g => g.First());
+
+                        foreach (var sibling in siblings)
+                        {
+                            var relatedSection = resultsByGroup.ContainsKey(sibling.GroupId)
+                                ? resultsByGroup[sibling.GroupId].SectionTitle
+                                : sibling.SectionTitle;
+
+                            sb.AppendLine($"--- Related to section: \"{relatedSection}\" ---");
+                            sb.AppendLine($"Type: {sibling.ChunkType}");
+                            sb.AppendLine($"File: {sibling.FilePath}");
+                            sb.AppendLine($"Lines: {sibling.StartLine}-{sibling.EndLine}");
+                            sb.AppendLine(sibling.ChunkText);
+                            sb.AppendLine();
+                        }
+                    }
+                }
+
+                return FileOperationResult.CreateSuccess(
+                    FileOperationType.Read,
+                    null,
+                    sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SearchDocuments] Error searching documents");
+                return FileOperationResult.CreateError(FileOperationType.Read, null, $"Search error: {ex.Message}");
             }
         }
 

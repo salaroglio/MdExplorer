@@ -103,6 +103,13 @@ namespace MdExplorer
             services.AddScoped<Abstractions.Services.IAiFileOperationNotifier, Services.AiFileOperationNotifier>();
             services.AddScoped<MdExplorer.bll.Services.AI.ToolExecutor>();
 
+            // Add RAG services (base implementations - Premium module overrides IEmbeddingService)
+            services.AddSingleton<Features.Services.IEmbeddingConfigService, Features.Services.EmbeddingConfigService>();
+            services.AddSingleton<Abstractions.Services.IEmbeddingService, Features.Services.EmbeddingService>();
+            services.AddSingleton<Abstractions.Services.IMarkdownChunkingService, Features.Services.AI.MarkdownChunkingService>();
+            services.AddScoped<Abstractions.Services.IVectorSearchService, Features.Services.AI.VectorSearchService>();
+            services.AddScoped<Abstractions.Services.IRagIndexingService, Services.RagIndexingService>();
+
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
@@ -134,6 +141,25 @@ namespace MdExplorer
                 Console.WriteLine($"[Startup] Warning: Could not load P2P Premium module: {ex.Message}");
             }
 
+            // Try to load AI Premium module if available (overrides base AI stubs with LLamaSharp implementations)
+            Assembly? aiPremiumAssembly = null;
+            try
+            {
+                var aiPremiumDllPath = Path.Combine(AppContext.BaseDirectory, "MdExplorer.AI.Premium.dll");
+                if (File.Exists(aiPremiumDllPath))
+                {
+                    aiPremiumAssembly = Assembly.LoadFrom(aiPremiumDllPath);
+                    var extensionsType = aiPremiumAssembly.GetType("MdExplorer.AI.Premium.DependencyInjection.ServiceCollectionExtensions");
+                    var addMethod = extensionsType?.GetMethod("AddAiPremiumServices");
+                    addMethod?.Invoke(null, new object[] { services, null });
+                    Console.WriteLine("[Startup] AI Premium module loaded successfully");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Startup] Warning: Could not load AI Premium module: {ex.Message}");
+            }
+
             var mvcBuilder = services.AddControllers(config =>
             {
                 //config.Filters.Add<TransactionActionFilter>();
@@ -149,6 +175,13 @@ namespace MdExplorer
             {
                 mvcBuilder.AddApplicationPart(p2pAssembly);
                 Console.WriteLine("[Startup] P2P Premium controllers registered");
+            }
+
+            // Add AI Premium controllers if assembly was loaded
+            if (aiPremiumAssembly != null)
+            {
+                mvcBuilder.AddApplicationPart(aiPremiumAssembly);
+                Console.WriteLine("[Startup] AI Premium controllers registered");
             }
 
         }
@@ -296,6 +329,21 @@ namespace MdExplorer
             foreach (var addresses in addressFeature.Addresses)
             {
                 OpenUrl($"{addresses}/client2/index.html", logger);
+
+                // Save port for MCP server discovery
+                try
+                {
+                    var uri = new Uri(addresses);
+                    var portDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MdExplorer");
+                    Directory.CreateDirectory(portDir);
+                    var portFile = Path.Combine(portDir, "port.txt");
+                    System.IO.File.WriteAllText(portFile, uri.Port.ToString());
+                    logger.LogInformation("[Startup] MCP port file written: {PortFile} = {Port}", portFile, uri.Port);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[Startup] Could not write MCP port file");
+                }
             }
         }
 

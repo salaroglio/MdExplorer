@@ -21,6 +21,9 @@ export class ProjectsService {
   private _mdProjects: BehaviorSubject<MdProject[]>;
   currentProjects$: BehaviorSubject<MdProject> = new BehaviorSubject<MdProject>(null);
 
+  // RAG enabled status for current project
+  ragEnabled$ = new BehaviorSubject<boolean>(false);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -77,6 +80,9 @@ export class ProjectsService {
       // Register project open for chat presence tracking
       this.notifyProjectOpened(path);
 
+      // Refresh RAG enabled status
+      this.refreshRagStatus();
+
       // Update compatibility mode from response
       if (response.compatibilityMode) {
         const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
@@ -113,6 +119,9 @@ export class ProjectsService {
 
       // Register project open for chat presence tracking
       this.notifyProjectOpened(config.projectPath);
+
+      // Refresh RAG enabled status
+      this.refreshRagStatus();
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -183,6 +192,21 @@ export class ProjectsService {
     } else {
       console.log('[ProjectsService] No current project to re-register');
     }
+  }
+
+  /**
+   * Fetches RAG enabled status for the current project and updates ragEnabled$.
+   */
+  private refreshRagStatus(): void {
+    this.http.get<any>('../api/Rag/status').subscribe(
+      response => {
+        this.ragEnabled$.next(response.enabled ?? false);
+      },
+      error => {
+        console.warn('[ProjectsService] Failed to fetch RAG status:', error);
+        this.ragEnabled$.next(false);
+      }
+    );
   }
 
   /**

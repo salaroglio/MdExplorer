@@ -2,13 +2,17 @@ using Ad.Tools.Dal;
 using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Concrete;
 using Ad.Tools.Dal.Decorators;
+using Ad.Tools.FluentMigrator.Interfaces;
+using FluentMigrator.Runner;
 using FluentNHibernate.Cfg;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.DataAccess.Engine;
 using MdExplorer.DataAccess.Project.Mapping;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Migrations.EngineDb.Version202107;
 using MdExplorer.Utilities;
 using MDExplorer.DataAccess.Mapping;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NHibernate;
 using System;
@@ -16,6 +20,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using static Ad.Tools.FluentMigrator.FluentMigratorDI;
 
 namespace MdExplorer.Services.DatabaseManager
 {
@@ -162,9 +167,53 @@ namespace MdExplorer.Services.DatabaseManager
             return CreateEngineDB(engineDbPath);
         }
 
+        public IEngineDB CreateIsolatedEngineDBForProjectPath(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+                throw new ArgumentException("ProjectPath cannot be null or empty", nameof(projectPath));
+
+            var normalizedPath = Path.GetFullPath(projectPath);
+            var hash = Helper.HGetHashString(normalizedPath);
+            var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
+
+            _logger.LogDebug($"Creating isolated EngineDB for project path: {normalizedPath}");
+
+            // Run migrations before creating session to ensure schema is up-to-date
+            RunEngineDbMigrations(engineDbPath);
+
+            return CreateEngineDB(engineDbPath);
+        }
+
         public string[] GetRegisteredConnectionIds()
         {
             return _contexts.Keys.ToArray();
+        }
+
+        private void RunEngineDbMigrations(string connectionString)
+        {
+            try
+            {
+                IServiceCollection engineServices = new ServiceCollection();
+                engineServices.AddFluentMigratorFeatures(
+                    (rb) =>
+                    {
+                        rb.AddSQLite()
+                        .WithGlobalConnectionString(connectionString)
+                        .ScanIn(typeof(ME2021_07_23_001).Assembly)
+                        .For.Migrations();
+                    }, "SQLite");
+
+                using var builder = engineServices.BuildServiceProvider();
+                using var scope = builder.CreateScope();
+                var migrator = scope.ServiceProvider.GetService<IEngineMigrator>();
+                migrator.UpgradeDatabase();
+
+                _logger.LogDebug($"Engine DB migrations applied for: {connectionString}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Failed to run Engine DB migrations for: {connectionString}");
+            }
         }
 
         private IEngineDB CreateEngineDB(string connectionString)

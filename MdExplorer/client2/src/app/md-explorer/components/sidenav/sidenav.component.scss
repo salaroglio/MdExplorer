@@ -246,6 +246,29 @@ mat-toolbar {
     }
   }
 
+  button.btn-reveal-in-tree {
+    background-color: transparent !important;
+
+    mat-icon, .mat-icon {
+      color: #b0bec5 !important;
+      transition: color 0.2s ease;
+    }
+
+    &:hover:not([disabled]) {
+      mat-icon, .mat-icon {
+        color: #42a5f5 !important;
+      }
+    }
+
+    &[disabled] {
+      opacity: 0.3;
+    }
+
+    .mat-mdc-button-persistent-ripple {
+      background-color: transparent !important;
+    }
+  }
+
   .fsw-toggle {
     margin-left: 8px;
     margin-right: 12px;

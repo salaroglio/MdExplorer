@@ -38,4 +38,40 @@ export class ProjectSettingsService {
     const url = '../api/ProjectSettings/SetLinkIndexingSetting';
     return this.http.post<any>(url, { enabled, projectPath });
   }
+
+  // RAG Settings
+  getRagStatus(): Observable<any> {
+    const url = '../api/Rag/status';
+    return this.http.get<any>(url);
+  }
+
+  enableRag(): Observable<any> {
+    const url = '../api/Rag/enable';
+    return this.http.post<any>(url, {});
+  }
+
+  disableRag(): Observable<any> {
+    const url = '../api/Rag/disable';
+    return this.http.post<any>(url, {});
+  }
+
+  reindexRag(projectPath: string): Observable<any> {
+    const url = '../api/Rag/reindex';
+    return this.http.post<any>(url, { projectPath });
+  }
+
+  clearRagIndex(projectPath: string): Observable<any> {
+    const url = '../api/Rag/clear';
+    return this.http.post<any>(url, { projectPath });
+  }
+
+  indexRagFile(filePath: string, projectPath: string, forceReindex = false): Observable<any> {
+    const url = '../api/Rag/index-file';
+    return this.http.post<any>(url, { filePath, projectPath, forceReindex });
+  }
+
+  indexRagDirectory(directoryPath: string, projectPath: string, forceReindex = false): Observable<any> {
+    const url = '../api/Rag/index-directory';
+    return this.http.post<any>(url, { directoryPath, projectPath, forceReindex });
+  }
 }

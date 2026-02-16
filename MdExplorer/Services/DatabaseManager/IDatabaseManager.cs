@@ -54,6 +54,15 @@ namespace MdExplorer.Services.DatabaseManager
         IEngineDB CreateIsolatedEngineDB(string connectionId);
 
         /// <summary>
+        /// Creates an isolated EngineDB instance from a project path directly.
+        /// Does not require a registered connection. Useful for background tasks.
+        /// IMPORTANT: Caller is responsible for disposing the returned instance.
+        /// </summary>
+        /// <param name="projectPath">Full path to the project directory</param>
+        /// <returns>New isolated EngineDB instance</returns>
+        IEngineDB CreateIsolatedEngineDBForProjectPath(string projectPath);
+
+        /// <summary>
         /// Gets all registered connection IDs (for debugging purposes).
         /// </summary>
         /// <returns>List of registered connection IDs</returns>

@@ -25,6 +25,9 @@ export class MdServerMessagesService {
   // Observable for Git branch switch events
   public gitBranchSwitched$ = new Subject<{ fileCount: number, message: string }>();
 
+  // Observable for RAG indexing progress events
+  public ragIndexingProgress$ = new Subject<{ status: string, processed: number, total: number, message: string }>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -97,6 +100,11 @@ export class MdServerMessagesService {
       this.hubConnection.on('openScreenshotAnnotationWizard', (data) => {
         console.log('📷 SignalR event received: openScreenshotAnnotationWizard', data);
         this.screenshotAnnotationRequest$.next(data);
+      });
+
+      // RAG indexing progress event (from RagController background task)
+      this.hubConnection.on('ragIndexingProgress', (data) => {
+        this.ragIndexingProgress$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {

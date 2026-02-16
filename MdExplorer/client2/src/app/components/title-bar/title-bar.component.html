@@ -25,12 +25,40 @@
   <app-compatibility-mode-badge *ngIf="isProjectOpened"></app-compatibility-mode-badge>
 
   <div class="drag-region">
-    <div class="welcome-message" *ngIf="isProjectsPage">
+    <div class="welcome-message" *ngIf="isProjectsPage && !ragIndexing">
       <span class="welcome-text">Welcome to MdExplorer</span>
       <span class="welcome-subtitle">Your markdown documentation workspace</span>
     </div>
+    <div class="rag-indexing-indicator" *ngIf="ragIndexing">
+      <mat-icon class="rag-icon spinning">memory</mat-icon>
+      <span class="rag-text">RAG Indexing</span>
+      <span class="rag-progress" *ngIf="ragTotal > 0">{{ ragProcessed }}/{{ ragTotal }}</span>
+      <div class="rag-progress-bar" *ngIf="ragTotal > 0">
+        <div class="rag-progress-fill" [style.width.%]="ragProgressPercent"></div>
+      </div>
+      <span class="rag-message" *ngIf="ragMessage">{{ ragMessage }}</span>
+    </div>
   </div>
-  
+
+  <button mat-icon-button [matMenuTriggerFor]="settingsMenu" class="settings-trigger">
+    <mat-icon>settings</mat-icon>
+  </button>
+
+  <mat-menu #settingsMenu="matMenu">
+    <button mat-menu-item (click)="openSettings('application')">
+      <mat-icon>build</mat-icon>
+      <span>Application</span>
+    </button>
+    <button mat-menu-item (click)="openSettings('ai')">
+      <mat-icon>smart_toy</mat-icon>
+      <span>AI Models</span>
+    </button>
+    <button mat-menu-item (click)="openSettings('embedding')">
+      <mat-icon>hub</mat-icon>
+      <span>Embedding</span>
+    </button>
+  </mat-menu>
+
   <div class="window-controls" *ngIf="isElectron">
     <button mat-icon-button (click)="minimizeWindow()" class="window-control">
       <mat-icon>remove</mat-icon>

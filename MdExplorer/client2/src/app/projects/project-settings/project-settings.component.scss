@@ -93,3 +93,61 @@
 }
 
 // IDE paths styling removed - now shown in Projects component main page
+
+// RAG status styles
+.rag-status {
+  margin: 16px 0 16px 32px;
+  font-size: 14px;
+}
+
+.status-row {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.status-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.status-ok {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.status-missing {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.rag-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.rag-message {
+  margin-top: 8px;
+  margin-left: 32px;
+  color: #1976d2;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.inline-spinner {
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.rag-progress {
+  margin: 12px 0 0 32px;
+
+  mat-progress-bar {
+    margin-bottom: 6px;
+  }
+}
+
+.rag-progress-text {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.6);
+}

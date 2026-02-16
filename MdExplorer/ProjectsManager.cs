@@ -338,12 +338,104 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         Console.WriteLine($"Created GitHub Copilot instructions file: {copilotInstructionsPath}");
                     }
                 }
+
+                // Create .vscode folder with MCP server configuration
+                CreateVsCodeMcpConfig(projectPath);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error copying configuration files: {ex.Message}");
                 // Non-critical error, continue without the files
             }
+        }
+
+        private static void CreateVsCodeMcpConfig(string projectPath)
+        {
+            try
+            {
+                var vscodePath = Path.Combine(projectPath, ".vscode");
+                Directory.CreateDirectory(vscodePath);
+
+                var mcpJsonPath = Path.Combine(vscodePath, "mcp.json");
+                var projectName = new DirectoryInfo(projectPath).Name;
+
+                // Build the MdExplorer server entry
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var mcpExePath = Path.Combine(baseDir, "MdExplorer.Mcp.exe");
+
+                System.Text.Json.Nodes.JsonObject serverEntry;
+                if (File.Exists(mcpExePath))
+                {
+                    serverEntry = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["type"] = "stdio",
+                        ["command"] = mcpExePath,
+                        ["args"] = new System.Text.Json.Nodes.JsonArray("--project", projectName)
+                    };
+                }
+                else
+                {
+                    var mcpProjectPath = FindMcpProjectPath(baseDir);
+                    serverEntry = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["type"] = "stdio",
+                        ["command"] = "dotnet",
+                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath, "--", "--project", projectName)
+                    };
+                }
+
+                System.Text.Json.Nodes.JsonObject root;
+
+                if (File.Exists(mcpJsonPath))
+                {
+                    // Parse existing mcp.json and always update mdexplorer entry
+                    var existingJson = File.ReadAllText(mcpJsonPath);
+                    root = System.Text.Json.Nodes.JsonNode.Parse(existingJson)?.AsObject()
+                           ?? new System.Text.Json.Nodes.JsonObject();
+
+                    if (root["servers"] is not System.Text.Json.Nodes.JsonObject servers)
+                    {
+                        servers = new System.Text.Json.Nodes.JsonObject();
+                        root["servers"] = servers;
+                    }
+
+                    servers["mdexplorer"] = serverEntry;
+                }
+                else
+                {
+                    // Create new mcp.json
+                    root = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["servers"] = new System.Text.Json.Nodes.JsonObject
+                        {
+                            ["mdexplorer"] = serverEntry
+                        }
+                    };
+                }
+
+                var json = root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(mcpJsonPath, json);
+                Console.WriteLine($"Updated VS Code MCP configuration: {mcpJsonPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating VS Code MCP configuration: {ex.Message}");
+            }
+        }
+
+        private static string FindMcpProjectPath(string baseDir)
+        {
+            // Walk up from bin/Debug/net8.0-windows/win-x64/ to find MdExplorer.Mcp
+            var dir = new DirectoryInfo(baseDir);
+            while (dir != null)
+            {
+                var candidate = Path.Combine(dir.FullName, "MdExplorer.Mcp", "MdExplorer.Mcp.csproj");
+                if (File.Exists(candidate))
+                    return Path.Combine(dir.FullName, "MdExplorer.Mcp");
+                dir = dir.Parent;
+            }
+            // Fallback: return a relative path that the user can fix
+            return "MdExplorer.Mcp";
         }
 
         /// <summary>

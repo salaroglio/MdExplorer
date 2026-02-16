@@ -1,0 +1,425 @@
+<h2 mat-dialog-title class="dialog-title">
+  <mat-icon>settings</mat-icon>
+  <span>Settings</span>
+</h2>
+
+<mat-dialog-content class="settings-container">
+  <!-- Left Navigation -->
+  <div class="settings-nav">
+    <mat-list>
+      <mat-list-item (click)="selectCategory('application')"
+                     [class.active]="selectedCategory === 'application'">
+        <mat-icon matListItemIcon>build</mat-icon>
+        <span>Application</span>
+      </mat-list-item>
+      <mat-list-item (click)="selectCategory('ai')"
+                     [class.active]="selectedCategory === 'ai'">
+        <mat-icon matListItemIcon>smart_toy</mat-icon>
+        <span>AI Models</span>
+      </mat-list-item>
+      <mat-list-item (click)="selectCategory('embedding')"
+                     [class.active]="selectedCategory === 'embedding'">
+        <mat-icon matListItemIcon>hub</mat-icon>
+        <span>Embedding</span>
+      </mat-list-item>
+    </mat-list>
+  </div>
+
+  <!-- Right Content -->
+  <div class="settings-content">
+
+    <!-- ================================ -->
+    <!-- APPLICATION TAB                  -->
+    <!-- ================================ -->
+    <div *ngIf="selectedCategory === 'application'" class="tab-panel">
+      <h3>Application Settings</h3>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>IDE & Tools Paths</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="vertical-form">
+            <mat-form-field appearance="outline">
+              <mat-label>Visual Studio Code path</mat-label>
+              <mat-icon matPrefix>code</mat-icon>
+              <input matInput [(ngModel)]="vscodePath" placeholder="Visual Studio Code path">
+              <mat-hint>Set Visual Studio Code installation path</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>IntelliJ IDEA path</mat-label>
+              <mat-icon matPrefix>terminal</mat-icon>
+              <input matInput [(ngModel)]="intellijPath" placeholder="IntelliJ IDEA path">
+              <mat-hint>Set IntelliJ IDEA installation path</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>PlantUML local path</mat-label>
+              <input matInput [(ngModel)]="plantumlLocalPath" placeholder="PlantUML local path">
+              <mat-hint>Set path for PlantUML server</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Java path</mat-label>
+              <input matInput [(ngModel)]="javaPath" placeholder="Java folder">
+              <mat-hint>Set Java installation path</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Graphviz Dot path</mat-label>
+              <input matInput [(ngModel)]="localGraphvizDotPath" placeholder="Graphviz dot path">
+              <mat-hint>Set Graphviz internal path</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Jira server</mat-label>
+              <input matInput [(ngModel)]="jiraServer" placeholder="Jira server URL">
+              <mat-hint>Set Jira server URL</mat-hint>
+            </mat-form-field>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Electron notifications -->
+      <mat-card *ngIf="isElectronEnvironment" style="margin-top: 16px;">
+        <mat-card-header>
+          <mat-card-title>Notifications</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-slide-toggle
+            [(ngModel)]="fileChangeNotificationEnabled"
+            (change)="onFileChangeNotificationToggle()"
+            color="primary">
+            Flash taskbar for file changes
+          </mat-slide-toggle>
+          <p class="hint-text">Flash the taskbar icon when files are modified externally</p>
+        </mat-card-content>
+      </mat-card>
+
+      <div class="tab-actions">
+        <button mat-raised-button color="primary" (click)="saveApplicationSettings()">
+          <mat-icon>save</mat-icon> Save
+        </button>
+      </div>
+    </div>
+
+    <!-- ================================ -->
+    <!-- AI MODELS TAB                    -->
+    <!-- ================================ -->
+    <div *ngIf="selectedCategory === 'ai'" class="tab-panel">
+      <h3>AI Model Manager</h3>
+
+      <div class="ai-status-bar" *ngIf="currentModel">
+        <mat-icon *ngIf="currentModel.startsWith('OpenAI')">psychology</mat-icon>
+        <mat-icon *ngIf="currentModel.startsWith('Gemini')">cloud</mat-icon>
+        <mat-icon *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI')">memory</mat-icon>
+        <span>Connected: {{ currentModel }}</span>
+        <span *ngIf="gpuEnabled" class="gpu-badge">GPU ({{ gpuLayerCount }} layers)</span>
+      </div>
+      <div class="ai-status-bar disconnected" *ngIf="!currentModel && !isModelLoaded">
+        <mat-icon>cloud_off</mat-icon>
+        <span>No model connected</span>
+      </div>
+
+      <!-- GPU Info -->
+      <mat-card *ngIf="gpuInfo" class="info-card" style="margin-bottom: 16px;">
+        <mat-card-content>
+          <div *ngIf="gpuInfo.isNvidiaGpu" class="gpu-details">
+            <strong>{{ gpuInfo.name }}</strong>
+            <span class="gpu-chip" *ngIf="gpuInfo.isCudaAvailable">CUDA {{ gpuInfo.cudaVersion }}</span>
+            <span class="gpu-chip warn" *ngIf="!gpuInfo.isCudaAvailable">No CUDA</span>
+            <span style="margin-left: 16px;">{{ gpuInfo.formattedMemory || formatBytes(gpuInfo.memoryBytes) }}</span>
+          </div>
+          <div *ngIf="!gpuInfo.isNvidiaGpu">
+            <mat-icon color="warn">warning</mat-icon> No NVIDIA GPU detected - Models run on CPU
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Action buttons -->
+      <div class="actions-bar">
+        <button mat-raised-button color="primary" (click)="loadAiModels()" [disabled]="aiLoading">
+          <mat-icon>refresh</mat-icon> Refresh
+        </button>
+        <button mat-raised-button color="accent" (click)="editSystemPromptToggle()"
+                [disabled]="!isModelLoaded">
+          <mat-icon>edit</mat-icon> System Prompt
+        </button>
+        <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
+          <mat-icon>psychology</mat-icon> {{ showOpenAiConfig ? 'Hide' : '' }} OpenAI
+        </button>
+        <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
+          <mat-icon>cloud</mat-icon> {{ showGeminiConfig ? 'Hide' : '' }} Gemini
+        </button>
+      </div>
+
+      <!-- System Prompt Editor -->
+      <mat-card *ngIf="editingSystemPrompt" style="margin: 16px 0;">
+        <mat-card-header>
+          <mat-card-title>System Prompt</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>System Prompt</mat-label>
+            <textarea matInput [(ngModel)]="systemPrompt" rows="6"></textarea>
+          </mat-form-field>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-button (click)="editingSystemPrompt = false">Cancel</button>
+          <button mat-raised-button color="primary" (click)="saveSystemPrompt()">
+            <mat-icon>save</mat-icon> Save
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- OpenAI Config -->
+      <mat-card *ngIf="showOpenAiConfig" style="margin: 16px 0;">
+        <mat-card-header>
+          <mat-card-title><mat-icon>psychology</mat-icon> OpenAI Configuration</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!openAiConfigured">
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>OpenAI API Key</mat-label>
+              <input matInput type="password" [(ngModel)]="openAiApiKey" placeholder="Enter your OpenAI API key">
+            </mat-form-field>
+            <button mat-raised-button style="background-color: #10a37f; color: white;"
+                    (click)="saveOpenAiApiKey()" [disabled]="!openAiApiKey.trim()">
+              <mat-icon>save</mat-icon> Save Key
+            </button>
+          </div>
+          <div *ngIf="openAiConfigured">
+            <span class="config-badge">API Key Configured</span>
+            <div class="models-grid" style="margin-top: 12px;">
+              <mat-card *ngFor="let model of openAiModels" class="model-card compact">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                </mat-card-header>
+                <mat-card-actions>
+                  <button mat-raised-button style="background-color: #10a37f; color: white;"
+                          *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
+                          (click)="connectOpenAiModel(model.id)">Connect</button>
+                  <button mat-button *ngIf="useOpenAi && selectedOpenAiModel === model.id"
+                          (click)="disconnectOpenAi()">Disconnect</button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Gemini Config -->
+      <mat-card *ngIf="showGeminiConfig" style="margin: 16px 0;">
+        <mat-card-header>
+          <mat-card-title><mat-icon>cloud</mat-icon> Gemini Configuration</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!geminiConfigured">
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Gemini API Key</mat-label>
+              <input matInput type="password" [(ngModel)]="geminiApiKey" placeholder="Enter your Gemini API key">
+            </mat-form-field>
+            <button mat-raised-button color="primary" (click)="saveGeminiApiKey()" [disabled]="!geminiApiKey.trim()">
+              <mat-icon>save</mat-icon> Save Key
+            </button>
+          </div>
+          <div *ngIf="geminiConfigured">
+            <span class="config-badge">API Key Configured</span>
+            <div class="models-grid" style="margin-top: 12px;">
+              <mat-card *ngFor="let model of geminiModels" class="model-card compact">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                  <mat-card-subtitle>{{ model.inputTokenLimit / 1000 }}K input</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-actions>
+                  <button mat-raised-button color="primary"
+                          *ngIf="!useGemini || selectedGeminiModel !== model.id"
+                          (click)="connectGeminiModel(model.id)">Connect</button>
+                  <button mat-button *ngIf="useGemini && selectedGeminiModel === model.id"
+                          (click)="disconnectGemini()">Disconnect</button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Local Models Grid -->
+      <mat-progress-bar *ngIf="aiLoading" mode="indeterminate" style="margin: 16px 0;"></mat-progress-bar>
+
+      <h4 style="margin-top: 16px;">Local Models</h4>
+      <div class="models-grid">
+        <mat-card *ngFor="let model of availableModels" class="model-card">
+          <mat-card-header>
+            <mat-card-title>{{ model.name }}</mat-card-title>
+            <mat-card-subtitle>{{ model.parameters }} | {{ model.contextLength }} ctx</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="model-description">{{ model.description }}</p>
+            <div class="model-info">
+              <span class="file-size">{{ formatBytes(model.fileSize) }}</span>
+              <span *ngIf="model.isInstalled" class="status-chip installed">Installed</span>
+              <span *ngIf="isCurrentModel(model)" class="status-chip loaded">Loaded</span>
+            </div>
+            <!-- Download Progress -->
+            <div *ngIf="isDownloading(model.id)" class="download-progress">
+              <div class="progress-info">
+                <span>{{ downloadProgress[model.id].status }}</span>
+                <span>{{ downloadProgress[model.id].percentComplete | number:'1.1-1' }}%</span>
+              </div>
+              <mat-progress-bar mode="determinate" [value]="downloadProgress[model.id].percentComplete"></mat-progress-bar>
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <button mat-button color="primary"
+                    *ngIf="!model.isInstalled && !isDownloading(model.id)"
+                    (click)="downloadModel(model)">
+              <mat-icon>download</mat-icon> Download
+            </button>
+            <button mat-button color="accent"
+                    *ngIf="model.isInstalled && !isCurrentModel(model)"
+                    (click)="loadModel(model)" [disabled]="aiLoading">
+              <mat-icon>play_arrow</mat-icon> Load
+            </button>
+            <button mat-button color="warn"
+                    *ngIf="model.isInstalled && !isCurrentModel(model)"
+                    (click)="deleteModel(model)">
+              <mat-icon>delete</mat-icon> Delete
+            </button>
+            <button mat-button disabled *ngIf="isCurrentModel(model)">
+              <mat-icon>check</mat-icon> Loaded
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </div>
+
+    <!-- ================================ -->
+    <!-- EMBEDDING TAB                    -->
+    <!-- ================================ -->
+    <div *ngIf="selectedCategory === 'embedding'" class="tab-panel">
+      <h3>Embedding Configuration</h3>
+
+      <mat-progress-bar *ngIf="embeddingLoading" mode="indeterminate" style="margin-bottom: 16px;"></mat-progress-bar>
+
+      <!-- Status card -->
+      <mat-card class="info-card" style="margin-bottom: 16px;">
+        <mat-card-content>
+          <div class="status-grid">
+            <div class="status-item">
+              <span class="status-label">Model loaded:</span>
+              <span [class.status-ok]="embeddingModelLoaded" [class.status-missing]="!embeddingModelLoaded">
+                {{ embeddingModelLoaded ? 'Yes' : 'No' }}
+              </span>
+            </div>
+            <div class="status-item" *ngIf="embeddingModelLoaded">
+              <span class="status-label">Embedding dimension:</span>
+              <span>{{ embeddingDimension }}</span>
+            </div>
+            <div class="status-item" *ngIf="embeddingCurrentModelPath">
+              <span class="status-label">Model path:</span>
+              <span class="path-text">{{ embeddingCurrentModelPath }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Embedding models cards -->
+      <h4>Available Embedding Models</h4>
+      <div class="models-grid" style="margin-bottom: 20px;">
+        <mat-card *ngFor="let model of embeddingModels"
+                  class="model-card embedding-model-card"
+                  [class.active-model]="isEmbeddingModelActive(model)"
+                  (click)="selectEmbeddingModel(model)">
+          <mat-card-header>
+            <mat-card-title>
+              {{ model.name }}
+              <span *ngIf="isEmbeddingModelActive(model)" class="active-badge">Active</span>
+            </mat-card-title>
+            <mat-card-subtitle>{{ model.parameters }} | {{ model.contextLength }} token ctx</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="model-description">{{ model.description }}</p>
+            <div class="model-info">
+              <span class="file-size">{{ formatBytes(model.fileSize) }}</span>
+              <span *ngIf="model.isInstalled" class="status-chip installed">Installed</span>
+              <span *ngIf="!model.isInstalled" class="status-chip not-installed">Not Installed</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <!-- Configuration form -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Configuration Parameters</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="vertical-form">
+            <mat-form-field appearance="outline">
+              <mat-label>Apply Preset</mat-label>
+              <mat-select [(ngModel)]="editSelectedModel" (selectionChange)="applyPreset($event.value)">
+                <mat-option *ngFor="let key of embeddingPresets | keyvalue" [value]="key.key">
+                  {{ key.key }}
+                </mat-option>
+              </mat-select>
+              <mat-hint>Select a model preset to auto-fill parameters</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Context Size (tokens)</mat-label>
+              <input matInput type="number" [(ngModel)]="editContextSize" (ngModelChange)="onContextSizeChange()">
+              <mat-hint>Max tokens per embedding. nomic=4096, multilingual-e5=512</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Batch Size (tokens)</mat-label>
+              <input matInput type="number" [(ngModel)]="editBatchSize">
+              <mat-hint>Must equal ContextSize for embedding models</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Max Chunk Chars</mat-label>
+              <input matInput type="number" [(ngModel)]="editMaxChunkChars">
+              <mat-hint>Max characters per document chunk. nomic=2000, multilingual-e5=1200</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Max Embedding Chars</mat-label>
+              <input matInput type="number" [(ngModel)]="editMaxEmbeddingChars">
+              <mat-hint>Max chars sent to model (~ContextSize x 3). Auto-calculated.</mat-hint>
+            </mat-form-field>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <div class="tab-actions">
+        <button mat-raised-button color="primary"
+                (click)="saveEmbeddingConfig()"
+                [disabled]="embeddingSaving">
+          <mat-icon>save</mat-icon>
+          {{ embeddingSaving ? 'Saving...' : 'Apply Configuration' }}
+        </button>
+        <button mat-stroked-button (click)="resetEmbeddingDefaults()">
+          <mat-icon>restore</mat-icon> Reset to Defaults
+        </button>
+      </div>
+
+      <mat-card class="info-card warning" style="margin-top: 16px;">
+        <mat-card-content>
+          <mat-icon>warning</mat-icon>
+          <p>
+            Changing the embedding model or chunk size requires a <strong>full re-index</strong> of all projects.
+            Existing embeddings will become incompatible with the new configuration.
+          </p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Close</button>
+</mat-dialog-actions>

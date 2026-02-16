@@ -1,0 +1,14 @@
+{
+  "name": "mdexplorer-test-seeder",
+  "version": "1.0.0",
+  "description": "Standalone test seeder for MdExplorer P2P testing",
+  "type": "module",
+  "main": "test-seeder.js",
+  "scripts": {
+    "start": "node test-seeder.js",
+    "seed": "node test-seeder.js"
+  },
+  "dependencies": {
+    "webtorrent": "^2.5.2"
+  }
+}

@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { versionInfo } from '../../../environments/version';
 import { MdNavigationService } from '../../md-explorer/services/md-navigation.service';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
@@ -6,13 +7,14 @@ import { Router } from '@angular/router';
 import { LayoutService } from '../../md-explorer/services/layout.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { MdFile } from '../../md-explorer/models/md-file';
+import { UnifiedSettingsDialogComponent } from '../unified-settings-dialog/unified-settings-dialog.component';
 
 @Component({
   selector: 'app-title-bar',
   templateUrl: './title-bar.component.html',
   styleUrls: ['./title-bar.component.scss']
 })
-export class TitleBarComponent implements OnInit {
+export class TitleBarComponent implements OnInit, OnDestroy {
   isElectron = false;
   version = versionInfo.version;
   buildTime = versionInfo.buildTime;
@@ -20,12 +22,21 @@ export class TitleBarComponent implements OnInit {
   isProjectOpened = false;
   isProjectsPage = false;
 
+  // RAG indexing progress
+  ragIndexing = false;
+  ragProcessed = 0;
+  ragTotal = 0;
+  ragProgressPercent = 0;
+  ragMessage = '';
+  private ragDismissTimer: any = null;
+
   constructor(
     public navService: MdNavigationService,
     private mdFileService: MdFileService,
     private router: Router,
     private layoutService: LayoutService,
-    private monitorMDService: MdServerMessagesService
+    private monitorMDService: MdServerMessagesService,
+    private dialog: MatDialog
   ) {
     // Check if running in Electron
     this.isElectron = !!(window && (window as any).electronAPI);
@@ -49,6 +60,38 @@ export class TitleBarComponent implements OnInit {
 
     // Subscribe to document navigation events from iframe links
     this.monitorMDService.addDocumentNavigatedListener(this.onDocumentNavigated, this);
+
+    // Subscribe to RAG indexing progress
+    this.monitorMDService.ragIndexingProgress$.subscribe(data => {
+      if (data.status === 'completed' || data.status === 'error') {
+        this.ragMessage = data.status === 'completed' ? 'Completed' : 'Error';
+        this.ragProcessed = data.processed;
+        this.ragTotal = data.total;
+        this.ragProgressPercent = 100;
+        // Keep visible for 3 seconds then dismiss
+        this.ragDismissTimer = setTimeout(() => {
+          this.ragIndexing = false;
+          this.ragMessage = '';
+        }, 3000);
+      } else {
+        // Clear dismiss timer if new indexing starts
+        if (this.ragDismissTimer) {
+          clearTimeout(this.ragDismissTimer);
+          this.ragDismissTimer = null;
+        }
+        this.ragIndexing = true;
+        this.ragProcessed = data.processed;
+        this.ragTotal = data.total;
+        this.ragProgressPercent = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 0;
+        this.ragMessage = data.message || '';
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.ragDismissTimer) {
+      clearTimeout(this.ragDismissTimer);
+    }
   }
 
   private onDocumentNavigated(data: any, objectThis: TitleBarComponent): void {
@@ -133,5 +176,13 @@ export class TitleBarComponent implements OnInit {
     if (this.isElectron && (window as any).electronAPI) {
       (window as any).electronAPI.closeWindow();
     }
+  }
+
+  openSettings(tab: string = 'application'): void {
+    this.dialog.open(UnifiedSettingsDialogComponent, {
+      width: '900px',
+      maxHeight: '80vh',
+      data: { initialTab: tab }
+    });
   }
 }

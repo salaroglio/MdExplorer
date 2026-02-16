@@ -22,6 +22,7 @@ import { OpeningApplicationProvider } from './signalR/dialogs/opening-applicatio
 import { TitleBarComponent } from './components/title-bar/title-bar.component';
 import { SearchBoxComponent } from './components/search-box/search-box.component';
 import { CompatibilityModeBadgeComponent } from './md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component';
+import { UnifiedSettingsDialogComponent } from './components/unified-settings-dialog/unified-settings-dialog.component';
 
 
 const routes: Routes = [
@@ -47,7 +48,8 @@ const routes: Routes = [
     OpeningApplicationComponent,
     TitleBarComponent,
     SearchBoxComponent,
-    CompatibilityModeBadgeComponent
+    CompatibilityModeBadgeComponent,
+    UnifiedSettingsDialogComponent
   ],
   imports: [
     BrowserModule,

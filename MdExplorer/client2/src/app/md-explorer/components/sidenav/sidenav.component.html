@@ -12,6 +12,9 @@
         <button mat-icon-button id="projectcss" class="btn-projects" matTooltip="projects list" (click)="openProject()">
           <mat-icon>ballot</mat-icon>
         </button>
+        <button mat-icon-button class="btn-reveal-in-tree" matTooltip="Reveal current document in tree" (click)="revealInTree()" [disabled]="!hasCurrentFile()">
+          <mat-icon>my_location</mat-icon>
+        </button>
       </div>
       <!-- Toggle FileSystemWatcher -->
       <mat-slide-toggle
@@ -24,7 +27,7 @@
       <span>{{titleProject}}</span>
       <span class="flexExpand"></span>
     </mat-toolbar>
-    <mat-tab-group headerPosition="below" style="justify-content: space-between; height: calc(100% - 64px);">
+    <mat-tab-group headerPosition="below" [(selectedIndex)]="selectedTabIndex" style="justify-content: space-between; height: calc(100% - 64px);">
       <mat-tab style="height:100%">
         <ng-template mat-tab-label>
           <img src="/assets/project.png" style="height:24px" />

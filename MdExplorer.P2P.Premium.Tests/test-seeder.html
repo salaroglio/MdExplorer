@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MdExplorer P2P Test SEEDER</title>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #0f0; }
+        #log { white-space: pre-wrap; height: 400px; overflow-y: auto; border: 1px solid #0f0; padding: 10px; }
+        button { font-family: monospace; padding: 10px 20px; margin: 5px; background: #0f0; color: #000; cursor: pointer; font-size: 16px; }
+        h1 { color: #0f0; }
+        #magnet { background: #333; color: #ff0; padding: 10px; margin: 10px 0; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>🌱 MdExplorer P2P Test SEEDER</h1>
+
+    <button onclick="startSeeding()">AVVIA SEEDING</button>
+    <button onclick="clearLog()">Clear Log</button>
+
+    <h3>Magnet Link (copia questo per scaricare):</h3>
+    <div id="magnet">Clicca "AVVIA SEEDING" per generare...</div>
+
+    <h3>Config:</h3>
+    <div style="font-size: 12px;">
+        Tracker: wss://errantia.net/p2p/?token=***<br>
+        STUN: stun:errantia.net:3478<br>
+        TURN: turn:errantia.net:3478
+    </div>
+
+    <h3>Log:</h3>
+    <div id="log"></div>
+
+<script>
+const CONFIG = {
+    token: 'mdexp_2026_premium_abc123xyz',
+    trackerUrl: 'wss://errantia.net/p2p/?token=mdexp_2026_premium_abc123xyz',
+    iceServers: [
+        { urls: 'stun:errantia.net:3478' },
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+            urls: 'turn:errantia.net:3478',
+            username: 'mdexplorer',
+            credential: 'MdExp2026P2P!'
+        }
+    ]
+};
+
+let client = null;
+
+function log(msg) {
+    const el = document.getElementById('log');
+    const time = new Date().toLocaleTimeString();
+    el.textContent += `[${time}] ${msg}\n`;
+    el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('log').textContent = '';
+}
+
+function startSeeding() {
+    if (client) {
+        client.destroy();
+    }
+
+    clearLog();
+    log('Inizializzazione WebTorrent SEEDER...');
+
+    client = new WebTorrent({
+        tracker: {
+            rtcConfig: {
+                iceServers: CONFIG.iceServers
+            }
+        }
+    });
+
+    client.on('error', (err) => log('[CLIENT ERROR] ' + err.message));
+
+    // Crea un file di test
+    const testContent = `
+========================================
+MdExplorer P2P Test File
+========================================
+Timestamp: ${new Date().toISOString()}
+Message: Se riesci a leggere questo, il P2P FUNZIONA!
+========================================
+`;
+
+    const file = new File([testContent], 'test-p2p.txt', { type: 'text/plain' });
+
+    log('Creato file di test: ' + file.name + ' (' + file.size + ' bytes)');
+    log('Avvio seeding...');
+
+    client.seed(file, {
+        announce: [CONFIG.trackerUrl]
+    }, (torrent) => {
+        log('');
+        log('========================================');
+        log('[SEEDING] File pronto per il download!');
+        log('========================================');
+        log('');
+        log('InfoHash: ' + torrent.infoHash);
+        log('Nome: ' + torrent.name);
+        log('Dimensione: ' + torrent.length + ' bytes');
+        log('');
+
+        const magnetUri = torrent.magnetURI;
+        document.getElementById('magnet').textContent = magnetUri;
+
+        log('MAGNET LINK (copia e usa per scaricare):');
+        log(magnetUri);
+        log('');
+        log('In attesa di peer...');
+
+        torrent.on('wire', (wire) => {
+            log('[WIRE] Peer connesso: ' + (wire.remoteAddress || 'WebRTC'));
+        });
+
+        torrent.on('upload', (bytes) => {
+            log('[UPLOAD] Inviati ' + bytes + ' bytes - Totale: ' + torrent.uploaded + ' - Peers: ' + torrent.numPeers);
+        });
+
+        torrent.on('warning', (err) => log('[WARN] ' + (err.message || err)));
+        torrent.on('error', (err) => log('[ERROR] ' + err.message));
+    });
+}
+
+log('Clicca "AVVIA SEEDING" per creare un file di test e condividerlo.');
+log('Poi copia il magnet link e usalo su un altro PC per scaricare.');
+</script>
+</body>
+</html>

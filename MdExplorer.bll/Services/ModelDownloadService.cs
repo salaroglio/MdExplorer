@@ -41,6 +41,12 @@ namespace MdExplorer.Features.Services
         bool IsModelInstalled(string modelName);
         string GetModelPath(string modelName);
         Task<bool> DeleteModelAsync(string modelName);
+        /// <summary>
+        /// Returns the path to the best installed embedding model.
+        /// Prefers multilingual-e5-large-instruct, falls back to nomic-embed-text.
+        /// Returns null if no embedding model is installed.
+        /// </summary>
+        string GetInstalledEmbeddingModelPath();
     }
 
     public class ModelDownloadService : IModelDownloadService
@@ -96,6 +102,28 @@ namespace MdExplorer.Features.Services
                     FileSize = 2_020_000_000, // ~2.02GB
                     ContextLength = 128000,
                     Parameters = "3B"
+                },
+                ["nomic-embed-text"] = new ModelInfo
+                {
+                    Id = "nomic-embed-text",
+                    Name = "Nomic Embed Text v1.5 Q8_0",
+                    Description = "Embedding model for semantic search - English only (768 dimensions, 140MB)",
+                    Url = "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf",
+                    FileName = "nomic-embed-text-v1.5.Q8_0.gguf",
+                    FileSize = 274_000_000,
+                    ContextLength = 8192,
+                    Parameters = "137M"
+                },
+                ["multilingual-e5-large-instruct"] = new ModelInfo
+                {
+                    Id = "multilingual-e5-large-instruct",
+                    Name = "Multilingual E5 Large Instruct Q8_0",
+                    Description = "Multilingual embedding model for semantic search - 100 languages including Italian (1024 dimensions, 603MB)",
+                    Url = "https://huggingface.co/Ralriki/multilingual-e5-large-instruct-GGUF/resolve/main/multilingual-e5-large-instruct-q8_0.gguf",
+                    FileName = "multilingual-e5-large-instruct-q8_0.gguf",
+                    FileSize = 632_000_000,
+                    ContextLength = 514,
+                    Parameters = "560M"
                 }
             };
         }
@@ -152,6 +180,24 @@ namespace MdExplorer.Features.Services
                 _logger.LogError(ex, $"Failed to delete model: {modelName}");
                 return Task.FromResult(false);
             }
+        }
+
+        // Embedding model filenames in order of preference (best first)
+        private static readonly string[] EmbeddingModelFiles = new[]
+        {
+            "multilingual-e5-large-instruct-q8_0.gguf",
+            "nomic-embed-text-v1.5.Q8_0.gguf"
+        };
+
+        public string GetInstalledEmbeddingModelPath()
+        {
+            foreach (var fileName in EmbeddingModelFiles)
+            {
+                var path = GetModelPath(fileName);
+                if (File.Exists(path))
+                    return path;
+            }
+            return null;
         }
 
         public async Task<bool> DownloadModelAsync(string modelId, IProgress<DownloadProgress> progress, CancellationToken ct = default)
