@@ -27,7 +27,7 @@
       <span>{{titleProject}}</span>
       <span class="flexExpand"></span>
     </mat-toolbar>
-    <mat-tab-group headerPosition="below" [(selectedIndex)]="selectedTabIndex" style="justify-content: space-between; height: calc(100% - 64px);">
+    <mat-tab-group headerPosition="below" [(selectedIndex)]="selectedTabIndex" (selectedTabChange)="onTabChange($event)" style="justify-content: space-between; height: calc(100% - 64px);">
       <mat-tab style="height:100%">
         <ng-template mat-tab-label>
           <img src="/assets/project.png" style="height:24px" />
@@ -55,22 +55,24 @@
 
   <mat-sidenav-content class="flex-container">
     <!-- Overlay for capturing mouse events during drag -->
-    <div class="drag-overlay" 
+    <div class="drag-overlay"
+         *ngIf="!isChatFullScreen"
          [class.active]="hooked">
     </div>
-    
+
     <div class="resize-handle"
+         *ngIf="!isChatFullScreen"
          [class.dragging]="hooked"
          (pointerdown)="resizeWidth()"
          (mouseup)="stopResizeWidth()"
-         role="separator" 
+         role="separator"
          aria-label="Ridimensiona pannello di navigazione"
          aria-orientation="vertical"
          title="Trascina per ridimensionare">
     </div>
-    
+
     <!-- Wrapper div per router-outlet che caricherà DocumentShowComponent -->
-    <div class="router-outlet-wrapper">
+    <div class="router-outlet-wrapper" [class.hidden]="isChatFullScreen">
       <router-outlet></router-outlet>
     </div>
   </mat-sidenav-content>

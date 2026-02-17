@@ -6144,6 +6144,8 @@ class LayoutService {
     this.sidenavWidth$ = this.sidenavWidthSubject.asObservable();
     this.sidenavOpenSubject = new rxjs__WEBPACK_IMPORTED_MODULE_0__.BehaviorSubject(true);
     this.sidenavOpen$ = this.sidenavOpenSubject.asObservable();
+    this.chatFullScreenSubject = new rxjs__WEBPACK_IMPORTED_MODULE_0__.BehaviorSubject(false);
+    this.chatFullScreen$ = this.chatFullScreenSubject.asObservable();
   }
   setSidenavWidth(width) {
     this.sidenavWidthSubject.next(width);
@@ -6156,6 +6158,12 @@ class LayoutService {
   }
   getSidenavOpen() {
     return this.sidenavOpenSubject.value;
+  }
+  setChatFullScreen(isFullScreen) {
+    this.chatFullScreenSubject.next(isFullScreen);
+  }
+  getChatFullScreen() {
+    return this.chatFullScreenSubject.value;
   }
   static {
     this.ɵfac = function LayoutService_Factory(t) {
@@ -8681,6 +8689,35 @@ class AiChatService {
     this._currentModel$.next(null);
     console.log('[AiChatService] OpenAI disconnected');
   }
+  // Copilot CLI methods
+  checkCopilotCliConfiguration() {
+    return this.http.get('/api/copilotcli/configured');
+  }
+  getCopilotCliModels() {
+    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.map)(response => response.models || []));
+  }
+  getCopilotCliSystemPrompt() {
+    return this.http.get('/api/copilotcli/system-prompt');
+  }
+  setCopilotCliSystemPrompt(systemPrompt) {
+    return this.http.post('/api/copilotcli/system-prompt', {
+      systemPrompt
+    });
+  }
+  refreshCopilotCliModels() {
+    return this.http.post('/api/copilotcli/refresh-models', {});
+  }
+  notifyCopilotCliConnected(modelId) {
+    console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`CopilotCli: ${modelId}`);
+    console.log('[AiChatService] CopilotCli connected:', modelId);
+  }
+  notifyCopilotCliDisconnected() {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] CopilotCli disconnected');
+  }
   generateCommitMessage(projectPath) {
     return this.http.post('/api/GitAi/generate-commit-message', {
       projectPath
@@ -10699,8 +10736,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.02.16.4',
-  buildTime: '2026.02.16 11:08:15'
+  version: '2026.02.17.6',
+  buildTime: '2026.02.17 09:56:40'
 };
 
 /***/ }),

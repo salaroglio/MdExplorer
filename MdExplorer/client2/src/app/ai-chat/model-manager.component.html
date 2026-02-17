@@ -12,7 +12,11 @@
             <mat-icon inline="true" style="vertical-align: middle;">cloud</mat-icon>
             Connected to: {{ currentModel }}
           </span>
-          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI')">
+          <span *ngIf="currentModel.startsWith('CopilotCli')">
+            <mat-icon inline="true" style="vertical-align: middle; color: #24292e;">terminal</mat-icon>
+            Connected to: {{ currentModel }}
+          </span>
+          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli')">
             Local Model: {{ currentModel }}
             <span *ngIf="gpuEnabled" class="gpu-indicator">
               <mat-icon inline="true">memory</mat-icon>
@@ -83,6 +87,10 @@
         <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
           <mat-icon>cloud</mat-icon>
           {{ showGeminiConfig ? 'Hide' : 'Configure' }} Gemini API
+        </button>
+        <button mat-raised-button style="background-color: #24292e; color: white;" (click)="toggleCopilotCliConfig()">
+          <mat-icon>terminal</mat-icon>
+          {{ showCopilotCliConfig ? 'Hide' : 'Configure' }} Copilot CLI
         </button>
       </div>
 
@@ -320,6 +328,146 @@
           <button mat-raised-button color="primary" (click)="saveGeminiSystemPrompt()">
             <mat-icon>save</mat-icon>
             Save Gemini System Prompt
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- Copilot CLI Configuration Card -->
+      <mat-card *ngIf="showCopilotCliConfig" class="copilotcli-config-card" style="margin: 20px 0;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>terminal</mat-icon>
+            GitHub Copilot CLI Configuration
+          </mat-card-title>
+          <mat-card-subtitle>
+            Use GitHub Copilot CLI for AI chat (no API key required)
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!copilotCliAvailable">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip color="warn" selected>
+                <mat-icon>warning</mat-icon>
+                Copilot CLI Not Installed
+              </mat-chip>
+            </mat-chip-list>
+            <p>GitHub Copilot CLI is not installed or not authenticated. Install it with:</p>
+            <code>npm install -g @anthropic-ai/copilot</code>
+          </div>
+
+          <div *ngIf="copilotCliAvailable">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip style="background-color: #2ea44f; color: white;" selected>
+                <mat-icon>check_circle</mat-icon>
+                Copilot CLI Available
+              </mat-chip>
+            </mat-chip-list>
+
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <h4 style="margin: 0;">Available Models:</h4>
+              <button mat-icon-button matTooltip="Refresh models from CLI (uses 1 API request)"
+                      (click)="refreshCopilotCliModels()"
+                      [disabled]="refreshingCopilotModels">
+                <mat-icon [class.spinning]="refreshingCopilotModels">refresh</mat-icon>
+              </button>
+            </div>
+            <div class="models-grid">
+              <mat-card *ngFor="let model of copilotCliModels" class="model-card">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                  <mat-card-subtitle>
+                    Via Copilot CLI | {{ (model.inputTokenLimit || 128000) / 1000 }}K input / {{ (model.outputTokenLimit || 16000) / 1000 }}K output
+                  </mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content>
+                  <p class="model-description">{{ model.description || 'AI model via GitHub Copilot' }}</p>
+
+                  <mat-chip-list *ngIf="useCopilotCli && selectedCopilotCliModel === model.id">
+                    <mat-chip color="accent" selected>
+                      <mat-icon>check_circle</mat-icon>
+                      Connected
+                    </mat-chip>
+                  </mat-chip-list>
+                </mat-card-content>
+
+                <mat-card-actions>
+                  <button mat-raised-button style="background-color: #24292e; color: white;"
+                          *ngIf="!useCopilotCli || selectedCopilotCliModel !== model.id"
+                          (click)="connectCopilotCliModel(model.id)">
+                    <mat-icon>terminal</mat-icon>
+                    Connect
+                  </button>
+
+                  <button mat-button
+                          *ngIf="useCopilotCli && selectedCopilotCliModel === model.id"
+                          (click)="disconnectCopilotCli()">
+                    <mat-icon>cloud_off</mat-icon>
+                    Disconnect
+                  </button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <button mat-raised-button color="accent" (click)="editCopilotCliSystemPrompt()"
+                      [disabled]="editingCopilotCliSystemPrompt || !useCopilotCli">
+                <mat-icon>edit</mat-icon>
+                Configure Copilot CLI System Prompt
+              </button>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Copilot CLI System Prompt Editor -->
+      <mat-card *ngIf="editingCopilotCliSystemPrompt && copilotCliAvailable" class="system-prompt-editor">
+        <mat-card-header>
+          <mat-card-title>Copilot CLI System Prompt Configuration</mat-card-title>
+          <mat-card-subtitle>Define how Copilot CLI AI should behave</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>System Prompt</mat-label>
+            <textarea matInput
+                      [(ngModel)]="copilotCliSystemPrompt"
+                      rows="8"
+                      placeholder="Enter the system prompt that defines Copilot CLI's behavior...">
+            </textarea>
+            <mat-hint>This prompt will guide Copilot CLI's responses in all conversations</mat-hint>
+          </mat-form-field>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-button (click)="cancelEditCopilotCliSystemPrompt()">Cancel</button>
+          <button mat-raised-button color="primary" (click)="saveCopilotCliSystemPrompt()">
+            <mat-icon>save</mat-icon>
+            Save Copilot CLI System Prompt
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- OpenAI System Prompt Editor -->
+      <mat-card *ngIf="editingOpenAiSystemPrompt && openAiConfigured" class="system-prompt-editor">
+        <mat-card-header>
+          <mat-card-title>OpenAI System Prompt Configuration</mat-card-title>
+          <mat-card-subtitle>Define how OpenAI should behave</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>System Prompt</mat-label>
+            <textarea matInput
+                      [(ngModel)]="openAiSystemPrompt"
+                      rows="8"
+                      placeholder="Enter the system prompt that defines OpenAI's behavior...">
+            </textarea>
+            <mat-hint>This prompt will guide OpenAI's responses in all conversations</mat-hint>
+          </mat-form-field>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-button (click)="cancelEditOpenAiSystemPrompt()">Cancel</button>
+          <button mat-raised-button color="primary" (click)="saveOpenAiSystemPrompt()">
+            <mat-icon>save</mat-icon>
+            Save OpenAI System Prompt
           </button>
         </mat-card-actions>
       </mat-card>

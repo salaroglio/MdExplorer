@@ -1,8 +1,11 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, Input } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AiChatService, ChatMessage } from '../services/ai-chat.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { marked } from 'marked';
+import { LayoutService } from '../md-explorer/services/layout.service';
 
 @Component({
   selector: 'app-ai-chat',
@@ -21,6 +24,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   currentModel: string | null = null;
   currentDocument: string | null = null;
   showModelManager = false;
+  isChatFullScreen = false;
 
   // Edit message state
   editingMessageId: string | null = null;
@@ -31,7 +35,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   constructor(
     private aiService: AiChatService,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer,
+    private layoutService: LayoutService
   ) {}
 
   ngOnInit(): void {
@@ -70,6 +76,13 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       .subscribe(doc => {
         console.log('[AiChatComponent] Current document changed:', doc);
         this.currentDocument = doc;
+      });
+
+    // Subscribe to fullscreen state
+    this.layoutService.chatFullScreen$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isFullScreen => {
+        this.isChatFullScreen = isFullScreen;
       });
 
     // Listen for TruncateMessagesAfter event from backend
@@ -114,12 +127,16 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  toggleFullScreen(): void {
+    this.layoutService.setChatFullScreen(!this.isChatFullScreen);
+  }
+
   toggleModelManager(): void {
-    if (this.compactMode) {
-      // In compact mode, navigate to the model manager in the main router outlet
+    if (this.compactMode && !this.isChatFullScreen) {
+      // In compact mode (not fullscreen), navigate to the model manager in the main router outlet
       this.router.navigate(['/main/navigation/ai-model-manager']);
     } else {
-      // In full mode, toggle the embedded model manager
+      // In full mode or fullscreen, toggle the embedded model manager
       this.showModelManager = !this.showModelManager;
     }
   }
@@ -142,14 +159,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }, 100);
   }
 
-  formatMessageContent(content: string): string {
-    // Basic markdown-like formatting
-    return content
-      .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
+  formatMessageContent(content: string): SafeHtml {
+    if (!content) return '';
+    const html = marked.parse(content, { breaks: true }) as string;
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   getMessageClass(message: ChatMessage): string {

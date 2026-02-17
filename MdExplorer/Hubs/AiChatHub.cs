@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Abstractions.Services;
@@ -131,10 +132,7 @@ namespace MdExplorer.Hubs
                         return;
                     }
 
-                    _logger.LogInformation($"[SendMessage] Using {provider.GetName()} with tool calling capability");
-
-                    // Get tool definitions
-                    var tools = FileOperationTools.GetToolDefinitions();
+                    _logger.LogInformation($"[SendMessage] Using {provider.GetName()}");
 
                     // Get current document context
                     var docContext = GetDocumentContext();
@@ -153,38 +151,44 @@ namespace MdExplorer.Hubs
                     // Log user message to chat logger
                     _chatLogger?.LogUserMessage(Context.ConnectionId, message, currentDoc, history.Messages.Count);
 
-                    // Create tool executor delegate that captures connectionId, currentDocument, and workspaceRoot
-                    var connectionId = Context.ConnectionId;
-                    var workspaceRoot = GetProjectPath(); // Get current workspace root from DatabaseManager
-
-                    _logger.LogInformation($"[SendMessage] Using workspace root: {workspaceRoot}");
-
-                    Func<string, dynamic, Task<object>> toolExecutorFunc =
-                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
-
-                    // Convert conversation history to List<object> for interface compatibility
-                    var conversationHistory = history.Messages.Cast<object>().ToList();
-
-                    // Use ChatWithToolsAsync with history (works for all providers)
-                    var response = await provider.ChatWithToolsAsync(
-                        message,
-                        tools.Cast<object>().ToList(),
-                        toolExecutorFunc,
-                        chatMode.ModelId,
-                        currentDoc,
-                        conversationHistory);
-
-                    _logger.LogInformation($"[SendMessage] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
-
-                    // Add assistant response to history
-                    history.Messages.Add(new bll.Models.AI.ConversationMessage
+                    // CopilotCli: use streaming for progressive output
+                    if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
                     {
-                        Role = "model",
-                        Content = response
-                    });
+                        var response = await StreamCopilotCliResponseAsync(provider, message, chatMode.ModelId, currentDoc, history);
+                        _logger.LogInformation($"[SendMessage] CopilotCli streaming complete, response length: {response?.Length ?? 0}");
+                    }
+                    else
+                    {
+                        // Other providers: use ChatWithToolsAsync (with tool calling)
+                        var tools = FileOperationTools.GetToolDefinitions();
+                        var connectionId = Context.ConnectionId;
+                        var workspaceRoot = GetProjectPath();
 
-                    // Send complete response as a single chunk
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                        _logger.LogInformation($"[SendMessage] Using workspace root: {workspaceRoot}");
+
+                        Func<string, dynamic, Task<object>> toolExecutorFunc =
+                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
+
+                        var conversationHistory = history.Messages.Cast<object>().ToList();
+
+                        var response = await provider.ChatWithToolsAsync(
+                            message,
+                            tools.Cast<object>().ToList(),
+                            toolExecutorFunc,
+                            chatMode.ModelId,
+                            currentDoc,
+                            conversationHistory);
+
+                        _logger.LogInformation($"[SendMessage] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                        history.Messages.Add(new bll.Models.AI.ConversationMessage
+                        {
+                            Role = "model",
+                            Content = response
+                        });
+
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                    }
                 }
                 else
                 {
@@ -326,6 +330,10 @@ namespace MdExplorer.Hubs
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.OpenAI;
                     chatMode.ModelId = modelId ?? "gpt-4o";
                     break;
+                case "copilotcli":
+                    chatMode.ProviderType = Abstractions.Models.AI.ProviderType.CopilotCli;
+                    chatMode.ModelId = modelId ?? "claude-sonnet-4";
+                    break;
                 default:
                     chatMode.ProviderType = null; // Local model
                     chatMode.ModelId = null;
@@ -369,6 +377,85 @@ namespace MdExplorer.Hubs
         private ConversationHistory GetConversationHistory()
         {
             return _connectionHistories.GetOrAdd(Context.ConnectionId, _ => new ConversationHistory());
+        }
+
+        /// <summary>
+        /// Streams a CopilotCli response progressively to the client.
+        /// Builds a composite prompt with system prompt + document context + conversation history,
+        /// then streams the output chunk by chunk via SignalR.
+        /// </summary>
+        private async Task<string> StreamCopilotCliResponseAsync(
+            IAiProvider provider,
+            string userMessage,
+            string modelId,
+            string currentDoc,
+            ConversationHistory history)
+        {
+            // Set the working directory to the current project path
+            if (provider is CopilotCliProvider copilotProvider)
+            {
+                var projectPath = GetProjectPath();
+                if (!string.IsNullOrEmpty(projectPath))
+                {
+                    copilotProvider.WorkingDirectory = projectPath;
+                    _logger.LogInformation("[StreamCopilotCliResponseAsync] Set CopilotCli working directory to: {Path}", projectPath);
+                }
+            }
+
+            // Build composite prompt with system prompt + history
+            var systemPrompt = await provider.GetSystemPromptAsync();
+            var compositePrompt = new StringBuilder();
+
+            if (!string.IsNullOrEmpty(systemPrompt))
+            {
+                compositePrompt.AppendLine("System instructions:");
+                compositePrompt.AppendLine(systemPrompt);
+                compositePrompt.AppendLine();
+            }
+
+            if (!string.IsNullOrEmpty(currentDoc))
+            {
+                compositePrompt.AppendLine($"Current document: {currentDoc}");
+                compositePrompt.AppendLine();
+            }
+
+            // Add conversation history (exclude the last user message, we append it separately)
+            var historyMessages = history.Messages
+                .Take(history.Messages.Count - 1)
+                .ToList();
+
+            if (historyMessages.Count > 0)
+            {
+                compositePrompt.AppendLine("Previous conversation:");
+                foreach (var msg in historyMessages)
+                {
+                    var role = msg.Role == "model" ? "Assistant" : "User";
+                    compositePrompt.AppendLine($"{role}: {msg.Content}");
+                }
+                compositePrompt.AppendLine();
+            }
+
+            compositePrompt.AppendLine("Current question:");
+            compositePrompt.AppendLine(userMessage);
+
+            // Stream the response
+            var fullResponse = new StringBuilder();
+            await foreach (var chunk in provider.StreamChatAsync(compositePrompt.ToString(), modelId))
+            {
+                await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                fullResponse.Append(chunk);
+            }
+
+            var responseText = fullResponse.ToString();
+
+            // Add assistant response to history
+            history.Messages.Add(new bll.Models.AI.ConversationMessage
+            {
+                Role = "model",
+                Content = responseText
+            });
+
+            return responseText;
         }
 
         public async Task EditAndRegenerateFromMessage(int messageIndex, string newContent)
@@ -469,10 +556,7 @@ namespace MdExplorer.Hubs
                         return;
                     }
 
-                    _logger.LogInformation($"[RegenerateAiResponse] Using {provider.GetName()} with tool calling capability");
-
-                    // Get tool definitions
-                    var tools = FileOperationTools.GetToolDefinitions();
+                    _logger.LogInformation($"[RegenerateAiResponse] Using {provider.GetName()}");
 
                     // Get current document context
                     var docContext = GetDocumentContext();
@@ -480,34 +564,39 @@ namespace MdExplorer.Hubs
 
                     _logger.LogInformation($"[RegenerateAiResponse] Conversation history has {history.Messages.Count} messages");
 
-                    // Create tool executor delegate
-                    var connectionId = Context.ConnectionId;
-                    Func<string, dynamic, Task<object>> toolExecutorFunc =
-                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
-
-                    // Convert conversation history to List<object> for interface compatibility
-                    var conversationHistory = history.Messages.Cast<object>().ToList();
-
-                    // Use ChatWithToolsAsync with history (works for all providers)
-                    var response = await provider.ChatWithToolsAsync(
-                        lastUserMessage,
-                        tools.Cast<object>().ToList(),
-                        toolExecutorFunc,
-                        chatMode.ModelId,
-                        currentDoc,
-                        conversationHistory);
-
-                    _logger.LogInformation($"[RegenerateAiResponse] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
-
-                    // Add assistant response to history
-                    history.Messages.Add(new bll.Models.AI.ConversationMessage
+                    // CopilotCli: use streaming for progressive output
+                    if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
                     {
-                        Role = "model",
-                        Content = response
-                    });
+                        await StreamCopilotCliResponseAsync(provider, lastUserMessage, chatMode.ModelId, currentDoc, history);
+                    }
+                    else
+                    {
+                        // Other providers: use ChatWithToolsAsync (with tool calling)
+                        var tools = FileOperationTools.GetToolDefinitions();
+                        var connectionId = Context.ConnectionId;
+                        Func<string, dynamic, Task<object>> toolExecutorFunc =
+                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
 
-                    // Send complete response as a single chunk
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                        var conversationHistory = history.Messages.Cast<object>().ToList();
+
+                        var response = await provider.ChatWithToolsAsync(
+                            lastUserMessage,
+                            tools.Cast<object>().ToList(),
+                            toolExecutorFunc,
+                            chatMode.ModelId,
+                            currentDoc,
+                            conversationHistory);
+
+                        _logger.LogInformation($"[RegenerateAiResponse] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
+
+                        history.Messages.Add(new bll.Models.AI.ConversationMessage
+                        {
+                            Role = "model",
+                            Content = response
+                        });
+
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                    }
                 }
                 else
                 {

@@ -1,6 +1,6 @@
 {
   "name": "client2",
-  "version": "2026.02.16.4",
+  "version": "2026.02.17.6",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -24,6 +24,7 @@
     "@microsoft/signalr": "^5.0.7",
     "angular-animations": "^0.11.0",
     "angular-resizable": "^1.2.0",
+    "marked": "^9.1.6",
     "rxjs": "^7.8.2",
     "tslib": "^2.8.1",
     "zone.js": "^0.11.8"

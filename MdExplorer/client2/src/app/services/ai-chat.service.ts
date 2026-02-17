@@ -458,6 +458,42 @@ export class AiChatService {
     console.log('[AiChatService] OpenAI disconnected');
   }
 
+  // Copilot CLI methods
+  checkCopilotCliConfiguration(): Observable<any> {
+    return this.http.get('/api/copilotcli/configured');
+  }
+
+  getCopilotCliModels(): Observable<any[]> {
+    return this.getModelsByProvider('CopilotCli').pipe(
+      map((response: any) => response.models || [])
+    );
+  }
+
+  getCopilotCliSystemPrompt(): Observable<any> {
+    return this.http.get('/api/copilotcli/system-prompt');
+  }
+
+  setCopilotCliSystemPrompt(systemPrompt: string): Observable<any> {
+    return this.http.post('/api/copilotcli/system-prompt', { systemPrompt });
+  }
+
+  refreshCopilotCliModels(): Observable<any> {
+    return this.http.post('/api/copilotcli/refresh-models', {});
+  }
+
+  notifyCopilotCliConnected(modelId: string): void {
+    console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`CopilotCli: ${modelId}`);
+    console.log('[AiChatService] CopilotCli connected:', modelId);
+  }
+
+  notifyCopilotCliDisconnected(): void {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] CopilotCli disconnected');
+  }
+
   generateCommitMessage(projectPath: string): Observable<any> {
     return this.http.post('/api/GitAi/generate-commit-message', { projectPath });
   }

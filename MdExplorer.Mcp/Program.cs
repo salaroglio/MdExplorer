@@ -5,18 +5,6 @@ using ModelContextProtocol.Server;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Parse --project argument
-string projectName = null;
-for (int i = 0; i < args.Length - 1; i++)
-{
-    if (args[i] == "--project")
-    {
-        projectName = args[i + 1];
-        break;
-    }
-}
-builder.Services.AddSingleton(new MdExplorer.Mcp.McpConfig { ProjectName = projectName });
-
 // Log to stderr only (stdout is reserved for MCP JSON-RPC)
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options =>

@@ -46,9 +46,19 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   openAiSystemPrompt = '';
   editingOpenAiSystemPrompt = false;
 
+  // Copilot CLI properties
+  useCopilotCli = false;
+  copilotCliModels: any[] = [];
+  selectedCopilotCliModel = 'claude-sonnet-4';
+  copilotCliAvailable = false;
+  showCopilotCliConfig = false;
+  copilotCliSystemPrompt = '';
+  editingCopilotCliSystemPrompt = false;
+  refreshingCopilotModels = false;
+
   // Multi-provider properties
   availableProviders: any[] = [];
-  selectedProvider: string = 'local'; // 'local', 'openai', 'gemini'
+  selectedProvider: string = 'local'; // 'local', 'openai', 'gemini', 'copilotcli'
   showProviderSelector = false;
 
   private destroy$ = new Subject<void>();
@@ -65,6 +75,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.loadGpuInfo();
     this.checkGeminiConfiguration();
     this.checkOpenAiConfiguration();
+    this.checkCopilotCliConfiguration();
     this.loadAvailableProviders();
     this.loadDefaultPreferences();
 
@@ -621,6 +632,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     if (this.useOpenAi) {
       this.disconnectOpenAi();
     }
+    if (this.useCopilotCli) {
+      this.disconnectCopilotCli();
+    }
 
     this.showProviderSelector = false;
   }
@@ -661,6 +675,11 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
             this.connectOpenAiModel(model);
           }
           break;
+        case 'copilotcli':
+          if (this.copilotCliAvailable && this.copilotCliModels.length > 0) {
+            this.connectCopilotCliModel(model);
+          }
+          break;
         case 'local':
           // For local models, find the model and load it
           const localModel = this.availableModels.find(m => m.id === model);
@@ -682,6 +701,128 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         console.error('Error saving AI preference:', err);
       }
     });
+  }
+
+  // Copilot CLI methods
+  checkCopilotCliConfiguration(): void {
+    this.aiService.checkCopilotCliConfiguration().subscribe({
+      next: (response: any) => {
+        this.copilotCliAvailable = response.configured;
+        if (this.copilotCliAvailable) {
+          this.loadCopilotCliModels();
+          this.loadCopilotCliSystemPrompt();
+        }
+      },
+      error: (err) => {
+        console.error('Error checking Copilot CLI configuration:', err);
+      }
+    });
+  }
+
+  loadCopilotCliModels(): void {
+    this.aiService.getCopilotCliModels().subscribe({
+      next: (models) => {
+        this.copilotCliModels = models;
+      },
+      error: (err) => {
+        console.error('Error loading Copilot CLI models:', err);
+      }
+    });
+  }
+
+  refreshCopilotCliModels(): void {
+    this.refreshingCopilotModels = true;
+    this.aiService.refreshCopilotCliModels().subscribe({
+      next: (response) => {
+        this.copilotCliModels = response.models || [];
+        this.refreshingCopilotModels = false;
+      },
+      error: (err) => {
+        console.error('Error refreshing Copilot CLI models:', err);
+        this.refreshingCopilotModels = false;
+      }
+    });
+  }
+
+  loadCopilotCliSystemPrompt(): void {
+    this.aiService.getCopilotCliSystemPrompt().subscribe({
+      next: (response: any) => {
+        this.copilotCliSystemPrompt = response.systemPrompt;
+      },
+      error: (err) => {
+        console.error('Error loading Copilot CLI system prompt:', err);
+      }
+    });
+  }
+
+  toggleCopilotCliConfig(): void {
+    this.showCopilotCliConfig = !this.showCopilotCliConfig;
+    if (this.showCopilotCliConfig && this.copilotCliAvailable) {
+      this.loadCopilotCliModels();
+    }
+    this.contentChanged.emit();
+  }
+
+  connectCopilotCliModel(modelId: string): void {
+    console.log('[ModelManager] Connecting to Copilot CLI model:', modelId);
+    this.selectedCopilotCliModel = modelId;
+    this.useCopilotCli = true;
+    this.selectedProvider = 'copilotcli';
+
+    // Disconnect other providers
+    if (this.useGemini) {
+      this.disconnectGemini();
+    }
+    if (this.useOpenAi) {
+      this.disconnectOpenAi();
+    }
+
+    // Set provider
+    this.aiService.setProvider('copilotcli', modelId);
+
+    // Notify that a model is now connected
+    this.aiService.notifyCopilotCliConnected(modelId);
+
+    // Save as default preference
+    this.saveCurrentPreference('copilotcli', modelId);
+
+    alert(`Connected to Copilot CLI model: ${this.copilotCliModels.find(m => m.id === modelId)?.name || modelId}`);
+  }
+
+  disconnectCopilotCli(): void {
+    console.log('[ModelManager] Disconnecting from Copilot CLI');
+    this.useCopilotCli = false;
+    this.selectedCopilotCliModel = null;
+    this.selectedProvider = 'local';
+    this.aiService.notifyCopilotCliDisconnected();
+  }
+
+  editCopilotCliSystemPrompt(): void {
+    this.editingCopilotCliSystemPrompt = true;
+    this.contentChanged.emit();
+  }
+
+  saveCopilotCliSystemPrompt(): void {
+    if (!this.copilotCliSystemPrompt.trim()) {
+      alert('System prompt cannot be empty');
+      return;
+    }
+
+    this.aiService.setCopilotCliSystemPrompt(this.copilotCliSystemPrompt).subscribe({
+      next: () => {
+        console.log('Copilot CLI system prompt saved successfully');
+        this.editingCopilotCliSystemPrompt = false;
+      },
+      error: (err) => {
+        console.error('Error saving Copilot CLI system prompt:', err);
+        alert('Failed to save system prompt');
+      }
+    });
+  }
+
+  cancelEditCopilotCliSystemPrompt(): void {
+    this.editingCopilotCliSystemPrompt = false;
+    this.loadCopilotCliSystemPrompt();
   }
 
   ngOnDestroy(): void {

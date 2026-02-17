@@ -341,6 +341,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
                 // Create .vscode folder with MCP server configuration
                 CreateVsCodeMcpConfig(projectPath);
+
+                // Create .copilot folder with MCP server configuration (for Copilot CLI)
+                CreateCopilotCliMcpConfig(projectPath);
             }
             catch (Exception ex)
             {
@@ -420,6 +423,92 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             catch (Exception ex)
             {
                 Console.WriteLine($"Error creating VS Code MCP configuration: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Creates/updates the global ~/.copilot/mcp-config.json with the MdExplorer MCP server
+        /// for the given project. Copilot CLI only supports user-level config (not per-project).
+        /// Server key includes project name to avoid conflicts between projects.
+        /// </summary>
+        private static void CreateCopilotCliMcpConfig(string projectPath)
+        {
+            try
+            {
+                // Copilot CLI only reads ~/.copilot/mcp-config.json (global, not per-project)
+                var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var copilotPath = Path.Combine(userHome, ".copilot");
+                Directory.CreateDirectory(copilotPath);
+
+                var mcpJsonPath = Path.Combine(copilotPath, "mcp-config.json");
+
+                // Single global "mdexplorer" entry - no --project arg needed.
+                // The MCP server connects to the running MdExplorer instance and
+                // works with whatever project is currently open.
+                const string serverKey = "mdexplorer";
+
+                // Copilot CLI requires "tools" array (empty = allow all tools discovered at runtime)
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var mcpExePath = Path.Combine(baseDir, "MdExplorer.Mcp.exe");
+
+                System.Text.Json.Nodes.JsonObject serverEntry;
+                if (File.Exists(mcpExePath))
+                {
+                    serverEntry = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["command"] = mcpExePath,
+                        ["tools"] = new System.Text.Json.Nodes.JsonArray("*")
+                    };
+                }
+                else
+                {
+                    var mcpProjectPath = FindMcpProjectPath(baseDir);
+                    serverEntry = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["command"] = "dotnet",
+                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath),
+                        ["tools"] = new System.Text.Json.Nodes.JsonArray("*")
+                    };
+                }
+
+                System.Text.Json.Nodes.JsonObject root;
+
+                if (File.Exists(mcpJsonPath))
+                {
+                    var existingJson = File.ReadAllText(mcpJsonPath);
+                    root = System.Text.Json.Nodes.JsonNode.Parse(existingJson)?.AsObject()
+                           ?? new System.Text.Json.Nodes.JsonObject();
+
+                    if (root["mcpServers"] is not System.Text.Json.Nodes.JsonObject servers)
+                    {
+                        servers = new System.Text.Json.Nodes.JsonObject();
+                        root["mcpServers"] = servers;
+                    }
+
+                    // Only write if "mdexplorer" entry doesn't exist yet (don't overwrite user customizations)
+                    if (!servers.ContainsKey(serverKey))
+                    {
+                        servers[serverKey] = serverEntry;
+                    }
+                }
+                else
+                {
+                    root = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["mcpServers"] = new System.Text.Json.Nodes.JsonObject
+                        {
+                            [serverKey] = serverEntry
+                        }
+                    };
+                }
+
+                var json = root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(mcpJsonPath, json);
+                Console.WriteLine($"Copilot CLI MCP configuration ensured: {mcpJsonPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating Copilot CLI MCP configuration: {ex.Message}");
             }
         }
 

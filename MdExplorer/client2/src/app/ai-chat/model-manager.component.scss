@@ -182,6 +182,87 @@
     }
   }
   
+  .spinning {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    100% { transform: rotate(360deg); }
+  }
+
+  .copilotcli-config-card {
+    background: linear-gradient(135deg, #24292e 0%, #586069 100%);
+    color: white;
+    border: 2px solid #24292e;
+
+    mat-card-header {
+      mat-card-title {
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        mat-icon {
+          color: white;
+        }
+      }
+
+      mat-card-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+      }
+    }
+
+    mat-card-content {
+      background: white;
+      color: #333;
+      padding: 20px;
+      margin: -16px -16px 0 -16px;
+
+      h4 {
+        color: #24292e;
+        margin: 20px 0 10px 0;
+        font-size: 1.2em;
+        font-weight: 500;
+      }
+
+      .models-grid {
+        .model-card {
+          mat-card-header {
+            mat-card-title {
+              color: #333;
+              font-size: 1.1em;
+              font-weight: 500;
+              display: block;
+            }
+
+            mat-card-subtitle {
+              color: #666;
+              font-size: 0.9em;
+            }
+          }
+
+          mat-card-content {
+            padding: 16px;
+            margin: 0;
+            background: transparent;
+
+            .model-description {
+              color: #666;
+            }
+          }
+        }
+      }
+
+      a {
+        color: #0366d6;
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
   .gemini-config-card {
     background: linear-gradient(135deg, #4285f4 0%, #ea4335 100%);
     color: white;

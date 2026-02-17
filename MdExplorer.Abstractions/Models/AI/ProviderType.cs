@@ -28,6 +28,11 @@ namespace MdExplorer.Abstractions.Models.AI
         /// <summary>
         /// Provider generico con endpoint personalizzato
         /// </summary>
-        Generic
+        Generic,
+
+        /// <summary>
+        /// GitHub Copilot CLI (copilot -p)
+        /// </summary>
+        CopilotCli
     }
 }

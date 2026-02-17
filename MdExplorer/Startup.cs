@@ -93,10 +93,12 @@ namespace MdExplorer
             // Registra tutti i provider disponibili (possono essere iniettati come IEnumerable<IAiProvider>)
             services.AddSingleton<IAiProvider, OpenAiProvider>();
             services.AddSingleton<IAiProvider, GeminiProvider>();
+            services.AddSingleton<IAiProvider, CopilotCliProvider>();
 
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
+            services.AddSingleton<IModelDiscoveryProvider, CopilotCliModelDiscovery>();
 
             // Add AI Tool Calling services
             // PathValidator is now created dynamically by ToolExecutor with the current workspace root

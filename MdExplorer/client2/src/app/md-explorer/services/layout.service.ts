@@ -11,6 +11,9 @@ export class LayoutService {
   private sidenavOpenSubject = new BehaviorSubject<boolean>(true);
   public sidenavOpen$: Observable<boolean> = this.sidenavOpenSubject.asObservable();
 
+  private chatFullScreenSubject = new BehaviorSubject<boolean>(false);
+  public chatFullScreen$: Observable<boolean> = this.chatFullScreenSubject.asObservable();
+
   constructor() { }
 
   setSidenavWidth(width: number): void {
@@ -27,5 +30,13 @@ export class LayoutService {
 
   getSidenavOpen(): boolean {
     return this.sidenavOpenSubject.value;
+  }
+
+  setChatFullScreen(isFullScreen: boolean): void {
+    this.chatFullScreenSubject.next(isFullScreen);
+  }
+
+  getChatFullScreen(): boolean {
+    return this.chatFullScreenSubject.value;
   }
 }

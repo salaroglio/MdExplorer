@@ -1,8 +1,9 @@
 
-import { AfterViewInit, ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core'; // Added ChangeDetectionStrategy
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { Router }                                          from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { HttpClient } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 import { MdFileService }      from '../../services/md-file.service';
 import { AppCurrentMetadataService } from '../../../services/app-current-metadata.service';
 import { GITService } from '../../../git/services/gitservice.service';
@@ -36,7 +37,12 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public fileSystemWatcherEnabled: boolean = true;
   public selectedTabIndex: number = 0;
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
-  
+
+  // Chat fullscreen
+  public isChatFullScreen = false;
+  private savedSideNavWidth: string = '';
+  private chatFullScreenSub: Subscription;
+
   // Memory leak prevention
   private mouseMoveListener?: (event: MouseEvent) => void;
   private mouseUpListener?: (event: MouseEvent) => void;
@@ -95,7 +101,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
   private setupResizeListeners(): void {
     this.mouseMoveListener = (event: MouseEvent) => {
-      if (this.hooked) {
+      if (this.hooked && !this.isChatFullScreen) {
         const newWidth = this.validateWidth(event.clientX);
         this.sideNavWidth = newWidth + "px";
         this.layoutService.setSidenavWidth(newWidth);
@@ -130,6 +136,10 @@ export class SidenavComponent implements OnInit, OnDestroy {
     }
     // Clear debounce timer
     clearTimeout(this.debounceTimer);
+    // Cleanup chat fullscreen subscription
+    if (this.chatFullScreenSub) {
+      this.chatFullScreenSub.unsubscribe();
+    }
     // Cleanup clipboard paste service
     this.clipboardPasteService.destroy();
   }
@@ -195,6 +205,23 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
     // Initialize global Ctrl+V listener for screenshot annotation
     this.clipboardPasteService.initialize();
+
+    // Subscribe to chat fullscreen state
+    this.chatFullScreenSub = this.layoutService.chatFullScreen$.subscribe(isFullScreen => {
+      this.isChatFullScreen = isFullScreen;
+      if (isFullScreen) {
+        // Save current width and expand to 100%
+        this.savedSideNavWidth = this.sideNavWidth;
+        this.sideNavWidth = '100%';
+        this.hooked = false;
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      } else if (this.savedSideNavWidth) {
+        // Restore previous width
+        this.sideNavWidth = this.savedSideNavWidth;
+        this.savedSideNavWidth = '';
+      }
+    });
 
   }
 
@@ -305,6 +332,13 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
   hasCurrentFile(): boolean {
     return this.mdFileService.currentSelectedMdFile != null;
+  }
+
+  onTabChange(event: any): void {
+    // Exit fullscreen if user switches to a different tab
+    if (this.isChatFullScreen) {
+      this.layoutService.setChatFullScreen(false);
+    }
   }
 
   revealInTree(): void {

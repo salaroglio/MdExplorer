@@ -80,6 +80,10 @@ mat-sidenav-content {
     height: 100%;
     display: flex;
     flex-direction: column;
+
+    &.hidden {
+      display: none !important;
+    }
     
     router-outlet {
       display: none; // router-outlet è solo un placeholder
@@ -177,6 +181,27 @@ mat-sidenav-content {
   min-width: 0 !important;
   padding: 3px !important;
   margin: 3px !important;
+}
+
+// Propagazione altezza nei container interni di mat-tab-group
+// necessario perché app-ai-chat usa height:100% e ha bisogno di un parent con altezza definita
+::ng-deep .mat-tab-body-wrapper {
+  flex: 1 !important;
+}
+
+// Overflow hidden solo nel tab che contiene la chat AI, per bloccare input in basso
+::ng-deep .mat-tab-body:has(app-ai-chat) {
+  height: 100% !important;
+
+  .mat-tab-body-content {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+}
+
+// Ri-abilita selezione testo nei messaggi della chat AI
+::ng-deep app-ai-chat .chat-messages {
+  user-select: text !important;
 }
 
 #projectcss {
