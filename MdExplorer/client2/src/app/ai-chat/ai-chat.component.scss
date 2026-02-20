@@ -277,6 +277,70 @@
           }
         }
 
+        .thinking-section {
+          margin-bottom: 8px;
+
+          .thinking-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 6px 10px;
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #7b1fa2;
+            user-select: none;
+
+            &:hover {
+              background: #e1bee7;
+            }
+
+            .thinking-icon {
+              font-size: 18px;
+              width: 18px;
+              height: 18px;
+            }
+
+            .thinking-label {
+              font-weight: 500;
+            }
+
+            .thinking-toggle {
+              margin-left: auto;
+              font-size: 18px;
+              width: 18px;
+              height: 18px;
+              transition: transform 0.2s;
+            }
+
+            .thinking-spinner {
+              margin-left: 8px;
+            }
+          }
+
+          .thinking-body {
+            padding: 8px 12px;
+            background: #faf5fc;
+            border-left: 3px solid #ce93d8;
+            border-radius: 0 0 4px 4px;
+            font-size: 0.9em;
+            color: #555;
+            max-height: 300px;
+            overflow-y: auto;
+
+            pre {
+              background: #2d2d2d;
+              color: #ccc;
+              padding: 8px;
+              border-radius: 4px;
+              font-size: 0.85em;
+              overflow-x: auto;
+            }
+          }
+        }
+
         .message-edit {
           margin-top: 8px;
 

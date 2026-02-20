@@ -38,12 +38,8 @@ window.image = null;
 // Stores { id: string, originalDivStyle: string, originalImgStyle: string, originalImgClass: string, isAutoFit: boolean }
 window.arrayAutoFitState = [];
 
-// Image Magnifier
-window.magnifierActive = {};
-window.magnifierCanvas = null;
-window.magnifierContext = null;
-window.magnifierCache = new Map();
-window.magnifierRAF = null;
+// SVG Text Search
+window.svgSearchActive = {};
 
 // ============================================================================
 // CANVAS DRAWING TOOL

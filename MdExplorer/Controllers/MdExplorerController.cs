@@ -431,6 +431,8 @@ namespace MdExplorer.Controllers
                 await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
             }
 
+            try
+            {
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
             // Check if Rule #1 is enabled for current project
@@ -654,11 +656,15 @@ namespace MdExplorer.Controllers
                 _logger.LogWarning($"⚠️ [MdExplorer] Could not enhance links: {ex.Message}");
             }
 
-            if (isPlantuml)
-            {                 
-                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
-            }
             return doc1;
+            }
+            finally
+            {
+                if (isPlantuml)
+                {
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
+                }
+            }
         }
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "")

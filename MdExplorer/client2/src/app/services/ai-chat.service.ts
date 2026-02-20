@@ -44,6 +44,8 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isStreaming?: boolean;
+  thinkingContent?: string;
+  providerType?: string;
 }
 
 @Injectable({
@@ -75,7 +77,8 @@ export class AiChatService {
   public gpuEnabled$ = this._gpuEnabled$.asObservable();
   
   private currentStreamingMessageId: string | null = null;
-  
+  private currentStreamingProviderType: string | null = null;
+
   // Gemini API state
   private _useGemini$ = new BehaviorSubject<boolean>(false);
   public useGemini$ = this._useGemini$.asObservable();
@@ -131,9 +134,17 @@ export class AiChatService {
       this.addMessage(role as 'system' | 'assistant', content);
     });
 
+    this.hubConnection.on('ReceiveStreamMeta', (meta: { providerType: string }) => {
+      this.currentStreamingProviderType = meta.providerType;
+    });
+
     this.hubConnection.on('ReceiveStreamChunk', (chunk: string) => {
       this._streamingMessage$.next(chunk);
       this.appendToStreamingMessage(chunk);
+    });
+
+    this.hubConnection.on('ReceiveThinking', (chunk: string) => {
+      this.appendToThinkingContent(chunk);
     });
 
     this.hubConnection.on('StreamComplete', () => {
@@ -216,15 +227,22 @@ export class AiChatService {
   // Chat functionality
   sendMessage(message: string): void {
     if (!message.trim()) return;
-    
+
     // Add user message
     this.addMessage('user', message);
-    
+
     // Create placeholder for assistant response
     const assistantMessageId = this.generateMessageId();
     this.currentStreamingMessageId = assistantMessageId;
     this.addMessage('assistant', '', assistantMessageId, true);
-    
+
+    // Set providerType on the placeholder if known
+    if (this.currentStreamingProviderType) {
+      const messages = this._messages$.value;
+      const lastMsg = messages[messages.length - 1];
+      lastMsg.providerType = this.currentStreamingProviderType;
+    }
+
     // Send to server
     if (this.hubConnection.state === 'Connected') {
       this.hubConnection.invoke('SendMessage', message)
@@ -259,22 +277,42 @@ export class AiChatService {
     }
   }
 
+  private appendToThinkingContent(chunk: string): void {
+    if (!this.currentStreamingMessageId) return;
+
+    const messages = this._messages$.value;
+    const idx = messages.findIndex(m => m.id === this.currentStreamingMessageId);
+
+    if (idx !== -1) {
+      messages[idx].thinkingContent = (messages[idx].thinkingContent || '') + chunk;
+      messages[idx].providerType = this.currentStreamingProviderType;
+      this._messages$.next([...messages]);
+    }
+  }
+
   private finalizeStreamingMessage(): void {
     if (!this.currentStreamingMessageId) return;
-    
+
     const messages = this._messages$.value;
     const messageIndex = messages.findIndex(m => m.id === this.currentStreamingMessageId);
-    
+
     if (messageIndex !== -1) {
       messages[messageIndex].isStreaming = false;
       this._messages$.next([...messages]);
     }
-    
+
     this.currentStreamingMessageId = null;
+    this.currentStreamingProviderType = null;
   }
 
   clearMessages(): void {
     this._messages$.next([]);
+    // Clear backend conversation history too
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('ClearHistory').catch(err => {
+        console.error('[AiChatService] Error clearing history:', err);
+      });
+    }
   }
   
   getSystemPrompt(): Observable<any> {

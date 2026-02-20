@@ -12,6 +12,10 @@ export class PlantumlWorkingProvider {
   }
 
   show(data: any): PlantumlWorkingProvider {
+    if (this._dialogRef) {
+      this._dialogRef.close();
+      this._dialogRef = null;
+    }
     this._dialogRef = this.dialog.open(PlantumlWorkingComponent, {
       data: data
     });
@@ -19,7 +23,10 @@ export class PlantumlWorkingProvider {
   }
 
   hide(data: any): void {
-    this._dialogRef.close();
+    if (this._dialogRef) {
+      this._dialogRef.close();
+      this._dialogRef = null;
+    }
   }
 
 }

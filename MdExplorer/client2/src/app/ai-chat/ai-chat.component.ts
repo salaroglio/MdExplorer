@@ -30,6 +30,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   editingMessageId: string | null = null;
   editedContent: string = '';
 
+  // Thinking section collapse state (per message id)
+  collapsedThinking: Set<string> = new Set();
+
   private destroy$ = new Subject<void>();
   private shouldScrollToBottom = false;
 
@@ -121,10 +124,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  clearChat(): void {
-    if (confirm('Clear all messages?')) {
-      this.aiService.clearMessages();
-    }
+  newSession(): void {
+    this.aiService.clearMessages();
   }
 
   toggleFullScreen(): void {
@@ -187,6 +188,22 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Extract filename from path (works for both / and \\ separators)
     const parts = this.currentDocument.replace(/\\/g, '/').split('/');
     return parts[parts.length - 1];
+  }
+
+  toggleThinking(messageId: string): void {
+    if (this.collapsedThinking.has(messageId)) {
+      this.collapsedThinking.delete(messageId);
+    } else {
+      this.collapsedThinking.add(messageId);
+    }
+  }
+
+  isThinkingCollapsed(messageId: string): boolean {
+    return this.collapsedThinking.has(messageId);
+  }
+
+  hasThinking(message: ChatMessage): boolean {
+    return !!message.thinkingContent && message.thinkingContent.trim().length > 0;
   }
 
   startEditMessage(message: ChatMessage): void {

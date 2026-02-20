@@ -467,6 +467,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 var args = new StringBuilder();
                 args.Append("-p - "); // Read prompt from stdin
                 args.Append("--no-color ");
+                args.Append("--screen-reader ");
                 args.Append("--allow-all-tools ");
                 args.Append($"--model {model}");
                 if (!streaming)
@@ -482,6 +483,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 var escapedPrompt = prompt.Replace("\"", "\\\"");
                 args.Append($"-p \"{escapedPrompt}\" ");
                 args.Append("--no-color ");
+                args.Append("--screen-reader ");
                 args.Append("--allow-all-tools ");
                 args.Append($"--model {model}");
                 if (!streaming)

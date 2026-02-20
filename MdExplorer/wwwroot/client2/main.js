@@ -8370,6 +8370,7 @@ class AiChatService {
     this._gpuEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
     this.gpuEnabled$ = this._gpuEnabled$.asObservable();
     this.currentStreamingMessageId = null;
+    this.currentStreamingProviderType = null;
     // Gemini API state
     this._useGemini$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
     this.useGemini$ = this._useGemini$.asObservable();
@@ -8408,9 +8409,15 @@ class AiChatService {
     this.hubConnection.on('ReceiveMessage', (role, content) => {
       this.addMessage(role, content);
     });
+    this.hubConnection.on('ReceiveStreamMeta', meta => {
+      this.currentStreamingProviderType = meta.providerType;
+    });
     this.hubConnection.on('ReceiveStreamChunk', chunk => {
       this._streamingMessage$.next(chunk);
       this.appendToStreamingMessage(chunk);
+    });
+    this.hubConnection.on('ReceiveThinking', chunk => {
+      this.appendToThinkingContent(chunk);
     });
     this.hubConnection.on('StreamComplete', () => {
       this.finalizeStreamingMessage();
@@ -8490,6 +8497,12 @@ class AiChatService {
     const assistantMessageId = this.generateMessageId();
     this.currentStreamingMessageId = assistantMessageId;
     this.addMessage('assistant', '', assistantMessageId, true);
+    // Set providerType on the placeholder if known
+    if (this.currentStreamingProviderType) {
+      const messages = this._messages$.value;
+      const lastMsg = messages[messages.length - 1];
+      lastMsg.providerType = this.currentStreamingProviderType;
+    }
     // Send to server
     if (this.hubConnection.state === 'Connected') {
       this.hubConnection.invoke('SendMessage', message).catch(err => {
@@ -8518,6 +8531,16 @@ class AiChatService {
       this._messages$.next([...messages]);
     }
   }
+  appendToThinkingContent(chunk) {
+    if (!this.currentStreamingMessageId) return;
+    const messages = this._messages$.value;
+    const idx = messages.findIndex(m => m.id === this.currentStreamingMessageId);
+    if (idx !== -1) {
+      messages[idx].thinkingContent = (messages[idx].thinkingContent || '') + chunk;
+      messages[idx].providerType = this.currentStreamingProviderType;
+      this._messages$.next([...messages]);
+    }
+  }
   finalizeStreamingMessage() {
     if (!this.currentStreamingMessageId) return;
     const messages = this._messages$.value;
@@ -8527,9 +8550,16 @@ class AiChatService {
       this._messages$.next([...messages]);
     }
     this.currentStreamingMessageId = null;
+    this.currentStreamingProviderType = null;
   }
   clearMessages() {
     this._messages$.next([]);
+    // Clear backend conversation history too
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('ClearHistory').catch(err => {
+        console.error('[AiChatService] Error clearing history:', err);
+      });
+    }
   }
   getSystemPrompt() {
     return this.http.get(`${this.baseUrl}/system-prompt`);
@@ -10342,13 +10372,20 @@ class PlantumlWorkingProvider {
     this.dialog = dialog;
   }
   show(data) {
+    if (this._dialogRef) {
+      this._dialogRef.close();
+      this._dialogRef = null;
+    }
     this._dialogRef = this.dialog.open(_plantuml_working_component__WEBPACK_IMPORTED_MODULE_0__.PlantumlWorkingComponent, {
       data: data
     });
     return this;
   }
   hide(data) {
-    this._dialogRef.close();
+    if (this._dialogRef) {
+      this._dialogRef.close();
+      this._dialogRef = null;
+    }
   }
   static {
     this.ɵfac = function PlantumlWorkingProvider_Factory(t) {
@@ -10736,8 +10773,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.02.17.6',
-  buildTime: '2026.02.17 09:56:40'
+  version: '2026.02.20.1',
+  buildTime: '2026.02.20 08:49:42'
 };
 
 /***/ }),

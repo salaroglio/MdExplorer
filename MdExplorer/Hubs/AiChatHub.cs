@@ -317,6 +317,13 @@ namespace MdExplorer.Hubs
             await base.OnDisconnectedAsync(exception);
         }
         
+        public Task ClearHistory()
+        {
+            _logger.LogInformation($"[ClearHistory] Clearing conversation history for connection {Context.ConnectionId}");
+            _connectionHistories.TryRemove(Context.ConnectionId, out _);
+            return Task.CompletedTask;
+        }
+
         public Task SetChatMode(string mode, string modelId)
         {
             _logger.LogInformation($"[SetChatMode] Called with mode: {mode}, modelId: {modelId}, ConnectionId: {Context.ConnectionId}");

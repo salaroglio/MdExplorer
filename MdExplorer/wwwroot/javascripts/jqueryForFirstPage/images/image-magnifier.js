@@ -1,512 +1,381 @@
 /**
- * MdExplorer - Image Magnifier / Zoom Tool
- * =========================================
- * Provides 2.5x zoom lens for images and SVG diagrams
+ * MdExplorer - SVG Text Search
+ * ============================
+ * Search and highlight text within SVG diagrams (PlantUML, etc.)
  *
  * Features:
- * - Floating magnifier canvas with smart positioning
- * - 2.5x zoom factor with crosshair indicator
- * - SVG-to-Image conversion with caching
- * - Request Animation Frame for performance
- * - Auto-hide when mouse leaves element
+ * - Case-insensitive text search within SVG <text> elements
+ * - Yellow highlight rects for matches, orange for current match
+ * - Enter/Shift+Enter navigation between results (circular)
+ * - Debounced input (300ms), minimum 3 characters
+ * - Independent search state per SVG (keyed by hash)
+ * - Graceful degradation for non-SVG images
  *
  * Global dependencies:
- * - window.magnifierActive (from globals.js)
- * - window.magnifierCanvas (from globals.js)
- * - window.magnifierContext (from globals.js)
- * - window.magnifierCache (from globals.js)
- * - window.magnifierRAF (from globals.js)
+ * - window.svgSearchActive (from globals.js)
  *
  * DOM:
- * - Creates floating canvas element dynamically
- * - Canvas size: 300-500px (30% viewport, bounded)
+ * - Creates search box div above each SVG container
+ * - Search box ID: svgSearch_{hash}
  */
 
 /**
- * Toggle magnifier on/off for specified element
- * Manages event handlers and canvas lifecycle
+ * Toggle SVG text search on/off for specified element.
+ * First click opens search box, second click closes it.
  *
  * @param {string} stringMatchedHash - ID of the image container element
  */
 function toggleMagnifier(stringMatchedHash) {
-    console.log('[toggleMagnifier] called with stringMatchedHash:', stringMatchedHash);
-
     var $box = $('#' + stringMatchedHash);
-    if ($box.length === 0) {
-        console.error('[toggleMagnifier] Element not found with id:', stringMatchedHash);
+    if ($box.length === 0) return;
+
+    if (window.svgSearchActive[stringMatchedHash]) {
+        _svgSearchClose(stringMatchedHash);
+    } else {
+        _svgSearchOpen(stringMatchedHash, $box);
+    }
+}
+
+/**
+ * Open search box for the given SVG container.
+ *
+ * @param {string} hash - Element hash/ID
+ * @param {jQuery} $box - Container element
+ */
+function _svgSearchOpen(hash, $box) {
+    window.svgSearchActive[hash] = true;
+
+    var searchBoxId = 'svgSearch_' + hash;
+
+    // Don't create duplicate
+    if ($('#' + searchBoxId).length > 0) return;
+
+    // Build search box HTML
+    var $searchBox = $('<div>', {
+        id: searchBoxId,
+        css: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 8px',
+            background: '#f5f5f5',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            marginBottom: '4px',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '13px'
+        }
+    });
+
+    var $input = $('<input>', {
+        type: 'text',
+        placeholder: 'Search text in SVG...',
+        css: {
+            flex: '1',
+            border: '1px solid #aaa',
+            borderRadius: '3px',
+            padding: '3px 6px',
+            fontSize: '13px',
+            outline: 'none',
+            minWidth: '120px'
+        }
+    });
+
+    var $counter = $('<span>', {
+        css: {
+            color: '#666',
+            whiteSpace: 'nowrap',
+            minWidth: '60px',
+            textAlign: 'center'
+        },
+        text: ''
+    });
+
+    var $closeBtn = $('<button>', {
+        html: '&times;',
+        css: {
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            fontSize: '18px',
+            lineHeight: '1',
+            padding: '0 4px',
+            color: '#666'
+        }
+    });
+
+    $searchBox.append($input, $counter, $closeBtn);
+
+    // Store state on the search box DOM element
+    $searchBox.data('_svgState', {
+        matches: [],
+        currentIndex: -1,
+        highlightRects: [],
+        debounceTimer: null
+    });
+
+    // Insert as first child of parent container (above the toolbar icons)
+    $box.parent().prepend($searchBox);
+
+    // Check if this container has an SVG
+    var $svg = $box.find('svg').first();
+    if ($svg.length === 0) {
+        $counter.text('SVG only');
+        $input.prop('disabled', true);
+        $input.attr('placeholder', 'No SVG found');
         return;
     }
 
-    // Toggle magnifier state
-    if (window.magnifierActive[stringMatchedHash]) {
-        // Disattiva magnifier
-        console.log('[toggleMagnifier] Deactivating magnifier');
-        window.magnifierActive[stringMatchedHash] = false;
+    // Debounced input handler
+    $input.on('input', function () {
+        var state = $searchBox.data('_svgState');
+        if (state.debounceTimer) clearTimeout(state.debounceTimer);
 
-        // Rimuovi event handlers
-        $box.off('mousemove.magnifier');
-        $box.off('mouseleave.magnifier');
-
-        // Nascondi e rimuovi canvas
-        if (window.magnifierCanvas) {
-            $(window.magnifierCanvas).remove();
-            window.magnifierCanvas = null;
-            window.magnifierContext = null;
-        }
-
-        // Pulisci la cache per questo elemento
-        var svgId = $box.attr('id') || 'svg_' + stringMatchedHash;
-        if (window.magnifierCache.has && window.magnifierCache.has(svgId)) {
-            window.magnifierCache.delete(svgId);
-            console.log('[toggleMagnifier] Cache cleared for:', svgId);
-        } else if (window.magnifierCache[svgId]) {
-            delete window.magnifierCache[svgId];
-            console.log('[toggleMagnifier] Cache cleared for:', svgId);
-        }
-
-        // Cancella eventuali animazioni pendenti
-        if (window.magnifierRAF) {
-            cancelAnimationFrame(window.magnifierRAF);
-            window.magnifierRAF = null;
-        }
-    } else {
-        // Attiva magnifier
-        console.log('[toggleMagnifier] Activating magnifier');
-        window.magnifierActive[stringMatchedHash] = true;
-
-        // Crea canvas per lo zoom
-        createMagnifierCanvas();
-
-        // Trova l'immagine o SVG
-        var $img = $box.find('img, svg').first();
-        if ($img.length === 0) {
-            console.error('[toggleMagnifier] No image or SVG found');
+        var term = $input.val().trim();
+        if (term.length < 3) {
+            _svgSearchClearHighlights(state);
+            state.matches = [];
+            state.currentIndex = -1;
+            $searchBox.data('_svgState', state);
+            $counter.text(term.length > 0 ? 'min 3 chars' : '');
             return;
         }
 
-        // Aggiungi event handlers
-        $box.on('mousemove.magnifier', function(e) {
-            updateMagnifier(e, $box, $img);
-        });
-
-        $box.on('mouseleave.magnifier', function() {
-            if (window.magnifierCanvas) {
-                $(window.magnifierCanvas).hide();
-            }
-        });
-    }
-}
-
-/**
- * Create floating canvas element for magnifier
- * Canvas is a horizontal rectangle: width is 2x the height
- * Height: min 300px, max 500px, or 30% of viewport width
- */
-function createMagnifierCanvas() {
-    // Rimuovi canvas esistente se presente
-    if (window.magnifierCanvas) {
-        $(window.magnifierCanvas).remove();
-    }
-
-    // Calcola dimensioni canvas - rettangolo orizzontale
-    // Altezza: min 300, max 500 (come prima)
-    // Larghezza: il doppio dell'altezza
-    var canvasHeight = Math.max(300, Math.min(500, window.innerWidth * 0.3));
-    var canvasWidth = canvasHeight * 2;
-
-    // Crea nuovo canvas
-    window.magnifierCanvas = document.createElement('canvas');
-    window.magnifierCanvas.width = canvasWidth;
-    window.magnifierCanvas.height = canvasHeight;
-    window.magnifierCanvas.style.cssText = `
-        position: fixed;
-        border: 2px solid #333;
-        border-radius: 8px;
-        pointer-events: none;
-        z-index: 10000;
-        display: none;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    `;
-
-    document.body.appendChild(window.magnifierCanvas);
-    window.magnifierContext = window.magnifierCanvas.getContext('2d');
-
-    console.log('[createMagnifierCanvas] Canvas created with size:', canvasWidth, 'x', canvasHeight);
-}
-
-/**
- * Update magnifier view on mouse movement
- * Dispatches to IMG or SVG handler based on element type
- *
- * @param {MouseEvent} e - Mouse event
- * @param {jQuery} $box - Container element
- * @param {jQuery} $img - Image or SVG element
- */
-function updateMagnifier(e, $box, $img) {
-    if (!window.magnifierCanvas || !window.magnifierContext || !$img[0]) {
-        console.log('[updateMagnifier] Missing requirements:', {
-            magnifierCanvas: !!window.magnifierCanvas,
-            magnifierContext: !!window.magnifierContext,
-            img: !!$img[0]
-        });
-        return;
-    }
-
-    var img = $img[0];
-    console.log('[updateMagnifier] Image element:', img);
-    console.log('[updateMagnifier] Image tagName:', img.tagName);
-    console.log('[updateMagnifier] Image src:', img.src);
-
-    // Se è un SVG, gestiscilo diversamente
-    if (img.tagName === 'svg' || img.tagName === 'SVG') {
-        console.log('[updateMagnifier] Found SVG element, handling zoom for SVG');
-        handleSVGMagnifier(e, $box, img);
-        return;
-    }
-
-    var rect = img.getBoundingClientRect();
-    console.log('[updateMagnifier] Image rect:', rect);
-
-    // Calcola posizione relativa del mouse sull'immagine
-    var mouseX = e.clientX - rect.left;
-    var mouseY = e.clientY - rect.top;
-
-    // Verifica che il mouse sia sopra l'immagine
-    if (mouseX < 0 || mouseY < 0 || mouseX > rect.width || mouseY > rect.height) {
-        $(window.magnifierCanvas).hide();
-        return;
-    }
-
-    // Mostra il canvas
-    $(window.magnifierCanvas).show();
-
-    // Calcola posizione intelligente
-    var canvasPos = calculateSmartPosition(e.clientX, e.clientY, window.magnifierCanvas.width, window.magnifierCanvas.height);
-    $(window.magnifierCanvas).css({
-        left: canvasPos.left + 'px',
-        top: canvasPos.top + 'px'
+        state.debounceTimer = setTimeout(function () {
+            _svgSearchExecute(hash, term, $box, $searchBox);
+        }, 300);
+        $searchBox.data('_svgState', state);
     });
 
-    // Fattore di zoom
-    var zoomFactor = 2.5;
-
-    // Se è un'immagine normale
-    if (img.tagName === 'IMG') {
-        console.log('[updateMagnifier] Processing IMG element');
-        console.log('[updateMagnifier] Image natural dimensions:', img.naturalWidth, 'x', img.naturalHeight);
-        console.log('[updateMagnifier] Image complete:', img.complete);
-
-        // Verifica che l'immagine sia caricata
-        if (!img.complete || img.naturalWidth === 0) {
-            console.log('[updateMagnifier] Image not loaded yet');
-            // Prova a ricaricare l'immagine
-            img.onload = function() {
-                console.log('[updateMagnifier] Image loaded, retrying');
-            };
-            return;
-        }
-
-        // Calcola le coordinate sull'immagine originale
-        var naturalX = (mouseX / rect.width) * img.naturalWidth;
-        var naturalY = (mouseY / rect.height) * img.naturalHeight;
-
-        // Area da zoomare - rettangolo orizzontale
-        var sourceWidth = window.magnifierCanvas.width / zoomFactor;
-        var sourceHeight = window.magnifierCanvas.height / zoomFactor;
-        var sourceX = naturalX - sourceWidth / 2;
-        var sourceY = naturalY - sourceHeight / 2;
-
-        console.log('[updateMagnifier] Draw parameters:', {
-            naturalX: naturalX,
-            naturalY: naturalY,
-            sourceX: sourceX,
-            sourceY: sourceY,
-            sourceWidth: sourceWidth,
-            sourceHeight: sourceHeight,
-            canvasWidth: window.magnifierCanvas.width,
-            canvasHeight: window.magnifierCanvas.height
-        });
-
-        // Clear canvas
-        window.magnifierContext.clearRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-        // Riempimento di sfondo per debug
-        window.magnifierContext.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        window.magnifierContext.fillRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-        // Disegna l'immagine zoomata (rettangolo orizzontale)
-        try {
-            console.log('[updateMagnifier] Drawing image...');
-            window.magnifierContext.drawImage(
-                img,
-                sourceX, sourceY, sourceWidth, sourceHeight,
-                0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height
-            );
-            console.log('[updateMagnifier] Image drawn successfully');
-        } catch (e) {
-            console.error('[updateMagnifier] Error drawing image:', e);
-            console.error('[updateMagnifier] Error details:', e.message);
-        }
-
-        // Aggiungi crosshair al centro
-        window.magnifierContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-        window.magnifierContext.lineWidth = 1;
-        window.magnifierContext.beginPath();
-        window.magnifierContext.moveTo(window.magnifierCanvas.width/2 - 10, window.magnifierCanvas.height/2);
-        window.magnifierContext.lineTo(window.magnifierCanvas.width/2 + 10, window.magnifierCanvas.height/2);
-        window.magnifierContext.moveTo(window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 - 10);
-        window.magnifierContext.lineTo(window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 + 10);
-        window.magnifierContext.stroke();
-    }
-}
-
-/**
- * Handle magnifier for SVG elements
- * Converts SVG to Image with caching for performance
- *
- * @param {MouseEvent} e - Mouse event
- * @param {jQuery} $box - Container element
- * @param {SVGElement} svgElement - SVG element to magnify
- */
-function handleSVGMagnifier(e, $box, svgElement) {
-    if (!window.magnifierCanvas || !window.magnifierContext) return;
-
-    // Cancella eventuali animazioni precedenti
-    if (window.magnifierRAF) {
-        cancelAnimationFrame(window.magnifierRAF);
-    }
-
-    var rect = svgElement.getBoundingClientRect();
-
-    // Calcola posizione relativa del mouse sull'SVG
-    var mouseX = e.clientX - rect.left;
-    var mouseY = e.clientY - rect.top;
-
-    // Verifica che il mouse sia sopra l'SVG
-    if (mouseX < 0 || mouseY < 0 || mouseX > rect.width || mouseY > rect.height) {
-        $(window.magnifierCanvas).hide();
-        return;
-    }
-
-    // Mostra il canvas
-    $(window.magnifierCanvas).show();
-
-    // Calcola posizione intelligente
-    var canvasPos = calculateSmartPosition(e.clientX, e.clientY, window.magnifierCanvas.width, window.magnifierCanvas.height);
-    $(window.magnifierCanvas).css({
-        left: canvasPos.left + 'px',
-        top: canvasPos.top + 'px'
-    });
-
-    // Genera un ID univoco per questo SVG
-    var svgId = $box.attr('id') || 'svg_' + Date.now();
-
-    // Controlla se abbiamo già l'immagine in cache
-    if (window.magnifierCache[svgId] && window.magnifierCache[svgId].complete) {
-        // Usa l'immagine dalla cache
-        drawMagnifiedImage(window.magnifierCache[svgId], mouseX, mouseY, rect);
-    } else {
-        // Se non è in cache, mostra un placeholder mentre si carica
-        drawLoadingPlaceholder();
-
-        // Converti SVG solo se non è già in cache
-        if (!window.magnifierCache[svgId]) {
-            try {
-                var data = new XMLSerializer().serializeToString(svgElement);
-                var DOMURL = window.URL || window.webkitURL || window;
-
-                var img = new Image();
-                var svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
-                var url = DOMURL.createObjectURL(svgBlob);
-
-                img.onload = function () {
-                    console.log('[handleSVGMagnifier] SVG converted to image and cached');
-                    window.magnifierCache[svgId] = img;
-                    DOMURL.revokeObjectURL(url);
-
-                    // Disegna l'immagine appena caricata
-                    drawMagnifiedImage(img, mouseX, mouseY, rect);
-                };
-
-                img.onerror = function() {
-                    console.error('[handleSVGMagnifier] Failed to load SVG as image');
-                    DOMURL.revokeObjectURL(url);
-                };
-
-                img.src = url;
-
-            } catch (e) {
-                console.error('[handleSVGMagnifier] Error handling SVG:', e);
-                drawErrorMessage();
-            }
-        }
-    }
-}
-
-/**
- * Draw magnified image on canvas (optimized with RAF)
- * Used by SVG magnifier after conversion
- *
- * @param {Image} img - Image to draw
- * @param {number} mouseX - Mouse X position relative to image
- * @param {number} mouseY - Mouse Y position relative to image
- * @param {DOMRect} rect - Bounding rect of original element
- */
-function drawMagnifiedImage(img, mouseX, mouseY, rect) {
-    window.magnifierRAF = requestAnimationFrame(function() {
-        // Fattore di zoom
-        var zoomFactor = 2.5;
-
-        // Calcola l'area da zoomare - rettangolo orizzontale
-        var sourceWidth = window.magnifierCanvas.width / zoomFactor;
-        var sourceHeight = window.magnifierCanvas.height / zoomFactor;
-        var sourceX = (mouseX / rect.width) * img.width - sourceWidth / 2;
-        var sourceY = (mouseY / rect.height) * img.height - sourceHeight / 2;
-
-        // Clear canvas
-        window.magnifierContext.clearRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-        // Sfondo bianco
-        window.magnifierContext.fillStyle = 'white';
-        window.magnifierContext.fillRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-        // Disegna l'immagine zoomata (rettangolo orizzontale)
-        window.magnifierContext.drawImage(
-            img,
-            sourceX, sourceY, sourceWidth, sourceHeight,
-            0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height
-        );
-
-        // Aggiungi crosshair
-        window.magnifierContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-        window.magnifierContext.lineWidth = 1;
-        window.magnifierContext.beginPath();
-        window.magnifierContext.moveTo(window.magnifierCanvas.width/2 - 10, window.magnifierCanvas.height/2);
-        window.magnifierContext.lineTo(window.magnifierCanvas.width/2 + 10, window.magnifierCanvas.height/2);
-        window.magnifierContext.moveTo(window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 - 10);
-        window.magnifierContext.lineTo(window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 + 10);
-        window.magnifierContext.stroke();
-    });
-}
-
-/**
- * Show loading placeholder while SVG converts
- */
-function drawLoadingPlaceholder() {
-    window.magnifierContext.clearRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-    // Sfondo grigio chiaro
-    window.magnifierContext.fillStyle = '#f0f0f0';
-    window.magnifierContext.fillRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-    // Testo di caricamento
-    window.magnifierContext.fillStyle = 'black';
-    window.magnifierContext.font = '14px Arial';
-    window.magnifierContext.textAlign = 'center';
-    window.magnifierContext.fillText('Loading...', window.magnifierCanvas.width/2, window.magnifierCanvas.height/2);
-}
-
-/**
- * Show error message if SVG conversion fails
- */
-function drawErrorMessage() {
-    window.magnifierContext.clearRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-    // Sfondo bianco
-    window.magnifierContext.fillStyle = 'white';
-    window.magnifierContext.fillRect(0, 0, window.magnifierCanvas.width, window.magnifierCanvas.height);
-
-    // Messaggio di errore
-    window.magnifierContext.fillStyle = 'black';
-    window.magnifierContext.font = '14px Arial';
-    window.magnifierContext.textAlign = 'center';
-    window.magnifierContext.fillText('SVG Zoom', window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 - 20);
-    window.magnifierContext.fillText('Not Available', window.magnifierCanvas.width/2, window.magnifierCanvas.height/2 + 20);
-}
-
-/**
- * Calculate smart position for magnifier canvas
- * Avoids viewport overflow and cursor occlusion
- *
- * @param {number} mouseX - Mouse X position
- * @param {number} mouseY - Mouse Y position
- * @param {number} canvasWidth - Canvas width
- * @param {number} canvasHeight - Canvas height
- * @returns {{left: number, top: number}} Position for canvas
- */
-function calculateSmartPosition(mouseX, mouseY, canvasWidth, canvasHeight) {
-    // Margini di sicurezza dai bordi
-    var margin = 10;
-    var offsetFromCursor = 20; // Distanza dal cursore
-
-    // Dimensioni viewport
-    var viewportWidth = window.innerWidth;
-    var viewportHeight = window.innerHeight;
-
-    // Posizione di default (a destra del cursore)
-    var left = mouseX + offsetFromCursor;
-    var top = mouseY - canvasHeight / 2;
-
-    // Controlla overflow a destra
-    if (left + canvasWidth + margin > viewportWidth) {
-        // Prova a sinistra del cursore
-        left = mouseX - canvasWidth - offsetFromCursor;
-
-        // Se anche a sinistra non c'è spazio, posiziona sopra/sotto
-        if (left < margin) {
-            left = mouseX - canvasWidth / 2;
-
-            // Posiziona sopra il cursore
-            if (mouseY > viewportHeight / 2) {
-                top = mouseY - canvasHeight - offsetFromCursor;
+    // Keyboard handler
+    $input.on('keydown', function (e) {
+        if (e.key === 'Escape') {
+            _svgSearchClose(hash);
+            e.preventDefault();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                _svgSearchNavigate(hash, -1);
             } else {
-                // Posiziona sotto il cursore
-                top = mouseY + offsetFromCursor;
+                _svgSearchNavigate(hash, 1);
             }
         }
-    }
-
-    // Controlla overflow a sinistra
-    if (left < margin) {
-        left = margin;
-    }
-
-    // Controlla overflow in alto
-    if (top < margin) {
-        top = margin;
-    }
-
-    // Controlla overflow in basso
-    if (top + canvasHeight + margin > viewportHeight) {
-        top = viewportHeight - canvasHeight - margin;
-    }
-
-    // Se la lente coprirebbe il cursore, aggiusta la posizione
-    var cursorCovered = mouseX >= left && mouseX <= left + canvasWidth &&
-                       mouseY >= top && mouseY <= top + canvasHeight;
-
-    if (cursorCovered) {
-        // Sposta la lente per non coprire il cursore
-        if (mouseX < viewportWidth / 2) {
-            // Cursore a sinistra, metti lente a destra
-            left = mouseX + offsetFromCursor * 2;
-        } else {
-            // Cursore a destra, metti lente a sinistra
-            left = mouseX - canvasWidth - offsetFromCursor * 2;
-        }
-    }
-
-    console.log('[calculateSmartPosition] Position calculated:', {
-        mouseX: mouseX,
-        mouseY: mouseY,
-        left: left,
-        top: top,
-        viewportWidth: viewportWidth,
-        viewportHeight: viewportHeight
     });
 
-    return {
-        left: Math.round(left),
-        top: Math.round(top)
-    };
+    // Close button
+    $closeBtn.on('click', function () {
+        _svgSearchClose(hash);
+    });
+
+    // Focus input
+    $input.focus();
+}
+
+/**
+ * Close search box and clean up highlights.
+ *
+ * @param {string} hash - Element hash/ID
+ */
+function _svgSearchClose(hash) {
+    window.svgSearchActive[hash] = false;
+
+    var searchBoxId = 'svgSearch_' + hash;
+    var $searchBox = $('#' + searchBoxId);
+    if ($searchBox.length > 0) {
+        var state = $searchBox.data('_svgState');
+        if (state) {
+            if (state.debounceTimer) clearTimeout(state.debounceTimer);
+            _svgSearchClearHighlights(state);
+        }
+        $searchBox.remove();
+    }
+}
+
+/**
+ * Execute text search within SVG <text> elements.
+ *
+ * @param {string} hash - Element hash/ID
+ * @param {string} searchTerm - Text to search for
+ * @param {jQuery} $box - Container element
+ * @param {jQuery} $searchBox - Search box element
+ */
+function _svgSearchExecute(hash, searchTerm, $box, $searchBox) {
+    var state = $searchBox.data('_svgState');
+    var $counter = $searchBox.find('span');
+
+    // Clear previous highlights
+    _svgSearchClearHighlights(state);
+    state.matches = [];
+    state.currentIndex = -1;
+
+    var $svg = $box.find('svg').first();
+    if ($svg.length === 0) {
+        $counter.text('SVG only');
+        $searchBox.data('_svgState', state);
+        return;
+    }
+
+    var svgElement = $svg[0];
+    var textElements = svgElement.querySelectorAll('text');
+    var termLower = searchTerm.toLowerCase();
+
+    // Find all matching <text> elements
+    textElements.forEach(function (textEl) {
+        var content = textEl.textContent || '';
+        if (content.toLowerCase().indexOf(termLower) !== -1) {
+            state.matches.push(textEl);
+        }
+    });
+
+    if (state.matches.length === 0) {
+        $counter.text('0 results');
+        $searchBox.data('_svgState', state);
+        return;
+    }
+
+    // Create highlight rects for all matches
+    state.matches.forEach(function (textEl, idx) {
+        var rect = _svgSearchCreateHighlightRect(svgElement, textEl, false);
+        if (rect) state.highlightRects.push(rect);
+    });
+
+    // Set current to first match
+    state.currentIndex = 0;
+    _svgSearchUpdateCurrent(state, svgElement);
+
+    $counter.text('1 / ' + state.matches.length);
+    $searchBox.data('_svgState', state);
+
+    // Scroll first match into view
+    _svgSearchScrollToMatch(state.matches[0]);
+}
+
+/**
+ * Create an SVG <rect> highlight behind a <text> element.
+ *
+ * @param {SVGElement} svgElement - Parent SVG
+ * @param {SVGTextElement} textEl - Text element to highlight
+ * @param {boolean} isCurrent - Whether this is the current/active match
+ * @returns {SVGRectElement|null} The created rect, or null on failure
+ */
+function _svgSearchCreateHighlightRect(svgElement, textEl, isCurrent) {
+    try {
+        var bbox = textEl.getBBox();
+        var padding = 2;
+
+        var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', bbox.x - padding);
+        rect.setAttribute('y', bbox.y - padding);
+        rect.setAttribute('width', bbox.width + padding * 2);
+        rect.setAttribute('height', bbox.height + padding * 2);
+        rect.setAttribute('fill', isCurrent ? '#FF9800' : '#FFFF00');
+        rect.setAttribute('fill-opacity', '0.5');
+        rect.setAttribute('stroke', 'none');
+        rect.setAttribute('class', 'svg-search-highlight');
+        rect.setAttribute('pointer-events', 'none');
+
+        // Copy transform from text element to rect if present
+        var transform = textEl.getAttribute('transform');
+        if (transform) {
+            rect.setAttribute('transform', transform);
+        }
+
+        // Insert rect just before the text element (renders behind it)
+        textEl.parentNode.insertBefore(rect, textEl);
+
+        return rect;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Remove all highlight rects from the SVG.
+ *
+ * @param {object} state - Search state object
+ */
+function _svgSearchClearHighlights(state) {
+    if (!state || !state.highlightRects) return;
+
+    state.highlightRects.forEach(function (rect) {
+        if (rect && rect.parentNode) {
+            rect.parentNode.removeChild(rect);
+        }
+    });
+    state.highlightRects = [];
+}
+
+/**
+ * Update highlight colors: orange for current, yellow for others.
+ *
+ * @param {object} state - Search state object
+ * @param {SVGElement} svgElement - Parent SVG
+ */
+function _svgSearchUpdateCurrent(state, svgElement) {
+    state.highlightRects.forEach(function (rect, idx) {
+        if (rect) {
+            rect.setAttribute('fill', idx === state.currentIndex ? '#FF9800' : '#FFFF00');
+        }
+    });
+}
+
+/**
+ * Navigate between search results (circular).
+ *
+ * @param {string} hash - Element hash/ID
+ * @param {number} direction - 1 for next, -1 for previous
+ */
+function _svgSearchNavigate(hash, direction) {
+    var searchBoxId = 'svgSearch_' + hash;
+    var $searchBox = $('#' + searchBoxId);
+    if ($searchBox.length === 0) return;
+
+    var state = $searchBox.data('_svgState');
+    if (!state || state.matches.length === 0) return;
+
+    var $box = $('#' + hash);
+    var $svg = $box.find('svg').first();
+    if ($svg.length === 0) return;
+
+    // Calculate new index (circular)
+    var newIndex = state.currentIndex + direction;
+    if (newIndex >= state.matches.length) newIndex = 0;
+    if (newIndex < 0) newIndex = state.matches.length - 1;
+
+    state.currentIndex = newIndex;
+    _svgSearchUpdateCurrent(state, $svg[0]);
+
+    // Update counter
+    var $counter = $searchBox.find('span');
+    $counter.text((newIndex + 1) + ' / ' + state.matches.length);
+
+    $searchBox.data('_svgState', state);
+
+    // Scroll to current match
+    _svgSearchScrollToMatch(state.matches[newIndex]);
+}
+
+/**
+ * Scroll the matched text element into the visible viewport.
+ *
+ * @param {SVGTextElement} textEl - Text element to scroll to
+ */
+function _svgSearchScrollToMatch(textEl) {
+    if (!textEl) return;
+
+    try {
+        var rect = textEl.getBoundingClientRect();
+        var viewportHeight = window.innerHeight;
+        var viewportWidth = window.innerWidth;
+
+        // Check if element is outside the visible viewport
+        var isOutOfView = rect.top < 0 || rect.bottom > viewportHeight ||
+                          rect.left < 0 || rect.right > viewportWidth;
+
+        if (isOutOfView) {
+            textEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+    } catch (e) {
+        // Ignore scroll errors
+    }
 }

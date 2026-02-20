@@ -129,5 +129,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// Defaults to true for backward compatibility.
         /// </summary>
         public bool LinkIndexingEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Defense-in-depth flag: when true, event handlers skip processing.
+        /// Set by SetWatcherEnabled(false) to catch .NET FileSystemWatcher buffered events
+        /// that fire even after EnableRaisingEvents = false.
+        /// </summary>
+        public bool IsTemporarilyDisabled { get; set; }
     }
 }

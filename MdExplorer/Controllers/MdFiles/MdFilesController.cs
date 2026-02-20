@@ -69,6 +69,7 @@ using MdExplorer.Service.Services;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
 
@@ -121,11 +122,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
         FoldersIgnoreService foldersIgnoreService,
         IServiceScopeFactory serviceScopeFactory,
         IDatabaseManager databaseManager = null,
+        IFileSystemWatcherManager fileSystemWatcherManager = null,
         IModelDownloadService downloadService = null,
         IEmbeddingService embeddingService = null,
         IMarkdownChunkingService chunkingService = null,
         IVectorSearchService vectorSearchService = null
-            ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager)
+            ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
             _goodRules = GoodRules;
@@ -227,6 +229,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return BadRequest(new { error = "Invalid request data" });
             }
 
+            SetFileSystemWatcherEnabled(false);
             try
             {
                 var projectBasePath = GetProjectPath();
@@ -274,12 +277,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 GetEngineDB().Commit();
                 _logger.LogInformation("[MoveMdFile] Completed successfully");
+                SetFileSystemWatcherEnabled(true);
                 return Ok(new { message = "done" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[MoveMdFile] Error during move operation");
-                GetEngineDB().Rollback();
+                try { GetEngineDB().Rollback(); }
+                catch (Exception rollbackEx)
+                {
+                    _logger.LogWarning(rollbackEx, "[MoveMdFile] Rollback failed (session may have been corrupted)");
+                }
+                SetFileSystemWatcherEnabled(true);
                 return StatusCode(500, new { error = ex.Message });
             }
         }

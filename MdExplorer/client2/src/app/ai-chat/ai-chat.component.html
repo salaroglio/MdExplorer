@@ -29,12 +29,12 @@
       <mat-icon>{{ isChatFullScreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
     </button>
 
-    <button mat-icon-button (click)="toggleModelManager()" matTooltip="Model Manager">
-      <mat-icon>settings</mat-icon>
+    <button mat-icon-button (click)="newSession()" matTooltip="New chat session">
+      <mat-icon>add_comment</mat-icon>
     </button>
 
-    <button mat-icon-button (click)="clearChat()" matTooltip="Clear Chat" *ngIf="!compactMode">
-      <mat-icon>clear_all</mat-icon>
+    <button mat-icon-button (click)="toggleModelManager()" matTooltip="Model Manager">
+      <mat-icon>settings</mat-icon>
     </button>
   </mat-toolbar>
 
@@ -66,6 +66,23 @@
             </button>
           </div>
           <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+        </div>
+
+        <!-- Thinking section (only for assistant messages with thinking content) -->
+        <div class="thinking-section" *ngIf="hasThinking(message) && message.role === 'assistant'">
+          <div class="thinking-header" (click)="toggleThinking(message.id)">
+            <mat-icon class="thinking-icon">psychology</mat-icon>
+            <span class="thinking-label">Thinking</span>
+            <mat-icon class="thinking-toggle">
+              {{ isThinkingCollapsed(message.id) ? 'expand_more' : 'expand_less' }}
+            </mat-icon>
+            <mat-progress-spinner *ngIf="message.isStreaming && !message.content"
+              [diameter]="14" mode="indeterminate" class="thinking-spinner">
+            </mat-progress-spinner>
+          </div>
+          <div class="thinking-body" *ngIf="!isThinkingCollapsed(message.id)"
+               [innerHTML]="formatMessageContent(message.thinkingContent)">
+          </div>
         </div>
 
         <!-- Normal view mode -->

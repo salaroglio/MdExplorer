@@ -227,6 +227,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                // Set defense-in-depth flag BEFORE changing EnableRaisingEvents
+                // This catches .NET FileSystemWatcher buffered events that fire
+                // even after EnableRaisingEvents = false
+                context.IsTemporarilyDisabled = !enabled;
                 context.Watcher.EnableRaisingEvents = enabled;
                 _logger.LogDebug($"[{connectionId}] FileSystemWatcher EnableRaisingEvents set to {enabled}");
             }
@@ -324,6 +328,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileChanged skipped - user disabled watcher");
+                    return;
+                }
+
+                // Defense-in-depth: skip if system temporarily disabled (e.g., during MoveMdFile, DeleteFile)
+                if (context.IsTemporarilyDisabled)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileChanged skipped - watcher temporarily disabled");
                     return;
                 }
 
@@ -520,6 +531,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                // Defense-in-depth: skip if system temporarily disabled (e.g., during MoveMdFile, DeleteFile)
+                if (context.IsTemporarilyDisabled)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileCreated skipped - watcher temporarily disabled");
+                    return;
+                }
+
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
 
@@ -576,6 +594,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileRenamed skipped - user disabled watcher");
+                    return;
+                }
+
+                // Defense-in-depth: skip if system temporarily disabled (e.g., during MoveMdFile, DeleteFile)
+                if (context.IsTemporarilyDisabled)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileRenamed skipped - watcher temporarily disabled");
                     return;
                 }
 
@@ -658,6 +683,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileDeleted skipped - user disabled watcher");
+                    return;
+                }
+
+                // Defense-in-depth: skip if system temporarily disabled (e.g., during MoveMdFile, DeleteFile)
+                if (context.IsTemporarilyDisabled)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] OnFileDeleted skipped - watcher temporarily disabled");
                     return;
                 }
 
