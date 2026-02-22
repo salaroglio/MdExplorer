@@ -29,6 +29,14 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled });
   }
 
+  getStickyScrollSetting(): Observable<{enabled: boolean}> {
+    return this.http.get<{enabled: boolean}>('../api/ProjectSettings/GetStickyScrollSetting');
+  }
+
+  setStickyScrollSetting(enabled: boolean): Observable<any> {
+    return this.http.post('../api/ProjectSettings/SetStickyScrollSetting', { enabled });
+  }
+
   getLinkIndexingSetting(projectPath: string): Observable<any> {
     const url = '../api/ProjectSettings/GetLinkIndexingSetting';
     return this.http.get<any>(url, { params: { projectPath } });

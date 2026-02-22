@@ -16,6 +16,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   rule1Enabled: boolean = false;
   linkIndexingEnabled: boolean = true;
   githubModeEnabled: boolean = false;
+  stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
   vscodePath: string = '';
   intellijPath: string = '';
@@ -79,9 +80,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let compatibilityLoaded = false;
     let ideConfigLoaded = false;
     let ragLoaded = false;
+    let stickyScrollLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded) {
         this.loading = false;
       }
     };
@@ -146,6 +148,20 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Load Sticky Scroll setting
+    this.projectSettingsService.getStickyScrollSetting().subscribe({
+      next: (response) => {
+        this.stickyScrollEnabled = response.enabled;
+        stickyScrollLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Sticky Scroll setting:', error);
+        stickyScrollLoaded = true;
+        checkIfDone();
+      }
+    });
+
     // Load RAG status
     this.projectSettingsService.getRagStatus().subscribe({
       next: (response) => {
@@ -187,6 +203,21 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.saving = false;
         // Revert the change on error
         this.rule1Enabled = !this.rule1Enabled;
+      }
+    });
+  }
+
+  onStickyScrollChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setStickyScrollSetting(this.stickyScrollEnabled).subscribe({
+      next: () => {
+        console.log('Sticky Scroll setting saved successfully');
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Sticky Scroll setting:', error);
+        this.saving = false;
+        this.stickyScrollEnabled = !this.stickyScrollEnabled;
       }
     });
   }

@@ -4,7 +4,8 @@ import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { Observable, BehaviorSubject, Subscription, fromEvent } from 'rxjs';
+import { auditTime } from 'rxjs/operators';
 import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
@@ -65,6 +66,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // Compact folders - segment hover state
   hoveredSegment: CompactSegment | null = null;
   selectedCompactSegment: CompactSegment | null = null;
+
+  // Sticky scroll (VS Code-style)
+  stickyScrollEnabled = true;
+  stickyAncestors: IFileInfoNode[] = [];
+  private scrollSub: Subscription;
 
   // Drag & Drop state
   draggedNode: MdFile | null = null;
@@ -281,6 +287,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.isRagEnabled = enabled;
       this.changeDetectorRef.markForCheck();
     });
+
+    this.loadStickyScrollSetting();
 
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
@@ -1062,6 +1070,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.changeDetectorRef.detectChanges();
     });
 
+    // Setup sticky scroll listener
+    setTimeout(() => this.setupStickyScroll(), 200);
+
     // Registra i listener per TOC Generation progress
     this.mdServerMessages.addTocGenerationProgressListener((data, objectThis) => {
       objectThis.tocProgressService.updateProgress(data);
@@ -1644,6 +1655,85 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private loadStickyScrollSetting(): void {
+    this.projectSettingsService.getStickyScrollSetting().subscribe({
+      next: r => { this.stickyScrollEnabled = r.enabled; },
+      error: () => { this.stickyScrollEnabled = true; }
+    });
+  }
+
+  private setupStickyScroll(): void {
+    const wrapper = document.querySelector('.tree-scroll-wrapper') as HTMLElement;
+    if (!wrapper) return;
+
+    this.scrollSub?.unsubscribe();
+    this.scrollSub = fromEvent(wrapper, 'scroll')
+      .pipe(auditTime(16))
+      .subscribe(() => this.updateStickyAncestors(wrapper));
+  }
+
+  private updateStickyAncestors(wrapper: HTMLElement): void {
+    if (!this.stickyScrollEnabled) {
+      if (this.stickyAncestors.length > 0) {
+        this.stickyAncestors = [];
+        this.changeDetectorRef.markForCheck();
+      }
+      return;
+    }
+
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const stickyPanelHeight = this.stickyAncestors.length * 40;
+    const effectiveTop = wrapperRect.top + stickyPanelHeight;
+
+    const nodeEls = wrapper.querySelectorAll('mat-tree-node[data-fullpath]');
+    let firstVisible: Element | null = null;
+    for (const el of Array.from(nodeEls)) {
+      if (el.getBoundingClientRect().bottom > effectiveTop) {
+        firstVisible = el;
+        break;
+      }
+    }
+
+    if (!firstVisible) {
+      if (this.stickyAncestors.length > 0) {
+        this.stickyAncestors = [];
+        this.changeDetectorRef.markForCheck();
+      }
+      return;
+    }
+
+    const fullPath = firstVisible.getAttribute('data-fullpath');
+    const node = this.treeControl.dataNodes.find(n => n.fullPath === fullPath);
+
+    if (!node || node.level === 0) {
+      if (this.stickyAncestors.length > 0) {
+        this.stickyAncestors = [];
+        this.changeDetectorRef.markForCheck();
+      }
+      return;
+    }
+
+    // Walk backwards through the flat list to find ancestors at decreasing levels
+    const nodeIdx = this.treeControl.dataNodes.indexOf(node);
+    const ancestors: IFileInfoNode[] = [];
+    let targetLevel = node.level - 1;
+    for (let i = nodeIdx - 1; i >= 0 && targetLevel >= 0; i--) {
+      const c = this.treeControl.dataNodes[i];
+      if (c.level === targetLevel && c.type === 'folder') {
+        ancestors.unshift(c);
+        targetLevel--;
+      }
+    }
+
+    // Only trigger markForCheck if ancestors actually changed
+    const same = ancestors.length === this.stickyAncestors.length &&
+      ancestors.every((a, i) => a.fullPath === this.stickyAncestors[i]?.fullPath);
+    if (!same) {
+      this.stickyAncestors = ancestors;
+      this.changeDetectorRef.markForCheck();
+    }
+  }
+
   ngOnDestroy(): void {
     // Pulisci il timer se esiste
     if (this.updateTimer) {
@@ -1654,6 +1744,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.currentSnackbarRef) {
       this.currentSnackbarRef.dismiss();
     }
+
+    // Unsubscribe scroll listener
+    this.scrollSub?.unsubscribe();
   }
 
   // ========== Development Tags Methods ==========

@@ -4797,6 +4797,14 @@ class ProjectSettingsService {
       enabled
     });
   }
+  getStickyScrollSetting() {
+    return this.http.get('../api/ProjectSettings/GetStickyScrollSetting');
+  }
+  setStickyScrollSetting(enabled) {
+    return this.http.post('../api/ProjectSettings/SetStickyScrollSetting', {
+      enabled
+    });
+  }
   getLinkIndexingSetting(projectPath) {
     const url = '../api/ProjectSettings/GetLinkIndexingSetting';
     return this.http.get(url, {

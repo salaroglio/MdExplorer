@@ -141,6 +141,34 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpGet]
+        public IActionResult GetStickyScrollSetting()
+        {
+            try
+            {
+                var settingsDal = _projectDB.GetDal<ProjectSetting>();
+                var setting = settingsDal.GetList()
+                    .FirstOrDefault(s => s.Name == "Tree_StickyScrollEnabled");
+                return Ok(new { enabled = setting?.ValueBool ?? true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting sticky scroll setting");
+                return StatusCode(500, new { error = "Failed to get sticky scroll setting" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetStickyScrollSetting([FromBody] SetRule1Request request)
+        {
+            return SaveProjectSetting(new SaveProjectSettingRequest
+            {
+                Name = "Tree_StickyScrollEnabled",
+                Description = "Enable VS Code-style sticky scroll in the file tree",
+                ValueBool = request.Enabled
+            });
+        }
+
+        [HttpGet]
         public IActionResult GetLinkIndexingSetting([FromQuery] string projectPath)
         {
             try

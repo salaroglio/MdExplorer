@@ -77,6 +77,24 @@
   </ng-template>
 </mat-menu>
 
+<div class="tree-scroll-wrapper">
+
+<!-- Sticky ancestors panel (VS Code-style) -->
+<div class="sticky-ancestors-panel" *ngIf="stickyScrollEnabled && stickyAncestors.length > 0">
+  <div class="sticky-ancestor-row"
+       *ngFor="let ancestor of stickyAncestors"
+       [style.padding-left.px]="ancestor.level * 24 + 8"
+       (click)="treeControl.toggle(ancestor)">
+    <mat-icon class="gold-icon">folder_open</mat-icon>
+    <span class="folder-name" *ngIf="!ancestor.isCompacted">{{ancestor.name}}</span>
+    <span class="folder-name compacted-folder" *ngIf="ancestor.isCompacted">
+      <ng-container *ngFor="let seg of ancestor.compactedSegments; let last = last">
+        <span>{{seg.name}}</span><span *ngIf="!last" class="compact-separator"> / </span>
+      </ng-container>
+    </span>
+  </div>
+</div>
+
 <!-- Skeleton loader durante il caricamento -->
 <div *ngIf="isLoading" class="md-tree-skeleton">
   <div class="skeleton-item" *ngFor="let i of [1,2,3,4,5,6,7,8,9,10]" [class]="'indent-' + getSkeletonIndent(i)">
@@ -193,3 +211,4 @@
   </mat-tree-node>
 </mat-tree>
 
+</div><!-- /tree-scroll-wrapper -->

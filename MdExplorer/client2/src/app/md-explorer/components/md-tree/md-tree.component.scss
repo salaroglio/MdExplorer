@@ -1,5 +1,54 @@
-.mat-tree{
-    height:calc(100vh - 128px);
+// Scroll container (moved from .mat-tree)
+.tree-scroll-wrapper {
+  height: calc(100vh - 128px);
+  overflow-y: auto;
+  position: relative;
+}
+
+.mat-tree {
+  height: auto;
+}
+
+// ==================== Sticky Scroll Panel ====================
+.sticky-ancestors-panel {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+
+  .sticky-ancestor-row {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    min-height: 40px;
+    cursor: pointer;
+    padding-right: 8px;
+    gap: 4px;
+    background: rgba(255, 248, 220, 0.95);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+
+    &:last-child { border-bottom: none; }
+
+    &:hover {
+      background: rgba(255, 243, 176, 0.95);
+    }
+
+    .folder-name {
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+  }
 }
 .mat-tree-node {
   min-height: 40px !important;
@@ -196,8 +245,6 @@
 // ==================== Skeleton Loader ====================
 .md-tree-skeleton {
   padding: 8px 0;
-  height: calc(100vh - 128px);
-  overflow: hidden;
 
   .skeleton-item {
     display: flex;
