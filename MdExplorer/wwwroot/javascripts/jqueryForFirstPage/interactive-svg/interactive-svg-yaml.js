@@ -40,6 +40,18 @@ var InteractiveSvgYaml = (function() {
     // Track initialized SVGs to avoid double-initialization
     var initializedSvgs = new WeakSet();
 
+    // Global Ctrl+wheel prevention: blocks browser/Electron page zoom for the
+    // entire iframe so Ctrl+wheel only works on the SVG (via the SVG-level handler).
+    var _globalCtrlWheelHandler = null;
+
+    function installGlobalCtrlWheelPrevention() {
+        if (_globalCtrlWheelHandler) return;
+        _globalCtrlWheelHandler = function(e) {
+            if (e.ctrlKey) e.preventDefault();
+        };
+        window.addEventListener('wheel', _globalCtrlWheelHandler, { passive: false });
+    }
+
     /**
      * Check if an SVG is a YAML tree diagram
      * @param {SVGElement} svg
@@ -622,6 +634,35 @@ var InteractiveSvgYaml = (function() {
     }
 
     /**
+     * Apply zoomed dimensions to the SVG using data.zoomLevel, restoring the
+     * original viewBox so all content is visible (used when nothing is collapsed).
+     * @param {SVGElement} svg
+     */
+    function applyZoomedDimensions(svg) {
+        var data = svg._yamlData;
+        if (!data || !data.originalViewBox) return;
+        var zoomLevel = data.zoomLevel || 1.0;
+
+        svg.setAttribute('viewBox', data.originalViewBox);
+
+        // Use the rendered (visual) base size so zoom steps are proportional
+        // to what the user actually sees, not the large natural SVG attributes.
+        var baseW = data.zoomBaseW || parseFloat(data.originalWidth) || data.originalVbW;
+        var baseH = data.zoomBaseH || parseFloat(data.originalHeight) || data.originalVbH;
+        var zoomedW = Math.round(baseW * zoomLevel);
+        var zoomedH = Math.round(baseH * zoomLevel);
+
+        svg.setAttribute('width', zoomedW + 'px');
+        svg.setAttribute('height', zoomedH + 'px');
+
+        // Override inline CSS via style property — this takes precedence over
+        // setAttribute and overrides any autoFit rules (width:100%, max-width:100%)
+        svg.style.width = zoomedW + 'px';
+        svg.style.height = zoomedH + 'px';
+        svg.style.maxWidth = 'none';
+    }
+
+    /**
      * Recalculate the SVG viewBox AND width/height to fit only visible elements.
      * Maintains the same zoom level by scaling width/height proportionally.
      * @param {SVGElement} svg
@@ -632,9 +673,9 @@ var InteractiveSvgYaml = (function() {
         // Save original dimensions on first call
         saveOriginalDimensions(svg);
 
-        // If nothing is collapsed, restore original
+        // If nothing is collapsed, apply zoom (preserves user zoom level)
         if (data.collapsedBoxes.size === 0) {
-            restoreOriginalDimensions(svg);
+            applyZoomedDimensions(svg);
             repositionControls(svg);
             return;
         }
@@ -687,7 +728,7 @@ var InteractiveSvgYaml = (function() {
         });
 
         if (!found) {
-            restoreOriginalDimensions(svg);
+            applyZoomedDimensions(svg);
             repositionControls(svg);
             return;
         }
@@ -701,20 +742,20 @@ var InteractiveSvgYaml = (function() {
         var newViewBox = newVbX + ' ' + newVbY + ' ' + newVbW + ' ' + newVbH;
         svg.setAttribute('viewBox', newViewBox);
 
-        // Scale width/height proportionally to maintain the same zoom level
-        var newPixelW = Math.round(newVbW * data.scaleX);
-        var newPixelH = Math.round(newVbH * data.scaleY);
+        // Use effective scale based on rendered size (zoomBase) if available,
+        // so collapsed-mode zoom steps are proportional to what the user sees.
+        var effectiveScaleX = data.zoomBaseW ? (data.zoomBaseW / data.originalVbW) : data.scaleX;
+        var effectiveScaleY = data.zoomBaseH ? (data.zoomBaseH / data.originalVbH) : data.scaleY;
+        var newPixelW = Math.round(newVbW * effectiveScaleX * (data.zoomLevel || 1.0));
+        var newPixelH = Math.round(newVbH * effectiveScaleY * (data.zoomLevel || 1.0));
 
         svg.setAttribute('width', newPixelW + 'px');
         svg.setAttribute('height', newPixelH + 'px');
 
-        // Also update inline style if it has width/height
-        var style = svg.getAttribute('style') || '';
-        if (style) {
-            style = style.replace(/width:\s*[\d.]+px/, 'width:' + newPixelW + 'px');
-            style = style.replace(/height:\s*[\d.]+px/, 'height:' + newPixelH + 'px');
-            svg.setAttribute('style', style);
-        }
+        // Override inline CSS via style property — overrides autoFit (width:100%, max-width:100%)
+        svg.style.width = newPixelW + 'px';
+        svg.style.height = newPixelH + 'px';
+        svg.style.maxWidth = 'none';
 
         // Reposition controls if they exist
         repositionControls(svg);
@@ -985,8 +1026,8 @@ var InteractiveSvgYaml = (function() {
 
         applyVisibility(svg);
 
-        // Restore original dimensions (viewBox + width/height + style)
-        restoreOriginalDimensions(svg);
+        // Restore dimensions preserving user zoom level
+        applyZoomedDimensions(svg);
         repositionControls(svg);
     }
 
@@ -1599,6 +1640,145 @@ var InteractiveSvgYaml = (function() {
     }
 
     /**
+     * Setup Ctrl+wheel zoom on the SVG element.
+     * The listener is on the SVG itself so it only fires when the mouse is over it.
+     * @param {SVGElement} svg
+     */
+    function setupWheelZoom(svg) {
+        var ZOOM_STEP = 0.2;
+        var MIN_ZOOM = 0.2;
+        var MAX_ZOOM = 5.0;
+
+        var wheelHandler = function(e) {
+            if (!e.ctrlKey) return;
+            e.preventDefault(); // blocca zoom browser nativo nell'iframe
+
+            var data = svg._yamlData;
+            if (!data) return;
+
+            // Capture current RENDERED size as zoom base on first wheel event.
+            // Must happen before saveOriginalDimensions, which reads SVG attributes
+            // (those may be the large natural size, while autoFit shows it smaller via CSS).
+            if (!data.zoomBaseW) {
+                var renderRect = svg.getBoundingClientRect();
+                data.zoomBaseW = renderRect.width;
+                data.zoomBaseH = renderRect.height;
+            }
+
+            // Ensure originalViewBox is captured (may not have been set if never collapsed)
+            saveOriginalDimensions(svg);
+
+            // Capture cursor position as a FRACTION of the SVG before resizing.
+            // Using fractions works even if the SVG is centered (grows from center,
+            // not from left edge), unlike the naive mouseRel * (zoomFactor-1) formula.
+            var rect = svg.getBoundingClientRect();
+            var fractionX = rect.width  > 0 ? (e.clientX - rect.left)  / rect.width  : 0.5;
+            var fractionY = rect.height > 0 ? (e.clientY - rect.top)   / rect.height : 0.5;
+
+            var prevZoom = data.zoomLevel;
+            var direction = e.deltaY < 0 ? 1 : -1; // scroll up = zoom in
+            data.zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM,
+                data.zoomLevel + direction * ZOOM_STEP));
+
+            if (data.collapsedBoxes.size === 0) {
+                applyZoomedDimensions(svg);
+                repositionControls(svg);
+            } else {
+                recalcViewBox(svg); // applica già zoomLevel
+            }
+
+            // After resize, getBoundingClientRect() forces a layout recalculation
+            // and returns the SVG's actual new position (handles centered SVGs correctly).
+            // Scroll so the content point at (fractionX, fractionY) stays under the cursor.
+            var newRect = svg.getBoundingClientRect();
+            window.scrollBy({
+                left: (newRect.left + fractionX * newRect.width)  - e.clientX,
+                top:  (newRect.top  + fractionY * newRect.height) - e.clientY,
+                behavior: 'instant'
+            });
+        };
+
+        svg.addEventListener('wheel', wheelHandler, { passive: false });
+        svg._yamlData.wheelHandler = wheelHandler;
+    }
+
+    /**
+     * Setup grab-to-pan on the SVG: mousedown + drag scrolls the iframe viewport.
+     * A plain click (no drag) is not suppressed, so click-to-select still works.
+     * @param {SVGElement} svg
+     */
+    function setupPanDrag(svg) {
+        var DRAG_THRESHOLD = 4; // px before a mousedown is considered a drag
+
+        var isPanning   = false;
+        var hasDragged  = false;
+        var lastX, lastY;
+
+        svg.style.cursor = 'grab';
+
+        var mousedownHandler = function(e) {
+            if (e.button !== 0) return; // left button only
+            // Don't hijack clicks on collapse toggle buttons / controls
+            if (e.target.closest &&
+                (e.target.closest('.yaml-collapse-toggle') ||
+                 e.target.closest('.yaml-collapse-controls'))) return;
+
+            isPanning  = true;
+            hasDragged = false;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            e.preventDefault(); // prevent text-selection during drag
+        };
+
+        var mousemoveHandler = function(e) {
+            if (!isPanning) return;
+            var dx = e.clientX - lastX;
+            var dy = e.clientY - lastY;
+
+            if (!hasDragged &&
+                (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+                hasDragged = true;
+                // Show grabbing cursor over entire document while dragging
+                document.documentElement.style.setProperty('cursor', 'grabbing', 'important');
+            }
+
+            if (hasDragged) {
+                window.scrollBy({ left: -dx, top: -dy, behavior: 'instant' });
+                lastX = e.clientX;
+                lastY = e.clientY;
+            }
+        };
+
+        // One-shot click suppressor used after a drag ends
+        var cancelNextClick = function(e) {
+            e.stopPropagation();
+            document.removeEventListener('click', cancelNextClick, true);
+        };
+
+        var mouseupHandler = function(e) {
+            if (!isPanning) return;
+            isPanning = false;
+            document.documentElement.style.removeProperty('cursor');
+            svg.style.cursor = 'grab';
+
+            if (hasDragged) {
+                // Prevent the click that fires after mouseup from selecting a box
+                document.addEventListener('click', cancelNextClick, true);
+            }
+        };
+
+        svg.addEventListener('mousedown', mousedownHandler);
+        document.addEventListener('mousemove', mousemoveHandler);
+        document.addEventListener('mouseup',   mouseupHandler);
+
+        svg._yamlData.panHandlers = {
+            mousedown: mousedownHandler,
+            mousemove: mousemoveHandler,
+            mouseup:   mouseupHandler
+        };
+    }
+
+    /**
      * Initialize interactivity on a YAML tree diagram SVG
      * @param {SVGElement} svg - The SVG element
      * @param {Object} options - Optional configuration
@@ -1637,13 +1817,21 @@ var InteractiveSvgYaml = (function() {
         initializedSvgs.add(svg);
         svg.classList.add('interactive-svg-yaml');
 
+        // Block browser/Electron Ctrl+wheel zoom for the whole iframe
+        installGlobalCtrlWheelPrevention();
+
         // Store data for destroy
         svg._yamlData = {
             boxes: boxes,
             connections: connections,
             graph: graph,
             options: options,
-            tippyInstances: []
+            tippyInstances: [],
+            zoomLevel: 1.0,
+            wheelHandler: null,
+            panHandlers: null,
+            zoomBaseW: null,
+            zoomBaseH: null
         };
 
         // Add click handlers to box elements
@@ -1694,6 +1882,9 @@ var InteractiveSvgYaml = (function() {
         document.addEventListener('keydown', escHandler);
         svg._yamlData.escHandler = escHandler;
 
+        setupWheelZoom(svg);
+        setupPanDrag(svg);
+
         console.log('[InteractiveSvgYaml] Initialized successfully');
         return true;
     }
@@ -1714,6 +1905,19 @@ var InteractiveSvgYaml = (function() {
      */
     function destroy(svg) {
         if (!svg || !initializedSvgs.has(svg)) return;
+
+        if (svg._yamlData && svg._yamlData.wheelHandler) {
+            svg.removeEventListener('wheel', svg._yamlData.wheelHandler);
+            svg._yamlData.wheelHandler = null;
+        }
+
+        if (svg._yamlData && svg._yamlData.panHandlers) {
+            var ph = svg._yamlData.panHandlers;
+            svg.removeEventListener('mousedown', ph.mousedown);
+            document.removeEventListener('mousemove', ph.mousemove);
+            document.removeEventListener('mouseup',   ph.mouseup);
+            svg._yamlData.panHandlers = null;
+        }
 
         if (svg._yamlData && svg._yamlData.escHandler) {
             document.removeEventListener('keydown', svg._yamlData.escHandler);
