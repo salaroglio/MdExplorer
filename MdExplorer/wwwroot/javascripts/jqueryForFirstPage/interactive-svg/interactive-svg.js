@@ -33,6 +33,135 @@ var InteractiveSvg = (function() {
     // Track initialized SVGs to avoid double-initialization
     var initializedSvgs = new WeakSet();
 
+    // Global Ctrl+wheel prevention: blocks browser/Electron page zoom for the
+    // entire iframe so Ctrl+wheel only works on the SVG (via the SVG-level handler).
+    var _globalCtrlWheelHandler = null;
+
+    function installGlobalCtrlWheelPrevention() {
+        if (_globalCtrlWheelHandler) return;
+        _globalCtrlWheelHandler = function(e) {
+            if (e.ctrlKey) e.preventDefault();
+        };
+        window.addEventListener('wheel', _globalCtrlWheelHandler, { passive: false });
+    }
+
+    /**
+     * Setup Ctrl+wheel zoom on the SVG element.
+     * @param {SVGElement} svg
+     */
+    function setupWheelZoom(svg) {
+        var ZOOM_STEP = 0.2;
+        var MIN_ZOOM  = 0.2;
+        var MAX_ZOOM  = 5.0;
+        var data = svg._interactiveSvgData;
+
+        var wheelHandler = function(e) {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+
+            if (!data.zoomLevel) data.zoomLevel = 1.0;
+
+            // Capture current rendered size as zoom base on first wheel event
+            if (!data.zoomBaseW) {
+                var renderRect = svg.getBoundingClientRect();
+                data.zoomBaseW = renderRect.width;
+                data.zoomBaseH = renderRect.height;
+            }
+
+            // Capture cursor position as fraction of SVG before resizing
+            var rect = svg.getBoundingClientRect();
+            var fractionX = rect.width  > 0 ? (e.clientX - rect.left)  / rect.width  : 0.5;
+            var fractionY = rect.height > 0 ? (e.clientY - rect.top)   / rect.height : 0.5;
+
+            var direction = e.deltaY < 0 ? 1 : -1;
+            data.zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM,
+                data.zoomLevel + direction * ZOOM_STEP));
+
+            svg.style.maxWidth = 'none';
+            svg.style.width  = Math.round(data.zoomBaseW * data.zoomLevel) + 'px';
+            svg.style.height = Math.round(data.zoomBaseH * data.zoomLevel) + 'px';
+
+            // Scroll to keep the content point under the cursor stable
+            var newRect = svg.getBoundingClientRect();
+            window.scrollBy({
+                left: (newRect.left + fractionX * newRect.width)  - e.clientX,
+                top:  (newRect.top  + fractionY * newRect.height) - e.clientY,
+                behavior: 'instant'
+            });
+        };
+
+        svg.addEventListener('wheel', wheelHandler, { passive: false });
+        data.wheelHandler = wheelHandler;
+    }
+
+    /**
+     * Setup grab-to-pan on the SVG: mousedown + drag scrolls the iframe viewport.
+     * A plain click (no drag) is not suppressed, so click-to-select still works.
+     * @param {SVGElement} svg
+     */
+    function setupPanDrag(svg) {
+        var DRAG_THRESHOLD = 4;
+        var data = svg._interactiveSvgData;
+        var isPanning  = false;
+        var hasDragged = false;
+        var lastX, lastY;
+
+        svg.style.cursor = 'grab';
+
+        var mousedownHandler = function(e) {
+            if (e.button !== 0) return;
+            isPanning  = true;
+            hasDragged = false;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            e.preventDefault();
+        };
+
+        var mousemoveHandler = function(e) {
+            if (!isPanning) return;
+            var dx = e.clientX - lastX;
+            var dy = e.clientY - lastY;
+
+            if (!hasDragged &&
+                (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+                hasDragged = true;
+                document.documentElement.style.setProperty('cursor', 'grabbing', 'important');
+            }
+
+            if (hasDragged) {
+                window.scrollBy({ left: -dx, top: -dy, behavior: 'instant' });
+                lastX = e.clientX;
+                lastY = e.clientY;
+            }
+        };
+
+        var cancelNextClick = function(e) {
+            e.stopPropagation();
+            document.removeEventListener('click', cancelNextClick, true);
+        };
+
+        var mouseupHandler = function(e) {
+            if (!isPanning) return;
+            isPanning = false;
+            document.documentElement.style.removeProperty('cursor');
+            svg.style.cursor = 'grab';
+
+            if (hasDragged) {
+                document.addEventListener('click', cancelNextClick, true);
+            }
+        };
+
+        svg.addEventListener('mousedown', mousedownHandler);
+        document.addEventListener('mousemove', mousemoveHandler);
+        document.addEventListener('mouseup',   mouseupHandler);
+
+        data.panHandlers = {
+            mousedown: mousedownHandler,
+            mousemove: mousemoveHandler,
+            mouseup:   mouseupHandler
+        };
+    }
+
     /**
      * Parse PlantUML link ID to extract source and target names
      * PlantUML generates IDs like: link_SourceName_TargetName or link_SourceName_TargetName-1
@@ -334,6 +463,13 @@ var InteractiveSvg = (function() {
             options: options
         };
 
+        // Block browser/Electron Ctrl+wheel zoom for the whole iframe
+        installGlobalCtrlWheelPrevention();
+
+        // Setup zoom and pan
+        setupWheelZoom(svg);
+        setupPanDrag(svg);
+
         // Click handlers for boxes
         svg.querySelectorAll('g[id^="elem_"], g[id^="cluster_"], g[id^="GMN"]').forEach(function(box) {
             box.addEventListener('click', function(e) {
@@ -420,6 +556,18 @@ var InteractiveSvg = (function() {
         // Remove ESC handler
         if (svg._interactiveSvgData && svg._interactiveSvgData.escHandler) {
             document.removeEventListener('keydown', svg._interactiveSvgData.escHandler);
+        }
+
+        // Remove zoom handler
+        if (svg._interactiveSvgData && svg._interactiveSvgData.wheelHandler) {
+            svg.removeEventListener('wheel', svg._interactiveSvgData.wheelHandler);
+        }
+
+        // Remove pan handlers
+        if (svg._interactiveSvgData && svg._interactiveSvgData.panHandlers) {
+            svg.removeEventListener('mousedown', svg._interactiveSvgData.panHandlers.mousedown);
+            document.removeEventListener('mousemove', svg._interactiveSvgData.panHandlers.mousemove);
+            document.removeEventListener('mouseup',   svg._interactiveSvgData.panHandlers.mouseup);
         }
 
         // Clear selection and classes
