@@ -1618,15 +1618,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
             
             // PULIZIA E REINDICIZZAZIONE DEL DATABASE
             var linkIndexingEnabled = IsLinkIndexingEnabled();
-            if (linkIndexingEnabled)
+            // Fase 1: file discovery — sempre, indipendente dal flag LinkIndexingEnabled
+            CleanupDatabaseDuplicates();
+            IndexAllMarkdownFiles();
+            if (!linkIndexingEnabled)
             {
-                // Full cleanup: delete all LinkInsideMarkdown + MarkdownFile, then re-index
-                CleanupDatabaseDuplicates();
-                IndexAllMarkdownFiles();
-            }
-            else
-            {
-                _logger.LogInformation("[GetShallowStructure] Link indexing disabled - skipping database cleanup and file indexing");
+                _logger.LogInformation("[GetShallowStructure] Link indexing disabled - file records indexed, skipping link parsing");
             }
             
             // Carica solo primo livello di cartelle che contengono file markdown

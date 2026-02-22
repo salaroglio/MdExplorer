@@ -6231,6 +6231,11 @@ class MdFileService {
       // Use loadAll() to properly update dataStore and notify subscribers
       this.loadAll(null, null);
     });
+    // Subscribe to Git pull events to refresh tree
+    this.mdServerMessages.gitPullRefreshed$.subscribe(data => {
+      console.log('🌳 Git pull completed - refreshing tree. Files changed:', data.fileCount);
+      this.loadAll(null, null);
+    });
     // Subscribe to project changing events - clear data to show skeleton loader
     // Use setTimeout to avoid circular dependency issues
     setTimeout(() => {
@@ -10438,6 +10443,8 @@ class MdServerMessagesService {
     this.injector = injector;
     // Observable for Git branch switch events
     this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
+    // Observable for Git pull refresh events
+    this.gitPullRefreshed$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
     // Observable for RAG indexing progress events
     this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
     // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
@@ -10478,6 +10485,11 @@ class MdServerMessagesService {
         this.hubConnection.on('gitBranchSwitched', data => {
           console.log('✅ SignalR event received: gitBranchSwitched', data);
           this.gitBranchSwitched$.next(data);
+        });
+        // Git pull refresh event (from ModernGitToolbarController)
+        this.hubConnection.on('gitPullRefreshed', data => {
+          console.log('✅ SignalR event received: gitPullRefreshed', data);
+          this.gitPullRefreshed$.next(data);
         });
         // Screenshot Annotation Wizard event (from iframe Ctrl+V via backend clipboard read)
         this.hubConnection.on('openScreenshotAnnotationWizard', data => {
@@ -10717,6 +10729,24 @@ class MdServerMessagesService {
       callback(data, objectThis);
     });
   }
+  addFolderCreatedListener(callback, objectThis) {
+    this.hubConnection.on('folderCreated', data => {
+      console.log('📁 [SignalR] Evento folderCreated ricevuto:', data?.fullPath || data?.FullPath);
+      callback(data, objectThis);
+    });
+  }
+  addFolderDeletedListener(callback, objectThis) {
+    this.hubConnection.on('folderDeleted', data => {
+      console.log('🗑️ [SignalR] Evento folderDeleted ricevuto:', data?.fullPath || data?.FullPath);
+      callback(data, objectThis);
+    });
+  }
+  addFolderRenamedListener(callback, objectThis) {
+    this.hubConnection.on('folderRenamed', data => {
+      console.log('✏️ [SignalR] Evento folderRenamed ricevuto:', data?.oldFullPath || data?.OldFullPath, '→', data?.fullPath || data?.FullPath);
+      callback(data, objectThis);
+    });
+  }
   static {
     this.ɵfac = function MdServerMessagesService_Factory(t) {
       return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
@@ -10773,8 +10803,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.02.20.1',
-  buildTime: '2026.02.20 08:49:42'
+  version: '2026.02.20.4',
+  buildTime: '2026.02.20 11:13:57'
 };
 
 /***/ }),

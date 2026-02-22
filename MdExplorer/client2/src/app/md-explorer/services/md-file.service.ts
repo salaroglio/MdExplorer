@@ -55,6 +55,12 @@ export class MdFileService {
       this.loadAll(null, null);
     });
 
+    // Subscribe to Git pull events to refresh tree
+    this.mdServerMessages.gitPullRefreshed$.subscribe((data) => {
+      console.log('🌳 Git pull completed - refreshing tree. Files changed:', data.fileCount);
+      this.loadAll(null, null);
+    });
+
     // Subscribe to project changing events - clear data to show skeleton loader
     // Use setTimeout to avoid circular dependency issues
     setTimeout(() => {

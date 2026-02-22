@@ -538,31 +538,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Success case - update the file tree for pull operations
-    if (operation === 'pull' && responseFromPull.whatFilesWillBeChanged) {
-      let bCurrentfileHasBeenDeleted = false;
-      responseFromPull.whatFilesWillBeChanged.forEach(file => {
-        if (file.status === "Added") {
-          const folders = _.cloneDeep(file.mdFiles);
-          folders.pop();
-          this.mdFileService.addNewDirectoryExtended(folders);
-          this.mdFileService.addNewFile(file.mdFiles);
-        }
-
-        if (file.status === "Deleted") {
-          if (file.fullPath === this.currentMdFile.fullPath) {
-            bCurrentfileHasBeenDeleted = true;
-          }
-          this.mdFileService.recursiveDeleteFileFromDataStore(file.mdFiles[file.mdFiles.length - 1]);
-        }
-      });
-
-      if (!bCurrentfileHasBeenDeleted) {
-        this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
-      }
-    }
-
     // Always refresh connection status after successful operations
+    // Tree refresh is handled via SignalR gitPullRefreshed event in md-file.service + md-tree
     this.checkConnection();
   }
 

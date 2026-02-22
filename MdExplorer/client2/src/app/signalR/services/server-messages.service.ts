@@ -25,6 +25,9 @@ export class MdServerMessagesService {
   // Observable for Git branch switch events
   public gitBranchSwitched$ = new Subject<{ fileCount: number, message: string }>();
 
+  // Observable for Git pull refresh events
+  public gitPullRefreshed$ = new Subject<{ fileCount: number, message: string }>();
+
   // Observable for RAG indexing progress events
   public ragIndexingProgress$ = new Subject<{ status: string, processed: number, total: number, message: string }>();
 
@@ -94,6 +97,12 @@ export class MdServerMessagesService {
       this.hubConnection.on('gitBranchSwitched', (data) => {
         console.log('✅ SignalR event received: gitBranchSwitched', data);
         this.gitBranchSwitched$.next(data);
+      });
+
+      // Git pull refresh event (from ModernGitToolbarController)
+      this.hubConnection.on('gitPullRefreshed', (data) => {
+        console.log('✅ SignalR event received: gitPullRefreshed', data);
+        this.gitPullRefreshed$.next(data);
       });
 
       // Screenshot Annotation Wizard event (from iframe Ctrl+V via backend clipboard read)
@@ -370,6 +379,27 @@ export class MdServerMessagesService {
   public addUrlHandlerErrorListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('urlHandlerError', (data) => {
       console.log('[SignalR] URL Handler Error:', data);
+      callback(data, objectThis);
+    });
+  }
+
+  public addFolderCreatedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('folderCreated', (data) => {
+      console.log('📁 [SignalR] Evento folderCreated ricevuto:', data?.fullPath || data?.FullPath);
+      callback(data, objectThis);
+    });
+  }
+
+  public addFolderDeletedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('folderDeleted', (data) => {
+      console.log('🗑️ [SignalR] Evento folderDeleted ricevuto:', data?.fullPath || data?.FullPath);
+      callback(data, objectThis);
+    });
+  }
+
+  public addFolderRenamedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('folderRenamed', (data) => {
+      console.log('✏️ [SignalR] Evento folderRenamed ricevuto:', data?.oldFullPath || data?.OldFullPath, '→', data?.fullPath || data?.FullPath);
       callback(data, objectThis);
     });
   }

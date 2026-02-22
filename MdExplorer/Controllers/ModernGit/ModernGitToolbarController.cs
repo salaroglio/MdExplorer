@@ -85,11 +85,15 @@ namespace MdExplorer.Controllers.ModernGit
 
                     if (result.Success)
                     {
-                        // Perform full tree refresh after successful pull with changes
+                        // Notify frontend via SignalR to trigger tree refresh (GetShallowStructure does the actual rebuild)
                         if (response.ChangedFiles?.Any() == true)
                         {
-                            _logger.LogInformation("Pull successful with {FileCount} changed files, triggering tree refresh", response.ChangedFiles.Count);
-                            await PerformFullTreeRefreshAsync(request.ProjectPath);
+                            _logger.LogInformation("Pull successful with {FileCount} changed files, notifying frontend", response.ChangedFiles.Count);
+                            await _hubContext.Clients.All.SendAsync("gitPullRefreshed", new
+                            {
+                                fileCount = response.ChangedFiles.Count,
+                                message = "Pull completed with changes"
+                            });
                         }
                         return Ok(response);
                     }
@@ -800,139 +804,6 @@ namespace MdExplorer.Controllers.ModernGit
             }
         }
 
-        #region MD-Tree Refresh for Git Pull
-
-        /// <summary>
-        /// Performs full tree refresh after Git pull:
-        /// 1. DELETE all LinkInsideMarkdown records
-        /// 2. DELETE all MarkdownFile records
-        /// 3. RE-INDEX all .md files from filesystem
-        /// 4. Emit SignalR event to notify client
-        /// </summary>
-        private async Task<int> PerformFullTreeRefreshAsync(string projectPath)
-        {
-            try
-            {
-                _logger.LogInformation("[PerformFullTreeRefresh] Starting full tree refresh after pull for path: {Path}", projectPath);
-
-                var engineDB = GetEngineDB();
-
-                // Step 1: Clean database (DELETE all records)
-                CleanupDatabase(engineDB);
-
-                // Step 2: Re-index all markdown files from filesystem
-                int fileCount = IndexAllMarkdownFiles(projectPath, engineDB);
-
-                // Step 3: Emit SignalR event to notify all clients
-                await _hubContext.Clients.All.SendAsync("gitPullRefreshed", new
-                {
-                    fileCount = fileCount,
-                    message = "Tree refresh completed after pull"
-                });
-
-                _logger.LogInformation("[PerformFullTreeRefresh] Full tree refresh completed: {FileCount} files indexed", fileCount);
-                return fileCount;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[PerformFullTreeRefresh] Error during full tree refresh");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Cleans database by deleting ALL records from LinkInsideMarkdown and MarkdownFile tables.
-        /// </summary>
-        private void CleanupDatabase(IEngineDB engineDB)
-        {
-            try
-            {
-                _logger.LogInformation("[CleanupDatabase] Starting complete database cleanup after pull");
-
-                engineDB.BeginTransaction();
-
-                // Step 1: Delete all LinkInsideMarkdown records (foreign key to MarkdownFile)
-                _logger.LogInformation("[CleanupDatabase] Deleting all LinkInsideMarkdown records");
-                engineDB.Delete("from LinkInsideMarkdown");
-                engineDB.Flush();
-
-                // Step 2: Delete all MarkdownFile records
-                _logger.LogInformation("[CleanupDatabase] Deleting all MarkdownFile records");
-                engineDB.Delete("from MarkdownFile");
-                engineDB.Flush();
-
-                engineDB.Commit();
-
-                _logger.LogInformation("[CleanupDatabase] Database cleanup completed");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[CleanupDatabase] Error during database cleanup");
-                engineDB.Rollback();
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Indexes all markdown files from the filesystem into the MarkdownFile table.
-        /// Respects .mdignore rules and excludes .md folder.
-        /// </summary>
-        private int IndexAllMarkdownFiles(string projectPath, IEngineDB engineDB)
-        {
-            try
-            {
-                _logger.LogInformation("[IndexAllMarkdownFiles] Starting indexing for path: {Path}", projectPath);
-
-                if (string.IsNullOrEmpty(projectPath) || projectPath == AppDomain.CurrentDomain.BaseDirectory)
-                {
-                    _logger.LogWarning("[IndexAllMarkdownFiles] Invalid path, skipping indexing");
-                    return 0;
-                }
-
-                engineDB.BeginTransaction();
-                var markdownFileDal = engineDB.GetDal<MarkdownFile>();
-
-                // Find all .md files recursively, excluding ignored paths
-                var allMdFiles = Directory.GetFiles(projectPath, "*.md", SearchOption.AllDirectories)
-                    .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar))
-                    .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, projectPath))
-                    .ToList();
-
-                _logger.LogInformation("[IndexAllMarkdownFiles] Found {FileCount} markdown files to index", allMdFiles.Count);
-
-                foreach (var filePath in allMdFiles)
-                {
-                    try
-                    {
-                        var markdownFile = new MarkdownFile
-                        {
-                            FileName = Path.GetFileName(filePath),
-                            Path = filePath,
-                            FileType = "file"
-                        };
-
-                        markdownFileDal.Save(markdownFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[IndexAllMarkdownFiles] Error indexing file: {FilePath}", filePath);
-                    }
-                }
-
-                engineDB.Commit();
-                _logger.LogInformation("[IndexAllMarkdownFiles] Indexing completed: {FileCount} files", allMdFiles.Count);
-
-                return allMdFiles.Count;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[IndexAllMarkdownFiles] Error during indexing");
-                engineDB.Rollback();
-                throw;
-            }
-        }
-
-        #endregion
     }
 
     /// <summary>

@@ -221,7 +221,22 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdServerMessages.addMarkdownFileDeletedListener((data, component) => {
       this.handleMarkdownFileDeleted(data);
     }, this);
-    
+
+    // Listener per creazione cartella
+    this.mdServerMessages.addFolderCreatedListener((data, component) => {
+      this.handleFolderCreated(data);
+    }, this);
+
+    // Listener per cancellazione cartella
+    this.mdServerMessages.addFolderDeletedListener((data, component) => {
+      this.handleFolderDeleted(data);
+    }, this);
+
+    // Listener per rename cartella → full reload (i path dei figli cambiano tutti)
+    this.mdServerMessages.addFolderRenamedListener((data, component) => {
+      this.mdFileService.loadAll(null, this);
+    }, this);
+
     // Listener per forzare change detection (Rule #1 fix) - seguendo il pattern SignalR
     this.mdServerMessages.addRule1ForceUpdateListener((data, component) => {
       // Questo non verrà mai chiamato perché non c'è un vero evento SignalR
@@ -230,6 +245,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Listener for Git branch switch - capture expansion state BEFORE refresh
     this.mdServerMessages.gitBranchSwitched$.subscribe((data) => {
       console.log('🔄 Git branch switched detected - capturing expansion state');
+      this.expansionStateBeforeRefresh = this.captureExpansionState();
+      console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
+    });
+
+    // Listener for Git pull - capture expansion state BEFORE refresh
+    this.mdServerMessages.gitPullRefreshed$.subscribe((data) => {
+      console.log('🔄 Git pull detected - capturing expansion state');
       this.expansionStateBeforeRefresh = this.captureExpansionState();
       console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
     });
@@ -1100,9 +1122,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private searchInNodes(nodes: MdFile[], targetPath: string): MdFile | null {
+    const normalizedTarget = targetPath?.toLowerCase();
     for (const node of nodes) {
-      if (node.fullPath === targetPath) {
+      // Match diretto (case-insensitive)
+      if (node.fullPath?.toLowerCase() === normalizedTarget) {
         return node;
+      }
+      // Match su segmenti compattati (per nodi VS Code-style compact)
+      if (node.isCompacted && node.compactedSegments) {
+        const matchesSegment = node.compactedSegments.some(
+          seg => seg.fullPath?.toLowerCase() === normalizedTarget
+        );
+        if (matchesSegment) return node;
       }
       if (node.childrens && node.childrens.length > 0) {
         const found = this.searchInNodes(node.childrens, targetPath);
@@ -1293,10 +1324,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log('📂 [STEP 3] addFileToParent result:', added, 'parentDirPath:', parentDirPath);
 
     if (!added) {
-      // STEP 3b: Fallback per caso raro (nuova cartella + file creati insieme)
-      console.log('⚠️ [STEP 3b] Fallback: buildFileHierarchy + addNewFileWithDirectories');
-      const hierarchyPath = this.buildFileHierarchy(newMdFile);
-      this.mdFileService.addNewFileWithDirectories(hierarchyPath);
+      // STEP 3b: Fallback - il parent non è nel tree (lazy loading: cartella mai espansa).
+      // Ricarichiamo tutto il tree per garantire consistenza.
+      console.log('⚠️ [STEP 3b] Fallback: parent folder not in tree, calling loadAll');
+      this.mdFileService.loadAll(null, this);
     }
 
     // STEP 5: Aggiungi il file al Set di tracking (già indicizzato)
@@ -1427,6 +1458,62 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log('✅ [Handler] File rimosso dal tree:', fileData.name);
   }
   
+  // Handler per la creazione di una nuova cartella
+  private handleFolderCreated(folderData: any): void {
+    const fullPath = folderData.fullPath || folderData.FullPath;
+    const name = folderData.name || folderData.Name;
+    const relativePath = folderData.relativePath || folderData.RelativePath || '';
+    const level = folderData.level ?? folderData.Level ?? 0;
+
+    console.log('📁 [handleFolderCreated] Cartella creata:', fullPath);
+
+    // Duplicate check
+    const existing = this.findNodeByPath(fullPath);
+    if (existing) {
+      console.log('⚠️ [handleFolderCreated] Nodo già esistente nel tree:', fullPath);
+      return;
+    }
+
+    const newFolder: any = {
+      name, fullPath, path: relativePath, relativePath,
+      type: 'folder', level, expandable: true, childrens: [],
+      isIndexed: true, indexingStatus: 'completed'
+    };
+
+    const parentPath = fullPath.substring(0, Math.max(
+      fullPath.lastIndexOf('\\'), fullPath.lastIndexOf('/')
+    ));
+    const added = this.mdFileService.addFileToParent(newFolder, parentPath);
+
+    if (!added) {
+      // Fallback: parent non trovato → full reload per sicurezza
+      console.log('⚠️ [handleFolderCreated] Parent non trovato, full reload:', parentPath);
+      this.mdFileService.loadAll(null, this);
+      return;
+    }
+
+    console.log('✅ [handleFolderCreated] Cartella aggiunta al tree:', name);
+    this.changeDetectorRef.markForCheck();
+  }
+
+  // Handler per la cancellazione di una cartella
+  private handleFolderDeleted(folderData: any): void {
+    const fullPath = folderData.fullPath || folderData.FullPath;
+
+    console.log('🗑️ [handleFolderDeleted] Cartella eliminata:', fullPath);
+
+    const nodeToDelete = this.findNodeByPath(fullPath);
+
+    if (!nodeToDelete) {
+      console.log('⚠️ [handleFolderDeleted] Nodo non trovato nel tree:', fullPath);
+      return;
+    }
+
+    this.mdFileService.recursiveDeleteFileFromDataStore(nodeToDelete);
+    console.log('✅ [handleFolderDeleted] Cartella rimossa dal tree:', nodeToDelete.name);
+    this.changeDetectorRef.markForCheck();
+  }
+
   // Handler per forzare l'aggiornamento di file rinominati (Rule #1 fix)
   public handleRule1ForceUpdate(filePath: string): void {
     const foundNode = this.findNodeByPath(filePath);

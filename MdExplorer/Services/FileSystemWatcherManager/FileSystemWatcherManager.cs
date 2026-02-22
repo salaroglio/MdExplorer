@@ -548,7 +548,31 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 if (!isMarkdown)
                 {
-                    _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown");
+                    // Gestione creazione cartella
+                    if (Directory.Exists(e.FullPath))
+                    {
+                        var folderRelativePath = GetRelativePath(context, e.FullPath);
+                        if (!IsFolderIgnored(context, folderRelativePath))
+                        {
+                            var folderLevel = CalculateFileLevel(folderRelativePath);
+                            var folderCreatedData = new {
+                                Name = Path.GetFileName(e.FullPath),
+                                FullPath = e.FullPath,
+                                Path = folderRelativePath,
+                                RelativePath = folderRelativePath,
+                                Type = "folder",
+                                Level = folderLevel,
+                                Expandable = true
+                            };
+                            await _hubContext.Clients.Client(context.ConnectionId)
+                                .SendAsync("folderCreated", folderCreatedData);
+                            _logger.LogInformation($"📁 [{context.ConnectionId}] Folder created: {e.FullPath}");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown");
+                    }
                     return;
                 }
 
@@ -617,6 +641,21 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (!shouldProcess)
                 {
                     _logger.LogInformation($"❌ [{context.ConnectionId}] Rename not relevant: neither old nor new is markdown");
+                    // Gestione rename cartella (nessuna estensione su entrambi)
+                    bool oldHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.OldFullPath));
+                    bool newHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.FullPath));
+                    if (oldHasNoExt && newHasNoExt)
+                    {
+                        var folderRenamedData = new {
+                            OldFullPath = e.OldFullPath,
+                            FullPath = e.FullPath,
+                            OldName = Path.GetFileName(e.OldFullPath),
+                            Name = Path.GetFileName(e.FullPath)
+                        };
+                        await _hubContext.Clients.Client(context.ConnectionId)
+                            .SendAsync("folderRenamed", folderRenamedData);
+                        _logger.LogInformation($"✏️ [{context.ConnectionId}] Folder renamed: {e.OldFullPath} → {e.FullPath}");
+                    }
                     return;
                 }
 
@@ -698,7 +737,27 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 if (!isMarkdown)
                 {
-                    _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
+                    // Gestione cancellazione cartella (heuristica: nessuna estensione = cartella)
+                    if (string.IsNullOrEmpty(fileExtension))
+                    {
+                        var folderRelativePath = GetRelativePath(context, e.FullPath);
+                        if (!IsFolderIgnored(context, folderRelativePath))
+                        {
+                            var folderDeletedData = new {
+                                Name = Path.GetFileName(e.FullPath),
+                                FullPath = e.FullPath,
+                                Path = folderRelativePath,
+                                RelativePath = folderRelativePath
+                            };
+                            await _hubContext.Clients.Client(context.ConnectionId)
+                                .SendAsync("folderDeleted", folderDeletedData);
+                            _logger.LogInformation($"🗑️ [{context.ConnectionId}] Folder deleted: {e.FullPath}");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
+                    }
                     return;
                 }
 
@@ -757,6 +816,31 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             }
 
             return cleanPath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).Length - 1;
+        }
+
+        private bool IsFolderIgnored(WatcherContext context, string relativeFolderPath)
+        {
+            var normalizedPath = relativeFolderPath.Replace(Path.DirectorySeparatorChar, '/');
+
+            // Check ignored directories (e.g. ".md")
+            if (context.IgnoreConfiguration.IgnoredDirectories.Any(dir =>
+                normalizedPath.Contains($"/{dir}/") ||
+                normalizedPath.StartsWith($"{dir}/") ||
+                normalizedPath == dir))
+                return true;
+
+            // Check Git ignored directories (entries ending with '/', e.g. ".git/")
+            if (context.IgnoreConfiguration.GitIgnoredFiles.Any(gitFile =>
+            {
+                if (!gitFile.EndsWith("/")) return false;
+                var dirName = gitFile.TrimEnd('/');
+                return normalizedPath.StartsWith($"{dirName}/") ||
+                       normalizedPath.Contains($"/{dirName}/") ||
+                       normalizedPath == dirName;
+            }))
+                return true;
+
+            return false;
         }
 
         private bool ShouldIgnoreMarkdownFile(WatcherContext context, string fullPath)
