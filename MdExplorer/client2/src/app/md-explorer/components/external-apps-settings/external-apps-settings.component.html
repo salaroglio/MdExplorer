@@ -1,0 +1,91 @@
+<div class="ext-apps-container">
+
+  <div class="section-header">
+    <h3>External Apps</h3>
+    <button mat-stroked-button color="primary" (click)="openAddForm()" [disabled]="showForm">
+      <mat-icon>add</mat-icon> Add App
+    </button>
+  </div>
+
+  <!-- App list -->
+  <div *ngIf="isLoading" class="loading-row">
+    <mat-spinner diameter="24"></mat-spinner>
+    <span>Loading...</span>
+  </div>
+
+  <div *ngIf="!isLoading && apps.length === 0 && !showForm" class="empty-state">
+    <mat-icon>apps</mat-icon>
+    <span>No external apps configured for this project.</span>
+  </div>
+
+  <mat-list *ngIf="!isLoading && apps.length > 0" class="app-list">
+    <mat-list-item *ngFor="let app of apps" class="app-item">
+      <mat-icon matListItemIcon [matTooltip]="app.icon">{{ app.icon || 'launch' }}</mat-icon>
+      <div matListItemTitle>{{ app.name }}</div>
+      <div matListItemLine class="app-exec">{{ app.executable }}</div>
+      <div matListItemLine *ngIf="app.description" class="app-desc">{{ app.description }}</div>
+      <button mat-icon-button color="warn" (click)="deleteApp(app)" matTooltip="Remove app">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </mat-list-item>
+  </mat-list>
+
+  <!-- Add app form -->
+  <mat-card *ngIf="showForm" class="add-form-card">
+    <mat-card-header>
+      <mat-card-title>New External App</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="form-grid">
+
+        <mat-form-field appearance="outline">
+          <mat-label>App ID *</mat-label>
+          <input matInput [(ngModel)]="form.id" placeholder="my-app" />
+          <mat-hint>Unique identifier (e.g. my-app). No spaces.</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Name *</mat-label>
+          <input matInput [(ngModel)]="form.name" placeholder="My App" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Executable *</mat-label>
+          <input matInput [(ngModel)]="form.executable" placeholder=".mde/apps/myapp.exe" />
+          <mat-hint>Absolute path or relative to project root.</mat-hint>
+        </mat-form-field>
+
+        <button mat-stroked-button (click)="browseExecutable()" [disabled]="!isElectron" class="browse-btn">
+          <mat-icon>folder_open</mat-icon> Browse...
+        </button>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Icon</mat-label>
+          <input matInput [(ngModel)]="form.icon" placeholder="launch" />
+          <mat-hint>Material Icon name (e.g. dashboard, code, science)</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Description</mat-label>
+          <input matInput [(ngModel)]="form.description" placeholder="Optional tooltip text" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Tree Position</mat-label>
+          <mat-select [(ngModel)]="form.treePosition">
+            <mat-option value="bottom">Bottom (default)</mat-option>
+            <mat-option value="top">Top</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+      </div>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-button (click)="cancelForm()">Cancel</button>
+      <button mat-raised-button color="primary" (click)="saveApp()">
+        <mat-icon>save</mat-icon> Save
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+</div>

@@ -29,4 +29,11 @@ export class MdFile implements IFileInfoNode {
   isCompacted?: boolean;
   compactedPath?: string;
   compactedSegments?: CompactSegment[];
+
+  // External app embedding
+  appId?: string;
+  appExecutable?: string;
+  appArgs?: string[];
+  appIcon?: string;
+  appDescription?: string;
 }

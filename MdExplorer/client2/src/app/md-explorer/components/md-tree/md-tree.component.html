@@ -206,6 +206,19 @@
       </ng-container>
     </span>
   </mat-tree-node>
+  <!-- External app node -->
+  <mat-tree-node *matTreeNodeDef="let node;when: isExternalApp"
+                 matTreeNodePadding
+                 style="cursor:pointer"
+                 [ngClass]="{ 'selected': isNodeSelected(node) }"
+                 (click)="getNode(node)"
+                 [matTooltip]="node.appDescription || node.name">
+    <button mat-icon-button color="primary" style="cursor:pointer">
+      <mat-icon>{{ node.appIcon || 'launch' }}</mat-icon>
+    </button>
+    <div class="node-text" style="cursor:pointer; padding: 2px;">{{ node.name }}</div>
+  </mat-tree-node>
+
   <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
     <button mat-icon-button matTreeNodeToggle></button>
   </mat-tree-node>

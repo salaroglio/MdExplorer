@@ -102,7 +102,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,
-      compactedSegments: node.compactedSegments
+      compactedSegments: node.compactedSegments,
+      // External app
+      appId: node.appId,
+      appExecutable: node.appExecutable,
+      appArgs: node.appArgs,
+      appIcon: node.appIcon,
+      appDescription: node.appDescription
     };
   }
   treeControl = new FlatTreeControl<IFileInfoNode>(
@@ -118,6 +124,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
   isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name == "mdPublish";
   isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
+  isExternalApp = (_: number, node: IFileInfoNode) => node.type == "externalApp";
 
   ///////////////////////////////
 
@@ -423,18 +430,33 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.snackBar.open('File in indicizzazione', 'OK', { duration: 3000 });
       return;
     }
-    
+
+    // External app: navigate to dedicated route
+    if (node.type === 'externalApp') {
+      try {
+        await this.router.navigate(['/main/navigation/external-app']);
+        this.mdFileService.setSelectedMdFileFromSideNav(node);
+        this.activeNode = node;
+        this.selectedNode = node;
+        this.changeDetectorRef.markForCheck();
+      } catch (error) {
+        console.error('Navigation to external-app failed:', error);
+        this.snackBar.open('Errore di navigazione', 'OK', { duration: 3000 });
+      }
+      return;
+    }
+
     try {
       // ✅ ASPETTA che la navigazione sia completata
       await this.router.navigate(['/main/navigation/document']);
-      
+
       // ✅ SOLO DOPO navigazione riuscita, aggiorna gli stati
       this.mdFileService.setSelectedMdFileFromSideNav(node);
       this.navService.setNewNavigation(node);
       this.activeNode = node;
       this.selectedNode = node;
       this.changeDetectorRef.markForCheck();
-      
+
     } catch (error) {
       // ✅ Se navigazione fallisce, nessun state viene cambiato
       console.error('Navigation failed:', error);

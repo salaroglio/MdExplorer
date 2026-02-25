@@ -26,5 +26,12 @@ export interface IFileInfoNode {
   isCompacted?: boolean;                // True if this node is the result of compacting multiple folders
   compactedPath?: string;               // Compacted display path: "src / main / java"
   compactedSegments?: CompactSegment[]; // Segments for context menu selection
+
+  // External app embedding
+  appId?: string;
+  appExecutable?: string;
+  appArgs?: string[];
+  appIcon?: string;
+  appDescription?: string;
 }
 

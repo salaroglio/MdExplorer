@@ -41,6 +41,8 @@ import { ConfirmDialogComponent } from '../commons/components/confirm-dialog/con
 import { ImageAnnotationCanvasComponent } from './components/image-annotation-canvas/image-annotation-canvas.component';
 import { ScreenshotAnnotationWizardDialogComponent } from './components/dialogs/screenshot-annotation-wizard/screenshot-annotation-wizard-dialog.component';
 import { P2PStatusWidgetComponent } from './components/toolbar/p2p-status-widget/p2p-status-widget.component';
+import { ExternalAppComponent } from './components/external-app/external-app.component';
+import { ExternalAppsSettingsComponent } from './components/external-apps-settings/external-apps-settings.component';
 
 
 
@@ -58,6 +60,7 @@ const routes: Routes = [
           { path: 'gitlabsettings', component: GitlabSettingsComponent },
           { path: 'documentsettings', component: DocumentSettingsComponent },
           { path: 'react-editor', component: MilkdownReactHostComponent },
+          { path: 'external-app', component: ExternalAppComponent },
           { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
         ]
       },
@@ -99,7 +102,9 @@ const routes: Routes = [
     GitChatComponent,
     ImageAnnotationCanvasComponent,
     ScreenshotAnnotationWizardDialogComponent,
-    P2PStatusWidgetComponent
+    P2PStatusWidgetComponent,
+    ExternalAppComponent,
+    ExternalAppsSettingsComponent
   ],
   imports: [
     CommonModule,

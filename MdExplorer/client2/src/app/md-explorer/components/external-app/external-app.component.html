@@ -1,0 +1,32 @@
+<div class="external-app-container">
+
+  <!-- Loading state -->
+  <div *ngIf="state === 'loading'" class="state-panel loading-panel">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p class="state-label">Starting external app...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="state === 'error'" class="state-panel error-panel">
+    <mat-icon class="error-icon">error_outline</mat-icon>
+    <p class="state-label">{{ errorMessage }}</p>
+    <button mat-stroked-button color="primary" (click)="retry()">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
+  </div>
+
+  <!-- Idle state -->
+  <div *ngIf="state === 'idle'" class="state-panel idle-panel">
+    <mat-icon class="idle-icon">launch</mat-icon>
+    <p class="state-label">Select an external app from the tree.</p>
+  </div>
+
+  <!-- iframe — standard DOM element, respects CSS z-index (unlike WebContentsView) -->
+  <iframe *ngIf="state === 'ready' && appUrl"
+          [src]="appUrl | safe"
+          class="app-webview"
+          frameborder="0"
+          allowfullscreen>
+  </iframe>
+
+</div>

@@ -10,14 +10,30 @@
  * - Debounced input (300ms), minimum 3 characters
  * - Independent search state per SVG (keyed by hash)
  * - Graceful degradation for non-SVG images
+ * - Search box is position:fixed, stays visible even on large/scrollable SVGs
  *
  * Global dependencies:
  * - window.svgSearchActive (from globals.js)
  *
  * DOM:
- * - Creates search box div above each SVG container
+ * - Creates search box div appended to <body> (position:fixed)
  * - Search box ID: svgSearch_{hash}
  */
+
+// Scroll listeners for search boxes, keyed by hash, cleaned up on close
+var _searchBoxScrollListeners = {};
+
+// Map toolbar referenceId -> image hash, so showImageToolbar/hideImageToolbar
+// can coordinate search box visibility
+var _toolbarToHashMap = {};
+
+// Whether the search box should currently be visible (false = hidden by hover-out)
+var _searchBoxVisible = {};
+
+// True while the cursor is physically on the search box.
+// _hideSearchBox checks this and skips the hide if the cursor is still there,
+// regardless of how many times hideImageToolbar is called from other elements.
+var _searchBoxHovered = {};
 
 /**
  * Toggle SVG text search on/off for specified element.
@@ -37,6 +53,72 @@ function toggleMagnifier(stringMatchedHash) {
 }
 
 /**
+ * Recalculate and apply position:fixed coordinates for the search box.
+ * Placed just below the image toolbar buttons.
+ *
+ * @param {string} hash - Element hash/ID
+ * @param {jQuery} $box - Image container element
+ */
+function _updateSearchBoxPosition(hash, $box) {
+    var $searchBox = $('#svgSearch_' + hash);
+    if (!$searchBox.length) return;
+
+    var $toolbar = $box.prev();
+    if (!$toolbar.length) return;
+
+    // Skip when toolbar is hidden — getBoundingClientRect would return zeros
+    if ($toolbar[0].style.display === 'none') return;
+
+    var toolbarRect = $toolbar[0].getBoundingClientRect();
+
+    // Align search box: same top as toolbar, just to the right of it
+    var top = toolbarRect.top;
+    var left = toolbarRect.right + 4;
+
+    // opacity:0 when hidden so the element keeps receiving pointer events
+    // (cursor can still hover over it and trigger mouseenter to re-show)
+    var opacity = _searchBoxVisible[hash] ? '1' : '0';
+
+    $searchBox.attr('style',
+        'position:fixed; z-index:101; top:' + top + 'px; left:' + left + 'px; ' +
+        'display:flex; align-items:center; gap:6px; padding:4px 8px; ' +
+        'background:#f5f5f5; border:1px solid #ccc; border-radius:4px; ' +
+        'font-family:Arial,sans-serif; font-size:13px; opacity:' + opacity + ';');
+}
+
+/**
+ * Make the search box visible — opacity only, NO repositioning.
+ * Repositioning on re-show would move the element under the cursor,
+ * immediately triggering mouseleave → flicker loop.
+ * Position is managed only by the scroll listener and initial open.
+ */
+function _showSearchBox(hash) {
+    if (!window.svgSearchActive || !window.svgSearchActive[hash]) return;
+    _searchBoxVisible[hash] = true;
+    var $searchBox = $('#svgSearch_' + hash);
+    if ($searchBox.length) {
+        $searchBox[0].style.opacity = '1';
+    }
+}
+
+/**
+ * Hide the search box without closing it (state is preserved).
+ * Called by hideImageToolbar when the cursor leaves the hover zone.
+ */
+function _hideSearchBox(hash) {
+    // If the cursor is currently on the search box, ignore any hide request
+    // coming from toolbar/image mouseleave events — they fire in unpredictable order
+    if (_searchBoxHovered[hash]) {
+        return;
+    }
+    _searchBoxVisible[hash] = false;
+    var $searchBox = $('#svgSearch_' + hash);
+    if ($searchBox.length) {
+        $searchBox[0].style.opacity = '0';
+    }
+}
+
+/**
  * Open search box for the given SVG container.
  *
  * @param {string} hash - Element hash/ID
@@ -50,22 +132,8 @@ function _svgSearchOpen(hash, $box) {
     // Don't create duplicate
     if ($('#' + searchBoxId).length > 0) return;
 
-    // Build search box HTML
-    var $searchBox = $('<div>', {
-        id: searchBoxId,
-        css: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 8px',
-            background: '#f5f5f5',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            marginBottom: '4px',
-            fontFamily: 'Arial, sans-serif',
-            fontSize: '13px'
-        }
-    });
+    // Build search box — style applied entirely via _updateSearchBoxPosition (uses attr('style'))
+    var $searchBox = $('<div>').attr('id', searchBoxId);
 
     var $input = $('<input>', {
         type: 'text',
@@ -91,6 +159,19 @@ function _svgSearchOpen(hash, $box) {
         text: ''
     });
 
+    var navBtnCss = {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontSize: '14px',
+        lineHeight: '1',
+        padding: '0 3px',
+        color: '#444'
+    };
+
+    var $prevBtn = $('<button>', { html: '&#x2191;', title: 'Previous match (Shift+Enter)', css: navBtnCss });
+    var $nextBtn = $('<button>', { html: '&#x2193;', title: 'Next match (Enter)', css: navBtnCss });
+
     var $closeBtn = $('<button>', {
         html: '&times;',
         css: {
@@ -104,7 +185,7 @@ function _svgSearchOpen(hash, $box) {
         }
     });
 
-    $searchBox.append($input, $counter, $closeBtn);
+    $searchBox.append($input, $counter, $prevBtn, $nextBtn, $closeBtn);
 
     // Store state on the search box DOM element
     $searchBox.data('_svgState', {
@@ -114,8 +195,38 @@ function _svgSearchOpen(hash, $box) {
         debounceTimer: null
     });
 
-    // Insert as first child of parent container (above the toolbar icons)
-    $box.parent().prepend($searchBox);
+    // Link this search box to its toolbar so show/hide can be coordinated
+    var toolbarRefId = $box.prev().attr('id');
+    _toolbarToHashMap[toolbarRefId] = hash;
+    _searchBoxVisible[hash] = true;
+
+    // Hovering on the search box keeps it visible regardless of toolbar hide events
+    $searchBox.on('mouseenter', function () {
+        _searchBoxHovered[hash] = true;
+        _searchBoxVisible[hash] = true;
+        this.style.opacity = '1';
+        // Cancel any pending toolbar hide without re-triggering showImageToolbar
+        // (showImageToolbar can cause its own chain of enter/leave events)
+        if (typeof _hideToolbarTimers !== 'undefined' && _hideToolbarTimers[toolbarRefId]) {
+            clearTimeout(_hideToolbarTimers[toolbarRefId]);
+            delete _hideToolbarTimers[toolbarRefId];
+        }
+    });
+    $searchBox.on('mouseleave', function () {
+        _searchBoxHovered[hash] = false;
+        hideImageToolbar(toolbarRefId);
+    });
+
+    // Append to body so position:fixed is not affected by ancestor transforms/overflow
+    $('body').append($searchBox);
+
+    // Calculate initial position (to the right of toolbar buttons)
+    _updateSearchBoxPosition(hash, $box);
+
+    // Keep position updated if the page scrolls while the search box is open
+    var listener = function () { _updateSearchBoxPosition(hash, $box); };
+    _searchBoxScrollListeners[hash] = listener;
+    window.addEventListener('scroll', listener, true);
 
     // Check if this container has an SVG
     var $svg = $box.find('svg').first();
@@ -162,6 +273,10 @@ function _svgSearchOpen(hash, $box) {
         }
     });
 
+    // Prev / Next buttons
+    $prevBtn.on('click', function () { _svgSearchNavigate(hash, -1); });
+    $nextBtn.on('click', function () { _svgSearchNavigate(hash, 1); });
+
     // Close button
     $closeBtn.on('click', function () {
         _svgSearchClose(hash);
@@ -172,7 +287,7 @@ function _svgSearchOpen(hash, $box) {
 }
 
 /**
- * Close search box and clean up highlights.
+ * Close search box, clean up highlights and remove scroll listener.
  *
  * @param {string} hash - Element hash/ID
  */
@@ -188,6 +303,22 @@ function _svgSearchClose(hash) {
             _svgSearchClearHighlights(state);
         }
         $searchBox.remove();
+    }
+
+    var listener = _searchBoxScrollListeners[hash];
+    if (listener) {
+        window.removeEventListener('scroll', listener, true);
+        delete _searchBoxScrollListeners[hash];
+    }
+
+    // Clean up visibility state and toolbar mapping
+    delete _searchBoxVisible[hash];
+    delete _searchBoxHovered[hash];
+    for (var refId in _toolbarToHashMap) {
+        if (_toolbarToHashMap[refId] === hash) {
+            delete _toolbarToHashMap[refId];
+            break;
+        }
     }
 }
 

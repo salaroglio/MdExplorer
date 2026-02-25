@@ -4,7 +4,6 @@ import { versionInfo } from '../../../environments/version';
 import { MdNavigationService } from '../../md-explorer/services/md-navigation.service';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { Router } from '@angular/router';
-import { LayoutService } from '../../md-explorer/services/layout.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { MdFile } from '../../md-explorer/models/md-file';
 import { UnifiedSettingsDialogComponent } from '../unified-settings-dialog/unified-settings-dialog.component';
@@ -18,7 +17,6 @@ export class TitleBarComponent implements OnInit, OnDestroy {
   isElectron = false;
   version = versionInfo.version;
   buildTime = versionInfo.buildTime;
-  isSidenavOpen = true;
   isProjectOpened = false;
   isProjectsPage = false;
 
@@ -34,7 +32,6 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     public navService: MdNavigationService,
     private mdFileService: MdFileService,
     private router: Router,
-    private layoutService: LayoutService,
     private monitorMDService: MdServerMessagesService,
     private dialog: MatDialog
   ) {
@@ -43,11 +40,6 @@ export class TitleBarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Subscribe to sidenav state changes
-    this.layoutService.sidenavOpen$.subscribe(isOpen => {
-      this.isSidenavOpen = isOpen;
-    });
-
     // Subscribe to route changes to detect if we're in a project
     this.router.events.subscribe(() => {
       this.isProjectOpened = this.router.url.startsWith('/main');

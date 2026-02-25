@@ -37,6 +37,7 @@
 
 // Assicuriamoci che mat-sidenav non interferisca
 mat-sidenav {
+  overflow: hidden; // Evita doppia scrollbar: tree-scroll-wrapper gestisce lo scroll internamente
   flex-shrink: 0; // Il sidenav non deve ridursi
   padding-top: 30px; // Spazio per evitare sovrapposizione con titlebar
 }
@@ -189,13 +190,18 @@ mat-sidenav-content {
   flex: 1 !important;
 }
 
-// Overflow hidden solo nel tab che contiene la chat AI, per bloccare input in basso
+// Ogni tab gestisce il proprio scroll internamente (tree-scroll-wrapper, messages-container, ecc.)
+// mat-tab-body-content non deve mai aggiungere una propria scrollbar
+::ng-deep .mat-tab-body-content {
+  overflow: hidden !important;
+}
+
+// Altezza esplicita solo per i tab che usano height:100% internamente
 ::ng-deep .mat-tab-body:has(app-ai-chat) {
   height: 100% !important;
 
   .mat-tab-body-content {
     height: 100% !important;
-    overflow: hidden !important;
   }
 }
 

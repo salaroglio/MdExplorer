@@ -1696,6 +1696,56 @@ namespace MdExplorer.Service.Controllers.MdFiles
             };
             list.Add(nodeempty);
             
+            // Inietta nodi externalApp da .mdeapps.json (se presente)
+            var mdeAppsPath = Path.Combine(currentPath, ".mdeapps.json");
+            if (System.IO.File.Exists(mdeAppsPath))
+            {
+                try
+                {
+                    var appsJson = System.IO.File.ReadAllText(mdeAppsPath);
+                    var appsConfig = System.Text.Json.JsonSerializer.Deserialize<MdExplorer.Abstractions.Models.MdeAppsConfig>(
+                        appsJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    foreach (var app in appsConfig?.Apps ?? new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeAppDefinition>())
+                    {
+                        if (string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.Executable))
+                            continue;
+
+                        var execAbs = System.IO.Path.IsPathRooted(app.Executable)
+                            ? app.Executable
+                            : System.IO.Path.GetFullPath(System.IO.Path.Combine(currentPath, app.Executable));
+
+                        var appNode = new FileInfoNode
+                        {
+                            Name = app.Name ?? app.Id,
+                            Type = "externalApp",
+                            FullPath = $"__externalapp__{app.Id}",
+                            Path = $"__externalapp__{app.Id}",
+                            RelativePath = $"__externalapp__{app.Id}",
+                            Level = 0,
+                            Expandable = false,
+                            IsIndexed = true,
+                            IndexingStatus = "completed",
+                            AppId = app.Id,
+                            AppExecutable = execAbs,
+                            AppArgs = app.Args ?? new System.Collections.Generic.List<string>(),
+                            AppIcon = app.Icon ?? "launch",
+                            AppDescription = app.Description
+                        };
+
+                        if (app.TreePosition == "top")
+                            list.Insert(0, appNode);
+                        else
+                            list.Insert(list.Count > 0 ? list.Count - 1 : 0, appNode); // before emptyroot
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[GetShallowStructure] Failed to parse .mdeapps.json");
+                }
+            }
+
             // Avvia indicizzazione link in background solo se abilitata nel setting di progetto
             if (linkIndexingEnabled)
             {

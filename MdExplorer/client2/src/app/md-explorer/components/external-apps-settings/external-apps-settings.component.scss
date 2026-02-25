@@ -1,0 +1,73 @@
+.ext-apps-container {
+  padding: 16px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+  }
+}
+
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted, #888);
+  padding: 8px 0;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted, #888);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.app-list {
+  margin-bottom: 16px;
+}
+
+.app-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-exec {
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  font-family: monospace;
+}
+
+.app-desc {
+  font-size: 12px;
+  color: var(--text-muted, #999);
+  font-style: italic;
+}
+
+.add-form-card {
+  margin-top: 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.browse-btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}

@@ -24,5 +24,12 @@ namespace MdExplorer.Abstractions.Interfaces
 
         // Development tags per classificare le cartelle
         List<string> DevelopmentTags { get; set; }
+
+        // External app embedding
+        string AppId { get; set; }
+        string AppExecutable { get; set; }
+        List<string> AppArgs { get; set; }
+        string AppIcon { get; set; }
+        string AppDescription { get; set; }
     }
 }

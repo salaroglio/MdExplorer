@@ -5,7 +5,7 @@
     <span class="app-version">v{{ version }}</span>
   </div>
   
-  <div class="navigation-controls" *ngIf="isSidenavOpen && isProjectOpened">
+  <div class="navigation-controls" *ngIf="isProjectOpened">
     <button mat-icon-button
             (click)="backward()"
             [disabled]="navService.navigationGhost.length <= 1"

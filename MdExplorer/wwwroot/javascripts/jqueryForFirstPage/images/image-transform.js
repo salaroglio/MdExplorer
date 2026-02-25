@@ -19,28 +19,97 @@
  * - POST /api/WriteMD/SaveImgPositionAndSize
  */
 
+// Scroll listeners keyed by referenceId, to clean up on hide
+var _toolbarScrollListeners = {};
+
+// Pending hide timers keyed by referenceId (allows mouseenter on search box to cancel)
+var _hideToolbarTimers = {};
+
 /**
- * Show image toolbar on hover
- * Positions toolbar absolutely relative to image
+ * Recalculate and apply position:fixed coordinates for the toolbar,
+ * clamping to the container's visible top-left corner in the viewport.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _updateToolbarPosition(referenceId) {
+    var $toolbar = $('#' + referenceId);
+    if (!$toolbar.length || $toolbar.css('display') === 'none') return;
+
+    var rect = $toolbar.parent()[0].getBoundingClientRect();
+    var top = Math.max(0, rect.top) + 20;
+    var left = Math.max(0, rect.left);
+
+    $toolbar.css({ top: top + 'px', left: left + 'px' });
+}
+
+/**
+ * Show image toolbar on hover.
+ * Uses position:fixed so the buttons stay visible at the top-left of the
+ * container's visible area even when the image is larger than the viewport
+ * and the user scrolls or pans horizontally.
  *
  * @param {string} referenceId - ID of toolbar element
  */
 function showImageToolbar(referenceId) {
+    // Cancel any pending hide so moving to the search box doesn't cause a flicker
+    if (_hideToolbarTimers[referenceId]) {
+        clearTimeout(_hideToolbarTimers[referenceId]);
+        delete _hideToolbarTimers[referenceId];
+    }
+
     var $element = $('#' + referenceId);
-    var divStyle = getComputedStyle($element[0]);
-    var rect = $element[0].getBoundingClientRect();
-    var test = rect.top;
-    $element.attr("style", "display:block; position:absolute;");
+    var rect = $element.parent()[0].getBoundingClientRect();
+    var top = Math.max(0, rect.top) + 20;
+    var left = Math.max(0, rect.left);
+
+    $element.attr("style",
+        "display:block; position:fixed; top:" + top + "px; left:" + left + "px; z-index:100;");
+
+    // Guard against double-adding the scroll listener
+    if (!_toolbarScrollListeners[referenceId]) {
+        var listener = function () { _updateToolbarPosition(referenceId); };
+        _toolbarScrollListeners[referenceId] = listener;
+        window.addEventListener('scroll', listener, true);
+    }
+
+    // Re-show the search box if it was open for this toolbar's image.
+    // _showSearchBox only changes opacity — no repositioning — to avoid
+    // the element moving under the cursor and triggering an immediate mouseleave.
+    if (typeof _toolbarToHashMap !== 'undefined' && _toolbarToHashMap[referenceId]) {
+        var hash = _toolbarToHashMap[referenceId];
+        if (typeof _showSearchBox === 'function') {
+            _showSearchBox(hash);
+        }
+    }
 }
 
 /**
- * Hide image toolbar
+ * Hide image toolbar (with a short delay so cursor can move to the search box
+ * without triggering a hide) and remove the associated scroll listener.
  *
  * @param {string} referenceId - ID of toolbar element
  */
 function hideImageToolbar(referenceId) {
-    var $element = $('#' + referenceId);
-    $element.attr("style", "display:none;");
+    _hideToolbarTimers[referenceId] = setTimeout(function () {
+        delete _hideToolbarTimers[referenceId];
+
+        var $element = $('#' + referenceId);
+        $element.attr("style", "display:none;");
+
+        var listener = _toolbarScrollListeners[referenceId];
+        if (listener) {
+            window.removeEventListener('scroll', listener, true);
+            delete _toolbarScrollListeners[referenceId];
+        }
+
+        // Hide the search box together with the toolbar
+        if (typeof _toolbarToHashMap !== 'undefined' && _toolbarToHashMap[referenceId]) {
+            var hash = _toolbarToHashMap[referenceId];
+            if (typeof _hideSearchBox === 'function') {
+                _hideSearchBox(hash);
+            }
+        }
+    }, 150);
 }
 
 /**

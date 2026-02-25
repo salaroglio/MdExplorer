@@ -53,5 +53,21 @@ namespace MdExplorer.Abstractions.Models
         // Development tags per classificare le cartelle
         [JsonPropertyName("developmentTags")]
         public List<string> DevelopmentTags { get; set; } = new List<string>();
+
+        // External app embedding
+        [JsonPropertyName("appId")]
+        public string AppId { get; set; }
+
+        [JsonPropertyName("appExecutable")]
+        public string AppExecutable { get; set; }
+
+        [JsonPropertyName("appArgs")]
+        public List<string> AppArgs { get; set; }
+
+        [JsonPropertyName("appIcon")]
+        public string AppIcon { get; set; }
+
+        [JsonPropertyName("appDescription")]
+        public string AppDescription { get; set; }
     }
 }
