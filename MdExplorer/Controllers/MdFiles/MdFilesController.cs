@@ -1709,17 +1709,47 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     foreach (var app in appsConfig?.Apps ?? new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeAppDefinition>())
                     {
-                        if (string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.Executable))
+                        if (string.IsNullOrWhiteSpace(app.Id))
                             continue;
 
-                        var execAbs = System.IO.Path.IsPathRooted(app.Executable)
-                            ? app.Executable
-                            : System.IO.Path.GetFullPath(System.IO.Path.Combine(currentPath, app.Executable));
+                        string execAbs;
+                        string nodeType;
+
+                        if (!string.IsNullOrWhiteSpace(app.Executable))
+                        {
+                            // App custom (local executable configured in .mdeapps.json)
+                            execAbs = System.IO.Path.IsPathRooted(app.Executable)
+                                ? app.Executable
+                                : System.IO.Path.GetFullPath(System.IO.Path.Combine(currentPath, app.Executable));
+                            nodeType = "externalApp";
+                        }
+                        else
+                        {
+                            // Store app: resolve from InstalledApp table
+                            execAbs = null;
+                            nodeType = "externalAppNotInstalled";
+                            try
+                            {
+                                var installed = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.InstalledApp>()
+                                    .GetList()
+                                    .FirstOrDefault(a => a.AppId == app.Id);
+
+                                if (installed != null)
+                                {
+                                    execAbs = System.IO.Path.Combine(installed.LocalPath, installed.ExecutableName);
+                                    nodeType = "externalApp";
+                                }
+                            }
+                            catch (Exception exInstalled)
+                            {
+                                _logger.LogWarning(exInstalled, "[GetShallowStructure] Could not query InstalledApp for '{AppId}' — treating as not installed", app.Id);
+                            }
+                        }
 
                         var appNode = new FileInfoNode
                         {
                             Name = app.Name ?? app.Id,
-                            Type = "externalApp",
+                            Type = nodeType,
                             FullPath = $"__externalapp__{app.Id}",
                             Path = $"__externalapp__{app.Id}",
                             RelativePath = $"__externalapp__{app.Id}",
@@ -1730,7 +1760,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                             AppId = app.Id,
                             AppExecutable = execAbs,
                             AppArgs = app.Args ?? new System.Collections.Generic.List<string>(),
-                            AppIcon = app.Icon ?? "launch",
+                            AppIcon = app.Icon ?? (nodeType == "externalAppNotInstalled" ? "cloud_download" : "launch"),
                             AppDescription = app.Description
                         };
 

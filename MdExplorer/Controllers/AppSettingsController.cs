@@ -77,28 +77,57 @@ namespace MdExplorer.Service.Controllers
             _logger.LogInformation($"[SetSettings] Received {settings?.settings?.Length ?? 0} settings to save");
 
             var settingsDal = _session.GetDal<Setting>();
+            var allDbSettings = settingsDal.GetList().ToList();
+            // Evict all loaded Setting entities to prevent NHibernate dirty-check issues
+            // (migration-seeded GUIDs use text format which conflicts with NHibernate's binary GUID parameters)
+            foreach (var s in allDbSettings)
+                _session.Evict(s);
+
             _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
             foreach (var item in settings.settings)
             {
                 _logger.LogInformation($"[SetSettings] Processing: Id={item.id}, Name={item.name}, ValueString={item.valueString}");
 
-                var dbItem = settingsDal.GetList().Where(_ => _.Id == item.id).FirstOrDefault();
+                var dbItem = allDbSettings.FirstOrDefault(_ => _.Id == item.id);
 
-                if (dbItem == null)
+                // Fallback: search by Name if Id not found (e.g. new settings added from frontend)
+                if (dbItem == null && !string.IsNullOrEmpty(item.name))
                 {
-                    _logger.LogWarning($"[SetSettings] Setting not found in DB: Id={item.id}, Name={item.name}");
-                    continue;
+                    dbItem = allDbSettings.FirstOrDefault(_ => _.Name == item.name);
                 }
 
-                _logger.LogInformation($"[SetSettings] Found in DB: Id={dbItem.Id}, Name={dbItem.Name}, OldValue={dbItem.ValueString}");
-
-                dbItem.ValueDateTime = item.valueDateTime;
-                dbItem.ValueDecimal = item.valueDecimal;
-                dbItem.ValueInt = item.valueInt;
-                dbItem.ValueString = item.valueString;
-                settingsDal.Save(dbItem);
-
-                _logger.LogInformation($"[SetSettings] Saved: Name={dbItem.Name}, NewValue={dbItem.ValueString}");
+                if (dbItem != null)
+                {
+                    _logger.LogInformation($"[SetSettings] Found in DB: Id={dbItem.Id}, Name={dbItem.Name}, OldValue={dbItem.ValueString}");
+                    // Use raw SQL to bypass NHibernate GUID format mismatch on migration-seeded entities
+                    _session.CreateSQLQuery("UPDATE Setting SET ValueString = :val, ValueInt = :vi, ValueDecimal = :vd, ValueDateTime = :vdt WHERE Name = :name")
+                        .SetParameter("val", item.valueString ?? "")
+                        .SetParameter("vi", item.valueInt, NHibernateUtil.Int32)
+                        .SetParameter("vd", item.valueDecimal, NHibernateUtil.Decimal)
+                        .SetParameter("vdt", item.valueDateTime, NHibernateUtil.DateTime)
+                        .SetParameter("name", dbItem.Name)
+                        .ExecuteUpdate();
+                    _logger.LogInformation($"[SetSettings] Updated: Name={dbItem.Name}, NewValue={item.valueString}");
+                }
+                else if (!string.IsNullOrEmpty(item.name))
+                {
+                    _logger.LogInformation($"[SetSettings] Creating new setting: Name={item.name}, Value={item.valueString}");
+                    var newSetting = new Setting
+                    {
+                        Name = item.name,
+                        ValueString = item.valueString,
+                        ValueInt = item.valueInt,
+                        ValueDecimal = item.valueDecimal,
+                        ValueDateTime = item.valueDateTime
+                    };
+                    settingsDal.Save(newSetting); // GuidComb generates Id in correct binary format
+                    _logger.LogInformation($"[SetSettings] Created: Name={newSetting.Name}, Value={newSetting.ValueString}");
+                }
+                else
+                {
+                    _logger.LogWarning($"[SetSettings] Setting not found in DB and no name provided: Id={item.id}");
+                    continue;
+                }
             }
             _session.Commit();
             _logger.LogInformation("[SetSettings] Transaction committed");

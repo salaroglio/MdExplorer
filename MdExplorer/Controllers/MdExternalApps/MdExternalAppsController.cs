@@ -85,8 +85,8 @@ namespace MdExplorer.Controllers.MdExternalApps
         [HttpPost("Add")]
         public IActionResult AddApp([FromBody] MdeAppDefinition app)
         {
-            if (app == null || string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.Executable))
-                return BadRequest(new { error = "App id and executable are required." });
+            if (app == null || string.IsNullOrWhiteSpace(app.Id))
+                return BadRequest(new { error = "App id is required." });
 
             var projectPath = GetProjectPath();
             if (string.IsNullOrEmpty(projectPath))

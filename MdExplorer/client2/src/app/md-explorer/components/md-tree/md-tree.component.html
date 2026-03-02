@@ -219,6 +219,18 @@
     <div class="node-text" style="cursor:pointer; padding: 2px;">{{ node.name }}</div>
   </mat-tree-node>
 
+  <mat-tree-node *matTreeNodeDef="let node;when: isExternalAppNotInstalled"
+                 matTreeNodePadding
+                 style="cursor:pointer; opacity: 0.55;"
+                 [ngClass]="{ 'selected': isNodeSelected(node) }"
+                 (click)="getNode(node)"
+                 [matTooltip]="'Not installed — click to open App Store'">
+    <button mat-icon-button style="cursor:pointer; color: #9e9e9e;">
+      <mat-icon>cloud_download</mat-icon>
+    </button>
+    <div class="node-text" style="cursor:pointer; padding: 2px; color: #9e9e9e;">{{ node.name }}</div>
+  </mat-tree-node>
+
   <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">
     <button mat-icon-button matTreeNodeToggle></button>
   </mat-tree-node>

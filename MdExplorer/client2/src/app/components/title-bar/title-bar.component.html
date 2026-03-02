@@ -57,6 +57,15 @@
       <mat-icon>hub</mat-icon>
       <span>Embedding</span>
     </button>
+    <button mat-menu-item (click)="openAppStoreSettings()">
+      <mat-icon>storefront</mat-icon>
+      <span>App Store Settings</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="navigateToAppStore()">
+      <mat-icon>storefront</mat-icon>
+      <span>App Store</span>
+    </button>
   </mat-menu>
 
   <div class="window-controls" *ngIf="isElectron">

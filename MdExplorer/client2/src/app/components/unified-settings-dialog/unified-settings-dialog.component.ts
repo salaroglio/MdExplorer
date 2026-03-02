@@ -26,6 +26,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   intellijPath: string = '';
   jiraServer: string = '';
   plantumlLocalPath: string = '';
+
   javaPath: string = '';
   localGraphvizDotPath: string = '';
   fileChangeNotificationEnabled: boolean = true;

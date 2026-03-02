@@ -21,6 +21,16 @@
     <p class="state-label">Select an external app from the tree.</p>
   </div>
 
+  <!-- Not installed state -->
+  <div *ngIf="state === 'notInstalled'" class="state-panel not-installed-panel">
+    <mat-icon class="not-installed-icon">cloud_download</mat-icon>
+    <p class="state-label"><strong>{{ currentAppName }}</strong> is not installed on this machine.</p>
+    <p class="state-hint">Go to Project Settings → Apps to install it from the App Store.</p>
+    <button mat-raised-button color="primary" (click)="goToAppStore()">
+      <mat-icon>storefront</mat-icon> Open App Store
+    </button>
+  </div>
+
   <!-- iframe — standard DOM element, respects CSS z-index (unlike WebContentsView) -->
   <iframe *ngIf="state === 'ready' && appUrl"
           [src]="appUrl | safe"
