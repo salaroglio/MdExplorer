@@ -125,6 +125,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name == "mdPublish";
   isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
   isExternalApp = (_: number, node: IFileInfoNode) => node.type == "externalApp";
+  isExternalAppNotInstalled = (_: number, node: IFileInfoNode) => node.type == "externalAppNotInstalled";
 
   ///////////////////////////////
 
@@ -431,18 +432,27 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // External app: navigate to dedicated route
+    // External app: direct desktop launch (fire-and-forget, no iframe)
     if (node.type === 'externalApp') {
-      try {
-        await this.router.navigate(['/main/navigation/external-app']);
-        this.mdFileService.setSelectedMdFileFromSideNav(node);
-        this.activeNode = node;
-        this.selectedNode = node;
-        this.changeDetectorRef.markForCheck();
-      } catch (error) {
-        console.error('Navigation to external-app failed:', error);
-        this.snackBar.open('Errore di navigazione', 'OK', { duration: 3000 });
+      if ((window as any).electronAPI?.externalApp?.open) {
+        try {
+          const result = await (window as any).electronAPI.externalApp.open(
+            node.appId, node.appExecutable, node.appArgs ?? []);
+          if (result.success) {
+            this.snackBar.open(`"${node.name}" avviata`, '', { duration: 2000 });
+          } else {
+            this.snackBar.open(`Errore: ${result.error}`, 'OK', { duration: 5000 });
+          }
+        } catch (err) {
+          this.snackBar.open('Errore nel lancio dell\'app', 'OK', { duration: 3000 });
+        }
+      } else {
+        this.snackBar.open('Le app esterne richiedono la versione desktop (Electron)', 'OK', { duration: 3000 });
       }
+      return;
+    }
+    if (node.type === 'externalAppNotInstalled') {
+      await this.router.navigate(['/main/app-store']);
       return;
     }
 

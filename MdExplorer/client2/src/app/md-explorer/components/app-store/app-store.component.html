@@ -1,0 +1,426 @@
+<div class="app-store-container">
+
+  <div class="section-header">
+    <h3><mat-icon class="header-icon">storefront</mat-icon> App Store</h3>
+  </div>
+
+  <mat-tab-group animationDuration="0ms" class="store-tabs">
+
+    <!-- ═══════════════════════════════════════════════
+         TAB 1 — Store
+    ════════════════════════════════════════════════ -->
+    <mat-tab label="Store">
+      <div class="tab-content">
+
+        <!-- Repo header(s) -->
+        <div class="repo-header" *ngFor="let ri of repoInfos" [hidden]="!ri.repoName && !ri.repoCompany">
+          <img *ngIf="ri.repoLogo" [src]="ri.repoLogo" class="repo-logo">
+          <div class="repo-header-info">
+            <h2 class="repo-name" *ngIf="ri.repoName">{{ ri.repoName }}</h2>
+            <span class="repo-company" *ngIf="ri.repoCompany">{{ ri.repoCompany }}</span>
+            <p class="repo-description" *ngIf="ri.repoDescription">{{ ri.repoDescription }}</p>
+          </div>
+        </div>
+
+        <!-- Store header actions -->
+        <div class="store-actions">
+          <button mat-stroked-button color="primary" (click)="loadCatalog()" [disabled]="isLoadingCatalog">
+            <mat-icon>refresh</mat-icon> Carica Catalog
+          </button>
+          <span class="repos-count" *ngIf="repos.length > 0">{{ repos.length }} repo</span>
+        </div>
+
+        <!-- Search -->
+        <mat-form-field appearance="outline" class="search-field" *ngIf="catalogApps.length > 0">
+          <mat-label>Cerca app...</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [(ngModel)]="searchQuery" placeholder="Filtra per nome o descrizione">
+          <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery = ''">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <!-- Loading -->
+        <div *ngIf="isLoadingCatalog" class="loading-row">
+          <mat-spinner diameter="24"></mat-spinner>
+          <span>Caricamento catalog...</span>
+        </div>
+
+        <!-- Empty state -->
+        <div *ngIf="catalogApps.length === 0 && !isLoadingCatalog" class="empty-state">
+          <mat-icon>storefront</mat-icon>
+          <span *ngIf="repos.length > 0">Clicca <strong>Carica Catalog</strong> per sfogliare le app disponibili.</span>
+          <span *ngIf="repos.length === 0">Nessun repository configurato. Vai in <strong>Settings > Application</strong> per aggiungerne uno.</span>
+        </div>
+
+        <!-- No search results -->
+        <div *ngIf="filteredCatalogApps.length === 0 && catalogApps.length > 0 && !isLoadingCatalog" class="empty-state">
+          <mat-icon>search_off</mat-icon>
+          <span>Nessun risultato per "<strong>{{ searchQuery }}</strong>"</span>
+        </div>
+
+        <!-- Catalog list -->
+        <div *ngIf="filteredCatalogApps.length > 0" class="catalog-list">
+          <div *ngFor="let app of filteredCatalogApps" class="catalog-card">
+            <div class="catalog-card-icon">
+              <img *ngIf="app.icon?.startsWith('data:')" [src]="app.icon" class="app-icon-img">
+              <mat-icon *ngIf="!app.icon?.startsWith('data:')">{{ app.icon || 'launch' }}</mat-icon>
+            </div>
+            <div class="catalog-card-info">
+              <div class="catalog-card-title">
+                {{ app.name }}
+                <span class="version-chip">v{{ app.version }}</span>
+                <span *ngIf="isInstalled(app) && !hasUpdate(app)" class="badge installed">Installata</span>
+                <span *ngIf="hasUpdate(app)" class="badge update">Aggiornamento disponibile</span>
+                <span *ngIf="app.repoLabel && repos.length > 1" class="badge repo-badge">{{ app.repoLabel }}</span>
+                <span *ngFor="let p of getAppPlatforms(app)"
+                      class="badge platform"
+                      [class.current-platform]="p === currentPlatform">
+                  <mat-icon class="platform-icon">{{ p === 'windows' ? 'desktop_windows' : 'terminal' }}</mat-icon>
+                  {{ p }}
+                </span>
+              </div>
+              <div *ngIf="app.description" class="app-desc">{{ app.description }}</div>
+              <div *ngIf="app.changelog" class="app-changelog">{{ app.changelog }}</div>
+            </div>
+            <div class="catalog-card-actions">
+              <span *ngIf="!isAvailableForPlatform(app) && !isInstalled(app)" class="not-available-hint">
+                Non disponibile per {{ currentPlatform }}
+              </span>
+              <button mat-stroked-button color="primary"
+                      *ngIf="!isInstalled(app) && isAvailableForPlatform(app) && !installingAppIds.has(app.id)"
+                      (click)="installApp(app)">
+                <mat-icon>download</mat-icon> Installa
+              </button>
+              <button mat-stroked-button color="accent"
+                      *ngIf="hasUpdate(app) && isAvailableForPlatform(app) && !installingAppIds.has(app.id)"
+                      (click)="installApp(app)">
+                <mat-icon>update</mat-icon> Aggiorna
+              </button>
+              <button mat-stroked-button color="warn"
+                      *ngIf="isInstalled(app) && !uninstallingAppIds.has(app.id)"
+                      (click)="uninstallApp(app.id, app.name)">
+                <mat-icon>delete</mat-icon> Rimuovi
+              </button>
+              <button mat-stroked-button
+                      *ngIf="isInstalled(app) && !isAssociatedToProject(app)"
+                      (click)="associateToProject(app)" matTooltip="Aggiungi al progetto corrente">
+                <mat-icon>add_circle_outline</mat-icon> Associa
+              </button>
+              <button mat-stroked-button color="warn"
+                      *ngIf="isInstalled(app) && isAssociatedToProject(app)"
+                      (click)="dissociateFromProject(app)" matTooltip="Rimuovi dal progetto corrente">
+                <mat-icon>remove_circle_outline</mat-icon> Dissocia
+              </button>
+              <mat-spinner diameter="20"
+                           *ngIf="installingAppIds.has(app.id) || uninstallingAppIds.has(app.id)">
+              </mat-spinner>
+            </div>
+          </div>
+        </div>
+
+        <!-- Installed apps (when catalog not loaded) -->
+        <div *ngIf="installedApps.length > 0 && catalogApps.length === 0 && !isLoadingCatalog">
+          <div class="store-actions" style="margin-top: 16px;">
+            <h4>App installate</h4>
+          </div>
+          <mat-list class="catalog-list">
+            <mat-list-item *ngFor="let app of installedApps" class="catalog-item">
+              <img *ngIf="app.icon?.startsWith('data:')" [src]="app.icon" class="app-icon-img" matListItemIcon>
+              <mat-icon *ngIf="!app.icon?.startsWith('data:')" matListItemIcon>{{ app.icon || 'launch' }}</mat-icon>
+              <div matListItemTitle>{{ app.name }} <span class="version-chip">v{{ app.version }}</span></div>
+              <button mat-icon-button color="warn" matTooltip="Disinstalla"
+                      [disabled]="uninstallingAppIds.has(app.appId)"
+                      (click)="uninstallApp(app.appId, app.name)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-list-item>
+          </mat-list>
+        </div>
+
+      </div>
+    </mat-tab>
+
+    <!-- ═══════════════════════════════════════════════
+         TAB 2 — Pubblica
+    ════════════════════════════════════════════════ -->
+    <mat-tab label="Pubblica">
+      <div class="tab-content">
+
+        <!-- Warning: no repos configured -->
+        <div *ngIf="!isSettingsConfigured" class="settings-warning">
+          <mat-icon>warning</mat-icon>
+          <span>Nessun repository configurato. Vai in <strong>Settings > Application</strong> per aggiungere un repository.</span>
+        </div>
+
+        <mat-card class="settings-card">
+          <mat-card-header>
+            <mat-card-title>Pubblica nuova app</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+
+            <!-- Repo selector -->
+            <mat-form-field appearance="outline" class="full-width" *ngIf="repos.length > 1">
+              <mat-label>Repository di destinazione</mat-label>
+              <mat-select [(ngModel)]="selectedRepoId">
+                <mat-option *ngFor="let repo of repos" [value]="repo.id">{{ repo.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Platform selector -->
+            <div class="platform-selector">
+              <label class="platform-selector-label">Piattaforma</label>
+              <mat-button-toggle-group [(ngModel)]="publishPlatform" (change)="onPlatformChange()">
+                <mat-button-toggle value="windows">
+                  <mat-icon class="platform-icon">desktop_windows</mat-icon> Windows
+                </mat-button-toggle>
+                <mat-button-toggle value="linux">
+                  <mat-icon class="platform-icon">terminal</mat-icon> Linux
+                </mat-button-toggle>
+              </mat-button-toggle-group>
+            </div>
+
+            <p class="publish-hint" *ngIf="publishPlatform === 'windows'">
+              Il file deve seguire la convenzione: <code>{{ '{' }}appId{{ '}' }}-setup-{{ '{' }}version{{ '}' }}.exe</code><br>
+              Esempio: <code>my-tool-setup-1.0.0.exe</code>
+            </p>
+            <p class="publish-hint" *ngIf="publishPlatform === 'linux'">
+              Il file deve seguire la convenzione: <code>{{ '{' }}appId{{ '}' }}-{{ '{' }}version{{ '}' }}.AppImage</code><br>
+              Esempio: <code>my-tool-1.0.0.AppImage</code>
+            </p>
+
+            <!-- File picker -->
+            <div class="file-picker">
+              <button mat-stroked-button type="button" (click)="fileInput.click()">
+                <mat-icon>folder_open</mat-icon> Seleziona {{ publishPlatform === 'linux' ? 'AppImage' : 'installer' }}...
+              </button>
+              <span *ngIf="selectedFile" class="file-name">
+                <mat-icon>inventory_2</mat-icon>
+                {{ selectedFile.name }} ({{ (selectedFile.size / 1024 / 1024).toFixed(1) }} MB)
+              </span>
+              <div *ngIf="publishFilenameError" class="filename-error">
+                <mat-icon>error</mat-icon> {{ publishFilenameError }}
+              </div>
+              <input #fileInput type="file" [accept]="publishFileAccept" style="display:none"
+                     (change)="onFileSelected($event)">
+            </div>
+
+            <!-- Metadata editing form -->
+            <div *ngIf="publishMetadata" class="publish-metadata">
+              <div class="form-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>App ID</mat-label>
+                  <input matInput [value]="publishMetadata.appId" readonly>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Versione</mat-label>
+                  <input matInput [value]="publishMetadata.version" readonly>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Nome</mat-label>
+                  <input matInput [(ngModel)]="publishMetadata.name">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Descrizione *</mat-label>
+                  <textarea matInput [(ngModel)]="publishMetadata.description" required
+                            #descriptionField="ngModel"
+                            rows="3" placeholder="Descrivi la tua app..."></textarea>
+                  <mat-error *ngIf="descriptionField.invalid">La descrizione è obbligatoria</mat-error>
+                </mat-form-field>
+              </div>
+
+              <!-- Custom icon picker -->
+              <div class="icon-picker">
+                <label class="icon-label">Icona personalizzata</label>
+                <div class="icon-picker-row">
+                  <div class="icon-preview-area">
+                    <img *ngIf="customIconPreview" [src]="customIconPreview" class="icon-preview-img">
+                    <mat-icon *ngIf="!customIconPreview" class="icon-placeholder">image</mat-icon>
+                  </div>
+                  <button mat-stroked-button type="button" (click)="iconInput.click()" *ngIf="!customIconFile">
+                    <mat-icon>upload</mat-icon> Carica icona
+                  </button>
+                  <button mat-stroked-button color="warn" type="button" (click)="removeCustomIcon()" *ngIf="customIconFile">
+                    <mat-icon>close</mat-icon> Rimuovi
+                  </button>
+                  <input #iconInput type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none"
+                         (change)="onIconSelected($event)">
+                </div>
+                <mat-hint class="icon-hint" *ngIf="publishPlatform === 'windows'">Opzionale — se non fornita, verrà estratta dall'exe</mat-hint>
+                <mat-hint class="icon-hint" *ngIf="publishPlatform === 'linux'">L'icona non viene estratta automaticamente — si consiglia di caricare un'icona personalizzata</mat-hint>
+              </div>
+            </div>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button mat-raised-button color="primary"
+                    (click)="publishApp()"
+                    [disabled]="isPublishing || !selectedFile || !publishMetadata || !!publishFilenameError || !publishMetadata?.description?.trim()">
+              <mat-spinner *ngIf="isPublishing" diameter="18" class="btn-spinner"></mat-spinner>
+              <mat-icon *ngIf="!isPublishing">cloud_upload</mat-icon>
+              {{ isPublishing ? 'Pubblicazione...' : 'Pubblica su Nexus' }}
+            </button>
+          </mat-card-actions>
+        </mat-card>
+
+        <!-- Repository metadata -->
+        <mat-card class="settings-card" style="margin-top: 16px;">
+          <mat-card-header>
+            <mat-card-title>Metadata Repository</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="form-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Nome Repository</mat-label>
+                <input matInput [(ngModel)]="repoMetadata.repoName" placeholder="My App Store">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Azienda</mat-label>
+                <input matInput [(ngModel)]="repoMetadata.repoCompany" placeholder="Company Name">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Descrizione Repository</mat-label>
+                <textarea matInput [(ngModel)]="repoMetadata.repoDescription" rows="2"
+                          placeholder="Descrizione del repository..."></textarea>
+              </mat-form-field>
+            </div>
+
+            <!-- Logo picker -->
+            <div class="icon-picker">
+              <label class="icon-label">Logo repository</label>
+              <div class="icon-picker-row">
+                <div class="icon-preview-area repo-logo-preview-area">
+                  <img *ngIf="repoLogoPreview || catalog?.repoLogo"
+                       [src]="repoLogoPreview || catalog?.repoLogo"
+                       class="icon-preview-img repo-logo-preview-img">
+                  <mat-icon *ngIf="!repoLogoPreview && !catalog?.repoLogo" class="icon-placeholder">image</mat-icon>
+                </div>
+                <button mat-stroked-button type="button" (click)="repoLogoInput.click()" *ngIf="!repoLogoFile">
+                  <mat-icon>upload</mat-icon> Carica logo
+                </button>
+                <button mat-stroked-button color="warn" type="button" (click)="removeRepoLogo()" *ngIf="repoLogoFile">
+                  <mat-icon>close</mat-icon> Rimuovi
+                </button>
+                <input #repoLogoInput type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none"
+                       (change)="onRepoLogoSelected($event)">
+              </div>
+            </div>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button mat-raised-button color="primary"
+                    (click)="saveCatalogMetadata()"
+                    [disabled]="isSavingMetadata || !isSettingsConfigured">
+              <mat-spinner *ngIf="isSavingMetadata" diameter="18" class="btn-spinner"></mat-spinner>
+              <mat-icon *ngIf="!isSavingMetadata">save</mat-icon>
+              {{ isSavingMetadata ? 'Salvataggio...' : 'Salva metadata repository' }}
+            </button>
+          </mat-card-actions>
+        </mat-card>
+
+      </div>
+    </mat-tab>
+
+    <!-- ═══════════════════════════════════════════════
+         TAB 3 — Gestisci
+    ════════════════════════════════════════════════ -->
+    <mat-tab label="Gestisci">
+      <div class="tab-content">
+
+        <!-- Load catalog first -->
+        <div *ngIf="catalogApps.length === 0 && !isLoadingCatalog" class="empty-state">
+          <mat-icon>edit_note</mat-icon>
+          <span>Clicca <strong>Carica Catalog</strong> nel tab Store per caricare le app, poi torna qui per gestirle.</span>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="isLoadingCatalog" class="loading-row">
+          <mat-spinner diameter="24"></mat-spinner>
+          <span>Caricamento catalog...</span>
+        </div>
+
+        <!-- Apps list -->
+        <mat-list *ngIf="catalogApps.length > 0" class="catalog-list">
+          <mat-list-item *ngFor="let app of catalogApps" class="catalog-item manage-list-item">
+            <img *ngIf="app.icon?.startsWith('data:')" [src]="app.icon" class="app-icon-img" matListItemIcon>
+            <mat-icon *ngIf="!app.icon?.startsWith('data:')" matListItemIcon>{{ app.icon || 'launch' }}</mat-icon>
+            <div matListItemTitle>
+              {{ app.name }}
+              <span class="version-chip">v{{ app.version }}</span>
+            </div>
+            <div matListItemLine *ngIf="app.description" class="app-desc">{{ app.description }}</div>
+            <button mat-icon-button color="primary" matTooltip="Modifica"
+                    (click)="startEdit(app)" [disabled]="editingEntry?.id === app.id">
+              <mat-icon>edit</mat-icon>
+            </button>
+          </mat-list-item>
+        </mat-list>
+
+        <!-- Edit form -->
+        <mat-card *ngIf="editingEntry" class="settings-card edit-card">
+          <mat-card-header>
+            <mat-card-title>Modifica: {{ editingEntry.name }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="form-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>App ID</mat-label>
+                <input matInput [value]="editingEntry.id" readonly>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Versione</mat-label>
+                <input matInput [(ngModel)]="editForm.version">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Nome</mat-label>
+                <input matInput [(ngModel)]="editForm.name">
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Descrizione</mat-label>
+                <textarea matInput [(ngModel)]="editForm.description" rows="3"></textarea>
+              </mat-form-field>
+            </div>
+
+            <!-- Icon picker -->
+            <div class="icon-picker">
+              <label class="icon-label">Icona</label>
+              <div class="icon-picker-row">
+                <div class="icon-preview-area">
+                  <img *ngIf="editIconPreview || editingEntry.icon?.startsWith('data:')"
+                       [src]="editIconPreview || editingEntry.icon" class="icon-preview-img">
+                  <mat-icon *ngIf="!editIconPreview && !editingEntry.icon?.startsWith('data:')" class="icon-placeholder">image</mat-icon>
+                </div>
+                <button mat-stroked-button type="button" (click)="editIconInput.click()" *ngIf="!editIconFile">
+                  <mat-icon>upload</mat-icon> Cambia icona
+                </button>
+                <button mat-stroked-button color="warn" type="button"
+                        (click)="editIconFile = null; editIconPreview = null" *ngIf="editIconFile">
+                  <mat-icon>close</mat-icon> Rimuovi
+                </button>
+                <input #editIconInput type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none"
+                       (change)="onEditIconSelected($event)">
+              </div>
+            </div>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button mat-button (click)="cancelEdit()">Annulla</button>
+            <button mat-raised-button color="primary" (click)="saveEdit()" [disabled]="isSavingEntry">
+              <mat-spinner *ngIf="isSavingEntry" diameter="18" class="btn-spinner"></mat-spinner>
+              <mat-icon *ngIf="!isSavingEntry">save</mat-icon>
+              {{ isSavingEntry ? 'Salvataggio...' : 'Salva' }}
+            </button>
+          </mat-card-actions>
+        </mat-card>
+
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+
+</div>

@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { MdFile } from '../../md-explorer/models/md-file';
 import { UnifiedSettingsDialogComponent } from '../unified-settings-dialog/unified-settings-dialog.component';
+import { AppStoreSettingsDialogComponent } from '../app-store-settings-dialog/app-store-settings-dialog.component';
 
 @Component({
   selector: 'app-title-bar',
@@ -176,5 +177,16 @@ export class TitleBarComponent implements OnInit, OnDestroy {
       maxHeight: '80vh',
       data: { initialTab: tab }
     });
+  }
+
+  openAppStoreSettings(): void {
+    this.dialog.open(AppStoreSettingsDialogComponent, {
+      width: '700px',
+      maxHeight: '80vh'
+    });
+  }
+
+  navigateToAppStore(): void {
+    this.router.navigate(['/main/app-store']);
   }
 }

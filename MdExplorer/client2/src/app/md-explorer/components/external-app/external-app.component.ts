@@ -6,6 +6,7 @@ import {
   NgZone
 } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { Router } from '@angular/router';
 import { MdFileService } from '../../services/md-file.service';
 import { MdFile } from '../../models/md-file';
 
@@ -16,9 +17,10 @@ import { MdFile } from '../../models/md-file';
 })
 export class ExternalAppComponent implements OnInit, OnDestroy {
 
-  state: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
+  state: 'idle' | 'loading' | 'ready' | 'error' | 'notInstalled' = 'idle';
   errorMessage = '';
   currentAppId: string | null = null;
+  currentAppName: string | null = null;
   appUrl: string | null = null;
 
   private subscription: Subscription;
@@ -28,7 +30,8 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
   constructor(
     private mdFileService: MdFileService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -36,6 +39,8 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
       (node: MdFile) => {
         if (node?.type === 'externalApp' && node.appId) {
           this.openApp(node);
+        } else if (node?.type === 'externalAppNotInstalled' && node.appId) {
+          this.showNotInstalled(node);
         }
       }
     );
@@ -120,6 +125,19 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
       this.currentAppId = null; // force re-open
       this.openApp(node);
     }
+  }
+
+  private showNotInstalled(node: MdFile): void {
+    this.currentAppId = node.appId;
+    this.currentAppName = node.name;
+    this.state = 'notInstalled';
+    this.appUrl = null;
+    this.errorMessage = '';
+    this.cdr.markForCheck();
+  }
+
+  goToAppStore(): void {
+    this.router.navigate(['/main/app-store']);
   }
 
 }

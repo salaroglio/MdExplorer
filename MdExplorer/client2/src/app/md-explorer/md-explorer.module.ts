@@ -43,13 +43,15 @@ import { ScreenshotAnnotationWizardDialogComponent } from './components/dialogs/
 import { P2PStatusWidgetComponent } from './components/toolbar/p2p-status-widget/p2p-status-widget.component';
 import { ExternalAppComponent } from './components/external-app/external-app.component';
 import { ExternalAppsSettingsComponent } from './components/external-apps-settings/external-apps-settings.component';
+import { AppStoreComponent } from './components/app-store/app-store.component';
 
 
 
 const routes: Routes = [
   { path: '', component: SidenavComponent },
+  { path: 'app-store', component: AppStoreComponent },
   {
-    path: 'navigation', 
+    path: 'navigation',
     component: SidenavComponent,
     children: [
       {
@@ -64,8 +66,8 @@ const routes: Routes = [
           { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
         ]
       },
-      { 
-        path: 'ai-model-manager', 
+      {
+        path: 'ai-model-manager',
         loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule)
       }
     ]
@@ -104,7 +106,8 @@ const routes: Routes = [
     ScreenshotAnnotationWizardDialogComponent,
     P2PStatusWidgetComponent,
     ExternalAppComponent,
-    ExternalAppsSettingsComponent
+    ExternalAppsSettingsComponent,
+    AppStoreComponent
   ],
   imports: [
     CommonModule,
