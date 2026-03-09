@@ -1696,7 +1696,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             };
             list.Add(nodeempty);
             
-            // Inietta nodi externalApp da .mdeapps.json (se presente)
+            // Inietta nodi externalApp da .mdeapps.json (struttura gerarchica v2)
             var mdeAppsPath = Path.Combine(currentPath, ".mdeapps.json");
             if (System.IO.File.Exists(mdeAppsPath))
             {
@@ -1707,67 +1707,151 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         appsJson,
                         new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                    foreach (var app in appsConfig?.Apps ?? new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeAppDefinition>())
+                    // Migrate v1→v2 if needed
+                    if (appsConfig != null && (appsConfig.Version != "2" || appsConfig.Tree == null))
                     {
-                        if (string.IsNullOrWhiteSpace(app.Id))
-                            continue;
-
-                        string execAbs;
-                        string nodeType;
-
-                        if (!string.IsNullOrWhiteSpace(app.Executable))
+                        appsConfig.Tree = new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeTreeNode>();
+                        foreach (var a in appsConfig.Apps ?? new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeAppDefinition>())
                         {
-                            // App custom (local executable configured in .mdeapps.json)
-                            execAbs = System.IO.Path.IsPathRooted(app.Executable)
-                                ? app.Executable
-                                : System.IO.Path.GetFullPath(System.IO.Path.Combine(currentPath, app.Executable));
-                            nodeType = "externalApp";
+                            if (!string.IsNullOrWhiteSpace(a.Id))
+                                appsConfig.Tree.Add(new MdExplorer.Abstractions.Models.MdeTreeNode { Type = "app", AppId = a.Id });
                         }
-                        else
+                        appsConfig.Version = "2";
+                        try
                         {
-                            // Store app: resolve from InstalledApp table
-                            execAbs = null;
-                            nodeType = "externalAppNotInstalled";
-                            try
-                            {
-                                var installed = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.InstalledApp>()
-                                    .GetList()
-                                    .FirstOrDefault(a => a.AppId == app.Id);
+                            var migJson = System.Text.Json.JsonSerializer.Serialize(appsConfig, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                            System.IO.File.WriteAllText(mdeAppsPath, migJson);
+                        }
+                        catch { /* best-effort migration */ }
+                    }
 
-                                if (installed != null)
+                    var apps = appsConfig?.Apps ?? new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeAppDefinition>();
+                    var tree = appsConfig?.Tree ?? new System.Collections.Generic.List<MdExplorer.Abstractions.Models.MdeTreeNode>();
+
+                    if (apps.Count > 0)
+                    {
+                        // Helper: resolve app definition to FileInfoNode
+                        FileInfoNode ResolveAppNode(MdExplorer.Abstractions.Models.MdeAppDefinition app, int level)
+                        {
+                            string execAbs = null;
+                            string nodeType = "externalAppNotInstalled";
+
+                            if (!string.IsNullOrWhiteSpace(app.Executable))
+                            {
+                                execAbs = System.IO.Path.IsPathRooted(app.Executable)
+                                    ? app.Executable
+                                    : System.IO.Path.GetFullPath(System.IO.Path.Combine(currentPath, app.Executable));
+                                nodeType = "externalApp";
+                            }
+                            else
+                            {
+                                try
                                 {
-                                    execAbs = System.IO.Path.Combine(installed.LocalPath, installed.ExecutableName);
-                                    nodeType = "externalApp";
+                                    var installed = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.InstalledApp>()
+                                        .GetList()
+                                        .FirstOrDefault(ia => ia.AppId == app.Id);
+                                    if (installed != null)
+                                    {
+                                        execAbs = System.IO.Path.Combine(installed.LocalPath, installed.ExecutableName);
+                                        // Verify the executable actually exists; if not, scan the directory
+                                        if (!System.IO.File.Exists(execAbs) && System.IO.Directory.Exists(installed.LocalPath))
+                                        {
+                                            var scanned = System.IO.Directory.GetFiles(installed.LocalPath, "*.exe", System.IO.SearchOption.TopDirectoryOnly)
+                                                .Where(f => !System.IO.Path.GetFileName(f).StartsWith("Uninstall", StringComparison.OrdinalIgnoreCase))
+                                                .OrderByDescending(f => new System.IO.FileInfo(f).Length)
+                                                .FirstOrDefault();
+                                            if (scanned != null)
+                                            {
+                                                execAbs = scanned;
+                                                _logger.LogWarning("[GetShallowStructure] InstalledApp '{AppId}' exe '{StoredExe}' not found, resolved to '{Scanned}'",
+                                                    app.Id, installed.ExecutableName, System.IO.Path.GetFileName(scanned));
+                                            }
+                                        }
+                                        nodeType = "externalApp";
+                                    }
+                                }
+                                catch (Exception exInstalled)
+                                {
+                                    _logger.LogWarning(exInstalled, "[GetShallowStructure] Could not query InstalledApp for '{AppId}'", app.Id);
                                 }
                             }
-                            catch (Exception exInstalled)
+
+                            return new FileInfoNode
                             {
-                                _logger.LogWarning(exInstalled, "[GetShallowStructure] Could not query InstalledApp for '{AppId}' — treating as not installed", app.Id);
+                                Name = app.Name ?? app.Id,
+                                Type = nodeType,
+                                FullPath = $"__externalapp__{app.Id}",
+                                Path = $"__externalapp__{app.Id}",
+                                RelativePath = $"__externalapp__{app.Id}",
+                                Level = level,
+                                Expandable = false,
+                                IsIndexed = true,
+                                IndexingStatus = "completed",
+                                AppId = app.Id,
+                                AppExecutable = execAbs,
+                                AppArgs = new System.Collections.Generic.List<string>(app.Args ?? new System.Collections.Generic.List<string>()) { "--workspace", currentPath },
+                                AppIcon = app.Icon ?? (nodeType == "externalAppNotInstalled" ? "cloud_download" : "launch"),
+                                AppDescription = app.Description
+                            };
+                        }
+
+                        // Build hierarchical structure
+                        var appsDict = apps.Where(a => !string.IsNullOrWhiteSpace(a.Id))
+                            .ToDictionary(a => a.Id, a => a);
+
+                        var rootNode = new FileInfoNode
+                        {
+                            Name = "Apps",
+                            Type = "externalAppRoot",
+                            FullPath = "__externalapps_root__",
+                            Path = "__externalapps_root__",
+                            RelativePath = "__externalapps_root__",
+                            Level = 0,
+                            Expandable = true,
+                            IsIndexed = true,
+                            IndexingStatus = "completed",
+                            AppIcon = "rocket_launch"
+                        };
+
+                        foreach (var treeNode in tree)
+                        {
+                            if (treeNode.Type == "category")
+                            {
+                                var catNode = new FileInfoNode
+                                {
+                                    Name = treeNode.Name ?? "Category",
+                                    Type = "externalAppCategory",
+                                    FullPath = $"__externalappcat__{treeNode.Id}",
+                                    Path = $"__externalappcat__{treeNode.Id}",
+                                    RelativePath = $"__externalappcat__{treeNode.Id}",
+                                    Level = 1,
+                                    Expandable = true,
+                                    IsIndexed = true,
+                                    IndexingStatus = "completed",
+                                    AppIcon = treeNode.Icon ?? "folder"
+                                };
+
+                                if (treeNode.Children != null)
+                                {
+                                    foreach (var child in treeNode.Children)
+                                    {
+                                        if (child.Type == "app" && !string.IsNullOrWhiteSpace(child.AppId) && appsDict.ContainsKey(child.AppId))
+                                        {
+                                            catNode.Childrens.Add(ResolveAppNode(appsDict[child.AppId], 2));
+                                        }
+                                    }
+                                }
+
+                                rootNode.Childrens.Add(catNode);
+                            }
+                            else if (treeNode.Type == "app" && !string.IsNullOrWhiteSpace(treeNode.AppId) && appsDict.ContainsKey(treeNode.AppId))
+                            {
+                                rootNode.Childrens.Add(ResolveAppNode(appsDict[treeNode.AppId], 1));
                             }
                         }
 
-                        var appNode = new FileInfoNode
-                        {
-                            Name = app.Name ?? app.Id,
-                            Type = nodeType,
-                            FullPath = $"__externalapp__{app.Id}",
-                            Path = $"__externalapp__{app.Id}",
-                            RelativePath = $"__externalapp__{app.Id}",
-                            Level = 0,
-                            Expandable = false,
-                            IsIndexed = true,
-                            IndexingStatus = "completed",
-                            AppId = app.Id,
-                            AppExecutable = execAbs,
-                            AppArgs = app.Args ?? new System.Collections.Generic.List<string>(),
-                            AppIcon = app.Icon ?? (nodeType == "externalAppNotInstalled" ? "cloud_download" : "launch"),
-                            AppDescription = app.Description
-                        };
-
-                        if (app.TreePosition == "top")
-                            list.Insert(0, appNode);
-                        else
-                            list.Insert(list.Count > 0 ? list.Count - 1 : 0, appNode); // before emptyroot
+                        // Insert root node before emptyroot
+                        list.Insert(list.Count > 0 ? list.Count - 1 : 0, rootNode);
                     }
                 }
                 catch (Exception ex)

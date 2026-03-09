@@ -122,6 +122,11 @@ namespace MdExplorer
             services.AddSingleton<Services.TeamChat.VpsChatStreamingService>();
             services.AddSingleton<Services.TeamChat.ITeamChatService, Services.TeamChat.TeamChatService>();
 
+            services.Configure<FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = 500L * 1024 * 1024; // 500 MB
+            });
+
             services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
 
             // Try to load P2P Premium module if available

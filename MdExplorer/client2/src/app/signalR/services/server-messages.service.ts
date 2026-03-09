@@ -31,6 +31,9 @@ export class MdServerMessagesService {
   // Observable for RAG indexing progress events
   public ragIndexingProgress$ = new Subject<{ status: string, processed: number, total: number, message: string }>();
 
+  // Observable for App Store publish progress (backend → Nexus upload)
+  public publishProgress$ = new Subject<{ appId: string, percent: number, phase: string }>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -114,6 +117,11 @@ export class MdServerMessagesService {
       // RAG indexing progress event (from RagController background task)
       this.hubConnection.on('ragIndexingProgress', (data) => {
         this.ragIndexingProgress$.next(data);
+      });
+
+      // App Store publish progress (backend → Nexus upload)
+      this.hubConnection.on('publishProgress', (data) => {
+        this.publishProgress$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {

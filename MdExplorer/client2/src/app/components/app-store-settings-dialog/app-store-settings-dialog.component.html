@@ -4,75 +4,77 @@
 </h2>
 
 <mat-dialog-content>
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Configured Repositories</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <!-- List -->
-      <mat-list *ngIf="appStoreRepos.length > 0" dense>
-        <mat-list-item *ngFor="let repo of appStoreRepos" class="repo-list-item">
-          <div matListItemTitle>
-            <strong>{{ repo.label }}</strong>
-            <span class="repo-url-text">{{ repo.url }}</span>
-          </div>
-          <div matListItemLine *ngIf="repo.username" class="repo-auth-text">
-            User: {{ repo.username }}
-            <span *ngIf="repo.passwordConfigured"> &middot; Password configured</span>
-          </div>
-          <div matListItemMeta>
-            <button mat-icon-button matTooltip="Edit" (click)="startEditRepo(repo)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteRepo(repo)">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </div>
-        </mat-list-item>
-      </mat-list>
 
-      <p *ngIf="appStoreRepos.length === 0" class="empty-repos-message">
-        No repositories configured. Add one to use the App Store.
-      </p>
-
-      <!-- Add / Edit form -->
-      <div *ngIf="isAddingRepo || editingRepo" class="repo-edit-form">
-        <h4>{{ editingRepo ? 'Edit Repository' : 'Add Repository' }}</h4>
-        <div class="vertical-form">
-          <mat-form-field appearance="outline">
-            <mat-label>Label</mat-label>
-            <input matInput [(ngModel)]="repoForm.label" placeholder="My Nexus Repo">
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>URL</mat-label>
-            <input matInput [(ngModel)]="repoForm.url" placeholder="https://nexus.company.com/repository/mde-apps/">
-            <mat-hint>Base URL of the Nexus raw repository</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Username (optional)</mat-label>
-            <input matInput [(ngModel)]="repoForm.username">
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ editingRepo?.passwordConfigured ? 'Change password' : 'Password (optional)' }}</mat-label>
-            <input matInput type="password" [(ngModel)]="repoForm.password">
-            <mat-hint *ngIf="editingRepo?.passwordConfigured">Leave empty to keep current password</mat-hint>
-          </mat-form-field>
-        </div>
-        <div class="repo-form-actions">
-          <button mat-button (click)="cancelRepoEdit()">Cancel</button>
-          <button mat-raised-button color="primary" (click)="saveRepo()"
-                  [disabled]="isSavingRepo || !repoForm.label?.trim() || !repoForm.url?.trim()">
-            <mat-icon>save</mat-icon> {{ isSavingRepo ? 'Saving...' : 'Save' }}
-          </button>
+  <!-- Repository list -->
+  <div *ngIf="appStoreRepos.length > 0" class="repo-list">
+    <div *ngFor="let repo of appStoreRepos" class="repo-item">
+      <div class="repo-item-info">
+        <div class="repo-item-label">{{ repo.label }}</div>
+        <div class="repo-item-url">{{ repo.url }}</div>
+        <div *ngIf="repo.username" class="repo-item-auth">
+          <mat-icon class="auth-icon">person</mat-icon>
+          {{ repo.username }}
+          <span *ngIf="repo.passwordConfigured" class="auth-dot">&middot; Password configured</span>
         </div>
       </div>
-    </mat-card-content>
-    <mat-card-actions *ngIf="!isAddingRepo && !editingRepo">
-      <button mat-stroked-button color="primary" (click)="startAddRepo()">
-        <mat-icon>add</mat-icon> Add Repository
+      <div class="repo-item-actions">
+        <button mat-icon-button matTooltip="Edit" (click)="startEditRepo(repo)">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteRepo(repo)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="appStoreRepos.length === 0 && !isAddingRepo" class="empty-state">
+    <mat-icon>inventory_2</mat-icon>
+    <span>No repositories configured. Add one to use the App Store.</span>
+  </div>
+
+  <!-- Add / Edit form -->
+  <div *ngIf="isAddingRepo || editingRepo" class="repo-edit-form">
+    <div class="form-title">{{ editingRepo ? 'Edit Repository' : 'Add Repository' }}</div>
+    <div class="form-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>Label</mat-label>
+        <input matInput [(ngModel)]="repoForm.label" placeholder="My Nexus Repo">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>URL</mat-label>
+        <input matInput [(ngModel)]="repoForm.url" placeholder="https://nexus.company.com/repository/mde-apps/">
+        <mat-hint>Base URL of the Nexus raw repository</mat-hint>
+      </mat-form-field>
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Username (optional)</mat-label>
+          <input matInput [(ngModel)]="repoForm.username">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ editingRepo?.passwordConfigured ? 'Change password' : 'Password (optional)' }}</mat-label>
+          <input matInput type="password" [(ngModel)]="repoForm.password">
+          <mat-hint *ngIf="editingRepo?.passwordConfigured">Leave empty to keep current</mat-hint>
+        </mat-form-field>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button mat-button (click)="cancelRepoEdit()">Cancel</button>
+      <button mat-raised-button color="primary" (click)="saveRepo()"
+              [disabled]="isSavingRepo || !repoForm.label?.trim() || !repoForm.url?.trim()">
+        <mat-icon>save</mat-icon> {{ isSavingRepo ? 'Saving...' : 'Save' }}
       </button>
-    </mat-card-actions>
-  </mat-card>
+    </div>
+  </div>
+
+  <!-- Add button -->
+  <div *ngIf="!isAddingRepo && !editingRepo" class="add-button-row">
+    <button mat-stroked-button color="primary" (click)="startAddRepo()">
+      <mat-icon>add</mat-icon> Add Repository
+    </button>
+  </div>
+
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">

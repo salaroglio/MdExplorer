@@ -1,0 +1,47 @@
+<h2 mat-dialog-title>Add App from Catalog</h2>
+
+<mat-dialog-content>
+  <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 8px;">
+    <mat-label>Search apps...</mat-label>
+    <input matInput [(ngModel)]="searchText" (ngModelChange)="onSearch()" autocomplete="off">
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Loading catalog...</span>
+  </div>
+
+  <div *ngIf="errorMessage" class="error-message">
+    <mat-icon>error</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div *ngIf="!loading && !errorMessage && filteredApps.length === 0" class="empty-state">
+    <mat-icon>inbox</mat-icon>
+    <span>No apps found in catalog</span>
+  </div>
+
+  <div class="catalog-list" *ngIf="!loading && !errorMessage">
+    <div class="catalog-item" *ngFor="let app of filteredApps"
+         [class.already-added]="isAlreadyAdded(app)">
+      <div class="app-info">
+        <mat-icon class="app-icon">{{ app.icon || 'apps' }}</mat-icon>
+        <div class="app-details">
+          <span class="app-name">{{ app.name }}</span>
+          <span class="app-desc">{{ app.description }}</span>
+          <span class="app-version">v{{ app.version }}</span>
+        </div>
+      </div>
+      <button mat-stroked-button color="primary"
+              (click)="selectApp(app)"
+              [disabled]="isAlreadyAdded(app)">
+        {{ isAlreadyAdded(app) ? 'Already added' : 'Add to Project' }}
+      </button>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Cancel</button>
+</mat-dialog-actions>

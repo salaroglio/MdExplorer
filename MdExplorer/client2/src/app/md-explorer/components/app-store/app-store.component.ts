@@ -1,17 +1,41 @@
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { HttpClient, HttpEventType } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { AppStoreService } from '../../services/app-store.service';
 import { MdFileService } from '../../services/md-file.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { StoreCatalog, StoreCatalogApp, InstalledApp, AppStoreRepository, RepoInfo } from '../../models/app-store.models';
 
+/**
+ * Compares two semantic version strings numerically (e.g. "1.10.0" > "1.9.0").
+ * Returns -1 if a < b, 0 if equal, 1 if a > b.
+ * Handles different lengths ("1.0" == "1.0.0") and null/undefined values.
+ */
+function compareVersions(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return -1;
+  if (!b) return 1;
+  const pa = a.split('.').map(s => parseInt(s, 10) || 0);
+  const pb = b.split('.').map(s => parseInt(s, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] ?? 0;
+    const nb = pb[i] ?? 0;
+    if (na < nb) return -1;
+    if (na > nb) return 1;
+  }
+  return 0;
+}
+
 @Component({
   selector: 'app-store',
   templateUrl: './app-store.component.html',
   styleUrls: ['./app-store.component.scss']
 })
-export class AppStoreComponent implements OnInit {
+export class AppStoreComponent implements OnInit, OnDestroy {
+
+  private publishProgressSub: Subscription;
 
   catalog: StoreCatalog | null = null;
   catalogApps: StoreCatalogApp[] = [];
@@ -30,6 +54,7 @@ export class AppStoreComponent implements OnInit {
   projectApps: any[] = [];
 
   isLoadingCatalog = false;
+  catalogLoadError = false;
   isLoadingInstalled = false;
   installingAppIds = new Set<string>();
   uninstallingAppIds = new Set<string>();
@@ -47,12 +72,22 @@ export class AppStoreComponent implements OnInit {
   editIconFile: File | null = null;
   editIconPreview: string | null = null;
   isSavingEntry = false;
+  editInstallerFile: File | null = null;
+  editInstallerPlatform: string = 'windows';
+  editFilenameError: string | null = null;
+  editPublishProgress: number | null = null;
+  editPublishPhase: string = '';
+
+  // Publish panel toggle (Gestisci tab)
+  showPublishPanel = false;
 
   // Publish
   selectedFile: File | null = null;
   isPublishing = false;
+  publishProgress: number | null = null;
+  publishPhase: string = '';
   publishFilenameError: string | null = null;
-  publishMetadata: { appId: string; version: string; name: string; description: string } | null = null;
+  publishMetadata: { appId: string; version: string; name: string; description: string; executableName: string } | null = null;
   customIconFile: File | null = null;
   customIconPreview: string | null = null;
 
@@ -82,6 +117,33 @@ export class AppStoreComponent implements OnInit {
       },
       error: () => {}
     });
+
+    // Listen for real publish progress from backend (backend → Nexus upload)
+    this.publishProgressSub = this.mdServerMessages.publishProgress$.subscribe(data => {
+      if (data.phase === 'uploading') {
+        // Update publish progress (new app publish panel)
+        if (this.isPublishing) {
+          this.publishProgress = data.percent;
+          this.publishPhase = data.percent >= 100 ? 'Elaborazione sul server...' : `Upload verso Nexus: ${data.percent}%`;
+        }
+        // Update edit progress (edit entry panel)
+        if (this.editPublishProgress !== null) {
+          this.editPublishProgress = data.percent;
+          this.editPublishPhase = data.percent >= 100 ? 'Elaborazione sul server...' : `Upload verso Nexus: ${data.percent}%`;
+        }
+      } else if (data.phase === 'catalog') {
+        if (this.isPublishing) {
+          this.publishPhase = 'Aggiornamento catalogo...';
+        }
+        if (this.editPublishProgress !== null) {
+          this.editPublishPhase = 'Aggiornamento catalogo...';
+        }
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.publishProgressSub?.unsubscribe();
   }
 
   loadRepos(): void {
@@ -90,6 +152,9 @@ export class AppStoreComponent implements OnInit {
         this.repos = repos;
         if (repos.length > 0 && !this.selectedRepoId) {
           this.selectedRepoId = repos[0].id;
+        }
+        if (repos.length > 0 && this.catalogApps.length === 0) {
+          this.loadCatalog();
         }
       },
       error: () => {}
@@ -113,12 +178,14 @@ export class AppStoreComponent implements OnInit {
       return;
     }
     this.isLoadingCatalog = true;
+    this.catalogLoadError = false;
     this.catalogApps = [];
     this.appStoreService.getCatalog().subscribe({
       next: catalog => {
         this.catalog = catalog;
         this.catalogApps = catalog?.apps ?? [];
         this.repoInfos = catalog?.repos ?? [];
+        this.catalogLoadError = (catalog?.failedRepos ?? 0) > 0 && this.catalogApps.length === 0;
         // Initialize repo metadata from first repo info
         const firstRepo = this.repoInfos[0];
         if (firstRepo) {
@@ -132,7 +199,7 @@ export class AppStoreComponent implements OnInit {
       },
       error: () => {
         this.isLoadingCatalog = false;
-        this.snackBar.open('Failed to load catalog.', 'OK', { duration: 3000 });
+        this.catalogLoadError = true;
       }
     });
   }
@@ -155,7 +222,9 @@ export class AppStoreComponent implements OnInit {
 
   hasUpdate(app: StoreCatalogApp): boolean {
     const installed = this.installedApps.find(a => a.appId === app.id);
-    return !!installed && installed.version !== app.version;
+    if (!installed) return false;
+    const catalogVersion = this.getVersionForPlatform(app);
+    return compareVersions(installed.version, catalogVersion) < 0;
   }
 
   // ── Platform helpers ────────────────────────────────
@@ -181,8 +250,17 @@ export class AppStoreComponent implements OnInit {
     return app.downloadUrl;
   }
 
-  installApp(app: StoreCatalogApp): void {
+  getVersionForPlatform(app: StoreCatalogApp): string {
+    const platformBuild = app.platforms?.[this.currentPlatform];
+    return platformBuild?.version || app.version;
+  }
+
+  async installApp(app: StoreCatalogApp): Promise<void> {
     this.installingAppIds.add(app.id);
+
+    // Terminate the app if it's running (file locks would cause NSIS to fail)
+    await this.terminateAppIfRunning(app.id);
+
     const downloadUrl = this.getDownloadUrlForPlatform(app);
     this.appStoreService.installApp(
       { ...app, downloadUrl, repoId: app.repoId },
@@ -202,9 +280,13 @@ export class AppStoreComponent implements OnInit {
     });
   }
 
-  uninstallApp(appId: string, appName: string): void {
+  async uninstallApp(appId: string, appName: string): Promise<void> {
     if (!confirm(`Uninstall "${appName}"?`)) return;
     this.uninstallingAppIds.add(appId);
+
+    // Terminate the app if it's running (file locks would cause uninstaller to fail)
+    await this.terminateAppIfRunning(appId);
+
     this.appStoreService.uninstallApp(appId).subscribe({
       next: () => {
         this.uninstallingAppIds.delete(appId);
@@ -256,6 +338,15 @@ export class AppStoreComponent implements OnInit {
       },
       error: () => this.snackBar.open('Errore nella rimozione.', 'OK', { duration: 3000 })
     });
+  }
+
+  private async terminateAppIfRunning(appId: string): Promise<void> {
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.externalApp?.terminate) {
+      electronAPI.externalApp.terminate(appId);
+      // Wait for the process to release file locks
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
   }
 
   private refreshTree(): void {
@@ -311,12 +402,53 @@ export class AppStoreComponent implements OnInit {
     this.editForm = { name: app.name, description: app.description || '', version: app.version };
     this.editIconFile = null;
     this.editIconPreview = null;
+    this.editInstallerFile = null;
+    this.editInstallerPlatform = this.currentPlatform;
+    this.editFilenameError = null;
+    this.editPublishProgress = null;
+    this.editPublishPhase = '';
   }
 
   cancelEdit(): void {
     this.editingEntry = null;
     this.editIconFile = null;
     this.editIconPreview = null;
+    this.editInstallerFile = null;
+    this.editFilenameError = null;
+    this.editPublishProgress = null;
+    this.editPublishPhase = '';
+  }
+
+  onEditInstallerSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.editInstallerFile = input.files?.[0] ?? null;
+    this.editFilenameError = null;
+
+    if (!this.editInstallerFile || !this.editingEntry) return;
+
+    const regex = this.editInstallerPlatform === 'linux'
+      ? AppStoreComponent.LINUX_REGEX
+      : AppStoreComponent.WIN_REGEX;
+    const match = regex.exec(this.editInstallerFile.name);
+
+    if (!match) {
+      const expectedFormat = this.editInstallerPlatform === 'linux'
+        ? '{appId}-{version}.AppImage'
+        : '{appId}-setup-{version}.exe';
+      this.editFilenameError = `Il nome del file non corrisponde al formato richiesto: ${expectedFormat}`;
+      return;
+    }
+
+    const appId = match[1];
+    const version = match[2];
+
+    if (appId.toLowerCase() !== this.editingEntry.id.toLowerCase()) {
+      this.editFilenameError = `L'App ID nel filename ("${appId}") non corrisponde all'app in modifica ("${this.editingEntry.id}").`;
+      this.editInstallerFile = null;
+      return;
+    }
+
+    this.editForm.version = version;
   }
 
   onEditIconSelected(event: Event): void {
@@ -332,6 +464,43 @@ export class AppStoreComponent implements OnInit {
   saveEdit(): void {
     if (!this.editingEntry) return;
     this.isSavingEntry = true;
+
+    if (this.editInstallerFile) {
+      // Upload installer first, then update metadata
+      this.editPublishProgress = 0;
+      this.editPublishPhase = 'Invio al server...';
+      this.appStoreService.publishApp(
+        this.editInstallerFile,
+        { name: this.editForm.name, description: this.editForm.description, executableName: '' },
+        this.editIconFile || undefined,
+        this.editInstallerPlatform,
+        this.editingEntry.repoId || this.selectedRepoId || undefined
+      ).subscribe({
+        next: (event) => {
+          // Progress is now tracked via SignalR (publishProgress$ in ngOnInit).
+          // Here we only handle the final HTTP response.
+          if (event.type === HttpEventType.Response) {
+            this.editPublishProgress = null;
+            this.editPublishPhase = '';
+            // Now update metadata (name, description, version, icon)
+            this.saveEditMetadata();
+          }
+        },
+        error: (err) => {
+          this.isSavingEntry = false;
+          this.editPublishProgress = null;
+          this.editPublishPhase = '';
+          const msg = err?.error?.error ?? 'Errore durante l\'upload dell\'installer.';
+          this.snackBar.open(msg, 'OK', { duration: 5000 });
+        }
+      });
+    } else {
+      this.saveEditMetadata();
+    }
+  }
+
+  private saveEditMetadata(): void {
+    if (!this.editingEntry) return;
     const formData = new FormData();
     formData.append('Id', this.editingEntry.id);
     formData.append('Name', this.editForm.name);
@@ -395,7 +564,10 @@ export class AppStoreComponent implements OnInit {
     const name = appId.replace(/(^|-)(\w)/g, (_m, sep, ch) =>
       (sep === '-' ? ' ' : '') + ch.toUpperCase()
     );
-    this.publishMetadata = { appId, version, name, description: '' };
+    const executableName = this.publishPlatform === 'linux'
+      ? this.selectedFile!.name   // AppImage: same filename
+      : `${name}.exe`;            // Windows: derive from name (editable)
+    this.publishMetadata = { appId, version, name, description: '', executableName };
   }
 
   onIconSelected(event: Event): void {
@@ -440,25 +612,41 @@ export class AppStoreComponent implements OnInit {
       this.snackBar.open('La descrizione è obbligatoria.', 'OK', { duration: 3000 });
       return;
     }
+    if (!this.publishMetadata.executableName?.trim()) {
+      this.snackBar.open('Il nome dell\'eseguibile è obbligatorio.', 'OK', { duration: 3000 });
+      return;
+    }
     this.isPublishing = true;
+    this.publishProgress = 0;
+    this.publishPhase = 'Invio al server...';
     this.appStoreService.publishApp(
       this.selectedFile,
-      { name: this.publishMetadata.name, description: this.publishMetadata.description },
+      { name: this.publishMetadata.name, description: this.publishMetadata.description, executableName: this.publishMetadata.executableName },
       this.customIconFile || undefined,
       this.publishPlatform,
       this.selectedRepoId || undefined
     ).subscribe({
-      next: () => {
-        this.isPublishing = false;
-        this.snackBar.open('App pubblicata con successo!', 'OK', { duration: 4000 });
-        this.selectedFile = null;
-        this.publishFilenameError = null;
-        this.publishMetadata = null;
-        this.customIconFile = null;
-        this.customIconPreview = null;
+      next: (event) => {
+        // Progress is now tracked via SignalR (publishProgress$ in ngOnInit).
+        // Here we only handle the final HTTP response.
+        if (event.type === HttpEventType.Response) {
+          this.isPublishing = false;
+          this.publishProgress = null;
+          this.publishPhase = '';
+          this.snackBar.open('App pubblicata con successo!', 'OK', { duration: 4000 });
+          this.selectedFile = null;
+          this.publishFilenameError = null;
+          this.publishMetadata = null;
+          this.customIconFile = null;
+          this.customIconPreview = null;
+          this.showPublishPanel = false;
+          this.loadCatalog();
+        }
       },
       error: (err) => {
         this.isPublishing = false;
+        this.publishProgress = null;
+        this.publishPhase = '';
         const msg = err?.error?.error ?? 'Errore durante la pubblicazione.';
         this.snackBar.open(msg, 'OK', { duration: 5000 });
       }

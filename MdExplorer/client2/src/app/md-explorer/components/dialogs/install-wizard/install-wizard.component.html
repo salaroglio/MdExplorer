@@ -1,0 +1,78 @@
+<h2 mat-dialog-title>{{ isUpdateMode ? 'Update Available' : 'Install App' }}</h2>
+
+<mat-dialog-content>
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Loading app info...</span>
+  </div>
+
+  <!-- App info -->
+  <div *ngIf="!loading && catalogApp" class="app-info-card">
+    <mat-icon class="app-icon-large">{{ data.appIcon || catalogApp.icon || 'apps' }}</mat-icon>
+    <div class="app-details">
+      <h3>{{ catalogApp.name }}</h3>
+      <div class="version-info" *ngIf="isUpdateMode && data.installedVersion">
+        <span class="app-version old-version">{{ data.installedVersion }}</span>
+        <mat-icon class="version-arrow">arrow_forward</mat-icon>
+        <span class="app-version new-version">{{ catalogApp.version }}</span>
+      </div>
+      <span class="app-version" *ngIf="!isUpdateMode">Version {{ catalogApp.version }}</span>
+      <p class="app-description" *ngIf="catalogApp.description">{{ catalogApp.description }}</p>
+      <span class="app-platform" *ngIf="platform">Platform: {{ platform }}</span>
+    </div>
+  </div>
+
+  <!-- Changelog (update mode only) -->
+  <div *ngIf="isUpdateMode && catalogApp?.changelog && !installing && !installed" class="changelog-section">
+    <h4>Changelog</h4>
+    <p class="changelog-text">{{ catalogApp.changelog }}</p>
+  </div>
+
+  <!-- Not found in catalog -->
+  <div *ngIf="!loading && !catalogApp && !errorMessage" class="not-found">
+    <mat-icon>warning</mat-icon>
+    <p>App "{{ data.appName }}" was not found in the catalog.</p>
+    <p class="hint">Check your App Store repository settings.</p>
+  </div>
+
+  <!-- Progress bar during install -->
+  <div *ngIf="installing" class="install-progress">
+    <div class="progress-phase">
+      <mat-icon *ngIf="installPhase === 'downloading'">cloud_download</mat-icon>
+      <mat-icon *ngIf="installPhase === 'installing'">build</mat-icon>
+      <mat-icon *ngIf="installPhase === 'registering'">app_registration</mat-icon>
+      <span>{{ phaseLabel }}</span>
+    </div>
+    <mat-progress-bar mode="determinate" [value]="progressValue"></mat-progress-bar>
+    <span class="progress-percent">{{ progressValue | number:'1.0-0' }}%</span>
+  </div>
+
+  <!-- Success -->
+  <div *ngIf="installed" class="success-message">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ isUpdateMode ? 'Successfully updated!' : 'Successfully installed!' }}</span>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="errorMessage" class="error-message">
+    <mat-icon>error</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">{{ installed ? 'Close' : 'Cancel' }}</button>
+  <button mat-button *ngIf="isUpdateMode && !installed && !installing && catalogApp" (click)="skip()">
+    Skip
+  </button>
+  <button mat-raised-button color="primary"
+          *ngIf="catalogApp && !installed && !installing"
+          (click)="install()">
+    {{ isUpdateMode ? 'Update' : 'Install' }}
+  </button>
+  <button mat-stroked-button color="primary"
+          *ngIf="errorMessage && !installing"
+          (click)="install()">
+    Retry
+  </button>
+</mat-dialog-actions>

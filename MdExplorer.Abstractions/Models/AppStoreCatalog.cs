@@ -64,5 +64,8 @@ namespace MdExplorer.Abstractions.Models
 
         [JsonPropertyName("executableName")]
         public string ExecutableName { get; set; }
+
+        [JsonPropertyName("version")]
+        public string Version { get; set; }
     }
 }

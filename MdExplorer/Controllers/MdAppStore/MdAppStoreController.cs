@@ -2,8 +2,10 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Hubs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -17,6 +19,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MdExplorer.Controllers.MdAppStore
@@ -28,15 +31,18 @@ namespace MdExplorer.Controllers.MdAppStore
         private readonly IUserSettingsDB _session;
         private readonly ILogger<MdAppStoreController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IHubContext<MonitorMDHub> _hubContext;
 
         public MdAppStoreController(
             IUserSettingsDB session,
             ILogger<MdAppStoreController> logger,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            IHubContext<MonitorMDHub> hubContext)
         {
             _session = session;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
+            _hubContext = hubContext;
         }
 
         // ─────────────────────────────────────────────
@@ -131,7 +137,8 @@ namespace MdExplorer.Controllers.MdAppStore
                     }
                 }
 
-                return Ok(new { version = "1", apps = allApps, repos = repoInfos });
+                var failedCount = results.Count(r => r.Item2 == null);
+                return Ok(new { version = "1", apps = allApps, repos = repoInfos, failedRepos = failedCount });
             }
             catch (Exception ex)
             {
@@ -157,6 +164,7 @@ namespace MdExplorer.Controllers.MdAppStore
                     icon = a.Icon,
                     description = a.Description,
                     installedAt = a.InstalledAt,
+                    updatedAt = a.UpdatedAt,
                     localPath = a.LocalPath,
                     executableName = a.ExecutableName,
                     platform = a.Platform ?? "windows"
@@ -242,51 +250,84 @@ namespace MdExplorer.Controllers.MdAppStore
                     _logger.LogInformation("[MdAppStore] Running NSIS installer '{Installer}' with /S /D={Dir}",
                         installerPath, installDir);
 
-                    var process = new Process
+                    int exitCode = -1;
+                    const int maxAttempts = 2;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++)
                     {
-                        StartInfo = new ProcessStartInfo
+                        var process = new Process
                         {
-                            FileName = installerPath,
-                            Arguments = $"/S /D={installDir}",
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        }
-                    };
-                    process.Start();
-                    await process.WaitForExitAsync();
+                            StartInfo = new ProcessStartInfo
+                            {
+                                FileName = installerPath,
+                                Arguments = $"/S /D={installDir}",
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            }
+                        };
+                        process.Start();
+                        await process.WaitForExitAsync();
+                        exitCode = process.ExitCode;
 
-                    if (process.ExitCode != 0)
-                    {
-                        _logger.LogWarning("[MdAppStore] Installer exited with code {Code}", process.ExitCode);
-                        return StatusCode(500, new { error = $"Installer exited with code {process.ExitCode}" });
+                        if (exitCode == 0) break;
+
+                        _logger.LogWarning("[MdAppStore] Installer exited with code {Code} (attempt {Attempt}/{Max})",
+                            exitCode, attempt, maxAttempts);
+
+                        if (attempt < maxAttempts)
+                        {
+                            await Task.Delay(2000);
+                        }
                     }
 
-                    executableName = $"{request.AppId}.exe";
-                    _logger.LogInformation("[MdAppStore] Installed Windows app '{AppId}' to {Dir}", request.AppId, installDir);
+                    if (exitCode != 0)
+                    {
+                        return StatusCode(500, new { error = $"Installer exited with code {exitCode}. Make sure the app is not running." });
+                    }
+
+                    // Use executable name from catalog, but VERIFY it exists on disk.
+                    // If the catalog name is wrong, fall back to scanning the install directory.
+                    if (!string.IsNullOrWhiteSpace(request.ExecutableName))
+                    {
+                        var candidatePath = Path.Combine(installDir, request.ExecutableName.Trim());
+                        if (System.IO.File.Exists(candidatePath))
+                        {
+                            executableName = request.ExecutableName.Trim();
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[MdAppStore] Catalog executableName '{CatalogExe}' not found in install dir for '{AppId}', falling back to scan",
+                                request.ExecutableName, request.AppId);
+                            executableName = ScanForExecutable(installDir, request.AppId);
+                        }
+                    }
+                    else
+                    {
+                        executableName = ScanForExecutable(installDir, request.AppId);
+                        _logger.LogWarning("[MdAppStore] ExecutableName not in catalog for '{AppId}', resolved by scanning: {Exe}",
+                            request.AppId, executableName);
+                    }
+                    _logger.LogInformation("[MdAppStore] Installed Windows app '{AppId}' to {Dir}, executable: {Exe}",
+                        request.AppId, installDir, executableName);
                 }
 
                 // Upsert in InstalledApp table
-                var installedDal = _session.GetDal<InstalledApp>();
-                var existing = installedDal.GetList().FirstOrDefault(a => a.AppId == request.AppId);
-
+                // Clear session cache first to avoid StaleObjectStateException from previous attempts
+                _session.Clear();
                 _session.BeginTransaction();
-                if (existing != null)
+                try
                 {
-                    existing.Name = request.Name ?? request.AppId;
-                    existing.Description = request.Description;
-                    existing.Version = request.Version;
-                    existing.LocalPath = installDir;
-                    existing.ExecutableName = executableName;
-                    existing.Icon = request.Icon;
-                    existing.Platform = platform;
-                    existing.UpdatedAt = DateTime.UtcNow;
-                    installedDal.Save(existing);
-                }
-                else
-                {
+                    var installedDal = _session.GetDal<InstalledApp>();
+                    var existing = installedDal.GetList().FirstOrDefault(a => a.AppId == request.AppId);
+                    DateTime? originalInstalledAt = existing?.InstalledAt;
+                    if (existing != null)
+                    {
+                        installedDal.Delete(existing);
+                        _session.Flush();
+                    }
+
+                    var now = DateTime.UtcNow;
                     var newApp = new InstalledApp
                     {
-                        Id = Guid.NewGuid(),
                         AppId = request.AppId,
                         Name = request.Name ?? request.AppId,
                         Description = request.Description,
@@ -295,13 +336,19 @@ namespace MdExplorer.Controllers.MdAppStore
                         ExecutableName = executableName,
                         Icon = request.Icon,
                         Platform = platform,
-                        InstalledAt = DateTime.UtcNow
+                        InstalledAt = originalInstalledAt ?? now,
+                        UpdatedAt = originalInstalledAt != null ? now : (DateTime?)null
                     };
                     installedDal.Save(newApp);
+                    _session.Commit();
                 }
-                _session.Commit();
+                catch
+                {
+                    _session.Rollback();
+                    throw;
+                }
 
-                return Ok(new { success = true, installDir });
+                return Ok(new { success = true, installDir, executableName });
             }
             catch (Exception ex)
             {
@@ -517,17 +564,24 @@ namespace MdExplorer.Controllers.MdAppStore
         [RequestSizeLimit(500 * 1024 * 1024)]
         public async Task<IActionResult> PublishApp([FromForm] PublishAppFormRequest request)
         {
+            _logger.LogInformation("[MdAppStore] PublishApp called. AppPackage={HasFile}, Platform={Platform}, RepoId={RepoId}",
+                request?.AppPackage != null, request?.Platform, request?.RepoId);
+
             if (request?.AppPackage == null)
                 return BadRequest(new { error = "A package file is required." });
 
             var platform = request.Platform ?? "windows";
             var fileName = request.AppPackage.FileName;
+            _logger.LogInformation("[MdAppStore] FileName='{FileName}', Size={Size}, Platform={Platform}",
+                fileName, request.AppPackage.Length, platform);
+
             var parsed = ParsePackageFilename(fileName, platform);
             if (parsed == null)
             {
                 var expectedFormat = platform == "linux"
                     ? "{appId}-{version}.AppImage"
                     : "{appId}-setup-{version}.exe";
+                _logger.LogWarning("[MdAppStore] Filename parse failed: '{FileName}' for platform '{Platform}'", fileName, platform);
                 return BadRequest(new { error = $"Invalid filename '{fileName}'. Expected format: {expectedFormat}" });
             }
 
@@ -579,11 +633,28 @@ namespace MdExplorer.Controllers.MdAppStore
                 }
                 ms.Position = 0;
 
-                // 4. Upload ZIP to Nexus
+                // 4. Upload ZIP to Nexus (with progress via SignalR)
+                var connectionId = Request.Query["ConnectionId"].ToString();
                 try
                 {
-                    var fileContent = new StreamContent(ms);
+                    var totalBytes = ms.Length;
+                    var progressStream = new ProgressStream(ms, totalBytes, async (percent, phase) =>
+                    {
+                        if (!string.IsNullOrEmpty(connectionId))
+                        {
+                            await _hubContext.Clients.Client(connectionId)
+                                .SendAsync("publishProgress", new { appId, percent, phase });
+                        }
+                    });
+
+                    var fileContent = new StreamContent(progressStream);
                     fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+                    // Notify: upload starting
+                    if (!string.IsNullOrEmpty(connectionId))
+                        await _hubContext.Clients.Client(connectionId)
+                            .SendAsync("publishProgress", new { appId, percent = 0, phase = "uploading" });
+
                     var uploadResp = await uploadClient.PutAsync(fileUrl, fileContent);
                     if (!uploadResp.IsSuccessStatusCode)
                     {
@@ -596,6 +667,11 @@ namespace MdExplorer.Controllers.MdAppStore
                 {
                     await ms.DisposeAsync();
                 }
+
+                // Notify: updating catalog
+                if (!string.IsNullOrEmpty(connectionId))
+                    await _hubContext.Clients.Client(connectionId)
+                        .SendAsync("publishProgress", new { appId, percent = 100, phase = "catalog" });
 
                 // 5. Read current catalog.json
                 var catalogUrl = repoBase + "catalog.json";
@@ -619,8 +695,10 @@ namespace MdExplorer.Controllers.MdAppStore
                 catalog.Apps ??= new List<AppStoreCatalogEntry>();
                 var existingEntry = catalog.Apps.FirstOrDefault(a => a.Id == appId);
 
-                // Derive executable name
-                var executableName = platform == "linux" ? fileName : $"{appId}.exe";
+                // Executable name: from form field, or fallback for linux (AppImage filename)
+                var executableName = !string.IsNullOrWhiteSpace(request.ExecutableName)
+                    ? request.ExecutableName.Trim()
+                    : (platform == "linux" ? fileName : $"{appId}.exe");
 
                 // Use name from form, or derive from appId
                 var derivedName = Regex.Replace(appId, @"(^|-)(\w)", m =>
@@ -629,7 +707,8 @@ namespace MdExplorer.Controllers.MdAppStore
                 var newBuild = new PlatformBuild
                 {
                     DownloadUrl = fileUrl,
-                    ExecutableName = executableName
+                    ExecutableName = executableName,
+                    Version = version
                 };
 
                 if (existingEntry != null)
@@ -907,6 +986,21 @@ namespace MdExplorer.Controllers.MdAppStore
         }
 
         /// <summary>
+        /// Scans the install directory for the main executable, excluding uninstallers.
+        /// Returns the largest .exe by file size, or {appId}.exe as last resort.
+        /// </summary>
+        private static string ScanForExecutable(string installDir, string appId)
+        {
+            var installedExes = Directory.GetFiles(installDir, "*.exe", SearchOption.TopDirectoryOnly)
+                .Where(f => !Path.GetFileName(f).StartsWith("Uninstall", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(f => new FileInfo(f).Length)
+                .ToArray();
+            return installedExes.Length > 0
+                ? Path.GetFileName(installedExes[0])
+                : $"{appId}.exe";
+        }
+
+        /// <summary>
         /// Cross-platform install directory for MdExplorer apps.
         /// Windows: %LOCALAPPDATA%\MdExplorer-apps\{appId}\
         /// Linux:   ~/.local/share/MdExplorer-apps/{appId}/
@@ -1019,6 +1113,7 @@ namespace MdExplorer.Controllers.MdAppStore
         public string Icon { get; set; }
         public string Platform { get; set; }
         public string RepoId { get; set; }
+        public string ExecutableName { get; set; }
     }
 
     public class PublishAppFormRequest
@@ -1026,6 +1121,7 @@ namespace MdExplorer.Controllers.MdAppStore
         public IFormFile AppPackage { get; set; }
         public string? Name { get; set; }
         public string? Description { get; set; }
+        public string? ExecutableName { get; set; }
         public IFormFile? CustomIcon { get; set; }
         public string? Platform { get; set; }
         public string? RepoId { get; set; }
@@ -1056,5 +1152,68 @@ namespace MdExplorer.Controllers.MdAppStore
         public string Url { get; set; }
         public string? Username { get; set; }
         public string? Password { get; set; } // null = don't change on update
+    }
+
+    /// <summary>
+    /// A Stream wrapper that reports read progress via a callback.
+    /// Used to track upload progress when streaming to Nexus.
+    /// </summary>
+    internal class ProgressStream : Stream
+    {
+        private readonly Stream _inner;
+        private readonly long _totalBytes;
+        private readonly Func<int, string, Task> _onProgress;
+        private long _bytesRead;
+        private int _lastReportedPercent = -1;
+
+        public ProgressStream(Stream inner, long totalBytes, Func<int, string, Task> onProgress)
+        {
+            _inner = inner;
+            _totalBytes = totalBytes;
+            _onProgress = onProgress;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = _inner.Read(buffer, offset, count);
+            _bytesRead += read;
+            ReportProgress();
+            return read;
+        }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            var read = await _inner.ReadAsync(buffer, offset, count, cancellationToken);
+            _bytesRead += read;
+            ReportProgress();
+            return read;
+        }
+
+        private void ReportProgress()
+        {
+            if (_totalBytes <= 0) return;
+            var percent = (int)((_bytesRead * 100) / _totalBytes);
+            if (percent > 100) percent = 100;
+            // Throttle: report only when percent changes
+            if (percent != _lastReportedPercent)
+            {
+                _lastReportedPercent = percent;
+                _onProgress(percent, "uploading").ConfigureAwait(false);
+            }
+        }
+
+        public override bool CanRead => _inner.CanRead;
+        public override bool CanSeek => _inner.CanSeek;
+        public override bool CanWrite => _inner.CanWrite;
+        public override long Length => _inner.Length;
+        public override long Position
+        {
+            get => _inner.Position;
+            set => _inner.Position = value;
+        }
+        public override void Flush() => _inner.Flush();
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+        public override void SetLength(long value) => _inner.SetLength(value);
+        public override void Write(byte[] buffer, int offset, int count) => _inner.Write(buffer, offset, count);
     }
 }

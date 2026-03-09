@@ -1,5 +1,5 @@
 "use strict";
-(self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["default-src_app_git_git_module_ts-src_app_projects_new-project_new-project_component_ts-src_a-287a8e"],{
+(self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["default-src_app_git_git_module_ts-src_app_md-explorer_services_external-apps_service_ts-src_a-45d4e7"],{
 
 /***/ 4386:
 /*!**************************************************************************************!*\
@@ -4459,6 +4459,84 @@ class GitCredentialService {
     this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
       token: GitCredentialService,
       factory: GitCredentialService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+
+/***/ }),
+
+/***/ 9595:
+/*!***************************************************************!*\
+  !*** ./src/app/md-explorer/services/external-apps.service.ts ***!
+  \***************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "ExternalAppsService": () => (/* binding */ ExternalAppsService)
+/* harmony export */ });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
+
+
+
+class ExternalAppsService {
+  constructor(http, serverMessages) {
+    this.http = http;
+    this.serverMessages = serverMessages;
+  }
+  get connectionId() {
+    return this.serverMessages.connectionId || '';
+  }
+  getApps() {
+    return this.http.get(`/api/MdExternalApps?ConnectionId=${this.connectionId}`);
+  }
+  addApp(app, projectPath) {
+    const params = {};
+    if (projectPath) params.projectPath = projectPath;
+    return this.http.post(`/api/MdExternalApps/Add`, app, {
+      params
+    });
+  }
+  deleteApp(id, projectPath) {
+    const params = {};
+    if (projectPath) params.projectPath = projectPath;
+    return this.http.delete(`/api/MdExternalApps/${encodeURIComponent(id)}`, {
+      params
+    });
+  }
+  getConfig(projectPath) {
+    const params = {};
+    if (projectPath) params.projectPath = projectPath;
+    return this.http.get(`/api/MdExternalApps/config`, {
+      params
+    });
+  }
+  saveTree(tree, projectPath) {
+    const params = {};
+    if (projectPath) params.projectPath = projectPath;
+    return this.http.put(`/api/MdExternalApps/tree`, tree, {
+      params
+    });
+  }
+  saveConfig(config, projectPath) {
+    const params = {};
+    if (projectPath) params.projectPath = projectPath;
+    return this.http.put(`/api/MdExternalApps/config`, config, {
+      params
+    });
+  }
+  static {
+    this.ɵfac = function ExternalAppsService_Factory(t) {
+      return new (t || ExternalAppsService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({
+      token: ExternalAppsService,
+      factory: ExternalAppsService.ɵfac,
       providedIn: 'root'
     });
   }
@@ -9273,4 +9351,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_projects_new-project_new-project_component_ts-src_a-287a8e.js.map
+//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_external-apps_service_ts-src_a-45d4e7.js.map

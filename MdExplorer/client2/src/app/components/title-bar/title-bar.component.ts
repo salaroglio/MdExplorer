@@ -186,6 +186,10 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     });
   }
 
+  navigateToProjects(): void {
+    this.router.navigate(['/projects']);
+  }
+
   navigateToAppStore(): void {
     this.router.navigate(['/main/app-store']);
   }

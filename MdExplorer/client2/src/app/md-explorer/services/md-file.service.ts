@@ -6,6 +6,7 @@ import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { SpecialFolder, Drive } from '../../commons/components/show-file-system/file-explorer.models';
+import { AppStoreService } from './app-store.service';
 
 @Injectable({
   providedIn: 'root'
@@ -30,7 +31,8 @@ export class MdFileService {
   }
   constructor(private http: HttpClient,
     private mdServerMessages: MdServerMessagesService,
-    private injector: Injector) {
+    private injector: Injector,
+    private appStoreService: AppStoreService) {
 
     var defaultSelectedMdFile = [];
     this.dataStore = {
@@ -341,6 +343,8 @@ export class MdFileService {
   }
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
+    // Pre-fetch catalog + installed apps for update checks
+    this.appStoreService.prefetchCatalogAndInstalled();
     return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure')
       .subscribe(data => {
         // Assicuriamo che tutte le proprietà siano definite fin dall'inizio

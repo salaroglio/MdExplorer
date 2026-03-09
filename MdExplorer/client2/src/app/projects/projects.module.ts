@@ -8,6 +8,7 @@ import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/mode
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
+import { CatalogPickerDialogComponent } from './dialogs/catalog-picker/catalog-picker.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms'
@@ -34,7 +35,8 @@ const routes: Routes = [
     ModernCloneProjectComponent,
     ProjectCreateConfigDialogComponent,
     ProjectSettingsComponent,
-    P2PManagerComponent
+    P2PManagerComponent,
+    CatalogPickerDialogComponent
   ],
   imports: [
     RouterModule.forChild(routes),

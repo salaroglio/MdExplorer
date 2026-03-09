@@ -184,6 +184,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     // Clear per-file debounce tracking to prevent memory leak
                     context.LastProcessedPerFile?.Clear();
 
+                    // Dispose DB semaphore
+                    context.DbSemaphore?.Dispose();
+
                     _logger.LogInformation($"✅ FileSystemWatcher disposed for connection {connectionId}");
                 }
                 catch (Exception ex)
@@ -394,7 +397,17 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 context.LastProcessedPerFile[e.FullPath] = now;
 
                 _logger.LogInformation($"✅ [{context.ConnectionId}] Markdown file changed: {e.FullPath}");
-                ParseNewFileIntoDB(context, e);
+
+                // Serialize DB access: NHibernate session is NOT thread-safe
+                await context.DbSemaphore.WaitAsync();
+                try
+                {
+                    ParseNewFileIntoDB(context, e);
+                }
+                finally
+                {
+                    context.DbSemaphore.Release();
+                }
 
                 var relativePath = GetRelativePath(context, e.FullPath);
                 var monitoredMd = new MonitoredMDModel
@@ -410,7 +423,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 await _hubContext.Clients.Client(context.ConnectionId).SendAsync("markdownfileischanged", monitoredMd);
 
                 // RAG: re-embed changed file in background (fire-and-forget)
-                _ = ReEmbedFileAsync(context.ConnectionId, e.FullPath);
+                _ = ReEmbedFileAsync(context, e.FullPath);
             }
             catch (Exception ex)
             {
@@ -418,7 +431,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             }
         }
 
-        private async Task ReEmbedFileAsync(string connectionId, string fullPath)
+        private async Task ReEmbedFileAsync(WatcherContext context, string fullPath)
         {
             try
             {
@@ -431,7 +444,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
 
                 // Check if RAG is enabled
-                var dbContext = _databaseManager?.GetContext(connectionId);
+                var dbContext = _databaseManager?.GetContext(context.ConnectionId);
                 if (dbContext == null) return;
 
                 var projectDB = scope.ServiceProvider.GetService<Abstractions.DB.IProjectDB>();
@@ -446,37 +459,48 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var content = File.ReadAllText(fullPath);
                 var fileHash = ComputeSimpleHash(content);
 
-                var mdFileDal = engineDB.GetDal<MarkdownFile>();
-                var chunkDal = engineDB.GetDal<Abstractions.Entities.EngineDB.DocumentChunk>();
+                // Fine-grained locking: acquire semaphore only for DB operations,
+                // release before slow embedding work
+                MarkdownFile mdf;
+                List<Abstractions.Entities.EngineDB.DocumentChunk> existingChunks;
 
-                var mdf = mdFileDal.GetList().FirstOrDefault(f => f.Path == fullPath);
-                if (mdf == null)
+                await context.DbSemaphore.WaitAsync();
+                try
                 {
-                    // Auto-create MarkdownFile record for RAG
-                    engineDB.BeginTransaction();
-                    mdf = new MarkdownFile
+                    var mdFileDal = engineDB.GetDal<MarkdownFile>();
+                    var chunkDal = engineDB.GetDal<Abstractions.Entities.EngineDB.DocumentChunk>();
+
+                    mdf = mdFileDal.GetList().FirstOrDefault(f => f.Path == fullPath);
+                    if (mdf == null)
                     {
-                        FileName = Path.GetFileName(fullPath),
-                        Path = fullPath,
-                        FileType = ".md"
-                    };
-                    mdFileDal.Save(mdf);
+                        engineDB.BeginTransaction();
+                        mdf = new MarkdownFile
+                        {
+                            FileName = Path.GetFileName(fullPath),
+                            Path = fullPath,
+                            FileType = ".md"
+                        };
+                        mdFileDal.Save(mdf);
+                        engineDB.Commit();
+                        _logger.LogDebug($"[RAG] Created MarkdownFile record for {Path.GetFileName(fullPath)}");
+                    }
+
+                    existingChunks = chunkDal.GetList().Where(c => c.MarkdownFile.Id == mdf.Id).ToList();
+                    if (existingChunks.Count > 0 && existingChunks[0].FileHash == fileHash)
+                        return;
+
+                    // Delete old chunks
+                    engineDB.BeginTransaction();
+                    foreach (var old in existingChunks)
+                        chunkDal.Delete(old);
                     engineDB.Commit();
-                    _logger.LogDebug($"[RAG] Created MarkdownFile record for {Path.GetFileName(fullPath)}");
+                }
+                finally
+                {
+                    context.DbSemaphore.Release();
                 }
 
-                // Check if changed
-                var existingChunks = chunkDal.GetList().Where(c => c.MarkdownFile.Id == mdf.Id).ToList();
-                if (existingChunks.Count > 0 && existingChunks[0].FileHash == fileHash)
-                    return;
-
-                // Delete old chunks
-                engineDB.BeginTransaction();
-                foreach (var old in existingChunks)
-                    chunkDal.Delete(old);
-                engineDB.Commit();
-
-                // Re-chunk and re-embed
+                // Re-chunk and re-embed (slow work — NO lock held)
                 var relativePath = fullPath.Replace(dbContext.ProjectPath, "").TrimStart(Path.DirectorySeparatorChar);
                 var chunks = chunkingService.ChunkFile(relativePath, content);
 
@@ -485,23 +509,33 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     var embedding = await embeddingService.GenerateEmbeddingAsync(chunk.Content);
                     var embeddingBytes = Features.Services.AI.VectorSearchService.SerializeEmbedding(embedding);
 
-                    engineDB.BeginTransaction();
-                    chunkDal.Save(new Abstractions.Entities.EngineDB.DocumentChunk
+                    // Re-acquire semaphore for each DB save
+                    await context.DbSemaphore.WaitAsync();
+                    try
                     {
-                        MarkdownFile = mdf,
-                        FilePath = chunk.FilePath,
-                        SectionTitle = chunk.SectionTitle,
-                        Content = chunk.Content,
-                        StartLine = chunk.StartLine,
-                        EndLine = chunk.EndLine,
-                        Embedding = embeddingBytes,
-                        EmbeddingDimension = embeddingService.GetEmbeddingDimension(),
-                        LastUpdated = DateTime.UtcNow.ToString("o"),
-                        FileHash = fileHash,
-                        FileLastWriteUtc = File.GetLastWriteTimeUtc(fullPath).ToString("o"),
-                        ChunkType = chunk.ChunkType ?? "document"
-                    });
-                    engineDB.Commit();
+                        var chunkDalSave = engineDB.GetDal<Abstractions.Entities.EngineDB.DocumentChunk>();
+                        engineDB.BeginTransaction();
+                        chunkDalSave.Save(new Abstractions.Entities.EngineDB.DocumentChunk
+                        {
+                            MarkdownFile = mdf,
+                            FilePath = chunk.FilePath,
+                            SectionTitle = chunk.SectionTitle,
+                            Content = chunk.Content,
+                            StartLine = chunk.StartLine,
+                            EndLine = chunk.EndLine,
+                            Embedding = embeddingBytes,
+                            EmbeddingDimension = embeddingService.GetEmbeddingDimension(),
+                            LastUpdated = DateTime.UtcNow.ToString("o"),
+                            FileHash = fileHash,
+                            FileLastWriteUtc = File.GetLastWriteTimeUtc(fullPath).ToString("o"),
+                            ChunkType = chunk.ChunkType ?? "document"
+                        });
+                        engineDB.Commit();
+                    }
+                    finally
+                    {
+                        context.DbSemaphore.Release();
+                    }
                 }
 
                 vectorSearchService?.InvalidateCache();
@@ -586,7 +620,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 _logger.LogInformation($"🎯 [{context.ConnectionId}] Processing new markdown file: {e.FullPath}");
 
-                ParseNewFileIntoDB(context, e);
+                // Serialize DB access: NHibernate session is NOT thread-safe
+                await context.DbSemaphore.WaitAsync();
+                try
+                {
+                    ParseNewFileIntoDB(context, e);
+                }
+                finally
+                {
+                    context.DbSemaphore.Release();
+                }
 
                 var relativePath = GetRelativePath(context, e.FullPath);
                 var newFileNode = new
@@ -690,7 +733,17 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 // Parse and notify new file
                 var fileEvent = new FileSystemEventArgs(WatcherChangeTypes.Created, Path.GetDirectoryName(e.FullPath), Path.GetFileName(e.FullPath));
-                ParseNewFileIntoDB(context, fileEvent);
+
+                // Serialize DB access: NHibernate session is NOT thread-safe
+                await context.DbSemaphore.WaitAsync();
+                try
+                {
+                    ParseNewFileIntoDB(context, fileEvent);
+                }
+                finally
+                {
+                    context.DbSemaphore.Release();
+                }
 
                 var relativePath = GetRelativePath(context, e.FullPath);
                 var newFileNode = new
@@ -769,8 +822,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
-                // Remove from database
-                RemoveFileFromDB(context, e.FullPath);
+                // Serialize DB access: NHibernate session is NOT thread-safe
+                await context.DbSemaphore.WaitAsync();
+                try
+                {
+                    RemoveFileFromDB(context, e.FullPath);
+                }
+                finally
+                {
+                    context.DbSemaphore.Release();
+                }
 
                 var relativePath = GetRelativePath(context, e.FullPath);
                 var fileDeletedData = new

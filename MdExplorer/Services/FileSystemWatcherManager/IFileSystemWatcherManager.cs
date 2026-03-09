@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace MdExplorer.Services.FileSystemWatcherManager
 {
@@ -136,5 +137,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// that fire even after EnableRaisingEvents = false.
         /// </summary>
         public bool IsTemporarilyDisabled { get; set; }
+
+        /// <summary>
+        /// Semaphore to serialize all database operations (ParseNewFileIntoDB, RemoveFileFromDB, ReEmbed).
+        /// NHibernate sessions are NOT thread-safe: concurrent FileSystemWatcher events on ThreadPool threads
+        /// would corrupt the session state causing "Transaction is not associated with the command's connection".
+        /// </summary>
+        public SemaphoreSlim DbSemaphore { get; set; } = new SemaphoreSlim(1, 1);
     }
 }

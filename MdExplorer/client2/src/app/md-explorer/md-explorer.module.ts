@@ -44,6 +44,7 @@ import { P2PStatusWidgetComponent } from './components/toolbar/p2p-status-widget
 import { ExternalAppComponent } from './components/external-app/external-app.component';
 import { ExternalAppsSettingsComponent } from './components/external-apps-settings/external-apps-settings.component';
 import { AppStoreComponent } from './components/app-store/app-store.component';
+import { InstallWizardDialogComponent } from './components/dialogs/install-wizard/install-wizard.component';
 
 
 
@@ -107,7 +108,8 @@ const routes: Routes = [
     P2PStatusWidgetComponent,
     ExternalAppComponent,
     ExternalAppsSettingsComponent,
-    AppStoreComponent
+    AppStoreComponent,
+    InstallWizardDialogComponent
   ],
   imports: [
     CommonModule,

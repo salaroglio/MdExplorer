@@ -269,6 +269,104 @@
       </div>
     </mat-tab>
 
+    <!-- Tab 4: Apps -->
+    <mat-tab label="Apps">
+      <div class="tab-content" *ngIf="!appsLoading">
+
+        <!-- Toolbar -->
+        <div class="apps-toolbar">
+          <button mat-stroked-button color="primary" (click)="openCatalogPicker()" [disabled]="appsSaving">
+            <mat-icon>add</mat-icon> Add App from Catalog
+          </button>
+          <button mat-stroked-button (click)="addCategory()" [disabled]="appsSaving">
+            <mat-icon>create_new_folder</mat-icon> New Category
+          </button>
+          <span class="toolbar-spacer"></span>
+          <button mat-raised-button color="primary" (click)="saveAppsTree()" [disabled]="appsSaving || appsTree.length === 0">
+            <mat-icon>save</mat-icon> Save
+          </button>
+          <mat-spinner *ngIf="appsSaving" diameter="20" class="inline-spinner"></mat-spinner>
+          <span class="saved-message" *ngIf="appsSavedMessage">{{ appsSavedMessage }}</span>
+        </div>
+
+        <!-- Empty state -->
+        <div *ngIf="appsTree.length === 0" class="apps-empty-state">
+          <mat-icon>apps</mat-icon>
+          <p>No apps configured for this project.</p>
+          <p class="apps-empty-hint">Use "Add App from Catalog" to get started.</p>
+        </div>
+
+        <!-- Mini-tree editor -->
+        <div class="apps-tree-editor" *ngIf="appsTree.length > 0">
+          <ng-container *ngFor="let node of appsTree">
+
+            <!-- Category row -->
+            <div *ngIf="node.type === 'category'" class="tree-category">
+              <div class="tree-row category-row">
+                <mat-icon class="gold-icon">folder</mat-icon>
+                <span *ngIf="editingCategoryId !== node.id" class="category-name">{{ node.name }}</span>
+                <input *ngIf="editingCategoryId === node.id"
+                       class="category-edit-input"
+                       [(ngModel)]="editingCategoryName"
+                       (keydown.enter)="confirmRenameCategory(node)"
+                       (keydown.escape)="cancelRenameCategory()"
+                       (blur)="confirmRenameCategory(node)"
+                       autofocus>
+                <span class="tree-actions">
+                  <button mat-icon-button matTooltip="Rename" (click)="startRenameCategory(node)" *ngIf="editingCategoryId !== node.id">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button mat-icon-button matTooltip="Delete category" color="warn" (click)="deleteCategory(node)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </span>
+              </div>
+              <!-- Children apps inside category -->
+              <div *ngFor="let child of node.children" class="tree-row app-row indented">
+                <mat-icon class="app-row-icon">{{ getAppIcon(child.appId!) }}</mat-icon>
+                <span class="app-row-name">{{ getAppName(child.appId!) }}</span>
+                <span class="tree-actions">
+                  <button mat-icon-button matTooltip="Move to root level" (click)="moveAppToRoot(node, child)">
+                    <mat-icon>arrow_upward</mat-icon>
+                  </button>
+                  <button mat-icon-button matTooltip="Remove from project" color="warn" (click)="removeApp(child.appId!)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <!-- Root-level app row -->
+            <div *ngIf="node.type === 'app'" class="tree-row app-row">
+              <mat-icon class="app-row-icon">{{ getAppIcon(node.appId!) }}</mat-icon>
+              <span class="app-row-name">{{ getAppName(node.appId!) }}</span>
+              <span class="tree-actions">
+                <button mat-icon-button [matMenuTriggerFor]="moveToCatMenu" matTooltip="Move to category"
+                        *ngIf="getCategories().length > 0">
+                  <mat-icon>arrow_downward</mat-icon>
+                </button>
+                <mat-menu #moveToCatMenu="matMenu">
+                  <button mat-menu-item *ngFor="let cat of getCategories()" (click)="moveAppToCategory(node, cat)">
+                    <mat-icon>folder</mat-icon> {{ cat.name }}
+                  </button>
+                </mat-menu>
+                <button mat-icon-button matTooltip="Remove from project" color="warn" (click)="removeApp(node.appId!)">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </span>
+            </div>
+
+          </ng-container>
+        </div>
+
+      </div>
+
+      <div *ngIf="appsLoading" class="loading-container">
+        <mat-spinner diameter="30"></mat-spinner>
+        <span>Loading apps...</span>
+      </div>
+    </mat-tab>
+
   </mat-tab-group>
 </mat-dialog-content>
 

@@ -151,3 +151,123 @@
   font-size: 13px;
   color: rgba(0, 0, 0, 0.6);
 }
+
+// ── Apps tab ──────────────────────────────
+
+.apps-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.saved-message {
+  font-size: 13px;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.apps-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px;
+  color: rgba(0, 0, 0, 0.4);
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.apps-empty-hint {
+  font-size: 13px;
+  margin-top: 4px !important;
+}
+
+.apps-tree-editor {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  min-height: 40px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.category-row {
+  background: rgba(0, 0, 0, 0.03);
+  font-weight: 500;
+}
+
+.category-name {
+  flex: 1;
+  margin-left: 8px;
+}
+
+.category-edit-input {
+  flex: 1;
+  margin-left: 8px;
+  border: 1px solid #1976d2;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.app-row {
+  &.indented {
+    padding-left: 40px;
+  }
+}
+
+.app-row-icon {
+  color: #1976d2;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.app-row-name {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+.tree-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+
+  button {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+}

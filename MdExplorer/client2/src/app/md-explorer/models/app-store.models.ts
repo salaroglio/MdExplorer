@@ -1,6 +1,7 @@
 export interface PlatformBuild {
   downloadUrl: string;
   executableName: string;
+  version?: string;
 }
 
 export interface StoreCatalogApp {
@@ -35,6 +36,7 @@ export interface StoreCatalog {
   repoLogo?: string;
   apps: StoreCatalogApp[];
   repos?: RepoInfo[];
+  failedRepos?: number;
 }
 
 export interface InstalledApp {
@@ -44,6 +46,7 @@ export interface InstalledApp {
   icon?: string;
   description?: string;
   installedAt: string;
+  updatedAt?: string;
   localPath: string;
   executableName: string;
   platform?: string;

@@ -179,6 +179,13 @@
   transition: color 0.2s ease;
 }
 
+.app-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 // Stili per snackbar di successo
 ::ng-deep .success-snackbar {
   background-color: #4caf50 !important;

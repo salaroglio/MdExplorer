@@ -1,11 +1,16 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
-import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
+import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
 import { ProjectSettingsService } from '../services/project-settings.service';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
+import { ExternalAppsService, MdeAppDefinition } from '../../md-explorer/services/external-apps.service';
+import { MdeTreeNode, MdeAppsConfig } from '../../md-explorer/models/mde-apps-tree.models';
+import { MdFileService } from '../../md-explorer/services/md-file.service';
+import { CatalogPickerDialogComponent } from '../dialogs/catalog-picker/catalog-picker.component';
+import { StoreCatalogApp } from '../../md-explorer/models/app-store.models';
 
 @Component({
   selector: 'app-project-settings',
@@ -25,6 +30,15 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   projectPath: string;
   loading: boolean = false;
   saving: boolean = false;
+
+  // Apps tab
+  appsTree: MdeTreeNode[] = [];
+  appDefinitions: MdeAppDefinition[] = [];
+  appsLoading = true;
+  appsSaving = false;
+  editingCategoryId: string | null = null;
+  editingCategoryName = '';
+  appsSavedMessage = '';
 
   // RAG settings
   ragEnabled: boolean = false;
@@ -46,7 +60,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     private compatibilityService: CompatibilityModeService,
     private ideConfigService: IdeConfigurationService,
     private serverMessages: MdServerMessagesService,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private externalAppsService: ExternalAppsService,
+    private mdFileService: MdFileService,
+    private dialog: MatDialog
   ) {
     this.projectId = data.projectId;
     this.projectName = data.projectName;
@@ -55,6 +72,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadSettings();
+    this.loadAppsConfig();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -356,6 +374,185 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.ragEmbeddedCount = response.embeddedCount || 0;
       }
     });
+  }
+
+  // ── Apps tab ──────────────────────────────
+
+  loadAppsConfig(): void {
+    this.appsLoading = true;
+    console.log('[ProjectSettings] loadAppsConfig — projectPath:', this.projectPath);
+    this.externalAppsService.getConfig(this.projectPath).subscribe({
+      next: (config) => {
+        console.log('[ProjectSettings] apps config loaded:', config);
+        this.appDefinitions = config.apps || [];
+        this.appsTree = config.tree || [];
+        this.appsLoading = false;
+        console.log('[ProjectSettings] appsTree:', this.appsTree.length, 'appDefinitions:', this.appDefinitions.length);
+      },
+      error: (err) => {
+        console.error('[ProjectSettings] Error loading apps config:', err);
+        this.appDefinitions = [];
+        this.appsTree = [];
+        this.appsLoading = false;
+      }
+    });
+  }
+
+  getAppName(appId: string): string {
+    const app = this.appDefinitions.find(a => a.id === appId);
+    return app?.name || appId;
+  }
+
+  getAppIcon(appId: string): string {
+    const app = this.appDefinitions.find(a => a.id === appId);
+    return app?.icon || 'apps';
+  }
+
+  getCategories(): MdeTreeNode[] {
+    return this.appsTree.filter(n => n.type === 'category');
+  }
+
+  openCatalogPicker(): void {
+    const existingIds = this.appDefinitions.map(a => a.id);
+    const ref = this.dialog.open(CatalogPickerDialogComponent, {
+      width: '560px',
+      data: { existingAppIds: existingIds }
+    });
+
+    ref.afterClosed().subscribe((selected: StoreCatalogApp | null) => {
+      if (!selected) return;
+
+      // Convert StoreCatalogApp to MdeAppDefinition
+      const newApp: MdeAppDefinition = {
+        id: selected.id,
+        name: selected.name,
+        description: selected.description || '',
+        icon: selected.icon || 'apps',
+        executable: '',
+        args: selected.defaultArgs || [],
+        singleton: true
+      };
+
+      this.appDefinitions.push(newApp);
+      this.appsTree.push({ type: 'app', appId: selected.id });
+
+      // Save full config (apps + tree) in one call
+      this.saveAppsTree();
+    });
+  }
+
+  addCategory(): void {
+    const name = prompt('Category name:');
+    if (!name || !name.trim()) return;
+
+    const cat: MdeTreeNode = {
+      type: 'category',
+      id: 'cat-' + Date.now(),
+      name: name.trim(),
+      icon: 'folder',
+      children: []
+    };
+    this.appsTree.push(cat);
+    this.saveAppsTree();
+  }
+
+  deleteCategory(cat: MdeTreeNode): void {
+    // Move children to root level
+    if (cat.children && cat.children.length > 0) {
+      for (const child of cat.children) {
+        this.appsTree.push(child);
+      }
+    }
+    this.appsTree = this.appsTree.filter(n => n !== cat);
+    this.saveAppsTree();
+  }
+
+  startRenameCategory(cat: MdeTreeNode): void {
+    this.editingCategoryId = cat.id!;
+    this.editingCategoryName = cat.name || '';
+  }
+
+  confirmRenameCategory(cat: MdeTreeNode): void {
+    if (this.editingCategoryName.trim()) {
+      cat.name = this.editingCategoryName.trim();
+      this.saveAppsTree();
+    }
+    this.editingCategoryId = null;
+  }
+
+  cancelRenameCategory(): void {
+    this.editingCategoryId = null;
+  }
+
+  moveAppToCategory(appNode: MdeTreeNode, targetCat: MdeTreeNode): void {
+    // Remove from root
+    this.appsTree = this.appsTree.filter(n => n !== appNode);
+    // Remove from any other category
+    for (const cat of this.getCategories()) {
+      if (cat.children) {
+        cat.children = cat.children.filter(c => c.appId !== appNode.appId);
+      }
+    }
+    // Add to target
+    if (!targetCat.children) targetCat.children = [];
+    targetCat.children.push({ type: 'app', appId: appNode.appId });
+    this.saveAppsTree();
+  }
+
+  moveAppToRoot(cat: MdeTreeNode, childNode: MdeTreeNode): void {
+    if (cat.children) {
+      cat.children = cat.children.filter(c => c !== childNode);
+    }
+    this.appsTree.push({ type: 'app', appId: childNode.appId });
+    this.saveAppsTree();
+  }
+
+  removeApp(appId: string): void {
+    const appName = this.getAppName(appId);
+    if (!confirm(`Remove "${appName}" from this project?`)) return;
+
+    // Remove from tree (root + categories)
+    this.appsTree = this.appsTree.filter(n => !(n.type === 'app' && n.appId === appId));
+    for (const cat of this.getCategories()) {
+      if (cat.children) {
+        cat.children = cat.children.filter(c => c.appId !== appId);
+      }
+    }
+    // Remove from definitions
+    this.appDefinitions = this.appDefinitions.filter(a => a.id !== appId);
+
+    // Save full config (apps + tree) in one call
+    this.saveAppsTree();
+  }
+
+  saveAppsTree(): void {
+    this.appsSaving = true;
+    this.appsSavedMessage = '';
+    const config: MdeAppsConfig = {
+      version: '2',
+      apps: this.appDefinitions,
+      tree: this.appsTree
+    };
+    this.externalAppsService.saveConfig(config, this.projectPath).subscribe({
+      next: () => {
+        this.appsSaving = false;
+        this.appsSavedMessage = 'Saved';
+        this.refreshTree();
+        setTimeout(() => this.appsSavedMessage = '', 3000);
+      },
+      error: (err) => {
+        console.error('Error saving config:', err);
+        this.appsSaving = false;
+        this.appsSavedMessage = 'Error saving';
+      }
+    });
+  }
+
+  private refreshTree(): void {
+    // Refresh md-tree solo se siamo dentro un progetto aperto (connectionId registrato)
+    if (this.serverMessages.connectionId) {
+      this.mdFileService.loadAll(null, null);
+    }
   }
 
   close(): void {

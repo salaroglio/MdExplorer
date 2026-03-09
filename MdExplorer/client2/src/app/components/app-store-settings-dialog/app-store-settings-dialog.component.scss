@@ -3,59 +3,133 @@
   align-items: center;
   gap: 8px;
   margin: 0;
+  font-size: 18px;
+  font-weight: 500;
 
   mat-icon {
     color: #1976d2;
   }
 }
 
-.vertical-form {
+// ── Repository list ─────────────────────────────
+.repo-list {
   display: flex;
   flex-direction: column;
+}
+
+.repo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.repo-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.repo-item-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #212121;
+}
+
+.repo-item-url {
+  font-size: 12px;
+  color: #757575;
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.repo-item-auth {
+  display: flex;
+  align-items: center;
   gap: 4px;
+  font-size: 11px;
+  color: #9e9e9e;
+  margin-top: 4px;
+}
+
+.auth-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.auth-dot {
+  color: #bdbdbd;
+}
+
+.repo-item-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+// ── Empty state ─────────────────────────────────
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #757575;
+  font-size: 13px;
+  padding: 20px 0;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: #bdbdbd;
+  }
+}
+
+// ── Edit form ───────────────────────────────────
+.repo-edit-form {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(25, 118, 210, 0.03);
+  border: 1px solid rgba(25, 118, 210, 0.12);
+  border-radius: 8px;
+}
+
+.form-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1976d2;
+  margin-bottom: 16px;
+}
+
+.form-fields {
+  display: flex;
+  flex-direction: column;
 
   mat-form-field {
     width: 100%;
   }
 }
 
-.repo-list-item {
-  border-bottom: 1px solid #eee;
-  padding: 8px 0;
-}
+.form-row {
+  display: flex;
+  gap: 12px;
 
-.repo-url-text {
-  font-size: 12px;
-  color: #757575;
-  margin-left: 8px;
-}
-
-.repo-auth-text {
-  font-size: 11px;
-  color: #9e9e9e;
-}
-
-.repo-edit-form {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
-
-  h4 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
+  mat-form-field {
+    flex: 1;
   }
 }
 
-.repo-form-actions {
+.form-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
   margin-top: 8px;
 }
 
-.empty-repos-message {
-  color: #757575;
-  font-size: 13px;
-  padding: 8px 0;
+// ── Add button ──────────────────────────────────
+.add-button-row {
+  padding: 16px 0 4px 0;
 }

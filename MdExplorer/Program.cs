@@ -111,6 +111,10 @@ namespace MdExplorer
                .ConfigureWebHostDefaults(webBuilder =>
                {
                    webBuilder.UseUrls(url);
+                   webBuilder.ConfigureKestrel(options =>
+                   {
+                       options.Limits.MaxRequestBodySize = 500L * 1024 * 1024; // 500 MB
+                   });
                    webBuilder.UseStartup<Startup>();
                })
                .ConfigureServices(services =>

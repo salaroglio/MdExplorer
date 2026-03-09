@@ -29,6 +29,8 @@ import { P2PService } from '../../../services/p2p.service';
 import { ProjectSettingsService } from '../../../projects/services/project-settings.service';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
+import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
+import { AppStoreService } from '../../services/app-store.service';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -85,7 +87,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
-      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder",
+      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder" || node.type == "externalAppRoot" || node.type == "externalAppCategory",
       name: node.name,
       level: level,
       path: node.path,
@@ -124,8 +126,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
   isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name == "mdPublish";
   isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
+  isExternalAppRoot = (_: number, node: IFileInfoNode) => node.type == "externalAppRoot";
+  isExternalAppCategory = (_: number, node: IFileInfoNode) => node.type == "externalAppCategory";
   isExternalApp = (_: number, node: IFileInfoNode) => node.type == "externalApp";
   isExternalAppNotInstalled = (_: number, node: IFileInfoNode) => node.type == "externalAppNotInstalled";
+
+  isImageIcon(icon: string | undefined): boolean {
+    if (!icon) return false;
+    return icon.startsWith('data:image/') || icon.startsWith('http://') || icon.startsWith('https://');
+  }
 
   ///////////////////////////////
 
@@ -149,7 +158,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private projectsService: ProjectsService,
     private urlHandlerService: UrlHandlerService,
     private p2pService: P2PService,
-    private projectSettingsService: ProjectSettingsService
+    private projectSettingsService: ProjectSettingsService,
+    private appStoreService: AppStoreService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -432,27 +442,55 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // External app: direct desktop launch (fire-and-forget, no iframe)
+    // External app: check for updates, then navigate to embedded view
     if (node.type === 'externalApp') {
-      if ((window as any).electronAPI?.externalApp?.open) {
-        try {
-          const result = await (window as any).electronAPI.externalApp.open(
-            node.appId, node.appExecutable, node.appArgs ?? []);
-          if (result.success) {
-            this.snackBar.open(`"${node.name}" avviata`, '', { duration: 2000 });
+      console.log('[md-tree] Opening external app:', node.appId, 'executable:', node.appExecutable);
+      this.appStoreService.checkUpdate(node.appId).subscribe({
+        next: (result) => {
+          if (result.hasUpdate && result.catalogApp) {
+            const dialogRef = this.dialog.open(InstallWizardDialogComponent, {
+              width: '480px',
+              data: {
+                appId: node.appId,
+                appName: node.name,
+                appDescription: node.appDescription,
+                appIcon: node.appIcon,
+                mode: 'update',
+                installedVersion: result.installedVersion,
+                catalogApp: result.catalogApp
+              } as InstallWizardData
+            });
+            dialogRef.afterClosed().subscribe(closeResult => {
+              if (closeResult === 'updated') {
+                // Force ExternalAppComponent to re-launch by emitting null first
+                this.mdFileService.setSelectedMdFileFromSideNav(null);
+                setTimeout(() => this.openExternalApp(node), 300);
+              } else {
+                this.openExternalApp(node);
+              }
+            });
           } else {
-            this.snackBar.open(`Errore: ${result.error}`, 'OK', { duration: 5000 });
+            this.openExternalApp(node);
           }
-        } catch (err) {
-          this.snackBar.open('Errore nel lancio dell\'app', 'OK', { duration: 3000 });
+        },
+        error: () => {
+          // If check fails, open app anyway
+          this.openExternalApp(node);
         }
-      } else {
-        this.snackBar.open('Le app esterne richiedono la versione desktop (Electron)', 'OK', { duration: 3000 });
-      }
+      });
       return;
     }
     if (node.type === 'externalAppNotInstalled') {
-      await this.router.navigate(['/main/app-store']);
+      this.dialog.open(InstallWizardDialogComponent, {
+        width: '480px',
+        data: {
+          appId: node.appId,
+          appName: node.name,
+          appDescription: node.appDescription,
+          appIcon: node.appIcon,
+          mode: 'install'
+        } as InstallWizardData
+      });
       return;
     }
 
@@ -472,6 +510,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       console.error('Navigation failed:', error);
       this.snackBar.open('Errore di navigazione', 'OK', { duration: 3000 });
     }
+  }
+
+  private async openExternalApp(node: MdFile): Promise<void> {
+    await this.router.navigate(['/main/navigation/external-app']);
+    this.mdFileService.setSelectedMdFileFromSideNav(node);
   }
 
   // ==================== Drag & Drop ====================
