@@ -430,6 +430,10 @@ namespace MdExplorer.Features.Services
             {
                 estimatedTotalLayers = 40;
             }
+            else if (modelSizeBytes < 7_000_000_000) // < 7GB (9B models, Q4_K_M ~5.68GB)
+            {
+                estimatedTotalLayers = 48;
+            }
             
             // Return the minimum of what we can fit and total layers
             var optimalLayers = Math.Min(maxLayers, estimatedTotalLayers);

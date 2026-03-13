@@ -56,8 +56,8 @@ export class AppStoreSettingsDialogComponent implements OnInit {
     const data = {
       label: this.repoForm.label,
       url: this.repoForm.url,
-      username: this.repoForm.username || undefined,
-      password: this.repoForm.password || undefined
+      username: this.repoForm.username || null,
+      password: this.repoForm.password || null
     };
 
     const obs = this.editingRepo
@@ -69,6 +69,7 @@ export class AppStoreSettingsDialogComponent implements OnInit {
         this.isSavingRepo = false;
         this.cancelRepoEdit();
         this.loadAppStoreRepos();
+        this.appStoreService.notifyReposChanged();
         this.snackBar.open('Repository saved', '', { duration: 2000 });
       },
       error: () => {
@@ -83,6 +84,7 @@ export class AppStoreSettingsDialogComponent implements OnInit {
     this.appStoreService.deleteRepository(repo.id).subscribe({
       next: () => {
         this.loadAppStoreRepos();
+        this.appStoreService.notifyReposChanged();
         this.snackBar.open('Repository deleted', '', { duration: 2000 });
       },
       error: () => this.snackBar.open('Failed to delete repository', '', { duration: 3000 })

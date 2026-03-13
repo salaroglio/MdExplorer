@@ -2344,8 +2344,8 @@ class AppStoreSettingsDialogComponent {
     const data = {
       label: this.repoForm.label,
       url: this.repoForm.url,
-      username: this.repoForm.username || undefined,
-      password: this.repoForm.password || undefined
+      username: this.repoForm.username || null,
+      password: this.repoForm.password || null
     };
     const obs = this.editingRepo ? this.appStoreService.updateRepository(this.editingRepo.id, data) : this.appStoreService.addRepository(data);
     obs.subscribe({
@@ -2353,6 +2353,7 @@ class AppStoreSettingsDialogComponent {
         this.isSavingRepo = false;
         this.cancelRepoEdit();
         this.loadAppStoreRepos();
+        this.appStoreService.notifyReposChanged();
         this.snackBar.open('Repository saved', '', {
           duration: 2000
         });
@@ -2370,6 +2371,7 @@ class AppStoreSettingsDialogComponent {
     this.appStoreService.deleteRepository(repo.id).subscribe({
       next: () => {
         this.loadAppStoreRepos();
+        this.appStoreService.notifyReposChanged();
         this.snackBar.open('Repository deleted', '', {
           duration: 2000
         });
@@ -6555,13 +6557,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "AppStoreService": () => (/* binding */ AppStoreService)
 /* harmony export */ });
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ 833);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 1640);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 745);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 635);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 9337);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 833);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 1640);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 745);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 9337);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
 
 
@@ -6577,18 +6580,20 @@ class AppStoreService {
     this._cachedCatalog = null;
     this._cachedInstalled = null;
     this._prefetchInProgress = false;
+    this._reposChanged = new rxjs__WEBPACK_IMPORTED_MODULE_1__.Subject();
+    this.reposChanged$ = this._reposChanged.asObservable();
   }
   get connectionId() {
     return this.mdServerMessages.connectionId ?? '';
   }
   getPlatform() {
     if (this._platform) {
-      return new rxjs__WEBPACK_IMPORTED_MODULE_1__.Observable(sub => {
+      return new rxjs__WEBPACK_IMPORTED_MODULE_2__.Observable(sub => {
         sub.next(this._platform);
         sub.complete();
       });
     }
-    return this.http.get(`/api/MdAppStore/platform?ConnectionId=${this.connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.map)(r => {
+    return this.http.get(`/api/MdAppStore/platform?ConnectionId=${this.connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.map)(r => {
       this._platform = r.platform;
       return r.platform;
     }));
@@ -6597,7 +6602,7 @@ class AppStoreService {
   prefetchCatalogAndInstalled() {
     if (this._prefetchInProgress) return;
     this._prefetchInProgress = true;
-    (0,rxjs__WEBPACK_IMPORTED_MODULE_3__.forkJoin)([this.http.get(`/api/MdAppStore/catalog?ConnectionId=${this.connectionId}`), this.http.get(`/api/MdAppStore/installed?ConnectionId=${this.connectionId}`)]).subscribe({
+    (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.forkJoin)([this.http.get(`/api/MdAppStore/catalog?ConnectionId=${this.connectionId}`), this.http.get(`/api/MdAppStore/installed?ConnectionId=${this.connectionId}`)]).subscribe({
       next: ([catalog, installed]) => {
         this._cachedCatalog = catalog;
         this._cachedInstalled = installed;
@@ -6613,20 +6618,25 @@ class AppStoreService {
     this._cachedCatalog = null;
     this._cachedInstalled = null;
   }
+  /** Notify that repositories have been changed. */
+  notifyReposChanged() {
+    this.invalidateCache();
+    this._reposChanged.next();
+  }
   getCatalog() {
-    if (this._cachedCatalog) return (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.of)(this._cachedCatalog);
-    return this.http.get(`/api/MdAppStore/catalog?ConnectionId=${this.connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.tap)(c => this._cachedCatalog = c));
+    if (this._cachedCatalog) return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(this._cachedCatalog);
+    return this.http.get(`/api/MdAppStore/catalog?ConnectionId=${this.connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(c => this._cachedCatalog = c));
   }
   getInstalled() {
-    if (this._cachedInstalled) return (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.of)(this._cachedInstalled);
-    return this.http.get(`/api/MdAppStore/installed?ConnectionId=${this.connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.tap)(list => this._cachedInstalled = list));
+    if (this._cachedInstalled) return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(this._cachedInstalled);
+    return this.http.get(`/api/MdAppStore/installed?ConnectionId=${this.connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(list => this._cachedInstalled = list));
   }
   /**
    * Check if an installed app has an update available on the catalog.
    * Uses cached data when available.
    */
   checkUpdate(appId) {
-    return (0,rxjs__WEBPACK_IMPORTED_MODULE_3__.forkJoin)([this.getCatalog(), this.getInstalled()]).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.map)(([catalog, installed]) => {
+    return (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.forkJoin)([this.getCatalog(), this.getInstalled()]).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.map)(([catalog, installed]) => {
       const inst = installed.find(a => a.appId === appId);
       const catApp = catalog.apps.find(a => a.id === appId) || null;
       if (!inst || !catApp) {
@@ -6712,18 +6722,18 @@ class AppStoreService {
     if (repoId) {
       formData.append('RepoId', repoId);
     }
-    const req = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpRequest('POST', `/api/MdAppStore/publish?ConnectionId=${this.connectionId}`, formData, {
+    const req = new _angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpRequest('POST', `/api/MdAppStore/publish?ConnectionId=${this.connectionId}`, formData, {
       reportProgress: true
     });
     return this.http.request(req);
   }
   static {
     this.ɵfac = function AppStoreService_Factory(t) {
-      return new (t || AppStoreService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService));
+      return new (t || AppStoreService)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
       token: AppStoreService,
       factory: AppStoreService.ɵfac,
       providedIn: 'root'
@@ -8900,13 +8910,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AiChatService": () => (/* binding */ AiChatService)
 /* harmony export */ });
 /* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 833);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 635);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 833);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/common/http */ 8987);
+
+
+
 
 
 
@@ -8914,32 +8928,33 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class AiChatService {
-  constructor(http) {
+  constructor(http, serverMessages) {
     this.http = http;
+    this.serverMessages = serverMessages;
     this.baseUrl = '/api/AiModels';
-    this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject([]);
+    this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
     this.messages$ = this._messages$.asObservable();
-    this._downloadProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this._downloadProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     this.downloadProgress$ = this._downloadProgress$.asObservable();
-    this._currentModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this._currentModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.currentModel$ = this._currentModel$.asObservable();
-    this._isModelLoaded$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
+    this._isModelLoaded$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     this.isModelLoaded$ = this._isModelLoaded$.asObservable();
-    this._streamingMessage$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this._streamingMessage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     this.streamingMessage$ = this._streamingMessage$.asObservable();
-    this._gpuInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this._gpuInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.gpuInfo$ = this._gpuInfo$.asObservable();
-    this._gpuEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
+    this._gpuEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     this.gpuEnabled$ = this._gpuEnabled$.asObservable();
     this.currentStreamingMessageId = null;
     this.currentStreamingProviderType = null;
     // Gemini API state
-    this._useGemini$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
+    this._useGemini$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     this.useGemini$ = this._useGemini$.asObservable();
-    this._geminiModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject('gemini-1.5-flash');
+    this._geminiModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject('gemini-1.5-flash');
     this.geminiModel$ = this._geminiModel$.asObservable();
     // Current document context for AI
-    this._currentDocument$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this._currentDocument$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.currentDocument$ = this._currentDocument$.asObservable();
     this.initializeSignalR();
   }
@@ -8997,12 +9012,32 @@ class AiChatService {
       try {
         yield _this.hubConnection.start();
         console.log('SignalR connection established');
+        // Send the MonitorMDHub connectionId so AiChatHub can resolve the project path
+        _this.sendProjectConnectionId();
         yield _this.getModelStatus();
       } catch (err) {
         console.error('Error establishing SignalR connection:', err);
         setTimeout(() => _this.startConnection(), 5000);
       }
     })();
+  }
+  /**
+   * Sends the MonitorMDHub connectionId to AiChatHub so it can
+   * look up the project path via WatcherManager.
+   */
+  sendProjectConnectionId() {
+    const projectConnId = this.serverMessages?.connectionId;
+    if (projectConnId && this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SetProjectConnectionId', projectConnId).then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId)).catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+    } else {
+      // MonitorMDHub might not be connected yet — retry after a short delay
+      setTimeout(() => {
+        const connId = this.serverMessages?.connectionId;
+        if (connId && this.hubConnection.state === 'Connected') {
+          this.hubConnection.invoke('SetProjectConnectionId', connId).then(() => console.log('[AiChatService] Sent project connectionId (retry):', connId)).catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+        }
+      }, 2000);
+    }
   }
   // Model Management
   getAvailableModels() {
@@ -9022,7 +9057,7 @@ class AiChatService {
     console.log('[AiChatService] HubConnection state:', this.hubConnection.state);
     if (this.hubConnection.state === 'Connected') {
       console.log('[AiChatService] Using SignalR to load model');
-      return new rxjs__WEBPACK_IMPORTED_MODULE_4__.Observable(observer => {
+      return new rxjs__WEBPACK_IMPORTED_MODULE_5__.Observable(observer => {
         this.hubConnection.invoke('LoadModel', modelId).then(response => {
           console.log('[AiChatService] SignalR LoadModel success, response:', response);
           observer.next(response);
@@ -9131,8 +9166,29 @@ class AiChatService {
       systemPrompt
     });
   }
+  getApplicationPrompt() {
+    return this.http.get(`${this.baseUrl}/application-prompt`);
+  }
+  setApplicationPrompt(applicationPrompt) {
+    return this.http.post(`${this.baseUrl}/application-prompt`, {
+      applicationPrompt
+    });
+  }
   getGpuInfo() {
     return this.http.get(`${this.baseUrl}/gpu-info`);
+  }
+  // llama.cpp Backend Management
+  getBackendStatus() {
+    return this.http.get(`${this.baseUrl}/backend-status`);
+  }
+  getAvailableBackends() {
+    return this.http.get(`${this.baseUrl}/backends`);
+  }
+  downloadBackend(variant) {
+    return this.http.post(`${this.baseUrl}/backends/download/${variant}`, {});
+  }
+  deleteBackend() {
+    return this.http.delete(`${this.baseUrl}/backends`);
   }
   generateMessageId() {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -9185,7 +9241,7 @@ class AiChatService {
   }
   getOpenAiModels() {
     // Uses the multi-provider endpoint
-    return this.getModelsByProvider('OpenAI').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.map)(response => response.models || []));
+    return this.getModelsByProvider('OpenAI').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(response => response.models || []));
   }
   testOpenAiApiKey(apiKey) {
     return this.http.post('/api/openai/test-api-key', {
@@ -9286,7 +9342,7 @@ class AiChatService {
     return this.http.get('/api/copilotcli/configured');
   }
   getCopilotCliModels() {
-    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.map)(response => response.models || []));
+    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(response => response.models || []));
   }
   getCopilotCliSystemPrompt() {
     return this.http.get('/api/copilotcli/system-prompt');
@@ -9372,11 +9428,11 @@ class AiChatService {
   }
   static {
     this.ɵfac = function AiChatService_Factory(t) {
-      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpClient));
+      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_8__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_7__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService)));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
       token: AiChatService,
       factory: AiChatService.ɵfac,
       providedIn: 'root'
@@ -10071,6 +10127,16 @@ class UrlHandlerService {
       return;
     }
     console.log('[UrlHandler] Initializing URL handler service');
+    // Check if Electron has a pending URL command - set skipLandingPage early
+    // to prevent race condition where loadAll returns before SignalR event
+    if (window.electronAPI?.hasPendingUrlCommand) {
+      window.electronAPI.hasPendingUrlCommand().then(hasPending => {
+        if (hasPending) {
+          console.log('[UrlHandler] Pending URL command detected - skipLandingPage = true');
+          this.skipLandingPage = true;
+        }
+      });
+    }
     // Listen for open document commands
     this.mdServerMessages.addUrlHandlerOpenDocumentListener((data, _) => {
       this.handleOpenDocument(data);
@@ -11292,6 +11358,17 @@ class MdServerMessagesService {
       callback(data, objectThis);
     });
   }
+  // Bulk Export listeners
+  addBulkExportProgressListener(callback, objectThis) {
+    this.hubConnection.on('BulkExportProgress', data => {
+      callback(data, objectThis);
+    });
+  }
+  addBulkExportCompleteListener(callback, objectThis) {
+    this.hubConnection.on('BulkExportComplete', data => {
+      callback(data, objectThis);
+    });
+  }
   addFolderCreatedListener(callback, objectThis) {
     this.hubConnection.on('folderCreated', data => {
       console.log('📁 [SignalR] Evento folderCreated ricevuto:', data?.fullPath || data?.FullPath);
@@ -11366,8 +11443,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.03.05.7',
-  buildTime: '2026.03.05 17:38:11'
+  version: '2026.03.12.4',
+  buildTime: '2026.03.12 14:29:25'
 };
 
 /***/ }),

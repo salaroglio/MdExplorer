@@ -43,6 +43,17 @@ export class UrlHandlerService {
 
     console.log('[UrlHandler] Initializing URL handler service');
 
+    // Check if Electron has a pending URL command - set skipLandingPage early
+    // to prevent race condition where loadAll returns before SignalR event
+    if ((window as any).electronAPI?.hasPendingUrlCommand) {
+      (window as any).electronAPI.hasPendingUrlCommand().then((hasPending: boolean) => {
+        if (hasPending) {
+          console.log('[UrlHandler] Pending URL command detected - skipLandingPage = true');
+          this.skipLandingPage = true;
+        }
+      });
+    }
+
     // Listen for open document commands
     this.mdServerMessages.addUrlHandlerOpenDocumentListener((data, _) => {
       this.handleOpenDocument(data);

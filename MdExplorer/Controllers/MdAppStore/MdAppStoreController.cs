@@ -472,13 +472,13 @@ namespace MdExplorer.Controllers.MdAppStore
 
             try
             {
-                var dal = _session.GetDal<AppStoreRepository>();
-                var maxSort = dal.GetList().Select(r => r.SortOrder).DefaultIfEmpty(-1).Max();
-
                 _session.BeginTransaction();
+                var dal = _session.GetDal<AppStoreRepository>();
+                var sortOrders = dal.GetList().Select(r => r.SortOrder).ToList();
+                var maxSort = sortOrders.Any() ? sortOrders.Max() : -1;
+
                 var repo = new AppStoreRepository
                 {
-                    Id = Guid.NewGuid(),
                     Label = request.Label,
                     Url = request.Url,
                     Username = request.Username,
@@ -492,6 +492,7 @@ namespace MdExplorer.Controllers.MdAppStore
             }
             catch (Exception ex)
             {
+                _session.Rollback();
                 _logger.LogError(ex, "[MdAppStore] Error adding repository");
                 return StatusCode(500, new { error = "Failed to add repository." });
             }
@@ -508,12 +509,15 @@ namespace MdExplorer.Controllers.MdAppStore
 
             try
             {
+                _session.BeginTransaction();
                 var dal = _session.GetDal<AppStoreRepository>();
                 var repo = dal.GetList().FirstOrDefault(r => r.Id == id);
                 if (repo == null)
+                {
+                    _session.Rollback();
                     return NotFound(new { error = "Repository not found." });
+                }
 
-                _session.BeginTransaction();
                 repo.Label = request.Label;
                 repo.Url = request.Url;
                 repo.Username = request.Username;
@@ -526,6 +530,7 @@ namespace MdExplorer.Controllers.MdAppStore
             }
             catch (Exception ex)
             {
+                _session.Rollback();
                 _logger.LogError(ex, "[MdAppStore] Error updating repository");
                 return StatusCode(500, new { error = "Failed to update repository." });
             }
@@ -539,12 +544,15 @@ namespace MdExplorer.Controllers.MdAppStore
         {
             try
             {
+                _session.BeginTransaction();
                 var dal = _session.GetDal<AppStoreRepository>();
                 var repo = dal.GetList().FirstOrDefault(r => r.Id == id);
                 if (repo == null)
+                {
+                    _session.Rollback();
                     return NotFound(new { error = "Repository not found." });
+                }
 
-                _session.BeginTransaction();
                 dal.Delete(repo);
                 _session.Commit();
 
@@ -552,6 +560,7 @@ namespace MdExplorer.Controllers.MdAppStore
             }
             catch (Exception ex)
             {
+                _session.Rollback();
                 _logger.LogError(ex, "[MdAppStore] Error deleting repository");
                 return StatusCode(500, new { error = "Failed to delete repository." });
             }

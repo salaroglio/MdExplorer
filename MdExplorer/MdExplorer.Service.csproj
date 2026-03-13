@@ -177,16 +177,15 @@
     <EmbeddedResource Include=".mdFoldersIgnore" />
     <EmbeddedResource Include=".development.yml" />
     <EmbeddedResource Include="copilot-instructions.md" />
+    <EmbeddedResource Include="external-apps\MdE-Dual-Mode-App-Guide.md" />
+    <EmbeddedResource Include="external-apps\MdE-External-App-Protocol.md" />
     </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="LibGit2Sharp" Version="0.31.0" />
-    <PackageReference Include="LLamaSharp" Version="0.18.0" />
-    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.18.0">
-      <ExcludeAssets>native</ExcludeAssets>
-    </PackageReference>
+    <PackageReference Include="LLamaSharp" Version="0.26.0" />
     <PackageReference Include="Markdig" Version="0.25.0" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="Octokit" Version="9.1.2" />
@@ -196,26 +195,10 @@
     <PackageReference Include="SocketIOClient" Version="3.1.1" />
   </ItemGroup>
   
-  <!-- LLamaSharp native libraries - include only the default version -->
-  <ItemGroup>
-    <None Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.18.0\runtimes\win-x64\native\ggml.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <Link>ggml.dll</Link>
-    </None>
-    <None Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.18.0\runtimes\win-x64\native\llama.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <Link>llama.dll</Link>
-    </None>
-    <None Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.18.0\runtimes\win-x64\native\llava_shared.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <Link>llava_shared.dll</Link>
-    </None>
-  </ItemGroup>
+  <!-- LLamaSharp native binaries are downloaded on-demand via LlamaBackendService -->
+  <!-- LlamaCppOverride/ is kept locally for dev but NOT copied to build/publish output -->
 
-  
+
 
   <ItemGroup>
     <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />

@@ -23,7 +23,10 @@ namespace MdExplorer.Service
             try
             {
                 Assembly asm = Assembly.GetExecutingAssembly(); //Read embedded resources
-                inStream = new BufferedStream(asm.GetManifestResourceStream(resFileName));
+                var resourceStream = asm.GetManifestResourceStream(resFileName);
+                if (resourceStream == null)
+                    throw new FileNotFoundException($"Embedded resource not found: '{resFileName}'. Available: {string.Join(", ", asm.GetManifestResourceNames())}");
+                inStream = new BufferedStream(resourceStream);
                 outStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write);
 
                 byte[] buffer = new byte[1024];

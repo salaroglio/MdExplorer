@@ -196,9 +196,18 @@ function initializeConnectionIdForLinks() {
             return;
         }
 
-        // Skip external links (http:// or https:// except localhost)
+        // Open external links in system browser via backend
         if (/^https?:\/\/(?!localhost)/i.test(href)) {
-            return; // Let the default behavior handle external links
+            e.preventDefault();
+            var $body = $("#MdBody");
+            $.ajax({
+                url: "/api/MdFiles/OpenUrlInBrowser",
+                type: "POST",
+                data: JSON.stringify({ url: href, connectionId: $body.attr("connectionid") }),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json"
+            });
+            return;
         }
 
         // Skip javascript: links

@@ -217,6 +217,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         [HttpPost]
+        public IActionResult OpenUrlInBrowser([FromBody] OpenUrlInBrowserRequest data)
+        {
+            if (string.IsNullOrEmpty(data?.Url))
+                return BadRequest(new { error = "URL is required" });
+
+            CrossPlatformProcess.OpenUrl(data.Url);
+            return Ok(new { message = "done" });
+        }
+
+        [HttpPost]
         public IActionResult MoveMdFile([FromBody] RequestMoveMdFile requestMoveMdFile)
         {
             _logger.LogInformation("[MoveMdFile] Method called");
@@ -3050,14 +3060,26 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             // Guard: check if RAG is enabled for this project
+            // NOTE: Must use _serviceScopeFactory because this runs inside Task.Run,
+            // where the request-scoped _projectDB session is already disposed.
             try
             {
-                var settingsDal = _projectDB.GetDal<ProjectSetting>();
-                var ragSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "RagEnabled");
-                if (ragSetting?.ValueBool != true)
+                using (var checkScope = _serviceScopeFactory.CreateScope())
                 {
-                    _logger.LogDebug("[EmbedDocuments] RAG not enabled for this project, skipping");
-                    return;
+                    var dbManager = checkScope.ServiceProvider.GetService<IDatabaseManager>();
+                    var ctx = dbManager?.GetContext(connectionId);
+                    if (ctx?.ProjectDB == null)
+                    {
+                        _logger.LogDebug("[EmbedDocuments] No ProjectDB context for connection {ConnectionId}, skipping", connectionId);
+                        return;
+                    }
+                    var settingsDal = ctx.ProjectDB.GetDal<ProjectSetting>();
+                    var ragSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "RagEnabled");
+                    if (ragSetting?.ValueBool != true)
+                    {
+                        _logger.LogDebug("[EmbedDocuments] RAG not enabled for this project, skipping");
+                        return;
+                    }
                 }
             }
             catch (Exception ex)

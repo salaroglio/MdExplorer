@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, forwardRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
 export interface ModelInfo {
   id: string;
@@ -90,7 +91,10 @@ export class AiChatService {
   private _currentDocument$ = new BehaviorSubject<string | null>(null);
   public currentDocument$ = this._currentDocument$.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    @Inject(forwardRef(() => MdServerMessagesService)) private serverMessages: MdServerMessagesService
+  ) {
     this.initializeSignalR();
   }
 
@@ -164,10 +168,37 @@ export class AiChatService {
     try {
       await this.hubConnection.start();
       console.log('SignalR connection established');
+
+      // Send the MonitorMDHub connectionId so AiChatHub can resolve the project path
+      this.sendProjectConnectionId();
+
       await this.getModelStatus();
     } catch (err) {
       console.error('Error establishing SignalR connection:', err);
       setTimeout(() => this.startConnection(), 5000);
+    }
+  }
+
+  /**
+   * Sends the MonitorMDHub connectionId to AiChatHub so it can
+   * look up the project path via WatcherManager.
+   */
+  private sendProjectConnectionId(): void {
+    const projectConnId = this.serverMessages?.connectionId;
+    if (projectConnId && this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
+        .then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId))
+        .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+    } else {
+      // MonitorMDHub might not be connected yet — retry after a short delay
+      setTimeout(() => {
+        const connId = this.serverMessages?.connectionId;
+        if (connId && this.hubConnection.state === 'Connected') {
+          this.hubConnection.invoke('SetProjectConnectionId', connId)
+            .then(() => console.log('[AiChatService] Sent project connectionId (retry):', connId))
+            .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+        }
+      }, 2000);
     }
   }
 
@@ -318,13 +349,38 @@ export class AiChatService {
   getSystemPrompt(): Observable<any> {
     return this.http.get(`${this.baseUrl}/system-prompt`);
   }
-  
+
   setSystemPrompt(systemPrompt: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/system-prompt`, { systemPrompt });
+  }
+
+  getApplicationPrompt(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/application-prompt`);
+  }
+
+  setApplicationPrompt(applicationPrompt: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/application-prompt`, { applicationPrompt });
   }
   
   getGpuInfo(): Observable<any> {
     return this.http.get(`${this.baseUrl}/gpu-info`);
+  }
+
+  // llama.cpp Backend Management
+  getBackendStatus(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/backend-status`);
+  }
+
+  getAvailableBackends(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/backends`);
+  }
+
+  downloadBackend(variant: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/backends/download/${variant}`, {});
+  }
+
+  deleteBackend(): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/backends`);
   }
 
   private generateMessageId(): string {

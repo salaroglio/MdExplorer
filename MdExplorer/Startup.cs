@@ -77,13 +77,36 @@ namespace MdExplorer
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
             
+            // Configure LLamaSharp to use llama.cpp native libraries
+            // Backends are downloaded on-demand to ~/MdExplorer-Models/llama-backends/
+            // Fallback to LlamaCppOverride/ in app dir for dev/legacy scenarios
+            var llamaCppVersion = _Configuration.GetValue<string>("LlamaCpp:Version") ?? "b8255";
+            var llamaBackendPath = Features.Services.LlamaBackendService.ResolveBackendPath(llamaCppVersion);
+            if (llamaBackendPath != null)
+            {
+                var llamaDllPath = Path.Combine(llamaBackendPath, "llama.dll");
+                var mtmdDllPath = Path.Combine(llamaBackendPath, "mtmd.dll");
+                if (File.Exists(llamaDllPath))
+                {
+                    var currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+                    Environment.SetEnvironmentVariable("PATH", llamaBackendPath + Path.PathSeparator + currentPath);
+
+                    LLama.Native.NativeLibraryConfig.All
+                        .WithLibrary(llamaDllPath, mtmdDllPath)
+                        .WithAutoFallback(false)
+                        .SkipCheck();
+                }
+            }
+
             // Add AI services
             services.AddHttpClient();
             services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
             services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
             services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
+            services.AddSingleton<Features.Services.ILlamaBackendService, Features.Services.LlamaBackendService>();
             services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
             services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
+            services.AddSingleton<Features.Services.AI.LocalLlamaProvider>();
             services.AddScoped<Services.IGitCommitAiService, Services.GitCommitAiService>();
 
             // Add Chat Interaction Logger for debugging tool calling

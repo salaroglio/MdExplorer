@@ -103,6 +103,39 @@ namespace MdExplorer.Features.Services
                     ContextLength = 128000,
                     Parameters = "3B"
                 },
+                ["qwen3.5-2b"] = new ModelInfo
+                {
+                    Id = "qwen3.5-2b",
+                    Name = "Qwen 3.5 2B Q4_K_M",
+                    Description = "Compact 2B hybrid model (Alibaba) - 262K context, 201 languages, fast inference",
+                    Url = "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf",
+                    FileName = "Qwen3.5-2B-Q4_K_M.gguf",
+                    FileSize = 1_340_000_000, // ~1.28GB
+                    ContextLength = 262144,
+                    Parameters = "2B"
+                },
+                ["qwen3.5-9b"] = new ModelInfo
+                {
+                    Id = "qwen3.5-9b",
+                    Name = "Qwen 3.5 9B Q4_K_M",
+                    Description = "Powerful 9B hybrid model (Alibaba) - 262K context, 201 languages, reasoning capabilities",
+                    Url = "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf",
+                    FileName = "Qwen3.5-9B-Q4_K_M.gguf",
+                    FileSize = 5_680_000_000,
+                    ContextLength = 262144,
+                    Parameters = "9B"
+                },
+                ["qwen3.5-9b-q5"] = new ModelInfo
+                {
+                    Id = "qwen3.5-9b-q5",
+                    Name = "Qwen 3.5 9B Q5_K_M",
+                    Description = "Higher quality 9B hybrid model (Alibaba) - 262K context, 201 languages, reasoning",
+                    Url = "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q5_K_M.gguf",
+                    FileName = "Qwen3.5-9B-Q5_K_M.gguf",
+                    FileSize = 6_520_000_000,
+                    ContextLength = 262144,
+                    Parameters = "9B"
+                },
                 ["nomic-embed-text"] = new ModelInfo
                 {
                     Id = "nomic-embed-text",

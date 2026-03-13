@@ -30,6 +30,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   editingMessageId: string | null = null;
   editedContent: string = '';
 
+  // Copy message state
+  copiedMessageId: string | null = null;
+
   // Thinking section collapse state (per message id)
   collapsedThinking: Set<string> = new Set();
 
@@ -204,6 +207,16 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   hasThinking(message: ChatMessage): boolean {
     return !!message.thinkingContent && message.thinkingContent.trim().length > 0;
+  }
+
+  copyMessageContent(message: ChatMessage): void {
+    if (!message.content) return;
+    navigator.clipboard.writeText(message.content).then(() => {
+      this.copiedMessageId = message.id;
+      setTimeout(() => {
+        this.copiedMessageId = null;
+      }, 2000);
+    });
   }
 
   startEditMessage(message: ChatMessage): void {

@@ -15,6 +15,100 @@ using System.IO;
 
 namespace MdExplorer.Features.Services
 {
+    internal static class GgmlNative
+    {
+        private delegate void LoadAllFromPathDelegate(IntPtr dirPath);
+
+        private static bool _backendsLoaded;
+        private static readonly object _lock = new object();
+        private static ILogger _logger;
+        private static string _backendDir;
+
+        public static void SetLogger(ILogger logger) => _logger = logger;
+
+        /// <summary>
+        /// Sets the backend directory path. Must be called before EnsureBackendsLoaded().
+        /// Falls back to LlamaCppOverride/ in app dir if not set.
+        /// </summary>
+        public static void SetBackendPath(string path)
+        {
+            _backendDir = path;
+        }
+
+        public static void EnsureBackendsLoaded()
+        {
+            if (_backendsLoaded) return;
+            lock (_lock)
+            {
+                if (_backendsLoaded) return;
+                try
+                {
+                    var backendDir = _backendDir ?? Path.Combine(AppContext.BaseDirectory, "LlamaCppOverride");
+
+                    if (!Directory.Exists(backendDir))
+                    {
+                        _logger?.LogWarning("[GgmlNative] Backend directory not found: {Dir}. AI features require downloading a backend.", backendDir);
+                        return;
+                    }
+
+                    IntPtr ggmlHandle = IntPtr.Zero;
+                    if (NativeLibrary.TryLoad("ggml", out ggmlHandle))
+                    {
+                        _logger?.LogInformation("[GgmlNative] Found ggml via NativeLibrary.TryLoad('ggml')");
+                    }
+                    else
+                    {
+                        var ggmlDll = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ggml.dll" : "libggml.so";
+                        var ggmlPath = Path.Combine(backendDir, ggmlDll);
+                        if (File.Exists(ggmlPath))
+                        {
+                            ggmlHandle = NativeLibrary.Load(ggmlPath);
+                            _logger?.LogInformation("[GgmlNative] Loaded ggml from {Path}", ggmlPath);
+                        }
+                    }
+
+                    if (ggmlHandle != IntPtr.Zero)
+                    {
+                        if (NativeLibrary.TryGetExport(ggmlHandle, "ggml_backend_load_all_from_path", out var funcPtr))
+                        {
+                            _logger?.LogInformation("[GgmlNative] Calling ggml_backend_load_all_from_path({Dir})", backendDir);
+                            var loadAllFromPath = Marshal.GetDelegateForFunctionPointer<LoadAllFromPathDelegate>(funcPtr);
+                            var dirPathUtf8 = Marshal.StringToCoTaskMemUTF8(backendDir);
+                            try
+                            {
+                                loadAllFromPath(dirPathUtf8);
+                                _backendsLoaded = true;
+                                _logger?.LogInformation("[GgmlNative] Backends loaded successfully from {Dir}", backendDir);
+                            }
+                            finally
+                            {
+                                Marshal.FreeCoTaskMem(dirPathUtf8);
+                            }
+                        }
+                        else
+                        {
+                            _logger?.LogWarning("[GgmlNative] ggml_backend_load_all_from_path not found, trying ggml_backend_load_all");
+                            if (NativeLibrary.TryGetExport(ggmlHandle, "ggml_backend_load_all", out var fallbackPtr))
+                            {
+                                var loadAll = Marshal.GetDelegateForFunctionPointer<Action>(fallbackPtr);
+                                loadAll();
+                                _backendsLoaded = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _logger?.LogWarning("[GgmlNative] Could not load ggml.dll");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "[GgmlNative] Error loading backends");
+                }
+            }
+        }
+    }
+
     public interface IAiChatService
     {
         Task<string> ChatAsync(string prompt);
@@ -28,6 +122,13 @@ namespace MdExplorer.Features.Services
         GpuInfo GetGpuInfo();
         bool IsGpuEnabled();
         int GetGpuLayerCount();
+
+        /// <summary>
+        /// Run inference on a pre-formatted prompt (no ChatML wrapping).
+        /// Used by LocalLlamaProvider for tool calling where the full prompt
+        /// is built externally.
+        /// </summary>
+        Task<string> RawInferAsync(string fullPrompt, IReadOnlyList<string> antiPrompts = null, CancellationToken ct = default);
     }
 
     public class AiChatService : IAiChatService, IDisposable
@@ -35,6 +136,7 @@ namespace MdExplorer.Features.Services
         private readonly ILogger<AiChatService> _logger;
         private readonly IAiConfigurationService _configService;
         private readonly IGpuDetectionService _gpuService;
+        private readonly ILlamaBackendService _backendService;
         private readonly AiChatConfiguration _aiConfig;
         private LLamaWeights _model;
         private LLamaContext _context;
@@ -49,14 +151,16 @@ namespace MdExplorer.Features.Services
         private readonly SemaphoreSlim _modelLock = new SemaphoreSlim(1, 1);
 
         public AiChatService(
-            ILogger<AiChatService> logger, 
-            IGpuDetectionService gpuService = null, 
+            ILogger<AiChatService> logger,
+            IGpuDetectionService gpuService = null,
             IAiConfigurationService configService = null,
-            IConfiguration configuration = null)
+            IConfiguration configuration = null,
+            ILlamaBackendService backendService = null)
         {
             _logger = logger;
             _configService = configService;
             _gpuService = gpuService;
+            _backendService = backendService;
             
             // Load configuration
             _aiConfig = new AiChatConfiguration();
@@ -194,6 +298,12 @@ namespace MdExplorer.Features.Services
                 };
 
                 _logger.LogInformation($"[AiChatService] Loading weights from file...");
+                GgmlNative.SetLogger(_logger);
+                if (_backendService != null)
+                {
+                    GgmlNative.SetBackendPath(_backendService.GetBackendPath());
+                }
+                GgmlNative.EnsureBackendsLoaded();
                 _model = LLamaWeights.LoadFromFile(parameters);
                 
                 _logger.LogInformation($"[AiChatService] Creating context...");
@@ -262,19 +372,21 @@ namespace MdExplorer.Features.Services
             await _modelLock.WaitAsync();
             try
             {
-                // Prepend system prompt if configured
-                var fullPrompt = string.IsNullOrEmpty(_systemPrompt) 
-                    ? prompt 
-                    : $"System: {_systemPrompt}\n\nUser: {prompt}\n\nAssistant:";
+                // Build prompt and anti-prompts based on model type
+                var isQwenModel = IsQwenModel(_currentModelId);
+                var fullPrompt = FormatPrompt(prompt, _systemPrompt, isQwenModel);
+                var antiPrompts = GetAntiPrompts(isQwenModel);
 
                 var inferenceParams = new InferenceParams()
                 {
-                    Temperature = _aiConfig.Models.Temperature,
-                    TopK = 40,
-                    TopP = 0.95f,
                     MaxTokens = _aiConfig.Models.MaxTokens,
-                    AntiPrompts = new List<string> { "User:", "\nUser:", "\n\nUser:" },
-                    SamplingPipeline = new DefaultSamplingPipeline() // Required to avoid NullReferenceException
+                    AntiPrompts = antiPrompts,
+                    SamplingPipeline = new DefaultSamplingPipeline()
+                    {
+                        Temperature = _aiConfig.Models.Temperature,
+                        TopK = 40,
+                        TopP = 0.95f
+                    }
                 };
 
                 var response = string.Empty;
@@ -315,19 +427,21 @@ namespace MdExplorer.Features.Services
             await _modelLock.WaitAsync(ct);
             try
             {
-                // Prepend system prompt if configured
-                var fullPrompt = string.IsNullOrEmpty(_systemPrompt) 
-                    ? prompt 
-                    : $"System: {_systemPrompt}\n\nUser: {prompt}\n\nAssistant:";
+                // Build prompt and anti-prompts based on model type
+                var isQwenModel = IsQwenModel(_currentModelId);
+                var fullPrompt = FormatPrompt(prompt, _systemPrompt, isQwenModel);
+                var antiPrompts = GetAntiPrompts(isQwenModel);
 
                 var inferenceParams = new InferenceParams()
                 {
-                    Temperature = _aiConfig.Models.Temperature,
-                    TopK = 40,
-                    TopP = 0.95f,
                     MaxTokens = _aiConfig.Models.MaxTokens,
-                    AntiPrompts = new List<string> { "User:", "\nUser:", "\n\nUser:" },
-                    SamplingPipeline = new DefaultSamplingPipeline() // Required to avoid NullReferenceException
+                    AntiPrompts = antiPrompts,
+                    SamplingPipeline = new DefaultSamplingPipeline()
+                    {
+                        Temperature = _aiConfig.Models.Temperature,
+                        TopK = 40,
+                        TopP = 0.95f
+                    }
                 };
 
                 _logger.LogInformation($"[AiChatService] Starting inference with executor...");
@@ -343,6 +457,85 @@ namespace MdExplorer.Features.Services
             {
                 _modelLock.Release();
             }
+        }
+
+        public async Task<string> RawInferAsync(string fullPrompt, IReadOnlyList<string> antiPrompts = null, CancellationToken ct = default)
+        {
+            if (!IsModelLoaded())
+                throw new InvalidOperationException("No model loaded. Please load a model first.");
+
+            await _modelLock.WaitAsync(ct);
+            try
+            {
+                var inferenceParams = new InferenceParams()
+                {
+                    MaxTokens = _aiConfig.Models.MaxTokens,
+                    AntiPrompts = antiPrompts ?? GetAntiPrompts(IsQwenModel(_currentModelId)),
+                    SamplingPipeline = new DefaultSamplingPipeline()
+                    {
+                        Temperature = _aiConfig.Models.Temperature,
+                        TopK = 40,
+                        TopP = 0.95f
+                    }
+                };
+
+                // Use a StatelessExecutor with a dedicated context so we don't
+                // interfere with the InteractiveExecutor's conversation state.
+                // StatelessExecutor processes the full prompt from scratch each time.
+                using var rawContext = _model.CreateContext(new ModelParams(_currentModelPath)
+                {
+                    ContextSize = (uint)_aiConfig.Models.DefaultContextSize
+                });
+                var statelessExecutor = new StatelessExecutor(_model, rawContext.Params);
+
+                _logger.LogInformation("[AiChatService] RawInferAsync: prompt length={Len} chars", fullPrompt.Length);
+
+                var response = new System.Text.StringBuilder();
+                await foreach (var text in statelessExecutor.InferAsync(fullPrompt, inferenceParams, ct))
+                {
+                    if (ct.IsCancellationRequested) break;
+                    response.Append(text);
+                }
+
+                _logger.LogInformation("[AiChatService] RawInferAsync: response length={Len} chars", response.Length);
+                return response.ToString();
+            }
+            finally
+            {
+                _modelLock.Release();
+            }
+        }
+
+        private bool IsQwenModel(string modelId)
+        {
+            return modelId != null && modelId.IndexOf("qwen", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private string FormatPrompt(string prompt, string systemPrompt, bool isQwen)
+        {
+            if (isQwen)
+            {
+                // ChatML format for Qwen models
+                if (string.IsNullOrEmpty(systemPrompt))
+                    return $"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n";
+
+                return $"<|im_start|>system\n{systemPrompt}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n";
+            }
+
+            // Default Llama-style format
+            if (string.IsNullOrEmpty(systemPrompt))
+                return prompt;
+
+            return $"System: {systemPrompt}\n\nUser: {prompt}\n\nAssistant:";
+        }
+
+        private List<string> GetAntiPrompts(bool isQwen)
+        {
+            if (isQwen)
+            {
+                return new List<string> { "<|im_end|>", "<|im_start|>user" };
+            }
+            return new List<string> { "User:", "\nUser:", "\n\nUser:" };
         }
 
         private void DisposeModel()

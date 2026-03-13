@@ -31,6 +31,8 @@ import { ShowFileSystemComponent } from '../../../commons/components/show-file-s
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
 import { AppStoreService } from '../../services/app-store.service';
+import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
+import { HttpClient } from '@angular/common/http';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -159,7 +161,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private urlHandlerService: UrlHandlerService,
     private p2pService: P2PService,
     private projectSettingsService: ProjectSettingsService,
-    private appStoreService: AppStoreService
+    private appStoreService: AppStoreService,
+    private bulkExportProgressService: BulkExportProgressService,
+    private http: HttpClient
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -805,6 +809,35 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     return false;
   }
   
+  exportFolderToWord(node: MdFile) {
+    // Use fullPath (absolute) to avoid issues with compact folders
+    // where node.name/relativePath miss intermediate segments
+    const folderFullPath = node.fullPath;
+    const displayName = node.isCompacted && node.compactedSegments
+      ? node.compactedSegments.map(s => s.name).join('/')
+      : node.name;
+
+    this.bulkExportProgressService.showProgress(displayName);
+
+    const connectionId = this.mdServerMessages.connectionId;
+    this.http.post<any>(`../api/mdexport/bulk?ConnectionId=${connectionId}`, {
+      folderFullPath: folderFullPath
+    }).subscribe({
+      next: (result) => {
+        console.log('[MdTreeComponent] Bulk export started:', result);
+        if (result.total === 0) {
+          this.bulkExportProgressService.hideProgress();
+          this.snackBar.open('Nessun file markdown trovato nella cartella', 'OK', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        console.error('[MdTreeComponent] Error starting bulk export:', err);
+        this.bulkExportProgressService.hideProgress();
+        this.snackBar.open('Errore durante l\'avvio dell\'export', 'OK', { duration: 3000 });
+      }
+    });
+  }
+
   private generateTocWithAI(node: MdFile, navigateAfter: boolean) {
     // Remove leading backslash if present
     let directoryPath = node.relativePath || node.name;
@@ -1156,6 +1189,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdServerMessages.addTocGenerationCompleteListener((data, objectThis) => {
       objectThis.tocProgressService.hideProgress();
       objectThis.snackBar.open('TOC generato con successo!', 'OK', { duration: 3000 });
+    }, this);
+
+    // Registra i listener per Bulk Export progress
+    this.mdServerMessages.addBulkExportProgressListener((data, objectThis) => {
+      objectThis.bulkExportProgressService.updateProgress(data);
+    }, this);
+
+    this.mdServerMessages.addBulkExportCompleteListener((data, objectThis) => {
+      objectThis.bulkExportProgressService.complete(data);
     }, this);
   }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpRequest, HttpEvent } from '@angular/common/http';
-import { Observable, of, forkJoin } from 'rxjs';
+import { Observable, of, forkJoin, Subject } from 'rxjs';
 import { map, tap } from 'rxjs/operators';
 import { StoreCatalog, StoreCatalogApp, InstalledApp, AppStoreRepository } from '../models/app-store.models';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -21,6 +21,8 @@ export class AppStoreService {
   private _cachedCatalog: StoreCatalog | null = null;
   private _cachedInstalled: InstalledApp[] | null = null;
   private _prefetchInProgress = false;
+  private _reposChanged = new Subject<void>();
+  reposChanged$ = this._reposChanged.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -65,6 +67,12 @@ export class AppStoreService {
   invalidateCache(): void {
     this._cachedCatalog = null;
     this._cachedInstalled = null;
+  }
+
+  /** Notify that repositories have been changed. */
+  notifyReposChanged(): void {
+    this.invalidateCache();
+    this._reposChanged.next();
   }
 
   getCatalog(): Observable<StoreCatalog> {

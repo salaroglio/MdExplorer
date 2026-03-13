@@ -19,6 +19,7 @@ namespace MdExplorer.bll.Services.AI
             {
                 ProviderType.Gemini => GetGeminiSpecificGuidance(),
                 ProviderType.OpenAI => GetOpenAiSpecificGuidance(),
+                ProviderType.Local => GetLocalSpecificGuidance(),
                 _ => ""
             };
 
@@ -219,6 +220,20 @@ OPENAI-SPECIFIC GUIDANCE: Act First, Explain Later
 - Provide explanations only after completing the operations
 
 Your function calling capability is powerful - use it proactively!";
+        }
+
+        /// <summary>
+        /// Local model (Qwen 3.5) specific guidance.
+        /// Uses the Qwen 3.5 XML tool calling format.
+        /// </summary>
+        private static string GetLocalSpecificGuidance()
+        {
+            return @"
+LOCAL MODEL RULES:
+- Use the <tool_call> XML format shown above for ALL tool calls
+- Be concise: call tools immediately, explain only after completion
+- When a task requires reading a file first, call read_markdown_file first, then process the result
+- For file modifications, ALWAYS call the tool - never just show content in chat";
         }
     }
 }

@@ -60,12 +60,14 @@ namespace MdExplorer.Features.Services
                     BatchSize = (uint)batchSize,
                     UBatchSize = (uint)batchSize,
                     GpuLayerCount = 0,
-                    Embeddings = true
+                    Embeddings = true,
+                    PoolingType = LLama.Native.LLamaPoolingType.Mean
                 };
 
                 _maxEmbeddingChars = maxEmbeddingChars;
 
                 _logger.LogInformation("[EmbeddingService] Loading weights from file...");
+                GgmlNative.EnsureBackendsLoaded();
                 _model = LLamaWeights.LoadFromFile(parameters);
 
                 _logger.LogInformation("[EmbeddingService] Creating embedder...");

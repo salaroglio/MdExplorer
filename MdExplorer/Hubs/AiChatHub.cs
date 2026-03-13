@@ -29,6 +29,7 @@ namespace MdExplorer.Hubs
         private readonly Features.Services.ChatInteractionLogger _chatLogger;
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _watcherManager;
+        private readonly Features.Services.AI.LocalLlamaProvider _localProvider;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -37,6 +38,10 @@ namespace MdExplorer.Hubs
         // Static dictionary to store current document context per connection
         private static readonly ConcurrentDictionary<string, DocumentContext> _connectionDocumentContexts =
             new ConcurrentDictionary<string, DocumentContext>();
+
+        // Maps AiChatHub connectionId → MonitorMDHub connectionId (for project path lookup)
+        private static readonly ConcurrentDictionary<string, string> _connectionProjectConnectionIds =
+            new ConcurrentDictionary<string, string>();
 
         // Static dictionary to store conversation history per connection
         private static readonly ConcurrentDictionary<string, ConversationHistory> _connectionHistories =
@@ -71,7 +76,8 @@ namespace MdExplorer.Hubs
             ToolExecutor toolExecutor,
             Features.Services.ChatInteractionLogger chatLogger,
             IDatabaseManager databaseManager,
-            IFileSystemWatcherManager watcherManager)
+            IFileSystemWatcherManager watcherManager,
+            Features.Services.AI.LocalLlamaProvider localProvider)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -82,21 +88,29 @@ namespace MdExplorer.Hubs
             _chatLogger = chatLogger;
             _databaseManager = databaseManager;
             _watcherManager = watcherManager;
+            _localProvider = localProvider;
         }
 
         /// <summary>
         /// Gets the project path for the current connection via DatabaseManager.
         /// </summary>
+        /// <summary>
+        /// Gets the project path using the MonitorMDHub connectionId
+        /// that was sent by the frontend via SetProjectConnectionId.
+        /// </summary>
         private string GetProjectPath()
         {
-            var connectionId = Context?.ConnectionId;
-            if (!string.IsNullOrEmpty(connectionId))
+            // Use the MonitorMDHub connectionId (sent by frontend) to find the project path
+            if (_connectionProjectConnectionIds.TryGetValue(Context.ConnectionId, out var projectConnId)
+                && !string.IsNullOrEmpty(projectConnId))
             {
-                var projectPath = _watcherManager.GetProjectPath(connectionId);
+                var projectPath = _watcherManager.GetProjectPath(projectConnId);
                 if (!string.IsNullOrEmpty(projectPath))
                     return projectPath;
             }
-            _logger.LogWarning("⚠️ Unable to get project path for connection {ConnectionId}", connectionId);
+
+            _logger.LogWarning("⚠️ Unable to get project path. AiChat connectionId={AiChatConnId}, projectConnId={ProjectConnId}",
+                Context?.ConnectionId, _connectionProjectConnectionIds.TryGetValue(Context?.ConnectionId ?? "", out var pid) ? pid : "not set");
             return string.Empty;
         }
 
@@ -198,19 +212,54 @@ namespace MdExplorer.Hubs
                     // Use local model
                     if (!_aiChatService.IsModelLoaded())
                     {
-                        await Clients.Caller.SendAsync("ReceiveMessage", 
-                            "system", 
+                        await Clients.Caller.SendAsync("ReceiveMessage",
+                            "system",
                             "⚠️ No AI model loaded. Please download and select a model from Settings.");
                         return;
                     }
 
-                    // Stream the response back to the client
-                    await foreach (var chunk in _aiChatService.StreamChatAsync(message))
+                    // Use LocalLlamaProvider with tool calling support
+                    var docContext = GetDocumentContext();
+                    var currentDoc = docContext.CurrentDocumentPath;
+                    var history = GetConversationHistory();
+                    history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                        Role = "user",
+                        Content = message
+                    });
+
+                    var tools = FileOperationTools.GetToolDefinitions();
+                    var connectionId = Context.ConnectionId;
+                    var workspaceRoot = GetProjectPath();
+
+                    Func<string, dynamic, Task<object>> toolExecutorFunc =
+                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
+
+                    var conversationHistory = history.Messages.Cast<object>().ToList();
+
+                    var response = await _localProvider.ChatWithToolsAsync(
+                        message,
+                        tools.Cast<object>().ToList(),
+                        toolExecutorFunc,
+                        null,
+                        currentDoc,
+                        conversationHistory);
+
+                    // Send thinking content if available
+                    if (!string.IsNullOrEmpty(_localProvider.LastThinkingContent))
+                    {
+                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent);
                     }
+
+                    history.Messages.Add(new bll.Models.AI.ConversationMessage
+                    {
+                        Role = "model",
+                        Content = response
+                    });
+
+                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
                 }
-                
+
                 await Clients.Caller.SendAsync("StreamComplete");
             }
             catch (Exception ex)
@@ -314,6 +363,7 @@ namespace MdExplorer.Hubs
             _connectionChatModes.TryRemove(Context.ConnectionId, out _);
             _connectionDocumentContexts.TryRemove(Context.ConnectionId, out _);
             _connectionHistories.TryRemove(Context.ConnectionId, out _);
+            _connectionProjectConnectionIds.TryRemove(Context.ConnectionId, out _);
             await base.OnDisconnectedAsync(exception);
         }
         
@@ -363,6 +413,19 @@ namespace MdExplorer.Hubs
         private ChatModeInfo GetChatMode()
         {
             return _connectionChatModes.GetOrAdd(Context.ConnectionId, _ => new ChatModeInfo());
+        }
+
+        /// <summary>
+        /// Sets the MonitorMDHub connectionId so that AiChatHub
+        /// can resolve the project path via WatcherManager.
+        /// Called by frontend after both hubs are connected.
+        /// </summary>
+        public Task SetProjectConnectionId(string projectConnectionId)
+        {
+            _logger.LogInformation("[SetProjectConnectionId] AiChat={AiChatConn} → Project={ProjectConn}",
+                Context.ConnectionId, projectConnectionId);
+            _connectionProjectConnectionIds[Context.ConnectionId] = projectConnectionId;
+            return Task.CompletedTask;
         }
 
         public Task SetCurrentDocument(string filePath)
@@ -831,8 +894,9 @@ namespace MdExplorer.Hubs
                         // Other providers: use ChatWithToolsAsync (with tool calling)
                         var tools = FileOperationTools.GetToolDefinitions();
                         var connectionId = Context.ConnectionId;
+                        var workspaceRoot = GetProjectPath();
                         Func<string, dynamic, Task<object>> toolExecutorFunc =
-                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, connectionId, currentDoc);
+                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
 
                         var conversationHistory = history.Messages.Cast<object>().ToList();
 
@@ -866,11 +930,39 @@ namespace MdExplorer.Hubs
                         return;
                     }
 
-                    // Stream the response back to the client
-                    await foreach (var chunk in _aiChatService.StreamChatAsync(lastUserMessage))
+                    // Use LocalLlamaProvider with tool calling support
+                    var localDocContext = GetDocumentContext();
+                    var localCurrentDoc = localDocContext.CurrentDocumentPath;
+                    var tools = FileOperationTools.GetToolDefinitions();
+                    var connectionId = Context.ConnectionId;
+                    var workspaceRoot = GetProjectPath();
+
+                    Func<string, dynamic, Task<object>> toolExecutorFunc =
+                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, localCurrentDoc);
+
+                    var conversationHistory = history.Messages.Cast<object>().ToList();
+
+                    var response = await _localProvider.ChatWithToolsAsync(
+                        lastUserMessage,
+                        tools.Cast<object>().ToList(),
+                        toolExecutorFunc,
+                        null,
+                        localCurrentDoc,
+                        conversationHistory);
+
+                    // Send thinking content if available
+                    if (!string.IsNullOrEmpty(_localProvider.LastThinkingContent))
                     {
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk);
+                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent);
                     }
+
+                    history.Messages.Add(new bll.Models.AI.ConversationMessage
+                    {
+                        Role = "model",
+                        Content = response
+                    });
+
+                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
                 }
 
                 await Clients.Caller.SendAsync("StreamComplete");

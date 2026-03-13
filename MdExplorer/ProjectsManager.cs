@@ -264,7 +264,23 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             // NUOVO: Copia template pages da embedded resources
             CopyPageTemplates(directory);
-            
+
+            // External apps documentation
+            var directoryExternalApps = $"{directory}{Path.DirectorySeparatorChar}external-apps";
+            Directory.CreateDirectory(directoryExternalApps);
+
+            var dualModeGuidePath = $"{directoryExternalApps}{Path.DirectorySeparatorChar}MdE-Dual-Mode-App-Guide.md";
+            if (!File.Exists(dualModeGuidePath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.external_apps.MdE-Dual-Mode-App-Guide.md", dualModeGuidePath);
+            }
+
+            var protocolDocPath = $"{directoryExternalApps}{Path.DirectorySeparatorChar}MdE-External-App-Protocol.md";
+            if (!File.Exists(protocolDocPath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service.external_apps.MdE-External-App-Protocol.md", protocolDocPath);
+            }
+
         }
         
         private static void CopyPageTemplates(string mdDirectory)

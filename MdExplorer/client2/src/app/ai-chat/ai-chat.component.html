@@ -57,12 +57,20 @@
       <div class="message-content">
         <div class="message-header">
           <span class="message-role">{{ compactMode ? (message.role === 'user' ? 'You' : 'AI') : (message.role | titlecase) }}</span>
-          <div class="message-actions" *ngIf="message.role === 'user' && !message.isStreaming && editingMessageId !== message.id">
+          <div class="message-actions" *ngIf="!message.isStreaming && editingMessageId !== message.id">
             <button mat-icon-button
+                    *ngIf="message.role === 'user'"
                     (click)="startEditMessage(message)"
                     matTooltip="Edit message"
-                    class="edit-button">
+                    class="action-button">
               <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button
+                    *ngIf="message.role === 'assistant' && message.content"
+                    (click)="copyMessageContent(message)"
+                    [matTooltip]="copiedMessageId === message.id ? 'Copied!' : 'Copy'"
+                    class="action-button">
+              <mat-icon>{{ copiedMessageId === message.id ? 'check' : 'content_copy' }}</mat-icon>
             </button>
           </div>
           <span class="message-time">{{ message.timestamp | date:'short' }}</span>

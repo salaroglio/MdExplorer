@@ -391,6 +391,19 @@ export class MdServerMessagesService {
     });
   }
 
+  // Bulk Export listeners
+  public addBulkExportProgressListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('BulkExportProgress', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  public addBulkExportCompleteListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('BulkExportComplete', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
   public addFolderCreatedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('folderCreated', (data) => {
       console.log('📁 [SignalR] Evento folderCreated ricevuto:', data?.fullPath || data?.FullPath);

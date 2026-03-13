@@ -10,13 +10,16 @@ using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -52,8 +55,9 @@ namespace MdExplorer.Service.Controllers
                 IHelper helper,
                 IWordTemplateService wordTemplateService,
                 IAsciiArtToImageService asciiArtService,
-                IDatabaseManager databaseManager
-            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager)
+                IDatabaseManager databaseManager,
+                IFileSystemWatcherManager fileSystemWatcherManager = null
+            ) : base(logger, options, hubContext, session, engineDB, commandRunner, modifiers, helper, databaseManager, fileSystemWatcherManager)
         {
             _helperPdf = helperPdf;
             _yamlDocumentManager = yamlDocumentManager;
@@ -213,6 +217,229 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
+
+        /// <summary>
+        /// Export a single markdown file to Word synchronously (waits for Pandoc to finish).
+        /// </summary>
+        private async Task<(bool success, string outputPath, string error)> ExportSingleFileAsync(
+            string filePath, string projectPath, string connectionId, string baseUrl = null)
+        {
+            try
+            {
+                var readText = string.Empty;
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs, Encoding.Default))
+                {
+                    readText = sr.ReadToEnd();
+                }
+
+                var relativePath = filePath.Replace(projectPath, "").TrimStart(Path.DirectorySeparatorChar);
+                var requestInfo = new RequestInfo()
+                {
+                    CurrentQueryRequest = relativePath,
+                    CurrentRoot = projectPath,
+                    AbsolutePathFile = filePath,
+                    BaseUrl = baseUrl ?? $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
+                    ConnectionId = connectionId
+                };
+
+                // Verifica YAML prima dell'export - se mancante, generalo on-demand
+                var docDesc = _yamlDocumentManager.GetDescriptor(readText);
+                if (docDesc == null || docDesc.WordSection == null)
+                {
+                    _logger.LogInformation($"[MdExport][Bulk] YAML mancante per: {filePath}, generazione automatica...");
+                    var defaultYaml = _yamlDefaultGenerator.GenerateDefaultYaml(projectPath);
+                    var updatedContent = defaultYaml + readText;
+                    System.IO.File.WriteAllText(filePath, updatedContent);
+                    readText = updatedContent;
+                }
+
+                readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
+                readText = _commandRunner.PrepareMetadataBasedOnMD(readText, requestInfo);
+
+                // Rileggi il descriptor dopo le trasformazioni
+                docDesc = _yamlDocumentManager.GetDescriptor(readText);
+
+                // Inserisci pagine predefinite se configurate
+                if (docDesc?.WordSection?.PredefinedPages != null)
+                {
+                    readText = await _wordTemplateService.InsertPredefinedPagesAsync(
+                        readText, docDesc, projectPath);
+                }
+
+                // Converti ASCII art in immagini per Word export
+                readText = await _asciiArtService.ConvertAsciiArtToImagesAsync(
+                    readText, projectPath, filePath);
+
+                // Prepara il markdown per Pandoc
+                readText = _wordTemplateService.PrepareMarkdownForPandoc(readText);
+
+                // Ensure .md temp dir exists and set CWD to project path
+                var mdTempDir = Path.Combine(projectPath, ".md");
+                if (!Directory.Exists(mdTempDir))
+                {
+                    Directory.CreateDirectory(mdTempDir);
+                }
+                Directory.SetCurrentDirectory(projectPath);
+
+                // Start Pandoc
+                string currentFilePdfPath;
+                Process processStarted;
+
+                var pandoc = new StartPandoc(new DocxPandocCommand(), _helperPdf, _yamlDocumentManager, _logger);
+                pandoc.StartNewPandoc(filePath, projectPath, readText, out currentFilePdfPath, out processStarted);
+
+                processStarted.WaitForExit();
+
+                if (processStarted.ExitCode == 0)
+                {
+                    return (true, currentFilePdfPath, null);
+                }
+                else
+                {
+                    return (false, currentFilePdfPath, $"Pandoc exit code {processStarted.ExitCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[MdExport][Bulk] Error exporting {filePath}: {ex.Message}");
+                return (false, null, ex.Message);
+            }
+        }
+
+        #region Bulk Export
+
+        public class BulkExportRequest
+        {
+            public string FolderFullPath { get; set; }
+        }
+
+        public class BulkExportProgressModel
+        {
+            public int Total { get; set; }
+            public int Processed { get; set; }
+            public int Failed { get; set; }
+            public int PercentComplete { get; set; }
+            public string CurrentFile { get; set; }
+            public string Status { get; set; } // "exporting", "completed", "error"
+        }
+
+        [HttpPost]
+        [Route("/api/mdexport/bulk")]
+        public IActionResult BulkExport([FromQuery] string connectionId, [FromBody] BulkExportRequest request)
+        {
+            try
+            {
+                var projectPath = GetProjectPath();
+                var folderAbsolutePath = request?.FolderFullPath ?? "";
+
+                _logger.LogInformation($"[MdExport][Bulk] projectPath='{projectPath}'");
+                _logger.LogInformation($"[MdExport][Bulk] FolderFullPath='{folderAbsolutePath}'");
+                _logger.LogInformation($"[MdExport][Bulk] connectionId='{connectionId}'");
+
+                if (!Directory.Exists(folderAbsolutePath))
+                {
+                    return BadRequest(new { error = "Directory not found", path = folderAbsolutePath });
+                }
+
+                // Enumera tutti i .md ricorsivamente, escludendo cartelle speciali
+                var excludedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { ".md", ".mdword", ".git", "node_modules" };
+
+                var mdFiles = Directory.EnumerateFiles(folderAbsolutePath, "*.md", SearchOption.AllDirectories)
+                    .Where(f =>
+                    {
+                        var relDir = Path.GetDirectoryName(f)
+                            .Replace(projectPath, "")
+                            .TrimStart(Path.DirectorySeparatorChar);
+                        var topDir = relDir.Split(Path.DirectorySeparatorChar).FirstOrDefault() ?? "";
+                        return !excludedDirs.Contains(topDir);
+                    })
+                    .ToList();
+
+                var total = mdFiles.Count;
+                if (total == 0)
+                {
+                    return Ok(new { total = 0, message = "No markdown files found in directory" });
+                }
+
+                _logger.LogInformation($"[MdExport][Bulk] Starting bulk export: {total} files from {folderAbsolutePath}");
+
+                // Capture services and request data for background task
+                var hubContext = _hubContext;
+                var logger = _logger;
+                var capturedConnectionId = connectionId;
+                var capturedBaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
+                var watcherManager = _fileSystemWatcherManager;
+
+                Task.Run(async () =>
+                {
+                    var processed = 0;
+                    var failed = 0;
+
+                    // Disable FileSystemWatcher during bulk export to prevent
+                    // YAML auto-generation writes from triggering DB contention
+                    watcherManager?.SetWatcherEnabled(capturedConnectionId, false);
+
+                    try
+                    {
+                        foreach (var file in mdFiles)
+                        {
+                            var relFile = file.Replace(projectPath, "").TrimStart(Path.DirectorySeparatorChar);
+
+                            // Send progress
+                            await hubContext.Clients.Client(capturedConnectionId).SendAsync("BulkExportProgress",
+                                new BulkExportProgressModel
+                                {
+                                    Total = total,
+                                    Processed = processed,
+                                    Failed = failed,
+                                    PercentComplete = total > 0 ? (int)((processed * 100.0) / total) : 0,
+                                    CurrentFile = relFile,
+                                    Status = "exporting"
+                                });
+
+                            var (success, outputPath, error) = await ExportSingleFileAsync(file, projectPath, capturedConnectionId, capturedBaseUrl);
+
+                            processed++;
+                            if (!success)
+                            {
+                                failed++;
+                                logger.LogWarning($"[MdExport][Bulk] Failed: {relFile} - {error}");
+                            }
+                        }
+
+                        // Send completion
+                        await hubContext.Clients.Client(capturedConnectionId).SendAsync("BulkExportComplete",
+                            new BulkExportProgressModel
+                            {
+                                Total = total,
+                                Processed = processed,
+                                Failed = failed,
+                                PercentComplete = 100,
+                                CurrentFile = null,
+                                Status = "completed"
+                            });
+
+                        logger.LogInformation($"[MdExport][Bulk] Completed: {processed}/{total} files, {failed} failures");
+                    }
+                    finally
+                    {
+                        // Always re-enable FileSystemWatcher
+                        watcherManager?.SetWatcherEnabled(capturedConnectionId, true);
+                    }
+                });
+
+                return Ok(new { total, message = "started" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[MdExport][Bulk] Error: {ex.Message}");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        #endregion
 
         private void ProcessStarted_Exited(object? sender, EventArgs e)
         {

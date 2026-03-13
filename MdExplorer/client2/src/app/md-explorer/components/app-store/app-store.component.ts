@@ -36,6 +36,7 @@ function compareVersions(a: string | null | undefined, b: string | null | undefi
 export class AppStoreComponent implements OnInit, OnDestroy {
 
   private publishProgressSub: Subscription;
+  private reposChangedSub: Subscription;
 
   catalog: StoreCatalog | null = null;
   catalogApps: StoreCatalogApp[] = [];
@@ -118,6 +119,12 @@ export class AppStoreComponent implements OnInit, OnDestroy {
       error: () => {}
     });
 
+    // Reload when repos are changed from settings dialog
+    this.reposChangedSub = this.appStoreService.reposChanged$.subscribe(() => {
+      this.loadRepos();
+      this.loadCatalog();
+    });
+
     // Listen for real publish progress from backend (backend → Nexus upload)
     this.publishProgressSub = this.mdServerMessages.publishProgress$.subscribe(data => {
       if (data.phase === 'uploading') {
@@ -144,6 +151,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.publishProgressSub?.unsubscribe();
+    this.reposChangedSub?.unsubscribe();
   }
 
   loadRepos(): void {

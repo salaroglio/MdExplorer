@@ -31,6 +31,85 @@
     </mat-card-header>
     
     <mat-card-content style="overflow: visible !important;">
+      <!-- AI Engine (llama.cpp Backend) -->
+      <mat-card *ngIf="backendStatus && !backendStatus.isInstalled" class="backend-card"
+                style="margin-bottom: 20px; border: 2px solid #ff9800; background: #fff8e1;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon color="warn">warning</mat-icon>
+            AI Engine Not Installed
+          </mat-card-title>
+          <mat-card-subtitle>
+            Download the AI inference engine to use local models. Choose the variant that matches your hardware.
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="models-grid" style="margin-top: 12px;">
+            <mat-card *ngFor="let backend of availableBackends" class="model-card"
+                      [style.border]="backend.isRecommended ? '2px solid #4caf50' : ''">
+              <mat-card-header>
+                <mat-card-title>
+                  {{ backend.name }}
+                  <mat-chip-list *ngIf="backend.isRecommended" style="display: inline-flex; margin-left: 8px;">
+                    <mat-chip color="primary" selected style="font-size: 11px;">Recommended</mat-chip>
+                  </mat-chip-list>
+                </mat-card-title>
+                <mat-card-subtitle>Download: {{ formatBytes(backend.downloadSize) }}</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <p class="model-description">{{ backend.description }}</p>
+
+                <!-- Download Progress -->
+                <div *ngIf="isBackendDownloading(backend.variant)" class="download-progress">
+                  <div class="progress-info">
+                    <span>{{ downloadProgress['backend-' + backend.variant]?.status }}</span>
+                    <span>{{ downloadProgress['backend-' + backend.variant]?.percentComplete | number:'1.1-1' }}%</span>
+                  </div>
+                  <mat-progress-bar mode="determinate"
+                    [value]="downloadProgress['backend-' + backend.variant]?.percentComplete">
+                  </mat-progress-bar>
+                  <div class="progress-bytes">
+                    {{ formatBytes(downloadProgress['backend-' + backend.variant]?.bytesDownloaded) }} /
+                    {{ formatBytes(downloadProgress['backend-' + backend.variant]?.totalBytes) }}
+                  </div>
+                </div>
+              </mat-card-content>
+              <mat-card-actions>
+                <button mat-raised-button
+                        [color]="backend.isRecommended ? 'primary' : ''"
+                        (click)="downloadBackend(backend.variant)"
+                        [disabled]="backendDownloading">
+                  <mat-icon>download</mat-icon>
+                  Download
+                </button>
+              </mat-card-actions>
+            </mat-card>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Installed Backend Info -->
+      <mat-card *ngIf="backendStatus && backendStatus.isInstalled" class="backend-card"
+                style="margin-bottom: 20px; border-left: 4px solid #4caf50;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon style="color: #4caf50;">check_circle</mat-icon>
+            AI Engine: {{ getBackendVariantName(backendStatus.installedVariant) }}
+          </mat-card-title>
+          <mat-card-subtitle>
+            Version {{ backendStatus.version }}
+            <span *ngIf="backendStatus.hasCudaDll"> | CUDA acceleration enabled</span>
+            <span *ngIf="backendStatus.hasVulkanDll"> | Vulkan acceleration enabled</span>
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-actions>
+          <button mat-button color="warn" (click)="deleteBackend()">
+            <mat-icon>delete</mat-icon>
+            Remove / Change
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
       <!-- GPU Information Card -->
       <mat-card *ngIf="gpuInfo" class="gpu-info-card" style="margin-bottom: 20px;">
         <mat-card-header>
@@ -78,7 +157,13 @@
         <button mat-raised-button color="accent" (click)="editSystemPrompt()"
                 [disabled]="!isModelLoaded || editingSystemPrompt">
           <mat-icon>edit</mat-icon>
-          Configure System Prompt
+          System Prompt
+        </button>
+        <button mat-raised-button (click)="editApplicationPrompt()"
+                [disabled]="editingApplicationPrompt"
+                style="background-color: #5c6bc0; color: white;">
+          <mat-icon>tune</mat-icon>
+          Application Prompt
         </button>
         <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
           <mat-icon>psychology</mat-icon>
@@ -116,6 +201,37 @@
           <button mat-raised-button color="primary" (click)="saveSystemPrompt()">
             <mat-icon>save</mat-icon>
             Save System Prompt
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- Application System Prompt Editor (tool guidance, thinking) -->
+      <mat-card *ngIf="editingApplicationPrompt" class="system-prompt-editor" style="margin-top: 12px;">
+        <mat-card-header>
+          <mat-card-title>Application System Prompt</mat-card-title>
+          <mat-card-subtitle>Internal instructions for tool calling, thinking, and behavior. Changes apply to the local model only.</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Application Prompt</mat-label>
+            <textarea matInput
+                      [(ngModel)]="applicationPrompt"
+                      rows="12"
+                      style="font-family: monospace; font-size: 12px;"
+                      placeholder="Application system prompt (tool guidance, thinking instructions)...">
+            </textarea>
+            <mat-hint>This prompt defines how the local model uses tools and thinks. It is prepended to the tool definitions.</mat-hint>
+          </mat-form-field>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-button color="warn" (click)="resetApplicationPrompt()" matTooltip="Restore default application prompt">
+            <mat-icon>restart_alt</mat-icon>
+            Reset Default
+          </button>
+          <button mat-button (click)="cancelEditApplicationPrompt()">Cancel</button>
+          <button mat-raised-button color="primary" (click)="saveApplicationPrompt()">
+            <mat-icon>save</mat-icon>
+            Save
           </button>
         </mat-card-actions>
       </mat-card>

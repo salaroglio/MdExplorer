@@ -48,6 +48,12 @@
       <span>Index directory for RAG</span>
     </button>
 
+    <!-- Export folder to Word -->
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="exportFolderToWord(item)">
+      <mat-icon>description</mat-icon>
+      <span>Export folder to Word</span>
+    </button>
+
     <!-- RAG Indexing - File -->
     <button *ngIf="(item.type==='mdFile' || item.type==='mdFileTimer') && isRagEnabled"
             mat-menu-item (click)="indexFileForRag(item)"

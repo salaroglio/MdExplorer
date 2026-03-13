@@ -11,8 +11,8 @@ namespace MdExplorer.Features.Services
 
     public class AiModelsConfiguration
     {
-        public int DefaultContextSize { get; set; } = 4096;
-        public int MaxTokens { get; set; } = 512;
+        public int DefaultContextSize { get; set; } = 16384;
+        public int MaxTokens { get; set; } = 4096;
         public float Temperature { get; set; } = 0.7f;
     }
 

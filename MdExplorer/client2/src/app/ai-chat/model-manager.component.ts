@@ -18,6 +18,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   currentModelId: string | null = null;
   systemPrompt: string = '';
   editingSystemPrompt = false;
+  applicationPrompt: string = '';
+  defaultApplicationPrompt: string = '';
+  editingApplicationPrompt = false;
   isModelLoaded = false;
   loading = false;
   gpuInfo: GpuInfo | null = null;
@@ -61,6 +64,13 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   selectedProvider: string = 'local'; // 'local', 'openai', 'gemini', 'copilotcli'
   showProviderSelector = false;
 
+  // Backend management properties
+  backendStatus: any = null;
+  availableBackends: any[] = [];
+  recommendedBackend: string = '';
+  backendDownloading = false;
+  backendDownloadVariant: string = '';
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -70,8 +80,10 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.loadBackendStatus();
     this.loadModels();
     this.loadSystemPrompt();
+    this.loadApplicationPrompt();
     this.loadGpuInfo();
     this.checkGeminiConfiguration();
     this.checkOpenAiConfiguration();
@@ -231,7 +243,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     // Reload current system prompt
     this.loadSystemPrompt();
   }
-  
+
   loadSystemPrompt(): void {
     this.aiService.getSystemPrompt().subscribe({
       next: (response: any) => {
@@ -242,6 +254,50 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error loading system prompt:', err);
+      }
+    });
+  }
+
+  // Application System Prompt (tool guidance, thinking instructions)
+  editApplicationPrompt(): void {
+    this.editingApplicationPrompt = true;
+    this.contentChanged.emit();
+  }
+
+  saveApplicationPrompt(): void {
+    this.aiService.setApplicationPrompt(this.applicationPrompt).subscribe({
+      next: (response: any) => {
+        if (response?.applicationPrompt) {
+          this.applicationPrompt = response.applicationPrompt;
+        }
+        this.editingApplicationPrompt = false;
+      },
+      error: (err) => {
+        console.error('Error saving application prompt:', err);
+        alert('Failed to save application prompt');
+      }
+    });
+  }
+
+  resetApplicationPrompt(): void {
+    this.applicationPrompt = this.defaultApplicationPrompt;
+  }
+
+  cancelEditApplicationPrompt(): void {
+    this.editingApplicationPrompt = false;
+    this.loadApplicationPrompt();
+  }
+
+  loadApplicationPrompt(): void {
+    this.aiService.getApplicationPrompt().subscribe({
+      next: (response: any) => {
+        if (response) {
+          this.applicationPrompt = response.applicationPrompt || '';
+          this.defaultApplicationPrompt = response.defaultPrompt || '';
+        }
+      },
+      error: (err) => {
+        console.error('Error loading application prompt:', err);
       }
     });
   }
@@ -823,6 +879,95 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   cancelEditCopilotCliSystemPrompt(): void {
     this.editingCopilotCliSystemPrompt = false;
     this.loadCopilotCliSystemPrompt();
+  }
+
+  // Backend management methods
+  loadBackendStatus(): void {
+    this.aiService.getBackendStatus().subscribe({
+      next: (status) => {
+        this.backendStatus = status;
+        if (!status.isInstalled) {
+          this.loadAvailableBackendsForDownload();
+        }
+      },
+      error: (err) => {
+        console.error('Error loading backend status:', err);
+      }
+    });
+  }
+
+  loadAvailableBackendsForDownload(): void {
+    this.aiService.getAvailableBackends().subscribe({
+      next: (response: any) => {
+        this.availableBackends = response.backends || [];
+        this.recommendedBackend = response.recommended || 'cpu';
+      },
+      error: (err) => {
+        console.error('Error loading available backends:', err);
+      }
+    });
+  }
+
+  downloadBackend(variant: string): void {
+    if (this.backendDownloading) return;
+
+    this.backendDownloading = true;
+    this.backendDownloadVariant = variant;
+
+    this.downloadProgress[`backend-${variant}`] = {
+      modelId: `backend-${variant}`,
+      bytesDownloaded: 0,
+      totalBytes: 0,
+      percentComplete: 0,
+      status: 'Starting'
+    };
+
+    this.aiService.downloadBackend(variant).subscribe({
+      next: () => {
+        console.log(`Backend ${variant} download started`);
+      },
+      error: (err) => {
+        console.error(`Error downloading backend ${variant}:`, err);
+        this.backendDownloading = false;
+        this.backendDownloadVariant = '';
+        delete this.downloadProgress[`backend-${variant}`];
+        alert(`Error downloading backend: ${err.error?.error || err.message}`);
+      },
+      complete: () => {
+        this.backendDownloading = false;
+        this.backendDownloadVariant = '';
+        delete this.downloadProgress[`backend-${variant}`];
+        this.loadBackendStatus();
+      }
+    });
+  }
+
+  deleteBackend(): void {
+    if (!confirm('Delete the installed AI engine? You will need to download it again to use local AI models.')) return;
+
+    this.aiService.deleteBackend().subscribe({
+      next: () => {
+        this.loadBackendStatus();
+        this.loadAvailableBackendsForDownload();
+      },
+      error: (err) => {
+        console.error('Error deleting backend:', err);
+      }
+    });
+  }
+
+  isBackendDownloading(variant: string): boolean {
+    const progress = this.downloadProgress[`backend-${variant}`];
+    return progress && progress.status !== 'Error' && progress.status !== 'Cancelled' && progress.status !== 'Complete';
+  }
+
+  getBackendVariantName(variant: string): string {
+    const names: {[key: string]: string} = {
+      'cpu': 'CPU Only',
+      'cuda-12.4': 'NVIDIA CUDA',
+      'vulkan': 'Vulkan (AMD/Intel/NVIDIA)'
+    };
+    return names[variant] || variant;
   }
 
   ngOnDestroy(): void {
