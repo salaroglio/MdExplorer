@@ -428,5 +428,21 @@ MdExplorer.AI.Premium/
 experiments/
 nul
 
+# Temporary scripts
+SurfLinkFix.ps1
+temp_audio*.ps1
+temp_audio_check.ps1
+
+# Temporary/replacing binaries
+MdExplorer/Binaries/plantuml.jar.replacing
+MdExplorer/undefined
+
+# Test archives
+MdExplorer.P2P.Premium.Tests.zip
+
+# LlamaCpp native binaries (distributed separately)
+MdExplorer/LlamaCppOverride/
+llama-cpp-b8255/
+
 # Development settings with secrets
 **/appsettings.Development.json
