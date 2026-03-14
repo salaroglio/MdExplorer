@@ -72,9 +72,12 @@
     </div>
 
     <!-- Wrapper div per router-outlet che caricherà DocumentShowComponent -->
-    <div class="router-outlet-wrapper" [class.hidden]="isChatFullScreen">
+    <div class="router-outlet-wrapper" [class.hidden]="isChatFullScreen" [style.display]="embeddedAppActive ? 'none' : ''">
       <router-outlet></router-outlet>
     </div>
+
+    <!-- Persistent embedded app container — iframes survive navigation -->
+    <app-app-show [style.display]="embeddedAppActive ? '' : 'none'"></app-app-show>
   </mat-sidenav-content>
 
 </mat-sidenav-container>

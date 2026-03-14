@@ -31,12 +31,6 @@
     </button>
   </div>
 
-  <!-- iframe — standard DOM element, respects CSS z-index (unlike WebContentsView) -->
-  <iframe *ngIf="state === 'ready' && appUrl"
-          [src]="appUrl | safe"
-          class="app-webview"
-          frameborder="0"
-          allowfullscreen>
-  </iframe>
+  <!-- When state is 'ready', the iframe is shown by AppShowComponent in sidenav (persistent) -->
 
 </div>

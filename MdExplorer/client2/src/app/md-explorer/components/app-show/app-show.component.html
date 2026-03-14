@@ -1,0 +1,30 @@
+<div class="app-show-container">
+
+  <!-- Persistent iframes — one per registered app, shown/hidden via display -->
+  <iframe *ngFor="let app of apps"
+          [src]="app.url | safe"
+          [style.display]="app.appId === activeAppId ? 'block' : 'none'"
+          class="app-iframe"
+          frameborder="0"
+          allowfullscreen>
+  </iframe>
+
+  <!-- Bookmark overlay -->
+  <div class="bookmark-overlay-container">
+    <div (mouseenter)="bookmark.show=true"
+         (mouseleave)="bookmark.show=false"
+         class="mdbookmark"
+         *ngFor="let bookmark of bookmarks; let indexOfElement=index;"
+         style="padding:2px;">
+      <div style="border-color:black" [attr.alt]="bookmark.fullPath">
+        <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
+        <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
+        <mat-icon (click)="toggleBookmark(bookmark)"
+                  *ngIf="bookmark.show"
+                  style="vertical-align:bottom;">cancel</mat-icon>
+        <mat-icon style="vertical-align:bottom;">arrow_forward_ios</mat-icon>
+      </div>
+    </div>
+  </div>
+
+</div>

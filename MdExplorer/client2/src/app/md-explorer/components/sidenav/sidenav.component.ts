@@ -1,6 +1,6 @@
 
 import { ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { Router }                                          from '@angular/router';
+import { Router, NavigationEnd }                            from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
@@ -13,6 +13,7 @@ import { ProjectsService } from '../../services/projects.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { LayoutService } from '../../services/layout.service';
 import { ClipboardPasteService } from '../../services/clipboard-paste.service';
+import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
 
 
 
@@ -37,6 +38,10 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public fileSystemWatcherEnabled: boolean = true;
   public selectedTabIndex: number = 0;
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
+
+  // Embedded app persistence
+  public embeddedAppActive = false;
+  private embeddedAppSub: Subscription;
 
   // Chat fullscreen
   public isChatFullScreen = false;
@@ -63,7 +68,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private ref: ChangeDetectorRef, // Injected ChangeDetectorRef
     private layoutService: LayoutService,
     private http: HttpClient,
-    private clipboardPasteService: ClipboardPasteService
+    private clipboardPasteService: ClipboardPasteService,
+    private embeddedAppState: EmbeddedAppStateService
   ) {
     this.setupResizeListeners();
 
@@ -140,6 +146,10 @@ export class SidenavComponent implements OnInit, OnDestroy {
     if (this.chatFullScreenSub) {
       this.chatFullScreenSub.unsubscribe();
     }
+    // Cleanup embedded app subscription
+    if (this.embeddedAppSub) {
+      this.embeddedAppSub.unsubscribe();
+    }
     // Cleanup clipboard paste service
     this.clipboardPasteService.destroy();
   }
@@ -205,6 +215,20 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
     // Initialize global Ctrl+V listener for screenshot annotation
     this.clipboardPasteService.initialize();
+
+    // Subscribe to embedded app state
+    this.embeddedAppSub = this.embeddedAppState.activeAppId$.subscribe(appId => {
+      this.embeddedAppActive = appId != null;
+    });
+
+    // Auto-deactivate embedded app when navigating away from external-app route
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        if (!event.urlAfterRedirects.includes('external-app')) {
+          this.embeddedAppState.deactivate();
+        }
+      }
+    });
 
     // Subscribe to chat fullscreen state
     this.chatFullScreenSub = this.layoutService.chatFullScreen$.subscribe(isFullScreen => {

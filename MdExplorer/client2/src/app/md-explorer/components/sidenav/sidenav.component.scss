@@ -75,6 +75,15 @@ mat-sidenav-content {
   height: 100%;
   position: relative;
   
+  app-app-show {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
   .router-outlet-wrapper {
     flex: 1 1 auto;
     min-width: 0; // Importante per permettere al contenuto di ridursi

@@ -46,6 +46,7 @@ import { ExternalAppsSettingsComponent } from './components/external-apps-settin
 import { AppStoreComponent } from './components/app-store/app-store.component';
 import { InstallWizardDialogComponent } from './components/dialogs/install-wizard/install-wizard.component';
 import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component';
+import { AppShowComponent } from './components/app-show/app-show.component';
 
 
 const routes: Routes = [
@@ -110,7 +111,8 @@ const routes: Routes = [
     ExternalAppsSettingsComponent,
     AppStoreComponent,
     InstallWizardDialogComponent,
-    BulkExportProgressDialogComponent
+    BulkExportProgressDialogComponent,
+    AppShowComponent
   ],
   imports: [
     CommonModule,

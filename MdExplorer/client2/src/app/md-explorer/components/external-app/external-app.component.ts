@@ -9,6 +9,7 @@ import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { MdFileService } from '../../services/md-file.service';
 import { MdFile } from '../../models/md-file';
+import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
 
 @Component({
   selector: 'app-external-app',
@@ -21,17 +22,16 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
   errorMessage = '';
   currentAppId: string | null = null;
   currentAppName: string | null = null;
-  appUrl: string | null = null;
 
   private subscription: Subscription;
-  private unsubscribeCrashed: (() => void) | null = null;
   private isElectron = !!(window as any).electronAPI?.externalApp;
 
   constructor(
     private mdFileService: MdFileService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
-    private router: Router
+    private router: Router,
+    private embeddedAppState: EmbeddedAppStateService
   ) {}
 
   ngOnInit(): void {
@@ -44,37 +44,28 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
         }
       }
     );
-
-    if (this.isElectron) {
-      this.unsubscribeCrashed = (window as any).electronAPI.externalApp.onCrashed(
-        (data: { appId: string; exitCode: number }) => {
-          this.ngZone.run(() => {
-            if (data.appId === this.currentAppId) {
-              this.state = 'error';
-              this.appUrl = null;
-              this.errorMessage = `App process exited unexpectedly (exit code: ${data.exitCode})`;
-              this.cdr.markForCheck();
-            }
-          });
-        }
-      );
-    }
   }
 
   ngOnDestroy(): void {
     this.subscription?.unsubscribe();
-    if (this.unsubscribeCrashed) this.unsubscribeCrashed();
     // Do NOT terminate the process — singleton behaviour: process stays alive
     // so re-opening the app is instant. Processes are cleaned up on app quit.
   }
 
   private async openApp(node: MdFile): Promise<void> {
-    // If same app is already showing, nothing to do
-    if (node.appId === this.currentAppId && this.state === 'ready') return;
+    const appId = node.appId;
 
-    this.currentAppId = node.appId;
+    // If app is already registered in the persistent service, just activate it
+    if (this.embeddedAppState.isRegistered(appId)) {
+      this.currentAppId = appId;
+      this.state = 'ready';
+      this.embeddedAppState.activateApp(appId);
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.currentAppId = appId;
     this.state = 'loading';
-    this.appUrl = null;
     this.errorMessage = '';
     this.cdr.markForCheck();
 
@@ -105,7 +96,9 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
 
       this.ngZone.run(() => {
         if (this.currentAppId === node.appId) {
-          this.appUrl = `http://localhost:${result.port}/`;
+          const url = `http://localhost:${result.port}/`;
+          this.embeddedAppState.registerApp(appId, url, node.name);
+          this.embeddedAppState.activateApp(appId);
           this.state = 'ready';
           this.cdr.markForCheck();
         }
@@ -122,7 +115,9 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
   retry(): void {
     const node = this.mdFileService.currentSelectedMdFile;
     if (node?.type === 'externalApp' && node.appId === this.currentAppId) {
-      this.currentAppId = null; // force re-open
+      // Unregister so it will be re-launched fresh
+      this.embeddedAppState.unregisterApp(node.appId);
+      this.currentAppId = null;
       this.openApp(node);
     }
   }
@@ -131,7 +126,6 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
     this.currentAppId = node.appId;
     this.currentAppName = node.name;
     this.state = 'notInstalled';
-    this.appUrl = null;
     this.errorMessage = '';
     this.cdr.markForCheck();
   }
