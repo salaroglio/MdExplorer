@@ -1,5 +1,6 @@
 ﻿using Ad.Tools.Dal.Abstractions;
 using Ad.Tools.Dal.Abstractions.Interfaces;
+using Ad.Tools.Dal.Concrete;
 using FluentNHibernate.Cfg;
 using FluentNHibernate.Cfg.Db;
 using NHibernate;
@@ -225,7 +226,9 @@ namespace Ad.Tools.Dal.Decorators
 
         public ISession OpenSession()
         {
-            return _sessionFactory.OpenSession();
+            var session = _sessionFactory.OpenSession();
+            DatabaseSQLite.ApplyPragmas(session);
+            return session;
         }
 
         public IStatelessSession OpenStatelessSession()

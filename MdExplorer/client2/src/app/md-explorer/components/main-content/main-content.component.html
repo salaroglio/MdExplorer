@@ -74,12 +74,25 @@
     </div>
   </div>
 
+  <!-- File Deleted State -->
+  <div class="deleted-state"
+       *ngIf="(currentState$ | async)?.status === 'deleted'"
+       role="alert"
+       aria-label="File deleted">
+    <div class="deleted-content">
+      <mat-icon class="deleted-icon">delete_outline</mat-icon>
+      <h3 class="deleted-title">File no longer available</h3>
+      <p class="deleted-message">The file <strong>{{ (currentState$ | async)?.deletedFileName }}</strong> has been deleted from the file system.</p>
+      <p class="deleted-hint">Select another file from the sidebar to continue.</p>
+    </div>
+  </div>
+
   <!-- Main Iframe Content -->
-  <iframe #iframe 
-          id="mdIframe" 
-          name="mdIframe" 
+  <iframe #iframe
+          id="mdIframe"
+          name="mdIframe"
           class="content-iframe"
-          [hidden]="_HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle'"
+          [hidden]="_HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle' || (currentState$ | async)?.status === 'deleted'"
           [src]="htmlSource | safe"
           [attr.aria-label]="'Contenuto del documento: ' + ((currentState$ | async)?.currentPath || 'documento')"
           tabindex="0"

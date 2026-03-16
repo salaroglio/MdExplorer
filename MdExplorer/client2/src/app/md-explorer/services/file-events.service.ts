@@ -7,6 +7,11 @@ export interface FileRenamedEvent {
   isRule1Rename: boolean;
 }
 
+export interface FileDeletedEvent {
+  fullPath: string;
+  name: string;
+}
+
 export interface FileIndexedEvent {
   fullPath: string;
   isIndexed: boolean;
@@ -17,9 +22,11 @@ export interface FileIndexedEvent {
 })
 export class FileEventsService {
   private fileRenamedSubject = new Subject<FileRenamedEvent>();
+  private fileDeletedSubject = new Subject<FileDeletedEvent>();
   private fileIndexedSubject = new Subject<FileIndexedEvent>();
 
   fileRenamed$ = this.fileRenamedSubject.asObservable();
+  fileDeleted$ = this.fileDeletedSubject.asObservable();
   fileIndexed$ = this.fileIndexedSubject.asObservable();
 
   /**
@@ -27,6 +34,13 @@ export class FileEventsService {
    */
   emitFileRenamed(event: FileRenamedEvent): void {
     this.fileRenamedSubject.next(event);
+  }
+
+  /**
+   * Emette evento di file cancellato
+   */
+  emitFileDeleted(event: FileDeletedEvent): void {
+    this.fileDeletedSubject.next(event);
   }
 
   /**

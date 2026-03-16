@@ -425,4 +425,11 @@ export class MdServerMessagesService {
     });
   }
 
+  public addFileSystemStormListener(callback: (data: any[], objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('fileSystemStorm', (data: any[]) => {
+      console.log(`⚡ [SignalR] fileSystemStorm: ${data?.length || 0} changes after storm`);
+      callback(data, objectThis);
+    });
+  }
+
 }

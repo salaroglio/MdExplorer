@@ -184,6 +184,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     // Clear per-file debounce tracking to prevent memory leak
                     context.LastProcessedPerFile?.Clear();
 
+                    // Dispose storm cooldown timer
+                    context.StormCooldownTimer?.Dispose();
+
                     // Dispose DB semaphore
                     context.DbSemaphore?.Dispose();
 
@@ -320,6 +323,284 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             };
         }
 
+        #region Storm Detection
+
+        /// <summary>
+        /// Checks if a storm is in progress or should be triggered.
+        /// If storm mode is active, the event is queued for batch processing later.
+        /// Returns true if the caller should skip individual processing (event queued).
+        /// Returns false if the caller should process the event normally.
+        /// </summary>
+        private bool HandleStormDetection(WatcherContext context, StormEvent stormEvent)
+        {
+            lock (context.StormLock)
+            {
+                var now = DateTime.UtcNow;
+
+                if (context.IsInStormMode)
+                {
+                    // Already in storm: queue event, reset cooldown
+                    context.StormQueue.Add(stormEvent);
+                    _logger.LogDebug($"[{context.ConnectionId}] Storm: queued {stormEvent.Action} {stormEvent.FullPath} (queue size: {context.StormQueue.Count})");
+                    ResetStormCooldownTimer(context);
+                    return true;
+                }
+
+                // Check if we're within the detection window
+                var elapsed = (now - context.StormWindowStart).TotalMilliseconds;
+                if (elapsed > WatcherContext.StormWindowMs)
+                {
+                    // Window expired, start new one
+                    context.StormEventCount = 1;
+                    context.StormWindowStart = now;
+                    return false;
+                }
+
+                // Within window, increment
+                context.StormEventCount++;
+
+                if (context.StormEventCount >= WatcherContext.StormThreshold)
+                {
+                    // Threshold reached — enter storm mode and queue this event
+                    context.IsInStormMode = true;
+                    context.StormQueue.Add(stormEvent);
+                    _logger.LogWarning($"[{context.ConnectionId}] Storm detected! {context.StormEventCount} events in {elapsed:F0}ms — switching to batch mode.");
+                    ResetStormCooldownTimer(context);
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Convenience overload: builds a StormEvent from raw parameters.
+        /// </summary>
+        private bool HandleStormDetection(WatcherContext context, StormEvent.ActionType action,
+            string fullPath, string oldFullPath = null)
+        {
+            var ext = Path.GetExtension(fullPath);
+            var stormEvent = new StormEvent
+            {
+                Action = action,
+                FullPath = fullPath,
+                OldFullPath = oldFullPath,
+                IsDirectory = string.IsNullOrEmpty(ext) && Directory.Exists(fullPath),
+                IsMarkdown = ext?.Equals(".md", StringComparison.OrdinalIgnoreCase) == true,
+                FileExtension = ext,
+                Timestamp = DateTime.UtcNow
+            };
+            return HandleStormDetection(context, stormEvent);
+        }
+
+        private void ResetStormCooldownTimer(WatcherContext context)
+        {
+            context.StormCooldownTimer?.Dispose();
+            context.StormCooldownTimer = new System.Threading.Timer(
+                _ => _ = ProcessStormQueueAsync(context),
+                null,
+                WatcherContext.StormCooldownMs,
+                System.Threading.Timeout.Infinite
+            );
+        }
+
+        /// <summary>
+        /// Called when the storm calms down. Deduplicates queued events and processes them
+        /// as a batch: DB operations serialized via semaphore, then a single SignalR notification.
+        /// </summary>
+        private async Task ProcessStormQueueAsync(WatcherContext context)
+        {
+            List<StormEvent> eventsToProcess;
+
+            lock (context.StormLock)
+            {
+                context.IsInStormMode = false;
+                context.StormEventCount = 0;
+                context.StormCooldownTimer?.Dispose();
+                context.StormCooldownTimer = null;
+
+                // Take the queue and replace with empty
+                eventsToProcess = context.StormQueue;
+                context.StormQueue = new List<StormEvent>();
+            }
+
+            if (eventsToProcess.Count == 0)
+                return;
+
+            // Deduplicate: per path, keep only the net effect
+            var deduplicated = DeduplicateStormEvents(eventsToProcess);
+            _logger.LogInformation($"[{context.ConnectionId}] Storm ended. {eventsToProcess.Count} raw events → {deduplicated.Count} after dedup. Processing batch.");
+
+            // Process DB operations under semaphore
+            await context.DbSemaphore.WaitAsync();
+            try
+            {
+                foreach (var evt in deduplicated)
+                {
+                    if (!evt.IsMarkdown)
+                        continue; // Folders don't have DB records
+
+                    try
+                    {
+                        switch (evt.Action)
+                        {
+                            case StormEvent.ActionType.Created:
+                            case StormEvent.ActionType.Changed:
+                                ParseNewFileIntoDB(context, new FileSystemEventArgs(
+                                    WatcherChangeTypes.Created, Path.GetDirectoryName(evt.FullPath), Path.GetFileName(evt.FullPath)));
+                                break;
+
+                            case StormEvent.ActionType.Deleted:
+                                RemoveFileFromDB(context, evt.FullPath);
+                                break;
+
+                            case StormEvent.ActionType.Renamed:
+                                // Remove old, add new
+                                if (evt.OldFullPath != null)
+                                    RemoveFileFromDB(context, evt.OldFullPath);
+                                ParseNewFileIntoDB(context, new FileSystemEventArgs(
+                                    WatcherChangeTypes.Created, Path.GetDirectoryName(evt.FullPath), Path.GetFileName(evt.FullPath)));
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"[{context.ConnectionId}] Storm batch: error processing {evt.Action} {evt.FullPath}");
+                    }
+                }
+            }
+            finally
+            {
+                context.DbSemaphore.Release();
+            }
+
+            // Build the payload for the frontend: list of changes
+            var bulkPayload = deduplicated.Select(evt => new
+            {
+                action = evt.Action.ToString().ToLowerInvariant(),
+                fullPath = evt.FullPath,
+                oldFullPath = evt.OldFullPath,
+                isDirectory = evt.IsDirectory,
+                name = Path.GetFileName(evt.FullPath),
+                relativePath = GetRelativePath(context, evt.FullPath)
+            }).ToList();
+
+            try
+            {
+                await _hubContext.Clients.Client(context.ConnectionId)
+                    .SendAsync("fileSystemStorm", bulkPayload);
+                _logger.LogInformation($"[{context.ConnectionId}] Storm batch: sent {bulkPayload.Count} changes to frontend.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[{context.ConnectionId}] Failed to send fileSystemStorm event");
+            }
+
+            // Fire-and-forget: re-embed changed/created markdown files
+            foreach (var evt in deduplicated)
+            {
+                if (evt.IsMarkdown && (evt.Action == StormEvent.ActionType.Created || evt.Action == StormEvent.ActionType.Changed))
+                {
+                    _ = ReEmbedFileAsync(context, evt.FullPath);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deduplicates storm events per path, keeping only the net effect:
+        /// - Created + Changed → Created
+        /// - Created + Deleted → removed (cancel out)
+        /// - Changed + Deleted → Deleted
+        /// - Multiple Changed → one Changed
+        /// - Deleted + Created → Changed (file replaced)
+        /// </summary>
+        private List<StormEvent> DeduplicateStormEvents(List<StormEvent> events)
+        {
+            // Track net effect per path (case-insensitive for Windows)
+            var netEffect = new Dictionary<string, StormEvent>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var evt in events)
+            {
+                var key = evt.FullPath;
+
+                // For Renamed: treat as Delete(old) + Create(new)
+                if (evt.Action == StormEvent.ActionType.Renamed && evt.OldFullPath != null)
+                {
+                    // Delete the old path
+                    if (netEffect.TryGetValue(evt.OldFullPath, out var existingOld))
+                    {
+                        if (existingOld.Action == StormEvent.ActionType.Created)
+                        {
+                            // Was created then renamed — remove old, create at new path
+                            netEffect.Remove(evt.OldFullPath);
+                        }
+                        else
+                        {
+                            existingOld.Action = StormEvent.ActionType.Deleted;
+                        }
+                    }
+                    else
+                    {
+                        netEffect[evt.OldFullPath] = new StormEvent
+                        {
+                            Action = StormEvent.ActionType.Deleted,
+                            FullPath = evt.OldFullPath,
+                            IsDirectory = evt.IsDirectory,
+                            IsMarkdown = Path.GetExtension(evt.OldFullPath)?.Equals(".md", StringComparison.OrdinalIgnoreCase) == true,
+                            FileExtension = Path.GetExtension(evt.OldFullPath),
+                            Timestamp = evt.Timestamp
+                        };
+                    }
+
+                    // Create at new path
+                    netEffect[key] = new StormEvent
+                    {
+                        Action = StormEvent.ActionType.Created,
+                        FullPath = evt.FullPath,
+                        IsDirectory = evt.IsDirectory,
+                        IsMarkdown = evt.IsMarkdown,
+                        FileExtension = evt.FileExtension,
+                        Timestamp = evt.Timestamp
+                    };
+                    continue;
+                }
+
+                if (!netEffect.TryGetValue(key, out var existing))
+                {
+                    netEffect[key] = evt;
+                    continue;
+                }
+
+                // Merge logic
+                switch (existing.Action)
+                {
+                    case StormEvent.ActionType.Created:
+                        if (evt.Action == StormEvent.ActionType.Deleted)
+                            netEffect.Remove(key); // Created + Deleted = cancel out
+                        // Created + Changed = still Created (no-op)
+                        break;
+
+                    case StormEvent.ActionType.Changed:
+                        if (evt.Action == StormEvent.ActionType.Deleted)
+                            netEffect[key] = evt; // Changed + Deleted = Deleted
+                        // Changed + Changed = still Changed (no-op)
+                        break;
+
+                    case StormEvent.ActionType.Deleted:
+                        if (evt.Action == StormEvent.ActionType.Created)
+                        {
+                            // Deleted + Created = file replaced → Changed
+                            existing.Action = StormEvent.ActionType.Changed;
+                        }
+                        break;
+                }
+            }
+
+            return netEffect.Values.OrderBy(e => e.Timestamp).ToList();
+        }
+
+        #endregion
+
         #region Event Handlers
 
         private async void OnFileChanged(WatcherContext context, FileSystemEventArgs e)
@@ -344,11 +625,6 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
 
-                if (isMarkdown)
-                {
-                    _logger.LogInformation($"📝 [{context.ConnectionId}] FileSystemWatcher.Changed: {e.FullPath}");
-                }
-
                 // Skip directories
                 if (Directory.Exists(e.FullPath))
                 {
@@ -356,7 +632,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
-                // Only process markdown files
+                // Only process markdown files — skip non-md files BEFORE storm detection
+                // so that .git/FETCH_HEAD, .lock files, etc. don't trigger false storms
                 if (!isMarkdown)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown");
@@ -368,6 +645,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     _logger.LogInformation($"[{context.ConnectionId}] Markdown file {e.FullPath} filtered out");
                     return;
                 }
+
+                if (isMarkdown)
+                {
+                    _logger.LogInformation($"📝 [{context.ConnectionId}] FileSystemWatcher.Changed: {e.FullPath}");
+                }
+
+                // Storm detection: only counts relevant events (md files that pass all filters)
+                if (HandleStormDetection(context, StormEvent.ActionType.Changed, e.FullPath))
+                    return;
 
                 // Per-file debounce: ignore duplicate events within 2 seconds
                 var now = DateTime.UtcNow;
@@ -574,6 +860,19 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
+                var isDirectory = Directory.Exists(e.FullPath);
+
+                // Skip non-markdown, non-directory files BEFORE storm detection
+                // (prevents .git/FETCH_HEAD, .lock files etc. from triggering false storms)
+                if (!isMarkdown && !isDirectory)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown and not a directory, skipping");
+                    return;
+                }
+
+                // Storm detection: only counts relevant events (md files + directories)
+                if (HandleStormDetection(context, StormEvent.ActionType.Created, e.FullPath))
+                    return;
 
                 if (isMarkdown)
                 {
@@ -583,7 +882,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (!isMarkdown)
                 {
                     // Gestione creazione cartella
-                    if (Directory.Exists(e.FullPath))
+                    if (isDirectory)
                     {
                         var folderRelativePath = GetRelativePath(context, e.FullPath);
                         if (!IsFolderIgnored(context, folderRelativePath))
@@ -673,6 +972,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
+                bool oldHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.OldFullPath));
+                bool newHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.FullPath));
+                bool isRelevant = oldIsMarkdown || newIsMarkdown || (oldHasNoExt && newHasNoExt);
+
+                // Skip irrelevant renames BEFORE storm detection
+                if (!isRelevant)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] Rename not relevant, skipping: {e.OldFullPath} → {e.FullPath}");
+                    return;
+                }
+
+                // Storm detection: only counts relevant events
+                if (HandleStormDetection(context, StormEvent.ActionType.Renamed, e.FullPath, e.OldFullPath))
+                    return;
 
                 if (oldIsMarkdown || newIsMarkdown)
                 {
@@ -685,8 +998,6 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 {
                     _logger.LogInformation($"❌ [{context.ConnectionId}] Rename not relevant: neither old nor new is markdown");
                     // Gestione rename cartella (nessuna estensione su entrambi)
-                    bool oldHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.OldFullPath));
-                    bool newHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.FullPath));
                     if (oldHasNoExt && newHasNoExt)
                     {
                         var folderRenamedData = new {
@@ -787,29 +1098,34 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
+                var isDirectory = string.IsNullOrEmpty(fileExtension);
+
+                // Skip non-markdown, non-directory files (e.g., .git/FETCH_HEAD) BEFORE storm detection
+                if (!isMarkdown && !isDirectory)
+                {
+                    _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
+                    return;
+                }
+
+                // Storm detection: queue event if storm is active (only markdown files and directories reach here)
+                if (HandleStormDetection(context, StormEvent.ActionType.Deleted, e.FullPath))
+                    return;
 
                 if (!isMarkdown)
                 {
                     // Gestione cancellazione cartella (heuristica: nessuna estensione = cartella)
-                    if (string.IsNullOrEmpty(fileExtension))
+                    var folderRelativePath = GetRelativePath(context, e.FullPath);
+                    if (!IsFolderIgnored(context, folderRelativePath))
                     {
-                        var folderRelativePath = GetRelativePath(context, e.FullPath);
-                        if (!IsFolderIgnored(context, folderRelativePath))
-                        {
-                            var folderDeletedData = new {
-                                Name = Path.GetFileName(e.FullPath),
-                                FullPath = e.FullPath,
-                                Path = folderRelativePath,
-                                RelativePath = folderRelativePath
-                            };
-                            await _hubContext.Clients.Client(context.ConnectionId)
-                                .SendAsync("folderDeleted", folderDeletedData);
-                            _logger.LogInformation($"🗑️ [{context.ConnectionId}] Folder deleted: {e.FullPath}");
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
+                        var folderDeletedData = new {
+                            Name = Path.GetFileName(e.FullPath),
+                            FullPath = e.FullPath,
+                            Path = folderRelativePath,
+                            RelativePath = folderRelativePath
+                        };
+                        await _hubContext.Clients.Client(context.ConnectionId)
+                            .SendAsync("folderDeleted", folderDeletedData);
+                        _logger.LogInformation($"🗑️ [{context.ConnectionId}] Folder deleted: {e.FullPath}");
                     }
                     return;
                 }

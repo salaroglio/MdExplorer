@@ -50,10 +50,20 @@ export class MoveMdFileComponent implements OnInit {
       return;
     }
     
+    const oldFullPath = this.dataMdFile.fullPath;
+    const oldParentPath = oldFullPath.substring(0, Math.max(
+      oldFullPath.lastIndexOf('\\'), oldFullPath.lastIndexOf('/')
+    ));
+
     this.mdFileService.moveMdFile(this.dataMdFile, this.directoryDestination)
       .subscribe({
         next: (_) => {
-          this.mdFileService.loadAll(null, null);
+          // Incremental update: remove from old parent, add to new parent
+          this.mdFileService.recursiveDeleteFileFromDataStore(this.dataMdFile);
+          const newFullPath = this.directoryDestination +
+            oldFullPath.substring(oldFullPath.lastIndexOf(oldFullPath.includes('\\') ? '\\' : '/'));
+          const movedFile = { ...this.dataMdFile, fullPath: newFullPath };
+          this.mdFileService.addFileToParent(movedFile, this.directoryDestination);
           this.dialogRef.close();
         },
         error: (error) => {

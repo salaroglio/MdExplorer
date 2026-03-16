@@ -294,6 +294,63 @@
   }
 }
 
+// === FILE DELETED STATE STYLES ===
+.deleted-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  animation: fadeIn 0.4s ease-out;
+
+  .deleted-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+    max-width: 450px;
+
+    .deleted-icon {
+      font-size: 3.5rem;
+      width: 3.5rem;
+      height: 3.5rem;
+      color: #78909c;
+      margin-bottom: 1.5rem;
+    }
+
+    .deleted-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #455a64;
+      margin: 0 0 1rem 0;
+    }
+
+    .deleted-message {
+      font-size: 1rem;
+      color: #607d8b;
+      line-height: 1.6;
+      margin: 0 0 0.5rem 0;
+
+      strong {
+        color: #37474f;
+      }
+    }
+
+    .deleted-hint {
+      font-size: 0.9rem;
+      color: #90a4ae;
+      margin: 0.5rem 0 0 0;
+    }
+  }
+}
+
 // === IFRAME STYLES ===
 .content-iframe {
   width: 100%;
@@ -496,21 +553,45 @@
   
   .empty-state {
     background: linear-gradient(135deg, #303030 0%, #424242 100%);
-    
+
     .empty-title {
       color: #e0e0e0;
     }
-    
+
     .empty-message {
       color: #bdbdbd;
     }
-    
+
     .empty-icon,
     .empty-hint {
       color: #90a4ae;
     }
   }
-  
+
+  .deleted-state {
+    background: linear-gradient(135deg, #303030 0%, #3e3e3e 100%);
+
+    .deleted-icon {
+      color: #90a4ae;
+    }
+
+    .deleted-title {
+      color: #e0e0e0;
+    }
+
+    .deleted-message {
+      color: #bdbdbd;
+
+      strong {
+        color: #e0e0e0;
+      }
+    }
+
+    .deleted-hint {
+      color: #78909c;
+    }
+  }
+
   .content-iframe {
     background: #1e1e1e;
   }

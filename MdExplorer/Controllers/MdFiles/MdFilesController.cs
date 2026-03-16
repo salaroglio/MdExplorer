@@ -1627,13 +1627,23 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             
             // PULIZIA E REINDICIZZAZIONE DEL DATABASE
+            // Disabilita il FileSystemWatcher durante cleanup+reindex per evitare race condition:
+            // gli handler FSW cercherebbero record appena cancellati o creerebbero duplicati
+            SetFileSystemWatcherEnabled(false);
             var linkIndexingEnabled = IsLinkIndexingEnabled();
-            // Fase 1: file discovery — sempre, indipendente dal flag LinkIndexingEnabled
-            CleanupDatabaseDuplicates();
-            IndexAllMarkdownFiles();
-            if (!linkIndexingEnabled)
+            try
             {
-                _logger.LogInformation("[GetShallowStructure] Link indexing disabled - file records indexed, skipping link parsing");
+                // Fase 1: file discovery — sempre, indipendente dal flag LinkIndexingEnabled
+                CleanupDatabaseDuplicates();
+                IndexAllMarkdownFiles();
+                if (!linkIndexingEnabled)
+                {
+                    _logger.LogInformation("[GetShallowStructure] Link indexing disabled - file records indexed, skipping link parsing");
+                }
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true);
             }
             
             // Carica solo primo livello di cartelle che contengono file markdown

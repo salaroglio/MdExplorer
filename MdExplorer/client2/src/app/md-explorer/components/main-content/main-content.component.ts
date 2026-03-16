@@ -16,9 +16,10 @@ import { HttpClient } from '@angular/common/http';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
-  status: 'idle' | 'loading' | 'loaded' | 'error' | 'indexing';
+  status: 'idle' | 'loading' | 'loaded' | 'error' | 'indexing' | 'deleted';
   currentPath?: string;
   errorMessage?: string;
+  deletedFileName?: string;
   isIndexing?: boolean;
   loadingStartTime?: Date;
   retryCount?: number;
@@ -163,6 +164,13 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         this.handleFileRenamed(event.oldPath, event.newPath);
       }
     });
+
+    // Listen to file deleted events
+    this.fileEventsService.fileDeleted$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(event => {
+      this.handleFileDeleted(event.fullPath, event.name);
+    });
     
     // Subscribe to layout changes - RIMOSSO per usare solo CSS
     // this.layoutService.sidenavWidth$.pipe(
@@ -218,6 +226,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Enhanced file loading with state management and error handling
    */
   private loadMarkdownFile(file: MdFile): void {
+    // Reset deleted state when loading a new file
+    this._HideIFrame = false;
+
     if (!file?.relativePath) {
       const fileInfo = file?.fullPath || file?.name || 'unknown';
       console.warn('⚠️ [MainContent] Invalid file provided for loading - missing relativePath. File info:', fileInfo);
@@ -458,7 +469,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle file rename event for current file
    */
   private handleFileRenamed(oldPath: string, newPath: string): void {
-    
+
     // Update current path in state
     this.updateState({
       currentPath: newPath
@@ -468,6 +479,26 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const dateTime = new Date().getTime() / 1000;
     const cleanPath = this.cleanRelativePath(newPath);
     this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+  }
+
+  /**
+   * Handle file deleted event — show "file deleted" message if the deleted file is currently being viewed
+   */
+  private handleFileDeleted(fullPath: string, name: string): void {
+    const currentPath = this.contentState$.value.currentPath;
+    if (!currentPath) return;
+
+    // Compare: currentPath is relative, fullPath is absolute — normalize both for comparison
+    const normalizedCurrent = currentPath.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    const normalizedDeleted = fullPath.replace(/\\/g, '/').toLowerCase();
+
+    if (normalizedDeleted.endsWith(normalizedCurrent) || normalizedCurrent.endsWith(normalizedDeleted)) {
+      this._HideIFrame = true;
+      this.updateState({
+        status: 'deleted',
+        deletedFileName: name || fullPath.split(/[/\\]/).pop() || 'Unknown file'
+      });
+    }
   }
 
   /**

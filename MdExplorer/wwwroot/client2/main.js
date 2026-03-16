@@ -7184,6 +7184,60 @@ class MdFileService {
     }
     return null;
   }
+  /**
+   * Rinomina una cartella nel dataStore, aggiornando ricorsivamente i path
+   * della cartella e di tutti i suoi discendenti.
+   * Returns true se il nodo è stato trovato e aggiornato.
+   */
+  renameFolderInDataStore(oldFullPath, newFullPath) {
+    const node = this.findFolderInDataStore(this.dataStore.mdFiles, oldFullPath);
+    if (!node) return false;
+    const newName = newFullPath.substring(Math.max(newFullPath.lastIndexOf('\\'), newFullPath.lastIndexOf('/')) + 1);
+    // Aggiorna il nodo stesso
+    node.name = newName;
+    this.rewritePaths(node, oldFullPath, newFullPath);
+    // Aggiorna compact segments se presenti
+    if (node.isCompacted && node.compactedSegments) {
+      for (const seg of node.compactedSegments) {
+        if (seg.fullPath.toLowerCase().startsWith(oldFullPath.toLowerCase())) {
+          seg.fullPath = newFullPath + seg.fullPath.substring(oldFullPath.length);
+        }
+      }
+    }
+    // Aggiorna ricorsivamente tutti i discendenti
+    this.rewriteChildrenPaths(node.childrens, oldFullPath, newFullPath);
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+    return true;
+  }
+  rewritePaths(node, oldPrefix, newPrefix) {
+    if (node.fullPath && node.fullPath.toLowerCase().startsWith(oldPrefix.toLowerCase())) {
+      node.fullPath = newPrefix + node.fullPath.substring(oldPrefix.length);
+    }
+    if (node.path && node.path.toLowerCase().startsWith(oldPrefix.toLowerCase())) {
+      node.path = newPrefix + node.path.substring(oldPrefix.length);
+    }
+    if (node.relativePath && node.relativePath.toLowerCase().startsWith(oldPrefix.toLowerCase())) {
+      node.relativePath = newPrefix + node.relativePath.substring(oldPrefix.length);
+    }
+  }
+  rewriteChildrenPaths(children, oldPrefix, newPrefix) {
+    if (!children) return;
+    for (const child of children) {
+      this.rewritePaths(child, oldPrefix, newPrefix);
+      // Aggiorna il name solo se è una cartella il cui path è cambiato direttamente
+      // (i file figli non cambiano nome, solo il path)
+      if (child.isCompacted && child.compactedSegments) {
+        for (const seg of child.compactedSegments) {
+          if (seg.fullPath.toLowerCase().startsWith(oldPrefix.toLowerCase())) {
+            seg.fullPath = newPrefix + seg.fullPath.substring(oldPrefix.length);
+          }
+        }
+      }
+      if (child.childrens) {
+        this.rewriteChildrenPaths(child.childrens, oldPrefix, newPrefix);
+      }
+    }
+  }
   updateFileIndexStatus(path, isIndexed) {
     // Ricostruisce completamente l'array invece di modificare gli oggetti esistenti
     const updateNodeInArray = nodes => {
@@ -11387,6 +11441,12 @@ class MdServerMessagesService {
       callback(data, objectThis);
     });
   }
+  addFileSystemStormListener(callback, objectThis) {
+    this.hubConnection.on('fileSystemStorm', data => {
+      console.log(`⚡ [SignalR] fileSystemStorm: ${data?.length || 0} changes after storm`);
+      callback(data, objectThis);
+    });
+  }
   static {
     this.ɵfac = function MdServerMessagesService_Factory(t) {
       return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
@@ -11443,8 +11503,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.03.13.1',
-  buildTime: '2026.03.13 15:05:26'
+  version: '2026.03.15.3',
+  buildTime: '2026.03.15 10:05:22'
 };
 
 /***/ }),

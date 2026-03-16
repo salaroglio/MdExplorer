@@ -32,6 +32,7 @@ import { ShowFileMetadata } from '../../../commons/components/show-file-system/s
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
 import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
+import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
 
 const TREE_DATA: IFileInfoNode[] = [];
@@ -82,6 +83,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Skeleton loader state
   isLoading = true;
+
+  // Event queue with debounce: accumulates events for 200ms, then processes as batch
+  private eventQueue: Array<{ handler: () => void; label: string }> = [];
+  private isProcessingQueue = false;
+  private batchTimer: any = null;
+  private readonly BATCH_DEBOUNCE_MS = 200;
 
   menuTopLeftPosition = { x: 0, y: 0 }
   @ViewChild(MatMenuTrigger, { static: true }) matMenuTrigger: MatMenuTrigger;
@@ -163,6 +170,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private projectSettingsService: ProjectSettingsService,
     private appStoreService: AppStoreService,
     private bulkExportProgressService: BulkExportProgressService,
+    private fileEventsService: FileEventsService,
     private http: HttpClient
   ) {
     this.dataSource.data = TREE_DATA;
@@ -240,29 +248,46 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }, this);
 
-    // Listener per la creazione di nuovi file markdown
+    // Listener per la creazione di nuovi file markdown (queued + debounced)
     this.mdServerMessages.addMarkdownFileCreatedListener((data, component) => {
-      this.handleNewMarkdownFileCreated(data);
+      this.enqueueEvent(() => this.handleNewMarkdownFileCreated(data), 'fileCreated');
     }, this);
-    
-    // Listener per la cancellazione di file markdown
+
+    // Listener per la cancellazione di file markdown (queued + debounced)
     this.mdServerMessages.addMarkdownFileDeletedListener((data, component) => {
-      this.handleMarkdownFileDeleted(data);
+      this.enqueueEvent(() => this.handleMarkdownFileDeleted(data), 'fileDeleted');
     }, this);
 
-    // Listener per creazione cartella
+    // Listener per creazione cartella (queued + debounced)
     this.mdServerMessages.addFolderCreatedListener((data, component) => {
-      this.handleFolderCreated(data);
+      this.enqueueEvent(() => this.handleFolderCreated(data), 'folderCreated');
     }, this);
 
-    // Listener per cancellazione cartella
+    // Listener per cancellazione cartella (queued + debounced)
     this.mdServerMessages.addFolderDeletedListener((data, component) => {
-      this.handleFolderDeleted(data);
+      this.enqueueEvent(() => this.handleFolderDeleted(data), 'folderDeleted');
     }, this);
 
-    // Listener per rename cartella → full reload (i path dei figli cambiano tutti)
+    // Listener per rename cartella → rewrite ricorsivo dei path nel tree
     this.mdServerMessages.addFolderRenamedListener((data, component) => {
-      this.mdFileService.loadAll(null, this);
+      const oldFullPath = data.oldFullPath || data.OldFullPath;
+      const newFullPath = data.fullPath || data.FullPath;
+      console.log(`✏️ folderRenamed: ${oldFullPath} → ${newFullPath}`);
+      const updated = this.mdFileService.renameFolderInDataStore(oldFullPath, newFullPath);
+      if (!updated) {
+        // Cartella non nel tree (mai espansa) — nulla da fare
+        console.log('📂 [folderRenamed] Folder not in tree (unexpanded) — nothing to update');
+      }
+      this.changeDetectorRef.markForCheck();
+    }, this);
+
+    // Listener per storm FSW → processa il payload deduplicato incrementalmente
+    this.mdServerMessages.addFileSystemStormListener((changes, component) => {
+      console.log(`⚡ FileSystem storm ended - ${changes?.length || 0} deduplicated changes`);
+      this.clearEventQueue();
+      if (changes && changes.length > 0) {
+        this.processStormChanges(changes);
+      }
     }, this);
 
     // Listener per forzare change detection (Rule #1 fix) - seguendo il pattern SignalR
@@ -1404,6 +1429,105 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // ── Event Queue with debounce + batching ──
+
+  private enqueueEvent(handler: () => void, label: string = ''): void {
+    this.eventQueue.push({ handler, label });
+
+    // Reset debounce timer: wait for more events before processing
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+    }
+    this.batchTimer = setTimeout(() => {
+      this.batchTimer = null;
+      this.processEventBatch();
+    }, this.BATCH_DEBOUNCE_MS);
+  }
+
+  private processEventBatch(): void {
+    if (this.isProcessingQueue || this.eventQueue.length === 0) return;
+    this.isProcessingQueue = true;
+
+    // Take all pending events
+    const batch = this.eventQueue.splice(0);
+
+    // Process all events incrementally — no loadAll() fallback
+    for (const item of batch) {
+      try {
+        item.handler();
+      } catch (err) {
+        console.error('Error processing queued event:', err);
+      }
+    }
+    // Single change detection cycle for the whole batch
+    this.changeDetectorRef.markForCheck();
+
+    this.isProcessingQueue = false;
+  }
+
+  private clearEventQueue(): void {
+    this.eventQueue.length = 0;
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+  }
+
+  // ── Storm batch processing ──
+
+  private processStormChanges(changes: any[]): void {
+    for (const change of changes) {
+      try {
+        const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
+        const isDir = change.isDirectory;
+
+        switch (action) {
+          case 'created':
+            if (isDir) {
+              this.handleFolderCreated(change);
+            } else {
+              this.handleNewMarkdownFileCreated(change);
+            }
+            break;
+
+          case 'deleted':
+            if (isDir) {
+              this.handleFolderDeleted(change);
+            } else {
+              this.handleMarkdownFileDeleted(change);
+            }
+            break;
+
+          case 'changed':
+            // Content change — no tree structure update needed.
+            // The markdownfileischanged event handles editor reload if the file is open.
+            break;
+
+          case 'renamed':
+            if (isDir) {
+              const oldPath = change.oldFullPath || change.OldFullPath;
+              const newPath = change.fullPath || change.FullPath;
+              if (oldPath && newPath) {
+                this.mdFileService.renameFolderInDataStore(oldPath, newPath);
+              }
+            } else {
+              // File renamed = delete old + create new
+              if (change.oldFullPath) {
+                this.handleMarkdownFileDeleted({ fullPath: change.oldFullPath, name: '' });
+              }
+              this.handleNewMarkdownFileCreated(change);
+            }
+            break;
+        }
+      } catch (err) {
+        console.error('Error processing storm change:', change, err);
+      }
+    }
+    this.changeDetectorRef.markForCheck();
+  }
+
+  // ── SignalR event handlers ──
+
   // Gestisce la creazione di un nuovo file markdown
   private handleNewMarkdownFileCreated(fileData: any): void {
     console.log('🆕 [handleNewMarkdownFileCreated] INIZIO - fileData ricevuto:', JSON.stringify(fileData, null, 2));
@@ -1452,10 +1576,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log('📂 [STEP 3] addFileToParent result:', added, 'parentDirPath:', parentDirPath);
 
     if (!added) {
-      // STEP 3b: Fallback - il parent non è nel tree (lazy loading: cartella mai espansa).
-      // Ricarichiamo tutto il tree per garantire consistenza.
-      console.log('⚠️ [STEP 3b] Fallback: parent folder not in tree, calling loadAll');
-      this.mdFileService.loadAll(null, this);
+      // STEP 3b: Il parent non è nel tree (cartella mai espansa nel lazy loading).
+      // Non fare nulla: il file apparirà quando l'utente espande la cartella.
+      // Nessun loadAll() — il DB è già aggiornato dal backend FSW handler.
+      console.log('📂 [STEP 3b] Parent folder not in tree (unexpanded) — file will appear on expand');
     }
 
     // STEP 5: Aggiungi il file al Set di tracking (già indicizzato)
@@ -1580,9 +1704,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.indexedFilesSubject.next(newSet);
     }
     
+    // Notify other components (e.g., main-content) that this file was deleted
+    this.fileEventsService.emitFileDeleted({
+      fullPath: fileData.fullPath,
+      name: fileData.name || nodeToDelete.name
+    });
+
     // Forza il refresh del componente
     this.changeDetectorRef.markForCheck();
-    
+
     console.log('✅ [Handler] File rimosso dal tree:', fileData.name);
   }
   
@@ -1614,9 +1744,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const added = this.mdFileService.addFileToParent(newFolder, parentPath);
 
     if (!added) {
-      // Fallback: parent non trovato → full reload per sicurezza
-      console.log('⚠️ [handleFolderCreated] Parent non trovato, full reload:', parentPath);
-      this.mdFileService.loadAll(null, this);
+      // Parent non è nel tree (cartella mai espansa). Il nodo apparirà quando l'utente espande.
+      console.log('📂 [handleFolderCreated] Parent non espanso, la cartella apparirà on-demand:', parentPath);
       return;
     }
 
@@ -1856,6 +1985,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.updateTimer) {
       clearTimeout(this.updateTimer);
     }
+
+    // Pulisci event queue e batch timer
+    this.clearEventQueue();
 
     // Chiudi snackbar attiva
     if (this.currentSnackbarRef) {

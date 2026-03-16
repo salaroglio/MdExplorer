@@ -229,6 +229,7 @@ namespace MdExplorer.Services.DatabaseManager
                     .BuildSessionFactory();
 
                 var session = sessionFactory.OpenSession();
+                DatabaseSQLite.ApplyPragmas(session);
                 return new EngineDB(session);
             }
             catch (Exception ex)
@@ -251,6 +252,7 @@ namespace MdExplorer.Services.DatabaseManager
                     .BuildSessionFactory();
 
                 var session = sessionFactory.OpenSession();
+                DatabaseSQLite.ApplyPragmas(session);
                 return new ProjectDB(session);
             }
             catch (Exception ex)

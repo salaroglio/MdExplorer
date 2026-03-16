@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace MdExplorer.Services.FileSystemWatcherManager
@@ -144,5 +145,66 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// would corrupt the session state causing "Transaction is not associated with the command's connection".
         /// </summary>
         public SemaphoreSlim DbSemaphore { get; set; } = new SemaphoreSlim(1, 1);
+
+        // ── Storm Detection ──
+
+        /// <summary>
+        /// Number of events received in the current storm detection window.
+        /// </summary>
+        public int StormEventCount { get; set; }
+
+        /// <summary>
+        /// Timestamp of the first event in the current storm detection window.
+        /// </summary>
+        public DateTime StormWindowStart { get; set; }
+
+        /// <summary>
+        /// When true, events are being queued instead of processed individually.
+        /// </summary>
+        public bool IsInStormMode { get; set; }
+
+        /// <summary>
+        /// Timer that fires after the storm calms down (no new events for StormCooldownMs).
+        /// When it fires, the queued events are deduplicated and processed as a batch.
+        /// </summary>
+        public Timer StormCooldownTimer { get; set; }
+
+        /// <summary>
+        /// Lock object for storm state transitions.
+        /// </summary>
+        public readonly object StormLock = new object();
+
+        /// <summary>
+        /// Queue of events accumulated during a storm. Processed as a batch when the storm calms.
+        /// </summary>
+        public List<StormEvent> StormQueue { get; set; } = new List<StormEvent>();
+
+        // ── Storm Detection Thresholds ──
+
+        /// <summary>If more than this many events arrive within StormWindowMs, enter storm mode.</summary>
+        public const int StormThreshold = 10;
+
+        /// <summary>Time window (ms) for counting events toward the storm threshold.</summary>
+        public const int StormWindowMs = 2000;
+
+        /// <summary>After this many ms of quiet, the storm is over and the queue is processed.</summary>
+        public const int StormCooldownMs = 1500;
+    }
+
+    /// <summary>
+    /// Represents a single FSW event queued during a storm.
+    /// </summary>
+    public class StormEvent
+    {
+        public enum ActionType { Changed, Created, Deleted, Renamed }
+
+        public ActionType Action { get; set; }
+        public string FullPath { get; set; }
+        /// <summary>Only set for Renamed events</summary>
+        public string OldFullPath { get; set; }
+        public bool IsDirectory { get; set; }
+        public bool IsMarkdown { get; set; }
+        public string FileExtension { get; set; }
+        public DateTime Timestamp { get; set; }
     }
 }
