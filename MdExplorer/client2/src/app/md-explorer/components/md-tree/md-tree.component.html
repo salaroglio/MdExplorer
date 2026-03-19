@@ -83,9 +83,9 @@
   </ng-template>
 </mat-menu>
 
-<div class="tree-scroll-wrapper">
+<div class="tree-scroll-container">
 
-<!-- Sticky ancestors panel (VS Code-style) -->
+<!-- Sticky ancestors panel (VS Code-style) — overlay, fuori dal flusso scroll -->
 <div class="sticky-ancestors-panel" *ngIf="stickyScrollEnabled && stickyAncestors.length > 0">
   <div class="sticky-ancestor-row"
        *ngFor="let ancestor of stickyAncestors"
@@ -100,6 +100,8 @@
     </span>
   </div>
 </div>
+
+<div class="tree-scroll-wrapper">
 
 <!-- Skeleton loader durante il caricamento -->
 <div *ngIf="isLoading" class="md-tree-skeleton">
@@ -206,9 +208,13 @@
         <span class="compact-segment"
               [attr.data-fullpath]="segment.fullPath"
               [class.segment-hover]="hoveredSegment?.fullPath === segment.fullPath"
+              [class.segment-drag-over]="dragOverSegment?.fullPath === segment.fullPath"
               (mouseenter)="onSegmentHover(segment)"
               (mouseleave)="onSegmentLeave()"
-              (contextmenu)="onSegmentRightClick($event, segment, node)">{{segment.name}}</span><span *ngIf="!last" class="compact-separator"> / </span>
+              (contextmenu)="onSegmentRightClick($event, segment, node)"
+              (dragover)="onSegmentDragOver($event, segment, node)"
+              (dragleave)="onSegmentDragLeave($event)"
+              (drop)="onSegmentDrop($event, segment, node)">{{segment.name}}</span><span *ngIf="!last" class="compact-separator"> / </span>
       </ng-container>
     </span>
   </mat-tree-node>
@@ -267,3 +273,4 @@
 </mat-tree>
 
 </div><!-- /tree-scroll-wrapper -->
+</div><!-- /tree-scroll-container -->

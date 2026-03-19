@@ -115,6 +115,7 @@ if (window.commonJsLoaded) {
         // NAVIGATION: History and scroll position management
         loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/navigation-history.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/scroll-position.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/details-toggle-fix.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/navigation/sharepoint-tooltips.js');
 
         // SEARCH: Full-text search with highlighting
@@ -157,7 +158,7 @@ if (window.commonJsLoaded) {
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (23 files) ===');
+        console.log('=== MODULAR FILES LOADED (24 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');

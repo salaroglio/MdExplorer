@@ -135,7 +135,11 @@ export class MdFileService {
 
   moveMdFile(mdFile: MdFile, pathDestination: string) {
     const url = '../api/mdfiles/MoveMdFile';
-    return this.http.post<any>(url, { mdFile: mdFile, destinationPath:pathDestination });
+    return this.http.post<any>(url, {
+      sourceRelativePath: mdFile.relativePath,
+      sourceFileName: mdFile.name,
+      destinationPath: pathDestination
+    });
   }
 
   openInheritingTemplateWord(InheringTemplate: string) {
@@ -459,6 +463,30 @@ export class MdFileService {
       }
     }
 
+    // Step 3: Try breaking a compact folder chain at the parent path
+    const brokenNode = this.breakCompactFolderAt(this.dataStore.mdFiles, parentFullPath);
+    if (brokenNode) {
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        file.isIndexed = file.isIndexed ?? true;
+        file.indexingStatus = file.indexingStatus ?? 'completed';
+      }
+      brokenNode.childrens.push(file);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
+
+    // Step 4: Create missing folder hierarchy and insert there
+    const createdParent = this.createMissingFolderHierarchy(parentFullPath);
+    if (createdParent) {
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        file.isIndexed = file.isIndexed ?? true;
+        file.indexingStatus = file.indexingStatus ?? 'completed';
+      }
+      createdParent.childrens.push(file);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
+
     return false;
   }
 
@@ -506,6 +534,195 @@ export class MdFileService {
     }
 
     return null;
+  }
+
+  /**
+   * Trova un nodo compattato che contiene targetFullPath come segmento intermedio.
+   * Restituisce il nodo compattato e l'indice del segmento, oppure null.
+   */
+  private findCompactIntermediateNode(
+    nodes: MdFile[],
+    targetFullPath: string
+  ): { compactNode: MdFile; segmentIndex: number } | null {
+    if (!nodes) return null;
+    const target = targetFullPath.toLowerCase();
+
+    for (const node of nodes) {
+      if (node.type !== 'folder') continue;
+
+      if (node.isCompacted && node.compactedSegments) {
+        // Check intermediate segments (all except the last one)
+        for (let i = 0; i < node.compactedSegments.length - 1; i++) {
+          if (node.compactedSegments[i].fullPath.toLowerCase() === target) {
+            return { compactNode: node, segmentIndex: i };
+          }
+        }
+      }
+
+      // Recurse into children
+      if (node.childrens && node.childrens.length > 0) {
+        const found = this.findCompactIntermediateNode(node.childrens as MdFile[], targetFullPath);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Spezza una compact folder chain al segmento che corrisponde a splitPath.
+   * Esempio: `a / b / c` spezzato a `b` → nodo diventa `a / b` (head), figlio diventa `c` (tail).
+   * Restituisce il nodo head (il cui childrens è il punto di inserimento).
+   */
+  private breakCompactFolderAt(nodes: MdFile[], splitPath: string): MdFile | null {
+    const result = this.findCompactIntermediateNode(nodes, splitPath);
+    if (!result) return null;
+
+    const { compactNode, segmentIndex } = result;
+    const segments = compactNode.compactedSegments!;
+
+    // Tail segments: from segmentIndex+1 to end
+    const tailSegments = segments.slice(segmentIndex + 1);
+
+    // Create tail node with original children
+    const tailFirstSeg = tailSegments[0];
+    const tailNode = new MdFile(tailFirstSeg.name, tailFirstSeg.fullPath, tailFirstSeg.level, true);
+    tailNode.type = 'folder';
+    tailNode.fullPath = tailFirstSeg.fullPath;
+    tailNode.relativePath = tailFirstSeg.fullPath; // will be relative, but consistent with tree
+    tailNode.childrens = compactNode.childrens as MdFile[];
+    tailNode.isLoading = false;
+    tailNode.index = 0;
+
+    if (tailSegments.length > 1) {
+      tailNode.isCompacted = true;
+      tailNode.compactedSegments = tailSegments;
+      const lastTailSeg = tailSegments[tailSegments.length - 1];
+      tailNode.compactedPath = tailSegments.map(s => s.name).join(' / ');
+      tailNode.fullPath = lastTailSeg.fullPath;
+    } else {
+      tailNode.isCompacted = false;
+      tailNode.compactedSegments = undefined;
+      tailNode.compactedPath = undefined;
+    }
+
+    // Update head (the original node) — segments 0..segmentIndex
+    const headSegments = segments.slice(0, segmentIndex + 1);
+    const lastHeadSeg = headSegments[headSegments.length - 1];
+
+    if (headSegments.length > 1) {
+      compactNode.isCompacted = true;
+      compactNode.compactedSegments = headSegments;
+      compactNode.compactedPath = headSegments.map(s => s.name).join(' / ');
+    } else {
+      compactNode.isCompacted = false;
+      compactNode.compactedSegments = undefined;
+      compactNode.compactedPath = undefined;
+      compactNode.name = headSegments[0].name;
+    }
+    compactNode.fullPath = lastHeadSeg.fullPath;
+
+    // Head's children become just the tail node (new files will be pushed alongside)
+    compactNode.childrens = [tailNode];
+
+    return compactNode;
+  }
+
+  /**
+   * Crea la gerarchia di cartelle mancanti tra la root del progetto e parentDirPath.
+   * Restituisce il nodo della cartella più profonda creata (il punto di inserimento), oppure null.
+   */
+  private createMissingFolderHierarchy(parentDirPath: string): MdFile | null {
+    // Get project root path
+    const { ProjectsService } = require('./projects.service');
+    const projectsService = this.injector.get(ProjectsService);
+    const currentProject = projectsService.currentProjects$.getValue();
+    if (!currentProject || !currentProject.path) return null;
+    const projectRoot = currentProject.path.replace(/[\/\\]$/, '');
+
+    // Normalize paths for comparison
+    const normParent = parentDirPath.toLowerCase().replace(/\//g, '\\');
+    const normRoot = projectRoot.toLowerCase().replace(/\//g, '\\');
+
+    if (!normParent.startsWith(normRoot)) return null;
+
+    // Walk UP from parentDirPath toward projectRoot, collecting missing folder paths
+    const missingPaths: string[] = [];
+    let currentPath = parentDirPath;
+
+    while (currentPath.toLowerCase().replace(/\//g, '\\') !== normRoot) {
+      // Check if this path exists in the tree
+      const existingNode = this.findFolderInDataStore(this.dataStore.mdFiles, currentPath);
+      if (existingNode) break;
+
+      // Check if this path is an intermediate compact segment
+      const compactResult = this.findCompactIntermediateNode(this.dataStore.mdFiles, currentPath);
+      if (compactResult) {
+        // Break the compact chain and use the result as the anchor
+        this.breakCompactFolderAt(this.dataStore.mdFiles, currentPath);
+        // After breaking, the folder should now be findable
+        const brokenNode = this.findFolderInDataStore(this.dataStore.mdFiles, currentPath);
+        if (brokenNode) break;
+      }
+
+      missingPaths.push(currentPath);
+      // Move up one level
+      const sep = Math.max(currentPath.lastIndexOf('\\'), currentPath.lastIndexOf('/'));
+      if (sep <= 0) break;
+      currentPath = currentPath.substring(0, sep);
+    }
+
+    if (missingPaths.length === 0) return null;
+
+    // Find the anchor parent (the existing node we stopped at)
+    let anchorParent: MdFile | null = null;
+    if (currentPath.toLowerCase().replace(/\//g, '\\') === normRoot) {
+      // Insert at root level — anchorParent stays null
+    } else {
+      anchorParent = this.findFolderInDataStore(this.dataStore.mdFiles, currentPath);
+    }
+
+    // Walk DOWN creating missing folders (missingPaths is deepest-first, reverse it)
+    missingPaths.reverse();
+    let lastCreated: MdFile | null = null;
+
+    for (const folderPath of missingPaths) {
+      const folderName = folderPath.substring(Math.max(folderPath.lastIndexOf('\\'), folderPath.lastIndexOf('/')) + 1);
+      // Calculate level relative to project root
+      const relativeParts = folderPath.substring(projectRoot.length + 1).split(/[\\\/]/);
+      const level = relativeParts.length - 1;
+
+      const newFolder = new MdFile(folderName, folderPath, level, true);
+      newFolder.type = 'folder';
+      newFolder.fullPath = folderPath;
+      newFolder.relativePath = folderPath.substring(projectRoot.length + 1);
+      newFolder.childrens = [];
+      newFolder.isLoading = false;
+      newFolder.index = 0;
+      newFolder.isIndexed = true;
+      newFolder.indexingStatus = 'completed';
+
+      if (anchorParent) {
+        anchorParent.childrens.push(newFolder);
+      } else {
+        // Insert at root level (before the dummy/emptyroot item)
+        const dummyItem = this.dataStore.mdFiles[this.dataStore.mdFiles.length - 1];
+        if (dummyItem && (dummyItem.type === 'emptyroot' || dummyItem.type === 'dummy')) {
+          this.dataStore.mdFiles.splice(this.dataStore.mdFiles.length - 1, 0, newFolder);
+        } else {
+          this.dataStore.mdFiles.push(newFolder);
+        }
+      }
+
+      anchorParent = newFolder;
+      lastCreated = newFolder;
+    }
+
+    if (lastCreated) {
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+    }
+
+    return lastCreated;
   }
 
   /**

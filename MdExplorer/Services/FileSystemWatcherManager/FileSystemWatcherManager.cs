@@ -1,11 +1,13 @@
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
 using MdExplorer.Service.Models;
+using MdExplorer.Service.Services;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Features.Services.AI;
 using Microsoft.AspNetCore.SignalR;
@@ -33,6 +35,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IWorkLink[] _linkManagers;
         private readonly IHelper _helper;
+        private readonly IMdIgnoreService _mdIgnoreService;
+        private readonly IServiceProvider _serviceProvider;
+        private FoldersIgnoreService _foldersIgnoreService; // lazy - circular dependency on IFileSystemWatcherManager
 
         public FileSystemWatcherManager(
             IHubContext<MonitorMDHub> hubContext,
@@ -40,7 +45,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             IDatabaseManager databaseManager,
             IServiceScopeFactory serviceScopeFactory,
             IWorkLink[] linkManagers,
-            IHelper helper)
+            IHelper helper,
+            IMdIgnoreService mdIgnoreService,
+            IServiceProvider serviceProvider)
         {
             _hubContext = hubContext;
             _logger = logger;
@@ -48,6 +55,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             _serviceScopeFactory = serviceScopeFactory;
             _linkManagers = linkManagers;
             _helper = helper;
+            _mdIgnoreService = mdIgnoreService;
+            _serviceProvider = serviceProvider;
+        }
+
+        private FoldersIgnoreService GetFoldersIgnoreService()
+        {
+            _foldersIgnoreService ??= _serviceProvider.GetRequiredService<FoldersIgnoreService>();
+            return _foldersIgnoreService;
         }
 
         public void RegisterWatcher(string connectionId, string projectPath)
@@ -474,8 +489,23 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 context.DbSemaphore.Release();
             }
 
+            // Filter out ignored folders before sending to frontend
+            var filteredEvents = deduplicated.Where(evt =>
+            {
+                if (!evt.IsDirectory) return true;
+
+                if (evt.Action == StormEvent.ActionType.Deleted)
+                {
+                    var relPath = GetRelativePath(context, evt.FullPath);
+                    return !IsFolderIgnored(context, relPath)
+                        && !IsInIgnoredFolderChain(evt.FullPath, context.ProjectPath);
+                }
+
+                return !ShouldIgnoreFolder(context, evt.FullPath);
+            }).ToList();
+
             // Build the payload for the frontend: list of changes
-            var bulkPayload = deduplicated.Select(evt => new
+            var bulkPayload = filteredEvents.Select(evt => new
             {
                 action = evt.Action.ToString().ToLowerInvariant(),
                 fullPath = evt.FullPath,
@@ -884,9 +914,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     // Gestione creazione cartella
                     if (isDirectory)
                     {
-                        var folderRelativePath = GetRelativePath(context, e.FullPath);
-                        if (!IsFolderIgnored(context, folderRelativePath))
+                        if (!ShouldIgnoreFolder(context, e.FullPath))
                         {
+                            var folderRelativePath = GetRelativePath(context, e.FullPath);
                             var folderLevel = CalculateFileLevel(folderRelativePath);
                             var folderCreatedData = new {
                                 Name = Path.GetFileName(e.FullPath),
@@ -1000,15 +1030,22 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     // Gestione rename cartella (nessuna estensione su entrambi)
                     if (oldHasNoExt && newHasNoExt)
                     {
-                        var folderRenamedData = new {
-                            OldFullPath = e.OldFullPath,
-                            FullPath = e.FullPath,
-                            OldName = Path.GetFileName(e.OldFullPath),
-                            Name = Path.GetFileName(e.FullPath)
-                        };
-                        await _hubContext.Clients.Client(context.ConnectionId)
-                            .SendAsync("folderRenamed", folderRenamedData);
-                        _logger.LogInformation($"✏️ [{context.ConnectionId}] Folder renamed: {e.OldFullPath} → {e.FullPath}");
+                        if (!ShouldIgnoreFolder(context, e.FullPath))
+                        {
+                            var folderRenamedData = new {
+                                OldFullPath = e.OldFullPath,
+                                FullPath = e.FullPath,
+                                OldName = Path.GetFileName(e.OldFullPath),
+                                Name = Path.GetFileName(e.FullPath)
+                            };
+                            await _hubContext.Clients.Client(context.ConnectionId)
+                                .SendAsync("folderRenamed", folderRenamedData);
+                            _logger.LogInformation($"✏️ [{context.ConnectionId}] Folder renamed: {e.OldFullPath} → {e.FullPath}");
+                        }
+                        else
+                        {
+                            _logger.LogDebug($"[{context.ConnectionId}] Folder rename ignored: {e.FullPath}");
+                        }
                     }
                     return;
                 }
@@ -1098,7 +1135,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
-                var isDirectory = string.IsNullOrEmpty(fileExtension);
+                var isDirectory = string.IsNullOrEmpty(fileExtension) && !IsKnownExtensionlessGitFile(e.FullPath);
 
                 // Skip non-markdown, non-directory files (e.g., .git/FETCH_HEAD) BEFORE storm detection
                 if (!isMarkdown && !isDirectory)
@@ -1114,8 +1151,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (!isMarkdown)
                 {
                     // Gestione cancellazione cartella (heuristica: nessuna estensione = cartella)
+                    // NON usare ShouldIgnoreFolder qui: FolderContainsMdFiles non funziona su cartelle già cancellate
                     var folderRelativePath = GetRelativePath(context, e.FullPath);
-                    if (!IsFolderIgnored(context, folderRelativePath))
+                    if (!IsFolderIgnored(context, folderRelativePath)
+                        && !IsInIgnoredFolderChain(e.FullPath, context.ProjectPath))
                     {
                         var folderDeletedData = new {
                             Name = Path.GetFileName(e.FullPath),
@@ -1218,6 +1257,78 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Full folder filtering: replicates GetShallowStructure/ExploreNodes logic.
+        /// Checks .mdchangeignore, .mdFoldersIgnore, .mdignore, and whether the folder contains .md files.
+        /// </summary>
+        private bool ShouldIgnoreFolder(WatcherContext context, string fullPath)
+        {
+            var relativePath = GetRelativePath(context, fullPath);
+
+            // 1. Check .mdchangeignore (IgnoredDirectories + GitIgnoredFiles)
+            if (IsFolderIgnored(context, relativePath))
+                return true;
+
+            // 2. Check .mdFoldersIgnore (every segment of the path)
+            if (IsInIgnoredFolderChain(fullPath, context.ProjectPath))
+                return true;
+
+            // 3. Check .mdignore
+            if (_mdIgnoreService.ShouldIgnorePath(fullPath, context.ProjectPath))
+                return true;
+
+            // 4. Folder must contain at least one .md file (recursive)
+            if (!FolderContainsMdFiles(fullPath))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks every ancestor segment of the path against .mdFoldersIgnore (replicates MdFilesController.IsInIgnoredFolder).
+        /// </summary>
+        private bool IsInIgnoredFolderChain(string fullPath, string projectPath)
+        {
+            var foldersIgnore = GetFoldersIgnoreService();
+            var directory = fullPath;
+            while (!string.IsNullOrEmpty(directory) && directory.Length > projectPath.Length)
+            {
+                if (foldersIgnore.ShouldIgnoreFolderForProject(directory, projectPath))
+                    return true;
+                directory = Path.GetDirectoryName(directory);
+            }
+            return false;
+        }
+
+        private bool FolderContainsMdFiles(string folderPath)
+        {
+            try
+            {
+                return Directory.EnumerateFiles(folderPath, "*.md", SearchOption.AllDirectories).Any();
+            }
+            catch (Exception)
+            {
+                return false; // inaccessible or already deleted folder = treat as empty
+            }
+        }
+
+        private bool IsKnownExtensionlessGitFile(string fullPath)
+        {
+            // Anything under .git/ without extension is a Git file, not a folder
+            var normalizedPath = fullPath.Replace(Path.DirectorySeparatorChar, '/');
+            if (normalizedPath.Contains("/.git/"))
+                return true;
+
+            var fileName = Path.GetFileName(fullPath);
+            var knownGitFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "HEAD", "MERGE_HEAD", "FETCH_HEAD", "ORIG_HEAD", "COMMIT_EDITMSG",
+                "description", "config", "packed-refs", "REBASE_HEAD",
+                "CHERRY_PICK_HEAD", "BISECT_LOG", "MERGE_MSG", "SQUASH_MSG"
+            };
+            return knownGitFiles.Contains(fileName);
         }
 
         private bool ShouldIgnoreMarkdownFile(WatcherContext context, string fullPath)

@@ -20,58 +20,67 @@ namespace MdExplorer.Features.Commands.html
 
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
-            if (requestInfo.RootQueryRequest == requestInfo.CurrentQueryRequest)
-            {
-                // Nel caso non ci sia ricorsività (MdShowMd)
-                return markdown;
-            }
             var matches = GetMatches(markdown);
 
             foreach (Match item in matches)
             {
-                // here you should compose the path adding missing part
-                // the missing part is the distance from the root folder and the current file
-                // you can build this using requestInfo.currentqueryrequest
+                var originalImagePath = item.Groups[2].Value;
 
-                var listOfItemCurrent = requestInfo.CurrentQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
-                listOfItemCurrent.RemoveAt(listOfItemCurrent.Count - 1);
+                // Skip absolute paths (ManageLinkAbsolutePath handles them)
+                // Skip external URLs
+                if (originalImagePath.StartsWith("/") ||
+                    originalImagePath.StartsWith("http://") ||
+                    originalImagePath.StartsWith("https://"))
+                    continue;
 
-                var listOfItemRoot = requestInfo.RootQueryRequest.Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries).ToList();
-                listOfItemRoot.RemoveAt(listOfItemRoot.Count - 1);
+                // Get directory of current document relative to project root
+                var currentDir = Path.GetDirectoryName(requestInfo.CurrentQueryRequest)
+                    ?.Replace(Path.DirectorySeparatorChar, '/') ?? "";
 
-                var currentWebFolder = string.Empty;
-                var rootWebFolder = string.Empty;
+                // Clean up relative path
+                var cleanPath = originalImagePath.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+                if (cleanPath.StartsWith("./"))
+                    cleanPath = cleanPath.Substring(2);
 
-                
-                currentWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItemCurrent.ToArray());
-                rootWebFolder = string.Join(Path.DirectorySeparatorChar, listOfItemRoot.ToArray());
-                var fileName = item.Groups[2].Value;
-
-                if (fileName.StartsWith("/"))// se si tratta di un path assoluto allora 
-                {
-                    // DoNothing
-                }
+                // Build absolute path from project root
+                string absolutePath;
+                if (string.IsNullOrEmpty(currentDir))
+                    absolutePath = "/" + cleanPath;
                 else
-                {
-                    if (currentWebFolder != rootWebFolder && listOfItemCurrent.Count > listOfItemRoot.Count) // Si trova in un sottofolder
-                    {
-                        var step = listOfItemCurrent.Count - listOfItemRoot.Count;
-                        var calculatedFolderFromRoot = string.Empty;
-                        for (int i = listOfItemCurrent.Count; i > listOfItemCurrent.Count - step; i--)
-                        {
-                            calculatedFolderFromRoot = listOfItemCurrent[i - 1];
-                        }
-                        fileName = calculatedFolderFromRoot + "/" + fileName.Replace("\\", "/");
-                    }
-                }
-                
-                 
-                var allElementToReplace = item.Groups[0].Value.Replace(item.Groups[2].Value, fileName);
+                    absolutePath = "/" + currentDir + "/" + cleanPath;
+
+                // Normalize: resolve ../ segments
+                absolutePath = NormalizePath(absolutePath);
+
+                // Replace in markdown
+                var allElementToReplace = item.Groups[0].Value.Replace(originalImagePath, absolutePath);
                 markdown = markdown.Replace(item.Groups[0].Value, allElementToReplace);
             }
 
             return markdown;
+        }
 
+        /// <summary>
+        /// Normalize a path: resolve ../ segments and clean up ./ and //
+        /// </summary>
+        private static string NormalizePath(string path)
+        {
+            var segments = path.Split('/').ToList();
+            var result = new List<string>();
+
+            foreach (var segment in segments)
+            {
+                if (segment == ".." && result.Count > 0 && result.Last() != "")
+                {
+                    result.RemoveAt(result.Count - 1);
+                }
+                else if (segment != "." && segment != "")
+                {
+                    result.Add(segment);
+                }
+            }
+
+            return "/" + string.Join("/", result);
         }
     }
 }

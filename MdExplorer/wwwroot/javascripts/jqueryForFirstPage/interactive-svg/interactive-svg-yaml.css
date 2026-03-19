@@ -65,23 +65,20 @@ svg.interactive-svg-yaml text.yaml-box-downstream {
     fill: #2E7D32 !important;
 }
 
-/* === SELECTED ROW TEXT - CYAN HALO === */
+/* === ROW HIGHLIGHT BACKGROUND RECTS === */
 
-svg.interactive-svg-yaml text.yaml-row-selected {
-    stroke: #00BCD4 !important;
-    stroke-width: 4px !important;
-    paint-order: stroke fill !important;
-    filter: drop-shadow(0 0 4px #00BCD4) drop-shadow(0 0 8px rgba(0, 188, 212, 0.6)) !important;
-}
+.yaml-row-highlight-bg { opacity: 1 !important; pointer-events: none; }
+.yaml-row-bg-source     { fill: #BBDEFB; }  /* blue-100 */
+.yaml-row-bg-upstream   { fill: #FFCDD2; }  /* red-100 */
+.yaml-row-bg-downstream { fill: #C8E6C9; }  /* green-100 */
+.yaml-row-bg-leaf       { fill: #FFF9C4; }  /* yellow-100 */
 
-/* === LEAF ROW (no outgoing connection) - YELLOW HIGHLIGHT === */
+/* === ROW HIGHLIGHT TEXT COLORS (by role) === */
 
-svg.interactive-svg-yaml text.yaml-row-leaf {
-    stroke: #FFC107 !important;
-    stroke-width: 4px !important;
-    paint-order: stroke fill !important;
-    filter: drop-shadow(0 0 4px #FFC107) drop-shadow(0 0 8px rgba(255, 193, 7, 0.6)) !important;
-}
+svg.interactive-svg-yaml text.yaml-row-source     { fill: #0D47A1 !important; } /* blue-900 */
+svg.interactive-svg-yaml text.yaml-row-upstream    { fill: #B71C1C !important; } /* red-900 */
+svg.interactive-svg-yaml text.yaml-row-downstream  { fill: #1B5E20 !important; } /* green-900 */
+svg.interactive-svg-yaml text.yaml-row-leaf        { fill: #F57F17 !important; } /* amber-900 */
 
 /* === HIGHLIGHTED CONNECTIONS - ORANGE === */
 
@@ -105,7 +102,7 @@ svg.interactive-svg-yaml.yaml-has-selection rect[fill="#F1F1F1"]:not(.yaml-box-s
 }
 
 /* Dim text not involved */
-svg.interactive-svg-yaml.yaml-has-selection text:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-link-text):not(.yaml-row-selected):not(.yaml-tooltip-text):not(.yaml-row-leaf):not(.yaml-toggle-symbol):not(.yaml-collapse-ctrl-text) {
+svg.interactive-svg-yaml.yaml-has-selection text:not(.yaml-box-source):not(.yaml-box-upstream):not(.yaml-box-downstream):not(.yaml-link-text):not(.yaml-row-selected):not(.yaml-row-source):not(.yaml-row-upstream):not(.yaml-row-downstream):not(.yaml-row-leaf):not(.yaml-tooltip-text):not(.yaml-toggle-symbol):not(.yaml-collapse-ctrl-text) {
     opacity: 0.3;
 }
 
@@ -130,7 +127,11 @@ svg.interactive-svg-yaml.yaml-has-selection .yaml-box-upstream,
 svg.interactive-svg-yaml.yaml-has-selection .yaml-box-downstream,
 svg.interactive-svg-yaml.yaml-has-selection .yaml-connection-highlighted,
 svg.interactive-svg-yaml.yaml-has-selection .yaml-row-selected,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-row-source,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-row-upstream,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-row-downstream,
 svg.interactive-svg-yaml.yaml-has-selection .yaml-row-leaf,
+svg.interactive-svg-yaml.yaml-has-selection .yaml-row-highlight-bg,
 svg.interactive-svg-yaml .yaml-tooltip-text,
 svg.interactive-svg-yaml .yaml-tooltip-bg,
 svg.interactive-svg-yaml .yaml-tooltip-arrow,

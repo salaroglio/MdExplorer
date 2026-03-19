@@ -6753,14 +6753,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MdFileService": () => (/* binding */ MdFileService)
 /* harmony export */ });
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 9337);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 3158);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _app_store_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./app-store.service */ 451);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 9337);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 3158);
+/* harmony import */ var _models_md_file__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../models/md-file */ 1115);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _app_store_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./app-store.service */ 451);
+
 
 
 
@@ -6775,7 +6777,7 @@ class MdFileService {
     this.injector = injector;
     this.appStoreService = appStoreService;
     this._navigationArray = []; // deve morire
-    this._revealInTree = new rxjs__WEBPACK_IMPORTED_MODULE_2__.Subject();
+    this._revealInTree = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     var defaultSelectedMdFile = [];
     this.dataStore = {
       mdFiles: [],
@@ -6783,13 +6785,13 @@ class MdFileService {
       mdDynFolderDocument: [],
       serverSelectedMdFile: defaultSelectedMdFile
     };
-    this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
-    this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
-    this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
-    this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
-    this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
-    this._selectedDirectoryFromNewDirectory = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
-    this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject('block');
+    this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
+    this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
+    this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
+    this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
+    this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this._selectedDirectoryFromNewDirectory = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject('block');
     // Subscribe to Git branch switch events to refresh tree
     this.mdServerMessages.gitBranchSwitched$.subscribe(data => {
       console.log('🌳 Git branch switched - refreshing tree. Files indexed:', data.fileCount);
@@ -6861,7 +6863,8 @@ class MdFileService {
   moveMdFile(mdFile, pathDestination) {
     const url = '../api/mdfiles/MoveMdFile';
     return this.http.post(url, {
-      mdFile: mdFile,
+      sourceRelativePath: mdFile.relativePath,
+      sourceFileName: mdFile.name,
       destinationPath: pathDestination
     });
   }
@@ -6884,7 +6887,7 @@ class MdFileService {
   }
   getDocumentSettings(mdFile) {
     const url = '../api/mdFiles/getdocumentsettings';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('fullPath', mdFile.fullPath);
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('fullPath', mdFile.fullPath);
     return this.http.get(url, {
       params
     });
@@ -6938,7 +6941,7 @@ class MdFileService {
    */
   addNewFileWithDirectories(hierarchy) {
     console.log('🔧 [addNewFileWithDirectories] INIZIO - hierarchy:', JSON.stringify(hierarchy, null, 2));
-    const completed = new rxjs__WEBPACK_IMPORTED_MODULE_2__.Subject();
+    const completed = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     if (!hierarchy || hierarchy.length === 0) {
       console.log('⚠️ [addNewFileWithDirectories] hierarchy vuoto, esco');
       setTimeout(() => {
@@ -7142,6 +7145,28 @@ class MdFileService {
         return true;
       }
     }
+    // Step 3: Try breaking a compact folder chain at the parent path
+    const brokenNode = this.breakCompactFolderAt(this.dataStore.mdFiles, parentFullPath);
+    if (brokenNode) {
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        file.isIndexed = file.isIndexed ?? true;
+        file.indexingStatus = file.indexingStatus ?? 'completed';
+      }
+      brokenNode.childrens.push(file);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
+    // Step 4: Create missing folder hierarchy and insert there
+    const createdParent = this.createMissingFolderHierarchy(parentFullPath);
+    if (createdParent) {
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        file.isIndexed = file.isIndexed ?? true;
+        file.indexingStatus = file.indexingStatus ?? 'completed';
+      }
+      createdParent.childrens.push(file);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
     return false;
   }
   /**
@@ -7183,6 +7208,170 @@ class MdFileService {
       }
     }
     return null;
+  }
+  /**
+   * Trova un nodo compattato che contiene targetFullPath come segmento intermedio.
+   * Restituisce il nodo compattato e l'indice del segmento, oppure null.
+   */
+  findCompactIntermediateNode(nodes, targetFullPath) {
+    if (!nodes) return null;
+    const target = targetFullPath.toLowerCase();
+    for (const node of nodes) {
+      if (node.type !== 'folder') continue;
+      if (node.isCompacted && node.compactedSegments) {
+        // Check intermediate segments (all except the last one)
+        for (let i = 0; i < node.compactedSegments.length - 1; i++) {
+          if (node.compactedSegments[i].fullPath.toLowerCase() === target) {
+            return {
+              compactNode: node,
+              segmentIndex: i
+            };
+          }
+        }
+      }
+      // Recurse into children
+      if (node.childrens && node.childrens.length > 0) {
+        const found = this.findCompactIntermediateNode(node.childrens, targetFullPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  /**
+   * Spezza una compact folder chain al segmento che corrisponde a splitPath.
+   * Esempio: `a / b / c` spezzato a `b` → nodo diventa `a / b` (head), figlio diventa `c` (tail).
+   * Restituisce il nodo head (il cui childrens è il punto di inserimento).
+   */
+  breakCompactFolderAt(nodes, splitPath) {
+    const result = this.findCompactIntermediateNode(nodes, splitPath);
+    if (!result) return null;
+    const {
+      compactNode,
+      segmentIndex
+    } = result;
+    const segments = compactNode.compactedSegments;
+    // Tail segments: from segmentIndex+1 to end
+    const tailSegments = segments.slice(segmentIndex + 1);
+    // Create tail node with original children
+    const tailFirstSeg = tailSegments[0];
+    const tailNode = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile(tailFirstSeg.name, tailFirstSeg.fullPath, tailFirstSeg.level, true);
+    tailNode.type = 'folder';
+    tailNode.fullPath = tailFirstSeg.fullPath;
+    tailNode.relativePath = tailFirstSeg.fullPath; // will be relative, but consistent with tree
+    tailNode.childrens = compactNode.childrens;
+    tailNode.isLoading = false;
+    tailNode.index = 0;
+    if (tailSegments.length > 1) {
+      tailNode.isCompacted = true;
+      tailNode.compactedSegments = tailSegments;
+      const lastTailSeg = tailSegments[tailSegments.length - 1];
+      tailNode.compactedPath = tailSegments.map(s => s.name).join(' / ');
+      tailNode.fullPath = lastTailSeg.fullPath;
+    } else {
+      tailNode.isCompacted = false;
+      tailNode.compactedSegments = undefined;
+      tailNode.compactedPath = undefined;
+    }
+    // Update head (the original node) — segments 0..segmentIndex
+    const headSegments = segments.slice(0, segmentIndex + 1);
+    const lastHeadSeg = headSegments[headSegments.length - 1];
+    if (headSegments.length > 1) {
+      compactNode.isCompacted = true;
+      compactNode.compactedSegments = headSegments;
+      compactNode.compactedPath = headSegments.map(s => s.name).join(' / ');
+    } else {
+      compactNode.isCompacted = false;
+      compactNode.compactedSegments = undefined;
+      compactNode.compactedPath = undefined;
+      compactNode.name = headSegments[0].name;
+    }
+    compactNode.fullPath = lastHeadSeg.fullPath;
+    // Head's children become just the tail node (new files will be pushed alongside)
+    compactNode.childrens = [tailNode];
+    return compactNode;
+  }
+  /**
+   * Crea la gerarchia di cartelle mancanti tra la root del progetto e parentDirPath.
+   * Restituisce il nodo della cartella più profonda creata (il punto di inserimento), oppure null.
+   */
+  createMissingFolderHierarchy(parentDirPath) {
+    // Get project root path
+    const {
+      ProjectsService
+    } = __webpack_require__(/*! ./projects.service */ 9753);
+    const projectsService = this.injector.get(ProjectsService);
+    const currentProject = projectsService.currentProjects$.getValue();
+    if (!currentProject || !currentProject.path) return null;
+    const projectRoot = currentProject.path.replace(/[\/\\]$/, '');
+    // Normalize paths for comparison
+    const normParent = parentDirPath.toLowerCase().replace(/\//g, '\\');
+    const normRoot = projectRoot.toLowerCase().replace(/\//g, '\\');
+    if (!normParent.startsWith(normRoot)) return null;
+    // Walk UP from parentDirPath toward projectRoot, collecting missing folder paths
+    const missingPaths = [];
+    let currentPath = parentDirPath;
+    while (currentPath.toLowerCase().replace(/\//g, '\\') !== normRoot) {
+      // Check if this path exists in the tree
+      const existingNode = this.findFolderInDataStore(this.dataStore.mdFiles, currentPath);
+      if (existingNode) break;
+      // Check if this path is an intermediate compact segment
+      const compactResult = this.findCompactIntermediateNode(this.dataStore.mdFiles, currentPath);
+      if (compactResult) {
+        // Break the compact chain and use the result as the anchor
+        this.breakCompactFolderAt(this.dataStore.mdFiles, currentPath);
+        // After breaking, the folder should now be findable
+        const brokenNode = this.findFolderInDataStore(this.dataStore.mdFiles, currentPath);
+        if (brokenNode) break;
+      }
+      missingPaths.push(currentPath);
+      // Move up one level
+      const sep = Math.max(currentPath.lastIndexOf('\\'), currentPath.lastIndexOf('/'));
+      if (sep <= 0) break;
+      currentPath = currentPath.substring(0, sep);
+    }
+    if (missingPaths.length === 0) return null;
+    // Find the anchor parent (the existing node we stopped at)
+    let anchorParent = null;
+    if (currentPath.toLowerCase().replace(/\//g, '\\') === normRoot) {
+      // Insert at root level — anchorParent stays null
+    } else {
+      anchorParent = this.findFolderInDataStore(this.dataStore.mdFiles, currentPath);
+    }
+    // Walk DOWN creating missing folders (missingPaths is deepest-first, reverse it)
+    missingPaths.reverse();
+    let lastCreated = null;
+    for (const folderPath of missingPaths) {
+      const folderName = folderPath.substring(Math.max(folderPath.lastIndexOf('\\'), folderPath.lastIndexOf('/')) + 1);
+      // Calculate level relative to project root
+      const relativeParts = folderPath.substring(projectRoot.length + 1).split(/[\\\/]/);
+      const level = relativeParts.length - 1;
+      const newFolder = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile(folderName, folderPath, level, true);
+      newFolder.type = 'folder';
+      newFolder.fullPath = folderPath;
+      newFolder.relativePath = folderPath.substring(projectRoot.length + 1);
+      newFolder.childrens = [];
+      newFolder.isLoading = false;
+      newFolder.index = 0;
+      newFolder.isIndexed = true;
+      newFolder.indexingStatus = 'completed';
+      if (anchorParent) {
+        anchorParent.childrens.push(newFolder);
+      } else {
+        // Insert at root level (before the dummy/emptyroot item)
+        const dummyItem = this.dataStore.mdFiles[this.dataStore.mdFiles.length - 1];
+        if (dummyItem && (dummyItem.type === 'emptyroot' || dummyItem.type === 'dummy')) {
+          this.dataStore.mdFiles.splice(this.dataStore.mdFiles.length - 1, 0, newFolder);
+        } else {
+          this.dataStore.mdFiles.push(newFolder);
+        }
+      }
+      anchorParent = newFolder;
+      lastCreated = newFolder;
+    }
+    if (lastCreated) {
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+    }
+    return lastCreated;
   }
   /**
    * Rinomina una cartella nel dataStore, aggiornando ricorsivamente i path
@@ -7273,7 +7462,7 @@ class MdFileService {
   }
   loadDynFolders(path, level) {
     const url = '../api/mdfiles/GetDynFoldersDocument';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     }).subscribe(data => {
@@ -7294,14 +7483,14 @@ class MdFileService {
       url = '../api/mdfiles/GetDynFoldersAndFilesDocument';
     }
     console.log(url);
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     });
   }
   loadPublishNodes(path, level) {
     const url = '../api/mdPublishNodes';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     });
@@ -7334,9 +7523,9 @@ class MdFileService {
     console.log('[MdFileService] file.fullPath:', file.fullPath);
     const url = '../api/mdfiles/OpenFolderOnFileExplorer';
     console.log('[MdFileService] POST to:', url);
-    return this.http.post(url, file).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.tap)(response => {
+    return this.http.post(url, file).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(response => {
       console.log('[MdFileService] Response received:', response);
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.catchError)(error => {
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.catchError)(error => {
       console.error('[MdFileService] Error in openFolderOnFileExplorer:', error);
       throw error;
     }));
@@ -7532,11 +7721,11 @@ class MdFileService {
   }
   static {
     this.ɵfac = function MdFileService_Factory(t) {
-      return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_app_store_service__WEBPACK_IMPORTED_MODULE_1__.AppStoreService));
+      return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_8__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_app_store_service__WEBPACK_IMPORTED_MODULE_2__.AppStoreService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
       token: MdFileService,
       factory: MdFileService.ɵfac,
       providedIn: 'root'
@@ -11503,8 +11692,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.03.15.3',
-  buildTime: '2026.03.15 10:05:22'
+  version: '2026.03.19.3',
+  buildTime: '2026.03.19 10:09:32'
 };
 
 /***/ }),

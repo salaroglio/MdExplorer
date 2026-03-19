@@ -1,4 +1,13 @@
-﻿:root{
+﻿html {
+    scrollbar-gutter: stable;
+}
+
+details {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+:root{
     --toc-width:300px;
     --toc-scroll:0px;
     --refs-width:400px;
@@ -383,6 +392,8 @@ s
 
 .mdeItemMainPageCenter {
     flex: 1;
+    min-width: 0;
+    overflow-x: hidden;
 }
 
 .mdeVerticalTab {

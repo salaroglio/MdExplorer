@@ -230,10 +230,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         public IActionResult MoveMdFile([FromBody] RequestMoveMdFile requestMoveMdFile)
         {
             _logger.LogInformation("[MoveMdFile] Method called");
-            _logger.LogInformation($"[MoveMdFile] MdFile is null: {requestMoveMdFile?.MdFile == null}");
+            _logger.LogInformation($"[MoveMdFile] SourceRelativePath: {requestMoveMdFile?.SourceRelativePath}");
             _logger.LogInformation($"[MoveMdFile] DestinationPath: {requestMoveMdFile?.DestinationPath}");
 
-            if (requestMoveMdFile?.MdFile == null || string.IsNullOrEmpty(requestMoveMdFile.DestinationPath))
+            if (string.IsNullOrEmpty(requestMoveMdFile?.SourceRelativePath) || string.IsNullOrEmpty(requestMoveMdFile?.SourceFileName) || string.IsNullOrEmpty(requestMoveMdFile.DestinationPath))
             {
                 _logger.LogError("[MoveMdFile] Invalid request data");
                 return BadRequest(new { error = "Invalid request data" });
@@ -243,12 +243,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
             try
             {
                 var projectBasePath = GetProjectPath();
-                var fromRelativePathFileName = requestMoveMdFile.MdFile.RelativePath.Substring(1);
+                var fromRelativePathFileName = requestMoveMdFile.SourceRelativePath.Substring(1);
                 var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
 
                 _logger.LogInformation($"[MoveMdFile] From: {fromFullPathFileName}");
 
-                var fileName = requestMoveMdFile.MdFile.Name;
+                var fileName = requestMoveMdFile.SourceFileName;
                 var relativeDestinationPath = requestMoveMdFile.DestinationPath
                                         .Replace(GetProjectPath(), "").Substring(1);
                 var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
@@ -258,7 +258,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
-                GetEngineDB().BeginTransaction();
+                // NOTE: No BeginTransaction/Commit on GetEngineDB() here.
+                // RefactoringManager uses its own DI-injected IEngineDB session (different from
+                // GetEngineDB() which comes from DatabaseManager). Starting a transaction on
+                // GetEngineDB() would lock the SQLite DB, causing "database is locked" when
+                // RefactoringManager.Flush() tries to write on its separate session.
+                // Each Flush() in RefactoringManager auto-commits on its own session.
+
                 _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
                     fromRelativePathFileName, toRelativePathFileName);
 
@@ -285,7 +291,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     _logger.LogInformation("[MoveMdFile] Link indexing disabled, skipping link recalculation");
                 }
 
-                GetEngineDB().Commit();
                 _logger.LogInformation("[MoveMdFile] Completed successfully");
                 SetFileSystemWatcherEnabled(true);
                 return Ok(new { message = "done" });
@@ -293,11 +298,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[MoveMdFile] Error during move operation");
-                try { GetEngineDB().Rollback(); }
-                catch (Exception rollbackEx)
-                {
-                    _logger.LogWarning(rollbackEx, "[MoveMdFile] Rollback failed (session may have been corrupted)");
-                }
                 SetFileSystemWatcherEnabled(true);
                 return StatusCode(500, new { error = ex.Message });
             }

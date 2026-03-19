@@ -1,8 +1,13 @@
-// Scroll container (moved from .mat-tree)
-.tree-scroll-wrapper {
-  height: calc(100vh - 128px);
-  overflow-y: auto;
+// Outer container: positioning context for absolute overlay
+.tree-scroll-container {
   position: relative;
+  height: calc(100vh - 128px);
+}
+
+// Scroll container
+.tree-scroll-wrapper {
+  height: 100%;
+  overflow-y: auto;
 }
 
 .mat-tree {
@@ -10,9 +15,12 @@
 }
 
 // ==================== Sticky Scroll Panel ====================
+// Overlay assoluto: fuori dal flusso scroll, nessun feedback loop
 .sticky-ancestors-panel {
-  position: sticky;
+  position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
   background: #fafafa;
   border-bottom: 1px solid #e0e0e0;
@@ -230,7 +238,7 @@
     cursor: pointer;
     padding: 2px 4px;
     border-radius: 3px;
-    transition: background-color 0.15s ease;
+    transition: background-color 0.15s ease, outline 0.15s ease;
 
     &:hover,
     &.segment-hover {
@@ -239,6 +247,13 @@
 
     &:active {
       background-color: rgba(33, 150, 243, 0.25);
+    }
+
+    // Highlight when a file is being dragged over this segment
+    &.segment-drag-over {
+      background-color: rgba(33, 150, 243, 0.3);
+      outline: 2px dashed #2196F3;
+      outline-offset: 1px;
     }
   }
 

@@ -76,11 +76,13 @@ var InteractiveSvgYaml = (function() {
         if (boxRects.length === 0) return false;
 
         // - Dashed paths (connections)
+        // PlantUML versions may emit "3.0,3.0" or "3,3" (no decimals)
         var paths = svg.querySelectorAll('path');
         var hasDashedPaths = false;
         for (var j = 0; j < paths.length; j++) {
             var style = paths[j].getAttribute('style') || '';
-            if (style.indexOf('stroke-dasharray:3.0,3.0') > -1) {
+            if (style.indexOf('stroke-dasharray:3.0,3.0') > -1 ||
+                style.indexOf('stroke-dasharray:3,3') > -1) {
                 hasDashedPaths = true;
                 break;
             }
@@ -281,7 +283,8 @@ var InteractiveSvgYaml = (function() {
             var style = p.getAttribute('style') || '';
             var fill = p.getAttribute('fill') || '';
 
-            if (style.indexOf('stroke-dasharray:3.0,3.0') > -1) {
+            if (style.indexOf('stroke-dasharray:3.0,3.0') > -1 ||
+                style.indexOf('stroke-dasharray:3,3') > -1) {
                 dashedPaths.push(p);
             } else if (fill === '#000000' && style.indexOf('stroke-dasharray') === -1) {
                 arrowheadPaths.push(p);
@@ -1282,8 +1285,12 @@ var InteractiveSvgYaml = (function() {
     function clearSelection(svg) {
         destroyTooltips(svg);
 
+        // Remove all highlight background rects
+        svg.querySelectorAll('.yaml-row-highlight-bg').forEach(function(r) { r.remove(); });
+
         var classes = ['yaml-box-source', 'yaml-box-downstream', 'yaml-box-upstream',
-                       'yaml-connection-highlighted', 'yaml-row-selected', 'yaml-row-leaf'];
+                       'yaml-connection-highlighted', 'yaml-row-selected', 'yaml-row-leaf',
+                       'yaml-row-source', 'yaml-row-upstream', 'yaml-row-downstream'];
 
         svg.querySelectorAll('.' + classes.join(', .'))
             .forEach(function(el) {
@@ -1321,6 +1328,24 @@ var InteractiveSvgYaml = (function() {
     }
 
     var SVG_NS = 'http://www.w3.org/2000/svg';
+
+    /**
+     * Add a colored background rect behind a text element for row highlighting.
+     * @param {SVGTextElement} textEl - The text element to highlight
+     * @param {string} colorClass - CSS class for the fill color (e.g. 'yaml-row-bg-source')
+     */
+    function addRowHighlightRect(textEl, colorClass) {
+        var bbox = textEl.getBBox();
+        var rect = document.createElementNS(SVG_NS, 'rect');
+        rect.setAttribute('x', bbox.x - 2);
+        rect.setAttribute('y', bbox.y - 1);
+        rect.setAttribute('width', bbox.width + 4);
+        rect.setAttribute('height', bbox.height + 2);
+        rect.setAttribute('rx', '2');
+        rect.classList.add('yaml-row-highlight-bg', colorClass);
+        // Insert BEFORE the text so the rect is behind it
+        textEl.parentNode.insertBefore(rect, textEl);
+    }
 
     /**
      * Show an SVG tooltip (rect + text) above a box inside the same SVG.
@@ -1552,7 +1577,7 @@ var InteractiveSvgYaml = (function() {
     function handleRowClick(textEl, box, svg, graph, options) {
         var conn = findConnectionForRow(textEl, box, graph);
         if (!conn) {
-            // No outgoing connection for this row - yellow highlight + ancestors only
+            // No outgoing connection for this row - leaf highlight + ancestors only
             clearSelection(svg);
             svg.classList.add('yaml-has-selection');
             applyBoxClass(box, 'yaml-box-source');
@@ -1561,6 +1586,7 @@ var InteractiveSvgYaml = (function() {
                 var ty = parseFloat(t.getAttribute('y'));
                 if (Math.abs(ty - textY) < 2) {
                     t.classList.add('yaml-row-leaf');
+                    addRowHighlightRect(t, 'yaml-row-bg-leaf');
                 }
             });
 
@@ -1574,6 +1600,8 @@ var InteractiveSvgYaml = (function() {
             });
             ancestors.rowTexts.forEach(function(t) {
                 t.classList.add('yaml-row-selected');
+                t.classList.add('yaml-row-upstream');
+                addRowHighlightRect(t, 'yaml-row-bg-upstream');
             });
 
             // Tooltips on ancestor boxes + source box
@@ -1595,6 +1623,8 @@ var InteractiveSvgYaml = (function() {
             var ty = parseFloat(t.getAttribute('y'));
             if (Math.abs(ty - textY) < 2) {
                 t.classList.add('yaml-row-selected');
+                t.classList.add('yaml-row-source');
+                addRowHighlightRect(t, 'yaml-row-bg-source');
             }
         });
 
@@ -1609,6 +1639,8 @@ var InteractiveSvgYaml = (function() {
         // Highlight specific row texts in descendant boxes
         descendants.rowTexts.forEach(function(t) {
             t.classList.add('yaml-row-selected');
+            t.classList.add('yaml-row-downstream');
+            addRowHighlightRect(t, 'yaml-row-bg-downstream');
         });
 
         // Ancestors (upstream) - row-aware
@@ -1622,6 +1654,8 @@ var InteractiveSvgYaml = (function() {
         // Highlight specific row texts in ancestor boxes
         ancestors.rowTexts.forEach(function(t) {
             t.classList.add('yaml-row-selected');
+            t.classList.add('yaml-row-upstream');
+            addRowHighlightRect(t, 'yaml-row-bg-upstream');
         });
 
         // Create tooltips on all highlighted boxes (source + downstream + upstream)
