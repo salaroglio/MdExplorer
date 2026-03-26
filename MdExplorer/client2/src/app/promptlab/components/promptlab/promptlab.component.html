@@ -1,0 +1,123 @@
+<!-- Session Header Bar -->
+<div class="session-header">
+  <span class="session-title">{{ sessionTitle }}</span>
+  <span class="badge">PromptLab</span>
+  <span class="spacer"></span>
+
+  <!-- Model selector -->
+  <div class="model-selector-wrapper">
+    <select class="model-selector"
+            [(ngModel)]="selectedModel"
+            (ngModelChange)="onModelChange($event)"
+            [style.display]="isLoadingModels ? 'none' : 'inline-block'">
+      <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
+    </select>
+    <span class="model-loading" *ngIf="isLoadingModels">
+      <span class="spinner"></span> Loading models...
+    </span>
+  </div>
+
+  <!-- Mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn"
+            [class.active]="mode === 'prompt'"
+            (click)="toggleMode('prompt')">Prompt</button>
+    <button class="mode-btn"
+            [class.active]="mode === 'agent'"
+            (click)="toggleMode('agent')">Agente</button>
+  </div>
+
+  <span class="separator"></span>
+
+  <!-- Action buttons -->
+  <button class="session-action-btn add" (click)="addCard()">+ Card</button>
+  <button class="session-action-btn build" (click)="build()">Build</button>
+  <button class="session-action-btn exec"
+          (click)="executeAll()"
+          [disabled]="isExecutingAll">
+    {{ isExecutingAll ? 'Esecuzione...' : 'Esegui Tutto' }}
+  </button>
+  <button class="session-action-btn settings" (click)="openSettings()" title="Impostazioni sessione">&#9881;</button>
+</div>
+
+<!-- Scrollable content area (everything below the header) -->
+<div class="session-content" [class.single-card-content]="cards.length === 1">
+
+  <!-- Agent Card (shown only in agent mode) -->
+  <app-promptlab-agent-card
+    *ngIf="mode === 'agent'"
+    [agentDefinition]="agentDefinition"
+    (agentDefinitionChange)="onAgentDefinitionChange($event)">
+  </app-promptlab-agent-card>
+
+  <!-- Doc Panel -->
+  <app-promptlab-doc-panel
+    [cards]="cards"
+    [templateName]="templateName">
+  </app-promptlab-doc-panel>
+
+  <!-- Cards -->
+  <div class="cards-area" [class.single-card-area]="cards.length === 1">
+    <div *ngIf="cards.length === 0" class="cards-placeholder">
+      Nessuna card. Clicca '+ Card' per iniziare.
+    </div>
+    <app-promptlab-card
+      *ngFor="let card of cards; trackBy: trackByCardId"
+      [card]="card"
+      [isSingleCard]="cards.length === 1"
+      (cardDeleted)="onCardDeleted($event)"
+      (cardChanged)="onCardChanged($event)">
+    </app-promptlab-card>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-backdrop" *ngIf="showSettings" (click)="onSettingsBackdropClick($event)">
+  <div class="modal-card settings-modal">
+    <div class="modal-header">
+      <span class="modal-title">Impostazioni Sessione</span>
+      <button class="modal-close" (click)="closeSettings()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <label class="settings-label">System Prompt</label>
+          <button class="settings-reset-btn" (click)="resetSystemPrompt()" title="Ripristina default">&#8634; Default</button>
+        </div>
+        <p class="settings-hint">
+          Istruzioni di sistema inviate al LLM all'inizio di ogni conversazione nella chat.
+          Definisce il ruolo dell'LLM come assistente alla progettazione di prompt.
+        </p>
+        <textarea class="settings-textarea"
+                  [ngModel]="systemPrompt"
+                  (ngModelChange)="onSystemPromptChange($event)"
+                  rows="12"
+                  spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" (click)="closeSettings()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Build Output Overlay (Task 8.1) -->
+<div class="build-overlay-backdrop"
+     *ngIf="buildOutput !== null"
+     (click)="onBuildBackdropClick($event)">
+  <div class="build-overlay-card">
+    <div class="build-overlay-header">
+      <span class="build-overlay-title">Build Output</span>
+      <button class="build-overlay-close" (click)="closeBuildOverlay()">&#10005;</button>
+    </div>
+    <div class="build-overlay-body">
+      <pre class="build-overlay-pre">{{ buildOutput }}</pre>
+    </div>
+    <div class="build-overlay-footer">
+      <button class="build-overlay-copy" (click)="copyBuildOutput()">
+        {{ buildCopied ? 'Copiato!' : 'Copia' }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -10,6 +10,7 @@
       <button *ngIf="item.type==='folder'" mat-icon-button color="accent" matTooltip="rename folder" (click)="renameDirectoryOn(item)"><img src="/assets/rename.png" alt="Rename directory" /></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button matTooltip="create new folder" color="primary" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button matTooltip="create new document" color="primary" (click)="createMdOn(item)"><mat-icon>note_add</mat-icon></button>
+      <button *ngIf="item.type==='folder'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" matTooltip="copy relative path to clipboard"><mat-icon>link</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="deleteFile(item)" matTooltip="delete document"><mat-icon>delete</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="pasteFromClipboard(item)" matTooltip="Paste from Clipboard"><mat-icon>archive</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" matTooltip="copy link to clipboard"><mat-icon>link</mat-icon></button>
@@ -176,14 +177,20 @@
            alt="GitHub Copilot"
            class="custom-folder-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
+      <!-- Icona per cartella promptlab -->
+      <img *ngIf="node.name==='promptlab' && node.indexingStatus !== 'indexing'"
+           src="/assets/promptlab-flask.svg"
+           alt="PromptLab"
+           class="custom-folder-icon"
+           style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartelle con tag "program" -->
-      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 color="primary"
                 class="mat-icon-rtl-mirror terminal-icon">
         terminal
       </mat-icon>
       <!-- Icona per cartelle normali -->
-      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 class="gold-icon mat-icon-rtl-mirror folder-icon">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>

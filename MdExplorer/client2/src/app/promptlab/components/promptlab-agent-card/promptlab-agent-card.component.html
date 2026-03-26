@@ -1,0 +1,52 @@
+<div class="agent-card" [class.collapsed]="collapsed">
+  <!-- Header -->
+  <div class="agent-card-header">
+    <span class="agent-icon">&#9881;</span>
+    <span class="agent-title">Definizione Agente</span>
+    <span class="spacer"></span>
+    <button class="collapse-btn" (click)="toggleCollapse()">&#9660;</button>
+  </div>
+
+  <!-- Body -->
+  <div class="agent-card-body" *ngIf="!collapsed">
+    <!-- Identity -->
+    <div class="agent-field">
+      <div class="agent-label">Identit&agrave;</div>
+      <textarea class="agent-value"
+                rows="2"
+                [ngModel]="agentDefinition.identity"
+                (blur)="onFieldBlur('identity', $any($event.target).value)"></textarea>
+    </div>
+
+    <!-- Objectives -->
+    <div class="agent-field">
+      <div class="agent-label">Obiettivi</div>
+      <textarea class="agent-value"
+                rows="2"
+                [ngModel]="agentDefinition.objectives"
+                (blur)="onFieldBlur('objectives', $any($event.target).value)"></textarea>
+    </div>
+
+    <!-- Rules -->
+    <div class="agent-field">
+      <div class="agent-label">Regole</div>
+      <textarea class="agent-value"
+                rows="2"
+                [ngModel]="agentDefinition.rules"
+                (blur)="onFieldBlur('rules', $any($event.target).value)"></textarea>
+    </div>
+
+    <!-- Tools -->
+    <div class="agent-field">
+      <div class="agent-label">Strumenti</div>
+      <textarea class="agent-value"
+                rows="2"
+                [ngModel]="agentDefinition.tools.join(', ')"
+                (blur)="onToolsBlur($any($event.target).value)"
+                placeholder="Separati da virgola: tool1, tool2, ..."></textarea>
+      <div class="agent-tools" *ngIf="agentDefinition.tools.length > 0">
+        <span class="agent-tool" *ngFor="let tool of agentDefinition.tools">{{ tool }}</span>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,116 @@
+:host {
+  display: block;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.agent-card {
+  background: #1a1d21;
+  border: 2px solid #c792ea;
+  border-radius: 8px;
+  margin: 16px 0;
+  overflow: hidden;
+}
+
+.agent-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.agent-icon {
+  color: #c792ea;
+  font-size: 16px;
+}
+
+.agent-title {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: transform 0.2s;
+
+  &:hover {
+    color: #fff;
+    background: #3c3c3c;
+  }
+}
+
+.agent-card.collapsed .collapse-btn {
+  transform: rotate(-90deg);
+}
+
+.agent-card-body {
+  padding: 16px;
+}
+
+.agent-field {
+  margin-bottom: 12px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.agent-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #c792ea;
+  margin-bottom: 4px;
+}
+
+.agent-value {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  color: #e0e0e0;
+  line-height: 1.6;
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 8px 12px;
+  outline: none;
+  resize: vertical;
+  font-family: 'Segoe UI', sans-serif;
+
+  &:focus {
+    box-shadow: 0 0 0 1px #c792ea inset;
+  }
+
+  &::placeholder {
+    color: #555;
+  }
+}
+
+.agent-tools {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.agent-tool {
+  background: #2d1f3d;
+  border: 1px solid #7c4dff;
+  color: #b39ddb;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 10px;
+}

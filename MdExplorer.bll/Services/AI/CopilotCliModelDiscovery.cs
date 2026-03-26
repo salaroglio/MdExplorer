@@ -215,6 +215,20 @@ namespace MdExplorer.Features.Services.AI
 
         private async Task<string> RunCopilotDiscoveryAsync()
         {
+            // Fast path: trigger an intentional error with an invalid model name.
+            // The CLI responds instantly with the list of valid models in stderr.
+            try
+            {
+                var fastResult = await RunFastModelDiscoveryAsync();
+                if (!string.IsNullOrWhiteSpace(fastResult))
+                    return fastResult;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[CopilotCliModelDiscovery] Fast discovery failed, falling back to LLM-based discovery");
+            }
+
+            // Slow fallback: ask the LLM to list models
             try
             {
                 var psi = new ProcessStartInfo
@@ -268,6 +282,46 @@ namespace MdExplorer.Features.Services.AI
 
         #endregion
 
+        /// <summary>
+        /// Fast model discovery: asks haiku (cheapest/fastest model) to list model IDs.
+        /// Uses -s (silent) and --allow-all-tools for non-interactive mode.
+        /// Returns the list in ~5 seconds.
+        /// </summary>
+        private async Task<string> RunFastModelDiscoveryAsync()
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = COPILOT_EXECUTABLE,
+                Arguments = "-p \"list only the model IDs available for --model flag, one per line, nothing else\" --model claude-haiku-4.5 --no-color --stream off -s --allow-all-tools",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var completed = process.WaitForExit(15000);
+            if (!completed)
+            {
+                try { process.Kill(); } catch { }
+                return null;
+            }
+
+            var output = await outputTask;
+            _logger.LogDebug("[CopilotCliModelDiscovery] Fast discovery output: {Output}", output);
+
+            if (string.IsNullOrWhiteSpace(output))
+                return null;
+
+            _logger.LogInformation("[CopilotCliModelDiscovery] Fast discovery returned output, parsing...");
+            return output;
+        }
+
         #region Parsing
 
         /// <summary>
@@ -306,6 +360,19 @@ namespace MdExplorer.Features.Services.AI
                     var trimmed = line.Trim().TrimStart('-', '*', ' ');
                     if (plainRegex.IsMatch(trimmed) && IsValidModelId(trimmed))
                         modelIds.Add(trimmed);
+                }
+            }
+
+            // Strategy 3: Space-separated model IDs (e.g. "● model1 model2 model3")
+            if (modelIds.Count == 0)
+            {
+                var modelIdPattern = new Regex(@"[a-z][a-z0-9.\-]+");
+                var allMatches = modelIdPattern.Matches(output);
+                foreach (Match match in allMatches)
+                {
+                    var id = match.Value;
+                    if (IsValidModelId(id) && id.Contains("-"))
+                        modelIds.Add(id);
                 }
             }
 

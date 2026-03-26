@@ -287,11 +287,17 @@ export class ShowFileSystemComponent implements OnInit {
 
         // Naviga alla cartella iniziale
         const initialPath = this.baseStart.start === 'root' ? 'project' : this.baseStart.start;
-        const initialFolder = this.specialFolders.find(f => f.name.toLowerCase() === initialPath?.toLowerCase());
-        if (initialFolder) {
-          this.navigateToFolder(initialFolder.path);
+
+        // If start looks like an absolute path, navigate directly to it
+        if (initialPath && (initialPath.includes(':\\') || initialPath.startsWith('/'))) {
+          this.navigateToFolder(initialPath);
         } else {
-          this.navigateToFolder(this.specialFolders[0]?.path || '');
+          const initialFolder = this.specialFolders.find(f => f.name.toLowerCase() === initialPath?.toLowerCase());
+          if (initialFolder) {
+            this.navigateToFolder(initialFolder.path);
+          } else {
+            this.navigateToFolder(this.specialFolders[0]?.path || '');
+          }
         }
       },
       error: (error) => {

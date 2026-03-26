@@ -347,6 +347,7 @@ export class MdFileService {
   }
 
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
+    console.warn('🔴 [DIAG] loadAll() CALLED at:', new Date().toISOString(), '- stack trace:', new Error().stack);
     // Pre-fetch catalog + installed apps for update checks
     this.appStoreService.prefetchCatalogAndInstalled();
     return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure')

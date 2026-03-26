@@ -171,6 +171,62 @@ button.mat-mdc-icon-button,
   }
 }
 
+// PromptLab components must fill their flex container parents
+app-promptlab {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+
+// Fix ShowFileSystem dialog filter input - white text on green header
+.resizable-dialog-container .explorer-header,
+.mat-dialog-container .explorer-header {
+  .mat-form-field-appearance-outline,
+  .mat-mdc-form-field {
+    .mat-form-field-outline,
+    .mdc-notched-outline {
+      background-color: transparent !important;
+    }
+
+    .mat-form-field-outline-start,
+    .mat-form-field-outline-gap,
+    .mat-form-field-outline-end {
+      border-color: rgba(255, 255, 255, 0.3) !important;
+    }
+
+    &.mat-focused {
+      .mat-form-field-outline-start,
+      .mat-form-field-outline-gap,
+      .mat-form-field-outline-end {
+        border-color: white !important;
+      }
+    }
+  }
+
+  .mat-form-field-label,
+  .mat-mdc-floating-label {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  .mat-input-element,
+  .mat-mdc-input-element,
+  input.mat-input-element {
+    color: white !important;
+    caret-color: white !important;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.6) !important;
+    }
+  }
+
+  .mat-icon {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+}
+
 // Resizable dialog container styles
 .resizable-dialog-container {
   .mat-dialog-container {
@@ -181,6 +237,18 @@ button.mat-mdc-icon-button,
     max-width: 90vw;
     max-height: 90vh;
     position: relative;
+  }
+}
+
+// New Markdown dialog - custom panel (no Material chrome)
+.new-markdown-dialog {
+  .mat-dialog-container {
+    padding: 0 !important;
+    background-color: #2d2d2d !important;
+    background: #2d2d2d !important;
+    border-radius: 6px !important;
+    border: 1px solid #555 !important;
+    overflow: hidden !important;
   }
 }
 

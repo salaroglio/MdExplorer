@@ -215,6 +215,13 @@ namespace MdExplorer.Features.Services.AI
                     {
                         process.WaitForExit(5000);
                     }
+                    // Log stderr if there was no output (helps diagnose CopilotCli issues)
+                    var stderr = await process.StandardError.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(stderr))
+                    {
+                        _logger.LogWarning("[CopilotCliProvider.StreamChatAsync] stderr: {StdErr}", stderr.Length > 500 ? stderr.Substring(0, 500) : stderr);
+                    }
+                    _logger.LogInformation("[CopilotCliProvider.StreamChatAsync] Process exit code: {ExitCode}", process.ExitCode);
                 }
                 catch { }
             }

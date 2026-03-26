@@ -1307,11 +1307,16 @@ class ShowFileSystemComponent {
         this.networkShares = networkShares;
         // Naviga alla cartella iniziale
         const initialPath = this.baseStart.start === 'root' ? 'project' : this.baseStart.start;
-        const initialFolder = this.specialFolders.find(f => f.name.toLowerCase() === initialPath?.toLowerCase());
-        if (initialFolder) {
-          this.navigateToFolder(initialFolder.path);
+        // If start looks like an absolute path, navigate directly to it
+        if (initialPath && (initialPath.includes(':\\') || initialPath.startsWith('/'))) {
+          this.navigateToFolder(initialPath);
         } else {
-          this.navigateToFolder(this.specialFolders[0]?.path || '');
+          const initialFolder = this.specialFolders.find(f => f.name.toLowerCase() === initialPath?.toLowerCase());
+          if (initialFolder) {
+            this.navigateToFolder(initialFolder.path);
+          } else {
+            this.navigateToFolder(this.specialFolders[0]?.path || '');
+          }
         }
       },
       error: error => {
@@ -7036,6 +7041,7 @@ class MdFileService {
     return this.http.get('../api/mdfiles/GetShallowStructure');
   }
   loadAll(callback, objectThis) {
+    console.warn('🔴 [DIAG] loadAll() CALLED at:', new Date().toISOString(), '- stack trace:', new Error().stack);
     // Pre-fetch catalog + installed apps for update checks
     this.appStoreService.prefetchCatalogAndInstalled();
     return this.http.get('../api/mdfiles/GetShallowStructure').subscribe(data => {
@@ -9153,14 +9159,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AiChatService": () => (/* binding */ AiChatService)
 /* harmony export */ });
 /* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 228);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 833);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 635);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/common/http */ 8987);
 
 
 
@@ -9191,6 +9198,8 @@ class AiChatService {
     this.gpuEnabled$ = this._gpuEnabled$.asObservable();
     this.currentStreamingMessageId = null;
     this.currentStreamingProviderType = null;
+    // Channel-aware event stream for PromptLab and multi-channel consumers
+    this._channelEvent$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     // Gemini API state
     this._useGemini$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     this.useGemini$ = this._useGemini$.asObservable();
@@ -9232,19 +9241,51 @@ class AiChatService {
     this.hubConnection.on('ReceiveStreamMeta', meta => {
       this.currentStreamingProviderType = meta.providerType;
     });
-    this.hubConnection.on('ReceiveStreamChunk', chunk => {
-      this._streamingMessage$.next(chunk);
-      this.appendToStreamingMessage(chunk);
+    this.hubConnection.on('ReceiveStreamChunk', (chunk, channelId) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({
+        type: 'chunk',
+        data: chunk,
+        channelId: ch
+      });
+      if (ch === 'default') {
+        this._streamingMessage$.next(chunk);
+        this.appendToStreamingMessage(chunk);
+      }
     });
-    this.hubConnection.on('ReceiveThinking', chunk => {
-      this.appendToThinkingContent(chunk);
+    this.hubConnection.on('ReceiveThinking', (chunk, channelId) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({
+        type: 'thinking',
+        data: chunk,
+        channelId: ch
+      });
+      if (ch === 'default') {
+        this.appendToThinkingContent(chunk);
+      }
     });
-    this.hubConnection.on('StreamComplete', () => {
-      this.finalizeStreamingMessage();
+    this.hubConnection.on('StreamComplete', channelId => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({
+        type: 'complete',
+        data: null,
+        channelId: ch
+      });
+      if (ch === 'default') {
+        this.finalizeStreamingMessage();
+      }
     });
-    this.hubConnection.on('ReceiveError', error => {
-      console.error('Chat error:', error);
-      this.addMessage('system', `Error: ${error}`);
+    this.hubConnection.on('ReceiveError', (error, channelId) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({
+        type: 'error',
+        data: error,
+        channelId: ch
+      });
+      if (ch === 'default') {
+        console.error('Chat error:', error);
+        this.addMessage('system', `Error: ${error}`);
+      }
     });
     // Start connection
     this.startConnection();
@@ -9350,6 +9391,50 @@ class AiChatService {
         this.addMessage('system', `Failed to send message: ${err}`);
       });
     }
+  }
+  /**
+   * Send a message on a specific channel (used by PromptLab cards).
+   * Each channel maintains independent conversation history on the backend.
+   */
+  sendMessageToChannel(message, channelId) {
+    if (!message.trim()) return;
+    console.log(`[AiChatService] sendMessageToChannel hub state: ${this.hubConnection.state}, channelId: ${channelId}`);
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SendMessage', message, channelId).then(() => console.log(`[AiChatService] SendMessage invoked successfully for channel: ${channelId}`)).catch(err => {
+        console.error(`[AiChatService] Error sending message to channel ${channelId}:`, err);
+        this._channelEvent$.next({
+          type: 'error',
+          data: `Failed to send message: ${err}`,
+          channelId
+        });
+      });
+    } else {
+      console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+    }
+  }
+  /**
+   * Clear conversation history for a specific channel on the backend.
+   */
+  clearChannelHistory(channelId) {
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('ClearHistory', channelId).catch(err => {
+        console.error(`[AiChatService] Error clearing history for channel ${channelId}:`, err);
+      });
+    }
+  }
+  /**
+   * Get an Observable stream of events filtered for a specific channelId.
+   * Each event has { type: 'chunk' | 'thinking' | 'complete' | 'error', data: any }.
+   * Used by PromptLab cards to subscribe to their own channel.
+   */
+  getChannelStream$(channelId) {
+    return this._channelEvent$.asObservable().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.filter)(event => event.channelId === channelId), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(({
+      type,
+      data
+    }) => ({
+      type,
+      data
+    })));
   }
   addMessage(role, content, id, isStreaming) {
     const messages = this._messages$.value;
@@ -9484,7 +9569,7 @@ class AiChatService {
   }
   getOpenAiModels() {
     // Uses the multi-provider endpoint
-    return this.getModelsByProvider('OpenAI').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(response => response.models || []));
+    return this.getModelsByProvider('OpenAI').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
   }
   testOpenAiApiKey(apiKey) {
     return this.http.post('/api/openai/test-api-key', {
@@ -9539,6 +9624,27 @@ class AiChatService {
       });
     }
   }
+  /**
+   * Async version of setProvider — awaits the hub invoke before returning.
+   */
+  setProviderAsync(provider, modelId) {
+    var _this3 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
+      if (provider === 'gemini') {
+        _this3._useGemini$.next(true);
+        if (modelId) {
+          _this3._geminiModel$.next(modelId);
+        }
+      } else {
+        _this3._useGemini$.next(false);
+      }
+      if (_this3.hubConnection.state === 'Connected') {
+        yield _this3.hubConnection.invoke('SetChatMode', provider, modelId);
+        console.log('[AiChatService] SetChatMode completed for:', provider, modelId);
+      }
+    })();
+  }
   notifyGeminiConnected(modelId) {
     console.log('[AiChatService] notifyGeminiConnected called with modelId:', modelId);
     console.log('[AiChatService] Current isModelLoaded value before update:', this._isModelLoaded$.getValue());
@@ -9585,7 +9691,7 @@ class AiChatService {
     return this.http.get('/api/copilotcli/configured');
   }
   getCopilotCliModels() {
-    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(response => response.models || []));
+    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
   }
   getCopilotCliSystemPrompt() {
     return this.http.get('/api/copilotcli/system-prompt');
@@ -9671,11 +9777,11 @@ class AiChatService {
   }
   static {
     this.ɵfac = function AiChatService_Factory(t) {
-      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_8__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_7__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService)));
+      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_9__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_8__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService)));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
       token: AiChatService,
       factory: AiChatService.ɵfac,
       providedIn: 'root'
@@ -10955,10 +11061,12 @@ class ConnectionLostProvider {
     this.dialog = dialog;
   }
   show(hub) {
+    console.warn('🔴 [DIAG] Connection Lost dialog OPENED at:', new Date().toISOString());
     this._dialogRef = this.dialog.open(_connection_lost_component__WEBPACK_IMPORTED_MODULE_0__.ConnectionLostComponent, {
       data: null
     });
     this._dialogRef.afterClosed().subscribe(_ => {
+      console.warn('🔴 [DIAG] Connection Lost dialog CLOSED at:', new Date().toISOString());
       hub.startConnection();
     });
     return this;
@@ -11378,6 +11486,7 @@ class MdServerMessagesService {
           this.connectionLostProvider.showConsoleClosed();
         });
         this.hubConnection.onclose(data => {
+          console.warn('🔴 [DIAG] SignalR CLOSED at:', new Date().toISOString(), 'consoleIsClosed:', this.consoleIsClosed);
           if (!this.consoleIsClosed) {
             this.connectionLostProvider.show(this);
             this.connectionIsLost = true;
@@ -11388,6 +11497,7 @@ class MdServerMessagesService {
         const wasReconnection = this.connectionIsLost; // Capture before reset
         this.hubConnection.start().then(() => {
           console.log('Connection started');
+          console.warn('🔴 [DIAG] SignalR STARTED. wasReconnection:', wasReconnection, 'at:', new Date().toISOString());
           this.connectionIsLost = false;
           this.getCurrentConnectionId(this, wasReconnection);
         }).catch(err => {
@@ -11692,8 +11802,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.03.19.3',
-  buildTime: '2026.03.19 10:09:32'
+  version: '2026.03.26.9',
+  buildTime: '2026.03.26 15:01:49'
 };
 
 /***/ }),

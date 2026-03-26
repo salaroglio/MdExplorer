@@ -43,9 +43,9 @@ namespace MdExplorer.Hubs
         private static readonly ConcurrentDictionary<string, string> _connectionProjectConnectionIds =
             new ConcurrentDictionary<string, string>();
 
-        // Static dictionary to store conversation history per connection
-        private static readonly ConcurrentDictionary<string, ConversationHistory> _connectionHistories =
-            new ConcurrentDictionary<string, ConversationHistory>();
+        // Static dictionary to store conversation history per connection per channel
+        private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConversationHistory>> _connectionHistories =
+            new ConcurrentDictionary<string, ConcurrentDictionary<string, ConversationHistory>>();
 
         private class ChatModeInfo
         {
@@ -114,12 +114,13 @@ namespace MdExplorer.Hubs
             return string.Empty;
         }
 
-        public async Task SendMessage(string message)
+        public async Task SendMessage(string message, string channelId = "default")
         {
             try
             {
-                _logger.LogInformation($"Received chat message: {message?.Substring(0, Math.Min(message?.Length ?? 0, 50))}...");
-                
+                channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
+                _logger.LogInformation($"Received chat message (channel={channelId}): {message?.Substring(0, Math.Min(message?.Length ?? 0, 50))}...");
+
                 // Get chat mode for this connection
                 var chatMode = GetChatMode();
                 
@@ -156,7 +157,7 @@ namespace MdExplorer.Hubs
                     var currentDoc = docContext.CurrentDocumentPath;
 
                     // Get conversation history and add current message
-                    var history = GetConversationHistory();
+                    var history = GetOrCreateHistory(Context.ConnectionId, channelId);
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
                         Role = "user",
@@ -171,7 +172,7 @@ namespace MdExplorer.Hubs
                     // CopilotCli: use streaming for progressive output
                     if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
                     {
-                        var response = await StreamCopilotCliResponseAsync(provider, message, chatMode.ModelId, currentDoc, history);
+                        var response = await StreamCopilotCliResponseAsync(provider, message, chatMode.ModelId, currentDoc, history, channelId);
                         _logger.LogInformation($"[SendMessage] CopilotCli streaming complete, response length: {response?.Length ?? 0}");
                     }
                     else
@@ -204,7 +205,7 @@ namespace MdExplorer.Hubs
                             Content = response
                         });
 
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                     }
                 }
                 else
@@ -221,7 +222,7 @@ namespace MdExplorer.Hubs
                     // Use LocalLlamaProvider with tool calling support
                     var docContext = GetDocumentContext();
                     var currentDoc = docContext.CurrentDocumentPath;
-                    var history = GetConversationHistory();
+                    var history = GetOrCreateHistory(Context.ConnectionId, channelId);
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
                         Role = "user",
@@ -248,7 +249,7 @@ namespace MdExplorer.Hubs
                     // Send thinking content if available
                     if (!string.IsNullOrEmpty(_localProvider.LastThinkingContent))
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent);
+                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent, channelId);
                     }
 
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
@@ -257,15 +258,15 @@ namespace MdExplorer.Hubs
                         Content = response
                     });
 
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                 }
 
-                await Clients.Caller.SendAsync("StreamComplete");
+                await Clients.Caller.SendAsync("StreamComplete", channelId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing chat message");
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message);
+                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
             }
         }
 
@@ -367,10 +368,23 @@ namespace MdExplorer.Hubs
             await base.OnDisconnectedAsync(exception);
         }
         
-        public Task ClearHistory()
+        public Task ClearHistory(string channelId = null)
         {
-            _logger.LogInformation($"[ClearHistory] Clearing conversation history for connection {Context.ConnectionId}");
-            _connectionHistories.TryRemove(Context.ConnectionId, out _);
+            if (string.IsNullOrEmpty(channelId))
+            {
+                // Clear all channels for this connection (backwards compat)
+                _logger.LogInformation($"[ClearHistory] Clearing ALL conversation history for connection {Context.ConnectionId}");
+                _connectionHistories.TryRemove(Context.ConnectionId, out _);
+            }
+            else
+            {
+                // Clear only the specified channel
+                _logger.LogInformation($"[ClearHistory] Clearing conversation history for connection {Context.ConnectionId}, channel {channelId}");
+                if (_connectionHistories.TryGetValue(Context.ConnectionId, out var channels))
+                {
+                    channels.TryRemove(channelId, out _);
+                }
+            }
             return Task.CompletedTask;
         }
 
@@ -449,7 +463,13 @@ namespace MdExplorer.Hubs
 
         private ConversationHistory GetConversationHistory()
         {
-            return _connectionHistories.GetOrAdd(Context.ConnectionId, _ => new ConversationHistory());
+            return GetOrCreateHistory(Context.ConnectionId, "default");
+        }
+
+        private ConversationHistory GetOrCreateHistory(string connectionId, string channelId)
+        {
+            var channels = _connectionHistories.GetOrAdd(connectionId, _ => new ConcurrentDictionary<string, ConversationHistory>());
+            return channels.GetOrAdd(channelId, _ => new ConversationHistory());
         }
 
         /// <summary>
@@ -463,7 +483,8 @@ namespace MdExplorer.Hubs
             string userMessage,
             string modelId,
             string currentDoc,
-            ConversationHistory history)
+            ConversationHistory history,
+            string channelId = "default")
         {
             // Set the working directory to the current project path
             if (provider is CopilotCliProvider copilotProvider)
@@ -513,7 +534,7 @@ namespace MdExplorer.Hubs
             compositePrompt.AppendLine(userMessage);
 
             // Notify the frontend that this is a CopilotCli session (enables thinking UI)
-            await Clients.Caller.SendAsync("ReceiveStreamMeta", new { providerType = "copilotcli", modelId });
+            await Clients.Caller.SendAsync("ReceiveStreamMeta", new { providerType = "copilotcli", modelId }, channelId);
 
             // Stream the response with line-based parsing
             var lineBuffer = new StringBuilder();
@@ -546,24 +567,24 @@ namespace MdExplorer.Hubs
                             var thinkingLine = CopilotCliStreamParser.CleanThinkingLine(line);
                             if (!string.IsNullOrEmpty(thinkingLine))
                             {
-                                await Clients.Caller.SendAsync("ReceiveThinking", thinkingLine + "\n");
+                                await Clients.Caller.SendAsync("ReceiveThinking", thinkingLine + "\n", channelId);
                             }
                             break;
                         case "response":
                             var responseLine = CopilotCliStreamParser.CleanResponseLine(line);
-                            await Clients.Caller.SendAsync("ReceiveStreamChunk", responseLine + "\n");
+                            await Clients.Caller.SendAsync("ReceiveStreamChunk", responseLine + "\n", channelId);
                             responseText.Append(responseLine + "\n");
                             break;
                         case "empty":
                             // Forward empty lines to preserve markdown paragraph breaks
                             if (lastLineType == "response")
                             {
-                                await Clients.Caller.SendAsync("ReceiveStreamChunk", "\n");
+                                await Clients.Caller.SendAsync("ReceiveStreamChunk", "\n", channelId);
                                 responseText.Append("\n");
                             }
                             break;
                         case "warning":
-                            await Clients.Caller.SendAsync("ReceiveThinking", line.TrimStart() + "\n");
+                            await Clients.Caller.SendAsync("ReceiveThinking", line.TrimStart() + "\n", channelId);
                             break;
                         // "banner", "user_echo" → ignored (stripped)
                     }
@@ -579,12 +600,12 @@ namespace MdExplorer.Hubs
                     var lineType = CopilotCliStreamParser.ClassifyLine(remaining, lastLineType);
                     if (lineType == "thinking")
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", CopilotCliStreamParser.CleanThinkingLine(remaining) + "\n");
+                        await Clients.Caller.SendAsync("ReceiveThinking", CopilotCliStreamParser.CleanThinkingLine(remaining) + "\n", channelId);
                     }
                     else if (lineType == "response")
                     {
                         var cleanRemaining = CopilotCliStreamParser.CleanResponseLine(remaining);
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", cleanRemaining);
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", cleanRemaining, channelId);
                         responseText.Append(cleanRemaining);
                     }
                 }
@@ -778,19 +799,20 @@ namespace MdExplorer.Hubs
 
         #endregion
 
-        public async Task EditAndRegenerateFromMessage(int messageIndex, string newContent)
+        public async Task EditAndRegenerateFromMessage(int messageIndex, string newContent, string channelId = "default")
         {
-            _logger.LogInformation($"[EditAndRegenerateFromMessage] Index: {messageIndex}, NewContent length: {newContent?.Length ?? 0}, ConnectionId: {Context.ConnectionId}");
+            channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
+            _logger.LogInformation($"[EditAndRegenerateFromMessage] Index: {messageIndex}, NewContent length: {newContent?.Length ?? 0}, ConnectionId: {Context.ConnectionId}, Channel: {channelId}");
 
             try
             {
-                var history = GetConversationHistory();
+                var history = GetOrCreateHistory(Context.ConnectionId, channelId);
 
                 // Validazione indice
                 if (messageIndex < 0 || messageIndex >= history.Messages.Count)
                 {
                     _logger.LogWarning($"[EditAndRegenerateFromMessage] Invalid message index: {messageIndex}, total messages: {history.Messages.Count}");
-                    await Clients.Caller.SendAsync("ReceiveError", "Invalid message index");
+                    await Clients.Caller.SendAsync("ReceiveError", "Invalid message index", channelId);
                     return;
                 }
 
@@ -800,7 +822,7 @@ namespace MdExplorer.Hubs
                 if (messageToEdit.Role != "user")
                 {
                     _logger.LogWarning($"[EditAndRegenerateFromMessage] Cannot edit non-user message at index {messageIndex}");
-                    await Clients.Caller.SendAsync("ReceiveError", "Can only edit user messages");
+                    await Clients.Caller.SendAsync("ReceiveError", "Can only edit user messages", channelId);
                     return;
                 }
 
@@ -819,31 +841,31 @@ namespace MdExplorer.Hubs
                 _logger.LogInformation($"[EditAndRegenerateFromMessage] Truncated history to {history.Messages.Count} messages");
 
                 // Notifica frontend di rimuovere messaggi
-                await Clients.Caller.SendAsync("TruncateMessagesAfter", messageIndex);
+                await Clients.Caller.SendAsync("TruncateMessagesAfter", messageIndex, channelId);
 
                 // Rigenera risposta AI
-                await RegenerateAiResponse();
+                await RegenerateAiResponse(channelId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[EditAndRegenerateFromMessage] Error editing and regenerating message");
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message);
+                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
             }
         }
 
-        private async Task RegenerateAiResponse()
+        private async Task RegenerateAiResponse(string channelId = "default")
         {
-            _logger.LogInformation("[RegenerateAiResponse] Starting regeneration");
+            _logger.LogInformation($"[RegenerateAiResponse] Starting regeneration for channel {channelId}");
 
             try
             {
                 var chatMode = GetChatMode();
-                var history = GetConversationHistory();
+                var history = GetOrCreateHistory(Context.ConnectionId, channelId);
 
                 if (history.Messages.Count == 0 || history.Messages[history.Messages.Count - 1].Role != "user")
                 {
                     _logger.LogWarning("[RegenerateAiResponse] No user message to regenerate from");
-                    await Clients.Caller.SendAsync("ReceiveError", "No user message to regenerate from");
+                    await Clients.Caller.SendAsync("ReceiveError", "No user message to regenerate from", channelId);
                     return;
                 }
 
@@ -887,7 +909,7 @@ namespace MdExplorer.Hubs
                     // CopilotCli: use streaming for progressive output
                     if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
                     {
-                        await StreamCopilotCliResponseAsync(provider, lastUserMessage, chatMode.ModelId, currentDoc, history);
+                        await StreamCopilotCliResponseAsync(provider, lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
                     }
                     else
                     {
@@ -916,7 +938,7 @@ namespace MdExplorer.Hubs
                             Content = response
                         });
 
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                     }
                 }
                 else
@@ -953,7 +975,7 @@ namespace MdExplorer.Hubs
                     // Send thinking content if available
                     if (!string.IsNullOrEmpty(_localProvider.LastThinkingContent))
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent);
+                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent, channelId);
                     }
 
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
@@ -962,16 +984,16 @@ namespace MdExplorer.Hubs
                         Content = response
                     });
 
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response);
+                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                 }
 
-                await Clients.Caller.SendAsync("StreamComplete");
+                await Clients.Caller.SendAsync("StreamComplete", channelId);
                 _logger.LogInformation("[RegenerateAiResponse] Regeneration complete");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[RegenerateAiResponse] Error regenerating AI response");
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message);
+                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
             }
         }
     }

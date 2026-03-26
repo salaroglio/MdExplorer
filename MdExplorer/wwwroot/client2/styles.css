@@ -176,6 +176,80 @@ button.mat-mdc-icon-button:hover .mat-button-focus-overlay,
   transform: translateY(-1.25em) scale(0.75) !important;
 }
 
+app-promptlab {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline,
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mdc-notched-outline,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field .mdc-notched-outline,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline .mdc-notched-outline,
+.mat-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline,
+.mat-dialog-container .explorer-header .mat-mdc-form-field .mdc-notched-outline {
+  background-color: transparent !important;
+}
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline-start,
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline-gap,
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline-end,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline-start,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline-gap,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline-end,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline-start,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline-gap,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline-end,
+.mat-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline-start,
+.mat-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline-gap,
+.mat-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline-end {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-start,
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-gap,
+.resizable-dialog-container .explorer-header .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-end,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field.mat-focused .mat-form-field-outline-start,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field.mat-focused .mat-form-field-outline-gap,
+.resizable-dialog-container .explorer-header .mat-mdc-form-field.mat-focused .mat-form-field-outline-end,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-start,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-gap,
+.mat-dialog-container .explorer-header .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-end,
+.mat-dialog-container .explorer-header .mat-mdc-form-field.mat-focused .mat-form-field-outline-start,
+.mat-dialog-container .explorer-header .mat-mdc-form-field.mat-focused .mat-form-field-outline-gap,
+.mat-dialog-container .explorer-header .mat-mdc-form-field.mat-focused .mat-form-field-outline-end {
+  border-color: white !important;
+}
+.resizable-dialog-container .explorer-header .mat-form-field-label,
+.resizable-dialog-container .explorer-header .mat-mdc-floating-label,
+.mat-dialog-container .explorer-header .mat-form-field-label,
+.mat-dialog-container .explorer-header .mat-mdc-floating-label {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+.resizable-dialog-container .explorer-header .mat-input-element,
+.resizable-dialog-container .explorer-header .mat-mdc-input-element,
+.resizable-dialog-container .explorer-header input.mat-input-element,
+.mat-dialog-container .explorer-header .mat-input-element,
+.mat-dialog-container .explorer-header .mat-mdc-input-element,
+.mat-dialog-container .explorer-header input.mat-input-element {
+  color: white !important;
+  caret-color: white !important;
+}
+.resizable-dialog-container .explorer-header .mat-input-element::placeholder,
+.resizable-dialog-container .explorer-header .mat-mdc-input-element::placeholder,
+.resizable-dialog-container .explorer-header input.mat-input-element::placeholder,
+.mat-dialog-container .explorer-header .mat-input-element::placeholder,
+.mat-dialog-container .explorer-header .mat-mdc-input-element::placeholder,
+.mat-dialog-container .explorer-header input.mat-input-element::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+.resizable-dialog-container .explorer-header .mat-icon,
+.mat-dialog-container .explorer-header .mat-icon {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
 .resizable-dialog-container .mat-dialog-container {
   resize: both;
   overflow: auto;
@@ -184,6 +258,15 @@ button.mat-mdc-icon-button:hover .mat-button-focus-overlay,
   max-width: 90vw;
   max-height: 90vh;
   position: relative;
+}
+
+.new-markdown-dialog .mat-dialog-container {
+  padding: 0 !important;
+  background-color: #2d2d2d !important;
+  background: #2d2d2d !important;
+  border-radius: 6px !important;
+  border: 1px solid #555 !important;
+  overflow: hidden !important;
 }
 
 .subtle-dialog-panel .mat-dialog-container {

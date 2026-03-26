@@ -65,7 +65,8 @@ const routes: Routes = [
           { path: 'documentsettings', component: DocumentSettingsComponent },
           { path: 'react-editor', component: MilkdownReactHostComponent },
           { path: 'external-app', component: ExternalAppComponent },
-          { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) }
+          { path: 'ai-chat', loadChildren: () => import('../ai-chat/ai-chat.module').then(m => m.AiChatModule) },
+          { path: 'promptlab', loadChildren: () => import('../promptlab/promptlab.module').then(m => m.PromptLabModule) }
         ]
       },
       {

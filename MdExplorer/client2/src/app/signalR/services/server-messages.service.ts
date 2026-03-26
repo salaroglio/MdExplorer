@@ -130,6 +130,7 @@ export class MdServerMessagesService {
         this.connectionLostProvider.showConsoleClosed();
       });
       this.hubConnection.onclose((data) => {
+        console.warn('🔴 [DIAG] SignalR CLOSED at:', new Date().toISOString(), 'consoleIsClosed:', this.consoleIsClosed);
         if (!this.consoleIsClosed) {
           this.connectionLostProvider.show(this);
           this.connectionIsLost = true;
@@ -144,6 +145,7 @@ export class MdServerMessagesService {
         .start()
         .then(() => {
           console.log('Connection started');
+          console.warn('🔴 [DIAG] SignalR STARTED. wasReconnection:', wasReconnection, 'at:', new Date().toISOString());
           this.connectionIsLost = false;
           this.getCurrentConnectionId(this, wasReconnection);
         }

@@ -32,7 +32,7 @@ myapp.exe --mde-embedded --port <PORT> --mde-host <MDE_URL> [args personalizzati
 
 ## Cosa deve fare l'app esterna
 
-1. **Rilevare `--mde-embedded`** negli argomenti → non aprire una finestra visibile
+1. **Rilevare `--mde-embedded`** negli argomenti → non aprire una finestra **visibile** (creare comunque una `BrowserWindow` nascosta con `show: false` come parent per eventuali dialog nativi)
 2. **Avviare un HTTP server** sulla `<PORT>` indicata
 3. **Rispondere `200 OK`** a `GET /` con l'HTML dell'interfaccia
 4. **Terminare pulitamente** quando il processo riceve un segnale di kill
@@ -68,7 +68,8 @@ const port = isMdeEmbedded ? parseInt(args[args.indexOf('--port') + 1]) : 3000;
 
 app.whenReady().then(() => {
   if (isMdeEmbedded) {
-    // Avvia solo l'HTTP server, nessuna finestra
+    // Nessuna finestra visibile, ma BrowserWindow nascosta per dialog nativi
+    new BrowserWindow({ show: false, width: 1, height: 1 });
     startHttpServer(port);
   } else {
     // Avvia normalmente con BrowserWindow

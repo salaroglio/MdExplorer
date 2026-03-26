@@ -2,7 +2,7 @@ import { Injectable, Inject, forwardRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
 export interface ModelInfo {
@@ -80,6 +80,9 @@ export class AiChatService {
   private currentStreamingMessageId: string | null = null;
   private currentStreamingProviderType: string | null = null;
 
+  // Channel-aware event stream for PromptLab and multi-channel consumers
+  private _channelEvent$ = new Subject<{ type: string; data: any; channelId: string }>();
+
   // Gemini API state
   private _useGemini$ = new BehaviorSubject<boolean>(false);
   public useGemini$ = this._useGemini$.asObservable();
@@ -142,22 +145,38 @@ export class AiChatService {
       this.currentStreamingProviderType = meta.providerType;
     });
 
-    this.hubConnection.on('ReceiveStreamChunk', (chunk: string) => {
-      this._streamingMessage$.next(chunk);
-      this.appendToStreamingMessage(chunk);
+    this.hubConnection.on('ReceiveStreamChunk', (chunk: string, channelId?: string) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({ type: 'chunk', data: chunk, channelId: ch });
+      if (ch === 'default') {
+        this._streamingMessage$.next(chunk);
+        this.appendToStreamingMessage(chunk);
+      }
     });
 
-    this.hubConnection.on('ReceiveThinking', (chunk: string) => {
-      this.appendToThinkingContent(chunk);
+    this.hubConnection.on('ReceiveThinking', (chunk: string, channelId?: string) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({ type: 'thinking', data: chunk, channelId: ch });
+      if (ch === 'default') {
+        this.appendToThinkingContent(chunk);
+      }
     });
 
-    this.hubConnection.on('StreamComplete', () => {
-      this.finalizeStreamingMessage();
+    this.hubConnection.on('StreamComplete', (channelId?: string) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({ type: 'complete', data: null, channelId: ch });
+      if (ch === 'default') {
+        this.finalizeStreamingMessage();
+      }
     });
 
-    this.hubConnection.on('ReceiveError', (error: string) => {
-      console.error('Chat error:', error);
-      this.addMessage('system', `Error: ${error}`);
+    this.hubConnection.on('ReceiveError', (error: string, channelId?: string) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({ type: 'error', data: error, channelId: ch });
+      if (ch === 'default') {
+        console.error('Chat error:', error);
+        this.addMessage('system', `Error: ${error}`);
+      }
     });
 
     // Start connection
@@ -282,6 +301,50 @@ export class AiChatService {
           this.addMessage('system', `Failed to send message: ${err}`);
         });
     }
+  }
+
+  /**
+   * Send a message on a specific channel (used by PromptLab cards).
+   * Each channel maintains independent conversation history on the backend.
+   */
+  sendMessageToChannel(message: string, channelId: string): void {
+    if (!message.trim()) return;
+
+    console.log(`[AiChatService] sendMessageToChannel hub state: ${this.hubConnection.state}, channelId: ${channelId}`);
+
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SendMessage', message, channelId)
+        .then(() => console.log(`[AiChatService] SendMessage invoked successfully for channel: ${channelId}`))
+        .catch(err => {
+          console.error(`[AiChatService] Error sending message to channel ${channelId}:`, err);
+          this._channelEvent$.next({ type: 'error', data: `Failed to send message: ${err}`, channelId });
+        });
+    } else {
+      console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+    }
+  }
+
+  /**
+   * Clear conversation history for a specific channel on the backend.
+   */
+  clearChannelHistory(channelId: string): void {
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('ClearHistory', channelId).catch(err => {
+        console.error(`[AiChatService] Error clearing history for channel ${channelId}:`, err);
+      });
+    }
+  }
+
+  /**
+   * Get an Observable stream of events filtered for a specific channelId.
+   * Each event has { type: 'chunk' | 'thinking' | 'complete' | 'error', data: any }.
+   * Used by PromptLab cards to subscribe to their own channel.
+   */
+  getChannelStream$(channelId: string): Observable<{ type: string; data: any }> {
+    return this._channelEvent$.asObservable().pipe(
+      filter(event => event.channelId === channelId),
+      map(({ type, data }) => ({ type, data }))
+    );
   }
 
   private addMessage(role: 'user' | 'assistant' | 'system', content: string, id?: string, isStreaming?: boolean): void {
@@ -500,6 +563,27 @@ export class AiChatService {
         .catch(err => {
           console.error('[AiChatService] Error calling SetChatMode:', err);
         });
+    }
+  }
+
+  /**
+   * Async version of setProvider — awaits the hub invoke before returning.
+   */
+  async setProviderAsync(provider: string, modelId: string | null): Promise<void> {
+    console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
+
+    if (provider === 'gemini') {
+      this._useGemini$.next(true);
+      if (modelId) {
+        this._geminiModel$.next(modelId);
+      }
+    } else {
+      this._useGemini$.next(false);
+    }
+
+    if (this.hubConnection.state === 'Connected') {
+      await this.hubConnection.invoke('SetChatMode', provider, modelId);
+      console.log('[AiChatService] SetChatMode completed for:', provider, modelId);
     }
   }
   

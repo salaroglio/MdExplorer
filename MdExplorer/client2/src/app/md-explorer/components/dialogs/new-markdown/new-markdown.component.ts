@@ -10,34 +10,23 @@ import { Snippet } from './models/snippet';
   styleUrls: ['./new-markdown.component.scss']
 })
 export class NewMarkdownComponent implements OnInit {
-  public markdownTitle: string
+  public markdownTitle: string;
+
+  documentTypes: Snippet[] = [
+    { id: 0, name: 'Text document', documentType: 'document' },
+    { id: 8, name: 'PromptLab', documentType: 'promptlab' },
+    { id: 5, name: 'Slides', documentType: 'slides' }
+  ];
+
+  selectedTemplate: Snippet;
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: MdFile,
     private dialogRef: MatDialogRef<NewMarkdownComponent>,
     private mdFileService: MdFileService
   ) {
-    this.selectedTemplate = this.plantumlTemplates[0]    
+    this.selectedTemplate = this.documentTypes[0];
   }
-
-  
-  selectedTemplate: Snippet;
-
-  plantumlTemplates: Snippet[] =
-    [{ id: 0, name: 'Text document', documentType:'document' },
-      { id: 1, name: 'Sequence Diagram', documentType: 'document' },
-      { id: 2, name: 'State Diagram', documentType: 'document' },
-      { id: 3, name: 'Workflow', documentType: 'document' },
-      { id: 4, name: 'Gantt current week', documentType: 'document' }];
-
-  slideTemplates: Snippet[] =
-    [{
-      id: 5, name: 'Flicker document', documentType: 'slides'
-    }, {
-      id: 6, name: 'Slide video', documentType: 'slides'
-    }, {
-      id: 7, name: 'Slide power point', documentType: 'slides'
-    }];
-
 
   ngOnInit(): void {
   }
@@ -45,13 +34,17 @@ export class NewMarkdownComponent implements OnInit {
   dismiss() {
     this.dialogRef.close();
   }
+
   save() {
+    if (!this.markdownTitle || !this.markdownTitle.trim()) {
+      return;
+    }
     this.mdFileService.CreateNewMd(
       this.data.fullPath,
       this.markdownTitle,
       this.data.level,
       this.selectedTemplate.id,
-      this.selectedTemplate.documentType )
+      this.selectedTemplate.documentType)
       .subscribe(data => {
         console.log(JSON.stringify(data, null, 2));
         this.mdFileService.addNewFile(data);

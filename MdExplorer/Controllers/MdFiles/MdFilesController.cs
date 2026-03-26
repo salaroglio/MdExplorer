@@ -1616,8 +1616,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
         [HttpGet]
         public async Task<IActionResult> GetShallowStructure(string connectionId)
         {
+            _logger.LogWarning("[DIAG] GetShallowStructure CALLED for connectionId: {ConnectionId}", connectionId);
             signalRConnectionId = connectionId;
-            
+
             var list = new List<IFileInfoNode>();
             var currentPath = GetProjectPath();
             
@@ -1699,6 +1700,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var relativePath = itemFile.Substring(GetProjectPath().Length)
                     .TrimStart(Path.DirectorySeparatorChar, '/');
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, relativePath);
+                if (IsPromptLabFile(itemFile))
+                    nodeFile.Type = "promptlab";
                 nodeFile.IsIndexed = !linkIndexingEnabled;
                 nodeFile.IndexingStatus = linkIndexingEnabled ? "idle" : "completed";
                 list.Add(nodeFile);
@@ -1968,6 +1971,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var patchedItemFile = itemFile.Substring(GetProjectPath().Length)
                         .TrimStart(Path.DirectorySeparatorChar, '/');
                     var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
+                    if (IsPromptLabFile(itemFile))
+                        node.Type = "promptlab";
                     list.Add(node);
                 }
 
@@ -2095,21 +2100,54 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             // Text Document Management
             var templateContent = string.Empty;
-            var snippetTextDocument = _snippets.Where(_ => _.Id == 0).FirstOrDefault();
-            var dictParam = new DictionarySnippetParam();
-            dictParam.Add(ParameterName.StringDocumentTitle, fileData.Title);
-            dictParam.Add(ParameterName.ProjectPath, GetProjectPath());
-            dictParam.Add(ParameterName.DocumentType, fileData.DocumentType);
-            templateContent = snippetTextDocument.GetSnippet(dictParam);
 
-
-            // Additional Template
-            var snippet = _snippets.Where(_ => _.Id == fileData.documentTypeId && _.Id != 0).FirstOrDefault();
-            if (snippet != null)
+            if (fileData.DocumentType == "promptlab")
             {
-                snippet.SetAssets(fullPath);
-                var addtionalTemplateContent = snippet.GetSnippet(dictParam);
-                templateContent = string.Concat(templateContent, addtionalTemplateContent);
+                // PromptLab template — custom YAML front matter + card scaffold
+                var now = DateTime.UtcNow.ToString("o");
+                templateContent = string.Concat(
+                    "---\r\n",
+                    "promptlab: true\r\n",
+                    "version: 1\r\n",
+                    $"title: {fileData.Title}\r\n",
+                    "model: gpt-4o\r\n",
+                    "mode: prompt\r\n",
+                    $"created: {now}\r\n",
+                    $"updated: {now}\r\n",
+                    "---\r\n",
+                    "\r\n",
+                    "## Card: Nuova Card\r\n",
+                    "\r\n",
+                    "<!-- promptlab-card-id: card-001 -->\r\n",
+                    "\r\n",
+                    "### Parametri\r\n",
+                    "\r\n",
+                    "| Nome | Tipo | Valore |\r\n",
+                    "|------|------|--------|\r\n",
+                    "\r\n",
+                    "### Prompt\r\n",
+                    "\r\n",
+                    "[Scrivi qui il tuo prompt o usa la chat per svilupparlo]\r\n"
+                );
+            }
+            else
+            {
+                var snippetTextDocument = _snippets.Where(_ => _.Id == 0).FirstOrDefault();
+                var dictParam = new DictionarySnippetParam();
+                dictParam.Add(ParameterName.StringDocumentTitle, fileData.Title);
+                dictParam.Add(ParameterName.ProjectPath, GetProjectPath());
+                dictParam.Add(ParameterName.DocumentType, fileData.DocumentType);
+                templateContent = snippetTextDocument.GetSnippet(dictParam);
+
+
+                // Additional Template
+                var snippet = _snippets.Where(_ => _.Id == fileData.documentTypeId && _.Id != 0).FirstOrDefault();
+                if (snippet != null)
+                {
+                    snippet.SetAssets(fullPath);
+                    var addtionalTemplateContent = snippet.GetSnippet(dictParam);
+                    templateContent = string.Concat(templateContent, addtionalTemplateContent);
+                }
             }
 
             // write content
@@ -2509,6 +2547,42 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
+        /// Checks if a markdown file has promptlab: true in its YAML front matter
+        /// and is located inside a folder named "promptlab".
+        /// </summary>
+        private bool IsPromptLabFile(string filePath)
+        {
+            try
+            {
+                if (!filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // Read only the first ~10 lines looking for YAML front matter with promptlab: true
+                using var reader = new StreamReader(filePath);
+                var firstLine = reader.ReadLine();
+                if (firstLine == null || firstLine.Trim() != "---")
+                    return false;
+
+                for (int i = 0; i < 10; i++)
+                {
+                    var line = reader.ReadLine();
+                    if (line == null)
+                        break;
+                    if (line.Trim() == "---")
+                        break; // end of front matter
+                    if (line.Trim().Equals("promptlab: true", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[IsPromptLabFile] Failed to check front matter for '{FilePath}'", filePath);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Loads development tags from .development.yml file in the specified folder
         /// </summary>
         /// <param name="folderPath">Path to the folder to check for .development.yml</param>
@@ -2746,13 +2820,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     fileInfoNode.Childrens.Add(node);
 
-                    // Send folderIndexingComplete event for subfolder
-                    await _hubContext.Clients.Client(signalRConnectionId)
-                        .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
-
                     // Small delay to make progress visible
                     await Task.Delay(50);
                 }
+
+                // Send folderIndexingComplete event (sempre, anche se vuota)
+                await _hubContext.Clients.Client(signalRConnectionId)
+                    .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
+
                 isEmpty = isEmpty && isempty;
             }
 
@@ -2766,6 +2841,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 var patchedItemFile = itemFile.Substring(projectPath.Length);
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
+                if (IsPromptLabFile(itemFile))
+                    node.Type = "promptlab";
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
             }
@@ -2802,13 +2879,14 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     fileInfoNode.Childrens.Add(node);
 
-                    // Send folderIndexingComplete event for subfolder
-                    await _hubContext.Clients.Client(connectionId)
-                        .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
-
                     // Small delay to make progress visible
                     await Task.Delay(50);
                 }
+
+                // Send folderIndexingComplete event (sempre, anche se vuota)
+                await _hubContext.Clients.Client(connectionId)
+                    .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
+
                 isEmpty = isEmpty && isempty;
             }
 
@@ -2822,6 +2900,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 var patchedItemFile = itemFile.Substring(projectPath.Length);
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
+                if (IsPromptLabFile(itemFile))
+                    node.Type = "promptlab";
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
             }
@@ -2830,6 +2910,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         private async Task IndexLinksInBackground(string connectionId)
         {
+            _logger.LogWarning("[DIAG] IndexLinksInBackground STARTED for connectionId: {ConnectionId}", connectionId);
             // Per questa implementazione, saltiamo la gestione del database
             // e ci concentriamo solo sulle notifiche SignalR per il feedback visivo
 
@@ -2852,11 +2933,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 if (!isEmpty)
                 {
                     fullStructure.Add(folderNode);
-
-                    // Notifica fine indicizzazione cartella
-                    await _hubContext.Clients.Client(connectionId)
-                        .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
                 }
+
+                // Notifica fine indicizzazione cartella (sempre, anche se vuota)
+                await _hubContext.Clients.Client(connectionId)
+                    .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
             }
 
             // File nella root
@@ -2866,6 +2947,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     continue;
 
                 var nodeFile = _projectBodyEngine.CreateNodeMdFile(itemFile, currentPath);
+                if (IsPromptLabFile(itemFile))
+                    nodeFile.Type = "promptlab";
                 fullStructure.Add(nodeFile);
             }
 

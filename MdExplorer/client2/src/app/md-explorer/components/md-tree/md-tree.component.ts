@@ -219,6 +219,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Aggiungi listener per cartelle in indicizzazione
     this.mdServerMessages.addFolderIndexingStartListener((data, component) => {
+      console.warn('🔴 [DIAG] folderIndexingStart received:', { path: data.path, timestamp: new Date().toISOString() });
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'indexing';
@@ -525,6 +526,22 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // PromptLab file: navigate to PromptLab view
+    if (node.type === 'promptlab') {
+      try {
+        await this.router.navigate(['/main/navigation/promptlab']);
+        this.mdFileService.setSelectedMdFileFromSideNav(node);
+        this.navService.setNewNavigation(node);
+        this.activeNode = node;
+        this.selectedNode = node;
+        this.changeDetectorRef.markForCheck();
+      } catch (error) {
+        console.error('PromptLab navigation failed:', error);
+        this.snackBar.open('Errore di navigazione PromptLab', 'OK', { duration: 3000 });
+      }
+      return;
+    }
+
     try {
       // ✅ ASPETTA che la navigazione sia completata
       await this.router.navigate(['/main/navigation/document']);
@@ -721,9 +738,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   createMdOn(node: MdFile) {
 
     this.dialog.open(NewMarkdownComponent, {
-      width: '300px',
-      //height:'400px',
+      width: '400px',
       data: node,
+      panelClass: 'new-markdown-dialog',
     });
   }
 

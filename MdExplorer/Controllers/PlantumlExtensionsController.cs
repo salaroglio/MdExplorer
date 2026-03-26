@@ -1,5 +1,6 @@
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
 using MdExplorer.Features.Interfaces.ICommandsSpecificContext;
 using MdExplorer.Hubs;
@@ -24,9 +25,11 @@ namespace MdExplorer.Service.Controllers
     public class PlantumlExtensionsController : MdControllerBase<PlantumlExtensionsController>
     {
         private readonly ICommandFactoryHtml _commandFactory;
+        private readonly PlantumlServer _plantumlServer;
 
         public PlantumlExtensionsController(
             ICommandFactoryHtml commandFactory,
+            PlantumlServer plantumlServer,
             ILogger<PlantumlExtensionsController> logger,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
@@ -37,6 +40,7 @@ namespace MdExplorer.Service.Controllers
                   databaseManager: databaseManager)
         {
             _commandFactory = commandFactory;
+            _plantumlServer = plantumlServer;
         }
 
         [HttpGet]
@@ -87,6 +91,37 @@ namespace MdExplorer.Service.Controllers
             (var generatedFileName, var totalStep ) = render.GetPresentationSvg(markdown, hashFile, step, requestInfo);
 
             return Ok(new { GeneratedFileName = "/api/mdexplorer/" + generatedFileName, TotalStep = totalStep });
+        }
+
+        /// <summary>
+        /// Renders PlantUML code to SVG via the PlantUML server.
+        /// Used by PromptLab to render Sequence/Workflow diagrams.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> RenderSvg([FromBody] RenderSvgRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.PlantUmlCode))
+                    return BadRequest(new { error = "PlantUML code is required" });
+
+                var svgBytes = await _plantumlServer.GetSvgFromJar(request.PlantUmlCode);
+                if (svgBytes == null || svgBytes.Length == 0)
+                    return StatusCode(500, new { error = "PlantUML server returned empty result" });
+
+                var svg = Encoding.UTF8.GetString(svgBytes);
+                return Ok(new { svg });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RenderSvg] Error rendering PlantUML");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        public class RenderSvgRequest
+        {
+            public string PlantUmlCode { get; set; }
         }
 
     }

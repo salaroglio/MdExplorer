@@ -511,50 +511,19 @@ namespace MdExplorer.Controllers
                 
                 .Build();
 
-            var result = Markdown.ToHtml(readText, pipeline);
-            Directory.SetCurrentDirectory(GetProjectPath());
-
-            
-
-            //try
-            //{
-            //    if (System.IO.File.Exists(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
-            //                            Path.DirectorySeparatorChar + cacheName))
-            //    {
-
-            //        var currentHtml = System.IO.File.ReadAllText(rootPathSystem + Path.DirectorySeparatorChar + ".md" +
-            //                               Path.DirectorySeparatorChar + cacheName);
-            //        if (currentHtml != String.Empty)
-            //        {
-            //            var myurl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
-            //            var regularExpression = @$"{this.Request.Scheme}://localhost([^/]*)";
-            //            Regex rx = new Regex(regularExpression,
-            //                       RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            //            var matches = rx.Matches(currentHtml);
-            //            currentHtml = Regex.Replace(currentHtml, regularExpression, myurl);
-
-            //            await _hubContext.Clients.All.SendAsync("markdownfileisprocessed", monitoredMd);
-            //            var toQuickReturn = new ContentResult
-            //            {
-            //                ContentType = "text/html; charset=utf-8",
-            //                Content = currentHtml,
-
-            //            };
-            //            return toQuickReturn;
-            //        }
-
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    var msg = ex.Message;
-
-            //}
-
-
-
-            //Directory.SetCurrentDirectory(GetProjectPath());
-            result = _commandRunner.TransformAfterConversion(result, requestInfo);
+            string result;
+            try
+            {
+                result = Markdown.ToHtml(readText, pipeline);
+                Directory.SetCurrentDirectory(GetProjectPath());
+                result = _commandRunner.TransformAfterConversion(result, requestInfo);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"⚠️ [MdExplorer] Markdown rendering failed for: {fullPathFile}");
+                Directory.SetCurrentDirectory(GetProjectPath());
+                result = BuildMarkdownRenderingErrorHtml(fullPathFile, readText, ex);
+            }
 
             var docSettingDal = _userSettingsDB.GetDal<DocumentSetting>();
             //var currentDocSetting = docSettingDal.GetList().Where(_ => _.DocumentPath == fullPathFile).FirstOrDefault();
@@ -808,6 +777,94 @@ namespace MdExplorer.Controllers
                 // Return a simple HTML fallback
                 return $"<div><div onclick=\"{functionJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
             }
+        }
+
+        /// <summary>
+        /// Builds an HTML error page when Markdown rendering fails.
+        /// Shows the error details and a copyable AI prompt to help fix the source file.
+        /// </summary>
+        private static string BuildMarkdownRenderingErrorHtml(string fullPathFile, string markdownSource, Exception ex)
+        {
+            var fileName = Path.GetFileName(fullPathFile);
+            var errorType = ex.GetType().Name;
+            var errorMessage = System.Security.SecurityElement.Escape(ex.Message);
+
+            // Identify lines that may be problematic (very long lines, or lines with complex nesting)
+            var lines = markdownSource.Split('\n');
+            var suspectLines = new StringBuilder();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                // Flag lines that are very long (likely complex table rows) or contain unescaped backticks inside tables
+                if (line.TrimStart().StartsWith("|") && line.Length > 300)
+                {
+                    suspectLines.AppendLine($"  - Line {i + 1} ({line.Length} chars): table row with complex content");
+                }
+            }
+
+            var suspectSection = suspectLines.Length > 0
+                ? $"<h3>Suspect lines</h3><pre>{System.Security.SecurityElement.Escape(suspectLines.ToString())}</pre>"
+                : "";
+
+            // Build a copyable prompt for the AI
+            var aiPrompt = $@"The file ""{fileName}"" cannot be rendered by MdExplorer due to a Markdown parsing error.
+
+Error: {ex.Message}
+
+{(suspectLines.Length > 0 ? "Suspect lines:\n" + suspectLines.ToString() : "")}
+Please fix the Markdown source so that it can be parsed correctly. Common causes:
+- Triple backticks (```) inside table cells create deeply nested inline elements. Escape them as \`\`\` or replace with descriptive text like ""triple backtick"".
+- Very long table rows with mixed formatting (bold, code, links) can exceed parser nesting limits.
+- Unbalanced formatting markers (*, **, `) inside table cells.
+
+Keep the content and meaning identical — only fix the Markdown syntax.";
+
+            var escapedPrompt = System.Security.SecurityElement.Escape(aiPrompt)
+                .Replace("\n", "&#10;")
+                .Replace("\r", "");
+
+            var escapedPromptForJs = aiPrompt
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "");
+
+            return $@"
+<div style=""font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px; margin: 40px auto; padding: 20px;"">
+
+    <div style=""background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;"">
+        <h2 style=""margin-top: 0; color: #856404;"">&#9888; Markdown rendering failed</h2>
+        <p style=""color: #856404; margin-bottom: 0;"">
+            The file <strong>{System.Security.SecurityElement.Escape(fileName)}</strong> could not be rendered.
+        </p>
+    </div>
+
+    <div style=""background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 20px;"">
+        <h3 style=""margin-top: 0;"">Error details</h3>
+        <p><strong>Type:</strong> {errorType}</p>
+        <p><strong>Message:</strong> {errorMessage}</p>
+        <p><strong>File:</strong> <code>{System.Security.SecurityElement.Escape(fullPathFile)}</code></p>
+        {suspectSection}
+    </div>
+
+    <div style=""background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px; padding: 20px; margin-bottom: 20px;"">
+        <h3 style=""margin-top: 0; color: #0a58ca;"">&#129302; AI Fix Prompt</h3>
+        <p style=""color: #0a58ca;"">Copy the text below and paste it to your AI assistant to get the file fixed:</p>
+        <textarea id=""aiPromptText"" readonly
+                  style=""width: 100%; height: 200px; font-family: monospace; font-size: 13px;
+                         padding: 12px; border: 1px solid #b6d4fe; border-radius: 4px;
+                         background: #ffffff; resize: vertical;""
+        >{escapedPrompt}</textarea>
+        <br />
+        <button onclick=""navigator.clipboard.writeText(document.getElementById('aiPromptText').value).then(function(){{ var b=event.target; b.textContent='Copied!'; setTimeout(function(){{ b.textContent='Copy to clipboard'; }}, 2000); }});""
+                style=""margin-top: 10px; padding: 8px 20px; background: #0a58ca; color: white;
+                       border: none; border-radius: 4px; cursor: pointer; font-size: 14px;"">
+            Copy to clipboard
+        </button>
+    </div>
+
+</div>";
         }
 
     }

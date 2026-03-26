@@ -14,10 +14,12 @@ export class ConnectionLostProvider {
   }
 
   show(hub: MdServerMessagesService): ConnectionLostProvider {
+    console.warn('🔴 [DIAG] Connection Lost dialog OPENED at:', new Date().toISOString());
     this._dialogRef = this.dialog.open(ConnectionLostComponent, {
       data: null
     });
     this._dialogRef.afterClosed().subscribe(_ => {
+      console.warn('🔴 [DIAG] Connection Lost dialog CLOSED at:', new Date().toISOString());
       hub.startConnection();
     });
     return this;

@@ -1,0 +1,212 @@
+<!-- Card container -->
+<div class="card" [class.single-card]="isSingleCard">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="card-header">
+
+    <!-- Title row -->
+    <div class="card-title-row">
+      <span class="pin">&#128204;</span>
+      <span class="title"
+            contenteditable="true"
+            (blur)="onTitleEdit($event)"
+            [attr.data-placeholder]="'Titolo card...'"
+      >{{ card.generatedTitle }}</span>
+      <span class="spacer"></span>
+      <button class="delete-btn" (click)="deleteCard()" title="Elimina card">&#128465;</button>
+    </div>
+
+    <!-- Parameters row -->
+    <div class="card-params" *ngIf="card.parameters.length > 0">
+      <ng-container *ngFor="let param of card.parameters; let i = index">
+
+        <!-- Inline editor for text params -->
+        <span class="inline-editor" *ngIf="editingParamIndex === i">
+          <span>{{ getParamIcon(param.type) }}</span>
+          <input [value]="editingParamValue"
+                 (input)="editingParamValue = $any($event.target).value"
+                 (keydown)="onParamEditKeydown($event, param)"
+                 #paramInput />
+          <button class="confirm" (click)="confirmParamEdit(param)">&#10003;</button>
+        </span>
+
+        <!-- Normal param button -->
+        <span class="param-btn"
+              *ngIf="editingParamIndex !== i"
+              [ngClass]="getParamDisplayClass(param)"
+              (click)="onParameterClick(param, i)">
+          {{ getParamIcon(param.type) }}
+          {{ param.name }}<span *ngIf="param.value"> = <b>{{ param.value }}</b></span>
+        </span>
+
+      </ng-container>
+    </div>
+
+    <!-- Actions row -->
+    <div class="card-actions">
+      <button class="play-btn"
+              (click)="onPlay()"
+              [disabled]="isStreaming || isExecuting">
+        {{ isExecuting ? '...' : '&#9654; Play' }}
+      </button>
+      <button class="lastrun-btn"
+              [class.active]="showLastRun"
+              [class.has-run]="!!card.lastRun"
+              [disabled]="!card.lastRun"
+              (click)="toggleLastRun()">
+        &#128065; Ultimo run {{ showLastRun ? '&#9650;' : '&#9660;' }}
+      </button>
+      <span class="action-separator"></span>
+      <button class="diagram-btn"
+              [class.active]="activeDiagram === 'sequence'"
+              (click)="toggleDiagram('sequence')"
+              [disabled]="isDiagramLoading && activeDiagram !== 'sequence'">
+        <span class="diagram-spinner" *ngIf="isDiagramLoading && activeDiagram === 'sequence'"></span>
+        {{ isDiagramLoading && activeDiagram === 'sequence' ? 'Generazione...' : '&#9776; Sequence' }}
+      </button>
+      <button class="diagram-btn"
+              [class.active]="activeDiagram === 'workflow'"
+              (click)="toggleDiagram('workflow')"
+              [disabled]="isDiagramLoading && activeDiagram !== 'workflow'">
+        <span class="diagram-spinner" *ngIf="isDiagramLoading && activeDiagram === 'workflow'"></span>
+        {{ isDiagramLoading && activeDiagram === 'workflow' ? 'Generazione...' : '&#9881; Workflow' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ ULTIMO RUN PANEL (Task 8.2) ═══ -->
+  <div class="ultimo-run" *ngIf="showLastRun && card.lastRun">
+    <div class="run-section">
+      <div class="run-section-title">Metadata esecuzione</div>
+      <div class="run-meta">
+        <span class="run-meta-item"><strong>Data:</strong> {{ formatRunDate(card.lastRun.executedAt) }}</span>
+        <span class="run-meta-item"><strong>Provider:</strong> {{ card.lastRun.provider }}</span>
+        <span class="run-meta-item"><strong>Modello:</strong> {{ card.lastRun.model }}</span>
+        <span class="run-meta-item"><strong>Durata:</strong> {{ formatDuration(card.lastRun.duration) }}</span>
+      </div>
+    </div>
+
+    <div class="run-section" *ngIf="getRunParamKeys().length > 0">
+      <div class="run-section-title">Parametri risolti</div>
+      <div class="run-params">
+        <div class="run-param" *ngFor="let key of getRunParamKeys()">
+          <span class="run-param-name">{{ key }}</span>
+          <span class="run-param-eq">=</span>
+          <span class="run-param-val">{{ card.lastRun.resolvedParameters[key] }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="run-section">
+      <div class="run-section-title">Prompt inviato al LLM</div>
+      <div class="run-prompt">{{ card.lastRun.promptSent }}</div>
+    </div>
+
+    <div class="run-section">
+      <div class="run-section-title">Output prodotto</div>
+      <div class="run-output">{{ card.lastRun.output }}</div>
+    </div>
+  </div>
+
+  <!-- ═══ DIAGRAM PANEL (Task 9.1) ═══ -->
+  <div class="diagram-panel" *ngIf="activeDiagram">
+    <div class="diagram-header">
+      <span class="diagram-title">{{ activeDiagram === 'sequence' ? 'Sequence Diagram' : 'Workflow Diagram' }}</span>
+      <button class="diagram-copy-btn" (click)="copyDiagram()" title="Copia codice PlantUML" [disabled]="!diagramPlantUml">Copia PlantUML</button>
+    </div>
+    <div class="diagram-body">
+      <div *ngIf="isDiagramLoading" class="diagram-loading">Generazione diagramma...</div>
+      <!-- SVG rendered by PlantUML server -->
+      <div *ngIf="!isDiagramLoading && diagramSvg" class="diagram-svg" [innerHTML]="diagramSvg"></div>
+      <!-- Fallback: raw PlantUML code if SVG rendering failed -->
+      <pre *ngIf="!isDiagramLoading && !diagramSvg && diagramPlantUml" class="diagram-code">{{ diagramPlantUml }}</pre>
+      <div *ngIf="!isDiagramLoading && !diagramSvg && !diagramPlantUml" class="diagram-empty">Nessun diagramma generato.</div>
+    </div>
+  </div>
+
+  <!-- ═══ BODY (two columns + splitter) ═══ -->
+  <div class="card-body" [class.chat-collapsed]="chatCollapsed">
+
+    <!-- Left column: Chat con LLM -->
+    <div class="chat-column" [ngStyle]="getChatColumnStyle()">
+      <div class="column-label">
+        <span class="label-text">Chat con LLM</span>
+        <button class="reset-chat-btn" (click)="resetChat()" title="Azzera la chat" [disabled]="isStreaming">&#8635; Reset</button>
+      </div>
+
+      <div class="chat-messages" #messagesContainer>
+        <div class="msg" *ngFor="let message of card.conversation">
+          <div class="author" [ngClass]="message.role">
+            {{ message.role === 'user' ? 'Utente' : 'Assistente' }}
+            <span class="time">{{ formatTime(message.timestamp) }}</span>
+          </div>
+          <div class="text">{{ message.content }}</div>
+        </div>
+
+        <!-- Streaming message -->
+        <div class="msg" *ngIf="isStreaming">
+          <div class="author assistant">Assistente</div>
+          <div class="text streaming">{{ streamingContent }}<span class="streaming-cursor"></span></div>
+        </div>
+
+        <div *ngIf="card.conversation.length === 0 && !isStreaming" class="chat-empty">
+          Nessun messaggio. Scrivi qualcosa per iniziare la conversazione.
+        </div>
+      </div>
+
+      <div class="distillation-indicator" *ngIf="isDistilling">
+        <span class="distill-spinner"></span> Distillazione in corso...
+      </div>
+
+      <div class="chat-input">
+        <textarea placeholder="Scrivi un messaggio..."
+                  [(ngModel)]="chatInputText"
+                  (keydown)="onChatInputKeydown($event)"
+                  [disabled]="isStreaming"
+                  rows="4"></textarea>
+        <button (click)="sendMessage()" [disabled]="isStreaming">
+          {{ isStreaming ? '...' : 'Invia' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Splitter -->
+    <div class="column-splitter" (mousedown)="onSplitterMouseDown($event)">
+      <span class="grip">&#8942;</span>
+    </div>
+
+    <!-- Right column: Prompt Distillato -->
+    <div class="prompt-column">
+      <div class="column-label">
+        <button class="collapse-chat-btn" (click)="toggleChat()">
+          <span *ngIf="chatCollapsed">&#9654; Mostra chat</span>
+          <span *ngIf="!chatCollapsed">&#9664; Nascondi chat</span>
+        </button>
+        <span class="label-text">Prompt Distillato</span>
+      </div>
+
+      <div class="prompt-content">
+        <!-- View mode: rendered markdown -->
+        <div class="prompt-rendered"
+             *ngIf="!isEditingPrompt"
+             [innerHTML]="renderedPrompt"
+             (click)="startEditingPrompt()">
+        </div>
+
+        <!-- Edit mode: raw text -->
+        <textarea class="prompt-editor"
+                  *ngIf="isEditingPrompt"
+                  [(ngModel)]="editingPromptText"
+                  (blur)="finishEditingPrompt()"
+                  (keydown.escape)="finishEditingPrompt()"
+                  #promptEditor></textarea>
+      </div>
+
+      <div class="prompt-note">
+        &#8505; {{ isEditingPrompt ? 'Modifica in corso — clicca fuori per salvare.' : 'Clicca sul testo per modificare il prompt.' }}
+      </div>
+    </div>
+
+  </div>
+
+</div>

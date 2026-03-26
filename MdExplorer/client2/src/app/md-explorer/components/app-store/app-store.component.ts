@@ -185,6 +185,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
       this.snackBar.open('Aggiungi un repository nelle Impostazioni > Application.', 'OK', { duration: 4000 });
       return;
     }
+    this.appStoreService.invalidateCache();
     this.isLoadingCatalog = true;
     this.catalogLoadError = false;
     this.catalogApps = [];

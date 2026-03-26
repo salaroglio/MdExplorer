@@ -52,7 +52,7 @@ Il backend HTTP dell'app deve quindi esporre via REST le stesse funzionalità ch
 └────────────────────────────────────────┘
 ```
 
-**Insight chiave**: il main process Electron è SEMPRE in esecuzione. In modalità embedded non crea la finestra ma ha comunque accesso a tutte le API Electron. L'HTTP server è solo un ponte di comunicazione alternativo.
+**Insight chiave**: il main process Electron è SEMPRE in esecuzione. In modalità embedded non crea una finestra visibile, ma **deve creare una BrowserWindow nascosta** (`show: false`) da usare come parent per i dialog nativi (file open, save, ecc.). Senza una finestra parent, su Windows `dialog.showOpenDialog(null, ...)` non mostra alcun dialog. L'HTTP server è solo un ponte di comunicazione alternativo.
 
 ---
 
@@ -99,7 +99,8 @@ let mainWindow = null;
 
 app.whenReady().then(() => {
   if (isMdeEmbedded) {
-    // EMBEDDED MODE: avvia solo l'HTTP server, nessuna finestra
+    // EMBEDDED MODE: BrowserWindow nascosta (necessaria come parent per i dialog nativi)
+    mainWindow = new BrowserWindow({ show: false, width: 1, height: 1 });
     startHttpServer(mdePort);
   } else {
     // STANDALONE MODE: finestra + IPC handlers normali
@@ -204,10 +205,11 @@ function startHttpServer(port) {
   // --- Bridge REST API ---
 
   // File dialog: apri
+  // IMPORTANTE: passare mainWindow (nascosta) come parent — senza parent,
+  // su Windows il dialog nativo non viene mostrato.
   server.post('/api/bridge/dialog/open', async (req, res) => {
     try {
-      // dialog.showOpenDialog funziona anche senza BrowserWindow (passa null)
-      const result = await dialog.showOpenDialog(null, req.body || {});
+      const result = await dialog.showOpenDialog(mainWindow, req.body || {});
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -217,7 +219,7 @@ function startHttpServer(port) {
   // File dialog: salva
   server.post('/api/bridge/dialog/save', async (req, res) => {
     try {
-      const result = await dialog.showSaveDialog(null, req.body || {});
+      const result = await dialog.showSaveDialog(mainWindow, req.body || {});
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -744,7 +746,7 @@ MdExplorer ha già CORS abilitato nel suo backend ASP.NET per le richieste da lo
 ### Obbligatorio
 
 - [ ] Parse `--mde-embedded`, `--port`, `--mde-host`, `--workspace` dagli argomenti
-- [ ] Se `--mde-embedded`: NON creare BrowserWindow, avviare HTTP server sulla porta indicata
+- [ ] Se `--mde-embedded`: creare una BrowserWindow **nascosta** (`show: false`) come parent per i dialog nativi, poi avviare HTTP server sulla porta indicata
 - [ ] HTTP server risponde `200` a `GET /` (health check per polling MdE)
 - [ ] CORS headers su tutte le risposte HTTP
 - [ ] REST endpoints `/api/bridge/*` per ogni operazione Electron usata dal frontend
@@ -762,7 +764,7 @@ MdExplorer ha già CORS abilitato nel suo backend ASP.NET per le richieste da lo
 ### Da NON Fare
 
 - **NON** usare `window.electronAPI` nel codice applicativo — sempre il bridge
-- **NON** creare BrowserWindow in modalità embedded
+- **NON** creare BrowserWindow **visibili** in modalità embedded (una finestra nascosta `show: false` è necessaria come parent per i dialog nativi)
 - **NON** dimenticare CORS — l'iframe non funzionerà senza
 - **NON** usare porte hardcoded — usare sempre `--port`
 - **NON** ascoltare su `0.0.0.0` — usare `127.0.0.1` per sicurezza
