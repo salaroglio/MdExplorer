@@ -96,6 +96,7 @@ namespace MdExplorer.Service.Controllers
         /// <summary>
         /// Renders PlantUML code to SVG via the PlantUML server.
         /// Used by PromptLab to render Sequence/Workflow diagrams.
+        /// If SavePath is provided, also saves the SVG to disk relative to the template file's directory.
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> RenderSvg([FromBody] RenderSvgRequest request)
@@ -110,6 +111,24 @@ namespace MdExplorer.Service.Controllers
                     return StatusCode(500, new { error = "PlantUML server returned empty result" });
 
                 var svg = Encoding.UTF8.GetString(svgBytes);
+
+                // Optionally save SVG to disk
+                if (!string.IsNullOrWhiteSpace(request.SavePath))
+                {
+                    try
+                    {
+                        var dir = Path.GetDirectoryName(request.SavePath);
+                        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                            Directory.CreateDirectory(dir);
+                        await System.IO.File.WriteAllBytesAsync(request.SavePath, svgBytes);
+                        _logger.LogInformation("[RenderSvg] SVG saved to: {Path}", request.SavePath);
+                    }
+                    catch (Exception saveEx)
+                    {
+                        _logger.LogWarning(saveEx, "[RenderSvg] Failed to save SVG to disk, returning SVG anyway");
+                    }
+                }
+
                 return Ok(new { svg });
             }
             catch (Exception ex)
@@ -122,6 +141,10 @@ namespace MdExplorer.Service.Controllers
         public class RenderSvgRequest
         {
             public string PlantUmlCode { get; set; }
+            /// <summary>
+            /// Optional absolute path where the SVG file should be saved.
+            /// </summary>
+            public string SavePath { get; set; }
         }
 
     }

@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestro
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
-import { PromptLabMode, PromptLabCard, AgentDefinition, DEFAULT_SYSTEM_PROMPT } from '../../models/promptlab.models';
+import { PromptLabMode, PromptLabCard, AgentDefinition, DEFAULT_SYSTEM_PROMPT, DEFAULT_SEQUENCE_PROMPT, DEFAULT_WORKFLOW_PROMPT } from '../../models/promptlab.models';
 import { PromptLabService } from '../../services/promptlab.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { AiChatService } from '../../../services/ai-chat.service';
@@ -38,10 +38,14 @@ export class PromptLabComponent implements OnInit, OnDestroy {
   /** Settings panel */
   showSettings = false;
   systemPrompt = DEFAULT_SYSTEM_PROMPT;
+  systemPromptModel = '';
+  sequencePrompt = DEFAULT_SEQUENCE_PROMPT;
+  sequencePromptModel = '';
+  workflowPrompt = DEFAULT_WORKFLOW_PROMPT;
+  workflowPromptModel = '';
 
-  private static cachedModels: { value: string; label: string }[] | null = null;
-  models: { value: string; label: string }[] = PromptLabComponent.cachedModels || [];
-  isLoadingModels = !PromptLabComponent.cachedModels;
+  models: { value: string; label: string }[] = [];
+  isLoadingModels = true;
 
   private destroy$ = new Subject<void>();
 
@@ -67,6 +71,11 @@ export class PromptLabComponent implements OnInit, OnDestroy {
           ? session.templatePath.split(/[/\\]/).pop() || 'template.md'
           : 'template.md';
         this.systemPrompt = session.systemPrompt || DEFAULT_SYSTEM_PROMPT;
+        this.sequencePrompt = session.sequencePrompt || DEFAULT_SEQUENCE_PROMPT;
+        this.workflowPrompt = session.workflowPrompt || DEFAULT_WORKFLOW_PROMPT;
+        this.systemPromptModel = session.systemPromptModel || '';
+        this.sequencePromptModel = session.sequencePromptModel || '';
+        this.workflowPromptModel = session.workflowPromptModel || '';
         this.agentDefinition = session.agentDefinition || {
           identity: '',
           objectives: '',
@@ -117,38 +126,53 @@ export class PromptLabComponent implements OnInit, OnDestroy {
 
 
   private loadModels(): void {
-    // If already cached, use immediately — no loading state, but still refresh in background
-    if (PromptLabComponent.cachedModels?.length) {
-      this.models = PromptLabComponent.cachedModels;
+    // 1. Try in-memory cache from the service (instant, no HTTP)
+    const memoryCached = this.aiChatService.cachedModels;
+    if (memoryCached?.length) {
+      this.models = memoryCached;
       this.isLoadingModels = false;
+      this.syncSelectedModel();
+      this.cdr.markForCheck();
     } else {
       this.isLoadingModels = true;
     }
 
-    // Always call CLI (first time: blocking with spinner, subsequent: silent background refresh)
+    // 2. Load from DB cache (fast, <50ms) — populates combo immediately
+    this.aiChatService.getCachedModels().subscribe({
+      next: (models) => {
+        if (models.length) {
+          this.models = models;
+          this.isLoadingModels = false;
+          this.syncSelectedModel();
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => { /* ignore — will try refresh next */ }
+    });
+
+    // 3. Background refresh via Copilot CLI discovery (~5s) — updates DB + memory cache
     this.aiChatService.refreshCopilotCliModels().subscribe({
-      next: (response: any) => {
-        const modelList = response?.models || [];
-        if (modelList.length) {
-          this.models = modelList.map((m: any) => ({
-            value: m.id || m.Id || m,
-            label: m.name || m.Name || m.id || m.Id || m
-          }));
-          PromptLabComponent.cachedModels = this.models;
-          if (!this.models.find(mod => mod.value === this.selectedModel) && this.models.length > 0) {
-            this.selectedModel = this.models[0].value;
-            this.promptLabService.setModel(this.selectedModel);
-          }
+      next: () => {
+        const refreshed = this.aiChatService.cachedModels;
+        if (refreshed?.length) {
+          this.models = refreshed;
+          this.syncSelectedModel();
         }
         this.isLoadingModels = false;
         this.cdr.markForCheck();
       },
       error: () => {
-        this.models = [];
         this.isLoadingModels = false;
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private syncSelectedModel(): void {
+    if (this.models.length && !this.models.find(m => m.value === this.selectedModel)) {
+      this.selectedModel = this.models[0].value;
+      this.promptLabService.setModel(this.selectedModel);
+    }
   }
 
   private loadFileAsSession(fullPath: string): void {
@@ -250,6 +274,50 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     this.systemPrompt = DEFAULT_SYSTEM_PROMPT;
     this.promptLabService.setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
     this.cdr.markForCheck();
+  }
+
+  onSequencePromptChange(value: string): void {
+    this.sequencePrompt = value;
+    this.promptLabService.setSequencePrompt(value);
+  }
+
+  resetSequencePrompt(): void {
+    this.sequencePrompt = DEFAULT_SEQUENCE_PROMPT;
+    this.promptLabService.setSequencePrompt(DEFAULT_SEQUENCE_PROMPT);
+    this.cdr.markForCheck();
+  }
+
+  onWorkflowPromptChange(value: string): void {
+    this.workflowPrompt = value;
+    this.promptLabService.setWorkflowPrompt(value);
+  }
+
+  resetWorkflowPrompt(): void {
+    this.workflowPrompt = DEFAULT_WORKFLOW_PROMPT;
+    this.promptLabService.setWorkflowPrompt(DEFAULT_WORKFLOW_PROMPT);
+    this.cdr.markForCheck();
+  }
+
+  onPromptModelChange(promptKey: 'system' | 'sequence' | 'workflow', value: string): void {
+    const session = this.promptLabService.currentSession();
+    if (!session) return;
+
+    switch (promptKey) {
+      case 'system':
+        this.systemPromptModel = value;
+        session.systemPromptModel = value;
+        break;
+      case 'sequence':
+        this.sequencePromptModel = value;
+        session.sequencePromptModel = value;
+        break;
+      case 'workflow':
+        this.workflowPromptModel = value;
+        session.workflowPromptModel = value;
+        break;
+    }
+    session.updatedAt = new Date();
+    this.promptLabService.updateSession(session);
   }
 
   onSettingsBackdropClick(event: MouseEvent): void {

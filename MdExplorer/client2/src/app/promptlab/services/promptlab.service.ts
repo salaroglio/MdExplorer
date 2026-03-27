@@ -10,7 +10,9 @@ import {
   PromptLabCard,
   PromptLabMode,
   AgentDefinition,
-  DEFAULT_SYSTEM_PROMPT
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_SEQUENCE_PROMPT,
+  DEFAULT_WORKFLOW_PROMPT
 } from '../models/promptlab.models';
 
 @Injectable({ providedIn: 'root' })
@@ -110,6 +112,11 @@ export class PromptLabService implements OnDestroy {
       model: '',
       mode: 'prompt',
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
+      systemPromptModel: '',
+      sequencePrompt: DEFAULT_SEQUENCE_PROMPT,
+      sequencePromptModel: '',
+      workflowPrompt: DEFAULT_WORKFLOW_PROMPT,
+      workflowPromptModel: '',
       agentDefinition: undefined,
       cards: [],
       createdAt: new Date(),
@@ -186,6 +193,13 @@ export class PromptLabService implements OnDestroy {
     this._session$.next({ ...session });
   }
 
+  /**
+   * Push an externally modified session object to trigger auto-save.
+   */
+  updateSession(session: PromptLabSession): void {
+    this._session$.next({ ...session });
+  }
+
   // ---------------------------------------------------------------------------
   // Model & mode
   // ---------------------------------------------------------------------------
@@ -211,8 +225,23 @@ export class PromptLabService implements OnDestroy {
   setSystemPrompt(prompt: string): void {
     const session = this.currentSession();
     if (!session) return;
-
     session.systemPrompt = prompt;
+    session.updatedAt = new Date();
+    this._session$.next({ ...session });
+  }
+
+  setSequencePrompt(prompt: string): void {
+    const session = this.currentSession();
+    if (!session) return;
+    session.sequencePrompt = prompt;
+    session.updatedAt = new Date();
+    this._session$.next({ ...session });
+  }
+
+  setWorkflowPrompt(prompt: string): void {
+    const session = this.currentSession();
+    if (!session) return;
+    session.workflowPrompt = prompt;
     session.updatedAt = new Date();
     this._session$.next({ ...session });
   }

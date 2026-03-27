@@ -231,18 +231,27 @@
   <!-- Bottom section: Selected folder info and action button -->
   <div class="bottom-panel">
     <div class="selected-folder-info">
-      <mat-card-title *ngIf="baseStart.typeOfSelection === 'Folders'">
+      <mat-card-title *ngIf="baseStart.typeOfSelection === 'Folders' && !baseStart.saveAs">
         {{folder.name || (currentPath ? 'Current folder' : 'No folder selected')}}
       </mat-card-title>
-      <mat-card-title *ngIf="baseStart.typeOfSelection !== 'Folders'">
+      <mat-card-title *ngIf="baseStart.typeOfSelection !== 'Folders' && !baseStart.saveAs">
         {{folder.name || 'No file selected'}}
       </mat-card-title>
-      <mat-card-subtitle>{{folder.path || currentPath}}</mat-card-subtitle>
+      <!-- Save As mode: folder path + filename input -->
+      <div class="save-as-row" *ngIf="baseStart.saveAs">
+        <span class="save-as-path">{{currentPath || folder.path}}/</span>
+        <input class="save-as-input"
+               [(ngModel)]="saveAsFileName"
+               placeholder="nome-file.md"
+               (keydown.enter)="closeDialog()"
+               spellcheck="false" />
+      </div>
+      <mat-card-subtitle *ngIf="!baseStart.saveAs">{{folder.path || currentPath}}</mat-card-subtitle>
     </div>
     <div class="action-buttons">
-      <button mat-stroked-button color="primary" 
-              (click)="closeDialog()" 
-              [disabled]="!canSelectItem()">
+      <button mat-stroked-button color="primary"
+              (click)="closeDialog()"
+              [disabled]="baseStart.saveAs ? !saveAsFileName?.trim() : !canSelectItem()">
         {{getSelectionButtonText()}}
       </button>
     </div>

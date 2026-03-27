@@ -62,14 +62,16 @@
               (click)="toggleDiagram('sequence')"
               [disabled]="isDiagramLoading && activeDiagram !== 'sequence'">
         <span class="diagram-spinner" *ngIf="isDiagramLoading && activeDiagram === 'sequence'"></span>
-        {{ isDiagramLoading && activeDiagram === 'sequence' ? 'Generazione...' : '&#9776; Sequence' }}
+        <ng-container *ngIf="isDiagramLoading && activeDiagram === 'sequence'">Generazione...</ng-container>
+        <ng-container *ngIf="!(isDiagramLoading && activeDiagram === 'sequence')">Sequence</ng-container>
       </button>
       <button class="diagram-btn"
               [class.active]="activeDiagram === 'workflow'"
               (click)="toggleDiagram('workflow')"
               [disabled]="isDiagramLoading && activeDiagram !== 'workflow'">
         <span class="diagram-spinner" *ngIf="isDiagramLoading && activeDiagram === 'workflow'"></span>
-        {{ isDiagramLoading && activeDiagram === 'workflow' ? 'Generazione...' : '&#9881; Workflow' }}
+        <ng-container *ngIf="isDiagramLoading && activeDiagram === 'workflow'">Generazione...</ng-container>
+        <ng-container *ngIf="!(isDiagramLoading && activeDiagram === 'workflow')">Workflow</ng-container>
       </button>
     </div>
   </div>
@@ -105,22 +107,6 @@
     <div class="run-section">
       <div class="run-section-title">Output prodotto</div>
       <div class="run-output">{{ card.lastRun.output }}</div>
-    </div>
-  </div>
-
-  <!-- ═══ DIAGRAM PANEL (Task 9.1) ═══ -->
-  <div class="diagram-panel" *ngIf="activeDiagram">
-    <div class="diagram-header">
-      <span class="diagram-title">{{ activeDiagram === 'sequence' ? 'Sequence Diagram' : 'Workflow Diagram' }}</span>
-      <button class="diagram-copy-btn" (click)="copyDiagram()" title="Copia codice PlantUML" [disabled]="!diagramPlantUml">Copia PlantUML</button>
-    </div>
-    <div class="diagram-body">
-      <div *ngIf="isDiagramLoading" class="diagram-loading">Generazione diagramma...</div>
-      <!-- SVG rendered by PlantUML server -->
-      <div *ngIf="!isDiagramLoading && diagramSvg" class="diagram-svg" [innerHTML]="diagramSvg"></div>
-      <!-- Fallback: raw PlantUML code if SVG rendering failed -->
-      <pre *ngIf="!isDiagramLoading && !diagramSvg && diagramPlantUml" class="diagram-code">{{ diagramPlantUml }}</pre>
-      <div *ngIf="!isDiagramLoading && !diagramSvg && !diagramPlantUml" class="diagram-empty">Nessun diagramma generato.</div>
     </div>
   </div>
 
@@ -207,6 +193,28 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- ═══ DIAGRAM PANEL (Task 9.1) ═══ -->
+  <div class="diagram-panel" *ngIf="activeDiagram">
+    <div class="diagram-header">
+      <span class="diagram-title">{{ activeDiagram === 'sequence' ? 'Sequence Diagram' : 'Workflow Diagram' }}</span>
+      <button class="diagram-copy-btn" (click)="copyDiagram()" title="Copia codice PlantUML" [disabled]="!diagramPlantUml">Copia PlantUML</button>
+    </div>
+    <div class="diagram-body">
+      <div *ngIf="isDiagramLoading" class="diagram-loading">
+        {{ diagramStatusMessage || 'Generazione diagramma...' }}
+      </div>
+      <div *ngIf="!isDiagramLoading && diagramSvg" class="diagram-svg" [innerHTML]="diagramSvg"></div>
+      <div *ngIf="!isDiagramLoading && !diagramSvg && diagramPlantUml" class="diagram-error-panel">
+        <div class="diagram-error-msg">
+          {{ diagramStatusMessage || 'Errore di sintassi nel PlantUML generato.' }}
+          <button class="diagram-regen-btn" (click)="regenerateDiagram()">Rigenera</button>
+        </div>
+        <pre class="diagram-code">{{ diagramPlantUml }}</pre>
+      </div>
+      <div *ngIf="!isDiagramLoading && !diagramSvg && !diagramPlantUml" class="diagram-empty">Nessun diagramma generato.</div>
+    </div>
   </div>
 
 </div>

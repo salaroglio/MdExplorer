@@ -10,16 +10,8 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  // Fixed height for the card body area — columns scroll internally
-  // 350px accounts for: title bar(30) + toolbar(48) + session header(44) + doc panel(~110) + card header(~110) + padding
-  height: calc(100vh - 350px);
-  min-height: 300px;
-
-  &.single-card {
-    flex: 1;
-    min-height: 0;
-  }
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ═══ HEADER ═══ */
@@ -121,6 +113,21 @@
       background: #1e3a5f;
       border-color: #2979ff;
       color: #82b1ff;
+    }
+  }
+
+  /* Output file type (Save As) */
+  &.output-file {
+    &.empty {
+      background: #1a3320;
+      border-color: #4caf50;
+      border-style: dashed;
+      color: #6d9c70;
+    }
+    &.filled {
+      background: #1b5e20;
+      border-color: #4caf50;
+      color: #a5d6a7;
     }
   }
 
@@ -307,9 +314,9 @@
 /* ═══ BODY ═══ */
 
 .card-body {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
-  min-height: 0;
+  min-height: 400px;
   overflow: hidden;
 
   /* Collapsed chat state */
@@ -836,4 +843,34 @@
 .diagram-empty {
   color: #555;
   font-size: 12px;
+}
+
+.diagram-error-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diagram-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ef5350;
+  font-size: 12px;
+}
+
+.diagram-regen-btn {
+  background: none;
+  border: 1px solid #ef5350;
+  color: #ef5350;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #ef5350;
+    color: #000;
+  }
 }

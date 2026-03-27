@@ -188,7 +188,7 @@ Rules:
 - If there is no current prompt, create one from scratch based on the conversation.
 - The prompt must be standalone and executable without the conversation context.
 - Use {{paramName}} syntax for variable parts (input files, output directories, configurable values).
-- For each parameter, specify its type: "file" (a document to read), "directory" (an output location), or "text" (a free-form value).
+- For each parameter, specify its type: "file" (an existing document to read), "output_file" (a file to create/write — the user will choose folder + filename), "directory" (a folder), or "text" (a free-form value).
 - Generate a short title (max 6 words) describing what the prompt does.
 - Write the prompt in the same language the user is using in the conversation.
 
@@ -256,6 +256,7 @@ ${conversationText}`;
   private normalizeParamType(raw: string): ParameterType {
     const lower = raw.toLowerCase();
     if (lower === 'file') return 'file';
+    if (lower === 'output_file' || lower === 'output file' || lower === 'outputfile' || lower === 'save_as') return 'output_file';
     if (lower === 'directory' || lower === 'dir' || lower === 'folder') return 'directory';
     return 'text';
   }

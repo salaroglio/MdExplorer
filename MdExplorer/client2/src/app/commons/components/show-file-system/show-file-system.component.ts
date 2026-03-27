@@ -204,6 +204,9 @@ export class ShowFileSystemComponent implements OnInit {
   public hoveredNode: MdFile | null = null;
   public contextMenuNode: MdFile | null = null;
 
+  // Save As mode: filename typed by the user
+  public saveAsFileName: string = '';
+
   // NEW: ViewChild for filter input
   @ViewChild('filterInput', { static: false }) filterInput: ElementRef;
 
@@ -268,6 +271,9 @@ export class ShowFileSystemComponent implements OnInit {
   ngOnInit(): void {
     this.folder = { name: "<select project>", path: "" };
     this.filteredItems = [];
+    if (this.baseStart.saveAs) {
+      this.saveAsFileName = this.baseStart.defaultFileName || '';
+    }
     this.loadInitialData();
   }
 
@@ -445,18 +451,27 @@ export class ShowFileSystemComponent implements OnInit {
   }
 
   public closeDialog() {
+    // Save As mode: folder path + typed filename
+    if (this.baseStart.saveAs && this.saveAsFileName?.trim()) {
+      const folderPath = this.currentPath || this.folder.path;
+      const separator = folderPath.includes('/') ? '/' : '\\';
+      const fullPath = folderPath + separator + this.saveAsFileName.trim();
+      this.dialogRef.close({ event: 'open', data: fullPath });
+      return;
+    }
+
     // Determina quale path usare in base al tipo di selezione
     let selectedPath: string;
-    
+
     if (this.baseStart.typeOfSelection === 'FoldersAndFiles') {
       // Per file: usa sempre folder.path (che viene aggiornato quando si seleziona un file)
       selectedPath = this.folder.path;
     } else {
-      // Per cartelle: priorità a folder.path (cartella selezionata), 
+      // Per cartelle: priorità a folder.path (cartella selezionata),
       // altrimenti usa currentPath (cartella in cui stiamo navigando)
       selectedPath = this.folder.path || this.currentPath;
     }
-    
+
     this.dialogRef.close({ event: 'open', data: selectedPath });
   }
 

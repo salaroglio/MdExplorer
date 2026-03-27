@@ -2,7 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Abstractions.Models.AI;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Services.AI;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,17 +19,20 @@ namespace MdExplorer.Controllers.AI
     {
         private readonly CopilotCliProvider _copilotProvider;
         private readonly CopilotCliModelDiscovery _modelDiscovery;
+        private readonly IUserSettingsDB _session;
         private readonly ILogger<CopilotCliController> _logger;
 
         public CopilotCliController(
             System.Collections.Generic.IEnumerable<IAiProvider> providers,
             IEnumerable<IModelDiscoveryProvider> discoveryProviders,
+            IUserSettingsDB session,
             ILogger<CopilotCliController> logger)
         {
             _copilotProvider = providers
                 .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
             _modelDiscovery = discoveryProviders
                 .FirstOrDefault(d => d.ProviderType == ProviderType.CopilotCli) as CopilotCliModelDiscovery;
+            _session = session;
             _logger = logger;
         }
 
@@ -130,6 +136,10 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 var models = await _modelDiscovery.RefreshModelsAsync();
+
+                // Persist discovered models to AvailableModel table
+                PersistModels(models, "CopilotCli");
+
                 return Ok(new
                 {
                     success = true,
@@ -146,6 +156,64 @@ namespace MdExplorer.Controllers.AI
             {
                 _logger.LogError(ex, "Error refreshing Copilot CLI models");
                 return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Upsert discovered models into the AvailableModel table.
+        /// Inserts new models, updates existing ones, removes stale ones for this provider.
+        /// </summary>
+        private void PersistModels(IList<AiProviderModel> models, string provider)
+        {
+            try
+            {
+                _session.BeginTransaction();
+
+                var dal = _session.GetDal<AvailableModel>();
+                var existing = dal.GetList().Where(m => m.Provider == provider).ToList();
+                var now = DateTime.UtcNow;
+
+                var discoveredIds = new HashSet<string>();
+
+                foreach (var model in models)
+                {
+                    var modelId = model.Id ?? model.Name;
+                    if (string.IsNullOrEmpty(modelId)) continue;
+                    discoveredIds.Add(modelId);
+
+                    var record = existing.FirstOrDefault(e => e.ModelId == modelId);
+                    if (record != null)
+                    {
+                        // Update existing
+                        record.Name = model.Name ?? modelId;
+                        record.DiscoveredAt = now;
+                        dal.Save(record);
+                    }
+                    else
+                    {
+                        // Insert new
+                        dal.Save(new AvailableModel
+                        {
+                            ModelId = modelId,
+                            Name = model.Name ?? modelId,
+                            Provider = provider,
+                            DiscoveredAt = now
+                        });
+                    }
+                }
+
+                // Remove stale models (no longer returned by discovery)
+                foreach (var stale in existing.Where(e => !discoveredIds.Contains(e.ModelId)))
+                {
+                    dal.Delete(stale);
+                }
+
+                _session.Commit();
+                _logger.LogInformation("[CopilotCli] Persisted {Count} models to AvailableModel table", discoveredIds.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[CopilotCli] Failed to persist models to DB (non-fatal)");
             }
         }
     }

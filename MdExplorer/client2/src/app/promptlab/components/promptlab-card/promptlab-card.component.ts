@@ -18,7 +18,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
-import { PromptLabCard, PromptLabParameter, ChatMessage } from '../../models/promptlab.models';
+import { PromptLabCard, PromptLabParameter, ChatMessage, DEFAULT_SEQUENCE_PROMPT, DEFAULT_WORKFLOW_PROMPT } from '../../models/promptlab.models';
 import { PromptLabService } from '../../services/promptlab.service';
 import { PromptLabDistillationService } from '../../services/promptlab-distillation.service';
 import { AiChatService } from '../../../services/ai-chat.service';
@@ -49,7 +49,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
   isStreaming = false;
   streamingContent = '';
 
-  /** Index of the parameter currently being inline-edited (text type only) */
+  /** Index of the parameter currently being inline-edited */
   editingParamIndex: number | null = null;
   editingParamValue = '';
 
@@ -79,6 +79,10 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
   diagramPlantUml = '';
   diagramSvg: SafeHtml = '';
   isDiagramLoading = false;
+  diagramRenderError = false;
+  diagramRetryCount = 0;
+  diagramStatusMessage = '';
+  private readonly DIAGRAM_MAX_RETRIES = 3;
   private diagramSubscription: Subscription | null = null;
 
   constructor(
@@ -239,6 +243,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
   getParamIcon(type: string): string {
     switch (type) {
       case 'file': return '\uD83D\uDCC4';
+      case 'output_file': return '\uD83D\uDCBE';
       case 'directory': return '\uD83D\uDCC2';
       case 'text': return '\u270E';
       default: return '';
@@ -246,7 +251,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
   }
 
   getParamDisplayClass(param: PromptLabParameter): string {
-    const base = param.type === 'directory' ? 'directory' : param.type;
+    const base = param.type === 'output_file' ? 'output-file' : (param.type === 'directory' ? 'directory' : param.type);
     const state = param.value ? 'filled' : 'empty';
     return `${base} ${state}`;
   }
@@ -256,10 +261,12 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
       this.editingParamIndex = index;
       this.editingParamValue = param.value || '';
       this.cdr.markForCheck();
+    } else if (param.type === 'output_file') {
+      // Output file — "Save As" style: pick folder, then type filename
+      this.openSaveAsDialog(param);
     } else {
       // file or directory — open MdExplorer file system dialog
       const data = new ShowFileMetadata();
-      // Start from project root to keep selection within workspace
       const project = this.projectsService.currentProjects$.getValue();
       data.start = project?.path || 'project';
 
@@ -288,6 +295,34 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
         }
       });
     }
+  }
+
+  private openSaveAsDialog(param: PromptLabParameter): void {
+    const data = new ShowFileMetadata();
+    const project = this.projectsService.currentProjects$.getValue();
+    data.start = project?.path || 'project';
+    data.title = `Salva come — "${param.name}"`;
+    data.typeOfSelection = 'Folders';
+    data.buttonText = 'Salva';
+    data.saveAs = true;
+    // Suggest current filename if already set
+    const currentName = param.value ? param.value.split(/[/\\]/).pop() : '';
+    data.defaultFileName = currentName || 'output.md';
+
+    const dialogRef = this.dialog.open(ShowFileSystemComponent, {
+      width: '800px',
+      height: '600px',
+      panelClass: 'resizable-dialog-container',
+      data: data
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.data) {
+        param.value = this.toRelativePath(result.data);
+        this.cardChanged.emit(this.card);
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   confirmParamEdit(param: PromptLabParameter): void {
@@ -380,9 +415,65 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
     this.activeDiagram = type;
     this.diagramPlantUml = '';
     this.diagramSvg = '';
-    this.isDiagramLoading = true;
-    this.cdr.markForCheck();
-    this.generateDiagram(type);
+    this.diagramRenderError = false;
+    this.diagramRetryCount = 0;
+    this.diagramStatusMessage = '';
+
+    // Check cached diagram
+    const cache = type === 'sequence' ? this.card.sequenceDiagram : this.card.workflowDiagram;
+    const currentHash = this.hashPrompt(this.card.distilledPrompt || '');
+    if (cache?.svgPath && cache.promptHash === currentHash) {
+      // Cache hit — load SVG from file
+      this.isDiagramLoading = true;
+      this.diagramStatusMessage = 'Caricamento dalla cache...';
+      this.cdr.markForCheck();
+      this.loadCachedSvg(cache.svgPath);
+    } else {
+      // Cache miss or prompt changed — regenerate via LLM
+      this.isDiagramLoading = true;
+      this.cdr.markForCheck();
+      this.generateDiagram(type);
+    }
+  }
+
+  /**
+   * Load a cached SVG file via the backend file API.
+   * The svgPath is relative to the template's directory.
+   */
+  private loadCachedSvg(svgPath: string): void {
+    const session = this.promptLabService.currentSession();
+    if (!session?.templatePath) {
+      this.isDiagramLoading = false;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    // templatePath is absolute (e.g. "C:\...\promptlab\file.md")
+    // svgPath is relative to template dir (e.g. "assets/card-xxx-workflow.svg")
+    // The API needs a path relative to the project root.
+    // templatePath relative to project = toRelativePath(templatePath) → "promptlab\file.md"
+    // We replace the filename with the svgPath.
+    const relativeTemplatePath = this.toRelativePath(session.templatePath);
+    const relativeDir = relativeTemplatePath.replace(/[/\\][^/\\]+$/, '');
+    const fileName = svgPath.split('/').pop() || svgPath;
+    const relativeSvgPath = `${relativeDir}/assets/${fileName}`;
+    const url = `/api/MdExplorerEditorReact/${relativeSvgPath}`;
+
+    this.http.get(url, { responseType: 'text' }).subscribe({
+      next: (svgContent) => {
+        if (svgContent) {
+          this.diagramSvg = this.sanitizer.bypassSecurityTrustHtml(svgContent);
+          this.diagramStatusMessage = '';
+        }
+        this.isDiagramLoading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        // File not found — regenerate
+        console.warn('[PromptLabCard] Cached SVG not found, regenerating...');
+        this.generateDiagram(this.activeDiagram!);
+      }
+    });
   }
 
   private async generateDiagram(type: 'sequence' | 'workflow'): Promise<void> {
@@ -391,18 +482,13 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
     const channelId = `card-${this.card.id}-diagram`;
     this.aiChatService.clearChannelHistory(channelId);
 
-    const colorDirectives = `
-Use a clean, professional color scheme with these PlantUML skinparam directives at the top:
-skinparam backgroundColor #FEFEFE
-skinparam shadowing false
-skinparam defaultFontName "Segoe UI"
-skinparam roundCorner 8`;
+    // Get diagram prompts from the session (configurable via Settings)
+    const session = this.promptLabService.currentSession();
+    const diagramPrompt = type === 'sequence'
+      ? (session?.sequencePrompt || DEFAULT_SEQUENCE_PROMPT)
+      : (session?.workflowPrompt || DEFAULT_WORKFLOW_PROMPT);
 
-    const systemPrompt = type === 'sequence'
-      ? `Generate a PlantUML sequence diagram that shows the interaction flow described in this prompt. Show actors (User, LLM), messages exchanged, and data flow. Include parameter values if available. ${colorDirectives}\nUse colored participants: actor User #E3F2FD, participant LLM #FFF3E0, participant FileSystem #E8F5E9. Return ONLY the PlantUML code between @startuml and @enduml, nothing else.`
-      : `Generate a PlantUML activity diagram that shows the workflow steps described in this prompt. Show input, processing steps, decisions, and output. Include parameter values if available. ${colorDirectives}\nUse colored partitions: #E3F2FD for input steps, #FFF3E0 for processing, #E8F5E9 for output. Use start/stop nodes. Return ONLY the PlantUML code between @startuml and @enduml, nothing else.`;
-
-    const message = `${systemPrompt}\n\n--- Prompt ---\n${this.card.distilledPrompt || '(nessun prompt distillato)'}`;
+    const message = `${diagramPrompt}\n\n--- Prompt ---\n${this.card.distilledPrompt || '(nessun prompt distillato)'}`;
 
     let accumulated = '';
 
@@ -432,8 +518,17 @@ skinparam roundCorner 8`;
         }
       });
 
-    // Ensure chat mode is set before sending
-    await this.promptLabService.ensureChatModePublic();
+    // Use diagram-specific model if configured, otherwise session default
+    const diagramModel = type === 'sequence'
+      ? (session?.sequencePromptModel || '')
+      : (session?.workflowPromptModel || '');
+
+    if (diagramModel) {
+      const provider = diagramModel.toLowerCase().includes('llama') ? 'local' : 'copilotcli';
+      await this.aiChatService.setProviderAsync(provider, diagramModel);
+    } else {
+      await this.promptLabService.ensureChatModePublic();
+    }
     this.aiChatService.sendMessageToChannel(message, channelId);
   }
 
@@ -444,29 +539,155 @@ skinparam roundCorner 8`;
       return;
     }
 
+    // Build save path for caching the SVG to disk
+    const savePath = this.buildSvgSavePath();
+
     this.http.post<{ svg: string }>('/api/plantumlextensions/RenderSvg', {
-      plantUmlCode: plantUml
+      plantUmlCode: plantUml,
+      savePath: savePath
     }).subscribe({
       next: (response) => {
         if (response?.svg) {
           this.diagramSvg = this.sanitizer.bypassSecurityTrustHtml(response.svg);
+          this.diagramStatusMessage = '';
+          // Update card cache reference
+          this.updateDiagramCache();
         }
         this.isDiagramLoading = false;
         this.cdr.markForCheck();
       },
       error: (err) => {
         console.error('[PromptLabCard] Error rendering PlantUML:', err);
-        // Fallback: show raw PlantUML code
-        this.diagramSvg = '';
-        this.isDiagramLoading = false;
-        this.cdr.markForCheck();
+        const errorMessage = err?.error?.error || err?.message || 'Unknown rendering error';
+
+        if (this.diagramRetryCount < this.DIAGRAM_MAX_RETRIES) {
+          // Auto-retry: send the error back to the LLM to fix
+          this.diagramRetryCount++;
+          this.diagramStatusMessage = `Errore di sintassi (tentativo ${this.diagramRetryCount}/${this.DIAGRAM_MAX_RETRIES})...`;
+          this.cdr.markForCheck();
+          this.requestDiagramFix(plantUml, errorMessage);
+        } else {
+          // Max retries reached — show error + code
+          this.diagramSvg = '';
+          this.diagramRenderError = true;
+          this.diagramStatusMessage = `Errore dopo ${this.DIAGRAM_MAX_RETRIES} tentativi di correzione.`;
+          this.isDiagramLoading = false;
+          this.cdr.markForCheck();
+        }
       }
     });
+  }
+
+  /**
+   * Send the broken PlantUML + error message back to the LLM on the diagram channel,
+   * asking it to fix the syntax error. Reuses the same channel (history preserved).
+   */
+  private async requestDiagramFix(brokenCode: string, errorMessage: string): Promise<void> {
+    this.cleanupDiagramSubscription();
+
+    const channelId = `card-${this.card.id}-diagram`;
+    const fixMessage = `The PlantUML code you generated has a syntax error. Here is the error from the PlantUML renderer:\n\n${errorMessage}\n\nHere is the broken code:\n\`\`\`\n${brokenCode}\n\`\`\`\n\nPlease fix the syntax error and return ONLY the corrected PlantUML code between @startuml and @enduml, nothing else.`;
+
+    let accumulated = '';
+
+    this.diagramSubscription = this.aiChatService.getChannelStream$(channelId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        switch (event.type) {
+          case 'chunk':
+            accumulated += event.data;
+            break;
+          case 'complete':
+            const plantUml = this.extractPlantUml(accumulated);
+            this.diagramPlantUml = plantUml;
+            this.cleanupDiagramSubscription();
+            this.renderPlantUmlToSvg(plantUml);
+            break;
+          case 'error':
+            this.diagramSvg = '';
+            this.diagramRenderError = true;
+            this.diagramStatusMessage = 'Errore nella comunicazione con il LLM.';
+            this.isDiagramLoading = false;
+            this.cdr.markForCheck();
+            this.cleanupDiagramSubscription();
+            break;
+        }
+      });
+
+    // Use same model as the diagram generation
+    const session = this.promptLabService.currentSession();
+    const diagramModel = this.activeDiagram === 'sequence'
+      ? (session?.sequencePromptModel || '')
+      : (session?.workflowPromptModel || '');
+
+    if (diagramModel) {
+      const provider = diagramModel.toLowerCase().includes('llama') ? 'local' : 'copilotcli';
+      await this.aiChatService.setProviderAsync(provider, diagramModel);
+    } else {
+      await this.promptLabService.ensureChatModePublic();
+    }
+    this.aiChatService.sendMessageToChannel(fixMessage, channelId);
+  }
+
+  /**
+   * Simple hash of the prompt text for cache comparison.
+   * DJB2 algorithm — fast, good distribution, no crypto needed.
+   */
+  private hashPrompt(text: string): string {
+    let hash = 5381;
+    for (let i = 0; i < text.length; i++) {
+      hash = ((hash << 5) + hash) + text.charCodeAt(i);
+      hash |= 0; // Convert to 32-bit integer
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  /**
+   * Build the absolute save path for the current diagram's SVG file.
+   * Returns null if session has no templatePath.
+   */
+  private buildSvgSavePath(): string | null {
+    if (!this.activeDiagram) return null;
+    const session = this.promptLabService.currentSession();
+    if (!session?.templatePath) return null;
+
+    const fileName = `${this.card.id}-${this.activeDiagram}.svg`;
+    const templateDir = session.templatePath.replace(/[/\\][^/\\]+$/, '');
+    const separator = templateDir.includes('/') ? '/' : '\\';
+    return `${templateDir}${separator}assets${separator}${fileName}`;
+  }
+
+  /**
+   * Update the card's diagram cache reference (hash + relative SVG path).
+   * Triggers cardChanged → auto-save → persisted as ![hash](assets/...) in the .md.
+   */
+  private updateDiagramCache(): void {
+    if (!this.activeDiagram) return;
+
+    const promptHash = this.hashPrompt(this.card.distilledPrompt || '');
+    const fileName = `${this.card.id}-${this.activeDiagram}.svg`;
+    const cache = { promptHash, svgPath: `assets/${fileName}` };
+    if (this.activeDiagram === 'sequence') {
+      this.card.sequenceDiagram = cache;
+    } else {
+      this.card.workflowDiagram = cache;
+    }
+    this.cardChanged.emit(this.card);
   }
 
   private extractPlantUml(text: string): string {
     const match = text.match(/@startuml[\s\S]*?@enduml/);
     return match ? match[0] : text.trim();
+  }
+
+  regenerateDiagram(): void {
+    if (this.activeDiagram) {
+      const type = this.activeDiagram;
+      this.activeDiagram = null;
+      this.cleanupDiagramSubscription();
+      // Re-trigger
+      setTimeout(() => this.toggleDiagram(type));
+    }
   }
 
   copyDiagram(): void {

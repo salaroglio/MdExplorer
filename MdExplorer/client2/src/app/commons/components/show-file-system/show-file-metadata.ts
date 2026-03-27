@@ -11,6 +11,10 @@ export class ShowFileMetadata {
   public showFileDetails?: boolean;
   public allowMultipleSelection?: boolean;
   public placeholder?: string;
+  /** When true, shows a filename input in the bottom panel (Save As mode) */
+  public saveAs?: boolean;
+  /** Default filename suggestion for Save As mode */
+  public defaultFileName?: string;
 }
 
 // Interface per segmenti del breadcrumb

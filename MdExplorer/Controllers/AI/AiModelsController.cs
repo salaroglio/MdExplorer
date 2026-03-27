@@ -3,8 +3,12 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Hubs;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,6 +23,7 @@ namespace MdExplorer.Controllers.AI
         private readonly Features.Services.IGpuDetectionService _gpuService;
         private readonly Features.Services.ILlamaBackendService _backendService;
         private readonly IHubContext<AiChatHub> _hubContext;
+        private readonly IUserSettingsDB _session;
         private readonly ILogger<AiModelsController> _logger;
         private readonly LocalLlamaProvider _localProvider;
 
@@ -28,6 +33,7 @@ namespace MdExplorer.Controllers.AI
             Features.Services.IGpuDetectionService gpuService,
             Features.Services.ILlamaBackendService backendService,
             IHubContext<AiChatHub> hubContext,
+            IUserSettingsDB session,
             ILogger<AiModelsController> logger,
             LocalLlamaProvider localProvider)
         {
@@ -36,8 +42,32 @@ namespace MdExplorer.Controllers.AI
             _gpuService = gpuService;
             _backendService = backendService;
             _hubContext = hubContext;
+            _session = session;
             _logger = logger;
             _localProvider = localProvider;
+        }
+
+        /// <summary>
+        /// Returns all cached models from the AvailableModel table (instant, no discovery).
+        /// </summary>
+        [HttpGet("cached")]
+        public IActionResult GetCachedModels()
+        {
+            try
+            {
+                var models = _session.GetDal<AvailableModel>()
+                    .GetList()
+                    .OrderBy(m => m.Provider)
+                    .ThenBy(m => m.Name)
+                    .Select(m => new { id = m.ModelId, name = m.Name, provider = m.Provider })
+                    .ToList();
+                return Ok(new { models });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error reading cached models");
+                return Ok(new { models = new object[0] });
+            }
         }
 
         [HttpGet("available")]

@@ -1,8 +1,8 @@
 import { Injectable, Inject, forwardRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
-import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, of } from 'rxjs';
+import { filter, map, tap, shareReplay, finalize } from 'rxjs/operators';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
 export interface ModelInfo {
@@ -655,8 +655,53 @@ export class AiChatService {
     return this.http.post('/api/copilotcli/system-prompt', { systemPrompt });
   }
 
+  /** Cached models from DB — populated by getCachedModels() */
+  private _cachedModels: { value: string; label: string }[] | null = null;
+  private _refreshInFlight: Observable<any> | null = null;
+
+  get cachedModels() { return this._cachedModels; }
+
+  /**
+   * Load models from the DB cache (instant, no Copilot CLI call).
+   */
+  getCachedModels(): Observable<{ value: string; label: string }[]> {
+    if (this._cachedModels?.length) {
+      return of(this._cachedModels);
+    }
+    return this.http.get<any>('/api/aimodels/cached').pipe(
+      map(response => {
+        const models = (response?.models || []).map((m: any) => ({
+          value: m.id || m.modelId,
+          label: m.name || m.id || m.modelId
+        }));
+        this._cachedModels = models;
+        return models;
+      })
+    );
+  }
+
+  /**
+   * Refresh models via Copilot CLI discovery (slow, ~5s).
+   * Deduplicates concurrent calls. Updates DB cache on the backend.
+   */
   refreshCopilotCliModels(): Observable<any> {
-    return this.http.post('/api/copilotcli/refresh-models', {});
+    if (this._refreshInFlight) {
+      return this._refreshInFlight;
+    }
+    this._refreshInFlight = this.http.post('/api/copilotcli/refresh-models', {}).pipe(
+      tap((response: any) => {
+        const modelList = response?.models || [];
+        if (modelList.length) {
+          this._cachedModels = modelList.map((m: any) => ({
+            value: m.id || m.Id || m,
+            label: m.name || m.Name || m.id || m.Id || m
+          }));
+        }
+      }),
+      finalize(() => { this._refreshInFlight = null; }),
+      shareReplay(1)
+    );
+    return this._refreshInFlight;
   }
 
   notifyCopilotCliConnected(modelId: string): void {

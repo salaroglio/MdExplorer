@@ -6,7 +6,10 @@ import {
   PromptLabMode,
   ParameterType,
   AgentDefinition,
-  DEFAULT_SYSTEM_PROMPT
+  DiagramCache,
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_SEQUENCE_PROMPT,
+  DEFAULT_WORKFLOW_PROMPT
 } from '../models/promptlab.models';
 
 @Injectable({ providedIn: 'root' })
@@ -25,9 +28,13 @@ export class PromptLabPersistenceService {
 
     const mode: PromptLabMode = frontMatter['mode'] === 'agent' ? 'agent' : 'prompt';
 
-    // Parse system prompt section (if present)
-    const systemPromptResult = this.parseSystemPromptSection(body);
+    // Parse prompt sections (if present)
+    const systemPromptResult = this.parseNamedSection(body, 'System Prompt', DEFAULT_SYSTEM_PROMPT);
     let remainingBody = systemPromptResult.remaining;
+    const sequenceResult = this.parseNamedSection(remainingBody, 'Sequence Prompt', DEFAULT_SEQUENCE_PROMPT);
+    remainingBody = sequenceResult.remaining;
+    const workflowResult = this.parseNamedSection(remainingBody, 'Workflow Prompt', DEFAULT_WORKFLOW_PROMPT);
+    remainingBody = workflowResult.remaining;
 
     let agentDefinition: AgentDefinition | undefined;
 
@@ -44,7 +51,12 @@ export class PromptLabPersistenceService {
       title: frontMatter['title'] || '',
       model: frontMatter['model'] || '',
       mode,
-      systemPrompt: systemPromptResult.systemPrompt,
+      systemPrompt: systemPromptResult.content,
+      systemPromptModel: frontMatter['system_prompt_model'] || '',
+      sequencePrompt: sequenceResult.content,
+      sequencePromptModel: frontMatter['sequence_prompt_model'] || '',
+      workflowPrompt: workflowResult.content,
+      workflowPromptModel: frontMatter['workflow_prompt_model'] || '',
       agentDefinition,
       cards,
       createdAt: frontMatter['created'] ? new Date(frontMatter['created']) : new Date(),
@@ -66,19 +78,29 @@ export class PromptLabPersistenceService {
     lines.push(`title: ${session.title}`);
     lines.push(`model: ${session.model}`);
     lines.push(`mode: ${session.mode}`);
+    if (session.systemPromptModel) lines.push(`system_prompt_model: ${session.systemPromptModel}`);
+    if (session.sequencePromptModel) lines.push(`sequence_prompt_model: ${session.sequencePromptModel}`);
+    if (session.workflowPromptModel) lines.push(`workflow_prompt_model: ${session.workflowPromptModel}`);
     lines.push(`created: ${this.formatDate(session.createdAt)}`);
     lines.push(`updated: ${this.formatDate(session.updatedAt)}`);
     lines.push('---');
     lines.push('');
 
-    // System prompt section (only if non-default or explicitly customized)
-    if (session.systemPrompt) {
-      lines.push('## System Prompt');
-      lines.push('');
-      lines.push(session.systemPrompt);
-      lines.push('');
-      lines.push('---');
-      lines.push('');
+    // Prompt sections (only written if non-empty)
+    const promptSections: { heading: string; content: string }[] = [
+      { heading: 'System Prompt', content: session.systemPrompt },
+      { heading: 'Sequence Prompt', content: session.sequencePrompt },
+      { heading: 'Workflow Prompt', content: session.workflowPrompt }
+    ];
+    for (const section of promptSections) {
+      if (section.content) {
+        lines.push(`## ${section.heading}`);
+        lines.push('');
+        lines.push(section.content);
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+      }
     }
 
     // Agent section
@@ -148,20 +170,18 @@ export class PromptLabPersistenceService {
   }
 
   // ---------------------------------------------------------------------------
-  // System Prompt section parsing
+  // Named section parsing (System Prompt, Sequence Prompt, Workflow Prompt)
   // ---------------------------------------------------------------------------
 
-  private parseSystemPromptSection(body: string): { systemPrompt: string; remaining: string } {
-    const headingRegex = /^## System Prompt\s*$/m;
+  private parseNamedSection(body: string, heading: string, defaultValue: string): { content: string; remaining: string } {
+    const headingRegex = new RegExp(`^## ${this.escapeRegex(heading)}\\s*$`, 'm');
     const match = headingRegex.exec(body);
 
     if (!match) {
-      // No system prompt section found — use default
-      return { systemPrompt: DEFAULT_SYSTEM_PROMPT, remaining: body };
+      return { content: defaultValue, remaining: body };
     }
 
     const afterHeading = body.substring(match.index + match[0].length);
-    // Content ends at the first `---` separator or first `## ` heading
     const endMatch = afterHeading.match(/\r?\n---\r?\n/);
     const nextH2 = afterHeading.match(/\r?\n## /);
 
@@ -178,7 +198,7 @@ export class PromptLabPersistenceService {
       : afterHeading.substring(endIndex);
 
     return {
-      systemPrompt: content || DEFAULT_SYSTEM_PROMPT,
+      content: content || defaultValue,
       remaining: body.substring(0, match.index) + remaining
     };
   }
@@ -272,13 +292,19 @@ export class PromptLabPersistenceService {
         }
       }
 
+      // Parse cached diagrams
+      const sequenceDiagram = this.extractDiagramCache(cardContent, 'Sequence Diagram');
+      const workflowDiagram = this.extractDiagramCache(cardContent, 'Workflow Diagram');
+
       cards.push({
         id,
         generatedTitle: title,
         parameters,
         distilledPrompt,
         conversation: [],
-        lastRun: undefined
+        lastRun: undefined,
+        sequenceDiagram,
+        workflowDiagram
       });
     }
 
@@ -346,6 +372,7 @@ export class PromptLabPersistenceService {
   private parseParameterType(raw: string): ParameterType {
     const normalized = raw.trim().toLowerCase();
     if (normalized === 'file') return 'file';
+    if (normalized === 'output_file') return 'output_file';
     if (normalized === 'directory') return 'directory';
     return 'text';
   }
@@ -359,6 +386,28 @@ export class PromptLabPersistenceService {
     const endMatch = after.match(/\r?\n(?:---|## |### )/);
     const text = endMatch ? after.substring(0, endMatch.index) : after;
     return text.trim();
+  }
+
+  /**
+   * Extract a cached diagram reference from a card section.
+   * Format in Markdown:
+   *   ### Sequence Diagram
+   *   ![abc123](assets/card-001-sequence.svg)
+   */
+  private extractDiagramCache(cardContent: string, heading: string): DiagramCache | undefined {
+    const regex = new RegExp(`^### ${this.escapeRegex(heading)}\\s*$`, 'm');
+    const match = regex.exec(cardContent);
+    if (!match) return undefined;
+
+    const after = cardContent.substring(match.index + match[0].length);
+    const endMatch = after.match(/\r?\n(?:---|## |### )/);
+    const sectionText = endMatch ? after.substring(0, endMatch.index) : after;
+
+    // Extract ![hash](path) image link
+    const imgMatch = sectionText.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+    if (!imgMatch) return undefined;
+
+    return { promptHash: imgMatch[1], svgPath: imgMatch[2] };
   }
 
   private extractParamPlaceholders(text: string): string[] {
@@ -420,6 +469,21 @@ export class PromptLabPersistenceService {
     lines.push('');
     lines.push(card.distilledPrompt);
     lines.push('');
+
+    // Cached diagram references
+    if (card.sequenceDiagram?.svgPath) {
+      lines.push('### Sequence Diagram');
+      lines.push('');
+      lines.push(`![${card.sequenceDiagram.promptHash}](${card.sequenceDiagram.svgPath})`);
+      lines.push('');
+    }
+    if (card.workflowDiagram?.svgPath) {
+      lines.push('### Workflow Diagram');
+      lines.push('');
+      lines.push(`![${card.workflowDiagram.promptHash}](${card.workflowDiagram.svgPath})`);
+      lines.push('');
+    }
+
     return lines;
   }
 
