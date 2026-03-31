@@ -60,6 +60,22 @@ async function presentationSVG(relativePathFile, hashFile) {
  * @param {string} hashFile - Unique hash identifier for the diagram
  * @param {number} step - Current step in presentation
  */
+/**
+ * Copy a generic image to clipboard as PNG
+ * Delegates to backend which reads the image file and copies it to the system clipboard
+ *
+ * @param {string} imagePath - Relative path of the image within the project
+ */
+async function copyImageToClipboard(imagePath) {
+    try {
+        var connectionId = document.body.getAttribute('ConnectionId') || '';
+        await $.get("/api/plantumlextensions/CopyImageToClipboard?imagePath=" + encodeURIComponent(imagePath) +
+            "&ConnectionId=" + connectionId);
+    } catch (err) {
+        console.error("CopyImageToClipboard failed:", err);
+    }
+}
+
 async function copyToClipboard(objectThis, relativePathFile, hashFile, step) {
     try {
         var connectionId = document.body.getAttribute('ConnectionId') || '';

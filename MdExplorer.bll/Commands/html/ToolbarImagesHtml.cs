@@ -132,22 +132,27 @@ namespace MdExplorer.Features.Commands.html
                     :string.Empty;
                 var newButtonForDynamicPlantuml = isPlantumlDynamic ? 
                     $@"<button id=""forwardArrow{stringMatchedHash}"" data-step=""1"" onclick=""presentationSVG('{prepareCurrentQueryRequest}','{stringMatchedHash}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/green_right_arrow.png""/></button>" :string.Empty;
-                var newButtonForPlantumlCopy = isPlantumlCopy ? 
+                var imageLinkPath = itemImg.Groups[2].Value;
+                var isSvgImage = imageLinkPath.IndexOf(".svg", StringComparison.OrdinalIgnoreCase) >= 0;
+                var newButtonForPlantumlCopy = isPlantumlCopy ?
                     $@"<button alt=""copy into clipboard"" onclick = ""copyToClipboard('/api/mdexplorer/{currentPng}', '{prepareCurrentQueryRequest}', '{stringMatchedHash}', 0)"" ><img src = ""/assets/clipboard.png""/></button>" : string.Empty;
+                var newButtonForImageCopy = (!isPlantumlCopy && !string.IsNullOrEmpty(imageLinkPath)) ?
+                    $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imageLinkPath}')""><img src=""/assets/clipboard.png""/></button>" : string.Empty;
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{stringMatchedHash}')""><img src = ""/assets/eyes.png""/></button>";
-                var newButtonMagnifier = $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>";
+                var newButtonMagnifier = isSvgImage ? $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>" : string.Empty;
                 var endDivForToolbar = "</div>";
                 var endDivContainer = $"</div>";
                 divContainsImage = string.Concat(newDivContainer,
                                                     newDivToolbar,
-                                                         newButtonForResize, 
+                                                         newButtonForResize,
                                                          newButtonForMove,
                                                          newButtonForDynamicPlantuml,
                                                          newButtonForPlantumlCopy,
+                                                         newButtonForImageCopy,
                                                          newButtonEyes,
                                                          newButtonMagnifier,
-                                                    endDivForToolbar, 
-                                                    divContainsImage, 
+                                                    endDivForToolbar,
+                                                    divContainsImage,
                                                 endDivContainer);
                 markdown = markdown.Replace(itemImg.Groups[0].Value, divContainsImage);
 
@@ -183,21 +188,21 @@ namespace MdExplorer.Features.Commands.html
                     $"{System.Environment.NewLine}{System.Environment.NewLine}" +
                     $"</div>";
 
-                // Build toolbar (only eyes and magnifier for simple images)
+                // Build toolbar (eyes and copy for simple images — no magnifier, text search makes no sense on raster images)
                 var newDivContainer = $"\r\n<div>";
                 var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" " +
                     $"onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"style=\"display:none;\">";
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{imageHash}')""><img src=""/assets/eyes.png""/></button>";
-                var newButtonMagnifier = $@"<button alt=""search text"" onclick=""toggleMagnifier('{imageHash}')""><img src=""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>";
+                var newButtonCopy = $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imagePath}')""><img src=""/assets/clipboard.png""/></button>";
                 var endDivForToolbar = "</div>";
                 var endDivContainer = "</div>";
 
                 divContainsImage = string.Concat(newDivContainer,
                                                     newDivToolbar,
+                                                         newButtonCopy,
                                                          newButtonEyes,
-                                                         newButtonMagnifier,
                                                     endDivForToolbar,
                                                     divContainsImage,
                                                 endDivContainer);

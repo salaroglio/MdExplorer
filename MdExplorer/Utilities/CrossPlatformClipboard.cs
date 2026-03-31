@@ -468,7 +468,9 @@ namespace MdExplorer.Utilities
                     using (var ms = new MemoryStream(pngData))
                     using (var image = Image.FromStream(ms))
                     {
-                        Clipboard.SetImage(image);
+                        var dataObj = new DataObject();
+                        dataObj.SetImage(image);
+                        Clipboard.SetDataObject(dataObj, true);
                         tcs.SetResult(new ClipboardResult { Success = true });
                     }
                 }
