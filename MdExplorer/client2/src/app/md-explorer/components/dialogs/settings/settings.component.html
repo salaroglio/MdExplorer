@@ -34,9 +34,17 @@
           <input matInput [(ngModel)]="localGraphvizDotPath" placeholder="LocalGraphvizDot Path">
           <mat-hint>Set graphiz internal path</mat-hint>
         </mat-form-field>
+        <div style="margin-bottom: 16px;">
+          <mat-slide-toggle
+            [(ngModel)]="jiraEnabled"
+            color="primary">
+            Enable Jira ticket links
+          </mat-slide-toggle>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: rgba(0,0,0,0.54);">When enabled, Jira ticket references in markdown will be rendered as clickable links</p>
+        </div>
         <mat-form-field appearance="outline">
           <mat-label>Jira path</mat-label>
-          <input matInput [(ngModel)]="jiraServer" placeholder="Jira path">
+          <input matInput [(ngModel)]="jiraServer" [disabled]="!jiraEnabled" placeholder="Jira path">
           <mat-hint>Set http to jira</mat-hint>
         </mat-form-field>
       </div>

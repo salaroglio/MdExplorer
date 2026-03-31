@@ -72,9 +72,18 @@
               <mat-hint>{{ 'UNIFIED_SETTINGS.GRAPHVIZ_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
+            <div class="jira-settings-row">
+              <mat-slide-toggle
+                [(ngModel)]="jiraEnabled"
+                color="primary">
+                {{ 'UNIFIED_SETTINGS.JIRA_ENABLED' | translate }}
+              </mat-slide-toggle>
+              <p class="hint-text">{{ 'UNIFIED_SETTINGS.JIRA_ENABLED_HINT' | translate }}</p>
+            </div>
+
             <mat-form-field appearance="outline">
               <mat-label>{{ 'UNIFIED_SETTINGS.JIRA_PATH' | translate }}</mat-label>
-              <input matInput [(ngModel)]="jiraServer" [placeholder]="'UNIFIED_SETTINGS.JIRA_PLACEHOLDER' | translate">
+              <input matInput [(ngModel)]="jiraServer" [disabled]="!jiraEnabled" [placeholder]="'UNIFIED_SETTINGS.JIRA_PLACEHOLDER' | translate">
               <mat-hint>{{ 'UNIFIED_SETTINGS.JIRA_HINT' | translate }}</mat-hint>
             </mat-form-field>
 

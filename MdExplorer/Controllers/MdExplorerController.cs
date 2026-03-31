@@ -498,17 +498,23 @@ namespace MdExplorer.Controllers
 
             var settingDal = _userSettingsDB.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
+            var jiraEnabled = settingDal.GetList().Where(_ => _.Name == "JiraEnabled").FirstOrDefault()?.ValueInt == 1;
 
-            var pipeline = new MarkdownPipelineBuilder()
+            var pipelineBuilder = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
                 .UseDiagrams()
                 .UsePipeTables()
-                .UseBootstrap()
-                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
+                .UseBootstrap();
+
+            if (jiraEnabled && !string.IsNullOrWhiteSpace(jiraUrl))
+            {
+                pipelineBuilder.UseJiraLinks(new JiraLinkOptions(jiraUrl));
+            }
+
+            var pipeline = pipelineBuilder
                 .UseEmojiAndSmiley()
                 .UseYamlFrontMatter()
                 .UseGenericAttributes()
-                
                 .Build();
 
             string result;
@@ -533,8 +539,8 @@ namespace MdExplorer.Controllers
             var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack", "mdeLowerBarButton mdeNavButton");
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
-            var btnTOC = AddButtonTextOnVerticalBar("closeTOC()", "openTOC()", "TOC", "btnToc");
-            var btnRefs = AddButtonTextOnVerticalBar("closeReferences()", "openReferences()", "Refs", "btnRefs");
+            var btnTOC = AddButtonTextOnVerticalBar("toggleTOC()", "TOC", "btnToc");
+            var btnRefs = AddButtonTextOnVerticalBar("toggleReferences()", "Refs", "btnRefs");
             var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
@@ -752,7 +758,7 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private string AddButtonTextOnVerticalBar(string onClickJs, string onHoverJs, string text, string Id)
+        private string AddButtonTextOnVerticalBar(string onHoverJs, string text, string Id)
         {
             try
             {
@@ -760,15 +766,12 @@ namespace MdExplorer.Controllers
                 var body = doc1.CreateElement("div");
                 var a = doc1.CreateElement("div");
                 a.InnerText = text;
-                var attClick = doc1.CreateAttribute("onClick");
-                attClick.Value = onClickJs;
                 var attHover = doc1.CreateAttribute("onMouseEnter");
                 attHover.Value = onHoverJs;
                 var attStyle = doc1.CreateAttribute("style");
                 attStyle.Value = "cursor: pointer";
                 var attId = doc1.CreateAttribute("id");
                 attId.Value = Id;
-                a.Attributes.Append(attClick);
                 a.Attributes.Append(attHover);
                 a.Attributes.Append(attStyle);
                 a.Attributes.Append(attId);
@@ -778,7 +781,7 @@ namespace MdExplorer.Controllers
             catch (Exception ex)
             {
                 _logger.LogWarning($"⚠️ [MdExplorer] Could not create text button {Id}: {ex.Message}");
-                return $"<div><div onclick=\"{onClickJs}\" onmouseenter=\"{onHoverJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
+                return $"<div><div onmouseenter=\"{onHoverJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
             }
         }
 

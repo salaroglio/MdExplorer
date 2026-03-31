@@ -27,6 +27,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   vscodePath: string = '';
   intellijPath: string = '';
   jiraServer: string = '';
+  jiraEnabled: boolean = false;
   plantumlLocalPath: string = '';
 
   javaPath: string = '';
@@ -157,6 +158,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.vscodePath = settings.find(_ => _.name === 'EditorPath')?.valueString || '';
         this.intellijPath = settings.find(_ => _.name === 'IntelliJPath')?.valueString || '';
         this.jiraServer = settings.find(_ => _.name === 'JiraServer')?.valueString || '';
+        this.jiraEnabled = (settings.find(_ => _.name === 'JiraEnabled')?.valueInt ?? 0) === 1;
         this.plantumlLocalPath = settings.find(_ => _.name === 'PlantumlLocalPath')?.valueString || '';
         this.javaPath = settings.find(_ => _.name === 'JavaPath')?.valueString || '';
         this.localGraphvizDotPath = settings.find(_ => _.name === 'LocalGraphvizDotPath')?.valueString || '';
@@ -173,6 +175,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.updateSetting('EditorPath', this.vscodePath);
     this.updateSetting('IntelliJPath', this.intellijPath);
     this.updateSetting('JiraServer', this.jiraServer);
+    this.updateSettingInt('JiraEnabled', this.jiraEnabled ? 1 : 0);
     this.updateSetting('PlantumlLocalPath', this.plantumlLocalPath);
     this.updateSetting('JavaPath', this.javaPath);
     this.updateSetting('LocalGraphvizDotPath', this.localGraphvizDotPath);
@@ -188,6 +191,15 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
       setting.valueString = value;
     } else {
       this._settings.push({ name: name, valueString: value } as IMdSetting);
+    }
+  }
+
+  private updateSettingInt(name: string, value: number): void {
+    const setting = this._settings.find(_ => _.name === name);
+    if (setting) {
+      setting.valueInt = value;
+    } else {
+      this._settings.push({ name: name, valueInt: value } as IMdSetting);
     }
   }
 

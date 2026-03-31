@@ -10010,25 +10010,25 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function SettingsComponent_mat_card_47_Template(rf, ctx) {
+function SettingsComponent_mat_card_52_Template(rf, ctx) {
   if (rf & 1) {
     const _r2 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "mat-card", 2)(1, "mat-card-header")(2, "mat-card-title");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "Notifications");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "mat-card-content")(5, "div", 15)(6, "mat-slide-toggle", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_mat_card_47_Template_mat_slide_toggle_ngModelChange_6_listener($event) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](4, "mat-card-content")(5, "div", 18)(6, "mat-slide-toggle", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_mat_card_52_Template_mat_slide_toggle_ngModelChange_6_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r2);
       const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r1.fileChangeNotificationEnabled = $event);
-    })("change", function SettingsComponent_mat_card_47_Template_mat_slide_toggle_change_6_listener() {
+    })("change", function SettingsComponent_mat_card_52_Template_mat_slide_toggle_change_6_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r2);
       const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r3.onFileChangeNotificationToggle());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](7, " Flash taskbar for file changes ");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "p", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "p", 20);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "Flash the taskbar icon when files are modified externally while MdExplorer is in the background");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
   }
@@ -10044,6 +10044,7 @@ class SettingsComponent {
     this.dialogRef = dialogRef;
     this._snackBar = _snackBar;
     this.fileChangeNotificationService = fileChangeNotificationService;
+    this.jiraEnabled = false;
     // File change notification settings
     this.fileChangeNotificationEnabled = true;
     this.isElectronEnvironment = false;
@@ -10058,6 +10059,7 @@ class SettingsComponent {
         this.vscodePath = settings.find(_ => _.name === "EditorPath")?.valueString || null;
         this.intellijPath = settings.find(_ => _.name === "IntelliJPath")?.valueString || null;
         this.jiraServer = settings.find(_ => _.name === "JiraServer")?.valueString || null;
+        this.jiraEnabled = (settings.find(_ => _.name === "JiraEnabled")?.valueInt ?? 0) === 1;
         this.plantumlLocalPath = settings.find(_ => _.name === "PlantumlLocalPath")?.valueString || null;
         this.javaPath = settings.find(_ => _.name === "JavaPath")?.valueString || null;
         this.localGraphvizDotPath = settings.find(_ => _.name === "LocalGraphvizDotPath")?.valueString || null;
@@ -10073,6 +10075,7 @@ class SettingsComponent {
     this.updateSetting("EditorPath", this.vscodePath);
     this.updateSetting("IntelliJPath", this.intellijPath);
     this.updateSetting("JiraServer", this.jiraServer);
+    this.updateSettingInt("JiraEnabled", this.jiraEnabled ? 1 : 0);
     this.updateSetting("PlantumlLocalPath", this.plantumlLocalPath);
     this.updateSetting("JavaPath", this.javaPath);
     this.updateSetting("LocalGraphvizDotPath", this.localGraphvizDotPath);
@@ -10096,6 +10099,17 @@ class SettingsComponent {
       });
     }
   }
+  updateSettingInt(name, value) {
+    const setting = this._settings.find(_ => _.name === name);
+    if (setting) {
+      setting.valueInt = value;
+    } else {
+      this._settings.push({
+        name: name,
+        valueInt: value
+      });
+    }
+  }
   dismiss() {
     this.dialogRef.close(null);
   }
@@ -10108,9 +10122,9 @@ class SettingsComponent {
     this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
       type: SettingsComponent,
       selectors: [["app-settings"]],
-      decls: 57,
-      vars: 7,
-      consts: [["mat-dialog-title", "", 2, "display", "inline"], ["src", "/assets/IconReady.png", 2, "display", "inline", "vertical-align", "middle"], [2, "margin-top", "10px", "margin-bottom", "10px"], [1, "vertical-form-container"], ["appearance", "outline"], ["matPrefix", "", 1, "ide-icon", "vscode-color"], ["matInput", "", "placeholder", "Visual studio code path", 3, "ngModel", "ngModelChange"], ["matPrefix", "", 1, "ide-icon", "intellij-color"], ["matInput", "", "placeholder", "IntelliJ IDEA path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "plantuml local path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Java folder", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "LocalGraphvizDot Path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Jira path", 3, "ngModel", "ngModelChange"], ["style", "margin-top:10px; margin-bottom:10px", 4, "ngIf"], ["mat-button", "", "color", "primary", 3, "click"], [1, "notification-setting"], ["color", "primary", 3, "ngModel", "ngModelChange", "change"], [1, "setting-hint"]],
+      decls: 62,
+      vars: 9,
+      consts: [["mat-dialog-title", "", 2, "display", "inline"], ["src", "/assets/IconReady.png", 2, "display", "inline", "vertical-align", "middle"], [2, "margin-top", "10px", "margin-bottom", "10px"], [1, "vertical-form-container"], ["appearance", "outline"], ["matPrefix", "", 1, "ide-icon", "vscode-color"], ["matInput", "", "placeholder", "Visual studio code path", 3, "ngModel", "ngModelChange"], ["matPrefix", "", 1, "ide-icon", "intellij-color"], ["matInput", "", "placeholder", "IntelliJ IDEA path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "plantuml local path", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "Java folder", 3, "ngModel", "ngModelChange"], ["matInput", "", "placeholder", "LocalGraphvizDot Path", 3, "ngModel", "ngModelChange"], [2, "margin-bottom", "16px"], ["color", "primary", 3, "ngModel", "ngModelChange"], [2, "margin", "4px 0 0 0", "font-size", "12px", "color", "rgba(0,0,0,0.54)"], ["matInput", "", "placeholder", "Jira path", 3, "ngModel", "disabled", "ngModelChange"], ["style", "margin-top:10px; margin-bottom:10px", 4, "ngIf"], ["mat-button", "", "color", "primary", 3, "click"], [1, "notification-setting"], ["color", "primary", 3, "ngModel", "ngModelChange", "change"], [1, "setting-hint"]],
       template: function SettingsComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
@@ -10179,36 +10193,45 @@ class SettingsComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](39, "mat-hint");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](40, "Set graphiz internal path");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](41, "mat-form-field", 4)(42, "mat-label");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](43, "Jira path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](41, "div", 12)(42, "mat-slide-toggle", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_mat_slide_toggle_ngModelChange_42_listener($event) {
+            return ctx.jiraEnabled = $event;
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](43, " Enable Jira ticket links ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](44, "input", 12);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_44_listener($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](44, "p", 14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](45, "When enabled, Jira ticket references in markdown will be rendered as clickable links");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](46, "mat-form-field", 4)(47, "mat-label");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](48, "Jira path");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](49, "input", 15);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function SettingsComponent_Template_input_ngModelChange_49_listener($event) {
             return ctx.jiraServer = $event;
           });
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](45, "mat-hint");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](46, "Set http to jira");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](50, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](51, "Set http to jira");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](47, SettingsComponent_mat_card_47_Template, 10, 1, "mat-card", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](52, SettingsComponent_mat_card_52_Template, 10, 1, "mat-card", 16);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](48, "mat-dialog-actions")(49, "button", 14);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_49_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](53, "mat-dialog-actions")(54, "button", 17);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_54_listener() {
             return ctx.save();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](50, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](51, "save");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](55, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](56, "save");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](52, "Save ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](57, "Save ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](53, "button", 14);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_53_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](58, "button", 17);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function SettingsComponent_Template_button_click_58_listener() {
             return ctx.dismiss();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](54, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](55, "cancel");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](59, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](60, "cancel");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](56, "Cancel ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](61, "Cancel ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
@@ -10222,8 +10245,10 @@ class SettingsComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.javaPath);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.localGraphvizDotPath);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.jiraServer);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.jiraEnabled);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.jiraServer)("disabled", !ctx.jiraEnabled);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isElectronEnvironment);
         }
