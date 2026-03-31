@@ -11165,6 +11165,12 @@ class LanguageService {
     const saved = localStorage.getItem(this.STORAGE_KEY);
     const lang = saved && this.SUPPORTED_LANGS.includes(saved) ? saved : navigator.language?.startsWith('it') ? 'it' : 'en';
     this.translate.use(lang);
+    localStorage.setItem(this.STORAGE_KEY, lang);
+    // Always sync language to Electron main process at startup
+    // (fixes tray menu staying in English when frontend auto-detected Italian)
+    if (window.electronAPI?.setLanguage) {
+      window.electronAPI.setLanguage(lang);
+    }
   }
   setLanguage(lang) {
     if (!this.SUPPORTED_LANGS.includes(lang)) return;
@@ -12678,8 +12684,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.03.28.4',
-  buildTime: '2026.03.28 18:40:01'
+  version: '2026.03.31.1',
+  buildTime: '2026.03.31 11:21:49'
 };
 
 /***/ }),

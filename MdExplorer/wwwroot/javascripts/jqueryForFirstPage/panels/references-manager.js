@@ -21,47 +21,39 @@
  */
 
 /**
- * Toggle References panel visibility
- * Handles 4 states based on current visibility of Refs and TOC panels:
- * 1. Both hidden → Show Refs
- * 2. Refs hidden, TOC visible → Show Refs, hide TOC
- * 3. Refs visible, TOC hidden → Hide Refs
- * 4. Both visible → Hide TOC, show Refs (shouldn't happen normally)
+ * Open References panel (triggered on hover).
+ * Closes TOC if open (panels are mutually exclusive).
+ */
+function openReferences() {
+    var $refs = $('#Refs');
+    if (!$refs.is(":hidden")) return; // already open
+
+    $refs.fadeIn();
+    $('#TOC').fadeOut();
+    window.currentDocumentSetting.showTOC = false;
+    window.currentDocumentSetting.showRefs = true;
+    _savePanelState();
+}
+
+/**
+ * Close References panel (triggered on click).
+ */
+function closeReferences() {
+    var $refs = $('#Refs');
+    if ($refs.is(":hidden")) return; // already closed
+
+    $refs.fadeOut();
+    window.currentDocumentSetting.showRefs = false;
+    _savePanelState();
+}
+
+/**
+ * Toggle References panel visibility (kept for backward compatibility).
  */
 function toggleReferences() {
-    let $refs = $('#Refs');
-    let $toc = $('#TOC');
-
-    if ($('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
-        $refs.fadeIn();
-        window.currentDocumentSetting.showTOC = false;
-        window.currentDocumentSetting.showRefs = true;
-
-    } else if ($('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
-        $refs.fadeIn();
-        $toc.fadeOut();
-        window.currentDocumentSetting.showTOC = false;
-        window.currentDocumentSetting.showRefs = true;
-    } else if (!$('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
-        $refs.fadeOut();
-        window.currentDocumentSetting.showTOC = false;
-        window.currentDocumentSetting.showRefs = false;
-    } else if (!$('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
-        $toc.fadeOut();
-        $refs.fadeIn();
-        window.currentDocumentSetting.showTOC = false;
-        window.currentDocumentSetting.showRefs = true;
+    if ($('#Refs').is(":hidden")) {
+        openReferences();
+    } else {
+        closeReferences();
     }
-
-    $.ajax({
-        url: "/api/tabcontroller/SaveTOCData",
-        type: "POST",
-        data: JSON.stringify(window.currentDocumentSetting),
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        success: function (data) {
-
-            console.log(data);
-        }
-    });
 }

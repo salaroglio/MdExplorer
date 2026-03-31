@@ -533,8 +533,8 @@ namespace MdExplorer.Controllers
             var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack", "mdeLowerBarButton mdeNavButton");
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
-            var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
-            var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
+            var btnTOC = AddButtonTextOnVerticalBar("closeTOC()", "openTOC()", "TOC", "btnToc");
+            var btnRefs = AddButtonTextOnVerticalBar("closeReferences()", "openReferences()", "Refs", "btnRefs");
             var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
@@ -752,7 +752,7 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private string AddButtonTextOnVerticalBar(string functionJs, string text, string Id)
+        private string AddButtonTextOnVerticalBar(string onClickJs, string onHoverJs, string text, string Id)
         {
             try
             {
@@ -760,22 +760,25 @@ namespace MdExplorer.Controllers
                 var body = doc1.CreateElement("div");
                 var a = doc1.CreateElement("div");
                 a.InnerText = text;
-                var aAtt = doc1.CreateAttribute("onClick");
-                var att2 = doc1.CreateAttribute("style");
-                att2.Value = "cursor: pointer";
-                a.Attributes.Append(aAtt);
-                a.Attributes.Append(att2);
-                aAtt.Value = functionJs;
-                var id = doc1.CreateAttribute("id");
-                id.Value = Id;
+                var attClick = doc1.CreateAttribute("onClick");
+                attClick.Value = onClickJs;
+                var attHover = doc1.CreateAttribute("onMouseEnter");
+                attHover.Value = onHoverJs;
+                var attStyle = doc1.CreateAttribute("style");
+                attStyle.Value = "cursor: pointer";
+                var attId = doc1.CreateAttribute("id");
+                attId.Value = Id;
+                a.Attributes.Append(attClick);
+                a.Attributes.Append(attHover);
+                a.Attributes.Append(attStyle);
+                a.Attributes.Append(attId);
                 body.AppendChild(a);
                 return body.OuterXml;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning($"⚠️ [MdExplorer] Could not create text button {Id}: {ex.Message}");
-                // Return a simple HTML fallback
-                return $"<div><div onclick=\"{functionJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
+                return $"<div><div onclick=\"{onClickJs}\" onmouseenter=\"{onHoverJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
             }
         }
 
