@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MdExplorer.Utilities;
 using System.Web;
 
 namespace MdExplorer.Service.Controllers
@@ -52,6 +53,34 @@ namespace MdExplorer.Service.Controllers
             var generatedFileName = render.GetPng(markdown, hashFile, step, requestInfo);
 
             return Ok(new { GeneratedFileName = generatedFileName });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CopyPngToClipboard(string pathFile, string hashFile, int step)
+        {
+            try
+            {
+                (var requestInfo, var markdown) = GetMarkDown(pathFile);
+                var render = (IPresentationPlantuml)_commandFactory.GetCommands().Where(_ => _.Name == "FromPlantumlToPng").FirstOrDefault();
+                var generatedFileName = render.GetPng(markdown, hashFile, step, requestInfo);
+
+                var pngPath = Path.Combine(requestInfo.CurrentRoot, ".md", generatedFileName);
+                if (!System.IO.File.Exists(pngPath))
+                    return NotFound(new { error = "PNG file not found" });
+
+                var pngData = await System.IO.File.ReadAllBytesAsync(pngPath);
+                var result = await CrossPlatformClipboard.SetImageAsync(pngData);
+
+                if (result.Success)
+                    return Ok(new { message = "Image copied to clipboard" });
+
+                return StatusCode(500, new { error = result.ErrorMessage });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CopyPngToClipboard] Error");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         private (RequestInfo, string) GetMarkDown(string pathFile)

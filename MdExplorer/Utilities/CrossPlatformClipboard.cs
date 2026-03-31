@@ -419,6 +419,177 @@ namespace MdExplorer.Utilities
                 return false;
             }
         }
+
+        /// <summary>
+        /// Sets a PNG image into the system clipboard
+        /// </summary>
+        public static async Task<ClipboardResult> SetImageAsync(byte[] pngData)
+        {
+            if (pngData == null || pngData.Length == 0)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = "No image data provided"
+                };
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return await SetImageWindows(pngData);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return await SetImageLinux(pngData);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return await SetImageMacOS(pngData);
+            }
+            else
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = "Unsupported operating system"
+                };
+            }
+        }
+
+        private static Task<ClipboardResult> SetImageWindows(byte[] pngData)
+        {
+            var tcs = new TaskCompletionSource<ClipboardResult>();
+
+#if WINDOWS_CLIPBOARD_SUPPORT
+            Thread thread = new Thread(() =>
+            {
+                try
+                {
+                    using (var ms = new MemoryStream(pngData))
+                    using (var image = Image.FromStream(ms))
+                    {
+                        Clipboard.SetImage(image);
+                        tcs.SetResult(new ClipboardResult { Success = true });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetResult(new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                    });
+                }
+            });
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+#else
+            tcs.SetResult(new ClipboardResult
+            {
+                Success = false,
+                ErrorMessage = "Windows clipboard support not available"
+            });
+#endif
+
+            return tcs.Task;
+        }
+
+        private static async Task<ClipboardResult> SetImageLinux(byte[] pngData)
+        {
+            try
+            {
+                var xclipAvailable = await CheckCommandAvailable("xclip");
+                if (!xclipAvailable)
+                {
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = "xclip not found",
+                        PlatformHint = "Install xclip with 'sudo apt-get install xclip'"
+                    };
+                }
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "xclip",
+                    Arguments = "-selection clipboard -t image/png -i",
+                    RedirectStandardInput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    await process.StandardInput.BaseStream.WriteAsync(pngData, 0, pngData.Length);
+                    process.StandardInput.Close();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    var error = await process.StandardError.ReadToEndAsync();
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"xclip failed: {error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                };
+            }
+        }
+
+        private static async Task<ClipboardResult> SetImageMacOS(byte[] pngData)
+        {
+            try
+            {
+                var tempFile = Path.GetTempFileName() + ".png";
+                await File.WriteAllBytesAsync(tempFile, pngData);
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "osascript",
+                    Arguments = $"-e \"set the clipboard to (read (POSIX file \\\"{tempFile}\\\") as «class PNGf»)\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    process.WaitForExit();
+                    File.Delete(tempFile);
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    var error = await process.StandardError.ReadToEndAsync();
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"osascript failed: {error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                };
+            }
+        }
     }
 
     /// <summary>

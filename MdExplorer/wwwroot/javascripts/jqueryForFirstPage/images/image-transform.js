@@ -25,6 +25,11 @@ var _toolbarScrollListeners = {};
 // Pending hide timers keyed by referenceId (allows mouseenter on search box to cancel)
 var _hideToolbarTimers = {};
 
+// Idle auto-hide: timers, mousemove listeners, and hidden-state flags keyed by referenceId
+var _idleHideTimers = {};
+var _idleMouseMoveListeners = {};
+var _toolbarIdleHidden = {};
+
 /**
  * Recalculate and apply position:fixed coordinates for the toolbar,
  * clamping to the container's visible top-left corner in the viewport.
@@ -43,6 +48,58 @@ function _updateToolbarPosition(referenceId) {
 }
 
 /**
+ * Start (or restart) the idle auto-hide timer.
+ * After 2 seconds with no mouse movement the toolbar hides automatically.
+ * Skipped when the SVG search box is open.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _startIdleHideTimer(referenceId) {
+    if (_idleHideTimers[referenceId]) {
+        clearTimeout(_idleHideTimers[referenceId]);
+    }
+
+    _idleHideTimers[referenceId] = setTimeout(function () {
+        // Don't idle-hide if search box is open for this toolbar's image
+        if (typeof _toolbarToHashMap !== 'undefined' && _toolbarToHashMap[referenceId]) {
+            var hash = _toolbarToHashMap[referenceId];
+            if (window.svgSearchActive && window.svgSearchActive[hash]) {
+                return;
+            }
+        }
+
+        var $toolbar = $('#' + referenceId);
+        $toolbar.attr("style", "display:none;");
+        _toolbarIdleHidden[referenceId] = true;
+    }, 2000);
+}
+
+/**
+ * Attach a mousemove listener to the toolbar's parent container.
+ * On movement: re-show the toolbar if idle-hidden, or reset the idle timer.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _attachIdleMouseMoveListener(referenceId) {
+    if (_idleMouseMoveListeners[referenceId]) return;
+
+    var container = $('#' + referenceId).parent()[0];
+    if (!container) return;
+
+    var handler = function () {
+        if (_toolbarIdleHidden[referenceId]) {
+            _toolbarIdleHidden[referenceId] = false;
+            showImageToolbar(referenceId);
+        } else {
+            _startIdleHideTimer(referenceId);
+        }
+    };
+
+    _idleMouseMoveListeners[referenceId] = { container: container, handler: handler };
+    container.addEventListener('mousemove', handler, false);
+}
+
+/**
  * Show image toolbar on hover.
  * Uses position:fixed so the buttons stay visible at the top-left of the
  * container's visible area even when the image is larger than the viewport
@@ -56,6 +113,9 @@ function showImageToolbar(referenceId) {
         clearTimeout(_hideToolbarTimers[referenceId]);
         delete _hideToolbarTimers[referenceId];
     }
+
+    // Clear idle-hidden state if re-showing
+    _toolbarIdleHidden[referenceId] = false;
 
     var $element = $('#' + referenceId);
     var rect = $element.parent()[0].getBoundingClientRect();
@@ -81,6 +141,10 @@ function showImageToolbar(referenceId) {
             _showSearchBox(hash);
         }
     }
+
+    // Start idle auto-hide timer and attach mousemove listener
+    _startIdleHideTimer(referenceId);
+    _attachIdleMouseMoveListener(referenceId);
 }
 
 /**
@@ -90,6 +154,12 @@ function showImageToolbar(referenceId) {
  * @param {string} referenceId - ID of toolbar element
  */
 function hideImageToolbar(referenceId) {
+    // Immediately cancel idle timer to prevent it firing during the 150ms delay
+    if (_idleHideTimers[referenceId]) {
+        clearTimeout(_idleHideTimers[referenceId]);
+        delete _idleHideTimers[referenceId];
+    }
+
     _hideToolbarTimers[referenceId] = setTimeout(function () {
         delete _hideToolbarTimers[referenceId];
 
@@ -108,6 +178,14 @@ function hideImageToolbar(referenceId) {
             if (typeof _hideSearchBox === 'function') {
                 _hideSearchBox(hash);
             }
+        }
+
+        // Clean up idle auto-hide state
+        delete _toolbarIdleHidden[referenceId];
+        var idleListener = _idleMouseMoveListeners[referenceId];
+        if (idleListener) {
+            idleListener.container.removeEventListener('mousemove', idleListener.handler, false);
+            delete _idleMouseMoveListeners[referenceId];
         }
     }, 150);
 }
