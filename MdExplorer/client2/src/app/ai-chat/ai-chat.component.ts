@@ -6,6 +6,7 @@ import { takeUntil } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { marked } from 'marked';
 import { LayoutService } from '../md-explorer/services/layout.service';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-ai-chat',
@@ -43,7 +44,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private aiService: AiChatService,
     private router: Router,
     private sanitizer: DomSanitizer,
-    private layoutService: LayoutService
+    private layoutService: LayoutService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {

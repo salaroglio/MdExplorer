@@ -3,6 +3,7 @@ import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALO
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
 import { Snippet } from './models/snippet';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-new-markdown',
@@ -12,20 +13,26 @@ import { Snippet } from './models/snippet';
 export class NewMarkdownComponent implements OnInit {
   public markdownTitle: string;
 
-  documentTypes: Snippet[] = [
-    { id: 0, name: 'Text document', documentType: 'document' },
-    { id: 8, name: 'PromptLab', documentType: 'promptlab' },
-    { id: 5, name: 'Slides', documentType: 'slides' }
-  ];
+  documentTypes: Snippet[] = [];
+
+  private initDocumentTypes(): void {
+    this.documentTypes = [
+      { id: 0, name: this.translate.instant('NEW_MARKDOWN.TEXT_DOC'), documentType: 'document' },
+      { id: 8, name: this.translate.instant('NEW_MARKDOWN.PROMPTLAB'), documentType: 'promptlab' },
+      { id: 5, name: this.translate.instant('NEW_MARKDOWN.SLIDES'), documentType: 'slides' }
+    ];
+    this.selectedTemplate = this.documentTypes[0];
+  }
 
   selectedTemplate: Snippet;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: MdFile,
     private dialogRef: MatDialogRef<NewMarkdownComponent>,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private translate: TranslateService
   ) {
-    this.selectedTemplate = this.documentTypes[0];
+    this.initDocumentTypes();
   }
 
   ngOnInit(): void {

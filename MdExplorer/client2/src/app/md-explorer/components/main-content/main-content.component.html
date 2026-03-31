@@ -1,37 +1,37 @@
 <!-- Main Content Container with State Management -->
 <div class="main-content-container" [ngClass]="classForContent">
-  
+
   <!-- Loading State Overlay -->
-  <div class="loading-overlay" *ngIf="isLoading$ | async" 
-       role="status" 
-       aria-label="Caricamento documento in corso">
+  <div class="loading-overlay" *ngIf="isLoading$ | async"
+       role="status"
+       [attr.aria-label]="'MAIN_CONTENT.LOADING_DOC' | translate">
     <div class="loading-content">
-      <mat-progress-spinner 
-        diameter="40" 
+      <mat-progress-spinner
+        diameter="40"
         mode="indeterminate"
         color="primary">
       </mat-progress-spinner>
-      <p class="loading-text">Caricamento documento...</p>
-      <p class="loading-subtext">Attendere prego</p>
+      <p class="loading-text">{{ 'MAIN_CONTENT.LOADING_DOC' | translate }}</p>
+      <p class="loading-subtext">{{ 'MAIN_CONTENT.PLEASE_WAIT' | translate }}</p>
     </div>
   </div>
 
   <!-- Indexing State Overlay -->
-  <div class="indexing-overlay" 
-       *ngIf="(currentState$ | async)?.status === 'indexing'" 
-       role="status" 
-       aria-label="Indicizzazione documento in corso">
+  <div class="indexing-overlay"
+       *ngIf="(currentState$ | async)?.status === 'indexing'"
+       role="status"
+       [attr.aria-label]="'MAIN_CONTENT.INDEXING' | translate">
     <div class="indexing-content">
-      <mat-progress-spinner 
-        diameter="40" 
+      <mat-progress-spinner
+        diameter="40"
         mode="indeterminate"
         color="accent">
       </mat-progress-spinner>
-      <p class="indexing-text">Indicizzazione in corso...</p>
-      <p class="indexing-subtext">Il documento sarà disponibile a breve</p>
+      <p class="indexing-text">{{ 'MAIN_CONTENT.INDEXING' | translate }}</p>
+      <p class="indexing-subtext">{{ 'MAIN_CONTENT.DOC_AVAILABLE_SOON' | translate }}</p>
       <div class="indexing-info">
         <mat-icon class="info-icon">info</mat-icon>
-        <span>Prima visualizzazione del file</span>
+        <span>{{ 'MAIN_CONTENT.FIRST_VIEW' | translate }}</span>
       </div>
     </div>
   </div>
@@ -39,36 +39,36 @@
   <!-- Error State Display -->
   <div class="error-state" *ngIf="hasError$ | async"
        role="alert"
-       aria-label="Errore di caricamento">
+       [attr.aria-label]="'MAIN_CONTENT.LOAD_ERROR' | translate">
     <div class="error-content">
       <mat-icon class="error-icon" color="warn">error_outline</mat-icon>
-      <h3 class="error-title">Errore di caricamento</h3>
+      <h3 class="error-title">{{ 'MAIN_CONTENT.LOAD_ERROR' | translate }}</h3>
       <p class="error-message">{{ errorMessage$ | async }}</p>
       <div class="error-actions">
-        <button mat-raised-button 
-                color="primary" 
+        <button mat-raised-button
+                color="primary"
                 (click)="retry()"
                 class="retry-button">
           <mat-icon>refresh</mat-icon>
-          Riprova
+          {{ 'MAIN_CONTENT.RETRY' | translate }}
         </button>
       </div>
     </div>
   </div>
 
   <!-- Empty State (when no file is selected) -->
-  <div class="empty-state" 
+  <div class="empty-state"
        *ngIf="(currentState$ | async)?.status === 'idle'"
        role="main"
-       aria-label="Stato vuoto - nessun documento selezionato">
+       aria-label="empty state">
     <div class="empty-content">
       <mat-icon class="empty-icon">description</mat-icon>
-      <h3 class="empty-title">Benvenuto in MdExplorer</h3>
-      <p class="empty-message">Seleziona un file Markdown dalla barra laterale per iniziare la visualizzazione.</p>
+      <h3 class="empty-title">{{ 'MAIN_CONTENT.WELCOME' | translate }}</h3>
+      <p class="empty-message">{{ 'MAIN_CONTENT.SELECT_FILE' | translate }}</p>
       <div class="empty-actions">
         <p class="empty-hint">
           <mat-icon class="hint-icon">info</mat-icon>
-          Usa la navigazione a sinistra per esplorare i tuoi documenti
+          {{ 'MAIN_CONTENT.USE_NAV' | translate }}
         </p>
       </div>
     </div>
@@ -78,12 +78,12 @@
   <div class="deleted-state"
        *ngIf="(currentState$ | async)?.status === 'deleted'"
        role="alert"
-       aria-label="File deleted">
+       [attr.aria-label]="'MAIN_CONTENT.FILE_DELETED_TITLE' | translate">
     <div class="deleted-content">
       <mat-icon class="deleted-icon">delete_outline</mat-icon>
-      <h3 class="deleted-title">File no longer available</h3>
-      <p class="deleted-message">The file <strong>{{ (currentState$ | async)?.deletedFileName }}</strong> has been deleted from the file system.</p>
-      <p class="deleted-hint">Select another file from the sidebar to continue.</p>
+      <h3 class="deleted-title">{{ 'MAIN_CONTENT.FILE_DELETED_TITLE' | translate }}</h3>
+      <p class="deleted-message" [innerHTML]="'MAIN_CONTENT.FILE_DELETED_MSG' | translate:{ name: (currentState$ | async)?.deletedFileName }"></p>
+      <p class="deleted-hint">{{ 'MAIN_CONTENT.FILE_DELETED_HINT' | translate }}</p>
     </div>
   </div>
 
@@ -94,7 +94,6 @@
           class="content-iframe"
           [hidden]="_HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle' || (currentState$ | async)?.status === 'deleted'"
           [src]="htmlSource | safe"
-          [attr.aria-label]="'Contenuto del documento: ' + ((currentState$ | async)?.currentPath || 'documento')"
           tabindex="0"
           role="document"
           scrolling="yes">

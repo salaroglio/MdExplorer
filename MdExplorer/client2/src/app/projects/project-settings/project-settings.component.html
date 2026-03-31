@@ -1,15 +1,15 @@
-<h2 mat-dialog-title>Project Settings - {{projectName}}</h2>
+<h2 mat-dialog-title>{{ 'PROJECT_SETTINGS.TITLE' | translate:{ name: projectName } }}</h2>
 
 <mat-dialog-content>
   <mat-tab-group class="settings-tabs">
 
     <!-- Tab 1: Markdown Settings -->
-    <mat-tab label="Markdown Settings">
+    <mat-tab [label]="'PROJECT_SETTINGS.MARKDOWN_SETTINGS' | translate">
       <div class="tab-content">
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>Validation Rules</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.VALIDATION_RULES' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
@@ -18,33 +18,30 @@
                 [(ngModel)]="rule1Enabled"
                 (change)="onRule1Change()"
                 [disabled]="saving">
-                <span class="setting-label">Rule #1: Check H1 matches filename</span>
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.RULE1_LABEL' | translate }}</span>
               </mat-checkbox>
               <p class="setting-description">
-                When enabled, verifies that the H1 heading in each Markdown file matches the filename
-                and automatically adds YAML frontmatter to markdown files.
-                This helps maintain consistency between file names and document titles.
+                {{ 'PROJECT_SETTINGS.RULE1_DESC' | translate }}
                 <br><br>
-                <strong>Note:</strong> This feature should be disabled when using GitHub Compatible Mode,
-                as GitHub doesn't recognize MdExplorer's custom YAML frontmatter format.
+                <strong>{{ 'PROJECT_SETTINGS.RULE1_NOTE' | translate }}</strong>
               </p>
             </div>
 
             <div *ngIf="loading" class="loading-container">
               <mat-spinner diameter="30"></mat-spinner>
-              <span>Loading settings...</span>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
             </div>
 
             <div *ngIf="saving" class="saving-indicator">
               <mat-spinner diameter="20"></mat-spinner>
-              <span>Saving...</span>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
             </div>
           </mat-card-content>
         </mat-card>
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>GitHub Compatibility</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.GITHUB_COMPAT' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
@@ -53,11 +50,10 @@
                 [(ngModel)]="githubModeEnabled"
                 (change)="onGitHubModeChange()"
                 [disabled]="saving">
-                <span class="setting-label">GitHub Compatible Mode</span>
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.GITHUB_MODE' | translate }}</span>
               </mat-checkbox>
               <p class="setting-description">
-                When enabled, uses GitHub-compatible markdown rendering (no PlantUML, interactive emoji, etc.).
-                Disable for full MdExplorer features when working in a team environment.
+                {{ 'PROJECT_SETTINGS.GITHUB_MODE_DESC' | translate }}
               </p>
             </div>
           </mat-card-content>
@@ -65,7 +61,7 @@
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>Link Indexing</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.LINK_INDEXING' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
@@ -74,15 +70,12 @@
                 [(ngModel)]="linkIndexingEnabled"
                 (change)="onLinkIndexingChange()"
                 [disabled]="saving">
-                <span class="setting-label">Enable Link Indexing</span>
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.ENABLE_LINK_INDEXING' | translate }}</span>
               </mat-checkbox>
               <p class="setting-description">
-                When enabled, MdExplorer indexes all links inside markdown files to track cross-references
-                and automatically recalculate paths when files are moved or renamed.
+                {{ 'PROJECT_SETTINGS.LINK_INDEXING_DESC' | translate }}
                 <br><br>
-                <strong>Note:</strong> Disabling this setting improves performance on large projects
-                but removes link reference tracking and automatic link recalculation on file move/rename.
-                Changes take effect on next project reload.
+                <strong>{{ 'PROJECT_SETTINGS.LINK_INDEXING_NOTE' | translate }}</strong>
               </p>
             </div>
           </mat-card-content>
@@ -90,7 +83,7 @@
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>View Options</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.VIEW_OPTIONS' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
@@ -99,11 +92,10 @@
                 [(ngModel)]="stickyScrollEnabled"
                 (change)="onStickyScrollChange()"
                 [disabled]="saving">
-                <span class="setting-label">Sticky scroll (VS Code-style parent folders)</span>
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.STICKY_SCROLL' | translate }}</span>
               </mat-checkbox>
               <p class="setting-description">
-                When enabled, parent folders remain visible at the top of the file tree
-                while scrolling — similar to VS Code's file explorer behavior.
+                {{ 'PROJECT_SETTINGS.STICKY_SCROLL_DESC' | translate }}
               </p>
             </div>
           </mat-card-content>
@@ -113,18 +105,18 @@
     </mat-tab>
 
     <!-- Tab 2: IDE Settings -->
-    <mat-tab label="IDE Settings">
+    <mat-tab [label]="'PROJECT_SETTINGS.IDE_SETTINGS' | translate">
       <div class="tab-content">
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>IDE Configuration</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.IDE_CONFIGURATION' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
             <div class="setting-item" *ngIf="!loading">
               <p class="setting-description">
-                Select which IDE should be used to open files from the toolbar:
+                {{ 'PROJECT_SETTINGS.IDE_SELECT_DESC' | translate }}
               </p>
 
               <mat-radio-group
@@ -134,13 +126,13 @@
                 <mat-radio-button value="vscode" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline vscode-color">code</mat-icon>
-                    Microsoft Visual Studio Code
+                    {{ 'PROJECT_SETTINGS.VSCODE' | translate }}
                   </span>
                 </mat-radio-button>
                 <mat-radio-button value="intellij" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline intellij-color">terminal</mat-icon>
-                    IntelliJ IDEA
+                    {{ 'PROJECT_SETTINGS.INTELLIJ' | translate }}
                   </span>
                 </mat-radio-button>
               </mat-radio-group>
@@ -148,12 +140,12 @@
 
             <div *ngIf="loading" class="loading-container">
               <mat-spinner diameter="30"></mat-spinner>
-              <span>Loading settings...</span>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
             </div>
 
             <div *ngIf="saving" class="saving-indicator">
               <mat-spinner diameter="20"></mat-spinner>
-              <span>Saving...</span>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
             </div>
           </mat-card-content>
         </mat-card>
@@ -162,8 +154,7 @@
           <mat-card-content>
             <mat-icon>info</mat-icon>
             <p>
-              IDE settings are specific to this project and saved in the database.
-              Changes take effect immediately when opening files from the toolbar.
+              {{ 'PROJECT_SETTINGS.IDE_INFO' | translate }}
             </p>
           </mat-card-content>
         </mat-card>
@@ -172,12 +163,12 @@
     </mat-tab>
 
     <!-- Tab 3: AI & RAG Settings -->
-    <mat-tab label="AI & RAG">
+    <mat-tab [label]="'PROJECT_SETTINGS.AI_RAG' | translate">
       <div class="tab-content">
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>RAG (Retrieval-Augmented Generation)</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.RAG_TITLE' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
@@ -186,30 +177,28 @@
                 [(ngModel)]="ragEnabled"
                 (change)="onRagChange()"
                 [disabled]="saving || !ragModelInstalled">
-                <span class="setting-label">Enable RAG</span>
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.ENABLE_RAG' | translate }}</span>
               </mat-checkbox>
               <p class="setting-description">
-                When enabled, MdExplorer generates semantic embeddings for all markdown files
-                in the project. This allows AI-powered semantic search via the MCP server
-                and the built-in AI chat.
+                {{ 'PROJECT_SETTINGS.RAG_DESC' | translate }}
                 <br><br>
-                Embeddings are generated incrementally: only changed files are re-processed.
+                {{ 'PROJECT_SETTINGS.RAG_INCREMENTAL' | translate }}
               </p>
             </div>
 
             <div class="rag-status" *ngIf="!loading">
               <div class="status-row">
-                <span class="status-label">Embedding model:</span>
+                <span class="status-label">{{ 'PROJECT_SETTINGS.EMBEDDING_MODEL' | translate }}</span>
                 <span [class.status-ok]="ragModelInstalled" [class.status-missing]="!ragModelInstalled">
-                  {{ ragModelInstalled ? 'Installed' : 'Not installed' }}
+                  {{ ragModelInstalled ? ('PROJECT_SETTINGS.INSTALLED' | translate) : ('PROJECT_SETTINGS.NOT_INSTALLED' | translate) }}
                 </span>
               </div>
               <div class="status-row" *ngIf="ragEnabled">
-                <span class="status-label">Indexed chunks:</span>
+                <span class="status-label">{{ 'PROJECT_SETTINGS.INDEXED_CHUNKS' | translate }}</span>
                 <span>{{ ragChunksCount }}</span>
               </div>
               <div class="status-row" *ngIf="ragEnabled">
-                <span class="status-label">With embeddings:</span>
+                <span class="status-label">{{ 'PROJECT_SETTINGS.WITH_EMBEDDINGS' | translate }}</span>
                 <span>{{ ragEmbeddedCount }}</span>
               </div>
             </div>
@@ -221,24 +210,24 @@
                   [disabled]="ragReindexing || saving">
                   <mat-icon *ngIf="!ragReindexing">refresh</mat-icon>
                   <mat-spinner *ngIf="ragReindexing" diameter="18" class="inline-spinner"></mat-spinner>
-                  {{ ragReindexing ? 'Indexing...' : 'Force Reindex' }}
+                  {{ ragReindexing ? ('PROJECT_SETTINGS.INDEXING' | translate) : ('PROJECT_SETTINGS.FORCE_REINDEX' | translate) }}
                 </button>
                 <button mat-stroked-button color="warn"
                   (click)="onRagClear()"
                   [disabled]="ragReindexing || saving || ragChunksCount === 0">
                   <mat-icon>delete_sweep</mat-icon>
-                  Clear Index
+                  {{ 'PROJECT_SETTINGS.CLEAR_INDEX' | translate }}
                 </button>
               </div>
               <p class="setting-description" *ngIf="!ragMessage && !ragReindexing">
-                <strong>Force Reindex:</strong> Clears all existing chunks and runs a full re-indexing with embedding generation.
+                <strong>{{ 'PROJECT_SETTINGS.FORCE_REINDEX_DESC' | translate }}</strong>
                 <br>
-                <strong>Clear Index:</strong> Deletes all indexed chunks without re-indexing.
+                <strong>{{ 'PROJECT_SETTINGS.CLEAR_INDEX_DESC' | translate }}</strong>
               </p>
               <div class="rag-progress" *ngIf="ragReindexing">
                 <mat-progress-bar mode="determinate" [value]="ragProgress"></mat-progress-bar>
                 <span class="rag-progress-text" *ngIf="ragTotal > 0">
-                  Processing {{ ragProcessed }}/{{ ragTotal }} files ({{ ragProgress | number:'1.0-0' }}%)
+                  {{ 'PROJECT_SETTINGS.PROCESSING_FILES' | translate:{ processed: ragProcessed, total: ragTotal, percent: (ragProgress | number:'1.0-0') } }}
                 </span>
               </div>
               <p class="rag-message" *ngIf="ragMessage">{{ ragMessage }}</p>
@@ -246,12 +235,12 @@
 
             <div *ngIf="loading" class="loading-container">
               <mat-spinner diameter="30"></mat-spinner>
-              <span>Loading settings...</span>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
             </div>
 
             <div *ngIf="saving" class="saving-indicator">
               <mat-spinner diameter="20"></mat-spinner>
-              <span>Saving...</span>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
             </div>
           </mat-card-content>
         </mat-card>
@@ -260,8 +249,7 @@
           <mat-card-content>
             <mat-icon>info</mat-icon>
             <p>
-              No embedding model is installed.
-              Go to Settings > Embedding to manage embedding models.
+              {{ 'PROJECT_SETTINGS.NO_EMBEDDING_MODEL' | translate }}
             </p>
           </mat-card-content>
         </mat-card>
@@ -270,20 +258,20 @@
     </mat-tab>
 
     <!-- Tab 4: Apps -->
-    <mat-tab label="Apps">
+    <mat-tab [label]="'PROJECT_SETTINGS.APPS' | translate">
       <div class="tab-content" *ngIf="!appsLoading">
 
         <!-- Toolbar -->
         <div class="apps-toolbar">
           <button mat-stroked-button color="primary" (click)="openCatalogPicker()" [disabled]="appsSaving">
-            <mat-icon>add</mat-icon> Add App from Catalog
+            <mat-icon>add</mat-icon> {{ 'PROJECT_SETTINGS.ADD_FROM_CATALOG' | translate }}
           </button>
           <button mat-stroked-button (click)="addCategory()" [disabled]="appsSaving">
-            <mat-icon>create_new_folder</mat-icon> New Category
+            <mat-icon>create_new_folder</mat-icon> {{ 'PROJECT_SETTINGS.NEW_CATEGORY' | translate }}
           </button>
           <span class="toolbar-spacer"></span>
           <button mat-raised-button color="primary" (click)="saveAppsTree()" [disabled]="appsSaving || appsTree.length === 0">
-            <mat-icon>save</mat-icon> Save
+            <mat-icon>save</mat-icon> {{ 'COMMON.SAVE' | translate }}
           </button>
           <mat-spinner *ngIf="appsSaving" diameter="20" class="inline-spinner"></mat-spinner>
           <span class="saved-message" *ngIf="appsSavedMessage">{{ appsSavedMessage }}</span>
@@ -292,8 +280,8 @@
         <!-- Empty state -->
         <div *ngIf="appsTree.length === 0" class="apps-empty-state">
           <mat-icon>apps</mat-icon>
-          <p>No apps configured for this project.</p>
-          <p class="apps-empty-hint">Use "Add App from Catalog" to get started.</p>
+          <p>{{ 'PROJECT_SETTINGS.NO_APPS' | translate }}</p>
+          <p class="apps-empty-hint">{{ 'PROJECT_SETTINGS.NO_APPS_HINT' | translate }}</p>
         </div>
 
         <!-- Mini-tree editor -->
@@ -313,10 +301,10 @@
                        (blur)="confirmRenameCategory(node)"
                        autofocus>
                 <span class="tree-actions">
-                  <button mat-icon-button matTooltip="Rename" (click)="startRenameCategory(node)" *ngIf="editingCategoryId !== node.id">
+                  <button mat-icon-button [matTooltip]="'COMMON.RENAME' | translate" (click)="startRenameCategory(node)" *ngIf="editingCategoryId !== node.id">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  <button mat-icon-button matTooltip="Delete category" color="warn" (click)="deleteCategory(node)">
+                  <button mat-icon-button [matTooltip]="'PROJECT_SETTINGS.DELETE_CATEGORY' | translate" color="warn" (click)="deleteCategory(node)">
                     <mat-icon>delete</mat-icon>
                   </button>
                 </span>
@@ -326,10 +314,10 @@
                 <mat-icon class="app-row-icon">{{ getAppIcon(child.appId!) }}</mat-icon>
                 <span class="app-row-name">{{ getAppName(child.appId!) }}</span>
                 <span class="tree-actions">
-                  <button mat-icon-button matTooltip="Move to root level" (click)="moveAppToRoot(node, child)">
+                  <button mat-icon-button [matTooltip]="'PROJECT_SETTINGS.MOVE_TO_ROOT' | translate" (click)="moveAppToRoot(node, child)">
                     <mat-icon>arrow_upward</mat-icon>
                   </button>
-                  <button mat-icon-button matTooltip="Remove from project" color="warn" (click)="removeApp(child.appId!)">
+                  <button mat-icon-button [matTooltip]="'PROJECT_SETTINGS.REMOVE_FROM_PROJECT' | translate" color="warn" (click)="removeApp(child.appId!)">
                     <mat-icon>close</mat-icon>
                   </button>
                 </span>
@@ -341,7 +329,7 @@
               <mat-icon class="app-row-icon">{{ getAppIcon(node.appId!) }}</mat-icon>
               <span class="app-row-name">{{ getAppName(node.appId!) }}</span>
               <span class="tree-actions">
-                <button mat-icon-button [matMenuTriggerFor]="moveToCatMenu" matTooltip="Move to category"
+                <button mat-icon-button [matMenuTriggerFor]="moveToCatMenu" [matTooltip]="'PROJECT_SETTINGS.MOVE_TO_CATEGORY' | translate"
                         *ngIf="getCategories().length > 0">
                   <mat-icon>arrow_downward</mat-icon>
                 </button>
@@ -350,7 +338,7 @@
                     <mat-icon>folder</mat-icon> {{ cat.name }}
                   </button>
                 </mat-menu>
-                <button mat-icon-button matTooltip="Remove from project" color="warn" (click)="removeApp(node.appId!)">
+                <button mat-icon-button [matTooltip]="'PROJECT_SETTINGS.REMOVE_FROM_PROJECT' | translate" color="warn" (click)="removeApp(node.appId!)">
                   <mat-icon>close</mat-icon>
                 </button>
               </span>
@@ -363,7 +351,7 @@
 
       <div *ngIf="appsLoading" class="loading-container">
         <mat-spinner diameter="30"></mat-spinner>
-        <span>Loading apps...</span>
+        <span>{{ 'PROJECT_SETTINGS.LOADING_APPS' | translate }}</span>
       </div>
     </mat-tab>
 
@@ -371,5 +359,5 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">Close</button>
+  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
 </mat-dialog-actions>

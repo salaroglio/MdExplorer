@@ -11,7 +11,8 @@ import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component
 import { CatalogPickerDialogComponent } from './dialogs/catalog-picker/catalog-picker.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
-import { FormsModule } from '@angular/forms'
+import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 import { GitModule } from '../git/git.module';
 import { ProjectSettingsService } from './services/project-settings.service';
 
@@ -44,6 +45,7 @@ const routes: Routes = [
     MaterialModule,
     FormsModule,
     GitModule,
+    TranslateModule,
   ],
   providers: [
     ProjectSettingsService

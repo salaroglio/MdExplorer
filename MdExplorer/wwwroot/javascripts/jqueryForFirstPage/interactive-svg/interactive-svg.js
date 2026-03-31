@@ -12,11 +12,16 @@
  * - ESC key or click outside to clear selection
  * - Works with any PlantUML SVG following standard naming conventions
  *
- * PlantUML SVG Conventions:
+ * PlantUML SVG Conventions (legacy format, pre-2026):
  * - cluster_* : Package/container elements
  * - elem_*    : Component/element boxes
  * - GMN*      : Note elements
  * - link_*    : Connection arrows (format: link_SourceName_TargetName)
+ *
+ * PlantUML SVG Conventions (new format, v1.2026.1+):
+ * - g.cluster  : Package/container elements (data-qualified-name)
+ * - g.entity   : Component/element boxes (data-qualified-name)
+ * - g.link     : Connection arrows (data-entity-1, data-entity-2)
  *
  * Usage:
  *   InteractiveSvg.init(svgElement);        // Initialize on a single SVG
@@ -32,6 +37,35 @@ var InteractiveSvg = (function() {
 
     // Track initialized SVGs to avoid double-initialization
     var initializedSvgs = new WeakSet();
+
+    // Selectors for both legacy (pre-2026) and new (v1.2026.1+) PlantUML SVG formats
+    var SEL_BOXES_LEGACY = 'g[id^="elem_"], g[id^="cluster_"], g[id^="GMN"]';
+    var SEL_BOXES_NEW    = 'g.entity, g.cluster';
+    var SEL_BOXES        = SEL_BOXES_LEGACY + ', ' + SEL_BOXES_NEW;
+    var SEL_LINKS_LEGACY = 'g[id^="link_"]';
+    var SEL_LINKS_NEW    = 'g.link';
+    var SEL_LINKS        = SEL_LINKS_LEGACY + ', ' + SEL_LINKS_NEW;
+
+    /**
+     * Detect if SVG uses the new PlantUML v1.2026.1+ format
+     */
+    function isNewFormat(svg) {
+        return !!svg.querySelector('g.entity, g.cluster, g.link');
+    }
+
+    /**
+     * Build a map from entity IDs (ent0001) to qualified names for new format SVGs
+     */
+    function buildEntityIdMap(svg) {
+        var map = {};
+        svg.querySelectorAll('g.entity, g.cluster').forEach(function(el) {
+            var qname = el.getAttribute('data-qualified-name');
+            if (qname && el.id) {
+                map[el.id] = qname;
+            }
+        });
+        return map;
+    }
 
     // Global Ctrl+wheel prevention: blocks browser/Electron page zoom for the
     // entire iframe so Ctrl+wheel only works on the SVG (via the SVG-level handler).
@@ -194,12 +228,21 @@ var InteractiveSvg = (function() {
     }
 
     /**
-     * Get element name from its ID (strips prefix)
+     * Get element name from a <g> element.
+     * New format: uses data-qualified-name attribute.
+     * Legacy format: strips prefix from ID.
      *
-     * @param {string} id - Element ID
+     * @param {Element|string} elOrId - DOM element or element ID
      * @returns {string} - Clean element name
      */
-    function getElementName(id) {
+    function getElementName(elOrId) {
+        // If a DOM element is passed, prefer data-qualified-name (new format)
+        if (elOrId && typeof elOrId === 'object' && elOrId.getAttribute) {
+            var qname = elOrId.getAttribute('data-qualified-name');
+            if (qname) return qname;
+            elOrId = elOrId.id || '';
+        }
+        var id = elOrId;
         if (id.startsWith('elem_')) return id.replace('elem_', '');
         if (id.startsWith('cluster_')) return id.replace('cluster_', '');
         if (id.startsWith('GMN')) return id;
@@ -227,24 +270,38 @@ var InteractiveSvg = (function() {
      */
     function buildLinkMap(svg) {
         var linkMap = { outgoing: {}, incoming: {} };
+        var useNew = isNewFormat(svg);
+        var entityIdMap = useNew ? buildEntityIdMap(svg) : {};
 
         // Collect all known element names for context-aware link parsing
         var knownNames = new Set();
-        svg.querySelectorAll('g[id^="elem_"], g[id^="cluster_"]').forEach(function(el) {
-            knownNames.add(getElementName(el.id));
+        svg.querySelectorAll(SEL_BOXES_LEGACY + ', ' + SEL_BOXES_NEW).forEach(function(el) {
+            knownNames.add(getElementName(el));
         });
         linkMap.knownNames = knownNames;
 
-        svg.querySelectorAll('g[id^="link_"]').forEach(function(link) {
-            // Try data attributes first, fallback to parsing ID
-            var from = link.dataset.from;
-            var to = link.dataset.to;
+        // Map from entity IDs to qualified names (for new format link resolution)
+        linkMap.entityIdMap = entityIdMap;
 
-            if (!from || !to) {
-                var parsed = parseLinkId(link.id, knownNames);
-                if (parsed) {
-                    from = from || parsed.from;
-                    to = to || parsed.to;
+        svg.querySelectorAll(SEL_LINKS).forEach(function(link) {
+            var from, to;
+
+            if (useNew && link.classList.contains('link')) {
+                // New format: data-entity-1 / data-entity-2 contain entity IDs like "ent0004"
+                var eid1 = link.getAttribute('data-entity-1');
+                var eid2 = link.getAttribute('data-entity-2');
+                from = entityIdMap[eid1] || eid1;
+                to = entityIdMap[eid2] || eid2;
+            } else {
+                // Legacy format: parse from ID or data-from/data-to
+                from = link.dataset.from;
+                to = link.dataset.to;
+                if (!from || !to) {
+                    var parsed = parseLinkId(link.id, knownNames);
+                    if (parsed) {
+                        from = from || parsed.from;
+                        to = to || parsed.to;
+                    }
                 }
             }
 
@@ -301,18 +358,24 @@ var InteractiveSvg = (function() {
     }
 
     /**
-     * Handle click on a box element
-     *
-     * @param {Element} boxElement - The clicked box element
-     * @param {SVGElement} svg - The parent SVG
-     * @param {Object} linkMap - The link map for this SVG
-     * @param {Function} onSelect - Optional callback when element is selected
+     * Find a box element by its qualified name, supporting both old and new formats.
      */
+    function findBoxByName(svg, name) {
+        // Legacy format
+        var el = svg.querySelector('#elem_' + name) ||
+                 svg.querySelector('#cluster_' + name) ||
+                 svg.querySelector('#' + name);
+        if (el) return el;
+
+        // New format: find by data-qualified-name
+        el = svg.querySelector('g[data-qualified-name="' + name + '"]');
+        return el;
+    }
+
     function handleBoxClick(boxElement, svg, linkMap, onSelect) {
         clearSelection(svg);
 
-        var boxId = boxElement.id;
-        var boxName = getElementName(boxId);
+        var boxName = getElementName(boxElement);
 
         // Mark source as selected (BLUE)
         boxElement.classList.add('source-selected');
@@ -332,9 +395,7 @@ var InteractiveSvg = (function() {
                 connectedBoxes.push(item.to);
             }
 
-            var destElem = svg.querySelector('#elem_' + item.to) ||
-                           svg.querySelector('#cluster_' + item.to) ||
-                           svg.querySelector('#' + item.to);
+            var destElem = findBoxByName(svg, item.to);
             if (destElem) {
                 // Note boxes (GMN*) = YELLOW, others = GREEN (receiving info)
                 if (item.to.startsWith('GMN')) {
@@ -356,9 +417,7 @@ var InteractiveSvg = (function() {
                 connectedBoxes.push(item.from);
             }
 
-            var sourceElem = svg.querySelector('#elem_' + item.from) ||
-                             svg.querySelector('#cluster_' + item.from) ||
-                             svg.querySelector('#' + item.from);
+            var sourceElem = findBoxByName(svg, item.from);
             if (sourceElem && sourceElem !== boxElement) {
                 // Note boxes (GMN*) = YELLOW, others = RED (sending info)
                 if (item.from.startsWith('GMN')) {
@@ -390,7 +449,7 @@ var InteractiveSvg = (function() {
      * @param {SVGElement} svg - The SVG element
      */
     function addLinkHitAreas(svg) {
-        svg.querySelectorAll('g[id^="link_"]').forEach(function(linkGroup) {
+        svg.querySelectorAll(SEL_LINKS).forEach(function(linkGroup) {
             // Check if hit area already exists
             if (linkGroup.querySelector('.hit-area')) return;
 
@@ -419,7 +478,7 @@ var InteractiveSvg = (function() {
         var mainGroup = svg.querySelector('g');
         if (!mainGroup) return;
 
-        var links = Array.from(svg.querySelectorAll('g[id^="link_"]'));
+        var links = Array.from(svg.querySelectorAll(SEL_LINKS));
         links.forEach(function(link) {
             mainGroup.appendChild(link);
         });
@@ -470,16 +529,16 @@ var InteractiveSvg = (function() {
         setupWheelZoom(svg);
         setupPanDrag(svg);
 
-        // Click handlers for boxes
-        svg.querySelectorAll('g[id^="elem_"], g[id^="cluster_"], g[id^="GMN"]').forEach(function(box) {
+        // Click handlers for boxes (both legacy and new format)
+        svg.querySelectorAll(SEL_BOXES).forEach(function(box) {
             box.addEventListener('click', function(e) {
                 e.stopPropagation();
                 handleBoxClick(box, svg, linkMap, options.onSelect);
             });
         });
 
-        // Click handlers for links
-        svg.querySelectorAll('g[id^="link_"]').forEach(function(linkGroup) {
+        // Click handlers for links (both legacy and new format)
+        svg.querySelectorAll(SEL_LINKS).forEach(function(linkGroup) {
             linkGroup.addEventListener('click', function(e) {
                 e.stopPropagation();
                 clearSelection(svg);
@@ -488,13 +547,23 @@ var InteractiveSvg = (function() {
                 svg.classList.add('interactive-svg-active');
 
                 if (options.onSelect) {
-                    var from = linkGroup.dataset.from;
-                    var to = linkGroup.dataset.to;
-                    if (!from || !to) {
-                        var parsed = parseLinkId(linkGroup.id, linkMap.knownNames);
-                        if (parsed) {
-                            from = from || parsed.from;
-                            to = to || parsed.to;
+                    var from, to;
+                    if (linkGroup.classList.contains('link')) {
+                        // New format
+                        var eid1 = linkGroup.getAttribute('data-entity-1');
+                        var eid2 = linkGroup.getAttribute('data-entity-2');
+                        from = linkMap.entityIdMap[eid1] || eid1;
+                        to = linkMap.entityIdMap[eid2] || eid2;
+                    } else {
+                        // Legacy format
+                        from = linkGroup.dataset.from;
+                        to = linkGroup.dataset.to;
+                        if (!from || !to) {
+                            var parsed = parseLinkId(linkGroup.id, linkMap.knownNames);
+                            if (parsed) {
+                                from = from || parsed.from;
+                                to = to || parsed.to;
+                            }
                         }
                     }
                     options.onSelect({
@@ -509,8 +578,8 @@ var InteractiveSvg = (function() {
 
         // Click outside to clear
         svg.addEventListener('click', function(e) {
-            var clickedBox = e.target.closest('g[id^="elem_"], g[id^="cluster_"], g[id^="GMN"]');
-            var clickedLink = e.target.closest('g[id^="link_"]');
+            var clickedBox = e.target.closest(SEL_BOXES);
+            var clickedLink = e.target.closest(SEL_LINKS);
             if (!clickedBox && !clickedLink) {
                 clearSelection(svg);
                 if (options.onClear) options.onClear();
@@ -536,9 +605,13 @@ var InteractiveSvg = (function() {
      * @param {Object} options - Optional configuration for all SVGs
      */
     function initAll(options) {
-        // Look for SVGs that contain PlantUML elements
+        // Look for SVGs that contain PlantUML component/class diagram elements (legacy or new format)
         document.querySelectorAll('svg').forEach(function(svg) {
-            var hasPlantUmlElements = svg.querySelector('g[id^="elem_"], g[id^="cluster_"], g[id^="link_"]');
+            // Skip sequence diagrams (handled by InteractiveSvgSequence)
+            var diagramType = svg.getAttribute('data-diagram-type');
+            if (diagramType === 'SEQUENCE') return;
+
+            var hasPlantUmlElements = svg.querySelector(SEL_BOXES + ', ' + SEL_LINKS);
             if (hasPlantUmlElements) {
                 init(svg, options);
             }

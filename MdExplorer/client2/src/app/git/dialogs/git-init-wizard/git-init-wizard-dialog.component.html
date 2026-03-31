@@ -1,39 +1,39 @@
 <h2 mat-dialog-title>
   <mat-icon style="vertical-align: middle;">settings</mat-icon>
-  Initialize Git Repository
+  {{ 'GIT_INIT.TITLE' | translate }}
 </h2>
 
 <mat-dialog-content>
   <!-- Loading Spinner -->
   <div *ngIf="isLoading" style="text-align: center; padding: 40px;">
     <mat-spinner diameter="50" style="margin: 0 auto;"></mat-spinner>
-    <p style="margin-top: 20px; color: #666;">Initializing Git repository...</p>
+    <p style="margin-top: 20px; color: #666;">{{ 'GIT_INIT.INITIALIZING' | translate }}</p>
   </div>
 
   <!-- Step 1: Git Init -->
   <div *ngIf="!isLoading && currentStep === 0">
     <p style="margin-bottom: 20px; color: #666;">
-      Initialize a new Git repository in this project folder.
+      {{ 'GIT_INIT.DESCRIPTION' | translate }}
     </p>
 
     <!-- Repository Path (read-only) -->
     <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 16px;">
-      <mat-label>Repository Path</mat-label>
+      <mat-label>{{ 'GIT_INIT.REPO_PATH' | translate }}</mat-label>
       <input matInput [(ngModel)]="repositoryPath" readonly>
       <mat-icon matSuffix>folder</mat-icon>
     </mat-form-field>
 
     <!-- Initial Branch Name -->
     <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 16px;">
-      <mat-label>Initial Branch Name</mat-label>
-      <input matInput [(ngModel)]="initialBranch" placeholder="main">
+      <mat-label>{{ 'GIT_INIT.BRANCH_NAME' | translate }}</mat-label>
+      <input matInput [(ngModel)]="initialBranch" [placeholder]="'GIT_INIT.BRANCH_PLACEHOLDER' | translate">
       <mat-icon matSuffix>account_tree</mat-icon>
-      <mat-hint>Default branch name (e.g., main, master, develop)</mat-hint>
+      <mat-hint>{{ 'GIT_INIT.BRANCH_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
     <!-- .gitignore Template -->
     <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 16px;">
-      <mat-label>Select .gitignore Template</mat-label>
+      <mat-label>{{ 'GIT_INIT.GITIGNORE_TEMPLATE' | translate }}</mat-label>
       <mat-select [(ngModel)]="gitignoreTemplate">
         <mat-option *ngFor="let template of gitignoreTemplates" [value]="template.value">
           {{ template.label }}
@@ -47,12 +47,12 @@
     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin-bottom: 16px;">
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         <mat-icon style="color: #666; font-size: 20px;">info</mat-icon>
-        <strong style="color: #333;">What will be created:</strong>
+        <strong style="color: #333;">{{ 'GIT_INIT.WILL_BE_CREATED' | translate }}</strong>
       </div>
       <ul style="margin: 0; padding-left: 24px; color: #666;">
-        <li>.git/ folder (Git repository)</li>
-        <li>.gitignore file ({{ gitignoreTemplate }} template)</li>
-        <li>Initial branch: <strong>{{ initialBranch }}</strong></li>
+        <li>{{ 'GIT_INIT.GIT_FOLDER' | translate }}</li>
+        <li>{{ 'GIT_INIT.GITIGNORE_FILE' | translate }} ({{ gitignoreTemplate }} template)</li>
+        <li>{{ 'GIT_INIT.INITIAL_BRANCH' | translate }} <strong>{{ initialBranch }}</strong></li>
       </ul>
     </div>
   </div>
@@ -61,17 +61,16 @@
   <div *ngIf="!isLoading && currentStep === 1">
     <div style="text-align: center; padding: 20px;">
       <mat-icon style="color: #4caf50; font-size: 64px; width: 64px; height: 64px;">check_circle</mat-icon>
-      <h3 style="color: #4caf50; margin: 16px 0 8px 0;">Git Repository Initialized!</h3>
+      <h3 style="color: #4caf50; margin: 16px 0 8px 0;">{{ 'GIT_INIT.SUCCESS_TITLE' | translate }}</h3>
       <p style="color: #666; margin-bottom: 24px;">{{ initMessage }}</p>
 
       <div style="background: #e3f2fd; padding: 16px; border-radius: 4px; border-left: 4px solid #2196f3; text-align: left;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <mat-icon style="color: #2196f3;">info</mat-icon>
-          <strong>Next Step: Setup Remote Repository</strong>
+          <strong>{{ 'GIT_INIT.NEXT_STEP' | translate }}</strong>
         </div>
         <p style="margin: 0; color: #666;">
-          Would you like to connect this repository to a remote Git service (GitHub, GitLab, etc.)?
-          This allows you to backup your code and collaborate with others.
+          {{ 'GIT_INIT.NEXT_STEP_DESC' | translate }}
         </p>
       </div>
     </div>
@@ -82,11 +81,11 @@
   <!-- Step 1 Actions -->
   <div *ngIf="currentStep === 0" style="display: flex; gap: 8px; width: 100%; justify-content: flex-end;">
     <button mat-button (click)="cancel()" [disabled]="isLoading">
-      Cancel
+      {{ 'COMMON.CANCEL' | translate }}
     </button>
     <button mat-raised-button color="primary" (click)="initializeGit()" [disabled]="isLoading">
       <mat-icon>add_circle</mat-icon>
-      Initialize Git
+      {{ 'GIT_INIT.INITIALIZE_BTN' | translate }}
     </button>
   </div>
 
@@ -94,11 +93,11 @@
   <div *ngIf="currentStep === 1" style="display: flex; gap: 8px; width: 100%; justify-content: flex-end;">
     <button mat-button (click)="skipRemoteSetup()">
       <mat-icon>skip_next</mat-icon>
-      Skip for Now
+      {{ 'GIT_INIT.SKIP_FOR_NOW' | translate }}
     </button>
     <button mat-raised-button color="primary" (click)="setupRemote()">
       <mat-icon>cloud_upload</mat-icon>
-      Setup Remote
+      {{ 'GIT_INIT.SETUP_REMOTE' | translate }}
     </button>
   </div>
 </mat-dialog-actions>

@@ -1,18 +1,18 @@
 <mat-dialog-content>
   <div class="simple-container">
     <mat-form-field appearance="outline">
-      <mat-label>Directory Name</mat-label>
-      <input matInput [(ngModel)]="directoryName" (keyup.enter)="save()" placeholder="directoryName">
-      <mat-hint>Hint</mat-hint>
+      <mat-label>{{ 'CHANGE_DIR.DIR_NAME' | translate }}</mat-label>
+      <input matInput [(ngModel)]="directoryName" (keyup.enter)="save()" [placeholder]="'CHANGE_DIR.DIR_PLACEHOLDER' | translate">
+      <mat-hint>{{ 'CHANGE_DIR.HINT' | translate }}</mat-hint>
     </mat-form-field>
   </div>
 
 </mat-dialog-content>
 <mat-dialog-actions>
   <button mat-button color="primary" (click)="save()">
-    <mat-icon>save</mat-icon>Save
+    <mat-icon>save</mat-icon>{{ 'COMMON.SAVE' | translate }}
   </button>
   <button mat-button color="primary" (click)="dismiss()">
-    <mat-icon>cancel</mat-icon>Cancel
+    <mat-icon>cancel</mat-icon>{{ 'COMMON.CANCEL' | translate }}
   </button>
 </mat-dialog-actions>

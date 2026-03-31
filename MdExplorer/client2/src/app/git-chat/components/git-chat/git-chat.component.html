@@ -3,7 +3,7 @@
   <div class="chat-header">
     <div class="header-left">
       <mat-icon class="header-icon">chat</mat-icon>
-      <span class="header-title">Team Chat</span>
+      <span class="header-title">{{ 'GIT_CHAT.TITLE' | translate }}</span>
     </div>
 
     <div class="header-right">
@@ -11,7 +11,7 @@
       <button mat-button
               class="online-badge"
               (click)="toggleOnlineUsers()"
-              [matTooltip]="presence.totalOnline + ' user(s) online'">
+              [matTooltip]="'GIT_CHAT.USERS_ONLINE' | translate:{ count: presence.totalOnline }">
         <span class="online-dot"></span>
         <span class="online-count">{{ presence.totalOnline }}</span>
       </button>
@@ -20,7 +20,7 @@
       <button mat-icon-button
               *ngIf="isElectron"
               (click)="toggleSettings()"
-              [matTooltip]="'Notification settings'">
+              [matTooltip]="'GIT_CHAT.NOTIFICATION_SETTINGS' | translate">
         <mat-icon>{{ settings.notificationsEnabled ? 'notifications_active' : 'notifications_off' }}</mat-icon>
       </button>
     </div>
@@ -29,7 +29,7 @@
   <!-- Online users panel -->
   <div class="online-users-panel" *ngIf="showOnlineUsers">
     <div class="panel-header">
-      <span>Online Users</span>
+      <span>{{ 'GIT_CHAT.ONLINE_USERS' | translate }}</span>
       <button mat-icon-button (click)="toggleOnlineUsers()">
         <mat-icon>close</mat-icon>
       </button>
@@ -43,7 +43,7 @@
         </div>
       </div>
       <div class="no-users" *ngIf="presence.users.length === 0">
-        No users online
+        {{ 'GIT_CHAT.NO_USERS_ONLINE' | translate }}
       </div>
     </div>
   </div>
@@ -51,7 +51,7 @@
   <!-- Settings panel (Electron only) -->
   <div class="settings-panel" *ngIf="showSettings && isElectron">
     <div class="panel-header">
-      <span>Notification Settings</span>
+      <span>{{ 'GIT_CHAT.NOTIFICATION_SETTINGS_TITLE' | translate }}</span>
       <button mat-icon-button (click)="toggleSettings()">
         <mat-icon>close</mat-icon>
       </button>
@@ -60,13 +60,13 @@
       <mat-slide-toggle
         [checked]="settings.notificationsEnabled"
         (change)="updateNotifications($event.checked)">
-        Enable notifications
+        {{ 'GIT_CHAT.ENABLE_NOTIFICATIONS' | translate }}
       </mat-slide-toggle>
       <mat-slide-toggle
         [checked]="settings.soundEnabled"
         (change)="updateSound($event.checked)"
         [disabled]="!settings.notificationsEnabled">
-        Play sound
+        {{ 'GIT_CHAT.PLAY_SOUND' | translate }}
       </mat-slide-toggle>
     </div>
   </div>
@@ -75,17 +75,17 @@
   <div class="connection-status" *ngIf="connectionState !== 'connected'">
     <div *ngIf="connectionState === 'connecting'" class="status-connecting">
       <mat-spinner diameter="20"></mat-spinner>
-      <span>Connecting to chat...</span>
+      <span>{{ 'GIT_CHAT.CONNECTING' | translate }}</span>
     </div>
     <div *ngIf="connectionState === 'disconnected'" class="status-disconnected">
       <mat-icon>cloud_off</mat-icon>
-      <span>No remote repository configured</span>
-      <p class="status-hint">Team chat is available for repositories with a remote origin.</p>
+      <span>{{ 'GIT_CHAT.NO_REMOTE' | translate }}</span>
+      <p class="status-hint">{{ 'GIT_CHAT.NO_REMOTE_HINT' | translate }}</p>
     </div>
     <div *ngIf="connectionState === 'error'" class="status-error">
       <mat-icon>error</mat-icon>
-      <span>Connection error</span>
-      <p class="status-hint">Failed to connect to chat server.</p>
+      <span>{{ 'GIT_CHAT.CONNECTION_ERROR' | translate }}</span>
+      <p class="status-hint">{{ 'GIT_CHAT.CONNECTION_ERROR_HINT' | translate }}</p>
     </div>
   </div>
 
@@ -94,8 +94,8 @@
     <!-- No messages state -->
     <div class="no-messages" *ngIf="messages.length === 0">
       <mat-icon>forum</mat-icon>
-      <p>No messages yet</p>
-      <p class="hint">Be the first to say hello to your team!</p>
+      <p>{{ 'GIT_CHAT.NO_MESSAGES' | translate }}</p>
+      <p class="hint">{{ 'GIT_CHAT.NO_MESSAGES_HINT' | translate }}</p>
     </div>
 
     <!-- Messages list -->
@@ -129,7 +129,7 @@
            type="text"
            [(ngModel)]="inputMessage"
            (keypress)="onKeyPress($event)"
-           placeholder="Type a message..."
+           [placeholder]="'GIT_CHAT.PLACEHOLDER' | translate"
            maxlength="2000"
            class="message-input">
     <button mat-icon-button

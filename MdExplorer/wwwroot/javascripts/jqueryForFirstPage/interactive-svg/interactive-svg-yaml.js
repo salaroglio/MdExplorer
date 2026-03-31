@@ -58,12 +58,14 @@ var InteractiveSvgYaml = (function() {
      * @returns {boolean}
      */
     function isYamlDiagram(svg) {
-        // Must NOT be a component diagram (has elem_, cluster_, link_ groups)
-        if (svg.querySelector('g[id^="elem_"], g[id^="cluster_"], g[id^="link_"]')) {
+        // Must NOT be a component/class diagram (legacy or new format)
+        if (svg.querySelector('g[id^="elem_"], g[id^="cluster_"], g[id^="link_"], g.entity, g.cluster, g.link')) {
             return false;
         }
 
-        // Must NOT be a sequence diagram (has participant boxes + dashed lifelines)
+        // Must NOT be a sequence diagram (legacy or new format)
+        if (svg.getAttribute('data-diagram-type') === 'SEQUENCE') return false;
+        if (svg.querySelector('g.participant-lifeline')) return false;
         var seqBoxes = svg.querySelectorAll('rect[fill="#E2E2F0"]');
         var seqLifelines = svg.querySelectorAll('line[style*="stroke-dasharray"]');
         if (seqBoxes.length > 0 && seqLifelines.length > 0) {

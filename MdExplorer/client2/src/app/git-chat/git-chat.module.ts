@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 
 // Components
 import { GitChatComponent } from './components/git-chat/git-chat.component';
@@ -28,7 +29,8 @@ import { SignalRChatProvider } from './providers/signalr-chat.provider';
     MatButtonModule,
     MatProgressSpinnerModule,
     MatSlideToggleModule,
-    MatTooltipModule
+    MatTooltipModule,
+    TranslateModule
   ],
   exports: [
     GitChatComponent

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
 import { IDocumentSettings } from '../../services/Types/IDocumentSettings';
@@ -34,7 +35,8 @@ export class DocumentSettingsComponent implements OnInit {
   //////////////////////////////////
   constructor(
     private mdFileService: MdFileService,
-    private _snackBar: MatSnackBar) {        
+    private _snackBar: MatSnackBar,
+    private translate: TranslateService) {
   }
   /////////////////////////////////
 
@@ -47,29 +49,29 @@ export class DocumentSettingsComponent implements OnInit {
           this.documentDescriptor = descriptor;
         });
       }
-      
+
     );
   }
 
   openSelectedInheritingTemplateWord() {
     this.mdFileService.openInheritingTemplateWord(this.documentDescriptor.wordSection.templateSection.inheritFromTemplate)
       .subscribe(_ => {
-        this._snackBar.open("Opening Word Custom template!");
+        this._snackBar.open(this.translate.instant('DOC_SETTINGS.OPENING_TEMPLATE'));
       });
   }
 
   saveSettings() {
     this.mdFileService.setDocumentSettings(this.documentDescriptor, this.selectedMdFile)
       .subscribe(_ => {
-        this._snackBar.open("Saved!");
+        this._snackBar.open(this.translate.instant('DOC_SETTINGS.SAVED'));
       });
   }
 
-  openCustomWord() {    
+  openCustomWord() {
     this.mdFileService.opencustomwordtemplate(this.selectedMdFile)
       .subscribe(_=>
         {
-          this._snackBar.open("Opening Word Custom template!");
+          this._snackBar.open(this.translate.instant('DOC_SETTINGS.OPENING_TEMPLATE'));
         });
   }
 }

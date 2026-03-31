@@ -12,6 +12,7 @@ import { MdFile } from '../../../md-explorer/models/md-file';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ShowFileMetadata, BreadcrumbSegment, NewDirectoryDialogData } from './show-file-metadata';
 import { SpecialFolder, Drive, FileExplorerState } from './file-explorer.models';
+import { TranslateService } from '@ngx-translate/core';
 
 
 
@@ -223,7 +224,8 @@ export class ShowFileSystemComponent implements OnInit {
     public dialog: MatDialog,
     private mdFileService: MdFileService,
     private dialogRef: MatDialogRef<ShowFileSystemComponent>,
-    private snackBar: MatSnackBar) {
+    private snackBar: MatSnackBar,
+    private translate: TranslateService) {
 
     // Inizializza legacy tree control per compatibilità
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
@@ -529,9 +531,9 @@ export class ShowFileSystemComponent implements OnInit {
     }
     
     // Altrimenti usa il default basato sul tipo
-    return this.baseStart.typeOfSelection === 'FoldersAndFiles' 
-      ? 'Select file' 
-      : 'Select folder';
+    return this.baseStart.typeOfSelection === 'FoldersAndFiles'
+      ? this.translate.instant('FILE_SYSTEM.SELECT_FILE')
+      : this.translate.instant('FILE_SYSTEM.SELECT_FOLDER');
   }
 
   // Validation for selection
@@ -661,15 +663,15 @@ export class ShowFileSystemComponent implements OnInit {
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(pathToCopy);
-        this.showSuccessNotification('Path copied to clipboard');
+        this.showSuccessNotification(this.translate.instant('FILE_SYSTEM.PATH_COPIED'));
       } else {
         // Fallback per ambienti non sicuri
         this.fallbackCopyToClipboard(pathToCopy);
-        this.showSuccessNotification('Path copied to clipboard');
+        this.showSuccessNotification(this.translate.instant('FILE_SYSTEM.PATH_COPIED'));
       }
     } catch (error) {
       console.error('Failed to copy path:', error);
-      this.snackBar.open('Failed to copy path', 'Close', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('FILE_SYSTEM.COPY_FAILED'), this.translate.instant('COMMON.CLOSE'), { duration: 3000 });
     }
   }
 
@@ -744,7 +746,7 @@ export class ShowFileSystemComponent implements OnInit {
         this.refreshCurrentFolder();
 
         // Mostra notifica di successo
-        this.showSuccessNotification(`Folder "${result.name}" created successfully`);
+        this.showSuccessNotification(this.translate.instant('FILE_SYSTEM.FOLDER_CREATED', { name: result.name }));
       }
     });
   }

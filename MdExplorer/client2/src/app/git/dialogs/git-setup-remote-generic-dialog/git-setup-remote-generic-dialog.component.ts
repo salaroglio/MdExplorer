@@ -3,6 +3,7 @@ import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALO
 import { GITService } from '../../services/gitservice.service';
 import { GitCredentialService } from '../../services/git-credential.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import {
   GitSetupRemoteGenericDialogData,
   ParseRemoteUrlResponse,
@@ -59,7 +60,8 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: GitSetupRemoteGenericDialogData,
     private gitService: GITService,
     private gitCredentialService: GitCredentialService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -90,7 +92,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
         this.isValidating = false;
 
         if (!result.isValid) {
-          this.error = result.error || 'URL non valido';
+          this.error = result.error || this.translate.instant('GIT_REMOTE.URL_INVALID');
         }
 
         // If GitHub detected, load saved credentials
@@ -136,7 +138,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
         this.isValidating = false;
 
         if (result.isReachable && result.credentialsValid) {
-          this.snackBar.open('Connessione verificata con successo!', 'OK', {
+          this.snackBar.open(this.translate.instant('GIT_REMOTE.VERIFY_SUCCESS'), 'OK', {
             duration: 3000,
             verticalPosition: 'top'
           });
@@ -147,7 +149,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
       error: (err) => {
         console.error('Error validating connection:', err);
         this.isValidating = false;
-        this.error = 'Errore durante la verifica della connessione';
+        this.error = this.translate.instant('GIT_REMOTE.VERIFY_ERROR');
       }
     });
   }
@@ -264,7 +266,7 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
    */
   onSetup(): void {
     if (!this.isFormValid()) {
-      this.error = 'Compila tutti i campi richiesti';
+      this.error = this.translate.instant('GIT_REMOTE.FILL_ALL_REQUIRED');
       return;
     }
 
@@ -298,18 +300,18 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
         this.isSetting = false;
         if (response.success) {
           this.snackBar.open(
-            response.message || 'Remote configurato con successo',
+            response.message || this.translate.instant('GIT_REMOTE.REMOTE_SUCCESS'),
             'OK',
             { duration: 5000, verticalPosition: 'top' }
           );
           this.dialogRef.close(true);
         } else {
-          this.error = response.error || 'Errore durante la configurazione del remote';
+          this.error = response.error || this.translate.instant('GIT_REMOTE.REMOTE_ERROR');
         }
       },
       error: (err) => {
         this.isSetting = false;
-        this.error = 'Errore durante la configurazione: ' + (err.message || 'Errore sconosciuto');
+        this.error = this.translate.instant('GIT_REMOTE.REMOTE_ERROR_DETAIL', { error: err.message || 'Errore sconosciuto' });
         console.error('Error setting up remote:', err);
       }
     });

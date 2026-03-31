@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>Export cartella in Word</h2>
+<h2 mat-dialog-title>{{ 'BULK_EXPORT.TITLE' | translate }}</h2>
 
 <mat-dialog-content>
   <div class="progress-container">
@@ -12,14 +12,14 @@
       <div class="status-text">
         <mat-icon class="rotating" *ngIf="!isCompleted">autorenew</mat-icon>
         <mat-icon *ngIf="isCompleted" color="primary">check_circle</mat-icon>
-        <span *ngIf="!isCompleted">Esportazione in corso...</span>
-        <span *ngIf="isCompleted">Esportazione completata</span>
+        <span *ngIf="!isCompleted">{{ 'BULK_EXPORT.EXPORTING' | translate }}</span>
+        <span *ngIf="isCompleted">{{ 'BULK_EXPORT.EXPORT_COMPLETE' | translate }}</span>
       </div>
     </div>
 
     <div class="progress-info">
       <div class="progress-numbers">
-        <span>Documenti esportati: {{ data.processed }} / {{ data.total }}</span>
+        <span>{{ 'BULK_EXPORT.DOCS_EXPORTED' | translate:{ processed: data.processed, total: data.total } }}</span>
         <span class="percentage">{{ data.percentComplete }}%</span>
       </div>
 
@@ -37,12 +37,12 @@
 
     <div class="error-info" *ngIf="data.failed > 0">
       <mat-icon>error</mat-icon>
-      <span>{{ data.failed }} file non esportati (errore)</span>
+      <span>{{ 'BULK_EXPORT.FILES_FAILED' | translate:{ count: data.failed } }}</span>
     </div>
 
     <div class="export-info">
       <mat-icon>info</mat-icon>
-      <span>Esportazione documenti markdown in formato Word tramite Pandoc...</span>
+      <span>{{ 'BULK_EXPORT.EXPORT_INFO' | translate }}</span>
     </div>
 
   </div>
@@ -51,9 +51,9 @@
 <mat-dialog-actions align="end">
   <button mat-button (click)="openFolder()" *ngIf="isCompleted" color="primary">
     <mat-icon>folder_open</mat-icon>
-    Apri cartella
+    {{ 'BULK_EXPORT.OPEN_FOLDER' | translate }}
   </button>
   <button mat-button (click)="close()" [disabled]="!isCompleted">
-    Chiudi
+    {{ 'COMMON.CLOSE' | translate }}
   </button>
 </mat-dialog-actions>

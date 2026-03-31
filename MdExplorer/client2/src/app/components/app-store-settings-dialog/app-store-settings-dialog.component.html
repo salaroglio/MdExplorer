@@ -1,6 +1,6 @@
 <h2 mat-dialog-title class="dialog-title">
   <mat-icon>storefront</mat-icon>
-  <span>App Store Repositories</span>
+  <span>{{ 'APP_STORE_SETTINGS.TITLE' | translate }}</span>
 </h2>
 
 <mat-dialog-content>
@@ -14,14 +14,14 @@
         <div *ngIf="repo.username" class="repo-item-auth">
           <mat-icon class="auth-icon">person</mat-icon>
           {{ repo.username }}
-          <span *ngIf="repo.passwordConfigured" class="auth-dot">&middot; Password configured</span>
+          <span *ngIf="repo.passwordConfigured" class="auth-dot">&middot; {{ 'UNIFIED_SETTINGS.PASSWORD_CONFIGURED' | translate }}</span>
         </div>
       </div>
       <div class="repo-item-actions">
-        <button mat-icon-button matTooltip="Edit" (click)="startEditRepo(repo)">
+        <button mat-icon-button [matTooltip]="'APP_STORE_SETTINGS.EDIT_REPO' | translate" (click)="startEditRepo(repo)">
           <mat-icon>edit</mat-icon>
         </button>
-        <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteRepo(repo)">
+        <button mat-icon-button [matTooltip]="'COMMON.DELETE' | translate" color="warn" (click)="deleteRepo(repo)">
           <mat-icon>delete</mat-icon>
         </button>
       </div>
@@ -31,39 +31,39 @@
   <!-- Empty state -->
   <div *ngIf="appStoreRepos.length === 0 && !isAddingRepo" class="empty-state">
     <mat-icon>inventory_2</mat-icon>
-    <span>No repositories configured. Add one to use the App Store.</span>
+    <span>{{ 'APP_STORE_SETTINGS.NO_REPOS' | translate }}</span>
   </div>
 
   <!-- Add / Edit form -->
   <div *ngIf="isAddingRepo || editingRepo" class="repo-edit-form">
-    <div class="form-title">{{ editingRepo ? 'Edit Repository' : 'Add Repository' }}</div>
+    <div class="form-title">{{ editingRepo ? ('APP_STORE_SETTINGS.EDIT_REPO' | translate) : ('APP_STORE_SETTINGS.ADD_REPO' | translate) }}</div>
     <div class="form-fields">
       <mat-form-field appearance="outline">
-        <mat-label>Label</mat-label>
-        <input matInput [(ngModel)]="repoForm.label" placeholder="My Nexus Repo">
+        <mat-label>{{ 'APP_STORE_SETTINGS.LABEL' | translate }}</mat-label>
+        <input matInput [(ngModel)]="repoForm.label" [placeholder]="'APP_STORE_SETTINGS.LABEL_PLACEHOLDER' | translate">
       </mat-form-field>
       <mat-form-field appearance="outline">
-        <mat-label>URL</mat-label>
-        <input matInput [(ngModel)]="repoForm.url" placeholder="https://nexus.company.com/repository/mde-apps/">
-        <mat-hint>Base URL of the Nexus raw repository</mat-hint>
+        <mat-label>{{ 'APP_STORE_SETTINGS.URL' | translate }}</mat-label>
+        <input matInput [(ngModel)]="repoForm.url" [placeholder]="'APP_STORE_SETTINGS.URL_PLACEHOLDER' | translate">
+        <mat-hint>{{ 'APP_STORE_SETTINGS.URL_HINT' | translate }}</mat-hint>
       </mat-form-field>
       <div class="form-row">
         <mat-form-field appearance="outline">
-          <mat-label>Username (optional)</mat-label>
+          <mat-label>{{ 'APP_STORE_SETTINGS.USERNAME' | translate }}</mat-label>
           <input matInput [(ngModel)]="repoForm.username">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>{{ editingRepo?.passwordConfigured ? 'Change password' : 'Password (optional)' }}</mat-label>
+          <mat-label>{{ editingRepo?.passwordConfigured ? ('APP_STORE_SETTINGS.CHANGE_PASSWORD' | translate) : ('APP_STORE_SETTINGS.PASSWORD' | translate) }}</mat-label>
           <input matInput type="password" [(ngModel)]="repoForm.password">
-          <mat-hint *ngIf="editingRepo?.passwordConfigured">Leave empty to keep current</mat-hint>
+          <mat-hint *ngIf="editingRepo?.passwordConfigured">{{ 'APP_STORE_SETTINGS.PASSWORD_HINT' | translate }}</mat-hint>
         </mat-form-field>
       </div>
     </div>
     <div class="form-actions">
-      <button mat-button (click)="cancelRepoEdit()">Cancel</button>
+      <button mat-button (click)="cancelRepoEdit()">{{ 'COMMON.CANCEL' | translate }}</button>
       <button mat-raised-button color="primary" (click)="saveRepo()"
               [disabled]="isSavingRepo || !repoForm.label?.trim() || !repoForm.url?.trim()">
-        <mat-icon>save</mat-icon> {{ isSavingRepo ? 'Saving...' : 'Save' }}
+        <mat-icon>save</mat-icon> {{ isSavingRepo ? ('COMMON.SAVING' | translate) : ('COMMON.SAVE' | translate) }}
       </button>
     </div>
   </div>
@@ -71,12 +71,12 @@
   <!-- Add button -->
   <div *ngIf="!isAddingRepo && !editingRepo" class="add-button-row">
     <button mat-stroked-button color="primary" (click)="startAddRepo()">
-      <mat-icon>add</mat-icon> Add Repository
+      <mat-icon>add</mat-icon> {{ 'APP_STORE_SETTINGS.ADD_REPO' | translate }}
     </button>
   </div>
 
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">Close</button>
+  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
 </mat-dialog-actions>

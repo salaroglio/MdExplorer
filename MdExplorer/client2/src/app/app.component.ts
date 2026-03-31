@@ -6,6 +6,7 @@ import { AppCurrentMetadataService } from './services/app-current-metadata.servi
 import { AiNotificationService } from './services/ai-notification.service';
 import { UrlHandlerService } from './services/url-handler.service';
 import { FileChangeNotificationService } from './services/file-change-notification.service';
+import { LanguageService } from './services/language.service';
 
 @Component({
   selector: 'app-root',
@@ -33,7 +34,8 @@ export class AppComponent {
     private router: Router,
     private aiNotificationService: AiNotificationService,
     private urlHandlerService: UrlHandlerService,
-    private fileChangeNotificationService: FileChangeNotificationService) {
+    private fileChangeNotificationService: FileChangeNotificationService,
+    private languageService: LanguageService) {
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);

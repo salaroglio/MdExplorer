@@ -2,6 +2,7 @@ import { Injectable, Inject, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, skip } from 'rxjs/operators';
+import { TranslateService } from '@ngx-translate/core';
 import { CHAT_PROVIDER, IChatProvider } from '../providers/chat-provider.interface';
 import {
   ChatMessage,
@@ -48,7 +49,8 @@ export class GitChatService implements OnDestroy {
 
   constructor(
     @Inject(CHAT_PROVIDER) private provider: IChatProvider,
-    private http: HttpClient
+    private http: HttpClient,
+    private translate: TranslateService
   ) {
     this.messages$ = this.provider.messages$;
     this.presence$ = this.provider.presence$;
@@ -101,7 +103,7 @@ export class GitChatService implements OnDestroy {
       ? message.content.substring(0, 50) + '...'
       : message.content;
 
-    const title = 'Team Chat - MdExplorer';
+    const title = this.translate.instant('GIT_CHAT.NOTIFICATION_TITLE');
     const body = `${message.senderName}: ${truncatedContent}`;
 
     // Try native Electron notification first (works in agent mode / background)

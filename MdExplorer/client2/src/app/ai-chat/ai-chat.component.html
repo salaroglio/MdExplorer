@@ -2,7 +2,7 @@
   <!-- Header -->
   <mat-toolbar [color]="compactMode ? 'accent' : 'primary'" class="chat-header">
     <mat-icon *ngIf="!compactMode">smart_toy</mat-icon>
-    <span class="header-title" *ngIf="!compactMode">AI Assistant</span>
+    <span class="header-title" *ngIf="!compactMode">{{ 'AI_CHAT.TITLE' | translate }}</span>
 
     <span class="spacer"></span>
 
@@ -10,11 +10,11 @@
       <mat-chip-list>
         <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
           <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
-          {{ compactMode ? (currentModel || 'Ready').substring(0, 15) : (currentModel || 'Model Loaded') }}
+          {{ compactMode ? (currentModel || ('AI_CHAT.READY' | translate)).substring(0, 15) : (currentModel || ('AI_CHAT.MODEL_LOADED' | translate)) }}
         </mat-chip>
         <mat-chip *ngIf="!isModelLoaded && !compactMode" color="warn">
           <mat-icon>warning</mat-icon>
-          No Model
+          {{ 'AI_CHAT.NO_MODEL' | translate }}
         </mat-chip>
         <mat-chip *ngIf="currentDocument" color="primary">
           <mat-icon *ngIf="!compactMode">description</mat-icon>
@@ -24,16 +24,16 @@
     </div>
 
     <button mat-icon-button (click)="toggleFullScreen()"
-            [matTooltip]="isChatFullScreen ? 'Exit full screen' : 'Full screen'"
+            [matTooltip]="isChatFullScreen ? ('AI_CHAT.EXIT_FULLSCREEN' | translate) : ('AI_CHAT.FULLSCREEN' | translate)"
             *ngIf="compactMode">
       <mat-icon>{{ isChatFullScreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
     </button>
 
-    <button mat-icon-button (click)="newSession()" matTooltip="New chat session">
+    <button mat-icon-button (click)="newSession()" [matTooltip]="'AI_CHAT.NEW_SESSION' | translate">
       <mat-icon>add_comment</mat-icon>
     </button>
 
-    <button mat-icon-button (click)="toggleModelManager()" matTooltip="Model Manager">
+    <button mat-icon-button (click)="toggleModelManager()" [matTooltip]="'AI_CHAT.MODEL_MANAGER' | translate">
       <mat-icon>settings</mat-icon>
     </button>
   </mat-toolbar>
@@ -47,28 +47,28 @@
   <div class="chat-messages" #scrollContainer>
     <div *ngIf="messages.length === 0" class="no-messages">
       <mat-icon>chat_bubble_outline</mat-icon>
-      <p>Start a conversation with the AI assistant</p>
+      <p>{{ 'AI_CHAT.START_CONVERSATION' | translate }}</p>
       <p class="hint" *ngIf="!isModelLoaded">
-        Please load a model first using the settings button above
+        {{ 'AI_CHAT.LOAD_MODEL_HINT' | translate }}
       </p>
     </div>
 
     <div *ngFor="let message of messages" [ngClass]="getMessageClass(message)">
       <div class="message-content">
         <div class="message-header">
-          <span class="message-role">{{ compactMode ? (message.role === 'user' ? 'You' : 'AI') : (message.role | titlecase) }}</span>
+          <span class="message-role">{{ compactMode ? (message.role === 'user' ? ('AI_CHAT.YOU' | translate) : ('AI_CHAT.AI' | translate)) : (message.role | titlecase) }}</span>
           <div class="message-actions" *ngIf="!message.isStreaming && editingMessageId !== message.id">
             <button mat-icon-button
                     *ngIf="message.role === 'user'"
                     (click)="startEditMessage(message)"
-                    matTooltip="Edit message"
+                    [matTooltip]="'AI_CHAT.EDIT_MESSAGE' | translate"
                     class="action-button">
               <mat-icon>edit</mat-icon>
             </button>
             <button mat-icon-button
                     *ngIf="message.role === 'assistant' && message.content"
                     (click)="copyMessageContent(message)"
-                    [matTooltip]="copiedMessageId === message.id ? 'Copied!' : 'Copy'"
+                    [matTooltip]="copiedMessageId === message.id ? ('AI_CHAT.COPIED' | translate) : ('AI_CHAT.COPY' | translate)"
                     class="action-button">
               <mat-icon>{{ copiedMessageId === message.id ? 'check' : 'content_copy' }}</mat-icon>
             </button>
@@ -80,7 +80,7 @@
         <div class="thinking-section" *ngIf="hasThinking(message) && message.role === 'assistant'">
           <div class="thinking-header" (click)="toggleThinking(message.id)">
             <mat-icon class="thinking-icon">psychology</mat-icon>
-            <span class="thinking-label">Thinking</span>
+            <span class="thinking-label">{{ 'AI_CHAT.THINKING' | translate }}</span>
             <mat-icon class="thinking-toggle">
               {{ isThinkingCollapsed(message.id) ? 'expand_more' : 'expand_less' }}
             </mat-icon>
@@ -112,10 +112,10 @@
             </textarea>
           </mat-form-field>
           <div class="edit-actions">
-            <button mat-button (click)="cancelEditMessage()">Cancel</button>
+            <button mat-button (click)="cancelEditMessage()">{{ 'COMMON.CANCEL' | translate }}</button>
             <button mat-raised-button color="primary" (click)="saveEditedMessage(message)">
               <mat-icon>check</mat-icon>
-              Save & Regenerate
+              {{ 'AI_CHAT.SAVE_REGENERATE' | translate }}
             </button>
           </div>
         </div>
@@ -137,11 +137,11 @@
         #messageInput
         [(ngModel)]="inputMessage"
         (keydown)="handleKeyDown($event)"
-        [placeholder]="compactMode ? 'Ask Mark Agent...' : 'Type your message... (Shift+Enter for new line)'"
+        [placeholder]="compactMode ? ('AI_CHAT.PLACEHOLDER_COMPACT' | translate) : ('AI_CHAT.PLACEHOLDER_FULL' | translate)"
         [rows]="compactMode ? 2 : 3"
         [disabled]="!isModelLoaded">
       </textarea>
-      <mat-hint *ngIf="!isModelLoaded && !compactMode">Load a model to start chatting</mat-hint>
+      <mat-hint *ngIf="!isModelLoaded && !compactMode">{{ 'AI_CHAT.LOAD_MODEL_TO_CHAT' | translate }}</mat-hint>
     </mat-form-field>
 
     <button

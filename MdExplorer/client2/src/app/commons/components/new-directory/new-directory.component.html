@@ -1,6 +1,6 @@
 <div mat-dialog-title class="dialog-header">
   <mat-icon class="dialog-icon">create_new_folder</mat-icon>
-  <span>Create New Folder</span>
+  <span>{{ 'NEW_DIR.TITLE' | translate }}</span>
 </div>
 
 <mat-dialog-content>
@@ -9,23 +9,23 @@
     <div class="context-info">
       <mat-icon class="context-icon">info</mat-icon>
       <div class="context-text">
-        <strong>Parent folder:</strong> {{getParentName()}}
+        <strong>{{ 'NEW_DIR.PARENT_FOLDER' | translate }}</strong> {{getParentName()}}
         <div class="context-path">{{fullPathPreview}}</div>
       </div>
     </div>
 
     <!-- Input field -->
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Folder Name</mat-label>
+      <mat-label>{{ 'NEW_DIR.FOLDER_NAME' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="directoryName"
              (keyup.enter)="save()"
              [disabled]="isCreating"
-             placeholder="Enter folder name"
+             [placeholder]="'NEW_DIR.PLACEHOLDER' | translate"
              #nameInput
              autofocus>
       <mat-icon matPrefix>folder</mat-icon>
-      <mat-hint *ngIf="!errorMessage">Press Enter to create</mat-hint>
+      <mat-hint *ngIf="!errorMessage">{{ 'NEW_DIR.HINT' | translate }}</mat-hint>
       <mat-error *ngIf="errorMessage">{{errorMessage}}</mat-error>
     </mat-form-field>
 
@@ -33,14 +33,14 @@
     <div class="path-preview" *ngIf="directoryName && isValidName()">
       <mat-icon class="preview-icon">visibility</mat-icon>
       <div class="preview-content">
-        <div class="preview-label">Will be created at:</div>
+        <div class="preview-label">{{ 'NEW_DIR.PREVIEW' | translate }}</div>
         <div class="preview-path">{{fullPathPreview}}</div>
       </div>
     </div>
 
     <!-- Quick suggestions -->
     <div class="suggestions" *ngIf="!directoryName && suggestions.length > 0">
-      <div class="suggestions-label">Quick suggestions:</div>
+      <div class="suggestions-label">{{ 'NEW_DIR.SUGGESTIONS' | translate }}</div>
       <div class="suggestions-chips">
         <mat-chip *ngFor="let suggestion of suggestions"
                   (click)="applySuggestion(suggestion)"
@@ -58,7 +58,7 @@
           (click)="dismiss()"
           [disabled]="isCreating">
     <mat-icon>cancel</mat-icon>
-    Cancel
+    {{ 'COMMON.CANCEL' | translate }}
   </button>
   <button mat-raised-button
           color="primary"
@@ -66,6 +66,6 @@
           [disabled]="!isValidName() || isCreating">
     <mat-spinner diameter="20" *ngIf="isCreating" class="button-spinner"></mat-spinner>
     <mat-icon *ngIf="!isCreating">save</mat-icon>
-    {{isCreating ? 'Creating...' : 'Create Folder'}}
+    {{isCreating ? ('NEW_DIR.CREATING' | translate) : ('NEW_DIR.CREATE_FOLDER' | translate)}}
   </button>
 </mat-dialog-actions>

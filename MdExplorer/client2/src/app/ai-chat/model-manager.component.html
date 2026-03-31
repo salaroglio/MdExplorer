@@ -1,31 +1,31 @@
 <div class="model-manager" #scrollContainer>
   <mat-card class="model-manager-card">
     <mat-card-header>
-      <mat-card-title>AI Model Manager</mat-card-title>
+      <mat-card-title>{{ 'MODEL_MANAGER.TITLE' | translate }}</mat-card-title>
       <mat-card-subtitle>
         <span *ngIf="isModelLoaded && currentModel">
           <span *ngIf="currentModel.startsWith('OpenAI')">
             <mat-icon inline="true" style="vertical-align: middle; color: #10a37f;">psychology</mat-icon>
-            Connected to: {{ currentModel }}
+            {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="currentModel.startsWith('Gemini')">
             <mat-icon inline="true" style="vertical-align: middle;">cloud</mat-icon>
-            Connected to: {{ currentModel }}
+            {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="currentModel.startsWith('CopilotCli')">
             <mat-icon inline="true" style="vertical-align: middle; color: #24292e;">terminal</mat-icon>
-            Connected to: {{ currentModel }}
+            {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli')">
-            Local Model: {{ currentModel }}
+            {{ 'MODEL_MANAGER.LOCAL_MODEL' | translate }} {{ currentModel }}
             <span *ngIf="gpuEnabled" class="gpu-indicator">
               <mat-icon inline="true">memory</mat-icon>
-              GPU Enabled ({{ gpuLayerCount }} layers)
+              {{ 'MODEL_MANAGER.GPU_ENABLED' | translate:{ count: gpuLayerCount } }}
             </span>
           </span>
         </span>
         <span *ngIf="!isModelLoaded">
-          No model connected (Local or Cloud)
+          {{ 'MODEL_MANAGER.NO_MODEL_CONNECTED' | translate }}
         </span>
       </mat-card-subtitle>
     </mat-card-header>
@@ -37,10 +37,10 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon color="warn">warning</mat-icon>
-            AI Engine Not Installed
+            {{ 'MODEL_MANAGER.ENGINE_NOT_INSTALLED' | translate }}
           </mat-card-title>
           <mat-card-subtitle>
-            Download the AI inference engine to use local models. Choose the variant that matches your hardware.
+            {{ 'MODEL_MANAGER.ENGINE_INSTALL_DESC' | translate }}
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
@@ -51,10 +51,10 @@
                 <mat-card-title>
                   {{ backend.name }}
                   <mat-chip-list *ngIf="backend.isRecommended" style="display: inline-flex; margin-left: 8px;">
-                    <mat-chip color="primary" selected style="font-size: 11px;">Recommended</mat-chip>
+                    <mat-chip color="primary" selected style="font-size: 11px;">{{ 'MODEL_MANAGER.RECOMMENDED' | translate }}</mat-chip>
                   </mat-chip-list>
                 </mat-card-title>
-                <mat-card-subtitle>Download: {{ formatBytes(backend.downloadSize) }}</mat-card-subtitle>
+                <mat-card-subtitle>{{ 'MODEL_MANAGER.DOWNLOAD_SIZE' | translate:{ size: formatBytes(backend.downloadSize) } }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 <p class="model-description">{{ backend.description }}</p>
@@ -80,7 +80,7 @@
                         (click)="downloadBackend(backend.variant)"
                         [disabled]="backendDownloading">
                   <mat-icon>download</mat-icon>
-                  Download
+                  {{ 'COMMON.DOWNLOAD' | translate }}
                 </button>
               </mat-card-actions>
             </mat-card>
@@ -94,18 +94,18 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon style="color: #4caf50;">check_circle</mat-icon>
-            AI Engine: {{ getBackendVariantName(backendStatus.installedVariant) }}
+            {{ 'MODEL_MANAGER.AI_ENGINE' | translate:{ name: getBackendVariantName(backendStatus.installedVariant) } }}
           </mat-card-title>
           <mat-card-subtitle>
-            Version {{ backendStatus.version }}
-            <span *ngIf="backendStatus.hasCudaDll"> | CUDA acceleration enabled</span>
-            <span *ngIf="backendStatus.hasVulkanDll"> | Vulkan acceleration enabled</span>
+            {{ 'MODEL_MANAGER.VERSION' | translate:{ version: backendStatus.version } }}
+            <span *ngIf="backendStatus.hasCudaDll"> | {{ 'MODEL_MANAGER.CUDA_ENABLED' | translate }}</span>
+            <span *ngIf="backendStatus.hasVulkanDll"> | {{ 'MODEL_MANAGER.VULKAN_ENABLED' | translate }}</span>
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-actions>
           <button mat-button color="warn" (click)="deleteBackend()">
             <mat-icon>delete</mat-icon>
-            Remove / Change
+            {{ 'MODEL_MANAGER.REMOVE_CHANGE' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -115,7 +115,7 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon>memory</mat-icon>
-            GPU Status
+            {{ 'MODEL_MANAGER.GPU_STATUS' | translate }}
           </mat-card-title>
         </mat-card-header>
         <mat-card-content>
@@ -133,17 +133,17 @@
                 </mat-chip>
                 <mat-chip *ngIf="!gpuInfo.isCudaAvailable" color="warn" selected>
                   <mat-icon>warning</mat-icon>
-                  CUDA Not Available
+                  {{ 'MODEL_MANAGER.CUDA_NOT_AVAILABLE' | translate }}
                 </mat-chip>
               </mat-chip-list>
               <div style="margin-top: 10px;">
-                <span>Memory: {{ gpuInfo.formattedMemory || formatBytes(gpuInfo.memoryBytes) }}</span>
-                <span style="margin-left: 20px;">Driver: {{ gpuInfo.driverVersion }}</span>
+                <span>{{ 'MODEL_MANAGER.MEMORY' | translate }} {{ gpuInfo.formattedMemory || formatBytes(gpuInfo.memoryBytes) }}</span>
+                <span style="margin-left: 20px;">{{ 'MODEL_MANAGER.DRIVER' | translate }} {{ gpuInfo.driverVersion }}</span>
               </div>
             </div>
             <div *ngIf="!gpuInfo.isNvidiaGpu">
               <mat-icon color="warn">warning</mat-icon>
-              No NVIDIA GPU detected - Models will run on CPU
+              {{ 'MODEL_MANAGER.NO_GPU' | translate }}
             </div>
           </div>
         </mat-card-content>
@@ -152,55 +152,55 @@
       <div class="actions-bar">
         <button mat-raised-button color="primary" (click)="loadModels()" [disabled]="loading">
           <mat-icon>refresh</mat-icon>
-          Refresh
+          {{ 'COMMON.REFRESH' | translate }}
         </button>
         <button mat-raised-button color="accent" (click)="editSystemPrompt()"
                 [disabled]="!isModelLoaded || editingSystemPrompt">
           <mat-icon>edit</mat-icon>
-          System Prompt
+          {{ 'MODEL_MANAGER.SYSTEM_PROMPT' | translate }}
         </button>
         <button mat-raised-button (click)="editApplicationPrompt()"
                 [disabled]="editingApplicationPrompt"
                 style="background-color: #5c6bc0; color: white;">
           <mat-icon>tune</mat-icon>
-          Application Prompt
+          {{ 'MODEL_MANAGER.APP_PROMPT' | translate }}
         </button>
         <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
           <mat-icon>psychology</mat-icon>
-          {{ showOpenAiConfig ? 'Hide' : 'Configure' }} OpenAI
+          {{ (showOpenAiConfig ? 'MODEL_MANAGER.HIDE_OPENAI' : 'MODEL_MANAGER.CONFIGURE_OPENAI') | translate }}
         </button>
         <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
           <mat-icon>cloud</mat-icon>
-          {{ showGeminiConfig ? 'Hide' : 'Configure' }} Gemini API
+          {{ (showGeminiConfig ? 'MODEL_MANAGER.HIDE_GEMINI' : 'MODEL_MANAGER.CONFIGURE_GEMINI') | translate }}
         </button>
         <button mat-raised-button style="background-color: #24292e; color: white;" (click)="toggleCopilotCliConfig()">
           <mat-icon>terminal</mat-icon>
-          {{ showCopilotCliConfig ? 'Hide' : 'Configure' }} Copilot CLI
+          {{ (showCopilotCliConfig ? 'MODEL_MANAGER.HIDE_COPILOT' : 'MODEL_MANAGER.CONFIGURE_COPILOT') | translate }}
         </button>
       </div>
 
       <!-- System Prompt Editor -->
       <mat-card *ngIf="editingSystemPrompt && isModelLoaded" class="system-prompt-editor">
         <mat-card-header>
-          <mat-card-title>System Prompt Configuration</mat-card-title>
-          <mat-card-subtitle>Define how the AI should behave for model: {{ currentModel }}</mat-card-subtitle>
+          <mat-card-title>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_CONFIG' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_DESC' | translate:{ model: currentModel } }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" style="width: 100%;">
-            <mat-label>System Prompt</mat-label>
-            <textarea matInput 
-                      [(ngModel)]="systemPrompt" 
+            <mat-label>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_LABEL' | translate }}</mat-label>
+            <textarea matInput
+                      [(ngModel)]="systemPrompt"
                       rows="8"
-                      placeholder="Enter the system prompt that defines the AI's behavior...">
+                      [placeholder]="'MODEL_MANAGER.SYSTEM_PROMPT_PLACEHOLDER' | translate">
             </textarea>
-            <mat-hint>This prompt will be prepended to every user message to guide the AI's responses</mat-hint>
+            <mat-hint>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_HINT' | translate }}</mat-hint>
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="cancelEditSystemPrompt()">Cancel</button>
+          <button mat-button (click)="cancelEditSystemPrompt()">{{ 'COMMON.CANCEL' | translate }}</button>
           <button mat-raised-button color="primary" (click)="saveSystemPrompt()">
             <mat-icon>save</mat-icon>
-            Save System Prompt
+            {{ 'MODEL_MANAGER.SAVE_SYSTEM_PROMPT' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -208,30 +208,30 @@
       <!-- Application System Prompt Editor (tool guidance, thinking) -->
       <mat-card *ngIf="editingApplicationPrompt" class="system-prompt-editor" style="margin-top: 12px;">
         <mat-card-header>
-          <mat-card-title>Application System Prompt</mat-card-title>
-          <mat-card-subtitle>Internal instructions for tool calling, thinking, and behavior. Changes apply to the local model only.</mat-card-subtitle>
+          <mat-card-title>{{ 'MODEL_MANAGER.APP_PROMPT_CONFIG' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ 'MODEL_MANAGER.APP_PROMPT_DESC' | translate }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" style="width: 100%;">
-            <mat-label>Application Prompt</mat-label>
+            <mat-label>{{ 'MODEL_MANAGER.APP_PROMPT_LABEL' | translate }}</mat-label>
             <textarea matInput
                       [(ngModel)]="applicationPrompt"
                       rows="12"
                       style="font-family: monospace; font-size: 12px;"
-                      placeholder="Application system prompt (tool guidance, thinking instructions)...">
+                      [placeholder]="'MODEL_MANAGER.APP_PROMPT_PLACEHOLDER' | translate">
             </textarea>
-            <mat-hint>This prompt defines how the local model uses tools and thinks. It is prepended to the tool definitions.</mat-hint>
+            <mat-hint>{{ 'MODEL_MANAGER.APP_PROMPT_HINT' | translate }}</mat-hint>
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button color="warn" (click)="resetApplicationPrompt()" matTooltip="Restore default application prompt">
+          <button mat-button color="warn" (click)="resetApplicationPrompt()" [matTooltip]="'MODEL_MANAGER.RESET_DEFAULT_TOOLTIP' | translate">
             <mat-icon>restart_alt</mat-icon>
-            Reset Default
+            {{ 'MODEL_MANAGER.RESET_DEFAULT' | translate }}
           </button>
-          <button mat-button (click)="cancelEditApplicationPrompt()">Cancel</button>
+          <button mat-button (click)="cancelEditApplicationPrompt()">{{ 'COMMON.CANCEL' | translate }}</button>
           <button mat-raised-button color="primary" (click)="saveApplicationPrompt()">
             <mat-icon>save</mat-icon>
-            Save
+            {{ 'COMMON.SAVE' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -241,31 +241,31 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon>psychology</mat-icon>
-            OpenAI Configuration
+            {{ 'MODEL_MANAGER.OPENAI_CONFIG' | translate }}
           </mat-card-title>
           <mat-card-subtitle>
-            Configure OpenAI API for GPT-4, GPT-4o, and other models
+            {{ 'MODEL_MANAGER.OPENAI_CONFIG_DESC' | translate }}
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <div *ngIf="!openAiConfigured">
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>OpenAI API Key</mat-label>
+              <mat-label>{{ 'MODEL_MANAGER.OPENAI_API_KEY' | translate }}</mat-label>
               <input matInput type="password" [(ngModel)]="openAiApiKey"
-                     placeholder="Enter your OpenAI API key">
-              <mat-hint>Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></mat-hint>
+                     [placeholder]="'MODEL_MANAGER.OPENAI_API_KEY_PLACEHOLDER' | translate">
+              <mat-hint [innerHTML]="'MODEL_MANAGER.OPENAI_API_KEY_HINT' | translate"></mat-hint>
             </mat-form-field>
             <div style="margin-top: 16px;">
               <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="saveOpenAiApiKey()"
                       [disabled]="loading || !openAiApiKey.trim()">
                 <mat-icon>save</mat-icon>
-                Save API Key
+                {{ 'MODEL_MANAGER.SAVE_API_KEY' | translate }}
               </button>
               <button mat-button (click)="testOpenAiApiKey()"
                       [disabled]="testingOpenAiApiKey || !openAiApiKey.trim()"
                       style="margin-left: 8px;">
                 <mat-icon>check</mat-icon>
-                Test Key
+                {{ 'MODEL_MANAGER.TEST_KEY' | translate }}
               </button>
             </div>
           </div>
@@ -274,27 +274,27 @@
             <mat-chip-list style="margin-bottom: 16px;">
               <mat-chip style="background-color: #10a37f; color: white;" selected>
                 <mat-icon>check_circle</mat-icon>
-                API Key Configured
+                {{ 'MODEL_MANAGER.API_KEY_CONFIGURED' | translate }}
               </mat-chip>
             </mat-chip-list>
 
-            <h4>Available OpenAI Models:</h4>
+            <h4>{{ 'MODEL_MANAGER.AVAILABLE_OPENAI' | translate }}</h4>
             <div class="models-grid">
               <mat-card *ngFor="let model of openAiModels" class="model-card">
                 <mat-card-header>
                   <mat-card-title>{{ model.name }}</mat-card-title>
                   <mat-card-subtitle>
-                    Cloud Model | {{ (model.inputTokenLimit || 128000) / 1000 }}K input / {{ (model.outputTokenLimit || 4096) / 1000 }}K output
+                    {{ 'MODEL_MANAGER.CLOUD_MODEL' | translate }} | {{ (model.inputTokenLimit || 128000) / 1000 }}K input / {{ (model.outputTokenLimit || 4096) / 1000 }}K output
                   </mat-card-subtitle>
                 </mat-card-header>
 
                 <mat-card-content>
-                  <p class="model-description">{{ model.description || 'Advanced AI model from OpenAI' }}</p>
+                  <p class="model-description">{{ model.description || ('MODEL_MANAGER.DEFAULT_OPENAI_DESC' | translate) }}</p>
 
                   <mat-chip-list *ngIf="useOpenAi && selectedOpenAiModel === model.id">
                     <mat-chip color="accent" selected>
                       <mat-icon>check_circle</mat-icon>
-                      Connected
+                      {{ 'MODEL_MANAGER.CONNECTED' | translate }}
                     </mat-chip>
                   </mat-chip-list>
                 </mat-card-content>
@@ -304,14 +304,14 @@
                           *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
                           (click)="connectOpenAiModel(model.id)">
                     <mat-icon>psychology</mat-icon>
-                    Connect
+                    {{ 'COMMON.CONNECT' | translate }}
                   </button>
 
                   <button mat-button
                           *ngIf="useOpenAi && selectedOpenAiModel === model.id"
                           (click)="disconnectOpenAi()">
                     <mat-icon>cloud_off</mat-icon>
-                    Disconnect
+                    {{ 'COMMON.DISCONNECT' | translate }}
                   </button>
                 </mat-card-actions>
               </mat-card>
@@ -321,7 +321,7 @@
               <button mat-raised-button color="accent" (click)="editOpenAiSystemPrompt()"
                       [disabled]="editingOpenAiSystemPrompt || !useOpenAi">
                 <mat-icon>edit</mat-icon>
-                Configure OpenAI System Prompt
+                {{ 'MODEL_MANAGER.CONFIGURE_OPENAI_PROMPT' | translate }}
               </button>
             </div>
 
@@ -334,31 +334,31 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon>cloud</mat-icon>
-            Gemini API Configuration
+            {{ 'MODEL_MANAGER.GEMINI_CONFIG' | translate }}
           </mat-card-title>
           <mat-card-subtitle>
-            Configure Google Gemini API for cloud-based AI models
+            {{ 'MODEL_MANAGER.GEMINI_CONFIG_DESC' | translate }}
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <div *ngIf="!geminiConfigured">
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Gemini API Key</mat-label>
-              <input matInput type="password" [(ngModel)]="geminiApiKey" 
-                     placeholder="Enter your Gemini API key">
-              <mat-hint>Get your API key from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a></mat-hint>
+              <mat-label>{{ 'MODEL_MANAGER.GEMINI_API_KEY' | translate }}</mat-label>
+              <input matInput type="password" [(ngModel)]="geminiApiKey"
+                     [placeholder]="'MODEL_MANAGER.GEMINI_API_KEY_PLACEHOLDER' | translate">
+              <mat-hint [innerHTML]="'MODEL_MANAGER.GEMINI_API_KEY_HINT' | translate"></mat-hint>
             </mat-form-field>
             <div style="margin-top: 16px;">
               <button mat-raised-button color="primary" (click)="saveGeminiApiKey()" 
                       [disabled]="loading || !geminiApiKey.trim()">
                 <mat-icon>save</mat-icon>
-                Save API Key
+                {{ 'MODEL_MANAGER.SAVE_API_KEY' | translate }}
               </button>
-              <button mat-button (click)="testGeminiApiKey()" 
-                      [disabled]="testingApiKey || !geminiApiKey.trim()" 
+              <button mat-button (click)="testGeminiApiKey()"
+                      [disabled]="testingApiKey || !geminiApiKey.trim()"
                       style="margin-left: 8px;">
                 <mat-icon>check</mat-icon>
-                Test Key
+                {{ 'MODEL_MANAGER.TEST_KEY' | translate }}
               </button>
             </div>
           </div>
@@ -367,44 +367,44 @@
             <mat-chip-list style="margin-bottom: 16px;">
               <mat-chip color="primary" selected>
                 <mat-icon>check_circle</mat-icon>
-                API Key Configured
+                {{ 'MODEL_MANAGER.API_KEY_CONFIGURED' | translate }}
               </mat-chip>
             </mat-chip-list>
-            
-            <h4>Available Gemini Models:</h4>
+
+            <h4>{{ 'MODEL_MANAGER.AVAILABLE_GEMINI' | translate }}</h4>
             <div class="models-grid">
               <mat-card *ngFor="let model of geminiModels" class="model-card">
                 <mat-card-header>
                   <mat-card-title>{{ model.name }}</mat-card-title>
                   <mat-card-subtitle>
-                    Cloud Model | {{ model.inputTokenLimit / 1000 }}K input / {{ model.outputTokenLimit / 1000 }}K output
+                    {{ 'MODEL_MANAGER.CLOUD_MODEL' | translate }} | {{ model.inputTokenLimit / 1000 }}K input / {{ model.outputTokenLimit / 1000 }}K output
                   </mat-card-subtitle>
                 </mat-card-header>
-                
+
                 <mat-card-content>
                   <p class="model-description">{{ model.description }}</p>
-                  
+
                   <mat-chip-list *ngIf="useGemini && selectedGeminiModel === model.id">
                     <mat-chip color="accent" selected>
                       <mat-icon>check_circle</mat-icon>
-                      Connected
+                      {{ 'MODEL_MANAGER.CONNECTED' | translate }}
                     </mat-chip>
                   </mat-chip-list>
                 </mat-card-content>
-                
+
                 <mat-card-actions>
                   <button mat-raised-button color="primary"
                           *ngIf="!useGemini || selectedGeminiModel !== model.id"
                           (click)="connectGeminiModel(model.id)">
                     <mat-icon>cloud_queue</mat-icon>
-                    Connect
+                    {{ 'COMMON.CONNECT' | translate }}
                   </button>
-                  
+
                   <button mat-button
                           *ngIf="useGemini && selectedGeminiModel === model.id"
                           (click)="disconnectGemini()">
                     <mat-icon>cloud_off</mat-icon>
-                    Disconnect
+                    {{ 'COMMON.DISCONNECT' | translate }}
                   </button>
                 </mat-card-actions>
               </mat-card>
@@ -414,7 +414,7 @@
               <button mat-raised-button color="accent" (click)="editGeminiSystemPrompt()" 
                       [disabled]="editingGeminiSystemPrompt || !useGemini">
                 <mat-icon>edit</mat-icon>
-                Configure Gemini System Prompt
+                {{ 'MODEL_MANAGER.CONFIGURE_GEMINI_PROMPT' | translate }}
               </button>
             </div>
             
@@ -425,25 +425,25 @@
       <!-- Gemini System Prompt Editor -->
       <mat-card *ngIf="editingGeminiSystemPrompt && geminiConfigured" class="system-prompt-editor">
         <mat-card-header>
-          <mat-card-title>Gemini System Prompt Configuration</mat-card-title>
-          <mat-card-subtitle>Define how Gemini AI should behave</mat-card-subtitle>
+          <mat-card-title>{{ 'MODEL_MANAGER.GEMINI_PROMPT_CONFIG' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ 'MODEL_MANAGER.GEMINI_PROMPT_DESC' | translate }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" style="width: 100%;">
-            <mat-label>System Prompt</mat-label>
-            <textarea matInput 
-                      [(ngModel)]="geminiSystemPrompt" 
+            <mat-label>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_LABEL' | translate }}</mat-label>
+            <textarea matInput
+                      [(ngModel)]="geminiSystemPrompt"
                       rows="8"
-                      placeholder="Enter the system prompt that defines Gemini's behavior...">
+                      [placeholder]="'MODEL_MANAGER.GEMINI_PROMPT_PLACEHOLDER' | translate">
             </textarea>
-            <mat-hint>This prompt will guide Gemini's responses in all conversations</mat-hint>
+            <mat-hint>{{ 'MODEL_MANAGER.GEMINI_PROMPT_HINT' | translate }}</mat-hint>
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="cancelEditGeminiSystemPrompt()">Cancel</button>
+          <button mat-button (click)="cancelEditGeminiSystemPrompt()">{{ 'COMMON.CANCEL' | translate }}</button>
           <button mat-raised-button color="primary" (click)="saveGeminiSystemPrompt()">
             <mat-icon>save</mat-icon>
-            Save Gemini System Prompt
+            {{ 'MODEL_MANAGER.SAVE_GEMINI_PROMPT' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -453,10 +453,10 @@
         <mat-card-header>
           <mat-card-title>
             <mat-icon>terminal</mat-icon>
-            GitHub Copilot CLI Configuration
+            {{ 'MODEL_MANAGER.COPILOT_CONFIG' | translate }}
           </mat-card-title>
           <mat-card-subtitle>
-            Use GitHub Copilot CLI for AI chat (no API key required)
+            {{ 'MODEL_MANAGER.COPILOT_CONFIG_DESC' | translate }}
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
@@ -464,10 +464,10 @@
             <mat-chip-list style="margin-bottom: 16px;">
               <mat-chip color="warn" selected>
                 <mat-icon>warning</mat-icon>
-                Copilot CLI Not Installed
+                {{ 'MODEL_MANAGER.COPILOT_NOT_INSTALLED' | translate }}
               </mat-chip>
             </mat-chip-list>
-            <p>GitHub Copilot CLI is not installed or not authenticated. Install it with:</p>
+            <p>{{ 'MODEL_MANAGER.COPILOT_INSTALL_DESC' | translate }}</p>
             <code>npm install -g @anthropic-ai/copilot</code>
           </div>
 
@@ -475,13 +475,13 @@
             <mat-chip-list style="margin-bottom: 16px;">
               <mat-chip style="background-color: #2ea44f; color: white;" selected>
                 <mat-icon>check_circle</mat-icon>
-                Copilot CLI Available
+                {{ 'MODEL_MANAGER.COPILOT_AVAILABLE' | translate }}
               </mat-chip>
             </mat-chip-list>
 
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-              <h4 style="margin: 0;">Available Models:</h4>
-              <button mat-icon-button matTooltip="Refresh models from CLI (uses 1 API request)"
+              <h4 style="margin: 0;">{{ 'MODEL_MANAGER.AVAILABLE_MODELS' | translate }}</h4>
+              <button mat-icon-button [matTooltip]="'MODEL_MANAGER.REFRESH_MODELS_TOOLTIP' | translate"
                       (click)="refreshCopilotCliModels()"
                       [disabled]="refreshingCopilotModels">
                 <mat-icon [class.spinning]="refreshingCopilotModels">refresh</mat-icon>
@@ -492,17 +492,17 @@
                 <mat-card-header>
                   <mat-card-title>{{ model.name }}</mat-card-title>
                   <mat-card-subtitle>
-                    Via Copilot CLI | {{ (model.inputTokenLimit || 128000) / 1000 }}K input / {{ (model.outputTokenLimit || 16000) / 1000 }}K output
+                    {{ 'MODEL_MANAGER.VIA_COPILOT' | translate }} | {{ (model.inputTokenLimit || 128000) / 1000 }}K input / {{ (model.outputTokenLimit || 16000) / 1000 }}K output
                   </mat-card-subtitle>
                 </mat-card-header>
 
                 <mat-card-content>
-                  <p class="model-description">{{ model.description || 'AI model via GitHub Copilot' }}</p>
+                  <p class="model-description">{{ model.description || ('MODEL_MANAGER.DEFAULT_COPILOT_DESC' | translate) }}</p>
 
                   <mat-chip-list *ngIf="useCopilotCli && selectedCopilotCliModel === model.id">
                     <mat-chip color="accent" selected>
                       <mat-icon>check_circle</mat-icon>
-                      Connected
+                      {{ 'MODEL_MANAGER.CONNECTED' | translate }}
                     </mat-chip>
                   </mat-chip-list>
                 </mat-card-content>
@@ -512,14 +512,14 @@
                           *ngIf="!useCopilotCli || selectedCopilotCliModel !== model.id"
                           (click)="connectCopilotCliModel(model.id)">
                     <mat-icon>terminal</mat-icon>
-                    Connect
+                    {{ 'COMMON.CONNECT' | translate }}
                   </button>
 
                   <button mat-button
                           *ngIf="useCopilotCli && selectedCopilotCliModel === model.id"
                           (click)="disconnectCopilotCli()">
                     <mat-icon>cloud_off</mat-icon>
-                    Disconnect
+                    {{ 'COMMON.DISCONNECT' | translate }}
                   </button>
                 </mat-card-actions>
               </mat-card>
@@ -529,7 +529,7 @@
               <button mat-raised-button color="accent" (click)="editCopilotCliSystemPrompt()"
                       [disabled]="editingCopilotCliSystemPrompt || !useCopilotCli">
                 <mat-icon>edit</mat-icon>
-                Configure Copilot CLI System Prompt
+                {{ 'MODEL_MANAGER.CONFIGURE_COPILOT_PROMPT' | translate }}
               </button>
             </div>
           </div>
@@ -539,25 +539,25 @@
       <!-- Copilot CLI System Prompt Editor -->
       <mat-card *ngIf="editingCopilotCliSystemPrompt && copilotCliAvailable" class="system-prompt-editor">
         <mat-card-header>
-          <mat-card-title>Copilot CLI System Prompt Configuration</mat-card-title>
-          <mat-card-subtitle>Define how Copilot CLI AI should behave</mat-card-subtitle>
+          <mat-card-title>{{ 'MODEL_MANAGER.COPILOT_PROMPT_CONFIG' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ 'MODEL_MANAGER.COPILOT_PROMPT_DESC' | translate }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" style="width: 100%;">
-            <mat-label>System Prompt</mat-label>
+            <mat-label>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_LABEL' | translate }}</mat-label>
             <textarea matInput
                       [(ngModel)]="copilotCliSystemPrompt"
                       rows="8"
-                      placeholder="Enter the system prompt that defines Copilot CLI's behavior...">
+                      [placeholder]="'MODEL_MANAGER.COPILOT_PROMPT_PLACEHOLDER' | translate">
             </textarea>
-            <mat-hint>This prompt will guide Copilot CLI's responses in all conversations</mat-hint>
+            <mat-hint>{{ 'MODEL_MANAGER.COPILOT_PROMPT_HINT' | translate }}</mat-hint>
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="cancelEditCopilotCliSystemPrompt()">Cancel</button>
+          <button mat-button (click)="cancelEditCopilotCliSystemPrompt()">{{ 'COMMON.CANCEL' | translate }}</button>
           <button mat-raised-button color="primary" (click)="saveCopilotCliSystemPrompt()">
             <mat-icon>save</mat-icon>
-            Save Copilot CLI System Prompt
+            {{ 'MODEL_MANAGER.SAVE_COPILOT_PROMPT' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -565,25 +565,25 @@
       <!-- OpenAI System Prompt Editor -->
       <mat-card *ngIf="editingOpenAiSystemPrompt && openAiConfigured" class="system-prompt-editor">
         <mat-card-header>
-          <mat-card-title>OpenAI System Prompt Configuration</mat-card-title>
-          <mat-card-subtitle>Define how OpenAI should behave</mat-card-subtitle>
+          <mat-card-title>{{ 'MODEL_MANAGER.OPENAI_PROMPT_CONFIG' | translate }}</mat-card-title>
+          <mat-card-subtitle>{{ 'MODEL_MANAGER.OPENAI_PROMPT_DESC' | translate }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" style="width: 100%;">
-            <mat-label>System Prompt</mat-label>
+            <mat-label>{{ 'MODEL_MANAGER.SYSTEM_PROMPT_LABEL' | translate }}</mat-label>
             <textarea matInput
                       [(ngModel)]="openAiSystemPrompt"
                       rows="8"
-                      placeholder="Enter the system prompt that defines OpenAI's behavior...">
+                      [placeholder]="'MODEL_MANAGER.OPENAI_PROMPT_PLACEHOLDER' | translate">
             </textarea>
-            <mat-hint>This prompt will guide OpenAI's responses in all conversations</mat-hint>
+            <mat-hint>{{ 'MODEL_MANAGER.OPENAI_PROMPT_HINT' | translate }}</mat-hint>
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="cancelEditOpenAiSystemPrompt()">Cancel</button>
+          <button mat-button (click)="cancelEditOpenAiSystemPrompt()">{{ 'COMMON.CANCEL' | translate }}</button>
           <button mat-raised-button color="primary" (click)="saveOpenAiSystemPrompt()">
             <mat-icon>save</mat-icon>
-            Save OpenAI System Prompt
+            {{ 'MODEL_MANAGER.SAVE_OPENAI_PROMPT' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -603,15 +603,15 @@
             <p class="model-description">{{ model.description }}</p>
             
             <div class="model-info">
-              <span class="file-size">Size: {{ formatBytes(model.fileSize) }}</span>
+              <span class="file-size">{{ 'MODEL_MANAGER.SIZE' | translate }} {{ formatBytes(model.fileSize) }}</span>
               <mat-chip-list>
                 <mat-chip *ngIf="model.isInstalled" color="primary" selected>
                   <mat-icon>check_circle</mat-icon>
-                  Installed
+                  {{ 'MODEL_MANAGER.INSTALLED' | translate }}
                 </mat-chip>
                 <mat-chip *ngIf="isCurrentModel(model)" color="accent" selected>
                   <mat-icon>memory</mat-icon>
-                  Loaded
+                  {{ 'MODEL_MANAGER.LOADED' | translate }}
                 </mat-chip>
               </mat-chip-list>
             </div>
@@ -640,34 +640,34 @@
               *ngIf="!model.isInstalled && !isDownloading(model.id)"
               (click)="downloadModel(model)">
               <mat-icon>download</mat-icon>
-              Download
+              {{ 'COMMON.DOWNLOAD' | translate }}
             </button>
-            
-            <button 
-              mat-button 
+
+            <button
+              mat-button
               color="accent"
               *ngIf="model.isInstalled && !isCurrentModel(model)"
               (click)="loadModel(model)"
               [disabled]="loading">
               <mat-icon>play_arrow</mat-icon>
-              Load
+              {{ 'MODEL_MANAGER.LOAD' | translate }}
             </button>
-            
-            <button 
-              mat-button 
+
+            <button
+              mat-button
               color="warn"
               *ngIf="model.isInstalled && !isCurrentModel(model)"
               (click)="deleteModel(model)">
               <mat-icon>delete</mat-icon>
-              Delete
+              {{ 'COMMON.DELETE' | translate }}
             </button>
-            
-            <button 
-              mat-button 
+
+            <button
+              mat-button
               disabled
               *ngIf="isCurrentModel(model)">
               <mat-icon>check</mat-icon>
-              Currently Loaded
+              {{ 'MODEL_MANAGER.CURRENTLY_LOADED' | translate }}
             </button>
           </mat-card-actions>
         </mat-card>
@@ -675,7 +675,7 @@
 
       <div *ngIf="availableModels.length === 0 && !loading" class="no-models">
         <mat-icon>info</mat-icon>
-        <p>No models available</p>
+        <p>{{ 'MODEL_MANAGER.NO_MODELS' | translate }}</p>
       </div>
     </mat-card-content>
   </mat-card>

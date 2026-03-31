@@ -1,6 +1,7 @@
 import { Component, Inject } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { HttpClient } from '@angular/common/http';
+import { TranslateService } from '@ngx-translate/core';
 
 export interface CommitMessageDialogData {
   defaultMessage: string;
@@ -20,9 +21,10 @@ export class CommitMessageDialogComponent {
   constructor(
     public dialogRef: MatDialogRef<CommitMessageDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: CommitMessageDialogData,
-    private http: HttpClient
+    private http: HttpClient,
+    private translate: TranslateService
   ) {
-    this.commitMessage = data.defaultMessage || 'Update from MdExplorer';
+    this.commitMessage = data.defaultMessage || this.translate.instant('GIT_COMMIT.DEFAULT_MSG');
   }
 
   onCancel(): void {
@@ -37,7 +39,7 @@ export class CommitMessageDialogComponent {
 
   generateWithAi(): void {
     if (!this.data.projectPath) {
-      this.aiError = 'Project path not available';
+      this.aiError = this.translate.instant('GIT_COMMIT.NO_PROJECT_PATH');
       return;
     }
 
@@ -61,7 +63,7 @@ export class CommitMessageDialogComponent {
       },
       error: (err) => {
         this.isGeneratingMessage = false;
-        this.aiError = 'Errore durante la generazione del messaggio';
+        this.aiError = this.translate.instant('GIT_COMMIT.GENERATION_ERROR');
         console.error('Error generating commit message:', err);
       }
     });

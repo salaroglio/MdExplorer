@@ -1,9 +1,9 @@
-<h2 mat-dialog-title>Gestione Account Git</h2>
+<h2 mat-dialog-title>{{ 'GIT_ACCOUNT.TITLE' | translate }}</h2>
 
 <mat-dialog-content class="dialog-content">
   <div class="repository-info">
     <mat-icon>folder</mat-icon>
-    <span>Repository: <strong>{{ data.repositoryName }}</strong></span>
+    <span>{{ 'GIT_ACCOUNT.REPOSITORY' | translate }} <strong>{{ data.repositoryName }}</strong></span>
   </div>
 
   <mat-divider></mat-divider>
@@ -11,12 +11,12 @@
   <!-- Loading State -->
   <div *ngIf="isLoading" class="loading-container">
     <mat-spinner diameter="40"></mat-spinner>
-    <p>Caricamento...</p>
+    <p>{{ 'COMMON.LOADING' | translate }}</p>
   </div>
 
   <!-- Current Account Display -->
   <div *ngIf="!isLoading && !showCreateForm && currentAccount" class="current-account">
-    <h3>Account Attivo</h3>
+    <h3>{{ 'GIT_ACCOUNT.ACTIVE_ACCOUNT' | translate }}</h3>
     <mat-card class="account-card">
       <mat-card-header>
         <mat-card-title>
@@ -38,22 +38,22 @@
         </div>
         <div class="account-detail">
           <mat-icon>vpn_key</mat-icon>
-          <span *ngIf="currentAccount.hasGitHubPAT">GitHub Token configurato</span>
-          <span *ngIf="currentAccount.hasGitLabToken">GitLab Token configurato</span>
-          <span *ngIf="currentAccount.hasBitbucketAppPassword">Bitbucket App Password configurata</span>
-          <span *ngIf="currentAccount.hasHttpsPassword">Password HTTPS configurata</span>
-          <span *ngIf="!currentAccount.hasGitHubPAT && !currentAccount.hasGitLabToken && !currentAccount.hasBitbucketAppPassword && !currentAccount.hasHttpsPassword">Nessuna credenziale configurata</span>
+          <span *ngIf="currentAccount.hasGitHubPAT">{{ 'GIT_ACCOUNT.GITHUB_TOKEN_CONFIGURED' | translate }}</span>
+          <span *ngIf="currentAccount.hasGitLabToken">{{ 'GIT_ACCOUNT.GITLAB_TOKEN_CONFIGURED' | translate }}</span>
+          <span *ngIf="currentAccount.hasBitbucketAppPassword">{{ 'GIT_ACCOUNT.BITBUCKET_APP_PASSWORD' | translate }}</span>
+          <span *ngIf="currentAccount.hasHttpsPassword">{{ 'GIT_ACCOUNT.HTTPS_PASSWORD' | translate }}</span>
+          <span *ngIf="!currentAccount.hasGitHubPAT && !currentAccount.hasGitLabToken && !currentAccount.hasBitbucketAppPassword && !currentAccount.hasHttpsPassword">{{ 'GIT_ACCOUNT.NO_CREDENTIALS' | translate }}</span>
           <mat-icon class="credential-status" [class.success]="currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken || currentAccount.hasBitbucketAppPassword || currentAccount.hasHttpsPassword">
             {{ (currentAccount.hasGitHubPAT || currentAccount.hasGitLabToken || currentAccount.hasBitbucketAppPassword || currentAccount.hasHttpsPassword) ? 'verified' : 'error' }}
           </mat-icon>
         </div>
         <div class="account-detail" *ngIf="currentAccount.authUsername">
           <mat-icon>account_circle</mat-icon>
-          <span>Auth Username: {{ currentAccount.authUsername }}</span>
+          <span>{{ 'GIT_ACCOUNT.AUTH_USERNAME' | translate }} {{ currentAccount.authUsername }}</span>
         </div>
         <div class="account-detail" *ngIf="currentAccount.preferredAuthMethod">
           <mat-icon>security</mat-icon>
-          <span>Metodo: {{ currentAccount.preferredAuthMethod === 'username_password' ? 'Username/Password' : 'Token' }}</span>
+          <span>{{ 'GIT_ACCOUNT.METHOD' | translate }} {{ currentAccount.preferredAuthMethod === 'username_password' ? ('GIT_ACCOUNT.METHOD_USER_PASS' | translate) : ('GIT_ACCOUNT.METHOD_TOKEN' | translate) }}</span>
         </div>
         <div class="account-detail" *ngIf="currentAccount.notes">
           <mat-icon>note</mat-icon>
@@ -63,11 +63,11 @@
       <mat-card-actions>
         <button mat-button color="primary" (click)="editAccount()">
           <mat-icon>edit</mat-icon>
-          Modifica
+          {{ 'GIT_ACCOUNT.EDIT_ACCOUNT' | translate }}
         </button>
         <button mat-button color="warn" (click)="deleteAccount()">
           <mat-icon>delete</mat-icon>
-          Elimina
+          {{ 'COMMON.DELETE' | translate }}
         </button>
       </mat-card-actions>
     </mat-card>
@@ -76,26 +76,26 @@
   <!-- No Account State -->
   <div *ngIf="!isLoading && !showCreateForm && !currentAccount" class="no-account">
     <mat-icon class="large-icon">info</mat-icon>
-    <h3>Nessun Account Configurato</h3>
-    <p>Configura un account Git per questo repository per abilitare push e pull.</p>
+    <h3>{{ 'GIT_ACCOUNT.NO_ACCOUNT_TITLE' | translate }}</h3>
+    <p>{{ 'GIT_ACCOUNT.NO_ACCOUNT_DESC' | translate }}</p>
     <button mat-raised-button color="primary" (click)="showCreate()">
       <mat-icon>add</mat-icon>
-      Crea Nuovo Account
+      {{ 'GIT_ACCOUNT.CREATE_NEW' | translate }}
     </button>
   </div>
 
   <!-- Create/Edit Form -->
   <div *ngIf="!isLoading && showCreateForm" class="account-form">
-    <h3>{{ currentAccount ? 'Modifica Account' : 'Nuovo Account Git' }}</h3>
+    <h3>{{ currentAccount ? ('GIT_ACCOUNT.EDIT_ACCOUNT' | translate) : ('GIT_ACCOUNT.NEW_ACCOUNT' | translate) }}</h3>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Nome Account</mat-label>
-      <input matInput [(ngModel)]="accountName" placeholder="es: My GitHub Work" required>
+      <mat-label>{{ 'GIT_ACCOUNT.ACCOUNT_NAME' | translate }}</mat-label>
+      <input matInput [(ngModel)]="accountName" [placeholder]="'GIT_ACCOUNT.ACCOUNT_NAME_PLACEHOLDER' | translate" required>
       <mat-icon matSuffix>badge</mat-icon>
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Tipo Account</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.ACCOUNT_TYPE' | translate }}</mat-label>
       <mat-select [(ngModel)]="accountType" required>
         <mat-option *ngFor="let type of accountTypes" [value]="type.value">
           {{ type.label }}
@@ -106,87 +106,87 @@
 
     <!-- GitHub Token Field -->
     <mat-form-field appearance="outline" class="full-width" *ngIf="accountType === 'GitHub'">
-      <mat-label>GitHub Personal Access Token</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.GITHUB_PAT' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="gitHubPAT"
              [type]="hideToken ? 'password' : 'text'"
-             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+             [placeholder]="'GIT_ACCOUNT.GITHUB_PAT_PLACEHOLDER' | translate"
              required>
       <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
         <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
       </button>
       <mat-hint>
-        <a (click)="openTokenCreationPage()" class="link">Crea un nuovo token su GitHub</a>
+        <a (click)="openTokenCreationPage()" class="link">{{ 'GIT_ACCOUNT.CREATE_GITHUB_TOKEN' | translate }}</a>
       </mat-hint>
     </mat-form-field>
 
     <!-- GitLab Token Field -->
     <mat-form-field appearance="outline" class="full-width" *ngIf="accountType === 'GitLab'">
-      <mat-label>GitLab Personal Access Token</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.GITLAB_PAT' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="gitLabToken"
              [type]="hideToken ? 'password' : 'text'"
-             placeholder="glpat-xxxxxxxxxxxxxxxxxxxx"
+             [placeholder]="'GIT_ACCOUNT.GITLAB_PAT_PLACEHOLDER' | translate"
              required>
       <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
         <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
       </button>
       <mat-hint>
-        <a (click)="openTokenCreationPage()" class="link">Crea un nuovo token su GitLab</a>
+        <a (click)="openTokenCreationPage()" class="link">{{ 'GIT_ACCOUNT.CREATE_GITLAB_TOKEN' | translate }}</a>
       </mat-hint>
     </mat-form-field>
 
     <!-- Bitbucket Auth Method Selector -->
     <div class="auth-method-section" *ngIf="accountType === 'Bitbucket'">
-      <mat-label class="field-label">Metodo di autenticazione:</mat-label>
+      <mat-label class="field-label">{{ 'GIT_ACCOUNT.AUTH_METHOD' | translate }}</mat-label>
       <mat-radio-group [(ngModel)]="preferredAuthMethod" class="auth-radio-group">
         <mat-radio-button value="token">
           <mat-icon>token</mat-icon>
-          App Password
+          {{ 'GIT_ACCOUNT.APP_PASSWORD' | translate }}
         </mat-radio-button>
         <mat-radio-button value="username_password">
           <mat-icon>vpn_key</mat-icon>
-          Username / Password
+          {{ 'GIT_ACCOUNT.USER_PASSWORD' | translate }}
         </mat-radio-button>
       </mat-radio-group>
     </div>
 
     <!-- Bitbucket App Password Field -->
     <mat-form-field appearance="outline" class="full-width" *ngIf="accountType === 'Bitbucket' && preferredAuthMethod === 'token'">
-      <mat-label>Bitbucket App Password</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.BITBUCKET_APP_PASSWORD_LABEL' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="bitbucketAppPassword"
              [type]="hideToken ? 'password' : 'text'"
-             placeholder="App Password generata da Bitbucket"
+             [placeholder]="'GIT_ACCOUNT.BITBUCKET_APP_PASSWORD_PLACEHOLDER' | translate"
              required>
       <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
         <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
       </button>
       <mat-hint>
-        <a (click)="openTokenCreationPage()" class="link">Crea App Password su Bitbucket</a>
+        <a (click)="openTokenCreationPage()" class="link">{{ 'GIT_ACCOUNT.CREATE_BITBUCKET_APP' | translate }}</a>
       </mat-hint>
     </mat-form-field>
 
     <!-- Auth Username (for Bitbucket username_password and Generic) -->
     <mat-form-field appearance="outline" class="full-width"
                     *ngIf="accountType === 'Generic' || (accountType === 'Bitbucket' && preferredAuthMethod === 'username_password')">
-      <mat-label>Username per Autenticazione</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.AUTH_USERNAME_LABEL' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="authUsername"
-             placeholder="Username per HTTPS"
+             [placeholder]="'GIT_ACCOUNT.AUTH_USERNAME_PLACEHOLDER' | translate"
              required>
       <mat-icon matSuffix>account_circle</mat-icon>
-      <mat-hint>Username usato per l'autenticazione HTTPS</mat-hint>
+      <mat-hint>{{ 'GIT_ACCOUNT.AUTH_USERNAME_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
     <!-- HTTPS Password (for Generic and Bitbucket username_password) -->
     <mat-form-field appearance="outline" class="full-width"
                     *ngIf="accountType === 'Generic' || (accountType === 'Bitbucket' && preferredAuthMethod === 'username_password')">
-      <mat-label>Password</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.PASSWORD' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="httpsPassword"
              [type]="hideToken ? 'password' : 'text'"
-             placeholder="Password per HTTPS"
+             [placeholder]="'GIT_ACCOUNT.PASSWORD_PLACEHOLDER' | translate"
              required>
       <button mat-icon-button matSuffix (click)="hideToken = !hideToken" type="button">
         <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
@@ -196,48 +196,48 @@
     <!-- Bitbucket username for App Password -->
     <mat-form-field appearance="outline" class="full-width"
                     *ngIf="accountType === 'Bitbucket' && preferredAuthMethod === 'token'">
-      <mat-label>Username Bitbucket</mat-label>
+      <mat-label>{{ 'GIT_ACCOUNT.BITBUCKET_USERNAME' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="authUsername"
-             placeholder="Il tuo username Bitbucket">
+             [placeholder]="'GIT_ACCOUNT.BITBUCKET_USERNAME_PLACEHOLDER' | translate">
       <mat-icon matSuffix>account_circle</mat-icon>
-      <mat-hint>Username associato all'App Password</mat-hint>
+      <mat-hint>{{ 'GIT_ACCOUNT.BITBUCKET_USERNAME_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
     <mat-divider></mat-divider>
 
-    <h4>Informazioni Git (Opzionali)</h4>
+    <h4>{{ 'GIT_ACCOUNT.GIT_INFO_OPTIONAL' | translate }}</h4>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Git Username</mat-label>
-      <input matInput [(ngModel)]="username" placeholder="username">
+      <mat-label>{{ 'GIT_ACCOUNT.GIT_USERNAME' | translate }}</mat-label>
+      <input matInput [(ngModel)]="username" [placeholder]="'GIT_ACCOUNT.GIT_USERNAME_PLACEHOLDER' | translate">
       <mat-icon matSuffix>person</mat-icon>
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Git Email</mat-label>
-      <input matInput [(ngModel)]="email" type="email" placeholder="user@example.com">
+      <mat-label>{{ 'GIT_ACCOUNT.GIT_EMAIL' | translate }}</mat-label>
+      <input matInput [(ngModel)]="email" type="email" [placeholder]="'GIT_ACCOUNT.GIT_EMAIL_PLACEHOLDER' | translate">
       <mat-icon matSuffix>email</mat-icon>
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Note</mat-label>
-      <textarea matInput [(ngModel)]="notes" rows="2" placeholder="Note opzionali su questo account"></textarea>
+      <mat-label>{{ 'GIT_ACCOUNT.NOTES' | translate }}</mat-label>
+      <textarea matInput [(ngModel)]="notes" rows="2" [placeholder]="'GIT_ACCOUNT.NOTES_PLACEHOLDER' | translate"></textarea>
       <mat-icon matSuffix>note</mat-icon>
     </mat-form-field>
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()" [disabled]="isLoading">Chiudi</button>
+  <button mat-button (click)="close()" [disabled]="isLoading">{{ 'COMMON.CLOSE' | translate }}</button>
 
   <ng-container *ngIf="showCreateForm">
-    <button mat-button (click)="cancelCreate()" [disabled]="isLoading">Annulla</button>
+    <button mat-button (click)="cancelCreate()" [disabled]="isLoading">{{ 'COMMON.CANCEL' | translate }}</button>
     <button mat-raised-button color="primary"
             (click)="currentAccount ? updateAccount() : saveAccount()"
             [disabled]="isLoading">
       <mat-icon>{{ currentAccount ? 'save' : 'add' }}</mat-icon>
-      {{ currentAccount ? 'Aggiorna' : 'Salva' }}
+      {{ currentAccount ? ('GIT_ACCOUNT.UPDATE' | translate) : ('COMMON.SAVE' | translate) }}
     </button>
   </ng-container>
 
@@ -246,6 +246,6 @@
           *ngIf="!showCreateForm && currentAccount"
           [disabled]="isLoading">
     <mat-icon>add</mat-icon>
-    Crea Nuovo
+    {{ 'GIT_ACCOUNT.CREATE_NEW' | translate }}
   </button>
 </mat-dialog-actions>

@@ -3,6 +3,7 @@ import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALO
 import { MdFile } from '../../../md-explorer/models/md-file';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { NewDirectoryDialogData } from '../show-file-system/show-file-metadata';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-new-directory',
@@ -27,7 +28,8 @@ export class NewDirectoryComponent implements OnInit {
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: NewDirectoryDialogData | MdFile,
     private dialogRef: MatDialogRef<NewDirectoryComponent>,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private translate: TranslateService
   ) { }
 
   ngOnInit(): void {
@@ -126,7 +128,7 @@ export class NewDirectoryComponent implements OnInit {
    */
   save(): void {
     if (!this.isValidName()) {
-      this.errorMessage = 'Invalid folder name. Avoid special characters and reserved names.';
+      this.errorMessage = this.translate.instant('NEW_DIR.INVALID_NAME');
       return;
     }
 
@@ -149,9 +151,9 @@ export class NewDirectoryComponent implements OnInit {
 
           // Messaggi di errore specifici
           if (errorMsg.toLowerCase().includes('already exists')) {
-            this.errorMessage = 'A folder with this name already exists';
+            this.errorMessage = this.translate.instant('NEW_DIR.ALREADY_EXISTS');
           } else if (errorMsg.toLowerCase().includes('permission')) {
-            this.errorMessage = 'Permission denied. Check folder permissions.';
+            this.errorMessage = this.translate.instant('NEW_DIR.PERMISSION_DENIED');
           } else {
             this.errorMessage = errorMsg;
           }

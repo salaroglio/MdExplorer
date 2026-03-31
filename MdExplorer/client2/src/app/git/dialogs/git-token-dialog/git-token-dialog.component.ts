@@ -2,6 +2,7 @@ import { Component, OnInit, Inject } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { GITService } from '../../services/gitservice.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-git-token-dialog',
@@ -23,7 +24,8 @@ export class GitTokenDialogComponent implements OnInit {
     public dialogRef: MatDialogRef<GitTokenDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
     private gitService: GITService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) { }
 
   ngOnInit(): void {
@@ -58,7 +60,7 @@ export class GitTokenDialogComponent implements OnInit {
     this.isDeleting = true;
     this.gitService.deleteGitHubToken().subscribe({
       next: () => {
-        this.snackBar.open('Token eliminato con successo', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_TOKEN.TOKEN_DELETED'), 'OK', {
           duration: 3000,
           verticalPosition: 'top'
         });
@@ -70,7 +72,7 @@ export class GitTokenDialogComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error deleting token:', err);
-        this.snackBar.open('Errore nell\'eliminazione del token', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_TOKEN.DELETE_ERROR'), 'OK', {
           duration: 5000,
           verticalPosition: 'top',
           panelClass: ['error-snackbar']
@@ -82,7 +84,7 @@ export class GitTokenDialogComponent implements OnInit {
 
   testToken(): void {
     if (!this.token) {
-      this.snackBar.open('Inserisci un token da testare', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_TOKEN.ENTER_TOKEN'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -94,14 +96,14 @@ export class GitTokenDialogComponent implements OnInit {
     this.gitService.setGitHubToken(this.token).subscribe({
       next: (result) => {
         if (result.tokenValid) {
-          this.snackBar.open('Token valido e configurato con successo!', 'OK', {
+          this.snackBar.open(this.translate.instant('GIT_TOKEN.VALID_SUCCESS'), 'OK', {
             duration: 3000,
             verticalPosition: 'top',
             panelClass: ['success-snackbar']
           });
           this.dialogRef.close(true);
         } else {
-          this.snackBar.open('Token non valido. Verifica di aver copiato correttamente il token.', 'OK', {
+          this.snackBar.open(this.translate.instant('GIT_TOKEN.INVALID_TOKEN'), 'OK', {
             duration: 5000,
             verticalPosition: 'top',
             panelClass: ['error-snackbar']
@@ -111,7 +113,7 @@ export class GitTokenDialogComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error setting token:', err);
-        this.snackBar.open('Errore nel salvataggio del token', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_TOKEN.SAVE_ERROR'), 'OK', {
           duration: 5000,
           verticalPosition: 'top',
           panelClass: ['error-snackbar']

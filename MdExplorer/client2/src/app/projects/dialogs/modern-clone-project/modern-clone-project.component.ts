@@ -11,6 +11,7 @@ import { GITService } from '../../../git/services/gitservice.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
+import { TranslateService } from '@ngx-translate/core';
 
 interface ModernCloneRequest {
   url: string;
@@ -83,7 +84,8 @@ export class ModernCloneProjectComponent implements OnInit {
     private waitingDialog: WaitingDialogService,
     private projectService: ProjectsService,
     private router: Router,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    private translate: TranslateService
   ) { }
 
   ngOnInit(): void {
@@ -148,7 +150,7 @@ export class ModernCloneProjectComponent implements OnInit {
           this.tokenStatus = `Token: ${response.maskedToken}`;
         }
       } else {
-        this.tokenStatus = 'No GitHub token configured';
+        this.tokenStatus = this.translate.instant('CLONE.NO_GITHUB_TOKEN');
       }
 
       // Default to using saved token only if valid
@@ -158,8 +160,8 @@ export class ModernCloneProjectComponent implements OnInit {
 
   deleteToken(): void {
     const message = this.tokenUsername
-      ? `Vuoi eliminare il token GitHub dell'account "${this.tokenUsername}"?`
-      : 'Vuoi davvero eliminare il token GitHub salvato?';
+      ? this.translate.instant('CLONE.DELETE_TOKEN_CONFIRM', { username: this.tokenUsername })
+      : this.translate.instant('CLONE.DELETE_TOKEN_CONFIRM_GENERIC');
 
     const confirmed = confirm(message);
     if (!confirmed) return;
@@ -167,9 +169,9 @@ export class ModernCloneProjectComponent implements OnInit {
     this.isDeleting = true;
     this.gitService.deleteGitHubToken().subscribe({
       next: () => {
-        this.showMessage('Token eliminato con successo');
+        this.showMessage(this.translate.instant('CLONE.TOKEN_DELETED'));
         this.hasGitHubToken = false;
-        this.tokenStatus = 'No GitHub token configured';
+        this.tokenStatus = this.translate.instant('CLONE.NO_GITHUB_TOKEN');
         this.tokenUsername = '';
         this.tokenValid = false;
         this.useSavedToken = false;
@@ -177,7 +179,7 @@ export class ModernCloneProjectComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error deleting token:', err);
-        this.showMessage('Errore nell\'eliminazione del token');
+        this.showMessage(this.translate.instant('CLONE.TOKEN_DELETE_ERROR'));
         this.isDeleting = false;
       }
     });
@@ -311,7 +313,7 @@ export class ModernCloneProjectComponent implements OnInit {
   deleteAccount(account: { id: string; username: string; accountName: string }, event: Event): void {
     event.stopPropagation();  // Prevent dropdown from selecting the item
 
-    const confirmed = confirm(`Vuoi eliminare l'account "${account.username}"?`);
+    const confirmed = confirm(this.translate.instant('CLONE.DELETE_ACCOUNT_CONFIRM', { username: account.username }));
     if (!confirmed) return;
 
     this.gitService.deleteGitAccount(account.id).subscribe({
@@ -326,14 +328,14 @@ export class ModernCloneProjectComponent implements OnInit {
             this.manualCredentials.username = '';
           }
 
-          this.showMessage('Account eliminato con successo');
+          this.showMessage(this.translate.instant('CLONE.ACCOUNT_DELETED'));
         } else {
-          this.showMessage(response.message || 'Errore nell\'eliminazione dell\'account');
+          this.showMessage(response.message || this.translate.instant('CLONE.ACCOUNT_DELETE_ERROR'));
         }
       },
       error: (err) => {
         console.error('[ModernClone] Error deleting account:', err);
-        this.showMessage('Errore nell\'eliminazione dell\'account');
+        this.showMessage(this.translate.instant('CLONE.ACCOUNT_DELETE_ERROR'));
       }
     });
   }
@@ -341,9 +343,9 @@ export class ModernCloneProjectComponent implements OnInit {
   openFileSystem(): void {
     let data = new ShowFileMetadata();
     data.start = null;
-    data.title = "Select Clone Destination";
+    data.title = this.translate.instant('CLONE.SELECT_CLONE_DEST');
     data.typeOfSelection = "Folders";
-    data.buttonText = "Select folder";
+    data.buttonText = this.translate.instant('PROJECTS.SELECT_FOLDER_BTN');
 
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
       width: '800px',
@@ -397,7 +399,7 @@ export class ModernCloneProjectComponent implements OnInit {
 
   async performClone(): Promise<void> {
     if (!this.cloneRequest.url || !this.cloneRequest.localPath) {
-      this.showMessage('Please fill in all required fields');
+      this.showMessage(this.translate.instant('CLONE.FILL_REQUIRED'));
       return;
     }
 
@@ -411,7 +413,7 @@ export class ModernCloneProjectComponent implements OnInit {
       const skipValidation = this.authType === 'basic';
 
       if (!skipValidation) {
-        info.message = "Validating repository URL...";
+        info.message = this.translate.instant('CLONE.VALIDATING_URL');
         this.waitingDialog.showMessageBox(info);
 
         // Validate URL first (only for OAuth providers)
@@ -423,9 +425,9 @@ export class ModernCloneProjectComponent implements OnInit {
           this.urlValidationResult = { isValid: false, error: validationResult?.error || 'Repository not reachable' };
 
           if (validationResult?.isAuthenticationError) {
-            this.showMessage('Authentication required. Please check your credentials.');
+            this.showMessage(this.translate.instant('CLONE.AUTH_REQUIRED'));
           } else {
-            this.showMessage(`Repository URL not reachable: ${validationResult?.error || 'Unknown error'}`);
+            this.showMessage(this.translate.instant('CLONE.URL_NOT_REACHABLE', { error: validationResult?.error || 'Unknown error' }));
           }
           return;
         }
@@ -440,9 +442,9 @@ export class ModernCloneProjectComponent implements OnInit {
       // Step 2: Proceed with clone
       const useAutomaticAuth = this.authType === 'oauth' && !this.showCredentialForm;
       if (useAutomaticAuth) {
-        info.message = `Cloning repository... (${this.getProviderDisplayName()} may open browser for authentication)`;
+        info.message = this.translate.instant('CLONE.CLONING_OAUTH', { provider: this.getProviderDisplayName() });
       } else {
-        info.message = "Cloning repository...";
+        info.message = this.translate.instant('CLONE.CLONING');
       }
 
       // Determine if we need manual credentials
@@ -452,7 +454,7 @@ export class ModernCloneProjectComponent implements OnInit {
       if (needsManualCredentials && (!this.manualCredentials.username || !this.manualCredentials.password)) {
         this.waitingDialog.closeMessageBox();
         this.isValidatingUrl = false;
-        this.showMessage('Inserisci username e password/token per l\'autenticazione');
+        this.showMessage(this.translate.instant('CLONE.ENTER_CREDENTIALS'));
         return;
       }
 
@@ -480,22 +482,22 @@ export class ModernCloneProjectComponent implements OnInit {
           if (response.success) {
             // Set the new project folder
             this.projectService.setNewFolderProject(this.cloneRequest.localPath);
-            this.showMessage('Repository cloned successfully!');
+            this.showMessage(this.translate.instant('CLONE.CLONE_SUCCESS'));
             this.dialogRef.close(this.cloneRequest);
           } else {
-            this.showMessage(response.error || 'Clone failed');
+            this.showMessage(response.error || this.translate.instant('CLONE.CLONE_FAILED'));
           }
         },
         error => {
           this.waitingDialog.closeMessageBox();
           this.isValidatingUrl = false;
-          this.showMessage(error.error?.error || 'Clone failed: ' + error.message);
+          this.showMessage(error.error?.error || this.translate.instant('CLONE.CLONE_FAILED') + ': ' + error.message);
         }
       );
     } catch (error: any) {
       this.waitingDialog.closeMessageBox();
       this.isValidatingUrl = false;
-      this.showMessage('Unexpected error: ' + (error?.message || 'Unknown error'));
+      this.showMessage(this.translate.instant('CLONE.UNEXPECTED_ERROR', { error: error?.message || 'Unknown error' }));
     }
   }
 

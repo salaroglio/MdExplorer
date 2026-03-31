@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
 import { MdFileService } from '../../services/md-file.service';
 import { MdFile } from '../../models/md-file';
 import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
@@ -31,7 +32,8 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private router: Router,
-    private embeddedAppState: EmbeddedAppStateService
+    private embeddedAppState: EmbeddedAppStateService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -71,7 +73,7 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
 
     if (!this.isElectron) {
       this.state = 'error';
-      this.errorMessage = 'External apps are only available in the desktop (Electron) version.';
+      this.errorMessage = this.translate.instant('EXTERNAL_APP.ELECTRON_ONLY');
       this.cdr.markForCheck();
       return;
     }
@@ -88,7 +90,7 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
       if (!result.success) {
         this.ngZone.run(() => {
           this.state = 'error';
-          this.errorMessage = result.error ?? 'Failed to launch external app.';
+          this.errorMessage = result.error ?? this.translate.instant('EXTERNAL_APP.LAUNCH_FAILED');
           this.cdr.markForCheck();
         });
         return;
@@ -106,7 +108,7 @@ export class ExternalAppComponent implements OnInit, OnDestroy {
     } catch (err: any) {
       this.ngZone.run(() => {
         this.state = 'error';
-        this.errorMessage = err?.message ?? 'Unknown error launching external app.';
+        this.errorMessage = err?.message ?? this.translate.instant('EXTERNAL_APP.LAUNCH_UNKNOWN_ERROR');
         this.cdr.markForCheck();
       });
     }

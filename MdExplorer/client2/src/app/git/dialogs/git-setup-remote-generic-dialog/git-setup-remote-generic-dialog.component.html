@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>Setup Remote Repository</h2>
+<h2 mat-dialog-title>{{ 'GIT_REMOTE.GENERIC_TITLE' | translate }}</h2>
 
 <mat-dialog-content>
   <div class="setup-form">
@@ -6,32 +6,31 @@
     <div class="instructions">
       <mat-icon>info</mat-icon>
       <p>
-        Configura il repository remoto per sincronizzare il tuo progetto.
-        Puoi usare GitHub, GitLab, BitBucket o qualsiasi server Git.
+        {{ 'GIT_REMOTE.GENERIC_DESC' | translate }}
       </p>
     </div>
 
     <!-- Remote URL input -->
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>URL Repository Remoto</mat-label>
+      <mat-label>{{ 'GIT_REMOTE.REMOTE_URL' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="remoteUrl"
              (ngModelChange)="onUrlChange()"
-             placeholder="https://github.com/org/repo.git"
+             [placeholder]="'GIT_REMOTE.REMOTE_URL_PLACEHOLDER' | translate"
              [disabled]="isSetting">
       <mat-icon matSuffix *ngIf="!isValidating && !urlInfo">link</mat-icon>
       <mat-spinner matSuffix *ngIf="isValidating" diameter="20"></mat-spinner>
       <mat-icon matSuffix *ngIf="urlInfo?.isValid" style="color: #4caf50;">check_circle</mat-icon>
       <mat-icon matSuffix *ngIf="urlInfo && !urlInfo.isValid" style="color: #f44336;">error</mat-icon>
-      <mat-hint>URL HTTPS o SSH del repository remoto</mat-hint>
+      <mat-hint>{{ 'GIT_REMOTE.REMOTE_URL_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
     <!-- Provider badge -->
     <div class="provider-badge" *ngIf="urlInfo?.isValid && getProviderInfo() as provider">
       <mat-icon [style.color]="provider.color">{{ provider.icon }}</mat-icon>
-      <span>{{ provider.name }} rilevato</span>
+      <span>{{ provider.name }} {{ 'GIT_REMOTE.DETECTED' | translate }}</span>
       <span *ngIf="urlInfo?.supportsAutoCreate" class="auto-create-badge">
-        Creazione automatica disponibile
+        {{ 'GIT_REMOTE.AUTO_CREATE_AVAILABLE' | translate }}
       </span>
     </div>
 
@@ -41,19 +40,19 @@
     <!-- Authentication section -->
     <h3 class="section-title">
       <mat-icon>key</mat-icon>
-      Autenticazione
+      {{ 'GIT_REMOTE.AUTH_SECTION' | translate }}
     </h3>
 
     <!-- Saved GitHub Credentials Selection (multi-account system) - Always visible when credentials exist -->
     <div class="saved-credentials-section" *ngIf="urlInfo?.provider === 'github' && savedGitHubCredentials.length > 0">
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Account GitHub</mat-label>
+        <mat-label>{{ 'GIT_REMOTE.GITHUB_ACCOUNT' | translate }}</mat-label>
         <mat-select [(ngModel)]="selectedCredentialId"
                     (ngModelChange)="onCredentialSelectionChange()"
                     [disabled]="isSetting">
           <mat-option [value]="null">
             <mat-icon>add</mat-icon>
-            Inserisci nuove credenziali
+            {{ 'GIT_REMOTE.ENTER_NEW_CREDS' | translate }}
           </mat-option>
           <mat-divider></mat-divider>
           <mat-option *ngFor="let credential of savedGitHubCredentials" [value]="credential.id">
@@ -61,7 +60,7 @@
             {{ credential.username || credential.accountName }}
           </mat-option>
         </mat-select>
-        <mat-hint>Seleziona un account salvato o inserisci nuove credenziali</mat-hint>
+        <mat-hint>{{ 'GIT_REMOTE.SELECT_ACCOUNT_HINT' | translate }}</mat-hint>
       </mat-form-field>
     </div>
 
@@ -69,21 +68,21 @@
     <ng-container *ngIf="!selectedCredentialId">
     <!-- Username input -->
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Username</mat-label>
+      <mat-label>{{ 'GIT_REMOTE.USERNAME' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="username"
-             placeholder="Il tuo username"
+             [placeholder]="'GIT_REMOTE.USERNAME_PLACEHOLDER' | translate"
              [disabled]="isSetting">
       <mat-icon matSuffix>person</mat-icon>
     </mat-form-field>
 
     <!-- Password input (default visible) -->
     <mat-form-field appearance="outline" class="full-width" *ngIf="authMethod === 'username_password'">
-      <mat-label>Password / Token</mat-label>
+      <mat-label>{{ 'GIT_REMOTE.PASSWORD_TOKEN' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="password"
              [type]="showPassword ? 'text' : 'password'"
-             placeholder="Password o Personal Access Token"
+             [placeholder]="'GIT_REMOTE.PASSWORD_PLACEHOLDER' | translate"
              [disabled]="isSetting">
       <button mat-icon-button matSuffix (click)="showPassword = !showPassword" type="button">
         <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
@@ -94,28 +93,28 @@
     <div class="github-pat-warning" *ngIf="urlInfo?.provider === 'github' && authMethod === 'username_password'">
       <mat-icon color="warn">warning</mat-icon>
       <span>
-        <strong>Nota:</strong> GitHub richiede un <strong>Personal Access Token (PAT)</strong> invece della password.
+        <strong>{{ 'GIT_REMOTE.GITHUB_PAT_NOTE' | translate }}</strong>
         <a (click)="openTokenCreationUrl()" style="cursor: pointer; color: #1976d2; text-decoration: underline;">
-          Crea un token qui
+          {{ 'GIT_REMOTE.CREATE_TOKEN_HERE' | translate }}
         </a>
       </span>
     </div>
 
     <!-- Token input (visible only when PAT selected in advanced) -->
     <mat-form-field appearance="outline" class="full-width" *ngIf="authMethod === 'pat'">
-      <mat-label>Personal Access Token</mat-label>
+      <mat-label>{{ 'GIT_REMOTE.PAT_LABEL' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="token"
              (ngModelChange)="onTokenChange()"
              [type]="showPassword ? 'text' : 'password'"
-             placeholder="ghp_xxxxx o glpat-xxxxx"
+             [placeholder]="'GIT_REMOTE.PAT_PLACEHOLDER' | translate"
              [disabled]="isSetting">
       <button mat-icon-button matSuffix (click)="showPassword = !showPassword" type="button">
         <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
       </button>
       <mat-hint *ngIf="urlInfo?.tokenCreationUrl">
         <a (click)="openTokenCreationUrl()" style="cursor: pointer; color: #1976d2;">
-          Crea un nuovo token
+          {{ 'GIT_REMOTE.CREATE_NEW_TOKEN' | translate }}
         </a>
       </mat-hint>
     </mat-form-field>
@@ -129,28 +128,28 @@
             class="validate-button">
       <mat-spinner *ngIf="isValidating" diameter="18" style="display: inline-block; margin-right: 8px;"></mat-spinner>
       <mat-icon *ngIf="!isValidating">wifi_tethering</mat-icon>
-      {{ isValidating ? 'Verifica...' : 'Verifica Connessione' }}
+      {{ isValidating ? ('GIT_REMOTE.VERIFYING' | translate) : ('GIT_REMOTE.VERIFY_CONNECTION' | translate) }}
     </button>
 
     <!-- Validation result -->
     <div class="validation-result success" *ngIf="validationResult?.isReachable && validationResult?.credentialsValid">
       <mat-icon>check_circle</mat-icon>
-      <span>Connessione verificata - Credenziali valide</span>
+      <span>{{ 'GIT_REMOTE.CONNECTION_VERIFIED' | translate }}</span>
     </div>
 
     <div class="validation-result warning" *ngIf="validationResult?.isReachable && !validationResult?.repositoryExists">
       <mat-icon>warning</mat-icon>
-      <span>Repository non trovato. Verr&agrave; creato se l'opzione &egrave; attiva.</span>
+      <span>{{ 'GIT_REMOTE.REPO_NOT_FOUND_WILL_CREATE' | translate }}</span>
     </div>
 
     <!-- Options checkboxes -->
     <div class="options">
       <mat-checkbox [(ngModel)]="saveCredentials" [disabled]="isSetting">
-        Salva credenziali per questo repository
+        {{ 'GIT_REMOTE.SAVE_CREDENTIALS' | translate }}
       </mat-checkbox>
 
       <mat-checkbox [(ngModel)]="pushAfterAdd" [disabled]="isSetting">
-        Push automatico dei commit esistenti
+        {{ 'GIT_REMOTE.AUTO_PUSH' | translate }}
       </mat-checkbox>
     </div>
 
@@ -159,43 +158,43 @@
       <mat-expansion-panel-header (click)="toggleAdvanced()">
         <mat-panel-title>
           <mat-icon>settings</mat-icon>
-          Opzioni Avanzate
+          {{ 'GIT_REMOTE.ADVANCED_OPTIONS' | translate }}
         </mat-panel-title>
       </mat-expansion-panel-header>
 
       <div class="advanced-content">
         <!-- Authentication method -->
         <div class="auth-method-section">
-          <mat-label class="field-label">Metodo di autenticazione:</mat-label>
+          <mat-label class="field-label">{{ 'GIT_REMOTE.AUTH_METHOD' | translate }}</mat-label>
           <mat-radio-group [(ngModel)]="authMethod" [disabled]="isSetting">
             <mat-radio-button value="username_password">
               <mat-icon>vpn_key</mat-icon>
-              Username / Password
+              {{ 'GIT_REMOTE.USER_PASSWORD' | translate }}
             </mat-radio-button>
             <mat-radio-button value="pat">
               <mat-icon>token</mat-icon>
-              Personal Access Token
+              {{ 'GIT_REMOTE.PAT' | translate }}
             </mat-radio-button>
           </mat-radio-group>
         </div>
 
         <!-- Remote name -->
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Nome Remote</mat-label>
+          <mat-label>{{ 'GIT_REMOTE.REMOTE_NAME' | translate }}</mat-label>
           <input matInput
                  [(ngModel)]="remoteName"
-                 placeholder="origin"
+                 [placeholder]="'GIT_REMOTE.REMOTE_NAME_PLACEHOLDER' | translate"
                  [disabled]="isSetting">
-          <mat-hint>Default: origin</mat-hint>
+          <mat-hint>{{ 'GIT_REMOTE.REMOTE_NAME_HINT' | translate }}</mat-hint>
         </mat-form-field>
 
         <!-- Auto-create section (only for supported providers) -->
         <div class="auto-create-section" *ngIf="urlInfo?.supportsAutoCreate">
           <mat-divider></mat-divider>
-          <h4>Creazione Repository Automatica ({{ getProviderInfo()?.name }})</h4>
+          <h4>{{ 'GIT_REMOTE.AUTO_CREATE_TITLE' | translate: { provider: getProviderInfo()?.name } }}</h4>
 
           <mat-checkbox [(ngModel)]="createRemoteRepo" [disabled]="isSetting">
-            Crea repository automaticamente se non esiste
+            {{ 'GIT_REMOTE.AUTO_CREATE_CHECKBOX' | translate }}
           </mat-checkbox>
 
           <div *ngIf="createRemoteRepo" class="create-repo-options">
@@ -203,20 +202,20 @@
               <mat-radio-group [(ngModel)]="isPrivate" [disabled]="isSetting">
                 <mat-radio-button [value]="true">
                   <mat-icon>lock</mat-icon>
-                  Privato
+                  {{ 'GIT_REMOTE.PRIVATE' | translate }}
                 </mat-radio-button>
                 <mat-radio-button [value]="false">
                   <mat-icon>public</mat-icon>
-                  Pubblico
+                  {{ 'GIT_REMOTE.PUBLIC' | translate }}
                 </mat-radio-button>
               </mat-radio-group>
             </div>
 
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Descrizione (opzionale)</mat-label>
+              <mat-label>{{ 'GIT_REMOTE.REPO_DESC_OPTIONAL' | translate }}</mat-label>
               <input matInput
                      [(ngModel)]="repoDescription"
-                     placeholder="Descrizione del repository"
+                     [placeholder]="'GIT_REMOTE.REPO_DESC_PLACEHOLDER' | translate"
                      [disabled]="isSetting">
             </mat-form-field>
           </div>
@@ -235,33 +234,33 @@
       <mat-expansion-panel-header>
         <mat-panel-title>
           <mat-icon>help_outline</mat-icon>
-          Aiuto: Come configurare il remote
+          {{ 'GIT_REMOTE.HELP_TITLE' | translate }}
         </mat-panel-title>
       </mat-expansion-panel-header>
       <div class="help-content">
-        <h4>1. Crea il repository sul tuo provider Git</h4>
-        <p>Vai su GitHub, GitLab, o il tuo server Git e crea un nuovo repository vuoto.</p>
+        <h4>{{ 'GIT_REMOTE.HELP_STEP1_TITLE' | translate }}</h4>
+        <p>{{ 'GIT_REMOTE.HELP_STEP1_DESC' | translate }}</p>
 
-        <h4>2. Copia l'URL del repository</h4>
-        <p>Copia l'URL HTTPS (es. https://github.com/utente/repo.git)</p>
+        <h4>{{ 'GIT_REMOTE.HELP_STEP2_TITLE' | translate }}</h4>
+        <p>{{ 'GIT_REMOTE.HELP_STEP2_DESC' | translate }}</p>
 
-        <h4>3. Inserisci le tue credenziali</h4>
-        <p>Username e password, oppure un Personal Access Token.</p>
+        <h4>{{ 'GIT_REMOTE.HELP_STEP3_TITLE' | translate }}</h4>
+        <p>{{ 'GIT_REMOTE.HELP_STEP3_DESC' | translate }}</p>
 
-        <h4>4. Verifica e Configura</h4>
-        <p>Usa "Verifica Connessione" per testare, poi clicca "Configura".</p>
+        <h4>{{ 'GIT_REMOTE.HELP_STEP4_TITLE' | translate }}</h4>
+        <p>{{ 'GIT_REMOTE.HELP_STEP4_DESC' | translate }}</p>
       </div>
     </mat-expansion-panel>
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()" [disabled]="isSetting">Annulla</button>
+  <button mat-button (click)="onCancel()" [disabled]="isSetting">{{ 'COMMON.CANCEL' | translate }}</button>
   <button mat-raised-button
           color="primary"
           (click)="onSetup()"
           [disabled]="isSetting || !isFormValid()">
     <mat-spinner *ngIf="isSetting" diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
-    {{ isSetting ? 'Configurazione...' : 'Configura' }}
+    {{ isSetting ? ('GIT_REMOTE.CONFIGURING' | translate) : ('GIT_REMOTE.CONFIGURE_BTN' | translate) }}
   </button>
 </mat-dialog-actions>

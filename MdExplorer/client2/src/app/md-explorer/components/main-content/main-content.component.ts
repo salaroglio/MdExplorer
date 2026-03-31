@@ -13,6 +13,7 @@ import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.servi
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ProjectsService } from '../../services/projects.service';
 import { HttpClient } from '@angular/common/http';
+import { TranslateService } from '@ngx-translate/core';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -73,7 +74,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private p2pService: P2PService,
     private snackBar: MatSnackBar,
     private projectsService: ProjectsService,
-    private http: HttpClient
+    private http: HttpClient,
+    private translate: TranslateService
   ) {
     
     // Initialize observables from state
@@ -97,7 +99,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     
     this.errorMessage$ = this.contentState$.pipe(
-      map(state => state.errorMessage || 'Errore di caricamento sconosciuto'),
+      map(state => state.errorMessage || this.translate.instant('MAIN_CONTENT.LOAD_ERROR')),
       distinctUntilChanged(),
       takeUntil(this.destroy$)
     );
@@ -618,7 +620,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (!projectPath) {
       console.error('[P2P] No project path available');
-      this.snackBar.open('Errore: progetto non trovato', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MAIN_CONTENT.PROJECT_NOT_FOUND'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -636,7 +638,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         console.error('[P2P] Error checking file:', err);
-        this.snackBar.open('Errore nel verificare il file', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MAIN_CONTENT.VERIFY_FILE_ERROR'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -786,7 +788,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     this.p2pService.getFileInfo(filename, projectPath).subscribe({
       next: (fileInfo) => {
         if (!fileInfo.found || !fileInfo.magnetUri) {
-          this.snackBar.open('File non trovato nei metadati P2P', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MAIN_CONTENT.FILE_NOT_IN_P2P'), 'OK', { duration: 3000 });
           return;
         }
 
@@ -807,7 +809,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         console.error('[P2P] Error getting file info:', err);
-        this.snackBar.open('Errore nel recuperare le informazioni del file', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MAIN_CONTENT.FILE_INFO_ERROR'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -820,8 +822,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const peersStr = peerStatus?.numPeers ? `${peerStatus.numPeers} peer disponibili` : 'Peer sconosciuti';
 
     const snackRef = this.snackBar.open(
-      `Scaricare "${filename}"? (${sizeStr}, ${peersStr})`,
-      'Scarica',
+      this.translate.instant('MAIN_CONTENT.DOWNLOAD_CONFIRM', { filename, size: sizeStr, peers: peersStr }),
+      this.translate.instant('MAIN_CONTENT.DOWNLOAD_BTN'),
       { duration: 10000 }
     );
 
@@ -835,19 +837,19 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private startP2PDownload(filename: string, fileInfo: P2PFileInfo, projectPath: string): void {
     if (!fileInfo.magnetUri) {
-      this.snackBar.open('Magnet URI non disponibile', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MAIN_CONTENT.MAGNET_NOT_AVAILABLE'), 'OK', { duration: 3000 });
       return;
     }
 
     // Destination path inside .p2pshare/received/
     const destPath = `${projectPath}/.p2pshare/received`;
 
-    this.snackBar.open(`Avvio download di "${filename}"...`, '', { duration: 2000 });
+    this.snackBar.open(this.translate.instant('MAIN_CONTENT.STARTING_DOWNLOAD', { filename }), '', { duration: 2000 });
 
     this.p2pService.download(fileInfo.magnetUri, destPath).subscribe({
       next: (result) => {
         if (result.success) {
-          this.snackBar.open(`Download avviato per "${filename}"`, 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MAIN_CONTENT.DOWNLOAD_STARTED', { filename }), 'OK', { duration: 3000 });
           // TODO: Could show progress in P2P Manager or a dedicated component
         } else {
           this.snackBar.open(`Errore: ${result.error}`, 'OK', { duration: 5000 });
@@ -855,7 +857,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         console.error('[P2P] Download error:', err);
-        this.snackBar.open('Errore durante il download', 'OK', { duration: 5000 });
+        this.snackBar.open(this.translate.instant('MAIN_CONTENT.DOWNLOAD_ERROR'), 'OK', { duration: 5000 });
       }
     });
   }
@@ -867,7 +869,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // For now, just log - actual implementation would use Electron shell.openPath
     // or a backend endpoint to open the file
     console.log('[P2P] Opening local file:', fullPath);
-    this.snackBar.open(`Apertura file: ${fullPath}`, '', { duration: 2000 });
+    this.snackBar.open(this.translate.instant('MAIN_CONTENT.OPENING_FILE', { path: fullPath }), '', { duration: 2000 });
 
     // TODO: Implement actual file opening via backend or Electron IPC
     // For example: this.http.post('/api/System/OpenFile', { path: fullPath }).subscribe();

@@ -1,6 +1,7 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { GitAccountService } from '../../services/git-account.service';
 import { GitAccount, CreateGitAccountRequest } from '../../models/git-account.model';
 
@@ -44,7 +45,8 @@ export class GitAccountManagementDialogComponent implements OnInit {
     public dialogRef: MatDialogRef<GitAccountManagementDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: GitAccountManagementDialogData,
     private gitAccountService: GitAccountService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -94,7 +96,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
   saveAccount(): void {
     // Validation
     if (!this.accountName.trim()) {
-      this.snackBar.open('Nome account richiesto', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_ACCOUNT.ACCOUNT_NAME_REQUIRED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -102,7 +104,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
     }
 
     if (this.accountType === 'GitHub' && !this.gitHubPAT.trim()) {
-      this.snackBar.open('GitHub Personal Access Token richiesto', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_ACCOUNT.GITHUB_TOKEN_REQUIRED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -110,7 +112,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
     }
 
     if (this.accountType === 'GitLab' && !this.gitLabToken.trim()) {
-      this.snackBar.open('GitLab Token richiesto', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_ACCOUNT.GITLAB_TOKEN_REQUIRED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -119,7 +121,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
 
     if (this.accountType === 'Bitbucket') {
       if (this.preferredAuthMethod === 'token' && !this.bitbucketAppPassword.trim()) {
-        this.snackBar.open('Bitbucket App Password richiesta', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_ACCOUNT.BITBUCKET_PASSWORD_REQUIRED'), 'OK', {
           duration: 3000,
           verticalPosition: 'top'
         });
@@ -127,7 +129,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
       }
       if (this.preferredAuthMethod === 'username_password' &&
           (!this.authUsername.trim() || !this.httpsPassword.trim())) {
-        this.snackBar.open('Username e Password richiesti', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_ACCOUNT.USER_PASS_REQUIRED'), 'OK', {
           duration: 3000,
           verticalPosition: 'top'
         });
@@ -136,7 +138,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
     }
 
     if (this.accountType === 'Generic' && (!this.authUsername.trim() || !this.httpsPassword.trim())) {
-      this.snackBar.open('Username e Password richiesti per server Git generico', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_ACCOUNT.GENERIC_CREDS_REQUIRED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -167,7 +169,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
     this.isLoading = true;
     this.gitAccountService.createAccount(request).subscribe({
       next: (account) => {
-        this.snackBar.open('Account Git creato con successo!', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_ACCOUNT.CREATED_SUCCESS'), 'OK', {
           duration: 3000,
           verticalPosition: 'top',
           panelClass: ['success-snackbar']
@@ -179,7 +181,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error creating account:', err);
-        const message = err.error?.error || err.error?.title || 'Errore nella creazione dell\'account';
+        const message = err.error?.error || err.error?.title || this.translate.instant('GIT_ACCOUNT.CREATE_ERROR');
         this.snackBar.open(message, 'OK', {
           duration: 5000,
           verticalPosition: 'top',
@@ -200,7 +202,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
     this.gitAccountService.deleteAccount(this.currentAccount.id).subscribe({
       next: (result) => {
         if (result.success) {
-          this.snackBar.open('Account eliminato con successo', 'OK', {
+          this.snackBar.open(this.translate.instant('GIT_ACCOUNT.DELETED_SUCCESS'), 'OK', {
             duration: 3000,
             verticalPosition: 'top'
           });
@@ -210,7 +212,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error deleting account:', err);
-        this.snackBar.open('Errore nell\'eliminazione dell\'account', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_ACCOUNT.DELETE_ERROR'), 'OK', {
           duration: 5000,
           verticalPosition: 'top',
           panelClass: ['error-snackbar']
@@ -242,7 +244,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
 
     // Validation similar to saveAccount
     if (!this.accountName.trim()) {
-      this.snackBar.open('Nome account richiesto', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_ACCOUNT.ACCOUNT_NAME_REQUIRED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -280,7 +282,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
     this.isLoading = true;
     this.gitAccountService.updateAccount(this.currentAccount.id, request).subscribe({
       next: (account) => {
-        this.snackBar.open('Account aggiornato con successo!', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_ACCOUNT.UPDATED_SUCCESS'), 'OK', {
           duration: 3000,
           verticalPosition: 'top',
           panelClass: ['success-snackbar']
@@ -292,7 +294,7 @@ export class GitAccountManagementDialogComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error updating account:', err);
-        const message = err.error?.error || 'Errore nell\'aggiornamento dell\'account';
+        const message = err.error?.error || this.translate.instant('GIT_ACCOUNT.UPDATE_ERROR');
         this.snackBar.open(message, 'OK', {
           duration: 5000,
           verticalPosition: 'top',

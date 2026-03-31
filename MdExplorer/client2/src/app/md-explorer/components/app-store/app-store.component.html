@@ -1,7 +1,7 @@
 <div class="app-store-container">
 
   <div class="section-header">
-    <h3><mat-icon class="header-icon">storefront</mat-icon> App Store</h3>
+    <h3><mat-icon class="header-icon">storefront</mat-icon> {{ 'APP_STORE.TITLE' | translate }}</h3>
   </div>
 
   <mat-tab-group animationDuration="0ms" class="store-tabs">
@@ -9,7 +9,7 @@
     <!-- ═══════════════════════════════════════════════
          TAB 1 — Store
     ════════════════════════════════════════════════ -->
-    <mat-tab label="Store">
+    <mat-tab [label]="'APP_STORE.STORE_TAB' | translate">
       <div class="tab-content">
 
         <!-- Repo header(s) -->
@@ -26,17 +26,17 @@
         <div class="repo-header repo-header-error" *ngIf="catalogLoadError && !isLoadingCatalog">
           <mat-icon class="repo-error-icon">cloud_off</mat-icon>
           <div class="repo-header-info">
-            <h2 class="repo-name">Repository non raggiungibile</h2>
-            <p class="repo-description">Impossibile connettersi al server Nexus. Verifica la connessione di rete e le impostazioni del repository in <strong>Settings &gt; Application</strong>.</p>
+            <h2 class="repo-name">{{ 'APP_STORE.REPO_UNREACHABLE' | translate }}</h2>
+            <p class="repo-description">{{ 'APP_STORE.REPO_UNREACHABLE_DESC' | translate }}</p>
             <button mat-stroked-button color="primary" (click)="loadCatalog()" style="margin-top: 8px;">
-              <mat-icon>refresh</mat-icon> Riprova
+              <mat-icon>refresh</mat-icon> {{ 'APP_STORE.RETRY' | translate }}
             </button>
           </div>
         </div>
 
         <!-- Store header actions -->
         <div class="store-actions" *ngIf="catalogApps.length > 0">
-          <button mat-icon-button matTooltip="Aggiorna catalogo" (click)="loadCatalog()" [disabled]="isLoadingCatalog">
+          <button mat-icon-button [matTooltip]="'APP_STORE.REFRESH_CATALOG' | translate" (click)="loadCatalog()" [disabled]="isLoadingCatalog">
             <mat-icon>refresh</mat-icon>
           </button>
           <span class="repos-count" *ngIf="repos.length > 0">{{ repos.length }} repo</span>
@@ -44,9 +44,9 @@
 
         <!-- Search -->
         <mat-form-field appearance="outline" class="search-field" *ngIf="catalogApps.length > 0">
-          <mat-label>Cerca app...</mat-label>
+          <mat-label>{{ 'APP_STORE.SEARCH_APPS' | translate }}</mat-label>
           <mat-icon matPrefix>search</mat-icon>
-          <input matInput [(ngModel)]="searchQuery" placeholder="Filtra per nome o descrizione">
+          <input matInput [(ngModel)]="searchQuery" [placeholder]="'APP_STORE.FILTER_PLACEHOLDER' | translate">
           <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery = ''">
             <mat-icon>clear</mat-icon>
           </button>
@@ -55,20 +55,20 @@
         <!-- Loading -->
         <div *ngIf="isLoadingCatalog" class="loading-row">
           <mat-spinner diameter="24"></mat-spinner>
-          <span>Caricamento catalog...</span>
+          <span>{{ 'APP_STORE.LOADING_CATALOG' | translate }}</span>
         </div>
 
         <!-- Empty state -->
         <div *ngIf="catalogApps.length === 0 && !isLoadingCatalog && !catalogLoadError" class="empty-state">
           <mat-icon>storefront</mat-icon>
-          <span *ngIf="repos.length === 0">Nessun repository configurato. Vai in <strong>Settings > Application</strong> per aggiungerne uno.</span>
-          <span *ngIf="repos.length > 0">Nessuna app disponibile nel catalogo.</span>
+          <span *ngIf="repos.length === 0">{{ 'APP_STORE.NO_REPO_CONFIGURED' | translate }}</span>
+          <span *ngIf="repos.length > 0">{{ 'APP_STORE.NO_APPS_AVAILABLE' | translate }}</span>
         </div>
 
         <!-- No search results -->
         <div *ngIf="filteredCatalogApps.length === 0 && catalogApps.length > 0 && !isLoadingCatalog" class="empty-state">
           <mat-icon>search_off</mat-icon>
-          <span>Nessun risultato per "<strong>{{ searchQuery }}</strong>"</span>
+          <span>{{ 'APP_STORE.NO_RESULTS' | translate:{ query: searchQuery } }}</span>
         </div>
 
         <!-- Catalog list -->
@@ -82,8 +82,8 @@
               <div class="catalog-card-title">
                 {{ app.name }}
                 <span class="version-chip">v{{ getVersionForPlatform(app) }}</span>
-                <span *ngIf="isInstalled(app) && !hasUpdate(app)" class="badge installed">Installata</span>
-                <span *ngIf="hasUpdate(app)" class="badge update">Aggiornamento disponibile</span>
+                <span *ngIf="isInstalled(app) && !hasUpdate(app)" class="badge installed">{{ 'APP_STORE.INSTALLED_BADGE' | translate }}</span>
+                <span *ngIf="hasUpdate(app)" class="badge update">{{ 'APP_STORE.UPDATE_AVAILABLE' | translate }}</span>
                 <span *ngIf="app.repoLabel && repos.length > 1" class="badge repo-badge">{{ app.repoLabel }}</span>
                 <span *ngFor="let p of getAppPlatforms(app)"
                       class="badge platform"
@@ -97,22 +97,22 @@
             </div>
             <div class="catalog-card-actions">
               <span *ngIf="!isAvailableForPlatform(app) && !isInstalled(app)" class="not-available-hint">
-                Non disponibile per {{ currentPlatform }}
+                {{ 'APP_STORE.NOT_AVAILABLE_FOR' | translate:{ platform: currentPlatform } }}
               </span>
               <button mat-stroked-button color="primary"
                       *ngIf="!isInstalled(app) && isAvailableForPlatform(app) && !installingAppIds.has(app.id)"
                       (click)="installApp(app)">
-                <mat-icon>download</mat-icon> Installa
+                <mat-icon>download</mat-icon> {{ 'APP_STORE.INSTALL' | translate }}
               </button>
               <button mat-stroked-button color="accent"
                       *ngIf="hasUpdate(app) && isAvailableForPlatform(app) && !installingAppIds.has(app.id)"
                       (click)="installApp(app)">
-                <mat-icon>update</mat-icon> Aggiorna
+                <mat-icon>update</mat-icon> {{ 'APP_STORE.UPDATE' | translate }}
               </button>
               <button mat-stroked-button color="warn"
                       *ngIf="isInstalled(app) && !uninstallingAppIds.has(app.id)"
                       (click)="uninstallApp(app.id, app.name)">
-                <mat-icon>delete</mat-icon> Rimuovi
+                <mat-icon>delete</mat-icon> {{ 'APP_STORE.REMOVE' | translate }}
               </button>
               <mat-spinner diameter="20"
                            *ngIf="installingAppIds.has(app.id) || uninstallingAppIds.has(app.id)">
@@ -124,14 +124,14 @@
         <!-- Installed apps (when catalog not loaded) -->
         <div *ngIf="installedApps.length > 0 && catalogApps.length === 0 && !isLoadingCatalog">
           <div class="store-actions" style="margin-top: 16px;">
-            <h4>App installate</h4>
+            <h4>{{ 'APP_STORE.INSTALLED_APPS' | translate }}</h4>
           </div>
           <mat-list class="catalog-list">
             <mat-list-item *ngFor="let app of installedApps" class="catalog-item">
               <img *ngIf="app.icon?.startsWith('data:')" [src]="app.icon" class="app-icon-img" matListItemIcon>
               <mat-icon *ngIf="!app.icon?.startsWith('data:')" matListItemIcon>{{ app.icon || 'launch' }}</mat-icon>
               <div matListItemTitle>{{ app.name }} <span class="version-chip">v{{ app.version }}</span></div>
-              <button mat-icon-button color="warn" matTooltip="Disinstalla"
+              <button mat-icon-button color="warn" [matTooltip]="'APP_STORE.UNINSTALL' | translate"
                       [disabled]="uninstallingAppIds.has(app.appId)"
                       (click)="uninstallApp(app.appId, app.name)">
                 <mat-icon>delete</mat-icon>
@@ -146,33 +146,33 @@
     <!-- ═══════════════════════════════════════════════
          TAB 2 — Gestisci
     ════════════════════════════════════════════════ -->
-    <mat-tab label="Gestisci">
+    <mat-tab [label]="'APP_STORE.MANAGE_TAB' | translate">
       <div class="tab-content">
 
         <!-- Warning: no repos configured -->
         <div *ngIf="!isSettingsConfigured" class="settings-warning">
           <mat-icon>warning</mat-icon>
-          <span>Nessun repository configurato. Vai in <strong>Settings > Application</strong> per aggiungere un repository.</span>
+          <span>{{ 'APP_STORE.NO_REPO_CONFIGURED' | translate }}</span>
         </div>
 
         <!-- Publish new app button -->
         <div class="manage-actions" *ngIf="isSettingsConfigured">
           <button mat-raised-button color="primary" (click)="showPublishPanel = !showPublishPanel">
             <mat-icon>{{ showPublishPanel ? 'expand_less' : 'add' }}</mat-icon>
-            {{ showPublishPanel ? 'Chiudi' : 'Pubblica nuova app' }}
+            {{ showPublishPanel ? ('COMMON.CLOSE' | translate) : ('APP_STORE.PUBLISH_NEW' | translate) }}
           </button>
         </div>
 
         <!-- Publish panel (expandable) -->
         <mat-card *ngIf="showPublishPanel" class="settings-card publish-panel">
           <mat-card-header>
-            <mat-card-title>Pubblica nuova app</mat-card-title>
+            <mat-card-title>{{ 'APP_STORE.PUBLISH_NEW' | translate }}</mat-card-title>
           </mat-card-header>
           <mat-card-content>
 
             <!-- Repo selector -->
             <mat-form-field appearance="outline" class="full-width" *ngIf="repos.length > 1">
-              <mat-label>Repository di destinazione</mat-label>
+              <mat-label>{{ 'APP_STORE.DEST_REPO' | translate }}</mat-label>
               <mat-select [(ngModel)]="selectedRepoId">
                 <mat-option *ngFor="let repo of repos" [value]="repo.id">{{ repo.label }}</mat-option>
               </mat-select>
@@ -180,7 +180,7 @@
 
             <!-- Platform selector -->
             <div class="platform-selector">
-              <label class="platform-selector-label">Piattaforma</label>
+              <label class="platform-selector-label">{{ 'APP_STORE.PLATFORM' | translate }}</label>
               <mat-button-toggle-group [(ngModel)]="publishPlatform" (change)="onPlatformChange()">
                 <mat-button-toggle value="windows">
                   <mat-icon class="platform-icon">desktop_windows</mat-icon> Windows
@@ -192,18 +192,16 @@
             </div>
 
             <p class="publish-hint" *ngIf="publishPlatform === 'windows'">
-              Il file deve seguire la convenzione: <code>{{ '{' }}appId{{ '}' }}-setup-{{ '{' }}version{{ '}' }}.exe</code><br>
-              Esempio: <code>my-tool-setup-1.0.0.exe</code>
+              {{ 'APP_STORE.FILE_FORMAT_WIN' | translate }}
             </p>
             <p class="publish-hint" *ngIf="publishPlatform === 'linux'">
-              Il file deve seguire la convenzione: <code>{{ '{' }}appId{{ '}' }}-{{ '{' }}version{{ '}' }}.AppImage</code><br>
-              Esempio: <code>my-tool-1.0.0.AppImage</code>
+              {{ 'APP_STORE.FILE_FORMAT_LINUX' | translate }}
             </p>
 
             <!-- File picker -->
             <div class="file-picker">
               <button mat-stroked-button type="button" (click)="fileInput.click()">
-                <mat-icon>folder_open</mat-icon> Seleziona {{ publishPlatform === 'linux' ? 'AppImage' : 'installer' }}...
+                <mat-icon>folder_open</mat-icon> {{ 'APP_STORE.SELECT_INSTALLER' | translate }}
               </button>
               <span *ngIf="selectedFile" class="file-name">
                 <mat-icon>inventory_2</mat-icon>
@@ -220,60 +218,59 @@
             <div *ngIf="publishMetadata" class="publish-metadata">
               <div class="form-grid">
                 <mat-form-field appearance="outline">
-                  <mat-label>App ID</mat-label>
+                  <mat-label>{{ 'APP_STORE.APP_ID' | translate }}</mat-label>
                   <input matInput [value]="publishMetadata.appId" readonly>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline">
-                  <mat-label>Versione</mat-label>
+                  <mat-label>{{ 'APP_STORE.VERSION' | translate }}</mat-label>
                   <input matInput [value]="publishMetadata.version" readonly>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Nome</mat-label>
+                  <mat-label>{{ 'APP_STORE.NAME' | translate }}</mat-label>
                   <input matInput [(ngModel)]="publishMetadata.name">
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Descrizione *</mat-label>
+                  <mat-label>{{ 'APP_STORE.DESCRIPTION' | translate }} *</mat-label>
                   <textarea matInput [(ngModel)]="publishMetadata.description" required
                             #descriptionField="ngModel"
-                            rows="3" placeholder="Descrivi la tua app..."></textarea>
-                  <mat-error *ngIf="descriptionField.invalid">La descrizione è obbligatoria</mat-error>
+                            rows="3" [placeholder]="'APP_STORE.DESC_PLACEHOLDER' | translate"></textarea>
+                  <mat-error *ngIf="descriptionField.invalid">{{ 'APP_STORE.DESC_REQUIRED' | translate }}</mat-error>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Nome eseguibile *</mat-label>
+                  <mat-label>{{ 'APP_STORE.EXECUTABLE_NAME' | translate }} *</mat-label>
                   <input matInput [(ngModel)]="publishMetadata.executableName" required
                          #execNameField="ngModel"
-                         placeholder="Es: My App.exe">
+                         [placeholder]="'APP_STORE.EXECUTABLE_PLACEHOLDER' | translate">
                   <mat-hint>
-                    Il nome esatto del file eseguibile creato dall'installer (es: "Orchestrator App.exe").
-                    MdExplorer usa questo nome per avviare l'app dopo l'installazione.
+                    {{ 'APP_STORE.EXECUTABLE_HINT' | translate }}
                   </mat-hint>
-                  <mat-error *ngIf="execNameField.invalid">Il nome dell'eseguibile è obbligatorio</mat-error>
+                  <mat-error *ngIf="execNameField.invalid">{{ 'APP_STORE.EXECUTABLE_REQUIRED' | translate }}</mat-error>
                 </mat-form-field>
               </div>
 
               <!-- Custom icon picker -->
               <div class="icon-picker">
-                <label class="icon-label">Icona personalizzata</label>
+                <label class="icon-label">{{ 'APP_STORE.CUSTOM_ICON' | translate }}</label>
                 <div class="icon-picker-row">
                   <div class="icon-preview-area">
                     <img *ngIf="customIconPreview" [src]="customIconPreview" class="icon-preview-img">
                     <mat-icon *ngIf="!customIconPreview" class="icon-placeholder">image</mat-icon>
                   </div>
                   <button mat-stroked-button type="button" (click)="iconInput.click()" *ngIf="!customIconFile">
-                    <mat-icon>upload</mat-icon> Carica icona
+                    <mat-icon>upload</mat-icon> {{ 'APP_STORE.UPLOAD_ICON' | translate }}
                   </button>
                   <button mat-stroked-button color="warn" type="button" (click)="removeCustomIcon()" *ngIf="customIconFile">
-                    <mat-icon>close</mat-icon> Rimuovi
+                    <mat-icon>close</mat-icon> {{ 'APP_STORE.REMOVE' | translate }}
                   </button>
                   <input #iconInput type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none"
                          (change)="onIconSelected($event)">
                 </div>
-                <mat-hint class="icon-hint" *ngIf="publishPlatform === 'windows'">Opzionale — se non fornita, verrà estratta dall'exe</mat-hint>
-                <mat-hint class="icon-hint" *ngIf="publishPlatform === 'linux'">L'icona non viene estratta automaticamente — si consiglia di caricare un'icona personalizzata</mat-hint>
+                <mat-hint class="icon-hint" *ngIf="publishPlatform === 'windows'">{{ 'APP_STORE.ICON_HINT_WIN' | translate }}</mat-hint>
+                <mat-hint class="icon-hint" *ngIf="publishPlatform === 'linux'">{{ 'APP_STORE.ICON_HINT_LINUX' | translate }}</mat-hint>
               </div>
             </div>
           </mat-card-content>
@@ -289,13 +286,13 @@
           </div>
 
           <mat-card-actions align="end">
-            <button mat-button (click)="showPublishPanel = false">Annulla</button>
+            <button mat-button (click)="showPublishPanel = false">{{ 'COMMON.CANCEL' | translate }}</button>
             <button mat-raised-button color="primary"
                     (click)="publishApp()"
                     [disabled]="isPublishing || !selectedFile || !publishMetadata || !!publishFilenameError || !publishMetadata?.description?.trim() || !publishMetadata?.executableName?.trim()">
               <mat-spinner *ngIf="isPublishing" diameter="18" class="btn-spinner"></mat-spinner>
               <mat-icon *ngIf="!isPublishing">cloud_upload</mat-icon>
-              {{ isPublishing ? 'Pubblicazione...' : 'Pubblica su Nexus' }}
+              {{ isPublishing ? ('APP_STORE.PUBLISHING' | translate) : ('APP_STORE.PUBLISH_BTN' | translate) }}
             </button>
           </mat-card-actions>
         </mat-card>
@@ -303,13 +300,13 @@
         <!-- Empty -->
         <div *ngIf="catalogApps.length === 0 && !isLoadingCatalog" class="empty-state">
           <mat-icon>edit_note</mat-icon>
-          <span>Nessuna app nel catalogo da gestire.</span>
+          <span>{{ 'APP_STORE.NO_APPS_MANAGE' | translate }}</span>
         </div>
 
         <!-- Loading -->
         <div *ngIf="isLoadingCatalog" class="loading-row">
           <mat-spinner diameter="24"></mat-spinner>
-          <span>Caricamento catalog...</span>
+          <span>{{ 'APP_STORE.LOADING_CATALOG' | translate }}</span>
         </div>
 
         <!-- Apps list -->
@@ -322,7 +319,7 @@
               <span class="version-chip">v{{ app.version }}</span>
             </div>
             <div matListItemLine *ngIf="app.description" class="app-desc">{{ app.description }}</div>
-            <button mat-icon-button color="primary" matTooltip="Modifica"
+            <button mat-icon-button color="primary" [matTooltip]="'APP_STORE.EDIT' | translate"
                     (click)="startEdit(app)" [disabled]="editingEntry?.id === app.id">
               <mat-icon>edit</mat-icon>
             </button>
@@ -332,34 +329,34 @@
         <!-- Edit form -->
         <mat-card *ngIf="editingEntry" class="settings-card edit-card">
           <mat-card-header>
-            <mat-card-title>Modifica: {{ editingEntry.name }}</mat-card-title>
+            <mat-card-title>{{ 'APP_STORE.EDITING' | translate:{ name: editingEntry.name } }}</mat-card-title>
           </mat-card-header>
           <mat-card-content>
             <div class="form-grid">
               <mat-form-field appearance="outline">
-                <mat-label>App ID</mat-label>
+                <mat-label>{{ 'APP_STORE.APP_ID' | translate }}</mat-label>
                 <input matInput [value]="editingEntry.id" readonly>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Versione</mat-label>
+                <mat-label>{{ 'APP_STORE.VERSION' | translate }}</mat-label>
                 <input matInput [(ngModel)]="editForm.version">
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Nome</mat-label>
+                <mat-label>{{ 'APP_STORE.NAME' | translate }}</mat-label>
                 <input matInput [(ngModel)]="editForm.name">
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Descrizione</mat-label>
+                <mat-label>{{ 'APP_STORE.DESCRIPTION' | translate }}</mat-label>
                 <textarea matInput [(ngModel)]="editForm.description" rows="3"></textarea>
               </mat-form-field>
             </div>
 
             <!-- Icon picker -->
             <div class="icon-picker">
-              <label class="icon-label">Icona</label>
+              <label class="icon-label">{{ 'APP_STORE.CUSTOM_ICON' | translate }}</label>
               <div class="icon-picker-row">
                 <div class="icon-preview-area">
                   <img *ngIf="editIconPreview || editingEntry.icon?.startsWith('data:')"
@@ -367,11 +364,11 @@
                   <mat-icon *ngIf="!editIconPreview && !editingEntry.icon?.startsWith('data:')" class="icon-placeholder">image</mat-icon>
                 </div>
                 <button mat-stroked-button type="button" (click)="editIconInput.click()" *ngIf="!editIconFile">
-                  <mat-icon>upload</mat-icon> Cambia icona
+                  <mat-icon>upload</mat-icon> {{ 'APP_STORE.CHANGE_ICON' | translate }}
                 </button>
                 <button mat-stroked-button color="warn" type="button"
                         (click)="editIconFile = null; editIconPreview = null" *ngIf="editIconFile">
-                  <mat-icon>close</mat-icon> Rimuovi
+                  <mat-icon>close</mat-icon> {{ 'APP_STORE.REMOVE' | translate }}
                 </button>
                 <input #editIconInput type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none"
                        (change)="onEditIconSelected($event)">
@@ -380,7 +377,7 @@
 
             <!-- Update installer section -->
             <div class="update-installer-section">
-              <label class="icon-label">Aggiorna installer</label>
+              <label class="icon-label">{{ 'APP_STORE.UPDATE_INSTALLER' | translate }}</label>
 
               <div class="platform-selector">
                 <mat-button-toggle-group [(ngModel)]="editInstallerPlatform">
@@ -395,7 +392,7 @@
 
               <div class="file-picker">
                 <button mat-stroked-button type="button" (click)="editFileInput.click()">
-                  <mat-icon>folder_open</mat-icon> Seleziona {{ editInstallerPlatform === 'linux' ? 'AppImage' : 'installer' }}...
+                  <mat-icon>folder_open</mat-icon> {{ 'APP_STORE.SELECT_INSTALLER' | translate }}
                 </button>
                 <span *ngIf="editInstallerFile" class="file-name">
                   <mat-icon>inventory_2</mat-icon>
@@ -421,11 +418,11 @@
             </div>
           </mat-card-content>
           <mat-card-actions align="end">
-            <button mat-button (click)="cancelEdit()">Annulla</button>
+            <button mat-button (click)="cancelEdit()">{{ 'COMMON.CANCEL' | translate }}</button>
             <button mat-raised-button color="primary" (click)="saveEdit()" [disabled]="isSavingEntry || !!editFilenameError">
               <mat-spinner *ngIf="isSavingEntry" diameter="18" class="btn-spinner"></mat-spinner>
               <mat-icon *ngIf="!isSavingEntry">save</mat-icon>
-              {{ isSavingEntry ? 'Salvataggio...' : 'Salva' }}
+              {{ isSavingEntry ? ('APP_STORE.SAVING_BTN' | translate) : ('COMMON.SAVE' | translate) }}
             </button>
           </mat-card-actions>
         </mat-card>
@@ -436,25 +433,25 @@
     <!-- ═══════════════════════════════════════════════
          TAB 3 — Organizzazione
     ════════════════════════════════════════════════ -->
-    <mat-tab label="Organizzazione">
+    <mat-tab [label]="'APP_STORE.ORG_TAB' | translate">
       <div class="tab-content">
 
         <!-- Warning: no repos configured -->
         <div *ngIf="!isSettingsConfigured" class="settings-warning">
           <mat-icon>warning</mat-icon>
-          <span>Nessun repository configurato. Vai in <strong>Settings > Application</strong> per aggiungere un repository.</span>
+          <span>{{ 'APP_STORE.NO_REPO_CONFIGURED' | translate }}</span>
         </div>
 
         <!-- Repository metadata -->
         <mat-card class="settings-card">
           <mat-card-header>
-            <mat-card-title>Metadata Repository</mat-card-title>
+            <mat-card-title>{{ 'APP_STORE.METADATA_REPO' | translate }}</mat-card-title>
           </mat-card-header>
           <mat-card-content>
 
             <!-- Repo selector -->
             <mat-form-field appearance="outline" class="full-width" *ngIf="repos.length > 1" style="margin-bottom: 8px;">
-              <mat-label>Repository</mat-label>
+              <mat-label>{{ 'APP_STORE.REPOSITORY' | translate }}</mat-label>
               <mat-select [(ngModel)]="selectedRepoId">
                 <mat-option *ngFor="let repo of repos" [value]="repo.id">{{ repo.label }}</mat-option>
               </mat-select>
@@ -462,17 +459,17 @@
 
             <div class="form-grid">
               <mat-form-field appearance="outline">
-                <mat-label>Nome Repository</mat-label>
+                <mat-label>{{ 'APP_STORE.REPO_NAME' | translate }}</mat-label>
                 <input matInput [(ngModel)]="repoMetadata.repoName" placeholder="My App Store">
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Azienda</mat-label>
+                <mat-label>{{ 'APP_STORE.COMPANY' | translate }}</mat-label>
                 <input matInput [(ngModel)]="repoMetadata.repoCompany" placeholder="Company Name">
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Descrizione Repository</mat-label>
+                <mat-label>{{ 'APP_STORE.REPO_DESC' | translate }}</mat-label>
                 <textarea matInput [(ngModel)]="repoMetadata.repoDescription" rows="2"
                           placeholder="Descrizione del repository..."></textarea>
               </mat-form-field>
@@ -480,7 +477,7 @@
 
             <!-- Logo picker -->
             <div class="icon-picker">
-              <label class="icon-label">Logo repository</label>
+              <label class="icon-label">{{ 'APP_STORE.REPO_LOGO' | translate }}</label>
               <div class="icon-picker-row">
                 <div class="icon-preview-area repo-logo-preview-area">
                   <img *ngIf="repoLogoPreview || catalog?.repoLogo"
@@ -489,10 +486,10 @@
                   <mat-icon *ngIf="!repoLogoPreview && !catalog?.repoLogo" class="icon-placeholder">image</mat-icon>
                 </div>
                 <button mat-stroked-button type="button" (click)="repoLogoInput.click()" *ngIf="!repoLogoFile">
-                  <mat-icon>upload</mat-icon> Carica logo
+                  <mat-icon>upload</mat-icon> {{ 'APP_STORE.UPLOAD_LOGO' | translate }}
                 </button>
                 <button mat-stroked-button color="warn" type="button" (click)="removeRepoLogo()" *ngIf="repoLogoFile">
-                  <mat-icon>close</mat-icon> Rimuovi
+                  <mat-icon>close</mat-icon> {{ 'APP_STORE.REMOVE' | translate }}
                 </button>
                 <input #repoLogoInput type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none"
                        (change)="onRepoLogoSelected($event)">
@@ -505,7 +502,7 @@
                     [disabled]="isSavingMetadata || !isSettingsConfigured">
               <mat-spinner *ngIf="isSavingMetadata" diameter="18" class="btn-spinner"></mat-spinner>
               <mat-icon *ngIf="!isSavingMetadata">save</mat-icon>
-              {{ isSavingMetadata ? 'Salvataggio...' : 'Salva metadata repository' }}
+              {{ isSavingMetadata ? ('APP_STORE.SAVING_BTN' | translate) : ('APP_STORE.SAVE_METADATA' | translate) }}
             </button>
           </mat-card-actions>
         </mat-card>

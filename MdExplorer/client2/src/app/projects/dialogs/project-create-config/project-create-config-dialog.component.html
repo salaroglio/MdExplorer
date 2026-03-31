@@ -1,10 +1,10 @@
-<h2 mat-dialog-title>Configure New Project</h2>
+<h2 mat-dialog-title>{{ 'PROJECT_CONFIG.TITLE' | translate }}</h2>
 
 <mat-dialog-content>
   <div class="config-container">
     <div class="project-path">
       <mat-icon>folder</mat-icon>
-      <strong>Project Path:</strong>
+      <strong>{{ 'PROJECT_CONFIG.PROJECT_PATH' | translate }}</strong>
       <span class="path-text">{{ config.projectPath }}</span>
     </div>
 
@@ -13,18 +13,18 @@
     <div class="config-options">
       <div class="option-item">
         <mat-checkbox [(ngModel)]="config.addCopilotInstructions" color="primary">
-          <strong>Add GitHub Copilot instructions</strong>
+          <strong>{{ 'PROJECT_CONFIG.ADD_COPILOT' | translate }}</strong>
           <div class="option-description">
-            Creates .github/copilot-instructions.md file with project-specific AI guidelines
+            {{ 'PROJECT_CONFIG.ADD_COPILOT_DESC' | translate }}
           </div>
         </mat-checkbox>
       </div>
 
       <div class="option-item">
         <mat-checkbox [(ngModel)]="config.initializeGit" color="primary">
-          <strong>Initialize Git repository</strong>
+          <strong>{{ 'PROJECT_CONFIG.INIT_GIT' | translate }}</strong>
           <div class="option-description">
-            Creates a new Git repository with .gitignore configured for MdExplorer
+            {{ 'PROJECT_CONFIG.INIT_GIT_DESC' | translate }}
           </div>
         </mat-checkbox>
       </div>
@@ -33,9 +33,9 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-button (click)="onCancel()">{{ 'COMMON.CANCEL' | translate }}</button>
   <button mat-raised-button color="primary" (click)="onCreateProject()">
     <mat-icon>add</mat-icon>
-    Create Project
+    {{ 'PROJECT_CONFIG.CREATE_PROJECT' | translate }}
   </button>
 </mat-dialog-actions>

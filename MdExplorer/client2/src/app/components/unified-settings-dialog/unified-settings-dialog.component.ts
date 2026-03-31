@@ -10,6 +10,8 @@ import { AiChatService, ModelInfo, DownloadProgress, GpuInfo } from '../../servi
 import { EmbeddingConfigService, EmbeddingConfig, EmbeddingConfigResponse, EmbeddingModelInfo } from '../../services/embedding-config.service';
 import { IMdSetting } from '../../models/IMdSetting';
 import { TocGenerationService } from '../../md-explorer/services/toc-generation.service';
+import { LanguageService } from '../../services/language.service';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-unified-settings-dialog',
@@ -32,6 +34,10 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   fileChangeNotificationEnabled: boolean = true;
   isElectronEnvironment: boolean = false;
   appSaving: boolean = false;
+
+  // === Language ===
+  currentLanguage: string = 'en';
+  supportedLanguages: { code: string; label: string }[] = [];
 
   // === AI Models tab ===
   availableModels: ModelInfo[] = [];
@@ -95,7 +101,9 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     private aiService: AiChatService,
     private embeddingConfigService: EmbeddingConfigService,
     private tocService: TocGenerationService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private languageService: LanguageService,
+    private translate: TranslateService
   ) {
     this.isElectronEnvironment = !!(window as any).electronAPI?.flashTaskbarIcon;
     if (data?.initialTab) {
@@ -104,6 +112,8 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.currentLanguage = this.languageService.getCurrentLanguage();
+    this.supportedLanguages = this.languageService.getSupportedLanguages();
     this.loadApplicationSettings();
     this.loadAiModels();
     this.loadEmbeddingConfig();
@@ -168,7 +178,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.updateSetting('LocalGraphvizDotPath', this.localGraphvizDotPath);
 
     this.appMetadataService.saveSettings(this._settings).subscribe(() => {
-      this.snackBar.open('Application settings saved', '', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.APP_SAVED'), '', { duration: 2000 });
     });
   }
 
@@ -179,6 +189,10 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     } else {
       this._settings.push({ name: name, valueString: value } as IMdSetting);
     }
+  }
+
+  onLanguageChange(): void {
+    this.languageService.setLanguage(this.currentLanguage);
   }
 
   // ============================
@@ -213,7 +227,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   }
 
   deleteModel(model: ModelInfo): void {
-    if (!confirm(`Delete model ${model.name}?`)) return;
+    if (!confirm(this.translate.instant('UNIFIED_SETTINGS.DELETE_MODEL_CONFIRM', { name: model.name }))) return;
     this.aiService.deleteModel(model.id).subscribe({
       next: () => this.loadAiModels(),
       error: (err) => console.error(`Error deleting ${model.name}:`, err)
@@ -270,9 +284,9 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.aiService.setSystemPrompt(this.systemPrompt).subscribe({
       next: () => {
         this.editingSystemPrompt = false;
-        this.snackBar.open('System prompt saved', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.SYSTEM_PROMPT_SAVED'), '', { duration: 2000 });
       },
-      error: () => this.snackBar.open('Error saving system prompt', '', { duration: 3000 })
+      error: () => this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.SYSTEM_PROMPT_ERROR'), '', { duration: 3000 })
     });
   }
 
@@ -310,9 +324,9 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.geminiConfigured = true;
         this.geminiApiKey = '';
         this.aiService.getGeminiModels().subscribe({ next: (m) => this.geminiModels = m });
-        this.snackBar.open('Gemini API key saved', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.GEMINI_KEY_SAVED'), '', { duration: 2000 });
       },
-      error: () => this.snackBar.open('Error saving Gemini API key', '', { duration: 3000 })
+      error: () => this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.GEMINI_KEY_ERROR'), '', { duration: 3000 })
     });
   }
 
@@ -324,7 +338,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.aiService.notifyGeminiConnected(modelId);
     this.tocService.setAiMode(true, modelId).subscribe();
     this.aiService.saveDefaultAiPreferences('gemini', modelId).subscribe();
-    this.snackBar.open(`Connected to Gemini: ${modelId}`, '', { duration: 2000 });
+    this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_GEMINI', { model: modelId }), '', { duration: 2000 });
   }
 
   disconnectGemini(): void {
@@ -355,9 +369,9 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.openAiConfigured = true;
         this.openAiApiKey = '';
         this.aiService.getOpenAiModels().subscribe({ next: (m) => this.openAiModels = m });
-        this.snackBar.open('OpenAI API key saved', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.OPENAI_KEY_SAVED'), '', { duration: 2000 });
       },
-      error: () => this.snackBar.open('Error saving OpenAI API key', '', { duration: 3000 })
+      error: () => this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.OPENAI_KEY_ERROR'), '', { duration: 3000 })
     });
   }
 
@@ -369,7 +383,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.aiService.setProvider('openai', modelId);
     this.aiService.notifyOpenAiConnected(modelId);
     this.aiService.saveDefaultAiPreferences('openai', modelId).subscribe();
-    this.snackBar.open(`Connected to OpenAI: ${modelId}`, '', { duration: 2000 });
+    this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_OPENAI', { model: modelId }), '', { duration: 2000 });
   }
 
   disconnectOpenAi(): void {
@@ -440,14 +454,14 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         if (response.reindexRequired) {
           this.snackBar.open(response.message, 'OK', { duration: 5000 });
         } else {
-          this.snackBar.open('Embedding configuration saved', '', { duration: 2000 });
+          this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.EMBEDDING_SAVED'), '', { duration: 2000 });
         }
         // Reload to reflect new state
         this.loadEmbeddingConfig();
       },
       error: () => {
         this.embeddingSaving = false;
-        this.snackBar.open('Error saving embedding configuration', '', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.EMBEDDING_ERROR'), '', { duration: 3000 });
       }
     });
   }

@@ -3,7 +3,7 @@
   <!-- Loading state -->
   <div *ngIf="state === 'loading'" class="state-panel loading-panel">
     <mat-spinner diameter="48"></mat-spinner>
-    <p class="state-label">Starting external app...</p>
+    <p class="state-label">{{ 'EXTERNAL_APP.STARTING' | translate }}</p>
   </div>
 
   <!-- Error state -->
@@ -11,23 +11,23 @@
     <mat-icon class="error-icon">error_outline</mat-icon>
     <p class="state-label">{{ errorMessage }}</p>
     <button mat-stroked-button color="primary" (click)="retry()">
-      <mat-icon>refresh</mat-icon> Retry
+      <mat-icon>refresh</mat-icon> {{ 'COMMON.REFRESH' | translate }}
     </button>
   </div>
 
   <!-- Idle state -->
   <div *ngIf="state === 'idle'" class="state-panel idle-panel">
     <mat-icon class="idle-icon">launch</mat-icon>
-    <p class="state-label">Select an external app from the tree.</p>
+    <p class="state-label">{{ 'EXTERNAL_APP.SELECT_APP' | translate }}</p>
   </div>
 
   <!-- Not installed state -->
   <div *ngIf="state === 'notInstalled'" class="state-panel not-installed-panel">
     <mat-icon class="not-installed-icon">cloud_download</mat-icon>
-    <p class="state-label"><strong>{{ currentAppName }}</strong> is not installed on this machine.</p>
-    <p class="state-hint">Go to Project Settings → Apps to install it from the App Store.</p>
+    <p class="state-label">{{ 'EXTERNAL_APP.NOT_INSTALLED' | translate:{ name: currentAppName } }}</p>
+    <p class="state-hint">{{ 'EXTERNAL_APP.NOT_INSTALLED_HINT' | translate }}</p>
     <button mat-raised-button color="primary" (click)="goToAppStore()">
-      <mat-icon>storefront</mat-icon> Open App Store
+      <mat-icon>storefront</mat-icon> {{ 'EXTERNAL_APP.OPEN_APP_STORE' | translate }}
     </button>
   </div>
 

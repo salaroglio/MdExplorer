@@ -1,5 +1,6 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
+import { TranslateService } from '@ngx-translate/core';
 
 export interface ConfirmDialogData {
   title: string;
@@ -16,8 +17,8 @@ export interface ConfirmDialogData {
       <p>{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button (click)="onCancel()">{{ data.cancelText || 'Annulla' }}</button>
-      <button mat-raised-button color="warn" (click)="onConfirm()">{{ data.confirmText || 'Conferma' }}</button>
+      <button mat-button (click)="onCancel()">{{ data.cancelText || defaultCancel }}</button>
+      <button mat-raised-button color="warn" (click)="onConfirm()">{{ data.confirmText || defaultConfirm }}</button>
     </mat-dialog-actions>
   `,
   styles: [`
@@ -31,10 +32,17 @@ export interface ConfirmDialogData {
   `]
 })
 export class ConfirmDialogComponent {
+  defaultCancel: string;
+  defaultConfirm: string;
+
   constructor(
     public dialogRef: MatDialogRef<ConfirmDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: ConfirmDialogData
-  ) {}
+    @Inject(MAT_DIALOG_DATA) public data: ConfirmDialogData,
+    private translate: TranslateService
+  ) {
+    this.defaultCancel = this.translate.instant('CONFIRM_DIALOG.DEFAULT_CANCEL');
+    this.defaultConfirm = this.translate.instant('CONFIRM_DIALOG.DEFAULT_CONFIRM');
+  }
 
   onConfirm(): void {
     this.dialogRef.close(true);

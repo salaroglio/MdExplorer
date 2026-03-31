@@ -21,7 +21,7 @@ $(function() {
     });
 
     // Auto-initialize interactive SVG for all PlantUML diagrams on page
-    // Component diagrams (with elem_, cluster_, link_ elements)
+    // Component/class diagrams (legacy: elem_, cluster_, link_  |  new v1.2026.1+: g.entity, g.cluster, g.link)
     if (typeof InteractiveSvg !== 'undefined') {
         InteractiveSvg.initAll();
     }

@@ -2,6 +2,7 @@ import { Component, OnInit, Inject } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { GITService } from '../../services/gitservice.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { GitTokenDialogComponent } from '../git-token-dialog/git-token-dialog.component';
 
 export interface GitSetupRemoteDialogData {
@@ -32,7 +33,8 @@ export class GitSetupRemoteDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: GitSetupRemoteDialogData,
     private gitService: GITService,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    public translate: TranslateService
   ) {
     // Initialize repository name with project name
     this.repositoryName = this.extractProjectName(data.projectName);
@@ -79,7 +81,7 @@ export class GitSetupRemoteDialogComponent implements OnInit {
       if (result === true) {
         // Token was configured successfully, update the status
         this.checkToken();
-        this.snackBar.open('Token configurato con successo!', 'OK', {
+        this.snackBar.open(this.translate.instant('GIT_REMOTE.TOKEN_SUCCESS'), 'OK', {
           duration: 3000,
           verticalPosition: 'top'
         });
@@ -106,7 +108,7 @@ export class GitSetupRemoteDialogComponent implements OnInit {
 
   onSetup(): void {
     if (!this.organization || !this.repositoryName) {
-      this.error = 'Organizzazione e nome repository sono richiesti';
+      this.error = this.translate.instant('GIT_REMOTE.ORG_REPO_REQUIRED');
       return;
     }
 
@@ -132,18 +134,18 @@ export class GitSetupRemoteDialogComponent implements OnInit {
         this.isSetting = false;
         if (response.success) {
           this.snackBar.open(
-            response.message || 'Remote configurato con successo',
+            response.message || this.translate.instant('GIT_REMOTE.REMOTE_SUCCESS'),
             'OK',
             { duration: 5000, verticalPosition: 'top' }
           );
           this.dialogRef.close(true);
         } else {
-          this.error = response.error || 'Errore durante la configurazione del remote';
+          this.error = response.error || this.translate.instant('GIT_REMOTE.REMOTE_ERROR');
         }
       },
       error: (err) => {
         this.isSetting = false;
-        this.error = 'Errore durante la configurazione: ' + (err.message || 'Errore sconosciuto');
+        this.error = this.translate.instant('GIT_REMOTE.REMOTE_ERROR_DETAIL', { error: err.message || 'Errore sconosciuto' });
         console.error('Error setting up remote:', err);
       }
     });

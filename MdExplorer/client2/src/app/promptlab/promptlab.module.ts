@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatLegacyDialogModule as MatDialogModule } from '@angular/material/legacy-dialog';
+import { TranslateModule } from '@ngx-translate/core';
 import { PromptLabRoutingModule } from './promptlab-routing.module';
 import { PromptLabComponent } from './components/promptlab/promptlab.component';
 import { PromptLabDocPanelComponent } from './components/promptlab-doc-panel/promptlab-doc-panel.component';
@@ -19,6 +20,7 @@ import { PromptLabCardComponent } from './components/promptlab-card/promptlab-ca
     CommonModule,
     FormsModule,
     MatDialogModule,
+    TranslateModule,
     PromptLabRoutingModule
   ]
 })

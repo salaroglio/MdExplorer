@@ -3,7 +3,7 @@
   <div class="dialog-header">
     <mat-icon class="header-icon">edit_note</mat-icon>
     <div class="header-text">
-      <h3 class="dialog-title">File Rename Suggestion</h3>
+      <h3 class="dialog-title">{{ 'SIGNALR.FILE_RENAME_SUGGESTION' | translate }}</h3>
       <p class="dialog-subtitle">{{message}}</p>
     </div>
   </div>
@@ -17,12 +17,12 @@
 
     <div class="file-comparison">
       <div class="file-row">
-        <span class="file-label">Current:</span>
+        <span class="file-label">{{ 'SIGNALR.CURRENT' | translate }}</span>
         <code class="filename current">{{fromFileName}}</code>
       </div>
       
       <div class="file-row">
-        <span class="file-label">Suggested:</span>
+        <span class="file-label">{{ 'SIGNALR.SUGGESTED' | translate }}</span>
         <code class="filename suggested">{{toFileName}}</code>
       </div>
     </div>
@@ -33,7 +33,7 @@
             class="action-btn secondary"
             [disabled]="isProcessing"
             (click)="dismiss()">
-      {{ hasError ? 'Cancel' : 'Keep Current' }}
+      {{ hasError ? ('COMMON.CANCEL' | translate) : ('SIGNALR.KEEP_CURRENT' | translate) }}
     </button>
     
     <button *ngIf="!hasError"
@@ -43,8 +43,8 @@
             [disabled]="isProcessing"
             (click)="changeName()">
       <mat-spinner *ngIf="isProcessing" diameter="16"></mat-spinner>
-      <span *ngIf="!isProcessing">Apply Suggestion</span>
-      <span *ngIf="isProcessing">Applying...</span>
+      <span *ngIf="!isProcessing">{{ 'SIGNALR.APPLY_SUGGESTION' | translate }}</span>
+      <span *ngIf="isProcessing">{{ 'SIGNALR.APPLYING' | translate }}</span>
     </button>
     
     <button *ngIf="hasError"
@@ -54,7 +54,7 @@
             [disabled]="isProcessing"
             (click)="retryRename()">
       <mat-icon>refresh</mat-icon>
-      <span>Retry</span>
+      <span>{{ 'GIT_BRANCH.RETRY' | translate }}</span>
     </button>
   </div>
 </div>

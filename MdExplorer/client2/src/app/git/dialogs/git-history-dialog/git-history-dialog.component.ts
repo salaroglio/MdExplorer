@@ -4,6 +4,7 @@ import { MatLegacyTableDataSource as MatTableDataSource } from '@angular/materia
 import { MatSort } from '@angular/material/sort';
 import { GITService } from '../../services/gitservice.service';
 import { GitCommitInfo } from '../../models/modern-git-models';
+import { TranslateService } from '@ngx-translate/core';
 
 export interface GitHistoryDialogData {
   projectPath: string;
@@ -29,7 +30,8 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
   constructor(
     public dialogRef: MatDialogRef<GitHistoryDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: GitHistoryDialogData,
-    private gitService: GITService
+    private gitService: GITService,
+    private translate: TranslateService
   ) {
     this.dataSource = new MatTableDataSource<GitCommitInfo>([]);
   }
@@ -59,7 +61,7 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
       },
       error: (err) => {
         this.isLoading = false;
-        this.error = 'Errore nel caricamento della cronologia dei commit';
+        this.error = this.translate.instant('GIT_HISTORY.LOAD_ERROR');
         console.error('Error loading commit history:', err);
       }
     });

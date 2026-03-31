@@ -1,45 +1,45 @@
-<h2 mat-dialog-title>Commit Message</h2>
+<h2 mat-dialog-title>{{ 'GIT_COMMIT.TITLE' | translate }}</h2>
 <mat-dialog-content>
   <mat-form-field appearance="outline" style="width: 100%; min-width: 400px;">
-    <mat-label>Enter commit message</mat-label>
-    <textarea 
-      matInput 
-      [(ngModel)]="commitMessage" 
+    <mat-label>{{ 'GIT_COMMIT.LABEL' | translate }}</mat-label>
+    <textarea
+      matInput
+      [(ngModel)]="commitMessage"
       rows="4"
-      placeholder="Describe your changes..."
+      [placeholder]="'GIT_COMMIT.PLACEHOLDER' | translate"
       cdkFocusInitial
       [disabled]="isGeneratingMessage"
       (keydown.enter)="$event.ctrlKey && onConfirm()">
     </textarea>
-    <mat-hint>Press Ctrl+Enter to commit</mat-hint>
+    <mat-hint>{{ 'GIT_COMMIT.HINT' | translate }}</mat-hint>
   </mat-form-field>
-  
+
   <div style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
-    <button 
-      mat-stroked-button 
+    <button
+      mat-stroked-button
       color="accent"
       (click)="generateWithAi()"
       [disabled]="isGeneratingMessage">
       <mat-icon style="margin-right: 4px;">smart_toy</mat-icon>
-      {{ isGeneratingMessage ? 'Generazione in corso...' : 'Genera con AI' }}
+      {{ isGeneratingMessage ? ('GIT_COMMIT.GENERATING' | translate) : ('GIT_COMMIT.GENERATE_AI' | translate) }}
     </button>
-    <mat-spinner 
-      *ngIf="isGeneratingMessage" 
-      diameter="20" 
+    <mat-spinner
+      *ngIf="isGeneratingMessage"
+      diameter="20"
       strokeWidth="2">
     </mat-spinner>
   </div>
-  
+
   <div *ngIf="aiError" style="margin-top: 8px; color: #f44336; font-size: 12px;">
     <mat-icon style="font-size: 16px; vertical-align: middle;">warning</mat-icon>
     {{ aiError }}
   </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()">Cancel</button>
-  <button 
-    mat-raised-button 
-    color="primary" 
+  <button mat-button (click)="onCancel()">{{ 'COMMON.CANCEL' | translate }}</button>
+  <button
+    mat-raised-button
+    color="primary"
     (click)="onConfirm()"
     [disabled]="!commitMessage || !commitMessage.trim() || isGeneratingMessage">
     Commit

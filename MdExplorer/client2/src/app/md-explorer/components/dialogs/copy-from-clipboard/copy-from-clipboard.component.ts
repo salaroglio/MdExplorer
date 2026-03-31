@@ -3,6 +3,7 @@ import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALO
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
+import { TranslateService } from '@ngx-translate/core';
 
 
 @Component({
@@ -17,7 +18,8 @@ export class CopyFromClipboardComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: MdFile,
     private dialogRef: MatDialogRef<CopyFromClipboardComponent>,
     private mdFileService: MdFileService,
-    private snackBar: MatSnackBar  ) { }
+    private snackBar: MatSnackBar,
+    private translate: TranslateService  ) { }
 
   ngOnInit(): void {
 
@@ -33,7 +35,7 @@ export class CopyFromClipboardComponent implements OnInit {
 
     if (!this.imageName || this.imageName.trim() === '') {
       console.log('[CopyFromClipboardComponent] Image name is empty, showing error');
-      this.snackBar.open("Please enter an image name", null, { duration: 3000 });
+      this.snackBar.open(this.translate.instant('CLIPBOARD.ENTER_NAME'), null, { duration: 3000 });
       return;
     }
 
@@ -43,7 +45,7 @@ export class CopyFromClipboardComponent implements OnInit {
     this.mdFileService.pasteFromClipboard(dataToSend).subscribe({
       next: (response) => {
         console.log('[CopyFromClipboardComponent] Server response:', response);
-        this.snackBar.open("Image pasted successfully", null, { duration: 5000 });
+        this.snackBar.open(this.translate.instant('CLIPBOARD.PASTE_SUCCESS'), null, { duration: 5000 });
         this.dialogRef.close();
       },
       error: (error) => {

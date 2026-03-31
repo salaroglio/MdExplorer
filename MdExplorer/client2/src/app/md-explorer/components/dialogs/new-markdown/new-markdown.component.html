@@ -1,22 +1,22 @@
 <div class="dialog-container">
   <div class="dialog-header">
-    <span class="dialog-title">New document</span>
+    <span class="dialog-title">{{ 'NEW_MARKDOWN.TITLE' | translate }}</span>
   </div>
 
   <div class="dialog-body">
     <div class="form-group">
-      <label class="form-label" for="docTitle">Title</label>
+      <label class="form-label" for="docTitle">{{ 'NEW_MARKDOWN.DOC_TITLE' | translate }}</label>
       <input class="form-input"
              id="docTitle"
              type="text"
              [(ngModel)]="markdownTitle"
              (keyup.enter)="save()"
-             placeholder="Document title"
+             [placeholder]="'NEW_MARKDOWN.DOC_TITLE_PLACEHOLDER' | translate"
              autofocus />
     </div>
 
     <div class="form-group">
-      <label class="form-label">Type</label>
+      <label class="form-label">{{ 'NEW_MARKDOWN.TYPE' | translate }}</label>
       <div class="radio-group">
         <label class="radio-item" *ngFor="let docType of documentTypes"
                [class.selected]="selectedTemplate === docType">
@@ -31,7 +31,7 @@
   </div>
 
   <div class="dialog-footer">
-    <button class="btn btn-primary" (click)="save()" [disabled]="!markdownTitle?.trim()">Save</button>
-    <button class="btn btn-secondary" (click)="dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="save()" [disabled]="!markdownTitle?.trim()">{{ 'COMMON.SAVE' | translate }}</button>
+    <button class="btn btn-secondary" (click)="dismiss()">{{ 'COMMON.CANCEL' | translate }}</button>
   </div>
 </div>

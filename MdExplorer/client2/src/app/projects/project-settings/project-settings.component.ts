@@ -11,6 +11,7 @@ import { MdeTreeNode, MdeAppsConfig } from '../../md-explorer/models/mde-apps-tr
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { CatalogPickerDialogComponent } from '../dialogs/catalog-picker/catalog-picker.component';
 import { StoreCatalogApp } from '../../md-explorer/models/app-store.models';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-project-settings',
@@ -63,7 +64,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     private projectsService: ProjectsService,
     private externalAppsService: ExternalAppsService,
     private mdFileService: MdFileService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private translate: TranslateService
   ) {
     this.projectId = data.projectId;
     this.projectName = data.projectName;
@@ -195,7 +197,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
           this.ragProcessed = response.indexingProgress.processed || 0;
           this.ragTotal = response.indexingProgress.total || 0;
           this.ragProgress = this.ragTotal > 0 ? (this.ragProcessed / this.ragTotal) * 100 : 0;
-          this.ragMessage = response.indexingProgress.message || 'Indexing in progress...';
+          this.ragMessage = response.indexingProgress.message || this.translate.instant('PROJECT_SETTINGS.INDEXING');
         }
 
         ragLoaded = true;
@@ -330,7 +332,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.ragProgress = 0;
     this.ragProcessed = 0;
     this.ragTotal = 0;
-    this.ragMessage = 'Starting indexing...';
+    this.ragMessage = this.translate.instant('PROJECT_SETTINGS.STARTING_INDEXING');
     this.projectSettingsService.reindexRag(this.projectPath).subscribe({
       next: (response: any) => {
         console.log('RAG reindex started:', response);
@@ -339,13 +341,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error triggering RAG reindex:', error);
         this.ragReindexing = false;
-        this.ragMessage = 'Error starting indexing';
+        this.ragMessage = this.translate.instant('PROJECT_SETTINGS.ERROR_STARTING_INDEXING');
       }
     });
   }
 
   onRagClear(): void {
-    if (!confirm('This will delete all indexed RAG chunks. Continue?')) {
+    if (!confirm(this.translate.instant('PROJECT_SETTINGS.DELETE_RAG_CONFIRM'))) {
       return;
     }
     this.saving = true;
@@ -353,13 +355,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (response: any) => {
         console.log('RAG index cleared:', response);
         this.saving = false;
-        this.ragMessage = `Cleared ${response.chunksDeleted} chunks`;
+        this.ragMessage = this.translate.instant('PROJECT_SETTINGS.CLEARED_CHUNKS', { count: response.chunksDeleted });
         this.refreshRagStatus();
       },
       error: (error) => {
         console.error('Error clearing RAG index:', error);
         this.saving = false;
-        this.ragMessage = 'Error clearing index';
+        this.ragMessage = this.translate.instant('PROJECT_SETTINGS.ERROR_CLEARING_INDEX');
       }
     });
   }
@@ -442,7 +444,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   }
 
   addCategory(): void {
-    const name = prompt('Category name:');
+    const name = prompt(this.translate.instant('PROJECT_SETTINGS.CATEGORY_NAME_PROMPT'));
     if (!name || !name.trim()) return;
 
     const cat: MdeTreeNode = {
@@ -509,7 +511,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
 
   removeApp(appId: string): void {
     const appName = this.getAppName(appId);
-    if (!confirm(`Remove "${appName}" from this project?`)) return;
+    if (!confirm(this.translate.instant('PROJECT_SETTINGS.REMOVE_APP_CONFIRM', { name: appName }))) return;
 
     // Remove from tree (root + categories)
     this.appsTree = this.appsTree.filter(n => !(n.type === 'app' && n.appId === appId));
@@ -536,14 +538,14 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.externalAppsService.saveConfig(config, this.projectPath).subscribe({
       next: () => {
         this.appsSaving = false;
-        this.appsSavedMessage = 'Saved';
+        this.appsSavedMessage = this.translate.instant('PROJECT_SETTINGS.SAVED');
         this.refreshTree();
         setTimeout(() => this.appsSavedMessage = '', 3000);
       },
       error: (err) => {
         console.error('Error saving config:', err);
         this.appsSaving = false;
-        this.appsSavedMessage = 'Error saving';
+        this.appsSavedMessage = this.translate.instant('PROJECT_SETTINGS.ERROR_SAVING');
       }
     });
   }

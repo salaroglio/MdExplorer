@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { ExternalAppsService, MdeAppDefinition } from '../../services/external-apps.service';
 import { MdFileService } from '../../services/md-file.service';
 
@@ -19,7 +20,8 @@ export class ExternalAppsSettingsComponent implements OnInit {
 
   constructor(
     private externalAppsService: ExternalAppsService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -47,7 +49,7 @@ export class ExternalAppsSettingsComponent implements OnInit {
         this.isLoading = false;
       },
       error: () => {
-        this.snackBar.open('Failed to load external apps', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.LOAD_FAILED'), 'OK', { duration: 3000 });
         this.isLoading = false;
       }
     });
@@ -64,11 +66,11 @@ export class ExternalAppsSettingsComponent implements OnInit {
 
   async browseExecutable(): Promise<void> {
     if (!(window as any).electronAPI?.showOpenDialog) {
-      this.snackBar.open('File picker is only available in the desktop version.', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.PICKER_DESKTOP_ONLY'), 'OK', { duration: 3000 });
       return;
     }
     const result = await (window as any).electronAPI.showOpenDialog({
-      title: 'Select Executable',
+      title: this.translate.instant('EXTERNAL_APPS_SETTINGS.SELECT_EXECUTABLE'),
       properties: ['openFile'],
       filters: [
         { name: 'Executables', extensions: ['exe', 'cmd', 'bat', 'sh', ''] },
@@ -82,11 +84,11 @@ export class ExternalAppsSettingsComponent implements OnInit {
 
   saveApp(): void {
     if (!this.form.id?.trim()) {
-      this.snackBar.open('App ID is required.', 'OK', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.APP_ID_REQUIRED'), 'OK', { duration: 2000 });
       return;
     }
     if (!this.form.executable?.trim()) {
-      this.snackBar.open('Executable path is required.', 'OK', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.EXECUTABLE_REQUIRED'), 'OK', { duration: 2000 });
       return;
     }
     if (!this.form.name?.trim()) {
@@ -98,26 +100,26 @@ export class ExternalAppsSettingsComponent implements OnInit {
 
     this.externalAppsService.addApp(this.form).subscribe({
       next: () => {
-        this.snackBar.open(`App "${this.form.name}" saved.`, 'OK', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.APP_SAVED', { name: this.form.name }), 'OK', { duration: 2000 });
         this.showForm = false;
         this.loadApps();
       },
       error: () => {
-        this.snackBar.open('Failed to save app.', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.SAVE_FAILED'), 'OK', { duration: 3000 });
       }
     });
   }
 
   deleteApp(app: MdeAppDefinition): void {
-    if (!confirm(`Remove "${app.name}" from this project?`)) return;
+    if (!confirm(this.translate.instant('EXTERNAL_APPS_SETTINGS.REMOVE_CONFIRM', { name: app.name }))) return;
 
     this.externalAppsService.deleteApp(app.id).subscribe({
       next: () => {
-        this.snackBar.open(`App "${app.name}" removed.`, 'OK', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.APP_REMOVED', { name: app.name }), 'OK', { duration: 2000 });
         this.loadApps();
       },
       error: () => {
-        this.snackBar.open('Failed to remove app.', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('EXTERNAL_APPS_SETTINGS.REMOVE_FAILED'), 'OK', { duration: 3000 });
       }
     });
   }

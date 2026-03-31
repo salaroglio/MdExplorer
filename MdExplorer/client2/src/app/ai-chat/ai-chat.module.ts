@@ -14,6 +14,7 @@ import { MatLegacyChipsModule as MatChipsModule } from '@angular/material/legacy
 import { MatLegacyFormFieldModule as MatFormFieldModule } from '@angular/material/legacy-form-field';
 import { MatLegacyInputModule as MatInputModule } from '@angular/material/legacy-input';
 import { MatLegacyTooltipModule as MatTooltipModule } from '@angular/material/legacy-tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 
 // Components
 import { AiChatComponent } from './ai-chat.component';
@@ -48,7 +49,8 @@ const routes: Routes = [
     MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
-    MatTooltipModule
+    MatTooltipModule,
+    TranslateModule
   ],
   exports: [
     AiChatComponent,

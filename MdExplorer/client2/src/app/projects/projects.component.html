@@ -11,12 +11,12 @@
           <div class="section-header">
             <h2 class="section-title">
               <mat-icon class="section-icon">history</mat-icon>
-              Recent Projects
+              {{ 'PROJECTS.RECENT_PROJECTS' | translate }}
             </h2>
             <mat-form-field class="search-field" appearance="outline">
               <mat-icon matPrefix>search</mat-icon>
               <input matInput
-                     placeholder="Search projects..."
+                     [placeholder]="'PROJECTS.SEARCH_PROJECTS' | translate"
                      [(ngModel)]="searchQuery"
                      (input)="onSearchChange()">
               <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="searchQuery=''; onSearchChange()">
@@ -40,30 +40,30 @@
                 <div class="project-meta">
                   <span class="last-opened-badge" *ngIf="isLastOpened(project)">
                     <mat-icon class="badge-icon">schedule</mat-icon>
-                    Last Opened
+                    {{ 'PROJECTS.LAST_OPENED' | translate }}
                   </span>
                   <p class="project-date" *ngIf="project.lastUpdate">
-                    Last accessed: {{project.lastUpdate | date:'short'}}
+                    {{ 'PROJECTS.LAST_ACCESSED' | translate }} {{project.lastUpdate | date:'short'}}
                   </p>
                 </div>
               </div>
             </div>
             <div class="project-actions">
               <button mat-icon-button
-                      matTooltip="Share Project URL"
+                      [matTooltip]="'PROJECTS.SHARE_URL' | translate"
                       *ngIf="projectHasRemote(project)"
                       (click)="shareProject(project, $event)"
                       class="action-btn share-btn">
                 <mat-icon>share</mat-icon>
               </button>
               <button mat-icon-button
-                      matTooltip="Project Settings"
+                      [matTooltip]="'PROJECTS.PROJECT_SETTINGS' | translate"
                       (click)="openProjectSettings(project)"
                       class="action-btn settings-btn">
                 <mat-icon>settings</mat-icon>
               </button>
               <button mat-icon-button
-                      matTooltip="Delete Project"
+                      [matTooltip]="'PROJECTS.DELETE_PROJECT' | translate"
                       (click)="deleteProject(project)"
                       class="action-btn delete-btn">
                 <mat-icon>delete</mat-icon>
@@ -77,8 +77,8 @@
         <!-- Message when no projects -->
         <div class="no-projects-message" *ngIf="!(recentProjects | async)?.length">
           <mat-icon class="empty-icon">folder_open</mat-icon>
-          <h3>No Recent Projects</h3>
-          <p>Start by creating a new project or cloning a repository</p>
+          <h3>{{ 'PROJECTS.NO_RECENT' | translate }}</h3>
+          <p>{{ 'PROJECTS.NO_RECENT_HINT' | translate }}</p>
         </div>
       </div>
 
@@ -86,7 +86,7 @@
       <div class="right-column">
         <h2 class="section-title">
           <mat-icon class="section-icon">flash_on</mat-icon>
-          Quick Actions
+          {{ 'PROJECTS.QUICK_ACTIONS' | translate }}
         </h2>
 
         <!-- Action Cards Grid -->
@@ -99,8 +99,8 @@
             <mat-icon>cloud_download</mat-icon>
           </div>
           <div class="card-text">
-            <h2 class="card-title">Clone Repository</h2>
-            <p class="card-description">Get code from an online repository like GitHub or GitLab</p>
+            <h2 class="card-title">{{ 'PROJECTS.CLONE_REPO' | translate }}</h2>
+            <p class="card-description">{{ 'PROJECTS.CLONE_REPO_DESC' | translate }}</p>
           </div>
           <div class="card-action">
             <mat-icon class="arrow-icon">arrow_forward</mat-icon>
@@ -115,8 +115,8 @@
             <mat-icon>create_new_folder</mat-icon>
           </div>
           <div class="card-text">
-            <h2 class="card-title">Create New Project</h2>
-            <p class="card-description">Choose a filesystem folder to get started with your documentation</p>
+            <h2 class="card-title">{{ 'PROJECTS.CREATE_NEW' | translate }}</h2>
+            <p class="card-description">{{ 'PROJECTS.CREATE_NEW_DESC' | translate }}</p>
           </div>
           <div class="card-action">
             <mat-icon class="arrow-icon">arrow_forward</mat-icon>
@@ -131,8 +131,8 @@
             <mat-icon>settings</mat-icon>
           </div>
           <div class="card-text">
-            <h2 class="card-title">Settings</h2>
-            <p class="card-description">Configure IDE paths, PlantUML, and other global preferences</p>
+            <h2 class="card-title">{{ 'SETTINGS.TITLE' | translate }}</h2>
+            <p class="card-description">{{ 'PROJECTS.SETTINGS_CARD_DESC' | translate }}</p>
           </div>
           <div class="card-action">
             <mat-icon class="arrow-icon">arrow_forward</mat-icon>
@@ -147,8 +147,8 @@
             <mat-icon>share</mat-icon>
           </div>
           <div class="card-text">
-            <h2 class="card-title">P2P Sharing</h2>
-            <p class="card-description">Share large files directly with other MdExplorer users</p>
+            <h2 class="card-title">{{ 'PROJECTS.P2P_SHARING' | translate }}</h2>
+            <p class="card-description">{{ 'PROJECTS.P2P_SHARING_DESC' | translate }}</p>
           </div>
           <div class="card-action">
             <mat-icon class="arrow-icon">arrow_forward</mat-icon>
@@ -163,17 +163,17 @@
           <button mat-stroked-button
                   color="primary"
                   (click)="openLog()"
-                  matTooltip="Open .NET application log file for debugging">
+                  [matTooltip]="'PROJECTS.NET_LOG_TOOLTIP' | translate">
             <mat-icon>description</mat-icon>
-            .NET Log
+            {{ 'PROJECTS.NET_LOG' | translate }}
           </button>
           <button mat-stroked-button
                   color="primary"
                   *ngIf="isElectron()"
                   (click)="openElectronLog()"
-                  matTooltip="Open Electron log file for debugging">
+                  [matTooltip]="'PROJECTS.ELECTRON_LOG_TOOLTIP' | translate">
             <mat-icon>monitor</mat-icon>
-            Electron Log
+            {{ 'PROJECTS.ELECTRON_LOG' | translate }}
           </button>
         </div>
       </div>

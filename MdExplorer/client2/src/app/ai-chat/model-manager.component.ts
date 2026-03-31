@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, Output, EventEmitter } from '@angular/core';
 import { AiChatService, ModelInfo, DownloadProgress, GpuInfo } from '../services/ai-chat.service';
 import { TocGenerationService } from '../md-explorer/services/toc-generation.service';
+import { TranslateService } from '@ngx-translate/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -76,7 +77,8 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   constructor(
     private aiService: AiChatService,
     private tocService: TocGenerationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -155,7 +157,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   }
 
   deleteModel(model: ModelInfo): void {
-    if (!confirm(`Delete model ${model.name}?`)) return;
+    if (!confirm(this.translate.instant('MODEL_MANAGER.DELETE_CONFIRM', { name: model.name }))) return;
     
     this.aiService.deleteModel(model.id).subscribe({
       next: () => {
@@ -222,7 +224,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   
   saveSystemPrompt(): void {
     if (!this.systemPrompt.trim()) {
-      alert('System prompt cannot be empty');
+      alert(this.translate.instant('MODEL_MANAGER.PROMPT_EMPTY'));
       return;
     }
     
@@ -233,7 +235,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error saving system prompt:', err);
-        alert('Failed to save system prompt');
+        alert(this.translate.instant('MODEL_MANAGER.PROMPT_SAVE_FAILED'));
       }
     });
   }
@@ -274,7 +276,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error saving application prompt:', err);
-        alert('Failed to save application prompt');
+        alert(this.translate.instant('MODEL_MANAGER.APP_PROMPT_SAVE_FAILED'));
       }
     });
   }
@@ -368,7 +370,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   
   testGeminiApiKey(): void {
     if (!this.geminiApiKey.trim()) {
-      alert('Please enter an API key');
+      alert(this.translate.instant('MODEL_MANAGER.ENTER_API_KEY'));
       return;
     }
     
@@ -376,15 +378,15 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.aiService.testGeminiApiKey(this.geminiApiKey).subscribe({
       next: (response: any) => {
         if (response.valid) {
-          alert('API key is valid!');
+          alert(this.translate.instant('MODEL_MANAGER.KEY_VALID'));
         } else {
-          alert('Invalid API key');
+          alert(this.translate.instant('MODEL_MANAGER.KEY_INVALID'));
         }
         this.testingApiKey = false;
       },
       error: (err) => {
         console.error('Error testing API key:', err);
-        alert('Error testing API key');
+        alert(this.translate.instant('MODEL_MANAGER.KEY_TEST_ERROR'));
         this.testingApiKey = false;
       }
     });
@@ -392,7 +394,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   
   saveGeminiApiKey(): void {
     if (!this.geminiApiKey.trim()) {
-      alert('Please enter an API key');
+      alert(this.translate.instant('MODEL_MANAGER.ENTER_API_KEY'));
       return;
     }
     
@@ -404,11 +406,11 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         this.geminiApiKey = '';
         this.loadGeminiModels();
         this.loading = false;
-        alert('Gemini API key saved successfully');
+        alert(this.translate.instant('MODEL_MANAGER.KEY_SAVED_GEMINI'));
       },
       error: (err) => {
         console.error('Error saving API key:', err);
-        alert('Error saving API key. Please check if it is valid.');
+        alert(this.translate.instant('MODEL_MANAGER.KEY_SAVE_ERROR'));
         this.loading = false;
       }
     });
@@ -435,7 +437,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     // Save as default preference
     this.saveCurrentPreference('gemini', modelId);
 
-    alert(`Connected to Gemini model: ${this.geminiModels.find(m => m.id === modelId)?.name}`);
+    alert(this.translate.instant('MODEL_MANAGER.CONNECTED_GEMINI', { name: this.geminiModels.find(m => m.id === modelId)?.name }));
   }
   
   disconnectGemini(): void {
@@ -471,7 +473,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   
   saveGeminiSystemPrompt(): void {
     if (!this.geminiSystemPrompt.trim()) {
-      alert('System prompt cannot be empty');
+      alert(this.translate.instant('MODEL_MANAGER.PROMPT_EMPTY'));
       return;
     }
     
@@ -482,7 +484,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error saving Gemini system prompt:', err);
-        alert('Failed to save system prompt');
+        alert(this.translate.instant('MODEL_MANAGER.PROMPT_SAVE_FAILED'));
       }
     });
   }
@@ -555,7 +557,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   testOpenAiApiKey(): void {
     if (!this.openAiApiKey.trim()) {
-      alert('Please enter an API key');
+      alert(this.translate.instant('MODEL_MANAGER.ENTER_API_KEY'));
       return;
     }
 
@@ -563,15 +565,15 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.aiService.testOpenAiApiKey(this.openAiApiKey).subscribe({
       next: (response: any) => {
         if (response.valid) {
-          alert('API key is valid!');
+          alert(this.translate.instant('MODEL_MANAGER.KEY_VALID'));
         } else {
-          alert('Invalid API key');
+          alert(this.translate.instant('MODEL_MANAGER.KEY_INVALID'));
         }
         this.testingOpenAiApiKey = false;
       },
       error: (err) => {
         console.error('Error testing API key:', err);
-        alert('Error testing API key');
+        alert(this.translate.instant('MODEL_MANAGER.KEY_TEST_ERROR'));
         this.testingOpenAiApiKey = false;
       }
     });
@@ -579,7 +581,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   saveOpenAiApiKey(): void {
     if (!this.openAiApiKey.trim()) {
-      alert('Please enter an API key');
+      alert(this.translate.instant('MODEL_MANAGER.ENTER_API_KEY'));
       return;
     }
 
@@ -591,11 +593,11 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         this.openAiApiKey = '';
         this.loadOpenAiModels();
         this.loading = false;
-        alert('OpenAI API key saved successfully');
+        alert(this.translate.instant('MODEL_MANAGER.KEY_SAVED_OPENAI'));
       },
       error: (err) => {
         console.error('Error saving API key:', err);
-        alert('Error saving API key. Please check if it is valid.');
+        alert(this.translate.instant('MODEL_MANAGER.KEY_SAVE_ERROR'));
         this.loading = false;
       }
     });
@@ -623,7 +625,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     // Save as default preference
     this.saveCurrentPreference('openai', modelId);
 
-    alert(`Connected to OpenAI model: ${this.openAiModels.find(m => m.id === modelId)?.name || modelId}`);
+    alert(this.translate.instant('MODEL_MANAGER.CONNECTED_OPENAI', { name: this.openAiModels.find(m => m.id === modelId)?.name || modelId }));
   }
 
   disconnectOpenAi(): void {
@@ -643,7 +645,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   saveOpenAiSystemPrompt(): void {
     if (!this.openAiSystemPrompt.trim()) {
-      alert('System prompt cannot be empty');
+      alert(this.translate.instant('MODEL_MANAGER.PROMPT_EMPTY'));
       return;
     }
 
@@ -654,7 +656,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error saving OpenAI system prompt:', err);
-        alert('Failed to save system prompt');
+        alert(this.translate.instant('MODEL_MANAGER.PROMPT_SAVE_FAILED'));
       }
     });
   }
@@ -842,7 +844,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     // Save as default preference
     this.saveCurrentPreference('copilotcli', modelId);
 
-    alert(`Connected to Copilot CLI model: ${this.copilotCliModels.find(m => m.id === modelId)?.name || modelId}`);
+    alert(this.translate.instant('MODEL_MANAGER.CONNECTED_COPILOT', { name: this.copilotCliModels.find(m => m.id === modelId)?.name || modelId }));
   }
 
   disconnectCopilotCli(): void {
@@ -860,7 +862,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   saveCopilotCliSystemPrompt(): void {
     if (!this.copilotCliSystemPrompt.trim()) {
-      alert('System prompt cannot be empty');
+      alert(this.translate.instant('MODEL_MANAGER.PROMPT_EMPTY'));
       return;
     }
 
@@ -871,7 +873,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error saving Copilot CLI system prompt:', err);
-        alert('Failed to save system prompt');
+        alert(this.translate.instant('MODEL_MANAGER.PROMPT_SAVE_FAILED'));
       }
     });
   }
@@ -931,7 +933,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         this.backendDownloading = false;
         this.backendDownloadVariant = '';
         delete this.downloadProgress[`backend-${variant}`];
-        alert(`Error downloading backend: ${err.error?.error || err.message}`);
+        alert(this.translate.instant('MODEL_MANAGER.DOWNLOAD_ERROR', { error: err.error?.error || err.message }));
       },
       complete: () => {
         this.backendDownloading = false;
@@ -943,7 +945,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   }
 
   deleteBackend(): void {
-    if (!confirm('Delete the installed AI engine? You will need to download it again to use local AI models.')) return;
+    if (!confirm(this.translate.instant('MODEL_MANAGER.DELETE_ENGINE_CONFIRM'))) return;
 
     this.aiService.deleteBackend().subscribe({
       next: () => {
@@ -962,12 +964,12 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   }
 
   getBackendVariantName(variant: string): string {
-    const names: {[key: string]: string} = {
-      'cpu': 'CPU Only',
-      'cuda-12.4': 'NVIDIA CUDA',
-      'vulkan': 'Vulkan (AMD/Intel/NVIDIA)'
+    const keys: {[key: string]: string} = {
+      'cpu': 'MODEL_MANAGER.CPU_ONLY',
+      'cuda-12.4': 'MODEL_MANAGER.NVIDIA_CUDA',
+      'vulkan': 'MODEL_MANAGER.VULKAN'
     };
-    return names[variant] || variant;
+    return keys[variant] ? this.translate.instant(keys[variant]) : variant;
   }
 
   ngOnDestroy(): void {

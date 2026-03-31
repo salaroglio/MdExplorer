@@ -2,6 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { debounceTime, skip, takeUntil, filter, take } from 'rxjs/operators';
+import { TranslateService } from '@ngx-translate/core';
 import { AiChatService } from '../../services/ai-chat.service';
 import { PromptLabPersistenceService } from './promptlab-persistence.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -38,7 +39,8 @@ export class PromptLabService implements OnDestroy {
     private aiChatService: AiChatService,
     private persistenceService: PromptLabPersistenceService,
     private http: HttpClient,
-    private serverMessages: MdServerMessagesService
+    private serverMessages: MdServerMessagesService,
+    private translate: TranslateService
   ) {
     this.initAutoSave();
   }
@@ -150,7 +152,7 @@ export class PromptLabService implements OnDestroy {
 
     const newCard: PromptLabCard = {
       id: this.generateId(),
-      generatedTitle: 'Nuova Card',
+      generatedTitle: this.translate.instant('PROMPTLAB.NEW_CARD'),
       parameters: [],
       distilledPrompt: '',
       conversation: []

@@ -1,10 +1,10 @@
-<h2 mat-dialog-title>Configura GitHub Personal Access Token</h2>
+<h2 mat-dialog-title>{{ 'GIT_TOKEN.TITLE' | translate }}</h2>
 
 <mat-dialog-content>
   <!-- Loading existing token status -->
   <div *ngIf="isLoading" class="loading-container">
     <mat-spinner diameter="30"></mat-spinner>
-    <span>Controllo token esistente...</span>
+    <span>{{ 'GIT_TOKEN.CHECKING' | translate }}</span>
   </div>
 
   <div *ngIf="!isLoading">
@@ -13,10 +13,10 @@
       <mat-icon>info</mat-icon>
       <div>
         <p>
-          Per creare automaticamente repository su GitHub, è necessario un Personal Access Token.
+          {{ 'GIT_TOKEN.INSTRUCTIONS' | translate }}
         </p>
         <p class="small-text">
-          Il token verrà salvato in modo sicuro nel database locale.
+          {{ 'GIT_TOKEN.SECURE_NOTE' | translate }}
         </p>
       </div>
     </div>
@@ -34,7 +34,7 @@
         <div class="token-details">
           Token: {{ existingMaskedToken }}
           <span class="status" [class.valid]="tokenValid" [class.invalid]="!tokenValid">
-            ({{ tokenValid ? 'Valido' : 'Non valido o scaduto' }})
+            ({{ tokenValid ? ('GIT_TOKEN.VALID' | translate) : ('GIT_TOKEN.INVALID' | translate) }})
           </span>
         </div>
       </div>
@@ -49,18 +49,18 @@
 
     <!-- Token input -->
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>GitHub Personal Access Token</mat-label>
+      <mat-label>{{ 'GIT_TOKEN.PAT_LABEL' | translate }}</mat-label>
       <input matInput
              [(ngModel)]="token"
              [type]="hideToken ? 'password' : 'text'"
-             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+             [placeholder]="'GIT_TOKEN.PAT_PLACEHOLDER' | translate"
              [disabled]="isSaving">
       <button mat-icon-button matSuffix
               (click)="hideToken = !hideToken"
               [disabled]="isSaving">
         <mat-icon>{{ hideToken ? 'visibility' : 'visibility_off' }}</mat-icon>
       </button>
-      <mat-hint>Inserisci un token con permessi 'repo'</mat-hint>
+      <mat-hint>{{ 'GIT_TOKEN.PAT_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
     <!-- How to create token -->
@@ -68,43 +68,40 @@
       <mat-expansion-panel-header>
         <mat-panel-title>
           <mat-icon>help_outline</mat-icon>
-          Come creare un Personal Access Token
+          {{ 'GIT_TOKEN.HOW_TO_CREATE' | translate }}
         </mat-panel-title>
       </mat-expansion-panel-header>
 
       <ol>
-        <li>Vai su GitHub Settings → Developer settings → Personal access tokens</li>
-        <li>Clicca su "Generate new token (classic)"</li>
-        <li>Dai un nome descrittivo (es. "MdExplorer")</li>
-        <li>Seleziona l'ambito <strong>repo</strong> (accesso completo ai repository privati)</li>
-        <li>Clicca su "Generate token"</li>
-        <li>Copia il token e incollalo qui sopra</li>
+        <li>{{ 'GIT_TOKEN.STEP1' | translate }}</li>
+        <li>{{ 'GIT_TOKEN.STEP2' | translate }}</li>
+        <li>{{ 'GIT_TOKEN.STEP3' | translate }}</li>
+        <li>{{ 'GIT_TOKEN.STEP4' | translate }}</li>
+        <li>{{ 'GIT_TOKEN.STEP5' | translate }}</li>
+        <li>{{ 'GIT_TOKEN.STEP6' | translate }}</li>
       </ol>
 
       <button mat-stroked-button color="primary" (click)="openGitHubTokenPage()">
         <mat-icon>open_in_new</mat-icon>
-        Apri pagina GitHub Token
+        {{ 'GIT_TOKEN.OPEN_GITHUB' | translate }}
       </button>
     </mat-expansion-panel>
 
     <!-- Warning -->
     <div class="warning-message">
       <mat-icon>warning</mat-icon>
-      <p>
-        <strong>Importante:</strong> Non condividere mai il tuo token con altri.
-        Trattalo come una password.
-      </p>
+      <p>{{ 'GIT_TOKEN.WARNING' | translate }}</p>
     </div>
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()" [disabled]="isSaving">Annulla</button>
+  <button mat-button (click)="onCancel()" [disabled]="isSaving">{{ 'COMMON.CANCEL' | translate }}</button>
   <button mat-raised-button
           color="primary"
           (click)="testToken()"
           [disabled]="!token || isSaving">
     <mat-spinner *ngIf="isSaving" diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
-    {{ isSaving ? 'Validazione...' : 'Salva e Testa Token' }}
+    {{ isSaving ? ('GIT_TOKEN.VALIDATING' | translate) : ('GIT_TOKEN.SAVE_AND_TEST' | translate) }}
   </button>
 </mat-dialog-actions>

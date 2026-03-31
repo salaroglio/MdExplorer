@@ -8,6 +8,7 @@ import { MdServerMessagesService } from '../../signalR/services/server-messages.
 import { MdFile } from '../../md-explorer/models/md-file';
 import { UnifiedSettingsDialogComponent } from '../unified-settings-dialog/unified-settings-dialog.component';
 import { AppStoreSettingsDialogComponent } from '../app-store-settings-dialog/app-store-settings-dialog.component';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-title-bar',
@@ -34,7 +35,8 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     private mdFileService: MdFileService,
     private router: Router,
     private monitorMDService: MdServerMessagesService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private translate: TranslateService
   ) {
     // Check if running in Electron
     this.isElectron = !!(window && (window as any).electronAPI);
@@ -57,7 +59,7 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     // Subscribe to RAG indexing progress
     this.monitorMDService.ragIndexingProgress$.subscribe(data => {
       if (data.status === 'completed' || data.status === 'error') {
-        this.ragMessage = data.status === 'completed' ? 'Completed' : 'Error';
+        this.ragMessage = data.status === 'completed' ? this.translate.instant('TITLE_BAR.COMPLETED') : this.translate.instant('TITLE_BAR.ERROR_STATUS');
         this.ragProcessed = data.processed;
         this.ragTotal = data.total;
         this.ragProgressPercent = 100;

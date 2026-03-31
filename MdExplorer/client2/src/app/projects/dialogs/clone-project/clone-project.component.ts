@@ -10,6 +10,7 @@ import { GITService } from '../../../git/services/gitservice.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-clone-project',
@@ -37,7 +38,8 @@ export class CloneProjectComponent implements OnInit {
     private dialogRef: MatDialogRef<CloneProjectComponent>,    
     private waitingDialog: WaitingDialogService,
     private projectService: ProjectsService,
-    private router:Router
+    private router:Router,
+    private translate: TranslateService
   ) { }
 
   ngOnInit(): void {
@@ -55,7 +57,7 @@ export class CloneProjectComponent implements OnInit {
 
   cloneDirectory(): void {
     let info = new WaitingDialogInfo();
-    info.message = "Oh MY GOD... Cloning Repository!"
+    info.message = this.translate.instant('CLONE.CLONING_MSG');
     this.waitingDialog.showMessageBox(info);
     this.gitService.clone(this.dataForCloning).subscribe(_ => {
       if (_.areCredentialsCorrect) {
@@ -64,7 +66,7 @@ export class CloneProjectComponent implements OnInit {
       } else {
         const dialogRef = this.dialog.open(GitMessagesComponent, {
           width: '300px',          
-          data: {message:"Credentials are not correct"}
+          data: {message: this.translate.instant('CLONE.CREDENTIALS_WRONG')}
         });
       }
       this.waitingDialog.closeMessageBox();
@@ -77,7 +79,7 @@ export class CloneProjectComponent implements OnInit {
   openFileSystem() {
     let data = new ShowFileMetadata();
     data.start = null;
-    data.title = "C:\ Folder";
+    data.title = this.translate.instant('CLONE.FOLDER_TITLE');
     data.typeOfSelection = "Folders";
 
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {

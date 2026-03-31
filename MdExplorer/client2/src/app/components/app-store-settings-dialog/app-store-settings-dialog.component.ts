@@ -4,6 +4,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 
 import { AppStoreService } from '../../md-explorer/services/app-store.service';
 import { AppStoreRepository } from '../../md-explorer/models/app-store.models';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-app-store-settings-dialog',
@@ -20,7 +21,8 @@ export class AppStoreSettingsDialogComponent implements OnInit {
   constructor(
     private dialogRef: MatDialogRef<AppStoreSettingsDialogComponent>,
     private appStoreService: AppStoreService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -70,24 +72,24 @@ export class AppStoreSettingsDialogComponent implements OnInit {
         this.cancelRepoEdit();
         this.loadAppStoreRepos();
         this.appStoreService.notifyReposChanged();
-        this.snackBar.open('Repository saved', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('APP_STORE_SETTINGS.REPO_SAVED'), '', { duration: 2000 });
       },
       error: () => {
         this.isSavingRepo = false;
-        this.snackBar.open('Failed to save repository', '', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('APP_STORE_SETTINGS.REPO_SAVE_FAILED'), '', { duration: 3000 });
       }
     });
   }
 
   deleteRepo(repo: AppStoreRepository): void {
-    if (!confirm(`Delete repository "${repo.label}"?`)) return;
+    if (!confirm(this.translate.instant('APP_STORE_SETTINGS.REPO_DELETE_CONFIRM', { name: repo.label }))) return;
     this.appStoreService.deleteRepository(repo.id).subscribe({
       next: () => {
         this.loadAppStoreRepos();
         this.appStoreService.notifyReposChanged();
-        this.snackBar.open('Repository deleted', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('APP_STORE_SETTINGS.REPO_DELETED'), '', { duration: 2000 });
       },
-      error: () => this.snackBar.open('Failed to delete repository', '', { duration: 3000 })
+      error: () => this.snackBar.open(this.translate.instant('APP_STORE_SETTINGS.REPO_DELETE_FAILED'), '', { duration: 3000 })
     });
   }
 

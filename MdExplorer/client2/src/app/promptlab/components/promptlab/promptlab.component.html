@@ -1,7 +1,7 @@
 <!-- Session Header Bar -->
 <div class="session-header">
   <span class="session-title">{{ sessionTitle }}</span>
-  <span class="badge">PromptLab</span>
+  <span class="badge">{{ 'PROMPTLAB.TITLE' | translate }}</span>
   <span class="spacer"></span>
 
   <!-- Model selector -->
@@ -13,7 +13,7 @@
       <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
     </select>
     <span class="model-loading" *ngIf="isLoadingModels">
-      <span class="spinner"></span> Loading models...
+      <span class="spinner"></span> {{ 'PROMPTLAB.LOADING_MODELS' | translate }}
     </span>
   </div>
 
@@ -21,23 +21,23 @@
   <div class="mode-toggle">
     <button class="mode-btn"
             [class.active]="mode === 'prompt'"
-            (click)="toggleMode('prompt')">Prompt</button>
+            (click)="toggleMode('prompt')">{{ 'PROMPTLAB.PROMPT_MODE' | translate }}</button>
     <button class="mode-btn"
             [class.active]="mode === 'agent'"
-            (click)="toggleMode('agent')">Agente</button>
+            (click)="toggleMode('agent')">{{ 'PROMPTLAB.AGENT_MODE' | translate }}</button>
   </div>
 
   <span class="separator"></span>
 
   <!-- Action buttons -->
-  <button class="session-action-btn add" (click)="addCard()">+ Card</button>
-  <button class="session-action-btn build" (click)="build()">Build</button>
+  <button class="session-action-btn add" (click)="addCard()">{{ 'PROMPTLAB.ADD_CARD' | translate }}</button>
+  <button class="session-action-btn build" (click)="build()">{{ 'PROMPTLAB.BUILD' | translate }}</button>
   <button class="session-action-btn exec"
           (click)="executeAll()"
           [disabled]="isExecutingAll">
-    {{ isExecutingAll ? 'Esecuzione...' : 'Esegui Tutto' }}
+    {{ isExecutingAll ? ('PROMPTLAB.EXECUTING' | translate) : ('PROMPTLAB.EXECUTE_ALL' | translate) }}
   </button>
-  <button class="session-action-btn settings" (click)="openSettings()" title="Impostazioni sessione">&#9881;</button>
+  <button class="session-action-btn settings" (click)="openSettings()" [title]="'PROMPTLAB.SESSION_SETTINGS' | translate">&#9881;</button>
 </div>
 
 <!-- Scrollable content area (everything below the header) -->
@@ -59,7 +59,7 @@
   <!-- Cards -->
   <div class="cards-area" [class.single-card-area]="cards.length === 1">
     <div *ngIf="cards.length === 0" class="cards-placeholder">
-      Nessuna card. Clicca '+ Card' per iniziare.
+      {{ 'PROMPTLAB.NO_CARDS' | translate }}
     </div>
     <app-promptlab-card
       *ngFor="let card of cards; trackBy: trackByCardId"
@@ -76,26 +76,25 @@
 <div class="modal-backdrop" *ngIf="showSettings" (click)="onSettingsBackdropClick($event)">
   <div class="modal-card settings-modal">
     <div class="modal-header">
-      <span class="modal-title">Impostazioni Sessione</span>
+      <span class="modal-title">{{ 'PROMPTLAB.SESSION_SETTINGS' | translate }}</span>
       <button class="modal-close" (click)="closeSettings()">&#10005;</button>
     </div>
     <div class="modal-body">
       <div class="settings-section">
         <div class="settings-section-header">
-          <label class="settings-label">System Prompt</label>
+          <label class="settings-label">{{ 'PROMPTLAB.SYSTEM_PROMPT' | translate }}</label>
           <div class="settings-section-actions">
             <select class="settings-model-select"
                     [ngModel]="systemPromptModel"
                     (ngModelChange)="onPromptModelChange('system', $event)">
-              <option value="">Default ({{ selectedModel || '—' }})</option>
+              <option value="">{{ 'PROMPTLAB.DEFAULT' | translate }} ({{ selectedModel || '—' }})</option>
               <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
             </select>
-            <button class="settings-reset-btn" (click)="resetSystemPrompt()" title="Ripristina default">&#8634; Default</button>
+            <button class="settings-reset-btn" (click)="resetSystemPrompt()" [title]="'PROMPTLAB.RESET_DEFAULT' | translate">&#8634; {{ 'PROMPTLAB.DEFAULT' | translate }}</button>
           </div>
         </div>
         <p class="settings-hint">
-          Istruzioni di sistema inviate al LLM all'inizio di ogni conversazione nella chat.
-          Definisce il ruolo dell'LLM come assistente alla progettazione di prompt.
+          {{ 'PROMPTLAB.SYSTEM_PROMPT_HINT' | translate }}
         </p>
         <textarea class="settings-textarea"
                   [ngModel]="systemPrompt"
@@ -106,19 +105,19 @@
 
       <div class="settings-section">
         <div class="settings-section-header">
-          <label class="settings-label">Sequence Diagram Prompt</label>
+          <label class="settings-label">{{ 'PROMPTLAB.SEQUENCE_DIAGRAM' | translate }}</label>
           <div class="settings-section-actions">
             <select class="settings-model-select"
                     [ngModel]="sequencePromptModel"
                     (ngModelChange)="onPromptModelChange('sequence', $event)">
-              <option value="">Default ({{ selectedModel || '—' }})</option>
+              <option value="">{{ 'PROMPTLAB.DEFAULT' | translate }} ({{ selectedModel || '—' }})</option>
               <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
             </select>
-            <button class="settings-reset-btn" (click)="resetSequencePrompt()" title="Ripristina default">&#8634; Default</button>
+            <button class="settings-reset-btn" (click)="resetSequencePrompt()" [title]="'PROMPTLAB.RESET_DEFAULT' | translate">&#8634; {{ 'PROMPTLAB.DEFAULT' | translate }}</button>
           </div>
         </div>
         <p class="settings-hint">
-          Istruzioni inviate al LLM per generare il diagramma di sequenza PlantUML dal prompt distillato.
+          {{ 'PROMPTLAB.SEQUENCE_HINT' | translate }}
         </p>
         <textarea class="settings-textarea"
                   [ngModel]="sequencePrompt"
@@ -129,19 +128,19 @@
 
       <div class="settings-section">
         <div class="settings-section-header">
-          <label class="settings-label">Workflow Diagram Prompt</label>
+          <label class="settings-label">{{ 'PROMPTLAB.WORKFLOW_DIAGRAM' | translate }}</label>
           <div class="settings-section-actions">
             <select class="settings-model-select"
                     [ngModel]="workflowPromptModel"
                     (ngModelChange)="onPromptModelChange('workflow', $event)">
-              <option value="">Default ({{ selectedModel || '—' }})</option>
+              <option value="">{{ 'PROMPTLAB.DEFAULT' | translate }} ({{ selectedModel || '—' }})</option>
               <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
             </select>
-            <button class="settings-reset-btn" (click)="resetWorkflowPrompt()" title="Ripristina default">&#8634; Default</button>
+            <button class="settings-reset-btn" (click)="resetWorkflowPrompt()" [title]="'PROMPTLAB.RESET_DEFAULT' | translate">&#8634; {{ 'PROMPTLAB.DEFAULT' | translate }}</button>
           </div>
         </div>
         <p class="settings-hint">
-          Istruzioni inviate al LLM per generare il diagramma di workflow (activity) PlantUML dal prompt distillato.
+          {{ 'PROMPTLAB.WORKFLOW_HINT' | translate }}
         </p>
         <textarea class="settings-textarea"
                   [ngModel]="workflowPrompt"
@@ -151,7 +150,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="modal-btn" (click)="closeSettings()">Chiudi</button>
+      <button class="modal-btn" (click)="closeSettings()">{{ 'COMMON.CLOSE' | translate }}</button>
     </div>
   </div>
 </div>
@@ -162,7 +161,7 @@
      (click)="onBuildBackdropClick($event)">
   <div class="build-overlay-card">
     <div class="build-overlay-header">
-      <span class="build-overlay-title">Build Output</span>
+      <span class="build-overlay-title">{{ 'PROMPTLAB.BUILD_OUTPUT' | translate }}</span>
       <button class="build-overlay-close" (click)="closeBuildOverlay()">&#10005;</button>
     </div>
     <div class="build-overlay-body">
@@ -170,7 +169,7 @@
     </div>
     <div class="build-overlay-footer">
       <button class="build-overlay-copy" (click)="copyBuildOutput()">
-        {{ buildCopied ? 'Copiato!' : 'Copia' }}
+        {{ buildCopied ? ('PROMPTLAB.COPIED' | translate) : ('PROMPTLAB.COPY_BTN' | translate) }}
       </button>
     </div>
   </div>

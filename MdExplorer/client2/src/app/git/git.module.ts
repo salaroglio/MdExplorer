@@ -11,6 +11,7 @@ import { GitAccountManagementDialogComponent } from './dialogs/git-account-manag
 import { GitInitWizardDialogComponent } from './dialogs/git-init-wizard/git-init-wizard-dialog.component';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 
 
 
@@ -29,7 +30,8 @@ import { FormsModule } from '@angular/forms';
   imports: [
     CommonModule,
     MaterialModule,
-    FormsModule
+    FormsModule,
+    TranslateModule
   ],
   exports: [
     CommitMessageDialogComponent,

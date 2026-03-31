@@ -5,7 +5,7 @@
     <span class="doc-name">{{ templateName }}</span>
     <span class="spacer"></span>
     <span class="doc-status">
-      <span class="count">{{ cards.length }}</span> prompt
+      <span class="count">{{ cards.length }}</span> {{ 'PROMPTLAB_DOC.PROMPT_UNIT' | translate }}
     </span>
     <button class="collapse-btn" (click)="toggleCollapse()">&#9660;</button>
   </div>
@@ -13,7 +13,7 @@
   <!-- Body -->
   <div class="doc-template-body" *ngIf="!collapsed">
     <div *ngIf="cards.length === 0" class="empty-slots">
-      Nessuno slot. Aggiungi card alla sessione.
+      {{ 'PROMPTLAB_DOC.NO_SLOTS' | translate }}
     </div>
 
     <div *ngFor="let card of cards; let i = index"
@@ -21,9 +21,9 @@
       <span class="slot-number">{{ i + 1 }}</span>
       <div class="slot-content">
         <div class="slot-title">
-          <span class="card-link">{{ card.generatedTitle || 'Card ' + (i + 1) }}</span>
+          <span class="card-link">{{ card.generatedTitle || ('PROMPTLAB_DOC.CARD_PREFIX' | translate) + (i + 1) }}</span>
         </div>
-        <div class="slot-prompt">{{ card.distilledPrompt || '(prompt vuoto)' }}</div>
+        <div class="slot-prompt">{{ card.distilledPrompt || ('PROMPTLAB_DOC.EMPTY_PROMPT' | translate) }}</div>
       </div>
       <span class="slot-arrow">&#9654;</span>
     </div>

@@ -6,6 +6,7 @@ import { PromptLabMode, PromptLabCard, AgentDefinition, DEFAULT_SYSTEM_PROMPT, D
 import { PromptLabService } from '../../services/promptlab.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { AiChatService } from '../../../services/ai-chat.service';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-promptlab',
@@ -17,7 +18,7 @@ export class PromptLabComponent implements OnInit, OnDestroy {
 
   mode: PromptLabMode = 'prompt';
   selectedModel = 'claude-sonnet-4';
-  sessionTitle = 'Nuova Sessione';
+  sessionTitle = '';
   cards: PromptLabCard[] = [];
   templateName = 'template.md';
 
@@ -54,16 +55,22 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private promptLabService: PromptLabService,
     private mdFileService: MdFileService,
-    private aiChatService: AiChatService
+    private aiChatService: AiChatService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
+    // Set default session title using translate
+    if (!this.sessionTitle) {
+      this.sessionTitle = this.translate.instant('PROMPTLAB.NEW_SESSION');
+    }
+
     // 1. Subscribe to session$ to keep local state in sync
     this.promptLabService.session$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(session => {
       if (session) {
-        this.sessionTitle = session.title || 'Nuova Sessione';
+        this.sessionTitle = session.title || this.translate.instant('PROMPTLAB.NEW_SESSION');
         this.selectedModel = session.model || 'gpt-4o';
         this.mode = session.mode || 'prompt';
         this.cards = session.cards || [];

@@ -32,6 +32,11 @@
                 "glob": "**/*",
                 "input": "src/assets/fonts",
                 "output": "/fonts"
+              },
+              {
+                "glob": "*.json",
+                "input": "src/assets/i18n",
+                "output": "/../i18n"
               }
             ],
             "styles": [

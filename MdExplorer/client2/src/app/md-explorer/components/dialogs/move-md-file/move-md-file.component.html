@@ -1,13 +1,13 @@
-<h1>Move Markdown File</h1>
+<h1>{{ 'MOVE_FILE.TITLE' | translate }}</h1>
 
 
 
 <mat-dialog-content>
   <div class="orizzontal-form-container">
     <mat-form-field appearance="outline" style="width:100%">
-      <mat-label>Directory</mat-label>
-      <input matInput [(ngModel)]="directoryDestination" placeholder="local filesystem" required>
-      <mat-hint>Set destination directory</mat-hint>
+      <mat-label>{{ 'MOVE_FILE.DIRECTORY' | translate }}</mat-label>
+      <input matInput [(ngModel)]="directoryDestination" [placeholder]="'MOVE_FILE.DIR_PLACEHOLDER' | translate" required>
+      <mat-hint>{{ 'MOVE_FILE.DIR_HINT' | translate }}</mat-hint>
       <button mat-button matSuffix color="primary" (click)="openFileSystem()"><mat-icon>more_horiz</mat-icon> </button>
     </mat-form-field>
   </div>
@@ -16,9 +16,9 @@
 
 <mat-dialog-actions>
   <button mat-button color="primary" (click)="move()">
-    <mat-icon>save</mat-icon>move!
+    <mat-icon>save</mat-icon>{{ 'MOVE_FILE.MOVE_BTN' | translate }}
   </button>
   <button mat-button color="primary" (click)="dismiss()">
-    <mat-icon>cancel</mat-icon>Cancel
+    <mat-icon>cancel</mat-icon>{{ 'COMMON.CANCEL' | translate }}
   </button>
 </mat-dialog-actions>

@@ -14,6 +14,7 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { LayoutService } from '../../services/layout.service';
 import { ClipboardPasteService } from '../../services/clipboard-paste.service';
 import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
+import { TranslateService } from '@ngx-translate/core';
 
 
 
@@ -69,7 +70,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private layoutService: LayoutService,
     private http: HttpClient,
     private clipboardPasteService: ClipboardPasteService,
-    private embeddedAppState: EmbeddedAppStateService
+    private embeddedAppState: EmbeddedAppStateService,
+    private translate: TranslateService
   ) {
     this.setupResizeListeners();
 

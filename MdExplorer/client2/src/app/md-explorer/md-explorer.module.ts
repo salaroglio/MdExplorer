@@ -5,6 +5,7 @@ import { ToolbarComponent } from './components/toolbar/toolbar.component';
 import { MainContentComponent } from './components/main-content/main-content.component';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 import { MdExplorerComponent } from './md-explorer.component';
 import { Routes, RouterModule } from '@angular/router';
 import { MdFileService } from './services/md-file.service';
@@ -121,6 +122,7 @@ const routes: Routes = [
     FormsModule,
     GitModule,
     AiChatModule,
+    TranslateModule,
     RouterModule.forChild(routes)
   ],
   providers: [

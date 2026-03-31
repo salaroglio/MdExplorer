@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { AppStoreService } from '../../services/app-store.service';
 import { MdFileService } from '../../services/md-file.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
@@ -100,7 +101,8 @@ export class AppStoreComponent implements OnInit, OnDestroy {
     private mdFileService: MdFileService,
     private http: HttpClient,
     private mdServerMessages: MdServerMessagesService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) {}
 
   private get connectionId(): string {
@@ -182,7 +184,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
 
   loadCatalog(): void {
     if (this.repos.length === 0) {
-      this.snackBar.open('Aggiungi un repository nelle Impostazioni > Application.', 'OK', { duration: 4000 });
+      this.snackBar.open(this.translate.instant('APP_STORE.ADD_REPO_SETTINGS'), 'OK', { duration: 4000 });
       return;
     }
     this.appStoreService.invalidateCache();
@@ -277,13 +279,13 @@ export class AppStoreComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: () => {
         this.installingAppIds.delete(app.id);
-        this.snackBar.open(`"${app.name}" installed successfully.`, 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.INSTALLED_SUCCESS', { name: app.name }), 'OK', { duration: 3000 });
         this.loadInstalled();
         this.refreshTree();
       },
       error: (err) => {
         this.installingAppIds.delete(app.id);
-        const msg = err?.error?.error ?? 'Installation failed.';
+        const msg = err?.error?.error ?? this.translate.instant('APP_STORE.INSTALL_FAILED');
         this.snackBar.open(msg, 'OK', { duration: 5000 });
       }
     });
@@ -299,13 +301,13 @@ export class AppStoreComponent implements OnInit, OnDestroy {
     this.appStoreService.uninstallApp(appId).subscribe({
       next: () => {
         this.uninstallingAppIds.delete(appId);
-        this.snackBar.open(`"${appName}" uninstalled.`, 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.UNINSTALLED', { name: appName }), 'OK', { duration: 3000 });
         this.loadInstalled();
         this.refreshTree();
       },
       error: () => {
         this.uninstallingAppIds.delete(appId);
-        this.snackBar.open('Uninstall failed.', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.UNINSTALL_FAILED'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -330,22 +332,22 @@ export class AppStoreComponent implements OnInit, OnDestroy {
       icon: app.icon || ''
     }).subscribe({
       next: () => {
-        this.snackBar.open(`"${app.name}" associata al progetto.`, '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.ASSOCIATED', { name: app.name }), '', { duration: 2000 });
         this.loadProjectApps();
         this.refreshTree();
       },
-      error: () => this.snackBar.open('Errore nell\'associazione.', 'OK', { duration: 3000 })
+      error: () => this.snackBar.open(this.translate.instant('APP_STORE.ASSOCIATE_ERROR'), 'OK', { duration: 3000 })
     });
   }
 
   dissociateFromProject(app: StoreCatalogApp): void {
     this.http.delete<{ success: boolean }>(`/api/MdExternalApps/${app.id}?ConnectionId=${this.connectionId}`).subscribe({
       next: () => {
-        this.snackBar.open(`"${app.name}" rimossa dal progetto.`, '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.REMOVED_FROM_PROJECT', { name: app.name }), '', { duration: 2000 });
         this.loadProjectApps();
         this.refreshTree();
       },
-      error: () => this.snackBar.open('Errore nella rimozione.', 'OK', { duration: 3000 })
+      error: () => this.snackBar.open(this.translate.instant('APP_STORE.REMOVE_ERROR'), 'OK', { duration: 3000 })
     });
   }
 
@@ -395,12 +397,12 @@ export class AppStoreComponent implements OnInit, OnDestroy {
         this.isSavingMetadata = false;
         this.repoLogoFile = null;
         this.repoLogoPreview = null;
-        this.snackBar.open('Metadata repository salvati.', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.METADATA_SAVED'), '', { duration: 2000 });
         this.loadCatalog();
       },
       error: () => {
         this.isSavingMetadata = false;
-        this.snackBar.open('Errore nel salvataggio dei metadata.', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.METADATA_SAVE_ERROR'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -444,7 +446,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
       const expectedFormat = this.editInstallerPlatform === 'linux'
         ? '{appId}-{version}.AppImage'
         : '{appId}-setup-{version}.exe';
-      this.editFilenameError = `Il nome del file non corrisponde al formato richiesto: ${expectedFormat}`;
+      this.editFilenameError = this.translate.instant('APP_STORE.FILENAME_FORMAT_ERROR', { format: expectedFormat });
       return;
     }
 
@@ -452,7 +454,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
     const version = match[2];
 
     if (appId.toLowerCase() !== this.editingEntry.id.toLowerCase()) {
-      this.editFilenameError = `L'App ID nel filename ("${appId}") non corrisponde all'app in modifica ("${this.editingEntry.id}").`;
+      this.editFilenameError = this.translate.instant('APP_STORE.APPID_MISMATCH', { fileId: appId, editId: this.editingEntry.id });
       this.editInstallerFile = null;
       return;
     }
@@ -499,7 +501,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
           this.isSavingEntry = false;
           this.editPublishProgress = null;
           this.editPublishPhase = '';
-          const msg = err?.error?.error ?? 'Errore durante l\'upload dell\'installer.';
+          const msg = err?.error?.error ?? this.translate.instant('APP_STORE.UPLOAD_ERROR');
           this.snackBar.open(msg, 'OK', { duration: 5000 });
         }
       });
@@ -524,13 +526,13 @@ export class AppStoreComponent implements OnInit, OnDestroy {
     this.appStoreService.updateCatalogEntry(formData).subscribe({
       next: () => {
         this.isSavingEntry = false;
-        this.snackBar.open('Voce catalog aggiornata.', '', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('APP_STORE.CATALOG_UPDATED'), '', { duration: 2000 });
         this.cancelEdit();
         this.loadCatalog();
       },
       error: (err) => {
         this.isSavingEntry = false;
-        const msg = err?.error?.error ?? 'Errore nell\'aggiornamento.';
+        const msg = err?.error?.error ?? this.translate.instant('APP_STORE.CATALOG_UPDATE_ERROR');
         this.snackBar.open(msg, 'OK', { duration: 4000 });
       }
     });
@@ -564,7 +566,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
       const expectedFormat = this.publishPlatform === 'linux'
         ? '{appId}-{version}.AppImage'
         : '{appId}-setup-{version}.exe';
-      this.publishFilenameError = `Il nome del file non corrisponde al formato richiesto: ${expectedFormat}`;
+      this.publishFilenameError = this.translate.instant('APP_STORE.FILENAME_FORMAT_ERROR', { format: expectedFormat });
       return;
     }
 
@@ -606,11 +608,11 @@ export class AppStoreComponent implements OnInit, OnDestroy {
 
   publishApp(): void {
     if (!this.isSettingsConfigured) {
-      this.snackBar.open('Nessun repository configurato. Aggiungi un repository in Settings.', 'OK', { duration: 4000 });
+      this.snackBar.open(this.translate.instant('APP_STORE.ADD_REPO_SETTINGS'), 'OK', { duration: 4000 });
       return;
     }
     if (!this.selectedFile || !this.publishMetadata) {
-      this.snackBar.open('Seleziona un file da pubblicare.', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('APP_STORE.SELECT_FILE'), 'OK', { duration: 3000 });
       return;
     }
     if (this.publishFilenameError) {
@@ -618,11 +620,11 @@ export class AppStoreComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.publishMetadata.description?.trim()) {
-      this.snackBar.open('La descrizione è obbligatoria.', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('APP_STORE.DESC_REQUIRED'), 'OK', { duration: 3000 });
       return;
     }
     if (!this.publishMetadata.executableName?.trim()) {
-      this.snackBar.open('Il nome dell\'eseguibile è obbligatorio.', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('APP_STORE.EXECUTABLE_REQUIRED'), 'OK', { duration: 3000 });
       return;
     }
     this.isPublishing = true;
@@ -642,7 +644,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
           this.isPublishing = false;
           this.publishProgress = null;
           this.publishPhase = '';
-          this.snackBar.open('App pubblicata con successo!', 'OK', { duration: 4000 });
+          this.snackBar.open(this.translate.instant('APP_STORE.PUBLISH_SUCCESS'), 'OK', { duration: 4000 });
           this.selectedFile = null;
           this.publishFilenameError = null;
           this.publishMetadata = null;
@@ -656,7 +658,7 @@ export class AppStoreComponent implements OnInit, OnDestroy {
         this.isPublishing = false;
         this.publishProgress = null;
         this.publishPhase = '';
-        const msg = err?.error?.error ?? 'Errore durante la pubblicazione.';
+        const msg = err?.error?.error ?? this.translate.instant('APP_STORE.PUBLISH_ERROR');
         this.snackBar.open(msg, 'OK', { duration: 5000 });
       }
     });

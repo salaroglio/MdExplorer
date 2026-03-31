@@ -1,9 +1,9 @@
-<h2 mat-dialog-title>{{ isUpdateMode ? 'Update Available' : 'Install App' }}</h2>
+<h2 mat-dialog-title>{{ (isUpdateMode ? 'INSTALL_WIZARD.UPDATE_AVAILABLE' : 'INSTALL_WIZARD.INSTALL_APP') | translate }}</h2>
 
 <mat-dialog-content>
   <div *ngIf="loading" class="loading-container">
     <mat-spinner diameter="30"></mat-spinner>
-    <span>Loading app info...</span>
+    <span>{{ 'INSTALL_WIZARD.LOADING_INFO' | translate }}</span>
   </div>
 
   <!-- App info -->
@@ -16,7 +16,7 @@
         <mat-icon class="version-arrow">arrow_forward</mat-icon>
         <span class="app-version new-version">{{ catalogApp.version }}</span>
       </div>
-      <span class="app-version" *ngIf="!isUpdateMode">Version {{ catalogApp.version }}</span>
+      <span class="app-version" *ngIf="!isUpdateMode">{{ 'INSTALL_WIZARD.VERSION' | translate:{ version: catalogApp.version } }}</span>
       <p class="app-description" *ngIf="catalogApp.description">{{ catalogApp.description }}</p>
       <span class="app-platform" *ngIf="platform">Platform: {{ platform }}</span>
     </div>
@@ -24,15 +24,15 @@
 
   <!-- Changelog (update mode only) -->
   <div *ngIf="isUpdateMode && catalogApp?.changelog && !installing && !installed" class="changelog-section">
-    <h4>Changelog</h4>
+    <h4>{{ 'INSTALL_WIZARD.CHANGELOG' | translate }}</h4>
     <p class="changelog-text">{{ catalogApp.changelog }}</p>
   </div>
 
   <!-- Not found in catalog -->
   <div *ngIf="!loading && !catalogApp && !errorMessage" class="not-found">
     <mat-icon>warning</mat-icon>
-    <p>App "{{ data.appName }}" was not found in the catalog.</p>
-    <p class="hint">Check your App Store repository settings.</p>
+    <p>{{ 'INSTALL_WIZARD.APP_NOT_FOUND' | translate:{ name: data.appName } }}</p>
+    <p class="hint">{{ 'INSTALL_WIZARD.CHECK_SETTINGS' | translate }}</p>
   </div>
 
   <!-- Progress bar during install -->
@@ -50,7 +50,7 @@
   <!-- Success -->
   <div *ngIf="installed" class="success-message">
     <mat-icon>check_circle</mat-icon>
-    <span>{{ isUpdateMode ? 'Successfully updated!' : 'Successfully installed!' }}</span>
+    <span>{{ (isUpdateMode ? 'INSTALL_WIZARD.UPDATE_SUCCESS' : 'INSTALL_WIZARD.INSTALL_SUCCESS') | translate }}</span>
   </div>
 
   <!-- Error -->
@@ -61,18 +61,18 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">{{ installed ? 'Close' : 'Cancel' }}</button>
+  <button mat-button (click)="close()">{{ (installed ? 'COMMON.CLOSE' : 'COMMON.CANCEL') | translate }}</button>
   <button mat-button *ngIf="isUpdateMode && !installed && !installing && catalogApp" (click)="skip()">
-    Skip
+    {{ 'INSTALL_WIZARD.SKIP' | translate }}
   </button>
   <button mat-raised-button color="primary"
           *ngIf="catalogApp && !installed && !installing"
           (click)="install()">
-    {{ isUpdateMode ? 'Update' : 'Install' }}
+    {{ (isUpdateMode ? 'INSTALL_WIZARD.UPDATE_BTN' : 'INSTALL_WIZARD.INSTALL_BTN') | translate }}
   </button>
   <button mat-stroked-button color="primary"
           *ngIf="errorMessage && !installing"
           (click)="install()">
-    Retry
+    {{ 'COMMON.REFRESH' | translate }}
   </button>
 </mat-dialog-actions>

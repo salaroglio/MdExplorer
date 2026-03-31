@@ -1,14 +1,14 @@
 <div mat-dialog-title>
-   Delete markdown
+   {{ 'DELETE_MARKDOWN.TITLE' | translate }}
 </div>
 <mat-dialog-content>
-  There are not depencies
+  {{ 'DELETE_MARKDOWN.NO_DEPS' | translate }}
 </mat-dialog-content>
 <mat-dialog-actions>
   <button mat-button color="warn" (click)="delete()">
-    Yes
+    {{ 'DELETE_MARKDOWN.CONFIRM_YES' | translate }}
   </button>
   <button mat-button color="primary" (click)="dismiss()">
-    Cancel
+    {{ 'COMMON.CANCEL' | translate }}
   </button>
 </mat-dialog-actions>

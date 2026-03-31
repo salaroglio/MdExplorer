@@ -6,6 +6,7 @@ import { MdFile } from '../../../models/md-file';
 import { MoveMdFileComponent } from '../move-md-file/move-md-file.component';
 import { ShowFileSystemComponent } from '../../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-add-new-file-to-mde',
@@ -21,7 +22,8 @@ export class AddNewFileToMDEComponent implements OnInit {
     private dialogRef: MatDialogRef<AddNewFileToMDEComponent>,
     private mdFileService: MdFileService,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog) { }
+    private dialog: MatDialog,
+    private translate: TranslateService) { }
     
   ngOnInit(): void {
   }
@@ -33,9 +35,9 @@ export class AddNewFileToMDEComponent implements OnInit {
 
   openFileSystem() {
     let data = new ShowFileMetadata();
-    data.title = "Select file to add";
+    data.title = this.translate.instant('ADD_FILE.SELECT_TITLE');
     data.typeOfSelection = "FoldersAndFiles";
-    data.buttonText = "Add to project";
+    data.buttonText = this.translate.instant('ADD_FILE.ADD_TO_PROJECT');
     // FILTRO PER ESTENSIONI RIMOSSO - mostra tutti i file
     // data.fileExtensions = ['.md', '.txt', '.doc', '.docx', '.pdf'];
     data.showFileDetails = true; // Mostra dimensione e data
@@ -54,13 +56,13 @@ export class AddNewFileToMDEComponent implements OnInit {
   add() {
     this.mdFileService.addExistingFileToMDEProject(this.data, this.fullPath).subscribe(
       data => {
-        this.snackBar.open("File added", null, { duration: 5000 });
+        this.snackBar.open(this.translate.instant('ADD_FILE.FILE_ADDED'), null, { duration: 5000 });
         // Reload the file to show the new link
         this.mdFileService.setSelectedMdFileFromSideNav(this.data);
         this.dialogRef.close();
       },
       error => {
-        this.snackBar.open("Error: " + error.message, null, { duration: 5000 });
+        this.snackBar.open(this.translate.instant('ADD_FILE.ADD_ERROR', { error: error.message }), null, { duration: 5000 });
       }
     );
   }

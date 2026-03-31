@@ -1,15 +1,15 @@
-<h2 mat-dialog-title>Add App from Catalog</h2>
+<h2 mat-dialog-title>{{ 'CATALOG.TITLE' | translate }}</h2>
 
 <mat-dialog-content>
   <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 8px;">
-    <mat-label>Search apps...</mat-label>
+    <mat-label>{{ 'CATALOG.SEARCH_APPS' | translate }}</mat-label>
     <input matInput [(ngModel)]="searchText" (ngModelChange)="onSearch()" autocomplete="off">
     <mat-icon matSuffix>search</mat-icon>
   </mat-form-field>
 
   <div *ngIf="loading" class="loading-container">
     <mat-spinner diameter="30"></mat-spinner>
-    <span>Loading catalog...</span>
+    <span>{{ 'CATALOG.LOADING_CATALOG' | translate }}</span>
   </div>
 
   <div *ngIf="errorMessage" class="error-message">
@@ -19,7 +19,7 @@
 
   <div *ngIf="!loading && !errorMessage && filteredApps.length === 0" class="empty-state">
     <mat-icon>inbox</mat-icon>
-    <span>No apps found in catalog</span>
+    <span>{{ 'CATALOG.NO_APPS_FOUND' | translate }}</span>
   </div>
 
   <div class="catalog-list" *ngIf="!loading && !errorMessage">
@@ -36,12 +36,12 @@
       <button mat-stroked-button color="primary"
               (click)="selectApp(app)"
               [disabled]="isAlreadyAdded(app)">
-        {{ isAlreadyAdded(app) ? 'Already added' : 'Add to Project' }}
+        {{ isAlreadyAdded(app) ? ('CATALOG.ALREADY_ADDED' | translate) : ('CATALOG.ADD_TO_PROJECT' | translate) }}
       </button>
     </div>
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">Cancel</button>
+  <button mat-button (click)="close()">{{ 'COMMON.CANCEL' | translate }}</button>
 </mat-dialog-actions>

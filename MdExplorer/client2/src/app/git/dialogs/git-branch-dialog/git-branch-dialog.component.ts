@@ -4,6 +4,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { GITService } from '../../services/gitservice.service';
 import { IBranch, BranchInfo, CheckoutResult } from '../../models/branch';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
+import { TranslateService } from '@ngx-translate/core';
 
 export interface GitBranchDialogData {
   projectPath: string;
@@ -38,7 +39,8 @@ export class GitBranchDialogComponent implements OnInit {
     private gitService: GITService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
-    private serverMessages: MdServerMessagesService
+    private serverMessages: MdServerMessagesService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -62,7 +64,7 @@ export class GitBranchDialogComponent implements OnInit {
         this.gitService.currentBranch$.next(branch);
       },
       error: (err) => {
-        this.error = 'Errore nel caricamento delle informazioni del branch';
+        this.error = this.translate.instant('GIT_BRANCH.LOAD_INFO_ERROR');
         console.error('Error loading branch info:', err);
       }
     });
@@ -81,7 +83,7 @@ export class GitBranchDialogComponent implements OnInit {
       },
       error: (err) => {
         this.isLoading = false;
-        this.error = 'Errore nel caricamento della lista branch';
+        this.error = this.translate.instant('GIT_BRANCH.LOAD_LIST_ERROR');
         console.error('Error loading branches:', err);
       }
     });
@@ -118,7 +120,7 @@ export class GitBranchDialogComponent implements OnInit {
 
     if (groups.has('local')) {
       this.branchGroups.push({
-        name: 'Local',
+        name: this.translate.instant('GIT_BRANCH.LOCAL'),
         icon: 'computer',
         branches: groups.get('local')!
       });
@@ -169,7 +171,7 @@ export class GitBranchDialogComponent implements OnInit {
 
   async switchToBranch(branch: BranchInfo): Promise<void> {
     if (branch.isCurrentBranch) {
-      this.snackBar.open('Sei già su questo branch', 'OK', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('GIT_BRANCH.ALREADY_ON_BRANCH'), 'OK', { duration: 2000 });
       return;
     }
 
@@ -235,7 +237,7 @@ export class GitBranchDialogComponent implements OnInit {
           const actualBranchName = result.branchName || branchName;
 
           this.snackBar.open(
-            `Switchato a branch: ${actualBranchName}`,
+            this.translate.instant('GIT_BRANCH.SWITCHED_TO', { branch: actualBranchName }),
             'OK',
             { duration: 3000, panelClass: ['success-snackbar'] }
           );
@@ -255,7 +257,7 @@ export class GitBranchDialogComponent implements OnInit {
           // Refresh branch list
           this.loadBranches();
         } else {
-          this.error = result.error || 'Errore durante il cambio branch';
+          this.error = result.error || this.translate.instant('GIT_BRANCH.SWITCH_ERROR');
           this.snackBar.open(
             this.error,
             'OK',
@@ -265,7 +267,7 @@ export class GitBranchDialogComponent implements OnInit {
       },
       error: (err) => {
         this.isSwitching = false;
-        this.error = 'Errore di rete durante il cambio branch';
+        this.error = this.translate.instant('GIT_BRANCH.NETWORK_ERROR');
         console.error('Checkout error:', err);
         this.snackBar.open(
           this.error,

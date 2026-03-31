@@ -22,6 +22,7 @@ import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
 import { UnifiedSettingsDialogComponent } from '../components/unified-settings-dialog/unified-settings-dialog.component';
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
 import { versionInfo } from '../../environments/version'; // Importa la versione
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-projects',
@@ -52,7 +53,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     private clipboard: Clipboard,
     private snackBar: MatSnackBar,
     private http: HttpClient,
-    private p2pService: P2PService
+    private p2pService: P2PService,
+    private translate: TranslateService
   ) { }
 
     ngOnDestroy(): void {
@@ -166,9 +168,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   openNewFolder(): void {
     let data = new ShowFileMetadata();
     data.start = null;
-    data.title = "Select project folder";
+    data.title = this.translate.instant('PROJECTS.SELECT_FOLDER');
     data.typeOfSelection = "Folders";
-    data.buttonText = "Select folder"; // Testo personalizzato
+    data.buttonText = this.translate.instant('PROJECTS.SELECT_FOLDER_BTN');
 
     const dialogRef = this.dialog.open(ShowFileSystemComponent, {
       width: '800px',
@@ -240,7 +242,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     const cached = this.remoteUrlCache.get(project.path);
     if (!cached?.hasRemote || !cached?.remoteUrl) {
-      this.snackBar.open('No Git remote configured for this project', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('PROJECTS.NO_GIT_REMOTE'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -255,7 +257,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     // Copy to clipboard
     this.clipboard.copy(shareUrl);
 
-    this.snackBar.open('Share URL copied to clipboard!', 'OK', { duration: 3000 });
+    this.snackBar.open(this.translate.instant('PROJECTS.SHARE_URL_COPIED'), 'OK', { duration: 3000 });
     console.log('[Projects] Share URL copied:', shareUrl);
   }
 
@@ -269,7 +271,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('[Projects] Error opening log:', err);
-        this.snackBar.open('Error opening log file: ' + (err.error?.error || err.message), 'OK', { duration: 5000 });
+        this.snackBar.open(this.translate.instant('PROJECTS.ERROR_OPENING_LOG', { error: err.error?.error || err.message }), 'OK', { duration: 5000 });
       }
     });
   }
@@ -285,14 +287,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
           console.log('[Projects] Electron log opened:', result.path);
         } else {
           console.error('[Projects] Electron log not found:', result.error);
-          this.snackBar.open('Electron log not found: ' + result.path, 'OK', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('PROJECTS.ELECTRON_LOG_NOT_FOUND', { path: result.path }), 'OK', { duration: 5000 });
         }
       }).catch((err: any) => {
         console.error('[Projects] Error opening Electron log:', err);
-        this.snackBar.open('Error opening Electron log', 'OK', { duration: 5000 });
+        this.snackBar.open(this.translate.instant('PROJECTS.ERROR_OPENING_ELECTRON_LOG'), 'OK', { duration: 5000 });
       });
     } else {
-      this.snackBar.open('Electron log only available in desktop app', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('PROJECTS.ELECTRON_LOG_DESKTOP_ONLY'), 'OK', { duration: 3000 });
     }
   }
 

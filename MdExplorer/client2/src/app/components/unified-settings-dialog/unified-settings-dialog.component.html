@@ -1,6 +1,6 @@
 <h2 mat-dialog-title class="dialog-title">
   <mat-icon>settings</mat-icon>
-  <span>Settings</span>
+  <span>{{ 'UNIFIED_SETTINGS.TITLE' | translate }}</span>
 </h2>
 
 <mat-dialog-content class="settings-container">
@@ -10,17 +10,17 @@
       <mat-list-item (click)="selectCategory('application')"
                      [class.active]="selectedCategory === 'application'">
         <mat-icon matListItemIcon>build</mat-icon>
-        <span>Application</span>
+        <span>{{ 'SETTINGS.APPLICATION' | translate }}</span>
       </mat-list-item>
       <mat-list-item (click)="selectCategory('ai')"
                      [class.active]="selectedCategory === 'ai'">
         <mat-icon matListItemIcon>smart_toy</mat-icon>
-        <span>AI Models</span>
+        <span>{{ 'SETTINGS.AI_MODELS' | translate }}</span>
       </mat-list-item>
       <mat-list-item (click)="selectCategory('embedding')"
                      [class.active]="selectedCategory === 'embedding'">
         <mat-icon matListItemIcon>hub</mat-icon>
-        <span>Embedding</span>
+        <span>{{ 'SETTINGS.EMBEDDING' | translate }}</span>
       </mat-list-item>
     </mat-list>
   </div>
@@ -32,75 +32,93 @@
     <!-- APPLICATION TAB                  -->
     <!-- ================================ -->
     <div *ngIf="selectedCategory === 'application'" class="tab-panel">
-      <h3>Application Settings</h3>
+      <h3>{{ 'UNIFIED_SETTINGS.APP_SETTINGS' | translate }}</h3>
 
       <mat-card>
         <mat-card-header>
-          <mat-card-title>IDE & Tools Paths</mat-card-title>
+          <mat-card-title>{{ 'UNIFIED_SETTINGS.IDE_TOOLS' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <div class="vertical-form">
             <mat-form-field appearance="outline">
-              <mat-label>Visual Studio Code path</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.VSCODE_PATH' | translate }}</mat-label>
               <mat-icon matPrefix>code</mat-icon>
-              <input matInput [(ngModel)]="vscodePath" placeholder="Visual Studio Code path">
-              <mat-hint>Set Visual Studio Code installation path</mat-hint>
+              <input matInput [(ngModel)]="vscodePath" [placeholder]="'UNIFIED_SETTINGS.VSCODE_PLACEHOLDER' | translate">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.VSCODE_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>IntelliJ IDEA path</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.INTELLIJ_PATH' | translate }}</mat-label>
               <mat-icon matPrefix>terminal</mat-icon>
-              <input matInput [(ngModel)]="intellijPath" placeholder="IntelliJ IDEA path">
-              <mat-hint>Set IntelliJ IDEA installation path</mat-hint>
+              <input matInput [(ngModel)]="intellijPath" [placeholder]="'UNIFIED_SETTINGS.INTELLIJ_PLACEHOLDER' | translate">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.INTELLIJ_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>PlantUML local path</mat-label>
-              <input matInput [(ngModel)]="plantumlLocalPath" placeholder="PlantUML local path">
-              <mat-hint>Set path for PlantUML server</mat-hint>
+              <mat-label>{{ 'UNIFIED_SETTINGS.PLANTUML_PATH' | translate }}</mat-label>
+              <input matInput [(ngModel)]="plantumlLocalPath" [placeholder]="'UNIFIED_SETTINGS.PLANTUML_PLACEHOLDER' | translate">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.PLANTUML_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Java path</mat-label>
-              <input matInput [(ngModel)]="javaPath" placeholder="Java folder">
-              <mat-hint>Set Java installation path</mat-hint>
+              <mat-label>{{ 'UNIFIED_SETTINGS.JAVA_PATH' | translate }}</mat-label>
+              <input matInput [(ngModel)]="javaPath" [placeholder]="'UNIFIED_SETTINGS.JAVA_PLACEHOLDER' | translate">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.JAVA_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Graphviz Dot path</mat-label>
-              <input matInput [(ngModel)]="localGraphvizDotPath" placeholder="Graphviz dot path">
-              <mat-hint>Set Graphviz internal path</mat-hint>
+              <mat-label>{{ 'UNIFIED_SETTINGS.GRAPHVIZ_PATH' | translate }}</mat-label>
+              <input matInput [(ngModel)]="localGraphvizDotPath" [placeholder]="'UNIFIED_SETTINGS.GRAPHVIZ_PLACEHOLDER' | translate">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.GRAPHVIZ_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Jira server</mat-label>
-              <input matInput [(ngModel)]="jiraServer" placeholder="Jira server URL">
-              <mat-hint>Set Jira server URL</mat-hint>
+              <mat-label>{{ 'UNIFIED_SETTINGS.JIRA_PATH' | translate }}</mat-label>
+              <input matInput [(ngModel)]="jiraServer" [placeholder]="'UNIFIED_SETTINGS.JIRA_PLACEHOLDER' | translate">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.JIRA_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
           </div>
         </mat-card-content>
       </mat-card>
 
+      <!-- Language -->
+      <mat-card style="margin-top: 16px;">
+        <mat-card-header>
+          <mat-card-title>{{ 'SETTINGS.LANGUAGE' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>{{ 'SETTINGS.LANGUAGE' | translate }}</mat-label>
+            <mat-select [(ngModel)]="currentLanguage" (selectionChange)="onLanguageChange()">
+              <mat-option *ngFor="let lang of supportedLanguages" [value]="lang.code">
+                {{ lang.label }}
+              </mat-option>
+            </mat-select>
+            <mat-hint>{{ 'SETTINGS.LANGUAGE_HINT' | translate }}</mat-hint>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Electron notifications -->
       <mat-card *ngIf="isElectronEnvironment" style="margin-top: 16px;">
         <mat-card-header>
-          <mat-card-title>Notifications</mat-card-title>
+          <mat-card-title>{{ 'UNIFIED_SETTINGS.NOTIFICATIONS' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <mat-slide-toggle
             [(ngModel)]="fileChangeNotificationEnabled"
             (change)="onFileChangeNotificationToggle()"
             color="primary">
-            Flash taskbar for file changes
+            {{ 'UNIFIED_SETTINGS.FLASH_TASKBAR' | translate }}
           </mat-slide-toggle>
-          <p class="hint-text">Flash the taskbar icon when files are modified externally</p>
+          <p class="hint-text">{{ 'UNIFIED_SETTINGS.FLASH_HINT' | translate }}</p>
         </mat-card-content>
       </mat-card>
 
       <div class="tab-actions">
         <button mat-raised-button color="primary" (click)="saveApplicationSettings()">
-          <mat-icon>save</mat-icon> Save
+          <mat-icon>save</mat-icon> {{ 'COMMON.SAVE' | translate }}
         </button>
       </div>
     </div>
@@ -109,18 +127,18 @@
     <!-- AI MODELS TAB                    -->
     <!-- ================================ -->
     <div *ngIf="selectedCategory === 'ai'" class="tab-panel">
-      <h3>AI Model Manager</h3>
+      <h3>{{ 'UNIFIED_SETTINGS.AI_MODEL_MANAGER' | translate }}</h3>
 
       <div class="ai-status-bar" *ngIf="currentModel">
         <mat-icon *ngIf="currentModel.startsWith('OpenAI')">psychology</mat-icon>
         <mat-icon *ngIf="currentModel.startsWith('Gemini')">cloud</mat-icon>
         <mat-icon *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI')">memory</mat-icon>
-        <span>Connected: {{ currentModel }}</span>
+        <span>{{ 'UNIFIED_SETTINGS.CONNECTED_PREFIX' | translate }} {{ currentModel }}</span>
         <span *ngIf="gpuEnabled" class="gpu-badge">GPU ({{ gpuLayerCount }} layers)</span>
       </div>
       <div class="ai-status-bar disconnected" *ngIf="!currentModel && !isModelLoaded">
         <mat-icon>cloud_off</mat-icon>
-        <span>No model connected</span>
+        <span>{{ 'UNIFIED_SETTINGS.NO_MODEL' | translate }}</span>
       </div>
 
       <!-- GPU Info -->
@@ -129,11 +147,11 @@
           <div *ngIf="gpuInfo.isNvidiaGpu" class="gpu-details">
             <strong>{{ gpuInfo.name }}</strong>
             <span class="gpu-chip" *ngIf="gpuInfo.isCudaAvailable">CUDA {{ gpuInfo.cudaVersion }}</span>
-            <span class="gpu-chip warn" *ngIf="!gpuInfo.isCudaAvailable">No CUDA</span>
+            <span class="gpu-chip warn" *ngIf="!gpuInfo.isCudaAvailable">{{ 'UNIFIED_SETTINGS.NO_CUDA' | translate }}</span>
             <span style="margin-left: 16px;">{{ gpuInfo.formattedMemory || formatBytes(gpuInfo.memoryBytes) }}</span>
           </div>
           <div *ngIf="!gpuInfo.isNvidiaGpu">
-            <mat-icon color="warn">warning</mat-icon> No NVIDIA GPU detected - Models run on CPU
+            <mat-icon color="warn">warning</mat-icon> {{ 'UNIFIED_SETTINGS.NO_GPU_WARNING' | translate }}
           </div>
         </mat-card-content>
       </mat-card>
@@ -141,35 +159,35 @@
       <!-- Action buttons -->
       <div class="actions-bar">
         <button mat-raised-button color="primary" (click)="loadAiModels()" [disabled]="aiLoading">
-          <mat-icon>refresh</mat-icon> Refresh
+          <mat-icon>refresh</mat-icon> {{ 'COMMON.REFRESH' | translate }}
         </button>
         <button mat-raised-button color="accent" (click)="editSystemPromptToggle()"
                 [disabled]="!isModelLoaded">
-          <mat-icon>edit</mat-icon> System Prompt
+          <mat-icon>edit</mat-icon> {{ 'UNIFIED_SETTINGS.SYSTEM_PROMPT' | translate }}
         </button>
         <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
-          <mat-icon>psychology</mat-icon> {{ showOpenAiConfig ? 'Hide' : '' }} OpenAI
+          <mat-icon>psychology</mat-icon> {{ showOpenAiConfig ? ('UNIFIED_SETTINGS.HIDE' | translate) : '' }} {{ 'UNIFIED_SETTINGS.OPENAI' | translate }}
         </button>
         <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
-          <mat-icon>cloud</mat-icon> {{ showGeminiConfig ? 'Hide' : '' }} Gemini
+          <mat-icon>cloud</mat-icon> {{ showGeminiConfig ? ('UNIFIED_SETTINGS.HIDE' | translate) : '' }} {{ 'UNIFIED_SETTINGS.GEMINI' | translate }}
         </button>
       </div>
 
       <!-- System Prompt Editor -->
       <mat-card *ngIf="editingSystemPrompt" style="margin: 16px 0;">
         <mat-card-header>
-          <mat-card-title>System Prompt</mat-card-title>
+          <mat-card-title>{{ 'UNIFIED_SETTINGS.SYSTEM_PROMPT' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" style="width: 100%;">
-            <mat-label>System Prompt</mat-label>
+            <mat-label>{{ 'UNIFIED_SETTINGS.SYSTEM_PROMPT' | translate }}</mat-label>
             <textarea matInput [(ngModel)]="systemPrompt" rows="6"></textarea>
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="editingSystemPrompt = false">Cancel</button>
+          <button mat-button (click)="editingSystemPrompt = false">{{ 'COMMON.CANCEL' | translate }}</button>
           <button mat-raised-button color="primary" (click)="saveSystemPrompt()">
-            <mat-icon>save</mat-icon> Save
+            <mat-icon>save</mat-icon> {{ 'COMMON.SAVE' | translate }}
           </button>
         </mat-card-actions>
       </mat-card>
@@ -177,21 +195,21 @@
       <!-- OpenAI Config -->
       <mat-card *ngIf="showOpenAiConfig" style="margin: 16px 0;">
         <mat-card-header>
-          <mat-card-title><mat-icon>psychology</mat-icon> OpenAI Configuration</mat-card-title>
+          <mat-card-title><mat-icon>psychology</mat-icon> {{ 'UNIFIED_SETTINGS.OPENAI_CONFIG' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <div *ngIf="!openAiConfigured">
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>OpenAI API Key</mat-label>
-              <input matInput type="password" [(ngModel)]="openAiApiKey" placeholder="Enter your OpenAI API key">
+              <mat-label>{{ 'UNIFIED_SETTINGS.OPENAI_API_KEY' | translate }}</mat-label>
+              <input matInput type="password" [(ngModel)]="openAiApiKey" [placeholder]="'UNIFIED_SETTINGS.OPENAI_KEY_PLACEHOLDER' | translate">
             </mat-form-field>
             <button mat-raised-button style="background-color: #10a37f; color: white;"
                     (click)="saveOpenAiApiKey()" [disabled]="!openAiApiKey.trim()">
-              <mat-icon>save</mat-icon> Save Key
+              <mat-icon>save</mat-icon> {{ 'UNIFIED_SETTINGS.SAVE_KEY' | translate }}
             </button>
           </div>
           <div *ngIf="openAiConfigured">
-            <span class="config-badge">API Key Configured</span>
+            <span class="config-badge">{{ 'UNIFIED_SETTINGS.API_KEY_CONFIGURED' | translate }}</span>
             <div class="models-grid" style="margin-top: 12px;">
               <mat-card *ngFor="let model of openAiModels" class="model-card compact">
                 <mat-card-header>
@@ -200,9 +218,9 @@
                 <mat-card-actions>
                   <button mat-raised-button style="background-color: #10a37f; color: white;"
                           *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
-                          (click)="connectOpenAiModel(model.id)">Connect</button>
+                          (click)="connectOpenAiModel(model.id)">{{ 'COMMON.CONNECT' | translate }}</button>
                   <button mat-button *ngIf="useOpenAi && selectedOpenAiModel === model.id"
-                          (click)="disconnectOpenAi()">Disconnect</button>
+                          (click)="disconnectOpenAi()">{{ 'COMMON.DISCONNECT' | translate }}</button>
                 </mat-card-actions>
               </mat-card>
             </div>
@@ -213,20 +231,20 @@
       <!-- Gemini Config -->
       <mat-card *ngIf="showGeminiConfig" style="margin: 16px 0;">
         <mat-card-header>
-          <mat-card-title><mat-icon>cloud</mat-icon> Gemini Configuration</mat-card-title>
+          <mat-card-title><mat-icon>cloud</mat-icon> {{ 'UNIFIED_SETTINGS.GEMINI_CONFIG' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <div *ngIf="!geminiConfigured">
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Gemini API Key</mat-label>
-              <input matInput type="password" [(ngModel)]="geminiApiKey" placeholder="Enter your Gemini API key">
+              <mat-label>{{ 'UNIFIED_SETTINGS.GEMINI_API_KEY' | translate }}</mat-label>
+              <input matInput type="password" [(ngModel)]="geminiApiKey" [placeholder]="'UNIFIED_SETTINGS.GEMINI_KEY_PLACEHOLDER' | translate">
             </mat-form-field>
             <button mat-raised-button color="primary" (click)="saveGeminiApiKey()" [disabled]="!geminiApiKey.trim()">
-              <mat-icon>save</mat-icon> Save Key
+              <mat-icon>save</mat-icon> {{ 'UNIFIED_SETTINGS.SAVE_KEY' | translate }}
             </button>
           </div>
           <div *ngIf="geminiConfigured">
-            <span class="config-badge">API Key Configured</span>
+            <span class="config-badge">{{ 'UNIFIED_SETTINGS.API_KEY_CONFIGURED' | translate }}</span>
             <div class="models-grid" style="margin-top: 12px;">
               <mat-card *ngFor="let model of geminiModels" class="model-card compact">
                 <mat-card-header>
@@ -236,9 +254,9 @@
                 <mat-card-actions>
                   <button mat-raised-button color="primary"
                           *ngIf="!useGemini || selectedGeminiModel !== model.id"
-                          (click)="connectGeminiModel(model.id)">Connect</button>
+                          (click)="connectGeminiModel(model.id)">{{ 'COMMON.CONNECT' | translate }}</button>
                   <button mat-button *ngIf="useGemini && selectedGeminiModel === model.id"
-                          (click)="disconnectGemini()">Disconnect</button>
+                          (click)="disconnectGemini()">{{ 'COMMON.DISCONNECT' | translate }}</button>
                 </mat-card-actions>
               </mat-card>
             </div>
@@ -249,7 +267,7 @@
       <!-- Local Models Grid -->
       <mat-progress-bar *ngIf="aiLoading" mode="indeterminate" style="margin: 16px 0;"></mat-progress-bar>
 
-      <h4 style="margin-top: 16px;">Local Models</h4>
+      <h4 style="margin-top: 16px;">{{ 'UNIFIED_SETTINGS.LOCAL_MODELS' | translate }}</h4>
       <div class="models-grid">
         <mat-card *ngFor="let model of availableModels" class="model-card">
           <mat-card-header>
@@ -260,8 +278,8 @@
             <p class="model-description">{{ model.description }}</p>
             <div class="model-info">
               <span class="file-size">{{ formatBytes(model.fileSize) }}</span>
-              <span *ngIf="model.isInstalled" class="status-chip installed">Installed</span>
-              <span *ngIf="isCurrentModel(model)" class="status-chip loaded">Loaded</span>
+              <span *ngIf="model.isInstalled" class="status-chip installed">{{ 'UNIFIED_SETTINGS.INSTALLED' | translate }}</span>
+              <span *ngIf="isCurrentModel(model)" class="status-chip loaded">{{ 'UNIFIED_SETTINGS.LOADED' | translate }}</span>
             </div>
             <!-- Download Progress -->
             <div *ngIf="isDownloading(model.id)" class="download-progress">
@@ -276,20 +294,20 @@
             <button mat-button color="primary"
                     *ngIf="!model.isInstalled && !isDownloading(model.id)"
                     (click)="downloadModel(model)">
-              <mat-icon>download</mat-icon> Download
+              <mat-icon>download</mat-icon> {{ 'COMMON.DOWNLOAD' | translate }}
             </button>
             <button mat-button color="accent"
                     *ngIf="model.isInstalled && !isCurrentModel(model)"
                     (click)="loadModel(model)" [disabled]="aiLoading">
-              <mat-icon>play_arrow</mat-icon> Load
+              <mat-icon>play_arrow</mat-icon> {{ 'MODEL_MANAGER.LOAD' | translate }}
             </button>
             <button mat-button color="warn"
                     *ngIf="model.isInstalled && !isCurrentModel(model)"
                     (click)="deleteModel(model)">
-              <mat-icon>delete</mat-icon> Delete
+              <mat-icon>delete</mat-icon> {{ 'COMMON.DELETE' | translate }}
             </button>
             <button mat-button disabled *ngIf="isCurrentModel(model)">
-              <mat-icon>check</mat-icon> Loaded
+              <mat-icon>check</mat-icon> {{ 'UNIFIED_SETTINGS.LOADED' | translate }}
             </button>
           </mat-card-actions>
         </mat-card>
@@ -300,7 +318,7 @@
     <!-- EMBEDDING TAB                    -->
     <!-- ================================ -->
     <div *ngIf="selectedCategory === 'embedding'" class="tab-panel">
-      <h3>Embedding Configuration</h3>
+      <h3>{{ 'UNIFIED_SETTINGS.EMBEDDING_CONFIG' | translate }}</h3>
 
       <mat-progress-bar *ngIf="embeddingLoading" mode="indeterminate" style="margin-bottom: 16px;"></mat-progress-bar>
 
@@ -309,17 +327,17 @@
         <mat-card-content>
           <div class="status-grid">
             <div class="status-item">
-              <span class="status-label">Model loaded:</span>
+              <span class="status-label">{{ 'UNIFIED_SETTINGS.MODEL_LOADED' | translate }}</span>
               <span [class.status-ok]="embeddingModelLoaded" [class.status-missing]="!embeddingModelLoaded">
-                {{ embeddingModelLoaded ? 'Yes' : 'No' }}
+                {{ embeddingModelLoaded ? ('UNIFIED_SETTINGS.YES' | translate) : ('COMMON.NO' | translate) }}
               </span>
             </div>
             <div class="status-item" *ngIf="embeddingModelLoaded">
-              <span class="status-label">Embedding dimension:</span>
+              <span class="status-label">{{ 'UNIFIED_SETTINGS.EMBEDDING_DIM' | translate }}</span>
               <span>{{ embeddingDimension }}</span>
             </div>
             <div class="status-item" *ngIf="embeddingCurrentModelPath">
-              <span class="status-label">Model path:</span>
+              <span class="status-label">{{ 'UNIFIED_SETTINGS.MODEL_PATH' | translate }}</span>
               <span class="path-text">{{ embeddingCurrentModelPath }}</span>
             </div>
           </div>
@@ -327,7 +345,7 @@
       </mat-card>
 
       <!-- Embedding models cards -->
-      <h4>Available Embedding Models</h4>
+      <h4>{{ 'UNIFIED_SETTINGS.AVAILABLE_EMBEDDING' | translate }}</h4>
       <div class="models-grid" style="margin-bottom: 20px;">
         <mat-card *ngFor="let model of embeddingModels"
                   class="model-card embedding-model-card"
@@ -336,7 +354,7 @@
           <mat-card-header>
             <mat-card-title>
               {{ model.name }}
-              <span *ngIf="isEmbeddingModelActive(model)" class="active-badge">Active</span>
+              <span *ngIf="isEmbeddingModelActive(model)" class="active-badge">{{ 'UNIFIED_SETTINGS.ACTIVE' | translate }}</span>
             </mat-card-title>
             <mat-card-subtitle>{{ model.parameters }} | {{ model.contextLength }} token ctx</mat-card-subtitle>
           </mat-card-header>
@@ -344,8 +362,8 @@
             <p class="model-description">{{ model.description }}</p>
             <div class="model-info">
               <span class="file-size">{{ formatBytes(model.fileSize) }}</span>
-              <span *ngIf="model.isInstalled" class="status-chip installed">Installed</span>
-              <span *ngIf="!model.isInstalled" class="status-chip not-installed">Not Installed</span>
+              <span *ngIf="model.isInstalled" class="status-chip installed">{{ 'UNIFIED_SETTINGS.INSTALLED' | translate }}</span>
+              <span *ngIf="!model.isInstalled" class="status-chip not-installed">{{ 'UNIFIED_SETTINGS.NOT_INSTALLED' | translate }}</span>
             </div>
           </mat-card-content>
         </mat-card>
@@ -354,42 +372,42 @@
       <!-- Configuration form -->
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Configuration Parameters</mat-card-title>
+          <mat-card-title>{{ 'UNIFIED_SETTINGS.CONFIG_PARAMS' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <div class="vertical-form">
             <mat-form-field appearance="outline">
-              <mat-label>Apply Preset</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.APPLY_PRESET' | translate }}</mat-label>
               <mat-select [(ngModel)]="editSelectedModel" (selectionChange)="applyPreset($event.value)">
                 <mat-option *ngFor="let key of embeddingPresets | keyvalue" [value]="key.key">
                   {{ key.key }}
                 </mat-option>
               </mat-select>
-              <mat-hint>Select a model preset to auto-fill parameters</mat-hint>
+              <mat-hint>{{ 'UNIFIED_SETTINGS.PRESET_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Context Size (tokens)</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.CONTEXT_SIZE' | translate }}</mat-label>
               <input matInput type="number" [(ngModel)]="editContextSize" (ngModelChange)="onContextSizeChange()">
-              <mat-hint>Max tokens per embedding. nomic=4096, multilingual-e5=512</mat-hint>
+              <mat-hint>{{ 'UNIFIED_SETTINGS.CONTEXT_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Batch Size (tokens)</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.BATCH_SIZE' | translate }}</mat-label>
               <input matInput type="number" [(ngModel)]="editBatchSize">
-              <mat-hint>Must equal ContextSize for embedding models</mat-hint>
+              <mat-hint>{{ 'UNIFIED_SETTINGS.BATCH_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Max Chunk Chars</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.MAX_CHUNK' | translate }}</mat-label>
               <input matInput type="number" [(ngModel)]="editMaxChunkChars">
-              <mat-hint>Max characters per document chunk. nomic=2000, multilingual-e5=1200</mat-hint>
+              <mat-hint>{{ 'UNIFIED_SETTINGS.CHUNK_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Max Embedding Chars</mat-label>
+              <mat-label>{{ 'UNIFIED_SETTINGS.MAX_EMBEDDING' | translate }}</mat-label>
               <input matInput type="number" [(ngModel)]="editMaxEmbeddingChars">
-              <mat-hint>Max chars sent to model (~ContextSize x 3). Auto-calculated.</mat-hint>
+              <mat-hint>{{ 'UNIFIED_SETTINGS.EMBEDDING_CHARS_HINT' | translate }}</mat-hint>
             </mat-form-field>
           </div>
         </mat-card-content>
@@ -400,20 +418,17 @@
                 (click)="saveEmbeddingConfig()"
                 [disabled]="embeddingSaving">
           <mat-icon>save</mat-icon>
-          {{ embeddingSaving ? 'Saving...' : 'Apply Configuration' }}
+          {{ embeddingSaving ? ('UNIFIED_SETTINGS.SAVING' | translate) : ('UNIFIED_SETTINGS.APPLY_CONFIG' | translate) }}
         </button>
         <button mat-stroked-button (click)="resetEmbeddingDefaults()">
-          <mat-icon>restore</mat-icon> Reset to Defaults
+          <mat-icon>restore</mat-icon> {{ 'UNIFIED_SETTINGS.RESET_DEFAULTS' | translate }}
         </button>
       </div>
 
       <mat-card class="info-card warning" style="margin-top: 16px;">
         <mat-card-content>
           <mat-icon>warning</mat-icon>
-          <p>
-            Changing the embedding model or chunk size requires a <strong>full re-index</strong> of all projects.
-            Existing embeddings will become incompatible with the new configuration.
-          </p>
+          <p [innerHTML]="'UNIFIED_SETTINGS.REINDEX_WARNING' | translate"></p>
         </mat-card-content>
       </mat-card>
     </div>
@@ -422,5 +437,5 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">Close</button>
+  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
 </mat-dialog-actions>

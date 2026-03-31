@@ -34,6 +34,7 @@ import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
 import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
+import { TranslateService } from '@ngx-translate/core';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -173,7 +174,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private appStoreService: AppStoreService,
     private bulkExportProgressService: BulkExportProgressService,
     private fileEventsService: FileEventsService,
-    private http: HttpClient
+    private http: HttpClient,
+    private translate: TranslateService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -470,7 +472,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   public async getNode(node: MdFile) {
     if (this.isFileWaiting(node)) {
       // Feedback per file in indicizzazione
-      this.snackBar.open('File in indicizzazione', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.FILE_INDEXING'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -537,7 +539,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.changeDetectorRef.markForCheck();
       } catch (error) {
         console.error('PromptLab navigation failed:', error);
-        this.snackBar.open('Errore di navigazione PromptLab', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.NAV_ERROR_PROMPTLAB'), 'OK', { duration: 3000 });
       }
       return;
     }
@@ -556,7 +558,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch (error) {
       // ✅ Se navigazione fallisce, nessun state viene cambiato
       console.error('Navigation failed:', error);
-      this.snackBar.open('Errore di navigazione', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.NAV_ERROR'), 'OK', { duration: 3000 });
     }
   }
 
@@ -655,7 +657,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const fileDirPath = this.draggedNode.fullPath.substring(0, this.draggedNode.fullPath.lastIndexOf('\\'));
     console.log('[DnD] performDrop paths', { fileDirPath, targetPath, draggedFullPath: this.draggedNode.fullPath });
     if (fileDirPath === targetPath) {
-      this.snackBar.open('File is already in this folder', '', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', { duration: 2000 });
       this.draggedNode = null;
       this.dragOverNode = null;
       this.dragOverSegment = null;
@@ -678,7 +680,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdFileService.moveMdFile(draggedFile, targetPath).subscribe({
       next: () => {
         console.log('[DnD] moveMdFile success');
-        this.snackBar.open(`Moved "${draggedFile.name}" to "${targetName}"`, 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.MOVED_FILE', { fileName: draggedFile.name, targetName: targetName }), 'OK', { duration: 3000 });
 
         // Save expansion state BEFORE any _mdFiles.next() calls
         const expandedPaths = this.captureExpansionState();
@@ -726,7 +728,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => {
         console.error('[DnD] moveMdFile error:', err);
         this.dndMovingPaths = null;
-        this.snackBar.open('Error moving file: ' + (err.error?.message || err.message), 'OK', { duration: 5000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.MOVE_ERROR', { error: err.error?.message || err.message }), 'OK', { duration: 5000 });
       }
     });
   }
@@ -746,7 +748,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   setMdAsLandingPage(node: MdFile) {
     this.mdFileService.SetLandingPage(node).subscribe(_ => {
-      this.snackBar.open(node.name, "is project landing page", { duration: 5000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.IS_LANDING_PAGE', { name: node.name }), 'OK', { duration: 5000 });
       
       // Espandi manualmente l'albero fino al file
       setTimeout(() => {
@@ -803,11 +805,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdFileService.openFolderOnFileExplorer(node).subscribe(
       result => {
         console.log('[MdTreeComponent] openFolderOnFileExplorer success:', result);
-        this.snackBar.open("file explorer open", "", { duration: 500 });
+        this.snackBar.open(this.translate.instant('MD_TREE.EXPLORER_OPENED'), '', { duration: 500 });
       },
       error => {
         console.error('[MdTreeComponent] openFolderOnFileExplorer error:', error);
-        this.snackBar.open("Error opening file explorer: " + error.message, "", { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.EXPLORER_ERROR', { error: error.message }), '', { duration: 3000 });
       }
     );
   }
@@ -847,16 +849,16 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tocService.refreshToc(tocPath).subscribe({
       next: (result) => {
         if (result.success) {
-          this.snackBar.open('TOC aggiornato con successo', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.TOC_UPDATED'), 'OK', { duration: 3000 });
           // Navigate to the updated TOC
           this.navigateToTocFile(node);
         } else {
-          this.snackBar.open('Aggiornamento TOC fallito', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.TOC_UPDATE_FAILED'), 'OK', { duration: 3000 });
         }
       },
       error: (err) => {
         console.error('Error refreshing TOC:', err);
-        this.snackBar.open('Errore durante aggiornamento TOC', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.TOC_UPDATE_ERROR'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -873,16 +875,16 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tocService.generateQuickToc(directoryPath).subscribe({
       next: (result) => {
         if (result.success) {
-          this.snackBar.open('TOC rapida generata', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.QUICK_TOC_GENERATED'), 'OK', { duration: 3000 });
           // Navigate to the TOC file
           this.navigateToTocFile(node);
         } else {
-          this.snackBar.open('Generazione TOC rapida fallita', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.QUICK_TOC_FAILED'), 'OK', { duration: 3000 });
         }
       },
       error: (err) => {
         console.error('Error generating quick TOC:', err);
-        this.snackBar.open('Errore durante generazione TOC rapida', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.QUICK_TOC_ERROR'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -913,13 +915,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.tocProgressService.hideProgress();
         
         if (result.success) {
-          this.snackBar.open('TOC rigenerato con successo', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.TOC_REGENERATED'), 'OK', { duration: 3000 });
           setTimeout(() => {
             this.navigateToTocFile(node);
           }, 500);
         } else {
           this.snackBar.open(
-            result.message || 'Rigenerazione TOC fallita', 
+            result.message || this.translate.instant('MD_TREE.TOC_UPDATE_FAILED'),
             'OK', 
             { duration: 5000 }
           );
@@ -931,7 +933,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         // SEMPRE chiudi il progress dialog
         this.tocProgressService.hideProgress();
         
-        let errorMessage = 'Errore durante rigenerazione TOC';
+        let errorMessage = this.translate.instant('MD_TREE.TOC_UPDATE_ERROR');
         if (err.error?.error) {
           errorMessage += ': ' + err.error.error;
         } else if (err.error?.message) {
@@ -972,13 +974,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         console.log('[MdTreeComponent] Bulk export started:', result);
         if (result.total === 0) {
           this.bulkExportProgressService.hideProgress();
-          this.snackBar.open('Nessun file markdown trovato nella cartella', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.NO_MD_FILES'), 'OK', { duration: 3000 });
         }
       },
       error: (err) => {
         console.error('[MdTreeComponent] Error starting bulk export:', err);
         this.bulkExportProgressService.hideProgress();
-        this.snackBar.open('Errore durante l\'avvio dell\'export', 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.EXPORT_START_ERROR'), 'OK', { duration: 3000 });
       }
     });
   }
@@ -1002,7 +1004,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.tocProgressService.hideProgress();
         
         if (result.success) {
-          this.snackBar.open('TOC generato con successo', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.TOC_GENERATED'), 'OK', { duration: 3000 });
           
           if (navigateAfter) {
             // Naviga al file TOC generato
@@ -1012,7 +1014,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         } else {
           this.snackBar.open(
-            result.message || 'TOC generato senza AI (modello non disponibile)', 
+            result.message || this.translate.instant('MD_TREE.TOC_GENERATED'),
             'OK', 
             { duration: 5000 }
           );
@@ -1029,7 +1031,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.tocProgressService.hideProgress();
         
         // Messaggio di errore dettagliato
-        let errorMessage = 'Errore durante generazione TOC';
+        let errorMessage = this.translate.instant('MD_TREE.TOC_UPDATE_ERROR');
         if (err.error?.error) {
           errorMessage += ': ' + err.error.error;
         } else if (err.error?.message) {
@@ -1080,7 +1082,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       console.log('[MdTreeComponent] Navigation to TOC directory completed');
     } catch (error) {
       console.error('[MdTreeComponent] Error navigating to TOC directory:', error);
-      this.snackBar.open('Errore apertura TOC directory', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.TOC_DIR_ERROR'), 'OK', { duration: 3000 });
     }
   }
 
@@ -1104,7 +1106,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   copyMdExplorerLink(node: MdFile) {
     const currentProject = this.projectsService.currentProjects$.value;
     if (!currentProject) {
-      this.snackBar.open('No project currently open', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.NO_PROJECT_OPEN'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -1122,7 +1124,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const mdExplorerUrl = `mdexplorer://opendocument/${encodeURIComponent(currentProject.name)}/${encodedPath}`;
 
     this.clipboard.copy(mdExplorerUrl);
-    this.snackBar.open('MdExplorer link copied to clipboard', 'OK', { duration: 2000 });
+    this.snackBar.open(this.translate.instant('MD_TREE.MDE_LINK_COPIED'), 'OK', { duration: 2000 });
   }
 
   /**
@@ -1131,26 +1133,26 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   shareViaP2P(node: MdFile): void {
     if (!this.isP2PAvailable) {
-      this.snackBar.open('P2P service not available', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.P2P_NOT_AVAILABLE'), 'OK', { duration: 3000 });
       return;
     }
 
     const filePath = node.fullPath;
-    this.snackBar.open('Creating P2P share...', '', { duration: 0 });
+    this.snackBar.open(this.translate.instant('MD_TREE.CREATING_P2P_SHARE'), '', { duration: 0 });
 
     this.p2pService.shareFile(filePath, node.name).subscribe({
       next: (result) => {
         if (result.success && result.magnetUri) {
           // Copy magnet link to clipboard
           this.clipboard.copy(result.magnetUri);
-          this.snackBar.open('Magnet link copied to clipboard! File is now being shared.', 'OK', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.MAGNET_COPIED_SHARING'), 'OK', { duration: 5000 });
         } else {
-          this.snackBar.open('Error sharing file: ' + (result.error || 'Unknown error'), 'OK', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.SHARE_ERROR', { error: result.error || 'Unknown error' }), 'OK', { duration: 5000 });
         }
       },
       error: (err) => {
         console.error('[MdTree] P2P share error:', err);
-        this.snackBar.open('Error sharing file: ' + err.message, 'OK', { duration: 5000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.SHARE_ERROR', { error: err.message }), 'OK', { duration: 5000 });
       }
     });
   }
@@ -1163,7 +1165,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   addFileToShareViaP2P(node: MdFile): void {
     if (!this.isP2PAvailable) {
-      this.snackBar.open('P2P service not available', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.P2P_NOT_AVAILABLE'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -1187,7 +1189,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         const sourcePath = result.data;
 
         // Show progress snackbar
-        const snackbarRef = this.snackBar.open('Copying and sharing file...', '', { duration: 0 });
+        const snackbarRef = this.snackBar.open(this.translate.instant('MD_TREE.COPYING_SHARING'), '', { duration: 0 });
 
         this.p2pService.copyAndShareFile(sourcePath, documentPath).subscribe({
           next: (shareResult) => {
@@ -1203,7 +1205,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
             successSnackbarRef.onAction().subscribe(() => {
               if (shareResult.magnetUri) {
                 this.clipboard.copy(shareResult.magnetUri);
-                this.snackBar.open('Magnet link copied to clipboard', 'OK', { duration: 2000 });
+                this.snackBar.open(this.translate.instant('MD_TREE.MAGNET_COPIED'), 'OK', { duration: 2000 });
               }
             });
 
@@ -1215,7 +1217,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
             snackbarRef.dismiss();
             console.error('[MdTree] P2P copy-and-share error:', err);
             const errorMessage = err.error?.error || err.message || 'Unknown error';
-            this.snackBar.open('Error: ' + errorMessage, 'OK', { duration: 5000 });
+            this.snackBar.open(this.translate.instant('MD_TREE.SHARE_ERROR', { error: errorMessage }), 'OK', { duration: 5000 });
           }
         });
       }
@@ -1246,7 +1248,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => {
         console.error('[MdTree] RAG index file error:', err);
         const errMsg = err.error?.error || err.message;
-        this.snackBar.open('Error: ' + errMsg, 'OK', { duration: 5000 });
+        this.snackBar.open(this.translate.instant('COMMON.ERROR') + ': ' + errMsg, 'OK', { duration: 5000 });
         this.mdServerMessages.ragIndexingProgress$.next({
           status: 'error', processed: 0, total: 1, message: 'Error: ' + errMsg
         });
@@ -1258,19 +1260,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const project = this.projectsService.currentProjects$.value;
     if (!project) return;
 
-    this.snackBar.open('Starting directory RAG indexing...', '', { duration: 3000 });
+    this.snackBar.open(this.translate.instant('MD_TREE.DIR_RAG_STARTING'), '', { duration: 3000 });
     this.projectSettingsService.indexRagDirectory(node.fullPath, project.path).subscribe({
       next: (result) => {
         if (result.started) {
-          this.snackBar.open('Directory indexing started. Progress via notifications.', 'OK', { duration: 3000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.DIR_RAG_STARTED'), 'OK', { duration: 3000 });
         }
       },
       error: (err) => {
         console.error('[MdTree] RAG index directory error:', err);
         if (err.status === 409) {
-          this.snackBar.open('Indexing already in progress. Please wait.', 'OK', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('MD_TREE.RAG_ALREADY_IN_PROGRESS'), 'OK', { duration: 5000 });
         } else {
-          this.snackBar.open('Error: ' + (err.error?.error || err.message), 'OK', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('COMMON.ERROR') + ': ' + (err.error?.error || err.message), 'OK', { duration: 5000 });
         }
       }
     });
@@ -1333,7 +1335,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.mdServerMessages.addTocGenerationCompleteListener((data, objectThis) => {
       objectThis.tocProgressService.hideProgress();
-      objectThis.snackBar.open('TOC generato con successo!', 'OK', { duration: 3000 });
+      objectThis.snackBar.open(objectThis.translate.instant('MD_TREE.TOC_GENERATED_SUCCESS'), 'OK', { duration: 3000 });
     }, this);
 
     // Registra i listener per Bulk Export progress
@@ -1504,8 +1506,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Se non c'è una snackbar attiva, creane una nuova
     if (!this.currentSnackbarRef) {
       this.currentSnackbarRef = this.snackBar.open(
-        `✅ Directory indicizzate: ${this.indexedFoldersCount} | Ultima: ${folderName}`,
-        'Chiudi',
+        this.translate.instant('MD_TREE.DIR_INDEXED', { count: this.indexedFoldersCount, folder: folderName }),
+        this.translate.instant('COMMON.CLOSE'),
         {
           duration: 0, // Non scade automaticamente
           horizontalPosition: 'right',
@@ -1529,7 +1531,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.currentSnackbarRef && this.currentSnackbarRef.instance) {
       try {
         // Prova ad aggiornare il messaggio della snackbar esistente
-        const newMessage = `✅ Directory indicizzate: ${this.indexedFoldersCount} | Ultima: ${folderName}`;
+        const newMessage = this.translate.instant('MD_TREE.DIR_INDEXED', { count: this.indexedFoldersCount, folder: folderName });
         
         // Accesso diretto al componente della snackbar
         if (this.currentSnackbarRef.instance.snackBarRef) {
@@ -1749,8 +1751,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // STEP 11: Mostra notifica di successo (dopo la navigazione)
     this.snackBar.open(
-      `Nuovo file creato: ${newMdFile.name}`,
-      'Chiudi',
+      this.translate.instant('MD_TREE.NEW_FILE_CREATED', { name: newMdFile.name }),
+      this.translate.instant('COMMON.CLOSE'),
       {
         duration: 3000,
         horizontalPosition: 'right',
@@ -1988,7 +1990,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private revealAndScrollToNode(targetFile: MdFile): void {
     if (!this.treeControl.dataNodes || this.treeControl.dataNodes.length === 0) {
-      this.snackBar.open('Tree not loaded yet', '', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.TREE_NOT_LOADED'), '', { duration: 2000 });
       return;
     }
 
@@ -2012,7 +2014,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         );
       }
       if (!targetNode) {
-        this.snackBar.open('File not found in tree', '', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.FILE_NOT_FOUND'), '', { duration: 3000 });
         return;
       }
     }
@@ -2174,7 +2176,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const projectRoot = this.getProjectRoot();
     if (!projectRoot) {
       console.error('Could not determine project root');
-      this.snackBar.open('Error: Could not determine project root', 'OK', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('MD_TREE.CANNOT_DETERMINE_ROOT'), 'OK', { duration: 3000 });
       return;
     }
 
@@ -2184,12 +2186,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         console.log('setDevelopmentTags success', response);
         node.developmentTags = newTags;
         const action = newTags.includes(tag) ? 'added' : 'removed';
-        this.snackBar.open(`Tag '${tag}' ${action}`, 'OK', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('MD_TREE.TAG_TOGGLED', { tag, action }), 'OK', { duration: 2000 });
         this.changeDetectorRef.markForCheck();
       },
       error: (error) => {
         console.error('setDevelopmentTags error', error);
-        this.snackBar.open(`Error: ${error.message}`, 'OK', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('COMMON.ERROR') + ': ' + error.message, 'OK', { duration: 3000 });
       }
     });
   }

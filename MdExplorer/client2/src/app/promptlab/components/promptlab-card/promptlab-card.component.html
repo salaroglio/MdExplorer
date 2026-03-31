@@ -10,10 +10,10 @@
       <span class="title"
             contenteditable="true"
             (blur)="onTitleEdit($event)"
-            [attr.data-placeholder]="'Titolo card...'"
+            [attr.data-placeholder]="'PROMPTLAB_CARD.TITLE_PLACEHOLDER' | translate"
       >{{ card.generatedTitle }}</span>
       <span class="spacer"></span>
-      <button class="delete-btn" (click)="deleteCard()" title="Elimina card">&#128465;</button>
+      <button class="delete-btn" (click)="deleteCard()" [title]="'PROMPTLAB_CARD.DELETE_CARD' | translate">&#128465;</button>
     </div>
 
     <!-- Parameters row -->
@@ -47,14 +47,14 @@
       <button class="play-btn"
               (click)="onPlay()"
               [disabled]="isStreaming || isExecuting">
-        {{ isExecuting ? '...' : '&#9654; Play' }}
+        {{ isExecuting ? '...' : '&#9654; ' + ('PROMPTLAB_CARD.PLAY' | translate) }}
       </button>
       <button class="lastrun-btn"
               [class.active]="showLastRun"
               [class.has-run]="!!card.lastRun"
               [disabled]="!card.lastRun"
               (click)="toggleLastRun()">
-        &#128065; Ultimo run {{ showLastRun ? '&#9650;' : '&#9660;' }}
+        &#128065; {{ 'PROMPTLAB_CARD.LAST_RUN' | translate }} {{ showLastRun ? '&#9650;' : '&#9660;' }}
       </button>
       <span class="action-separator"></span>
       <button class="diagram-btn"
@@ -62,16 +62,16 @@
               (click)="toggleDiagram('sequence')"
               [disabled]="isDiagramLoading && activeDiagram !== 'sequence'">
         <span class="diagram-spinner" *ngIf="isDiagramLoading && activeDiagram === 'sequence'"></span>
-        <ng-container *ngIf="isDiagramLoading && activeDiagram === 'sequence'">Generazione...</ng-container>
-        <ng-container *ngIf="!(isDiagramLoading && activeDiagram === 'sequence')">Sequence</ng-container>
+        <ng-container *ngIf="isDiagramLoading && activeDiagram === 'sequence'">{{ 'PROMPTLAB_CARD.GENERATING' | translate }}</ng-container>
+        <ng-container *ngIf="!(isDiagramLoading && activeDiagram === 'sequence')">{{ 'PROMPTLAB_CARD.SEQUENCE' | translate }}</ng-container>
       </button>
       <button class="diagram-btn"
               [class.active]="activeDiagram === 'workflow'"
               (click)="toggleDiagram('workflow')"
               [disabled]="isDiagramLoading && activeDiagram !== 'workflow'">
         <span class="diagram-spinner" *ngIf="isDiagramLoading && activeDiagram === 'workflow'"></span>
-        <ng-container *ngIf="isDiagramLoading && activeDiagram === 'workflow'">Generazione...</ng-container>
-        <ng-container *ngIf="!(isDiagramLoading && activeDiagram === 'workflow')">Workflow</ng-container>
+        <ng-container *ngIf="isDiagramLoading && activeDiagram === 'workflow'">{{ 'PROMPTLAB_CARD.GENERATING' | translate }}</ng-container>
+        <ng-container *ngIf="!(isDiagramLoading && activeDiagram === 'workflow')">{{ 'PROMPTLAB_CARD.WORKFLOW' | translate }}</ng-container>
       </button>
     </div>
   </div>
@@ -79,17 +79,17 @@
   <!-- ═══ ULTIMO RUN PANEL (Task 8.2) ═══ -->
   <div class="ultimo-run" *ngIf="showLastRun && card.lastRun">
     <div class="run-section">
-      <div class="run-section-title">Metadata esecuzione</div>
+      <div class="run-section-title">{{ 'PROMPTLAB_CARD.EXEC_METADATA' | translate }}</div>
       <div class="run-meta">
-        <span class="run-meta-item"><strong>Data:</strong> {{ formatRunDate(card.lastRun.executedAt) }}</span>
-        <span class="run-meta-item"><strong>Provider:</strong> {{ card.lastRun.provider }}</span>
-        <span class="run-meta-item"><strong>Modello:</strong> {{ card.lastRun.model }}</span>
-        <span class="run-meta-item"><strong>Durata:</strong> {{ formatDuration(card.lastRun.duration) }}</span>
+        <span class="run-meta-item"><strong>{{ 'PROMPTLAB_CARD.DATE' | translate }}</strong> {{ formatRunDate(card.lastRun.executedAt) }}</span>
+        <span class="run-meta-item"><strong>{{ 'PROMPTLAB_CARD.PROVIDER' | translate }}</strong> {{ card.lastRun.provider }}</span>
+        <span class="run-meta-item"><strong>{{ 'PROMPTLAB_CARD.MODEL' | translate }}</strong> {{ card.lastRun.model }}</span>
+        <span class="run-meta-item"><strong>{{ 'PROMPTLAB_CARD.DURATION' | translate }}</strong> {{ formatDuration(card.lastRun.duration) }}</span>
       </div>
     </div>
 
     <div class="run-section" *ngIf="getRunParamKeys().length > 0">
-      <div class="run-section-title">Parametri risolti</div>
+      <div class="run-section-title">{{ 'PROMPTLAB_CARD.RESOLVED_PARAMS' | translate }}</div>
       <div class="run-params">
         <div class="run-param" *ngFor="let key of getRunParamKeys()">
           <span class="run-param-name">{{ key }}</span>
@@ -100,12 +100,12 @@
     </div>
 
     <div class="run-section">
-      <div class="run-section-title">Prompt inviato al LLM</div>
+      <div class="run-section-title">{{ 'PROMPTLAB_CARD.PROMPT_SENT' | translate }}</div>
       <div class="run-prompt">{{ card.lastRun.promptSent }}</div>
     </div>
 
     <div class="run-section">
-      <div class="run-section-title">Output prodotto</div>
+      <div class="run-section-title">{{ 'PROMPTLAB_CARD.OUTPUT_PRODUCED' | translate }}</div>
       <div class="run-output">{{ card.lastRun.output }}</div>
     </div>
   </div>
@@ -116,14 +116,14 @@
     <!-- Left column: Chat con LLM -->
     <div class="chat-column" [ngStyle]="getChatColumnStyle()">
       <div class="column-label">
-        <span class="label-text">Chat con LLM</span>
-        <button class="reset-chat-btn" (click)="resetChat()" title="Azzera la chat" [disabled]="isStreaming">&#8635; Reset</button>
+        <span class="label-text">{{ 'PROMPTLAB_CARD.CHAT_WITH_LLM' | translate }}</span>
+        <button class="reset-chat-btn" (click)="resetChat()" [title]="'PROMPTLAB_CARD.CLEAR_CHAT' | translate" [disabled]="isStreaming">&#8635; Reset</button>
       </div>
 
       <div class="chat-messages" #messagesContainer>
         <div class="msg" *ngFor="let message of card.conversation">
           <div class="author" [ngClass]="message.role">
-            {{ message.role === 'user' ? 'Utente' : 'Assistente' }}
+            {{ message.role === 'user' ? ('PROMPTLAB_CARD.USER' | translate) : ('PROMPTLAB_CARD.ASSISTANT' | translate) }}
             <span class="time">{{ formatTime(message.timestamp) }}</span>
           </div>
           <div class="text">{{ message.content }}</div>
@@ -131,27 +131,27 @@
 
         <!-- Streaming message -->
         <div class="msg" *ngIf="isStreaming">
-          <div class="author assistant">Assistente</div>
+          <div class="author assistant">{{ 'PROMPTLAB_CARD.ASSISTANT' | translate }}</div>
           <div class="text streaming">{{ streamingContent }}<span class="streaming-cursor"></span></div>
         </div>
 
         <div *ngIf="card.conversation.length === 0 && !isStreaming" class="chat-empty">
-          Nessun messaggio. Scrivi qualcosa per iniziare la conversazione.
+          {{ 'PROMPTLAB_CARD.NO_MESSAGES' | translate }}
         </div>
       </div>
 
       <div class="distillation-indicator" *ngIf="isDistilling">
-        <span class="distill-spinner"></span> Distillazione in corso...
+        <span class="distill-spinner"></span> {{ 'PROMPTLAB_CARD.DISTILLING' | translate }}
       </div>
 
       <div class="chat-input">
-        <textarea placeholder="Scrivi un messaggio..."
+        <textarea [placeholder]="'PROMPTLAB_CARD.CHAT_PLACEHOLDER' | translate"
                   [(ngModel)]="chatInputText"
                   (keydown)="onChatInputKeydown($event)"
                   [disabled]="isStreaming"
                   rows="4"></textarea>
         <button (click)="sendMessage()" [disabled]="isStreaming">
-          {{ isStreaming ? '...' : 'Invia' }}
+          {{ isStreaming ? '...' : ('PROMPTLAB_CARD.SEND' | translate) }}
         </button>
       </div>
     </div>
@@ -165,10 +165,10 @@
     <div class="prompt-column">
       <div class="column-label">
         <button class="collapse-chat-btn" (click)="toggleChat()">
-          <span *ngIf="chatCollapsed">&#9654; Mostra chat</span>
-          <span *ngIf="!chatCollapsed">&#9664; Nascondi chat</span>
+          <span *ngIf="chatCollapsed">&#9654; {{ 'PROMPTLAB_CARD.SHOW_CHAT' | translate }}</span>
+          <span *ngIf="!chatCollapsed">&#9664; {{ 'PROMPTLAB_CARD.HIDE_CHAT' | translate }}</span>
         </button>
-        <span class="label-text">Prompt Distillato</span>
+        <span class="label-text">{{ 'PROMPTLAB_CARD.DISTILLED_PROMPT' | translate }}</span>
       </div>
 
       <div class="prompt-content">
@@ -189,7 +189,7 @@
       </div>
 
       <div class="prompt-note">
-        &#8505; {{ isEditingPrompt ? 'Modifica in corso — clicca fuori per salvare.' : 'Clicca sul testo per modificare il prompt.' }}
+        &#8505; {{ isEditingPrompt ? ('PROMPTLAB_CARD.EDIT_NOTE' | translate) : ('PROMPTLAB_CARD.VIEW_NOTE' | translate) }}
       </div>
     </div>
 
@@ -198,22 +198,22 @@
   <!-- ═══ DIAGRAM PANEL (Task 9.1) ═══ -->
   <div class="diagram-panel" *ngIf="activeDiagram">
     <div class="diagram-header">
-      <span class="diagram-title">{{ activeDiagram === 'sequence' ? 'Sequence Diagram' : 'Workflow Diagram' }}</span>
-      <button class="diagram-copy-btn" (click)="copyDiagram()" title="Copia codice PlantUML" [disabled]="!diagramPlantUml">Copia PlantUML</button>
+      <span class="diagram-title">{{ activeDiagram === 'sequence' ? ('PROMPTLAB_CARD.SEQUENCE_DIAGRAM' | translate) : ('PROMPTLAB_CARD.WORKFLOW_DIAGRAM' | translate) }}</span>
+      <button class="diagram-copy-btn" (click)="copyDiagram()" [title]="'PROMPTLAB_CARD.COPY_PLANTUML' | translate" [disabled]="!diagramPlantUml">{{ 'PROMPTLAB_CARD.COPY_PLANTUML' | translate }}</button>
     </div>
     <div class="diagram-body">
       <div *ngIf="isDiagramLoading" class="diagram-loading">
-        {{ diagramStatusMessage || 'Generazione diagramma...' }}
+        {{ diagramStatusMessage || ('PROMPTLAB_CARD.GENERATING_DIAGRAM' | translate) }}
       </div>
       <div *ngIf="!isDiagramLoading && diagramSvg" class="diagram-svg" [innerHTML]="diagramSvg"></div>
       <div *ngIf="!isDiagramLoading && !diagramSvg && diagramPlantUml" class="diagram-error-panel">
         <div class="diagram-error-msg">
-          {{ diagramStatusMessage || 'Errore di sintassi nel PlantUML generato.' }}
-          <button class="diagram-regen-btn" (click)="regenerateDiagram()">Rigenera</button>
+          {{ diagramStatusMessage || ('PROMPTLAB_CARD.SYNTAX_ERROR' | translate) }}
+          <button class="diagram-regen-btn" (click)="regenerateDiagram()">{{ 'PROMPTLAB_CARD.REGENERATE' | translate }}</button>
         </div>
         <pre class="diagram-code">{{ diagramPlantUml }}</pre>
       </div>
-      <div *ngIf="!isDiagramLoading && !diagramSvg && !diagramPlantUml" class="diagram-empty">Nessun diagramma generato.</div>
+      <div *ngIf="!isDiagramLoading && !diagramSvg && !diagramPlantUml" class="diagram-empty">{{ 'PROMPTLAB_CARD.NO_DIAGRAM' | translate }}</div>
     </div>
   </div>
 

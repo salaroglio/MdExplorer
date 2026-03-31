@@ -4,6 +4,7 @@ import { Inject } from '@angular/core';
 import { MdRefactoringService } from '../../../md-explorer/services/md-refactoring.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { MdFile } from '../../../md-explorer/models/md-file';
+import { TranslateService } from '@ngx-translate/core';
 
 
 @Component({
@@ -25,6 +26,7 @@ export class RulesComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: any,
     private refactoringService: MdRefactoringService,
     private mdFileService: MdFileService,
+    private translate: TranslateService,
   ) { }
 
   ngOnInit(): void {    
@@ -72,13 +74,13 @@ export class RulesComponent implements OnInit {
           this.isProcessing = false;
           
           // Mostra messaggio di errore user-friendly
-          let errorMessage = 'Failed to rename file';
+          let errorMessage = this.translate.instant('SIGNALR.RENAME_FAILED');
           if (error.status === 500) {
-            errorMessage = 'Server error: unable to rename file with special characters';
+            errorMessage = this.translate.instant('SIGNALR.RENAME_SPECIAL_CHARS');
           } else if (error.status === 400) {
-            errorMessage = 'Invalid filename or path';
+            errorMessage = this.translate.instant('SIGNALR.RENAME_INVALID');
           } else if (error.status === 0) {
-            errorMessage = 'Network error: please check your connection';
+            errorMessage = this.translate.instant('SIGNALR.RENAME_NETWORK_ERROR');
           }
           
           // Invece di chiudere il dialog, mostra l'errore

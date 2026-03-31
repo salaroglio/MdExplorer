@@ -1,21 +1,21 @@
 <mat-toolbar color="primary">
   <mat-toolbar-row>
-    <button mat-icon-button matTooltip="hide/show menu" (click)="toggleSidenav()" class="toolbar-btn btn-menu">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.HIDE_SHOW_MENU' | translate" (click)="toggleSidenav()" class="toolbar-btn btn-menu">
       <mat-icon>vertical_split</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="edit document" (click)="OpenEditor()" class="toolbar-btn btn-edit">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.EDIT_DOCUMENT' | translate" (click)="OpenEditor()" class="toolbar-btn btn-edit">
       <mat-icon>edit</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="export in word" (click)="Export()" class="toolbar-btn btn-export">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_WORD' | translate" (click)="Export()" class="toolbar-btn btn-export">
       <mat-icon>directions</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="Bookmarks" (click)="bookmarkToggle()" class="toolbar-btn btn-bookmark">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.BOOKMARKS' | translate" (click)="bookmarkToggle()" class="toolbar-btn btn-bookmark">
       <mat-icon>bookmark</mat-icon>
     </button>
-    <button mat-icon-button matTooltip="Open React Editor" (click)="openReactEditor()" class="toolbar-btn btn-editor">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.OPEN_REACT_EDITOR' | translate" (click)="openReactEditor()" class="toolbar-btn btn-editor">
       <mat-icon>article</mat-icon>
     </button>
-    <button *ngIf="isTocDirectoryFile()" mat-icon-button matTooltip="Aggiorna TOC con AI" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
+    <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
       <mat-icon>refresh</mat-icon>
     </button>
     <span>{{currentMdFile?.name}}</span>
@@ -29,7 +29,7 @@
     <!-- Git Account Missing: show button to configure credentials -->
     <button *ngIf="isGitRepository && authenticationMissing && !isCheckingConnection"
             mat-icon-button
-            matTooltip="Git account not configured - click to set up credentials"
+            [matTooltip]="'TOOLBAR.GIT_NOT_CONFIGURED' | translate"
             (click)="openManageRemote()">
       <mat-icon style="color: orange">person_add</mat-icon>
     </button>
@@ -37,13 +37,13 @@
     <button *ngIf="isGitRepository && authenticationFailed && !authenticationMissing && !isCheckingConnection"
             mat-icon-button
             [matMenuTriggerFor]="authFailedMenu"
-            [matTooltip]="'Connection failed: ' + (authenticationFailureReason || 'click to fix')">
+            [matTooltip]="('TOOLBAR.AUTH_FAILED' | translate) + ': ' + (authenticationFailureReason || '')">
       <mat-icon class="warning-icon">warning</mat-icon>
     </button>
     <!-- Connection not active (generic case) -->
     <button *ngIf="isGitRepository && !connectionIsActive && !authenticationMissing && !authenticationFailed && !isCheckingConnection"
             mat-icon-button
-            matTooltip="Missing connection to remote"
+            [matTooltip]="'TOOLBAR.MISSING_REMOTE' | translate"
             (click)="checkConnection()">
       <mat-icon class="warning-icon">warning</mat-icon>
     </button>
@@ -64,14 +64,14 @@
           <button class="smallMessagesToCommit"
                   (click)="commit()"
                   (mouseenter)="showCommitMenu=true; loadChangedFiles()">
-            {{howManyFilesAreToCommit}} to commit
+            {{ 'TOOLBAR.FILES_TO_COMMIT' | translate:{ count: howManyFilesAreToCommit } }}
           </button>
           <div class="commit-menu"
                *ngIf="showCommitMenu"
                (mouseleave)="showCommitMenu=false">
-            <div class="commit-menu-header">File da committare</div>
+            <div class="commit-menu-header">{{ 'TOOLBAR.TO_COMMIT' | translate }}</div>
             <div *ngIf="isLoadingChangedFiles" class="commit-menu-loading">
-              Caricamento...
+              {{ 'COMMON.LOADING' | translate }}
             </div>
             <div *ngIf="!isLoadingChangedFiles && changedFiles.length > 0" class="commit-files-list">
               <div *ngFor="let file of changedFiles" class="commit-file-row">
@@ -85,14 +85,14 @@
                   <button mat-icon-button
                           class="rollback-btn"
                           (click)="discardFile(file); $event.stopPropagation()"
-                          [matTooltip]="file.isNew ? 'Rimuovi da staging' : 'Scarta modifiche'">
+                          [matTooltip]="file.isNew ? ('TOOLBAR.REMOVE_FROM_STAGING' | translate) : ('TOOLBAR.DISCARD_CHANGES' | translate)">
                     <mat-icon>{{file.isNew ? 'remove_circle_outline' : 'undo'}}</mat-icon>
                   </button>
                 </span>
               </div>
             </div>
             <div *ngIf="!isLoadingChangedFiles && changedFiles.length === 0" class="commit-menu-empty">
-              Nessun file modificato
+              {{ 'TOOLBAR.NO_MODIFIED_FILES' | translate }}
             </div>
           </div>
         </div>
@@ -102,7 +102,7 @@
           <button class="smallMessagesToPull" (click)="pull()"
                   (mouseover)="showMenu=true"
                   *ngIf="somethingIsToPull">
-            {{howManyFilesAreToPull}} to pull
+            {{ 'TOOLBAR.TO_PULL' | translate:{ count: howManyFilesAreToPull } }}
           </button>
           <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">
               <table>
@@ -110,7 +110,7 @@
               </table>
           </div>
         </div>
-        <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{howManyCommitAreToPush}} to push</button>
+        <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}</button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
@@ -133,7 +133,7 @@
     <div *ngIf="!hasRemoteConfigured" (click)="openSetupRemote()"
          class="container setup-remote"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Setup GitHub Remote</span><span class="flexExpand"></span>
+      <span>{{ 'TOOLBAR.SETUP_GITHUB_REMOTE' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right" color="warn">cloud_upload</mat-icon>
       </button>
@@ -142,14 +142,14 @@
     <div *ngIf="needsRemoteManagement && !isUsingNativeGit" (click)="openManageRemote()"
          class="container manage-remote"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Manage Remote</span><span class="flexExpand"></span>
+      <span>{{ 'TOOLBAR.MANAGE_REMOTE' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right">settings</mat-icon>
       </button>
     </div>
     <div (click)="openHistory()" class="container"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>History</span><span class="flexExpand"></span>
+      <span>{{ 'TOOLBAR.HISTORY' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right">history</mat-icon>
       </button>
@@ -157,7 +157,7 @@
     <div (click)="openBranchDialog()"
          class="container"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Branch</span><span class="flexExpand"></span>
+      <span>{{ 'TOOLBAR.BRANCH' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right">account_tree</mat-icon>
       </button>
@@ -171,7 +171,7 @@
     <div (click)="openGitInitWizard()"
          class="container"
          mat-menu-item (click)="$event.stopPropagation()">
-      <span>Inizializza Git</span><span class="flexExpand"></span>
+      <span>{{ 'TOOLBAR.INITIALIZE_GIT' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right" color="primary">add_circle</mat-icon>
       </button>
@@ -183,15 +183,15 @@
 <mat-menu #authFailedMenu="matMenu">
   <div class="auth-failed-header" style="padding: 8px 16px; color: #f57c00; font-size: 12px;">
     <mat-icon style="vertical-align: middle; font-size: 16px; margin-right: 4px;">warning</mat-icon>
-    {{ authenticationFailureReason || 'Authentication failed' }}
+    {{ authenticationFailureReason || ('TOOLBAR.AUTH_FAILED' | translate) }}
   </div>
   <mat-divider></mat-divider>
   <button mat-menu-item (click)="openSetupRemote()">
     <mat-icon color="primary">vpn_key</mat-icon>
-    <span>Reconfigure Credentials</span>
+    <span>{{ 'TOOLBAR.RECONFIGURE_CREDENTIALS' | translate }}</span>
   </button>
   <button mat-menu-item (click)="checkConnection()">
     <mat-icon>refresh</mat-icon>
-    <span>Retry Connection</span>
+    <span>{{ 'TOOLBAR.RETRY_CONNECTION' | translate }}</span>
   </button>
 </mat-menu>

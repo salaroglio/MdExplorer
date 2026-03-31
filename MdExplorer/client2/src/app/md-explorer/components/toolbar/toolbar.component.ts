@@ -32,6 +32,7 @@ import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
 import { GitChangedFile } from '../../../git/models/modern-git-models';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
+import { TranslateService } from '@ngx-translate/core';
 import _ from 'lodash';
 
 
@@ -94,7 +95,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private bookmarksService: BookmarksService,
     private navService: MdNavigationService,
     private tocService: TocGenerationService,
-    private tocProgressService: TocProgressService
+    private tocProgressService: TocProgressService,
+    private translate: TranslateService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -237,7 +239,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(_ => {
       if (_ && _.refactoringSourceActionId != undefined) {
         // User chose to apply suggestion
-        this._snackBar.open('File renamed successfully', '', {
+        this._snackBar.open(this.translate.instant('TOOLBAR.FILE_RENAMED'), '', {
           duration: 2500,
           horizontalPosition: 'right',
           verticalPosition: 'bottom',
@@ -250,7 +252,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         });
       } else if (_ === null) {
         // User chose to keep current filename
-        this._snackBar.open('Filename kept unchanged', '', {
+        this._snackBar.open(this.translate.instant('TOOLBAR.FILENAME_UNCHANGED'), '', {
           duration: 2000,
           horizontalPosition: 'right',
           verticalPosition: 'bottom',
@@ -424,7 +426,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   private showPdfIsready(data: any, objectThis: ToolbarComponent) {
-    let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds, "Open folder", { duration: 5000, verticalPosition: 'top' });
+    let snackRef = objectThis._snackBar.open("seconds: " + data.executionTimeInSeconds, objectThis.translate.instant('TOOLBAR.OPEN_FOLDER'), { duration: 5000, verticalPosition: 'top' });
     snackRef.onAction().subscribe(() => {
       const url = '../api/AppSettings/OpenChromePdf?path=' + data.path;
       return objectThis.http.get(url)
@@ -453,10 +455,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   Export() {
     if (!this.relativePath) {
-      this._snackBar.open("Please select a document first", 'OK', { duration: 3000, verticalPosition: 'top' });
+      this._snackBar.open(this.translate.instant('TOOLBAR.SELECT_DOC_FIRST'), 'OK', { duration: 3000, verticalPosition: 'top' });
       return;
     }
-    this._snackBar.open("Export request queued!", null, { duration: 2000, verticalPosition: 'top' });
+    this._snackBar.open(this.translate.instant('TOOLBAR.EXPORT_QUEUED'), null, { duration: 2000, verticalPosition: 'top' });
     this.sendExportRequest(this);
   }
 
@@ -498,8 +500,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.waitingDialogService.closeMessageBox();
         
         // Show error to user
-        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during pull';
-        this._snackBar.open(`Pull failed: ${errorMessage}`, 'OK', {
+        const errorMessage = error.error?.errorMessage || error.message || '';
+        this._snackBar.open(this.translate.instant('TOOLBAR.PULL_FAILED', { error: errorMessage }), 'OK', {
           duration: 5000,
           verticalPosition: 'top',
           panelClass: ['error-snackbar']
@@ -552,7 +554,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     
     if (!currentProject || !currentProject.path) {
       console.error('No current project path available');
-      this._snackBar.open('No project selected. Please select a project first.', 'OK', { 
+      this._snackBar.open(this.translate.instant('TOOLBAR.NO_PROJECT_SELECTED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top',
         panelClass: ['error-snackbar']
@@ -605,8 +607,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           this.waitingDialogService.closeMessageBox();
           
           // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit';
-          this._snackBar.open(`Commit failed: ${errorMessage}`, 'OK', {
+          const errorMessage = error.error?.errorMessage || error.message || '';
+          this._snackBar.open(this.translate.instant('TOOLBAR.COMMIT_FAILED', { error: errorMessage }), 'OK', {
             duration: 5000,
             verticalPosition: 'top',
             panelClass: ['error-snackbar']
@@ -643,8 +645,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.waitingDialogService.closeMessageBox();
         
         // Show error to user
-        const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during push';
-        this._snackBar.open(`Push failed: ${errorMessage}`, 'OK', {
+        const errorMessage = error.error?.errorMessage || error.message || '';
+        this._snackBar.open(this.translate.instant('TOOLBAR.PUSH_FAILED', { error: errorMessage }), 'OK', {
           duration: 5000,
           verticalPosition: 'top',
           panelClass: ['error-snackbar']
@@ -692,8 +694,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           this.waitingDialogService.closeMessageBox();
           
           // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || 'An error occurred during commit and push';
-          this._snackBar.open(`Commit and push failed: ${errorMessage}`, 'OK', {
+          const errorMessage = error.error?.errorMessage || error.message || '';
+          this._snackBar.open(this.translate.instant('TOOLBAR.COMMIT_PUSH_FAILED', { error: errorMessage }), 'OK', {
             duration: 5000,
             verticalPosition: 'top',
             panelClass: ['error-snackbar']
@@ -813,13 +815,13 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           // Credentials were successfully configured
           console.log('[Toolbar] Credentials configured successfully');
           this.checkConnection();
-          this._snackBar.open('Credenziali configurate con successo', 'OK', {
+          this._snackBar.open(this.translate.instant('TOOLBAR.CREDENTIALS_OK'), 'OK', {
             duration: 3000,
             verticalPosition: 'top'
           });
         } else {
           // User cancelled - show warning
-          this._snackBar.open('Credenziali Git non configurate. Alcune funzionalità potrebbero non funzionare.', 'OK', {
+          this._snackBar.open(this.translate.instant('TOOLBAR.CREDENTIALS_NOT_CONFIGURED'), 'OK', {
             duration: 5000,
             verticalPosition: 'top',
             panelClass: ['warning-snackbar']
@@ -858,7 +860,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   openGitInitWizard(): void {
     const projectPath = this.getProjectPath();
     if (!projectPath) {
-      this._snackBar.open('No project path available', 'OK', {
+      this._snackBar.open(this.translate.instant('TOOLBAR.NO_PROJECT_PATH'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -886,7 +888,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   bookmarkToggle(): void {
     if (!this.currentMdFile) {
-      this._snackBar.open('Please select a file first', 'OK', {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SELECT_FILE_FIRST'), 'OK', {
         duration: 2000,
         verticalPosition: 'top'
       });
@@ -895,7 +897,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     
     const currentProject = this.projectService.currentProjects$.value;
     if (!currentProject || !currentProject.id) {
-      this._snackBar.open('Please select a project first', 'OK', {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SELECT_PROJECT_FIRST'), 'OK', {
         duration: 2000,
         verticalPosition: 'top'
       });
@@ -967,7 +969,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
               if (response.success) {
                 this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
                 this.checkConnection();
-                this._snackBar.open(`File "${file.fileName}" eliminato`, 'OK', {
+                this._snackBar.open(this.translate.instant('TOOLBAR.FILE_DELETED', { name: file.fileName }), 'OK', {
                   duration: 3000,
                   horizontalPosition: 'right',
                   verticalPosition: 'bottom'
@@ -1014,7 +1016,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
               if (response.success) {
                 this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
                 this.checkConnection();
-                this._snackBar.open(`File "${file.fileName}" ripristinato`, 'OK', {
+                this._snackBar.open(this.translate.instant('TOOLBAR.FILE_RESTORED', { name: file.fileName }), 'OK', {
                   duration: 3000,
                   horizontalPosition: 'right',
                   verticalPosition: 'bottom'
@@ -1068,7 +1070,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       next: (result) => {
         // Progress dialog will be closed by SignalR event
         if (result.success) {
-          this._snackBar.open('TOC aggiornato con successo', 'OK', { 
+          this._snackBar.open(this.translate.instant('TOOLBAR.TOC_UPDATED'), 'OK', {
             duration: 3000,
             horizontalPosition: 'right',
             verticalPosition: 'bottom' 
@@ -1077,7 +1079,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           this.mdFileService.setSelectedMdFileFromSideNav(this.currentMdFile);
         } else {
           this.tocProgressService.hideProgress();
-          this._snackBar.open('Aggiornamento TOC fallito', 'OK', { 
+          this._snackBar.open(this.translate.instant('TOOLBAR.TOC_UPDATE_FAILED'), 'OK', {
             duration: 5000,
             horizontalPosition: 'right',
             verticalPosition: 'bottom'
@@ -1087,7 +1089,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error refreshing TOC:', err);
         this.tocProgressService.hideProgress();
-        this._snackBar.open('Errore durante aggiornamento TOC', 'OK', { 
+        this._snackBar.open(this.translate.instant('TOOLBAR.TOC_UPDATE_ERROR'), 'OK', {
           duration: 5000,
           horizontalPosition: 'right',
           verticalPosition: 'bottom'

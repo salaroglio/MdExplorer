@@ -5,6 +5,7 @@ import { MdFile } from '../../../models/md-file';
 import { MdFileService } from '../../../services/md-file.service';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-move-md-file',
@@ -19,7 +20,8 @@ export class MoveMdFileComponent implements OnInit {
     private dialog: MatDialog,
     private dialogRef: MatDialogRef<MoveMdFileComponent>,
     private mdFileService: MdFileService,
-    private mdServerMessages: MdServerMessagesService
+    private mdServerMessages: MdServerMessagesService,
+    private translate: TranslateService
   ) { }
   
   ngOnInit(): void { }
@@ -46,7 +48,7 @@ export class MoveMdFileComponent implements OnInit {
   move(): void {
     if (!this.directoryDestination || this.directoryDestination.trim() === '') {
       // Mostra un messaggio di errore se non c'è una destinazione
-      alert('Please select a destination folder');
+      alert(this.translate.instant('MOVE_FILE.SELECT_DEST'));
       return;
     }
     
@@ -68,7 +70,7 @@ export class MoveMdFileComponent implements OnInit {
         },
         error: (error) => {
           console.error('Error moving file:', error);
-          alert('Error moving file: ' + (error.message || 'Unknown error'));
+          alert(this.translate.instant('MOVE_FILE.MOVE_ERROR', { error: error.message || 'Unknown error' }));
         }
       });    
   }

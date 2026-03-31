@@ -160,16 +160,23 @@ var InteractiveSvgSequence = (function() {
     }
 
     /**
-     * Check if SVG is a sequence diagram (no elem_, cluster_, link_ elements)
+     * Check if SVG is a sequence diagram.
+     * Supports both legacy (pre-2026) and new (v1.2026.1+) PlantUML formats.
      */
     function isSequenceDiagram(svg) {
-        // If it has PlantUML component diagram elements, it's not a sequence diagram
+        // New format: check data-diagram-type attribute (definitive)
+        var diagramType = svg.getAttribute('data-diagram-type');
+        if (diagramType === 'SEQUENCE') return true;
+        if (diagramType) return false; // Has type but not SEQUENCE → not a sequence diagram
+
+        // New format fallback: check for participant-lifeline groups
+        if (svg.querySelector('g.participant-lifeline')) return true;
+
+        // Legacy format: if it has component diagram elements, it's not a sequence diagram
         var hasComponentElements = svg.querySelector('g[id^="elem_"], g[id^="cluster_"], g[id^="link_"]');
         if (hasComponentElements) return false;
 
-        // Check for sequence diagram characteristics:
-        // - Participant boxes (fill #E2E2F0)
-        // - Dashed vertical lines (lifelines)
+        // Legacy format: check for sequence diagram characteristics
         var participantBoxes = svg.querySelectorAll('rect[fill="#E2E2F0"]');
         var dashedLines = svg.querySelectorAll('line[style*="stroke-dasharray"]');
 
@@ -177,10 +184,67 @@ var InteractiveSvgSequence = (function() {
     }
 
     /**
-     * Parse participants from SVG
+     * Detect if SVG uses the new PlantUML v1.2026.1+ format
+     */
+    function isNewSeqFormat(svg) {
+        return !!svg.querySelector('g.participant-lifeline, g.message');
+    }
+
+    /**
+     * Parse participants from SVG (new v1.2026.1+ format)
+     * Uses g.participant.participant-head groups with data-entity-uid and data-qualified-name
+     */
+    function parseParticipantsNew(svg) {
+        var participants = [];
+        var headGroups = svg.querySelectorAll('g.participant-head');
+
+        headGroups.forEach(function(headGroup) {
+            var uid = headGroup.getAttribute('data-entity-uid');
+            var qname = headGroup.getAttribute('data-qualified-name') || '';
+            var rect = headGroup.querySelector('rect');
+            if (!rect) return;
+
+            var x = parseFloat(rect.getAttribute('x'));
+            var y = parseFloat(rect.getAttribute('y'));
+            var width = parseFloat(rect.getAttribute('width'));
+            var centerX = x + width / 2;
+
+            // Collect text labels
+            var labels = [];
+            var textElements = [];
+            headGroup.querySelectorAll('text').forEach(function(text) {
+                labels.push(text.textContent);
+                textElements.push(text);
+            });
+
+            // Collect all elements belonging to this participant (head group + its children)
+            var allElements = [rect].concat(textElements);
+
+            participants.push({
+                uid: uid,
+                qname: qname,
+                rect: rect,
+                centerX: centerX,
+                x: x,
+                width: width,
+                y: y,
+                name: labels.join(' ') || qname || 'Participant',
+                elements: allElements,
+                textElements: textElements
+            });
+        });
+
+        // Sort by x position
+        participants.sort(function(a, b) { return a.centerX - b.centerX; });
+
+        return participants;
+    }
+
+    /**
+     * Parse participants from SVG (legacy format, pre-2026)
      * Participants are rect elements with fill="#E2E2F0" positioned at the top
      */
-    function parseParticipants(svg) {
+    function parseParticipantsLegacy(svg) {
         var participants = [];
         var rects = svg.querySelectorAll('rect[fill="#E2E2F0"]');
         var texts = svg.querySelectorAll('text');
@@ -244,35 +308,64 @@ var InteractiveSvgSequence = (function() {
     }
 
     /**
+     * Parse participants - dispatches to the correct parser based on SVG format
+     */
+    function parseParticipants(svg) {
+        if (isNewSeqFormat(svg)) {
+            return parseParticipantsNew(svg);
+        }
+        return parseParticipantsLegacy(svg);
+    }
+
+    /**
      * Find the bottom participant boxes (duplicates at bottom of diagram)
      */
     function findBottomParticipantBoxes(svg, participants) {
+        if (isNewSeqFormat(svg)) {
+            // New format: g.participant.participant-tail groups
+            var tailGroups = svg.querySelectorAll('g.participant-tail');
+            tailGroups.forEach(function(tailGroup) {
+                var uid = tailGroup.getAttribute('data-entity-uid');
+                var rect = tailGroup.querySelector('rect');
+                if (!rect) return;
+
+                // Match to participant by uid
+                participants.forEach(function(p) {
+                    if (p.uid === uid) {
+                        p.elements.push(rect);
+                        p.bottomRect = rect;
+                        tailGroup.querySelectorAll('text').forEach(function(text) {
+                            p.elements.push(text);
+                        });
+                    }
+                });
+            });
+            return;
+        }
+
+        // Legacy format
         var rects = svg.querySelectorAll('rect[fill="#E2E2F0"]');
         var texts = svg.querySelectorAll('text');
         var maxY = 0;
 
-        // Find the maximum y position
         rects.forEach(function(rect) {
             var y = parseFloat(rect.getAttribute('y'));
             if (y > maxY) maxY = y;
         });
 
-        // Associate bottom rects and their text labels with participants by x position
         rects.forEach(function(rect) {
             var y = parseFloat(rect.getAttribute('y'));
-            if (y > maxY - 100) { // Bottom rects
+            if (y > maxY - 100) {
                 var x = parseFloat(rect.getAttribute('x'));
                 var width = parseFloat(rect.getAttribute('width'));
                 var height = parseFloat(rect.getAttribute('height')) || 50;
                 var centerX = x + width / 2;
 
-                // Find matching participant
                 participants.forEach(function(p) {
                     if (Math.abs(p.centerX - centerX) < 10) {
                         p.elements.push(rect);
                         p.bottomRect = rect;
 
-                        // Also find text labels inside this bottom rect
                         texts.forEach(function(text) {
                             var textX = parseFloat(text.getAttribute('x'));
                             var textY = parseFloat(text.getAttribute('y'));
@@ -292,12 +385,35 @@ var InteractiveSvgSequence = (function() {
      * Find lifelines for each participant
      */
     function findLifelines(svg, participants) {
+        if (isNewSeqFormat(svg)) {
+            // New format: g.participant-lifeline groups contain the lifeline line
+            var lifelineGroups = svg.querySelectorAll('g.participant-lifeline');
+            lifelineGroups.forEach(function(lifelineGroup) {
+                var uid = lifelineGroup.getAttribute('data-entity-uid');
+                var line = lifelineGroup.querySelector('line');
+
+                participants.forEach(function(p) {
+                    if (p.uid === uid) {
+                        if (line) {
+                            p.lifeline = line;
+                            p.elements.push(line);
+                        }
+                        // Also add the activation rects inside the lifeline group
+                        lifelineGroup.querySelectorAll('rect').forEach(function(rect) {
+                            p.elements.push(rect);
+                        });
+                    }
+                });
+            });
+            return;
+        }
+
+        // Legacy format
         var lifelines = svg.querySelectorAll('line[style*="stroke-dasharray"]');
 
         lifelines.forEach(function(line) {
             var x1 = parseFloat(line.getAttribute('x1'));
 
-            // Find participant with closest centerX
             var closest = null;
             var minDist = Infinity;
             participants.forEach(function(p) {
@@ -317,18 +433,22 @@ var InteractiveSvgSequence = (function() {
 
     /**
      * Find activation boxes for each participant
+     * In new format, activation boxes are already collected inside findLifelines()
      */
     function findActivationBoxes(svg, participants) {
+        // New format: activation rects are already inside g.participant-lifeline,
+        // collected in findLifelines(). Skip geometric matching.
+        if (isNewSeqFormat(svg)) return;
+
+        // Legacy format
         var activations = svg.querySelectorAll('rect[fill="#FFFFFF"]');
 
         activations.forEach(function(rect) {
             var width = parseFloat(rect.getAttribute('width'));
-            // Activation boxes are narrow (width = 10)
             if (width <= 15) {
                 var x = parseFloat(rect.getAttribute('x'));
                 var centerX = x + width / 2;
 
-                // Find participant with closest centerX
                 var closest = null;
                 var minDist = Infinity;
                 participants.forEach(function(p) {
@@ -349,19 +469,73 @@ var InteractiveSvgSequence = (function() {
     }
 
     /**
-     * Parse messages from SVG
+     * Parse messages from SVG (new v1.2026.1+ format)
+     * Uses g.message groups with data-entity-1 / data-entity-2 attributes
+     */
+    function parseMessagesNew(svg, participants) {
+        var messages = [];
+        var messageGroups = svg.querySelectorAll('g.message');
+
+        // Build uid-to-participant map
+        var uidMap = {};
+        participants.forEach(function(p) {
+            if (p.uid) uidMap[p.uid] = p;
+        });
+
+        messageGroups.forEach(function(msgGroup) {
+            var eid1 = msgGroup.getAttribute('data-entity-1');
+            var eid2 = msgGroup.getAttribute('data-entity-2');
+            var fromParticipant = uidMap[eid1];
+            var toParticipant = uidMap[eid2];
+
+            if (!fromParticipant || !toParticipant) return;
+
+            // Collect all child elements of the message group
+            var childElements = Array.from(msgGroup.children);
+            var line = msgGroup.querySelector('line');
+            var polygon = msgGroup.querySelector('polygon');
+            var text = msgGroup.querySelector('text');
+            var labelText = text ? text.textContent : '';
+            var y = line ? parseFloat(line.getAttribute('y1')) : 0;
+
+            // Determine if return message (dashed line)
+            var isReturn = false;
+            if (line) {
+                var style = line.getAttribute('style') || '';
+                isReturn = style.indexOf('stroke-dasharray:2') > -1 ||
+                           style.indexOf('stroke-dasharray') > -1;
+            }
+
+            messages.push({
+                group: msgGroup,
+                line: line,
+                arrowhead: polygon,
+                labelElement: text,
+                label: labelText,
+                y: y,
+                from: fromParticipant,
+                to: toParticipant,
+                isReturn: isReturn,
+                elements: childElements
+            });
+        });
+
+        messages.sort(function(a, b) { return a.y - b.y; });
+        return messages;
+    }
+
+    /**
+     * Parse messages from SVG (legacy format)
      * Messages are horizontal lines with polygon arrowheads
      */
-    function parseMessages(svg, participants) {
+    function parseMessagesLegacy(svg, participants) {
         var messages = [];
         var lines = svg.querySelectorAll('line');
         var polygons = svg.querySelectorAll('polygon');
         var texts = svg.querySelectorAll('text');
 
-        // Find horizontal message lines (not lifelines)
         lines.forEach(function(line) {
             var style = line.getAttribute('style') || '';
-            // Skip dashed lines (lifelines) and very short lines
             if (style.indexOf('stroke-dasharray:5') > -1) return;
 
             var x1 = parseFloat(line.getAttribute('x1'));
@@ -369,23 +543,16 @@ var InteractiveSvgSequence = (function() {
             var x2 = parseFloat(line.getAttribute('x2'));
             var y2 = parseFloat(line.getAttribute('y2'));
 
-            // Horizontal lines (y1 ≈ y2) that span between participants
             if (Math.abs(y1 - y2) < 5 && Math.abs(x2 - x1) > 30) {
                 var fromX = Math.min(x1, x2);
                 var toX = Math.max(x1, x2);
 
-                // Find source and target participants
                 var fromParticipant = findParticipantByX(participants, fromX);
                 var toParticipant = findParticipantByX(participants, toX);
 
                 if (fromParticipant && toParticipant) {
-                    // Determine direction based on arrow position
                     var isReturn = style.indexOf('stroke-dasharray:2') > -1;
-
-                    // Find associated polygon (arrowhead)
                     var arrowhead = findArrowhead(polygons, x1, x2, y1);
-
-                    // Find associated text label
                     var label = findMessageLabel(texts, fromX, toX, y1);
 
                     messages.push({
@@ -403,10 +570,18 @@ var InteractiveSvgSequence = (function() {
             }
         });
 
-        // Sort messages by y position (top to bottom)
         messages.sort(function(a, b) { return a.y - b.y; });
-
         return messages;
+    }
+
+    /**
+     * Parse messages - dispatches to the correct parser based on SVG format
+     */
+    function parseMessages(svg, participants) {
+        if (isNewSeqFormat(svg)) {
+            return parseMessagesNew(svg, participants);
+        }
+        return parseMessagesLegacy(svg, participants);
     }
 
     /**

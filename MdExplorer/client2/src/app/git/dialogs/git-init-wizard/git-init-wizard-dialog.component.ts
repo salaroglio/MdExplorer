@@ -1,6 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { GITService } from '../../services/gitservice.service';
 import { InitRepositoryRequest, InitRepositoryResponse, GITIGNORE_TEMPLATES, GitignoreTemplate } from '../../models/git-init.models';
 import { GitSetupRemoteGenericDialogComponent } from '../git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
@@ -30,7 +31,8 @@ export class GitInitWizardDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: { repositoryPath: string },
     private gitService: GITService,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private translate: TranslateService
   ) {
     this.repositoryPath = data.repositoryPath;
   }
@@ -44,7 +46,7 @@ export class GitInitWizardDialogComponent implements OnInit {
    */
   initializeGit(): void {
     if (!this.repositoryPath) {
-      this.snackBar.open('Repository path is required', 'OK', {
+      this.snackBar.open(this.translate.instant('GIT_INIT.PATH_REQUIRED'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -70,7 +72,7 @@ export class GitInitWizardDialogComponent implements OnInit {
           this.initMessage = response.message;
           console.log('[GitInitWizard] ✅ Git repository initialized successfully');
 
-          this.snackBar.open('Git repository initialized successfully!', 'OK', {
+          this.snackBar.open(this.translate.instant('GIT_INIT.INIT_SUCCESS'), 'OK', {
             duration: 3000,
             verticalPosition: 'top',
             panelClass: ['success-snackbar']
@@ -80,7 +82,7 @@ export class GitInitWizardDialogComponent implements OnInit {
           this.currentStep = 1;
         } else {
           console.error('[GitInitWizard] ❌ Initialization failed:', response.message);
-          this.snackBar.open(`Initialization failed: ${response.message}`, 'OK', {
+          this.snackBar.open(this.translate.instant('GIT_INIT.INIT_FAILED', { error: response.message }), 'OK', {
             duration: 5000,
             verticalPosition: 'top',
             panelClass: ['error-snackbar']
@@ -92,7 +94,7 @@ export class GitInitWizardDialogComponent implements OnInit {
         console.error('[GitInitWizard] ❌ Error initializing repository:', error);
 
         const errorMessage = error?.error?.message || error?.message || 'Unknown error';
-        this.snackBar.open(`Error: ${errorMessage}`, 'OK', {
+        this.snackBar.open(this.translate.instant('COMMON.ERROR') + ': ' + errorMessage, 'OK', {
           duration: 5000,
           verticalPosition: 'top',
           panelClass: ['error-snackbar']

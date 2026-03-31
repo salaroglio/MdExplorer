@@ -1,20 +1,19 @@
-<h1>Copy from clipboard</h1>
+<h1>{{ 'CLIPBOARD.TITLE' | translate }}</h1>
 <mat-dialog-content>
   <div class="simple-container">
     <mat-form-field appearance="outline">
-      <mat-label>Image name</mat-label>
-      <input matInput [(ngModel)]="imageName" (keyup.enter)="save()" placeholder="imageName">
-      <mat-hint>Name of Image</mat-hint>
+      <mat-label>{{ 'CLIPBOARD.IMAGE_NAME' | translate }}</mat-label>
+      <input matInput [(ngModel)]="imageName" (keyup.enter)="save()" [placeholder]="'CLIPBOARD.IMAGE_PLACEHOLDER' | translate">
+      <mat-hint>{{ 'CLIPBOARD.IMAGE_HINT' | translate }}</mat-hint>
     </mat-form-field>
   </div>
 
 </mat-dialog-content>
 <mat-dialog-actions>
   <button mat-button color="primary" (click)="save()">
-    <mat-icon>save</mat-icon>Save
+    <mat-icon>save</mat-icon>{{ 'COMMON.SAVE' | translate }}
   </button>
   <button mat-button color="primary" (click)="dismiss()">
-    <mat-icon>cancel</mat-icon>Cancel
+    <mat-icon>cancel</mat-icon>{{ 'COMMON.CANCEL' | translate }}
   </button>
 </mat-dialog-actions>
-

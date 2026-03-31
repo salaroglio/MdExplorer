@@ -4,6 +4,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ImageAnnotationCanvasComponent, AnnotationMarker } from '../../image-annotation-canvas/image-annotation-canvas.component';
 import { MdFileService } from '../../../services/md-file.service';
+import { TranslateService } from '@ngx-translate/core';
 
 export interface MarkerDescription {
   markerId: number;
@@ -48,7 +49,8 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: WizardDialogData,
     private mdFileService: MdFileService,
     private snackBar: MatSnackBar,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -93,7 +95,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
       console.log('[ScreenshotAnnotationWizard] Blobs cached and URL created:', this.annotatedImageBlobUrl);
     } catch (err) {
       console.error('[ScreenshotAnnotationWizard] Failed to export annotated image:', err);
-      this.snackBar.open('Error exporting image', 'OK', {
+      this.snackBar.open(this.translate.instant('SCREENSHOT.EXPORT_ERROR'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -147,7 +149,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
    */
   async complete(): Promise<void> {
     if (!this.allDescriptionsFilled()) {
-      this.snackBar.open('Enter a description for each marker', 'OK', {
+      this.snackBar.open(this.translate.instant('SCREENSHOT.ENTER_MARKER_DESC'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });
@@ -178,7 +180,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
 
           if (response.success) {
             console.log('[ScreenshotAnnotationWizard] Screenshot saved successfully');
-            this.snackBar.open('Annotated screenshot saved successfully!', 'OK', {
+            this.snackBar.open(this.translate.instant('SCREENSHOT.SAVE_SUCCESS'), 'OK', {
               duration: 3000,
               verticalPosition: 'top',
               panelClass: ['success-snackbar']
@@ -207,7 +209,7 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
     } catch (err) {
       this.isLoading = false;
       console.error('[ScreenshotAnnotationWizard] Error preparing data:', err);
-      this.snackBar.open('Error preparing data', 'OK', {
+      this.snackBar.open(this.translate.instant('SCREENSHOT.PREPARE_ERROR'), 'OK', {
         duration: 3000,
         verticalPosition: 'top'
       });

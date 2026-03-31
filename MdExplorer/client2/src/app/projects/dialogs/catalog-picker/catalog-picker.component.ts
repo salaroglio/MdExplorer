@@ -2,6 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { AppStoreService } from '../../../md-explorer/services/app-store.service';
 import { StoreCatalogApp } from '../../../md-explorer/models/app-store.models';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-catalog-picker',
@@ -19,7 +20,8 @@ export class CatalogPickerDialogComponent implements OnInit {
   constructor(
     public dialogRef: MatDialogRef<CatalogPickerDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { existingAppIds: string[] },
-    private appStoreService: AppStoreService
+    private appStoreService: AppStoreService,
+    private translate: TranslateService
   ) {
     this.existingAppIds = new Set(data.existingAppIds || []);
   }
@@ -33,7 +35,7 @@ export class CatalogPickerDialogComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error loading catalog:', err);
-        this.errorMessage = 'Failed to load catalog. Check repository settings.';
+        this.errorMessage = this.translate.instant('CATALOG.FAILED_LOAD');
         this.loading = false;
       }
     });

@@ -1,5 +1,6 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
+import { TranslateService } from '@ngx-translate/core';
 import { AppStoreService } from '../../../services/app-store.service';
 import { StoreCatalogApp } from '../../../models/app-store.models';
 import { MdFileService } from '../../../services/md-file.service';
@@ -40,7 +41,8 @@ export class InstallWizardDialogComponent implements OnInit, OnDestroy {
     public dialogRef: MatDialogRef<InstallWizardDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: InstallWizardData,
     private appStoreService: AppStoreService,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -58,7 +60,7 @@ export class InstallWizardDialogComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           console.error('Error loading catalog:', err);
-          this.errorMessage = 'Failed to load catalog.';
+          this.errorMessage = this.translate.instant('INSTALL_WIZARD.FAILED_LOAD');
           this.loading = false;
         }
       });
@@ -71,10 +73,12 @@ export class InstallWizardDialogComponent implements OnInit, OnDestroy {
 
   get phaseLabel(): string {
     switch (this.installPhase) {
-      case 'downloading': return 'Downloading package...';
-      case 'installing': return this.isUpdateMode ? 'Updating...' : 'Running installer...';
-      case 'registering': return 'Registering app...';
-      case 'done': return 'Complete!';
+      case 'downloading': return this.translate.instant('INSTALL_WIZARD.DOWNLOADING');
+      case 'installing': return this.isUpdateMode
+        ? this.translate.instant('INSTALL_WIZARD.UPDATING')
+        : this.translate.instant('INSTALL_WIZARD.RUNNING_INSTALLER');
+      case 'registering': return this.translate.instant('INSTALL_WIZARD.REGISTERING');
+      case 'done': return this.translate.instant('INSTALL_WIZARD.COMPLETE');
       default: return '';
     }
   }
@@ -126,7 +130,9 @@ export class InstallWizardDialogComponent implements OnInit, OnDestroy {
         this.stopProgress();
         this.installPhase = 'idle';
         this.progressValue = 0;
-        this.errorMessage = err.error?.error || (this.isUpdateMode ? 'Update failed. Please try again.' : 'Installation failed. Please try again.');
+        this.errorMessage = err.error?.error || this.translate.instant(
+          this.isUpdateMode ? 'INSTALL_WIZARD.UPDATE_FAILED' : 'INSTALL_WIZARD.INSTALL_FAILED'
+        );
         this.installing = false;
       }
     });

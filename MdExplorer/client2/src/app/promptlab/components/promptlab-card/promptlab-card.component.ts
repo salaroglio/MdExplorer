@@ -23,6 +23,7 @@ import { PromptLabService } from '../../services/promptlab.service';
 import { PromptLabDistillationService } from '../../services/promptlab-distillation.service';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
+import { TranslateService } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-promptlab-card',
@@ -94,7 +95,8 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
     private promptLabService: PromptLabService,
     private distillationService: PromptLabDistillationService,
     private aiChatService: AiChatService,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -232,8 +234,8 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
   }
 
   deleteCard(): void {
-    const title = this.card.generatedTitle || 'questa card';
-    if (confirm(`Eliminare "${title}"?\n\nQuesta azione non può essere annullata.`)) {
+    const title = this.card.generatedTitle || this.card.id;
+    if (confirm(this.translate.instant('PROMPTLAB_CARD.DELETE_CONFIRM', { title }))) {
       this.cardDeleted.emit(this.card.id);
     }
   }
@@ -271,13 +273,13 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
       data.start = project?.path || 'project';
 
       if (param.type === 'directory') {
-        data.title = `Seleziona cartella per "${param.name}"`;
+        data.title = this.translate.instant('PROMPTLAB_CARD.SELECT_FOLDER', { name: param.name });
         data.typeOfSelection = 'Folders';
-        data.buttonText = 'Seleziona cartella';
+        data.buttonText = this.translate.instant('PROMPTLAB_CARD.SELECT_FOLDER_BTN');
       } else {
-        data.title = `Seleziona file per "${param.name}"`;
+        data.title = this.translate.instant('PROMPTLAB_CARD.SELECT_FILE', { name: param.name });
         data.typeOfSelection = 'FoldersAndFiles';
-        data.buttonText = 'Seleziona file';
+        data.buttonText = this.translate.instant('PROMPTLAB_CARD.SELECT_FILE_BTN');
       }
 
       const dialogRef = this.dialog.open(ShowFileSystemComponent, {
@@ -301,9 +303,9 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
     const data = new ShowFileMetadata();
     const project = this.projectsService.currentProjects$.getValue();
     data.start = project?.path || 'project';
-    data.title = `Salva come — "${param.name}"`;
+    data.title = this.translate.instant('PROMPTLAB_CARD.SAVE_AS', { name: param.name });
     data.typeOfSelection = 'Folders';
-    data.buttonText = 'Salva';
+    data.buttonText = this.translate.instant('PROMPTLAB_CARD.SAVE_BTN');
     data.saveAs = true;
     // Suggest current filename if already set
     const currentName = param.value ? param.value.split(/[/\\]/).pop() : '';
@@ -425,7 +427,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
     if (cache?.svgPath && cache.promptHash === currentHash) {
       // Cache hit — load SVG from file
       this.isDiagramLoading = true;
-      this.diagramStatusMessage = 'Caricamento dalla cache...';
+      this.diagramStatusMessage = this.translate.instant('PROMPTLAB_CARD.LOADING_CACHE');
       this.cdr.markForCheck();
       this.loadCachedSvg(cache.svgPath);
     } else {
@@ -563,14 +565,14 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
         if (this.diagramRetryCount < this.DIAGRAM_MAX_RETRIES) {
           // Auto-retry: send the error back to the LLM to fix
           this.diagramRetryCount++;
-          this.diagramStatusMessage = `Errore di sintassi (tentativo ${this.diagramRetryCount}/${this.DIAGRAM_MAX_RETRIES})...`;
+          this.diagramStatusMessage = this.translate.instant('PROMPTLAB_CARD.SYNTAX_ERROR_RETRY', { retry: this.diagramRetryCount, max: this.DIAGRAM_MAX_RETRIES });
           this.cdr.markForCheck();
           this.requestDiagramFix(plantUml, errorMessage);
         } else {
           // Max retries reached — show error + code
           this.diagramSvg = '';
           this.diagramRenderError = true;
-          this.diagramStatusMessage = `Errore dopo ${this.DIAGRAM_MAX_RETRIES} tentativi di correzione.`;
+          this.diagramStatusMessage = this.translate.instant('PROMPTLAB_CARD.ERROR_AFTER_RETRIES', { max: this.DIAGRAM_MAX_RETRIES });
           this.isDiagramLoading = false;
           this.cdr.markForCheck();
         }
@@ -606,7 +608,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
           case 'error':
             this.diagramSvg = '';
             this.diagramRenderError = true;
-            this.diagramStatusMessage = 'Errore nella comunicazione con il LLM.';
+            this.diagramStatusMessage = this.translate.instant('PROMPTLAB_CARD.LLM_COMM_ERROR');
             this.isDiagramLoading = false;
             this.cdr.markForCheck();
             this.cleanupDiagramSubscription();
