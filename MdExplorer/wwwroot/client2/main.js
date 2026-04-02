@@ -7022,14 +7022,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "ConnectionIdInterceptor": () => (/* binding */ ConnectionIdInterceptor)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ 155);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 2673);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+
 
 
 /**
  * HTTP Interceptor that automatically adds connectionId to all API requests.
  * This ensures that the backend can identify the client and use the correct
  * per-client DatabaseManager context.
+ *
+ * If the connectionId is not yet available (SignalR still connecting),
+ * the request is held until the connectionId arrives.
  */
 class ConnectionIdInterceptor {
   constructor(mdServerMessages) {
@@ -7045,28 +7051,28 @@ class ConnectionIdInterceptor {
       return next.handle(req);
     }
     const connectionId = this.mdServerMessages.connectionId;
-    // Skip if connectionId is not yet available
-    if (!connectionId) {
-      console.error('[ConnectionIdInterceptor] ❌ connectionId is NULL for request:', req.url);
-      console.error('[ConnectionIdInterceptor] mdServerMessages:', this.mdServerMessages);
-      return next.handle(req);
+    // If connectionId is already available, attach it immediately
+    if (connectionId) {
+      return next.handle(req.clone({
+        setParams: {
+          ConnectionId: connectionId
+        }
+      }));
     }
-    // Add connectionId as query parameter
-    const modifiedReq = req.clone({
+    // Wait for connectionId to become available, then attach it
+    return this.mdServerMessages.connectionId$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.first)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.switchMap)(id => next.handle(req.clone({
       setParams: {
-        ConnectionId: connectionId
+        ConnectionId: id
       }
-    });
-    console.log('[ConnectionIdInterceptor] ✅ Added connectionId to:', req.url);
-    return next.handle(modifiedReq);
+    }))));
   }
   static {
     this.ɵfac = function ConnectionIdInterceptor_Factory(t) {
-      return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService));
+      return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({
       token: ConnectionIdInterceptor,
       factory: ConnectionIdInterceptor.ɵfac
     });
@@ -12307,8 +12313,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "MdServerMessagesService": () => (/* binding */ MdServerMessagesService)
 /* harmony export */ });
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 6067);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ 5765);
 /* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ 1957);
 /* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ 4198);
@@ -12330,16 +12337,18 @@ class MdServerMessagesService {
     this.openingApplicationProvider = openingApplicationProvider;
     this.gitService = gitService;
     this.injector = injector;
+    /** Emits the connectionId once available (and on every reconnection). ReplaySubject(1) so late subscribers get the last value immediately. */
+    this.connectionId$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.ReplaySubject(1);
     // Observable for Git branch switch events
-    this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
+    this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for Git pull refresh events
-    this.gitPullRefreshed$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
+    this.gitPullRefreshed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for RAG indexing progress events
-    this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
+    this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for App Store publish progress (backend → Nexus upload)
-    this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
+    this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
-    this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
+    this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     this.connectionIsLost = false;
     this.consoleIsClosed = false;
     this.startConnection = () => {
@@ -12558,6 +12567,7 @@ class MdServerMessagesService {
   getCurrentConnectionId(objectThis, isReconnection = false) {
     this.hubConnection.invoke('GetConnectionId').then(function (connectionId) {
       objectThis.connectionId = connectionId;
+      objectThis.connectionId$.next(connectionId);
       // Notify Electron that connectionId is ready (for URL handler feature)
       if (window.electronAPI?.notifyConnectionIdReady) {
         console.log('[SignalR] Notifying Electron of connectionId:', connectionId);
@@ -12663,11 +12673,11 @@ class MdServerMessagesService {
   }
   static {
     this.ɵfac = function MdServerMessagesService_Factory(t) {
-      return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
+      return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_8__.Injector));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
       token: MdServerMessagesService,
       factory: MdServerMessagesService.ɵfac,
       providedIn: 'root'
@@ -12717,8 +12727,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.03.31.2',
-  buildTime: '2026.03.31 14:49:43'
+  version: '2026.04.01.1',
+  buildTime: '2026.04.01 09:06:12'
 };
 
 /***/ }),

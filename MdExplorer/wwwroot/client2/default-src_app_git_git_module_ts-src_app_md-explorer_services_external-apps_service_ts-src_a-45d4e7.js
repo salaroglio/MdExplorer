@@ -5570,7 +5570,9 @@ class P2PService {
     this.totalPeers$ = this._totalPeers$.asObservable();
     this._isAvailable$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
     this.isAvailable$ = this._isAvailable$.asObservable();
-    this.checkAvailability();
+    // Don't call checkAvailability() here — it fires before SignalR is ready
+    // and causes 404 noise if the P2P Premium module is not loaded.
+    // It's called explicitly by ProjectsComponent.ngOnInit() instead.
   }
   /**
    * Check if P2P service is available (Premium module loaded and Electron plugin running)
