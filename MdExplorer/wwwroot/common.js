@@ -43,6 +43,7 @@ if (window.commonJsLoaded) {
     loadScriptOnce('/prismjs/prism-javascript.min.js');
     loadScriptOnce('/prismjs/prism-python.min.js');
     loadScriptOnce('/prismjs/prism-sql.min.js');
+    loadScriptOnce('/prismjs/prism-markup.min.js');
 
     // Always load mermaid but configure it differently based on environment
     const isElectron = navigator.userAgent.includes('Electron');
@@ -140,6 +141,10 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/plantuml-integration.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/highlighting/syntax-highlighting.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/mermaid-rendering.js');
+
+        // HTML-PREVIEW: Live HTML preview with tabs for ```html code blocks
+        document.write("<link href='/javascripts/jqueryForFirstPage/html-preview/html-preview.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/html-preview/html-preview.js');
 
         // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");

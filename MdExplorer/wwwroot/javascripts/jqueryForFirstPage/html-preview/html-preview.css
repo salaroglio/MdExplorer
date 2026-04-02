@@ -1,0 +1,88 @@
+/* HTML Preview Tabs - Live preview + source for ```html code blocks */
+
+.mde-html-preview-container {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin: 1em 0;
+    background: #fff;
+}
+
+.mde-html-preview-tabs {
+    border-bottom: 1px solid #dee2e6;
+    padding-left: 0.5em;
+    background: #f8f9fa;
+    border-radius: 4px 4px 0 0;
+}
+
+.mde-html-preview-tabs .nav-link {
+    font-size: 0.85em;
+    padding: 0.4em 1em;
+    color: #6c757d;
+    border: none;
+    cursor: pointer;
+}
+
+.mde-html-preview-tabs .nav-link.active {
+    color: #212529;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-bottom-color: #fff;
+    margin-bottom: -1px;
+    border-radius: 4px 4px 0 0;
+}
+
+.mde-html-preview-tabs .nav-link:hover:not(.active) {
+    color: #212529;
+    background: #e9ecef;
+}
+
+.mde-html-preview-content {
+    padding: 0;
+}
+
+.mde-html-preview-content .tab-pane {
+    padding: 0;
+}
+
+.mde-html-preview-iframe {
+    width: 100%;
+    border: none;
+    min-height: 60px;
+    display: block;
+    background: #fff;
+    /* Height is set dynamically via postMessage from srcdoc content */
+    transition: height 0.15s ease-out;
+}
+
+.mde-html-preview-content pre {
+    margin: 0;
+    border-radius: 0 0 4px 4px;
+    border: none;
+}
+
+.mde-html-preview-content pre code {
+    font-size: 0.85em;
+}
+
+/* Copy path button */
+.mde-html-preview-copy-path {
+    display: flex;
+    align-items: center;
+}
+
+.mde-copy-path-btn {
+    font-size: 0.85em !important;
+    padding: 0.4em 0.7em !important;
+    color: #495057 !important;
+    opacity: 1;
+    transition: color 0.15s;
+}
+
+.mde-copy-path-btn:hover {
+    color: #212529 !important;
+}
+
+.mde-copy-path-btn.copied {
+    color: #28a745 !important;
+    opacity: 1;
+}
