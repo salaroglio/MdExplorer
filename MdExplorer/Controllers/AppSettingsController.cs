@@ -51,15 +51,23 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult GetCurrentFolder()
         {
-            var currentFolder = GetProjectPath();
-            // Use Path.GetFileName to get the last part of the path, cross-platform compatible
-            string lastFolder = Path.GetFileName(currentFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            // If Path.GetFileName returns empty (e.g. for root paths), use the full path
-            if (string.IsNullOrEmpty(lastFolder))
+            try
             {
-                lastFolder = currentFolder;
+                var currentFolder = GetProjectPath();
+                // Use Path.GetFileName to get the last part of the path, cross-platform compatible
+                string lastFolder = Path.GetFileName(currentFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                // If Path.GetFileName returns empty (e.g. for root paths), use the full path
+                if (string.IsNullOrEmpty(lastFolder))
+                {
+                    lastFolder = currentFolder;
+                }
+                return Ok(new { currentFolder = lastFolder });
             }
-            return Ok(new { currentFolder = lastFolder });
+            catch (InvalidOperationException)
+            {
+                // No project is open yet (e.g. on the Projects page at startup)
+                return Ok(new { currentFolder = "" });
+            }
         }
 
         [HttpGet]

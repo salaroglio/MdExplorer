@@ -6,12 +6,16 @@ import {
   HttpRequest,
 } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { switchMap, first } from 'rxjs/operators';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
 /**
  * HTTP Interceptor that automatically adds connectionId to all API requests.
  * This ensures that the backend can identify the client and use the correct
  * per-client DatabaseManager context.
+ *
+ * If the connectionId is not yet available (SignalR still connecting),
+ * the request is held until the connectionId arrives.
  */
 @Injectable()
 export class ConnectionIdInterceptor implements HttpInterceptor {
@@ -33,21 +37,19 @@ export class ConnectionIdInterceptor implements HttpInterceptor {
 
     const connectionId = this.mdServerMessages.connectionId;
 
-    // Skip if connectionId is not yet available
-    if (!connectionId) {
-      console.error('[ConnectionIdInterceptor] ❌ connectionId is NULL for request:', req.url);
-      console.error('[ConnectionIdInterceptor] mdServerMessages:', this.mdServerMessages);
-      return next.handle(req);
+    // If connectionId is already available, attach it immediately
+    if (connectionId) {
+      return next.handle(
+        req.clone({ setParams: { ConnectionId: connectionId } })
+      );
     }
 
-    // Add connectionId as query parameter
-    const modifiedReq = req.clone({
-      setParams: {
-        ConnectionId: connectionId,
-      },
-    });
-
-    console.log('[ConnectionIdInterceptor] ✅ Added connectionId to:', req.url);
-    return next.handle(modifiedReq);
+    // Wait for connectionId to become available, then attach it
+    return this.mdServerMessages.connectionId$.pipe(
+      first(),
+      switchMap((id) =>
+        next.handle(req.clone({ setParams: { ConnectionId: id } }))
+      )
+    );
   }
 }

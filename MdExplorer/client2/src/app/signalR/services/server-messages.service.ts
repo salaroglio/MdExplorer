@@ -6,7 +6,7 @@ import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/pa
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { connect } from 'net';
 import { OpeningApplicationProvider } from '../dialogs/opening-application/opening-application.provider';
-import { Subject } from 'rxjs';
+import { Subject, ReplaySubject } from 'rxjs';
 
 interface linkSignalREvent_Component {
   key: string
@@ -21,6 +21,9 @@ export class MdServerMessagesService {
 
   linkEventCompArray: linkSignalREvent_Component[];
   public connectionId: string;
+
+  /** Emits the connectionId once available (and on every reconnection). ReplaySubject(1) so late subscribers get the last value immediately. */
+  public connectionId$ = new ReplaySubject<string>(1);
 
   // Observable for Git branch switch events
   public gitBranchSwitched$ = new Subject<{ fileCount: number, message: string }>();
@@ -315,6 +318,7 @@ export class MdServerMessagesService {
     this.hubConnection.invoke('GetConnectionId')
       .then(function (connectionId) {
         objectThis.connectionId = connectionId;
+        objectThis.connectionId$.next(connectionId);
 
         // Notify Electron that connectionId is ready (for URL handler feature)
         if ((window as any).electronAPI?.notifyConnectionIdReady) {
