@@ -64,25 +64,72 @@
     font-size: 0.85em;
 }
 
-/* Copy path button */
-.mde-html-preview-copy-path {
+/* Toolbar (copy path + fullscreen) */
+.mde-html-preview-toolbar {
     display: flex;
     align-items: center;
+    gap: 0;
 }
 
-.mde-copy-path-btn {
-    font-size: 0.85em !important;
-    padding: 0.4em 0.7em !important;
+.mde-html-preview-toolbar .nav-link {
+    padding: 0.4em 0.5em !important;
     color: #495057 !important;
-    opacity: 1;
     transition: color 0.15s;
 }
 
-.mde-copy-path-btn:hover {
+.mde-html-preview-toolbar .nav-link:hover {
     color: #212529 !important;
+    background: transparent !important;
 }
 
-.mde-copy-path-btn.copied {
+.mde-copy-path-btn.copied,
+.mde-zip-copy-btn.copied {
     color: #28a745 !important;
-    opacity: 1;
+}
+
+.mde-zip-copy-btn.errored {
+    color: #dc3545 !important;
+}
+
+@keyframes mde-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.mde-spin {
+    animation: mde-spin 1s linear infinite;
+}
+
+/* Fullscreen mode (Fullscreen API — covers entire screen including title bar) */
+.mde-html-preview-container.mde-fullscreen {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+.mde-html-preview-container.mde-fullscreen .mde-html-preview-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.mde-html-preview-container.mde-fullscreen .tab-pane {
+    height: 100%;
+}
+
+.mde-html-preview-container.mde-fullscreen .mde-html-preview-iframe {
+    height: 100% !important;
+    min-height: 100%;
+}
+
+.mde-html-preview-container.mde-fullscreen .tab-content {
+    height: 100%;
+}
+
+.mde-html-preview-container.mde-fullscreen pre {
+    height: 100%;
+    overflow: auto;
 }

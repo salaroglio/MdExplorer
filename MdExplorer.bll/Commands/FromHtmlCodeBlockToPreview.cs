@@ -166,9 +166,14 @@ namespace MdExplorer.Features.Commands
 
             // Copy path button (only when there's an external file reference)
             var copyPathButton = !string.IsNullOrWhiteSpace(filePath)
-                ? $@"<li class=""nav-item ms-auto mde-html-preview-copy-path"">
-      <a class=""nav-link mde-copy-path-btn"" href=""#"" title=""{HttpUtility.HtmlAttributeEncode(filePath)}"" data-filepath=""{HttpUtility.HtmlAttributeEncode(filePath)}""><svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><rect x=""9"" y=""9"" width=""13"" height=""13"" rx=""2"" ry=""2""></rect><path d=""M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1""></path></svg></a>
-    </li>"
+                ? $@"
+      <a class=""nav-link mde-copy-path-btn"" href=""#"" title=""{HttpUtility.HtmlAttributeEncode(filePath)}"" data-filepath=""{HttpUtility.HtmlAttributeEncode(filePath)}""><svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><rect x=""9"" y=""9"" width=""13"" height=""13"" rx=""2"" ry=""2""></rect><path d=""M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1""></path></svg></a>"
+                : "";
+
+            // Zip & copy to clipboard button (only when there's an external file reference)
+            var zipCopyButton = !string.IsNullOrWhiteSpace(filePath)
+                ? $@"
+      <a class=""nav-link mde-zip-copy-btn"" href=""#"" title=""Zip and copy to clipboard"" data-filepath=""{HttpUtility.HtmlAttributeEncode(filePath)}""><svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><path d=""M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4""></path><polyline points=""7 10 12 15 17 10""></polyline><line x1=""12"" y1=""15"" x2=""12"" y2=""3""></line></svg></a>"
                 : "";
 
             return $@"<div class=""mde-html-preview-container"">
@@ -179,7 +184,12 @@ namespace MdExplorer.Features.Commands
     <li class=""nav-item"">
       <a class=""nav-link"" data-bs-toggle=""tab"" href=""#mde-source-{guid}"" role=""tab"">Source</a>
     </li>
-    {copyPathButton}
+    <li class=""nav-item ms-auto mde-html-preview-toolbar"">
+      {copyPathButton}
+      {zipCopyButton}
+      <a class=""nav-link mde-reload-btn"" href=""#"" title=""Reload""><svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><polyline points=""23 4 23 10 17 10""></polyline><path d=""M20.49 15a9 9 0 1 1-2.12-9.36L23 10""></path></svg></a>
+      <a class=""nav-link mde-fullscreen-btn"" href=""#"" title=""Fullscreen""><svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><polyline points=""15 3 21 3 21 9""></polyline><polyline points=""9 21 3 21 3 15""></polyline><line x1=""21"" y1=""3"" x2=""14"" y2=""10""></line><line x1=""3"" y1=""21"" x2=""10"" y2=""14""></line></svg></a>
+    </li>
   </ul>
   <div class=""tab-content mde-html-preview-content"">
     <div class=""tab-pane fade show active"" id=""mde-preview-{guid}"" role=""tabpanel"">

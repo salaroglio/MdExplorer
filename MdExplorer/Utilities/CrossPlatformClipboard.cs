@@ -550,6 +550,235 @@ namespace MdExplorer.Utilities
             }
         }
 
+        /// <summary>
+        /// Copies a file to the system clipboard as a file drop list,
+        /// so it can be pasted into apps like Teams, Explorer, etc.
+        /// </summary>
+        public static async Task<ClipboardResult> SetFileDropListAsync(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"File not found: {filePath}"
+                };
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return await SetFileDropListWindows(filePath);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return await SetFileDropListLinux(filePath);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return await SetFileDropListMacOS(filePath);
+            }
+            else
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = "Unsupported operating system"
+                };
+            }
+        }
+
+        private static async Task<ClipboardResult> SetFileDropListWindows(string filePath)
+        {
+            try
+            {
+                // Use PowerShell to set the clipboard as a file drop list.
+                // Windows.Forms Clipboard requires a proper message pump on the STA thread,
+                // which a background .NET service doesn't have — PowerShell handles this reliably.
+                var escapedPath = filePath.Replace("'", "''");
+                var script = $"Set-Clipboard -Path '{escapedPath}'";
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -NonInteractive -Command \"{script}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    var stderr = await process.StandardError.ReadToEndAsync();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"PowerShell clipboard failed: {stderr}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                };
+            }
+        }
+
+        // Keep original Windows Forms approach as fallback reference
+        private static Task<ClipboardResult> SetFileDropListWindowsForms(string filePath)
+        {
+            var tcs = new TaskCompletionSource<ClipboardResult>();
+
+#if WINDOWS_CLIPBOARD_SUPPORT
+            Thread thread = new Thread(() =>
+            {
+                try
+                {
+                    var dataObj = new DataObject();
+
+                    // Set file drop list (CF_HDROP)
+                    var files = new System.Collections.Specialized.StringCollection();
+                    files.Add(filePath);
+                    dataObj.SetFileDropList(files);
+
+                    // Set Preferred DropEffect = DROPEFFECT_COPY (1)
+                    var dropEffect = new MemoryStream(new byte[] { 1, 0, 0, 0 });
+                    dataObj.SetData("Preferred DropEffect", dropEffect);
+
+                    Clipboard.SetDataObject(dataObj, true);
+                    tcs.SetResult(new ClipboardResult { Success = true });
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetResult(new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                    });
+                }
+            });
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+#else
+            tcs.SetResult(new ClipboardResult
+            {
+                Success = false,
+                ErrorMessage = "Windows clipboard support not available"
+            });
+#endif
+
+            return tcs.Task;
+        }
+
+        private static async Task<ClipboardResult> SetFileDropListLinux(string filePath)
+        {
+            try
+            {
+                var xclipAvailable = await CheckCommandAvailable("xclip");
+                if (!xclipAvailable)
+                {
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = "xclip not found",
+                        PlatformHint = "Install xclip with 'sudo apt-get install xclip'"
+                    };
+                }
+
+                // xclip file drop list uses gnome-copied-files format
+                var uri = "copy\n" + new Uri(filePath).AbsoluteUri;
+                var uriBytes = System.Text.Encoding.UTF8.GetBytes(uri);
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "xclip",
+                    Arguments = "-selection clipboard -t x-special/gnome-copied-files -i",
+                    RedirectStandardInput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    await process.StandardInput.BaseStream.WriteAsync(uriBytes, 0, uriBytes.Length);
+                    process.StandardInput.Close();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    var error = await process.StandardError.ReadToEndAsync();
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"xclip failed: {error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                };
+            }
+        }
+
+        private static async Task<ClipboardResult> SetFileDropListMacOS(string filePath)
+        {
+            try
+            {
+                // Use osascript to set file reference in clipboard
+                var escapedPath = filePath.Replace("\"", "\\\"");
+                var script = $"set the clipboard to (POSIX file \"{escapedPath}\")";
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "osascript",
+                    Arguments = $"-e '{script}'",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    var error = await process.StandardError.ReadToEndAsync();
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"osascript failed: {error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                };
+            }
+        }
+
         private static async Task<ClipboardResult> SetImageMacOS(byte[] pngData)
         {
             try

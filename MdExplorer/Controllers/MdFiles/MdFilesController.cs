@@ -57,6 +57,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO.Compression;
 using System.Web;
 #if WINDOWS_FORMS_AVAILABLE
 using System.Windows.Forms;
@@ -344,6 +345,52 @@ namespace MdExplorer.Service.Controllers.MdFiles
 #endif
 
             return Ok(new { url = textToGet });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ZipAndCopyToClipboard([FromBody] ZipAndCopyRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.FilePath))
+                    return BadRequest(new { error = "FilePath is required" });
+
+                if (!System.IO.File.Exists(request.FilePath))
+                    return NotFound(new { error = $"File not found: {request.FilePath}" });
+
+                // Create zip in the same folder as the source file
+                var folder = Path.GetDirectoryName(request.FilePath);
+                var fileNameWithoutExt = Path.GetFileNameWithoutExtension(request.FilePath);
+                var zipPath = Path.Combine(folder, fileNameWithoutExt + ".zip");
+
+                // Delete existing zip if present, then create new one
+                if (System.IO.File.Exists(zipPath))
+                    System.IO.File.Delete(zipPath);
+
+                using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+                {
+                    archive.CreateEntryFromFile(request.FilePath, Path.GetFileName(request.FilePath), CompressionLevel.Optimal);
+                }
+
+                _logger.LogInformation("[ZipAndCopyToClipboard] Zip created: {ZipPath}", zipPath);
+
+                // Copy zip file to clipboard as file drop list
+                var result = await CrossPlatformClipboard.SetFileDropListAsync(zipPath);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("[ZipAndCopyToClipboard] File copied to clipboard successfully");
+                    return Ok(new { message = "Zip created and copied to clipboard", zipPath });
+                }
+
+                _logger.LogWarning("[ZipAndCopyToClipboard] Clipboard failed: {Error}", result.ErrorMessage);
+                return StatusCode(500, new { error = result.ErrorMessage });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ZipAndCopyToClipboard] Error");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         [HttpPost]
