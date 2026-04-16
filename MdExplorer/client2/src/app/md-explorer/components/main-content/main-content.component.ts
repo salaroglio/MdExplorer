@@ -14,6 +14,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { ProjectsService } from '../../services/projects.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { ThemeService } from '../../../services/theme.service';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -75,7 +76,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private snackBar: MatSnackBar,
     private projectsService: ProjectsService,
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private themeService: ThemeService
   ) {
     
     // Initialize observables from state
@@ -110,6 +112,19 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     // Initialize P2P message listener for iframe communication
     this.setupP2PMessageListener();
+
+    // Reload iframe when theme changes
+    this.themeService.currentTheme$.pipe(
+      takeUntil(this.destroy$),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      const currentState = this.contentState$.value;
+      if (currentState.currentPath && currentState.status === 'loaded') {
+        const dateTime = new Date().getTime() / 1000;
+        const cleanPath = this.cleanRelativePath(currentState.currentPath);
+        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      }
+    });
 
     // Enhanced subscription with loading state management
     this.service.selectedMdFileFromSideNav.pipe(
@@ -270,7 +285,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
 
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
@@ -428,7 +443,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
+        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`;
       }
     });
   }
@@ -480,7 +495,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
     const cleanPath = this.cleanRelativePath(newPath);
-    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
   }
 
   /**
@@ -518,7 +533,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(currentPath);
-      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
+      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`;
     }
   }
 

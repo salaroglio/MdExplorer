@@ -175,7 +175,7 @@
       <img *ngIf="node.name=='.github' && node.indexingStatus !== 'indexing'"
            src="/assets/github-copilot.svg"
            alt="GitHub Copilot"
-           class="custom-folder-icon"
+           class="custom-folder-icon github-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartella promptlab -->
       <img *ngIf="node.name==='promptlab' && node.indexingStatus !== 'indexing'"
@@ -231,7 +231,7 @@
                  style="cursor:pointer"
                  (click)="treeControl.toggle(node)">
     <button mat-icon-button matTreeNodeToggle>
-      <mat-icon style="color: #ff6d00;">rocket_launch</mat-icon>
+      <img src="/assets/apps-rocket.svg" class="app-icon-img" style="width: 24px; height: 24px;" />
     </button>
     <span class="node-text" style="font-weight: 500;">{{ node.name }}</span>
   </mat-tree-node>
@@ -254,9 +254,9 @@
                  [ngClass]="{ 'selected': isNodeSelected(node) }"
                  (click)="getNode(node)"
                  [matTooltip]="node.appDescription || node.name">
-    <button mat-icon-button color="primary" style="cursor:pointer">
+    <button mat-icon-button style="cursor:pointer">
       <img *ngIf="isImageIcon(node.appIcon)" [src]="node.appIcon" class="app-icon-img" />
-      <mat-icon *ngIf="!isImageIcon(node.appIcon)">{{ node.appIcon || 'launch' }}</mat-icon>
+      <img *ngIf="!isImageIcon(node.appIcon)" src="/assets/apps-rocket.svg" class="app-icon-img" />
     </button>
     <div class="node-text" style="cursor:pointer; padding: 2px;">{{ node.name }}</div>
   </mat-tree-node>

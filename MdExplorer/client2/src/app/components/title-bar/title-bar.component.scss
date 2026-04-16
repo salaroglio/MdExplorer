@@ -4,13 +4,14 @@
   left: 0;
   right: 0;
   height: 36px;
-  background-color: #1976d2;
-  border-bottom: 1px solid #1565c0;
+  background-color: var(--mde-titlebar-bg);
+  border-bottom: 1px solid var(--mde-titlebar-border);
   display: flex;
   align-items: center;
   z-index: 1000;
   -webkit-user-select: none;
   user-select: none;
+  transition: background-color 0.3s ease;
 }
 
 .app-info {

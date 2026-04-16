@@ -7,6 +7,7 @@ import { AiNotificationService } from './services/ai-notification.service';
 import { UrlHandlerService } from './services/url-handler.service';
 import { FileChangeNotificationService } from './services/file-change-notification.service';
 import { LanguageService } from './services/language.service';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -35,7 +36,8 @@ export class AppComponent {
     private aiNotificationService: AiNotificationService,
     private urlHandlerService: UrlHandlerService,
     private fileChangeNotificationService: FileChangeNotificationService,
-    private languageService: LanguageService) {
+    private languageService: LanguageService,
+    private themeService: ThemeService) {
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);
