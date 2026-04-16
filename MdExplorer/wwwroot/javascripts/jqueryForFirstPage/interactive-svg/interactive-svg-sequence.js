@@ -42,6 +42,30 @@ var InteractiveSvgSequence = (function() {
         window.addEventListener('wheel', _globalCtrlWheelHandler, { passive: false });
     }
 
+    var _wrapperStyleInjected = false;
+    function injectWrapperStyle() {
+        if (_wrapperStyleInjected) return;
+        _wrapperStyleInjected = true;
+        var s = document.createElement('style');
+        s.textContent = '.svg-zoom-viewport::-webkit-scrollbar{display:none}';
+        document.head.appendChild(s);
+    }
+
+    function ensureWrapper(svg) {
+        if (svg._zoomWrapper) return svg._zoomWrapper;
+        injectWrapperStyle();
+        var parent = svg.parentNode;
+        var wrapper = document.createElement('div');
+        wrapper.className = 'svg-zoom-viewport';
+        wrapper.style.maxWidth = '100%';
+        wrapper.style.overflow = 'auto';
+        wrapper.style.scrollbarWidth = 'none';
+        parent.insertBefore(wrapper, svg);
+        wrapper.appendChild(svg);
+        svg._zoomWrapper = wrapper;
+        return wrapper;
+    }
+
     /**
      * Setup Ctrl+wheel zoom on the SVG element.
      * @param {SVGElement} svg
@@ -78,13 +102,16 @@ var InteractiveSvgSequence = (function() {
             svg.style.width  = Math.round(data.zoomBaseW * data.zoomLevel) + 'px';
             svg.style.height = Math.round(data.zoomBaseH * data.zoomLevel) + 'px';
 
-            // Scroll to keep the content point under the cursor stable
             var newRect = svg.getBoundingClientRect();
-            window.scrollBy({
-                left: (newRect.left + fractionX * newRect.width)  - e.clientX,
-                top:  (newRect.top  + fractionY * newRect.height) - e.clientY,
-                behavior: 'instant'
-            });
+            var dxComp = (newRect.left + fractionX * newRect.width)  - e.clientX;
+            var dyComp = (newRect.top  + fractionY * newRect.height) - e.clientY;
+            var wrapper = svg._zoomWrapper;
+            if (wrapper && wrapper.scrollWidth > wrapper.clientWidth) {
+                wrapper.scrollLeft += dxComp;
+            } else {
+                window.scrollBy({ left: dxComp, behavior: 'instant' });
+            }
+            window.scrollBy({ top: dyComp, behavior: 'instant' });
         };
 
         svg.addEventListener('wheel', wheelHandler, { passive: false });
@@ -126,7 +153,13 @@ var InteractiveSvgSequence = (function() {
             }
 
             if (hasDragged) {
-                window.scrollBy({ left: -dx, top: -dy, behavior: 'instant' });
+                var wrapper = svg._zoomWrapper;
+                if (wrapper && wrapper.scrollWidth > wrapper.clientWidth) {
+                    wrapper.scrollLeft -= dx;
+                } else {
+                    window.scrollBy({ left: -dx, behavior: 'instant' });
+                }
+                window.scrollBy({ top: -dy, behavior: 'instant' });
                 lastX = e.clientX;
                 lastY = e.clientY;
             }
@@ -838,6 +871,7 @@ var InteractiveSvgSequence = (function() {
         installGlobalCtrlWheelPrevention();
 
         // Setup zoom and pan
+        ensureWrapper(svg);
         setupWheelZoom(svg);
         setupPanDrag(svg);
 
