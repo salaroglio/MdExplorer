@@ -136,6 +136,28 @@ namespace MdExplorer.Features.Services
                     ContextLength = 262144,
                     Parameters = "9B"
                 },
+                ["gemma4-e2b"] = new ModelInfo
+                {
+                    Id = "gemma4-e2b",
+                    Name = "Gemma 4 E2B Instruct Q4_K_M",
+                    Description = "Google Gemma 4 E2B (2.3B effective params) - on-device multimodal model, 128K context, 140+ languages",
+                    Url = "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf",
+                    FileName = "gemma-4-E2B-it-Q4_K_M.gguf",
+                    FileSize = 3_340_000_000, // ~3.11 GB
+                    ContextLength = 128000,
+                    Parameters = "E2B"
+                },
+                ["gemma4-e4b"] = new ModelInfo
+                {
+                    Id = "gemma4-e4b",
+                    Name = "Gemma 4 E4B Instruct Q4_K_M",
+                    Description = "Google Gemma 4 E4B (4.5B effective params) - on-device multimodal model, 128K context, 140+ languages",
+                    Url = "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+                    FileName = "gemma-4-E4B-it-Q4_K_M.gguf",
+                    FileSize = 5_350_000_000, // ~4.98 GB
+                    ContextLength = 128000,
+                    Parameters = "E4B"
+                },
                 ["nomic-embed-text"] = new ModelInfo
                 {
                     Id = "nomic-embed-text",

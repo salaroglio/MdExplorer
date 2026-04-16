@@ -186,7 +186,7 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
     <PackageReference Include="LibGit2Sharp" Version="0.31.0" />
     <PackageReference Include="LLamaSharp" Version="0.26.0" />
-    <PackageReference Include="Markdig" Version="0.25.0" />
+    <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="Octokit" Version="9.1.2" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
