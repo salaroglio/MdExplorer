@@ -172,14 +172,14 @@ mat-toolbar {
 
 .menu {
   display: none;
-  color: black;
+  color: var(--mde-text-primary);
   font-size: 12px;
   position: absolute;
   top:20px;
   float:right;
-  background-color: #f9f9f9;
+  background-color: var(--mde-bg-secondary);
   min-width: 300px;
-  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  box-shadow: 0px 8px 16px 0px var(--mde-shadow-color);
   z-index: 1;
 }
 
@@ -196,16 +196,16 @@ mat-toolbar {
 
 .commit-menu {
   display: none;
-  color: black;
+  color: var(--mde-text-primary);
   font-size: 12px;
   position: absolute;
   top: 20px;
   right: 0;
-  background-color: #f9f9f9;
+  background-color: var(--mde-bg-secondary);
   min-width: 350px;
   max-height: 300px;
   overflow-y: auto;
-  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  box-shadow: 0px 8px 16px 0px var(--mde-shadow-color);
   z-index: 1000;
   border-radius: 4px;
 }
@@ -217,15 +217,15 @@ mat-toolbar {
 .commit-menu-header {
   padding: 8px 12px;
   font-weight: bold;
-  background-color: #e0e0e0;
-  border-bottom: 1px solid #ccc;
+  background-color: var(--mde-bg-hover);
+  border-bottom: 1px solid var(--mde-border-strong);
 }
 
 .commit-menu-loading,
 .commit-menu-empty {
   padding: 12px;
   text-align: center;
-  color: #666;
+  color: var(--mde-text-secondary);
 }
 
 .commit-file-row {
@@ -233,7 +233,7 @@ mat-toolbar {
   align-items: center;
 
   &:hover {
-    background-color: #e8e8e8;
+    background-color: var(--mde-bg-hover);
   }
 }
 
@@ -266,8 +266,8 @@ mat-toolbar {
   width: 28px !important;
   height: 24px !important;
   line-height: 24px !important;
-  background-color: #e0e0e0;
-  border: 1px solid #bdbdbd;
+  background-color: var(--mde-bg-hover);
+  border: 1px solid var(--mde-border-strong);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;

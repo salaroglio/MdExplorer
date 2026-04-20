@@ -1,0 +1,382 @@
+/* MdExplorer Dark Theme for iframe content */
+
+/* === Base === */
+body.dark-theme {
+  background-color: #1e1e1e !important;
+  color: #cccccc !important;
+}
+
+/* === Typography === */
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4,
+body.dark-theme h5,
+body.dark-theme h6 {
+  color: #e0e0e0;
+}
+
+body.dark-theme a {
+  color: #4fc3f7;
+}
+
+body.dark-theme a:hover {
+  color: #81d4fa;
+}
+
+body.dark-theme hr {
+  border-color: #444;
+}
+
+body.dark-theme blockquote {
+  border-left-color: #555;
+  color: #aaa;
+  background-color: #252526;
+}
+
+/* === Code === */
+body.dark-theme code {
+  background-color: #2d2d2d;
+  color: #e06c75;
+}
+
+body.dark-theme pre {
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+body.dark-theme pre code {
+  color: #cccccc;
+}
+
+/* === Tables (Bootstrap) === */
+body.dark-theme table {
+  color: #cccccc;
+  border-color: #444;
+}
+
+body.dark-theme th {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-theme td {
+  border-color: #444;
+}
+
+body.dark-theme tr:nth-child(even) {
+  background-color: #252526;
+}
+
+body.dark-theme tr:hover {
+  background-color: #2a2d2e;
+}
+
+body.dark-theme .table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #252526;
+}
+
+body.dark-theme .table-bordered,
+body.dark-theme .table-bordered th,
+body.dark-theme .table-bordered td {
+  border-color: #444;
+}
+
+/* === Bootstrap Alerts === */
+body.dark-theme .alert-info {
+  background-color: #1a3a4f;
+  border-color: #2a5a7f;
+  color: #8ecae6;
+}
+
+body.dark-theme .alert-warning {
+  background-color: #4a3a1a;
+  border-color: #6a5a2a;
+  color: #ffd166;
+}
+
+body.dark-theme .alert-danger {
+  background-color: #4a1a1a;
+  border-color: #6a2a2a;
+  color: #ef476f;
+}
+
+body.dark-theme .alert-success {
+  background-color: #1a4a1a;
+  border-color: #2a6a2a;
+  color: #06d6a0;
+}
+
+/* === Prism.js Syntax Highlighting (VS Code Dark+ style) === */
+body.dark-theme code[class*="language-"],
+body.dark-theme pre[class*="language-"] {
+  color: #d4d4d4;
+  background: #1e1e1e;
+}
+
+body.dark-theme .token.comment,
+body.dark-theme .token.prolog,
+body.dark-theme .token.doctype,
+body.dark-theme .token.cdata {
+  color: #6a9955;
+}
+
+body.dark-theme .token.punctuation {
+  color: #d4d4d4;
+}
+
+body.dark-theme .token.property,
+body.dark-theme .token.tag,
+body.dark-theme .token.boolean,
+body.dark-theme .token.number,
+body.dark-theme .token.constant,
+body.dark-theme .token.symbol {
+  color: #b5cea8;
+}
+
+body.dark-theme .token.selector,
+body.dark-theme .token.attr-name,
+body.dark-theme .token.string,
+body.dark-theme .token.char,
+body.dark-theme .token.builtin {
+  color: #ce9178;
+}
+
+body.dark-theme .token.operator,
+body.dark-theme .token.entity,
+body.dark-theme .token.url {
+  color: #d4d4d4;
+}
+
+body.dark-theme .token.atrule,
+body.dark-theme .token.attr-value,
+body.dark-theme .token.keyword {
+  color: #569cd6;
+}
+
+body.dark-theme .token.function,
+body.dark-theme .token.class-name {
+  color: #dcdcaa;
+}
+
+body.dark-theme .token.regex,
+body.dark-theme .token.important,
+body.dark-theme .token.variable {
+  color: #d16969;
+}
+
+/* === MdCustomCSS Overrides === */
+
+/* TOC sidebar */
+body.dark-theme .tocNavigation {
+  background-color: #1e1e1e !important;
+  border-color: #444;
+}
+
+body.dark-theme .toc {
+  background-color: #1e1e1e !important;
+}
+
+body.dark-theme .toc-list-item {
+  border-color: #444 !important;
+}
+
+body.dark-theme .toc-link {
+  color: #cccccc;
+}
+
+body.dark-theme .toc-link.is-active-link {
+  color: #4fc3f7;
+}
+
+body.dark-theme .tocSeparator {
+  background-color: #555;
+}
+
+/* Refs sidebar */
+body.dark-theme .refsNavigation {
+  background-color: #1e1e1e !important;
+  border-color: #444;
+}
+
+/* Lower bar - keep light background so dark icons stay visible */
+body.dark-theme div.mdeLowerBar {
+  background: #e0e0e0 !important;
+  background-color: #e0e0e0 !important;
+  background-image: none !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-theme div.mdeLowerBarButton,
+body.dark-theme .mdeLowerBarButton {
+  color: #333333 !important;
+  background-color: transparent !important;
+}
+
+body.dark-theme div.mdeLowerBarButton:hover,
+body.dark-theme .mdeLowerBarButton:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  color: #000000 !important;
+}
+
+/* Search highlights */
+body.dark-theme .mdeSearchHighlight {
+  background-color: #806600;
+  color: #ffffff;
+}
+
+body.dark-theme .mdeSearchHighlight.current {
+  background-color: #cc7700;
+}
+
+body.dark-theme .mdeSearchContainer {
+  background: #2d2d2d;
+  border-color: #555;
+}
+
+body.dark-theme .mdeSearchInput {
+  color: #cccccc;
+  background-color: #1e1e1e;
+  border-color: #555;
+}
+
+/* Images */
+body.dark-theme .resizableImg {
+  background: #2d2d2d;
+  border-color: #555;
+}
+
+/* === PlantUML / SVG Diagrams Dark Mode === */
+body.dark-theme svg[id^="plantuml"],
+body.dark-theme .plantuml-diagram,
+body.dark-theme div[id^="plantuml-container"] svg,
+body.dark-theme svg.interactive-svg,
+body.dark-theme .svg-zoom-viewport svg {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+
+/* === Mermaid Diagrams === */
+body.dark-theme .mermaid svg {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+
+/* === Scrollbar === */
+body.dark-theme::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+body.dark-theme::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
+body.dark-theme::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* === Buttons (exclude image toolbar buttons) === */
+body.dark-theme button:not([alt]) {
+  color: #cccccc;
+  background: #2d2d2d;
+  border-color: #555;
+}
+
+body.dark-theme button:not([alt]):hover {
+  background: #3c3c3c;
+  color: #ffffff;
+  border-color: #777;
+}
+
+/* Image toolbar buttons - light background for dark icon visibility */
+body.dark-theme button[alt] {
+  background: #e0e0e0 !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px;
+}
+
+body.dark-theme button[alt]:hover {
+  background: #d0d0d0 !important;
+}
+
+/* === Inputs === */
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select {
+  background-color: #1e1e1e;
+  color: #cccccc;
+  border-color: #555;
+}
+
+/* === Bootstrap card/panel === */
+body.dark-theme .card,
+body.dark-theme .panel {
+  background-color: #252526;
+  border-color: #444;
+}
+
+body.dark-theme .card-header,
+body.dark-theme .panel-heading {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+/* === Tippy tooltips === */
+body.dark-theme .tippy-box {
+  background-color: #3c3c3c;
+  color: #cccccc;
+}
+
+/* === Definition lists === */
+body.dark-theme dt {
+  color: #e0e0e0;
+}
+
+body.dark-theme dd {
+  color: #cccccc;
+}
+
+/* === Abbreviations === */
+body.dark-theme abbr {
+  border-bottom-color: #666;
+}
+
+/* === Footnotes === */
+body.dark-theme .footnote-ref a,
+body.dark-theme .footnote-backref {
+  color: #4fc3f7;
+}
+
+/* === Details/Summary === */
+body.dark-theme details {
+  border-color: #444;
+}
+
+body.dark-theme summary {
+  color: #e0e0e0;
+}
+
+/* === Edit overlay (H1 popup) === */
+body.dark-theme .edith1-popup-overlay {
+  background: #1e1e1e;
+  border-color: #555;
+}
+
+/* === jspreadsheet === */
+body.dark-theme .jexcel_content,
+body.dark-theme .jexcel {
+  background-color: #1e1e1e;
+  color: #cccccc;
+}
+
+body.dark-theme .jexcel td {
+  border-color: #444;
+  background-color: #1e1e1e;
+  color: #cccccc;
+}
+
+body.dark-theme .jexcel thead td {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+}

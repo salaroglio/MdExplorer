@@ -1,7 +1,7 @@
 // Modern container layout
 .modern-container {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--mde-bg-secondary);
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -12,7 +12,7 @@
 // Content wrapper
 .content-wrapper {
   flex: 1;
-  background: #f5f7fa;
+  background: var(--mde-bg-secondary);
   padding: 40px;
   max-width: 1600px;
   margin: 0 auto;
@@ -57,9 +57,9 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 16px;
   border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--mde-shadow-color);
   overflow: hidden;
-  background: white;
+  background: var(--mde-bg-primary);
 
   &:hover {
     transform: translateY(-4px);
@@ -111,13 +111,13 @@
       margin: 0 0 4px 0;
       font-size: 1rem;
       font-weight: 500;
-      color: #2d3748;
+      color: var(--mde-text-primary);
     }
 
     .card-description {
       margin: 0;
       font-size: 0.75rem;
-      color: #718096;
+      color: var(--mde-text-secondary);
       line-height: 1.4;
     }
   }
@@ -159,7 +159,7 @@
   gap: 12px;
   font-size: 1.5rem;
   font-weight: 500;
-  color: #2d3748;
+  color: var(--mde-text-primary);
   margin: 0 0 24px 0;
 
   .section-icon {
@@ -173,7 +173,7 @@
 // Section divider
 .section-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+  background: linear-gradient(to right, transparent, var(--mde-border-color), transparent);
   margin: 32px 0;
 }
 
@@ -281,16 +281,16 @@
   }
 
   &::-webkit-scrollbar-track {
-    background: #e2e8f0;
+    background: var(--mde-scrollbar-track);
     border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
+    background: var(--mde-scrollbar-thumb);
     border-radius: 4px;
 
     &:hover {
-      background: #a0aec0;
+      background: var(--mde-scrollbar-hover);
     }
   }
 }
@@ -299,9 +299,9 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  background: white;
+  border: 1px solid var(--mde-border-color);
+  box-shadow: 0 1px 3px var(--mde-shadow-color);
+  background: var(--mde-bg-primary);
   position: relative;
   overflow: visible;
 
@@ -382,7 +382,7 @@
       margin: 0;
       font-size: 1.1rem;
       font-weight: 500;
-      color: #2d3748;
+      color: var(--mde-text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -391,7 +391,7 @@
     .project-path {
       margin: 0;
       font-size: 0.8rem;
-      color: #718096;
+      color: var(--mde-text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -565,7 +565,7 @@
 .diagnostics-section {
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--mde-border-color);
   display: flex;
   gap: 12px;
   flex-wrap: wrap;

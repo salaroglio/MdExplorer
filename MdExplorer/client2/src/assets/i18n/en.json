@@ -30,7 +30,12 @@
     "AI_MODELS": "AI Models",
     "EMBEDDING": "Embedding",
     "LANGUAGE": "Language",
-    "LANGUAGE_HINT": "Select the application language"
+    "LANGUAGE_HINT": "Select the application language",
+    "THEME": "Theme",
+    "THEME_HINT": "Select the application appearance",
+    "THEME_LIGHT": "Light",
+    "THEME_DARK": "Dark",
+    "THEME_SYSTEM": "Follow system"
   },
   "PROJECTS": {
     "RECENT_PROJECTS": "Recent Projects",

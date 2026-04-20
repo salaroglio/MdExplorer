@@ -1,7 +1,7 @@
 :host {
   height: 100%;
   width: 100%;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -47,41 +47,39 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--mde-bg-primary);
+  opacity: 0.95;
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  
-  // Smooth fade-in animation
+
   animation: fadeIn 0.3s ease-out;
-  
+
   .loading-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
     padding: 2rem;
-    
+
     mat-progress-spinner {
       margin-bottom: 1rem;
-      
-      // Pulse animation for enhanced visual feedback
       animation: pulse 2s infinite ease-in-out;
     }
-    
+
     .loading-text {
       font-size: 1.1rem;
       font-weight: 500;
-      color: #333;
+      color: var(--mde-text-primary);
       margin: 0.5rem 0;
       letter-spacing: 0.5px;
     }
-    
+
     .loading-subtext {
       font-size: 0.9rem;
-      color: #666;
+      color: var(--mde-text-secondary);
       margin: 0;
       opacity: 0.8;
     }
@@ -111,7 +109,7 @@
     align-items: center;
     text-align: center;
     padding: 2rem;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--mde-bg-primary);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
     border: 1px solid rgba(255, 193, 7, 0.4);
@@ -166,14 +164,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  background: var(--mde-bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  
+
   animation: slideInFromTop 0.4s ease-out;
-  
+
   .error-content {
     display: flex;
     flex-direction: column;
@@ -181,27 +179,25 @@
     text-align: center;
     padding: 2rem;
     max-width: 400px;
-    
+
     .error-icon {
       font-size: 3rem;
       width: 3rem;
       height: 3rem;
       margin-bottom: 1rem;
-      
-      // Subtle shake animation for attention
       animation: shake 0.5s ease-in-out;
     }
-    
+
     .error-title {
       font-size: 1.3rem;
       font-weight: 600;
       color: #d32f2f;
       margin: 0 0 1rem 0;
     }
-    
+
     .error-message {
       font-size: 1rem;
-      color: #666;
+      color: var(--mde-text-secondary);
       line-height: 1.5;
       margin: 0 0 1.5rem 0;
     }
@@ -233,14 +229,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: var(--mde-bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 500;
-  
+
   animation: fadeIn 0.5s ease-out;
-  
+
   .empty-content {
     display: flex;
     flex-direction: column;
@@ -248,39 +244,37 @@
     text-align: center;
     padding: 3rem 2rem;
     max-width: 500px;
-    
+
     .empty-icon {
       font-size: 4rem;
       width: 4rem;
       height: 4rem;
-      color: #90a4ae;
+      color: var(--mde-text-hint);
       margin-bottom: 1.5rem;
-      
-      // Gentle floating animation
       animation: float 3s ease-in-out infinite;
     }
-    
+
     .empty-title {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #37474f;
+      color: var(--mde-text-primary);
       margin: 0 0 1rem 0;
     }
-    
+
     .empty-message {
       font-size: 1rem;
-      color: #78909c;
+      color: var(--mde-text-secondary);
       line-height: 1.6;
       margin: 0 0 2rem 0;
     }
-    
+
     .empty-actions {
       .empty-hint {
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.9rem;
-        color: #90a4ae;
+        color: var(--mde-text-hint);
         margin: 0;
         
         .hint-icon {
@@ -301,7 +295,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+  background: var(--mde-bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -321,31 +315,31 @@
       font-size: 3.5rem;
       width: 3.5rem;
       height: 3.5rem;
-      color: #78909c;
+      color: var(--mde-text-hint);
       margin-bottom: 1.5rem;
     }
 
     .deleted-title {
       font-size: 1.3rem;
       font-weight: 600;
-      color: #455a64;
+      color: var(--mde-text-primary);
       margin: 0 0 1rem 0;
     }
 
     .deleted-message {
       font-size: 1rem;
-      color: #607d8b;
+      color: var(--mde-text-secondary);
       line-height: 1.6;
       margin: 0 0 0.5rem 0;
 
       strong {
-        color: #37474f;
+        color: var(--mde-text-primary);
       }
     }
 
     .deleted-hint {
       font-size: 0.9rem;
-      color: #90a4ae;
+      color: var(--mde-text-hint);
       margin: 0.5rem 0 0 0;
     }
   }
@@ -356,7 +350,7 @@
   width: 100%;
   height: 100%;
   border: none;
-  background: white;
+  background: var(--mde-bg-primary);
   flex: 1 1 auto;
   display: block; // FIX: esplicito per evitare spacing issues
   
@@ -494,105 +488,4 @@
   }
 }
 
-// === DARK MODE SUPPORT ===
-@media (prefers-color-scheme: dark) {
-  :host {
-    border-color: #424242;
-  }
-  
-  .loading-overlay {
-    background: rgba(33, 33, 33, 0.95);
-    
-    .loading-text {
-      color: #e0e0e0;
-    }
-    
-    .loading-subtext {
-      color: #bdbdbd;
-    }
-  }
-  
-  .indexing-overlay {
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.2) 100%);
-    
-    .indexing-content {
-      background: rgba(48, 48, 48, 0.95);
-      border-color: rgba(255, 193, 7, 0.6);
-      box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);
-    }
-    
-    .indexing-text {
-      color: #ffb74d;
-    }
-    
-    .indexing-subtext {
-      color: #ffa726;
-    }
-    
-    .indexing-info {
-      background: rgba(255, 193, 7, 0.2);
-      color: #ffcc02;
-      
-      .info-icon {
-        color: #ffc107;
-      }
-    }
-  }
-  
-  .error-state {
-    background: linear-gradient(135deg, #303030 0%, #424242 100%);
-    
-    .error-title {
-      color: #f48fb1;
-    }
-    
-    .error-message {
-      color: #bdbdbd;
-    }
-  }
-  
-  .empty-state {
-    background: linear-gradient(135deg, #303030 0%, #424242 100%);
-
-    .empty-title {
-      color: #e0e0e0;
-    }
-
-    .empty-message {
-      color: #bdbdbd;
-    }
-
-    .empty-icon,
-    .empty-hint {
-      color: #90a4ae;
-    }
-  }
-
-  .deleted-state {
-    background: linear-gradient(135deg, #303030 0%, #3e3e3e 100%);
-
-    .deleted-icon {
-      color: #90a4ae;
-    }
-
-    .deleted-title {
-      color: #e0e0e0;
-    }
-
-    .deleted-message {
-      color: #bdbdbd;
-
-      strong {
-        color: #e0e0e0;
-      }
-    }
-
-    .deleted-hint {
-      color: #78909c;
-    }
-  }
-
-  .content-iframe {
-    background: #1e1e1e;
-  }
-}
+// Dark mode is handled by CSS variables in styles.scss (body.dark-theme)

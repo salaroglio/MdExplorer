@@ -11,6 +11,7 @@ import { EmbeddingConfigService, EmbeddingConfig, EmbeddingConfigResponse, Embed
 import { IMdSetting } from '../../models/IMdSetting';
 import { TocGenerationService } from '../../md-explorer/services/toc-generation.service';
 import { LanguageService } from '../../services/language.service';
+import { ThemeService, ThemeMode } from '../../services/theme.service';
 import { TranslateService } from '@ngx-translate/core';
 
 @Component({
@@ -39,6 +40,10 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   // === Language ===
   currentLanguage: string = 'en';
   supportedLanguages: { code: string; label: string }[] = [];
+
+  // === Theme ===
+  currentThemeMode: ThemeMode = 'light';
+  supportedThemes: { code: ThemeMode; label: string; icon: string }[] = [];
 
   // === AI Models tab ===
   availableModels: ModelInfo[] = [];
@@ -104,6 +109,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     private tocService: TocGenerationService,
     private snackBar: MatSnackBar,
     private languageService: LanguageService,
+    private themeService: ThemeService,
     private translate: TranslateService
   ) {
     this.isElectronEnvironment = !!(window as any).electronAPI?.flashTaskbarIcon;
@@ -115,6 +121,8 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentLanguage = this.languageService.getCurrentLanguage();
     this.supportedLanguages = this.languageService.getSupportedLanguages();
+    this.currentThemeMode = this.themeService.getCurrentMode();
+    this.supportedThemes = this.themeService.getSupportedThemes();
     this.loadApplicationSettings();
     this.loadAiModels();
     this.loadEmbeddingConfig();
@@ -162,6 +170,12 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.plantumlLocalPath = settings.find(_ => _.name === 'PlantumlLocalPath')?.valueString || '';
         this.javaPath = settings.find(_ => _.name === 'JavaPath')?.valueString || '';
         this.localGraphvizDotPath = settings.find(_ => _.name === 'LocalGraphvizDotPath')?.valueString || '';
+
+        const savedTheme = settings.find(_ => _.name === 'ThemeMode')?.valueString;
+        if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
+          this.currentThemeMode = savedTheme as ThemeMode;
+          this.themeService.setTheme(this.currentThemeMode);
+        }
       }
     });
     this.fileChangeNotificationEnabled = this.fileChangeNotificationService.isEnabled();
@@ -179,9 +193,11 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.updateSetting('PlantumlLocalPath', this.plantumlLocalPath);
     this.updateSetting('JavaPath', this.javaPath);
     this.updateSetting('LocalGraphvizDotPath', this.localGraphvizDotPath);
+    this.updateSetting('ThemeMode', this.currentThemeMode);
 
     this.appMetadataService.saveSettings(this._settings).subscribe(() => {
       this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.APP_SAVED'), '', { duration: 2000 });
+      this.dialogRef.close();
     });
   }
 
@@ -205,6 +221,12 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
 
   onLanguageChange(): void {
     this.languageService.setLanguage(this.currentLanguage);
+  }
+
+  onThemeChange(): void {
+    this.themeService.setTheme(this.currentThemeMode);
+    this.updateSetting('ThemeMode', this.currentThemeMode);
+    this.appMetadataService.saveSettings(this._settings).subscribe();
   }
 
   // ============================
