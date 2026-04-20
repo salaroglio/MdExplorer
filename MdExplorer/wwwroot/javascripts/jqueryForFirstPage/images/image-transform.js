@@ -22,6 +22,40 @@
 // Scroll listeners keyed by referenceId, to clean up on hide
 var _toolbarScrollListeners = {};
 
+/**
+ * Toggle SVG light mode: removes/restores the CSS invert filter on the SVG
+ * sibling of the toolbar, so the user can see original colors in dark mode.
+ */
+function toggleSvgLightMode(btnElement) {
+    var $toolbar = $(btnElement).closest('[id]');
+    var $container = $toolbar.next();
+    var $svg = $container.find('svg').first();
+    if (!$svg.length) $svg = $container.filter('svg');
+    if (!$svg.length) return;
+
+    var $icon = $(btnElement).find('.svg-light-toggle-icon');
+    var current = $svg.css('filter');
+    if (current && current !== 'none') {
+        // Turn ON the light: remove filter, light mode (yellow bulb)
+        $svg.data('original-filter', current);
+        $svg.css('filter', 'none');
+        $icon.css({
+            'filter': 'none',
+            'opacity': '1'
+        });
+        $(btnElement).attr('title', 'Turn off the light (back to dark mode)');
+    } else {
+        // Turn OFF the light: restore filter, dark mode (faded/grayscale bulb)
+        var original = $svg.data('original-filter') || 'invert(0.88) hue-rotate(180deg)';
+        $svg.css('filter', original);
+        $icon.css({
+            'filter': 'grayscale(1) brightness(0.6)',
+            'opacity': '0.5'
+        });
+        $(btnElement).attr('title', 'Turn on the light (view in light mode)');
+    }
+}
+
 // Pending hide timers keyed by referenceId (allows mouseenter on search box to cancel)
 var _hideToolbarTimers = {};
 
@@ -124,6 +158,19 @@ function showImageToolbar(referenceId) {
 
     $element.attr("style",
         "display:block; position:fixed; top:" + top + "px; left:" + left + "px; z-index:100;");
+
+    // Dark mode: inject light-mode toggle button for SVG diagrams
+    if (document.body.classList.contains('dark-theme') && !$element.data('light-toggle-added')) {
+        var $sibling = $element.next();
+        var hasSvg = $sibling.find('svg').length > 0 || $sibling.find('.svg-zoom-viewport').length > 0;
+        if (hasSvg) {
+            var $btn = $('<button alt="light mode" title="Turn on the light (view in light mode)" onclick="toggleSvgLightMode(this)">' +
+                '<span class="svg-light-toggle-icon" style="font-size:18px;line-height:1;display:inline-block;">💡</span>' +
+                '</button>');
+            $element.append($btn);
+            $element.data('light-toggle-added', true);
+        }
+    }
 
     // Guard against double-adding the scroll listener
     if (!_toolbarScrollListeners[referenceId]) {

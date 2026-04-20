@@ -983,6 +983,43 @@ body.dark-theme {
     }
   }
 
+  // Menu contestuale: testo nero come Material default (com'era prima del fix
+  // icone). Bg e hover lasciati alle regole globali. Solo icone primary/accent
+  // e warn colorate per visibilità.
+  .mat-mdc-menu-panel,
+  .mat-menu-panel {
+    // Testo nero secco sui menu-item SENZA inline-style "color:"
+    // (preserva viola RAG #7c4dff, teal P2P #11998e, arancione force-open).
+    .mat-mdc-menu-item:not([style*="color:"]),
+    .mat-menu-item:not([style*="color:"]) {
+      color: #000 !important;
+    }
+
+    // Material 15 MDC avvolge la label in <span class="mdc-list-item__primary-text">.
+    // inherit → prende dal button (nero default o inline-style custom).
+    .mat-mdc-menu-item,
+    .mat-menu-item {
+      .mdc-list-item__primary-text,
+      > span,
+      > b,
+      > span > b {
+        color: inherit !important;
+      }
+    }
+
+    button.mat-primary .mat-icon,
+    button.mat-mdc-icon-button.mat-primary .mat-icon,
+    button.mat-accent .mat-icon,
+    button.mat-mdc-icon-button.mat-accent .mat-icon {
+      color: var(--mde-accent-primary);
+    }
+
+    button.mat-warn .mat-icon,
+    button.mat-mdc-icon-button.mat-warn .mat-icon {
+      color: #ef5350;
+    }
+  }
+
   .mat-sidenav,
   .mat-drawer,
   .mat-mdc-sidenav {

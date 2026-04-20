@@ -986,6 +986,46 @@ body.dark-theme .mat-nested-tree-node button.mat-icon-button:not(.mat-primary),
 body.dark-theme .mat-nested-tree-node button.mat-mdc-icon-button:not(.mat-primary) {
   color: var(--mde-text-primary) !important;
 }
+body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
+body.dark-theme .mat-mdc-menu-panel .mat-menu-item:not([style*="color:"]),
+body.dark-theme .mat-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
+body.dark-theme .mat-menu-panel .mat-menu-item:not([style*="color:"]) {
+  color: #000 !important;
+}
+body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item .mdc-list-item__primary-text,
+body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item > span,
+body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item > b,
+body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item > span > b,
+body.dark-theme .mat-mdc-menu-panel .mat-menu-item .mdc-list-item__primary-text,
+body.dark-theme .mat-mdc-menu-panel .mat-menu-item > span,
+body.dark-theme .mat-mdc-menu-panel .mat-menu-item > b,
+body.dark-theme .mat-mdc-menu-panel .mat-menu-item > span > b,
+body.dark-theme .mat-menu-panel .mat-mdc-menu-item .mdc-list-item__primary-text,
+body.dark-theme .mat-menu-panel .mat-mdc-menu-item > span,
+body.dark-theme .mat-menu-panel .mat-mdc-menu-item > b,
+body.dark-theme .mat-menu-panel .mat-mdc-menu-item > span > b,
+body.dark-theme .mat-menu-panel .mat-menu-item .mdc-list-item__primary-text,
+body.dark-theme .mat-menu-panel .mat-menu-item > span,
+body.dark-theme .mat-menu-panel .mat-menu-item > b,
+body.dark-theme .mat-menu-panel .mat-menu-item > span > b {
+  color: inherit !important;
+}
+body.dark-theme .mat-mdc-menu-panel button.mat-primary .mat-icon,
+body.dark-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-primary .mat-icon,
+body.dark-theme .mat-mdc-menu-panel button.mat-accent .mat-icon,
+body.dark-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-accent .mat-icon,
+body.dark-theme .mat-menu-panel button.mat-primary .mat-icon,
+body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-primary .mat-icon,
+body.dark-theme .mat-menu-panel button.mat-accent .mat-icon,
+body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-accent .mat-icon {
+  color: var(--mde-accent-primary);
+}
+body.dark-theme .mat-mdc-menu-panel button.mat-warn .mat-icon,
+body.dark-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon,
+body.dark-theme .mat-menu-panel button.mat-warn .mat-icon,
+body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon {
+  color: #ef5350;
+}
 body.dark-theme .mat-sidenav,
 body.dark-theme .mat-drawer,
 body.dark-theme .mat-mdc-sidenav {

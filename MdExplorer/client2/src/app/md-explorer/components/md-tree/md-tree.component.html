@@ -18,8 +18,58 @@
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="openDocumentSettings(item)" [matTooltip]="'MD_TREE.DOC_SETTINGS' | translate"><mat-icon>settings</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="moveDocument(item)" [matTooltip]="'MD_TREE.MOVE' | translate"><mat-icon>open_with</mat-icon></button>
     </div>
-    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">{{ 'MD_TREE.OPEN_EXPLORER' | translate }}</button>
-    <button *ngIf="item.type==='folder'" mat-menu-item (click)="openTocDirectory(item)">{{ 'MD_TREE.TOC_DIRECTORY' | translate }}</button>
+
+    <!-- Voci verticali replicate dalla toolbar compatta per accessibilità e leggibilità delle azioni -->
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="renameDirectoryOn(item)">
+      <mat-icon>drive_file_rename_outline</mat-icon>
+      <span>{{ 'MD_TREE.RENAME_FOLDER' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)">
+      <mat-icon>create_new_folder</mat-icon>
+      <span>{{ 'MD_TREE.CREATE_FOLDER' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createMdOn(item)">
+      <mat-icon>note_add</mat-icon>
+      <span>{{ 'MD_TREE.CREATE_DOCUMENT' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="getLinkFromNode(item)">
+      <mat-icon>link</mat-icon>
+      <span>{{ 'MD_TREE.COPY_PATH' | translate }}</span>
+    </button>
+
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="deleteFile(item)">
+      <mat-icon style="color: #ef5350;">delete</mat-icon>
+      <span>{{ 'MD_TREE.DELETE_DOCUMENT' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="pasteFromClipboard(item)">
+      <mat-icon style="color: #ef5350;">archive</mat-icon>
+      <span>{{ 'MD_TREE.PASTE_CLIPBOARD' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="getLinkFromNode(item)">
+      <mat-icon>link</mat-icon>
+      <span>{{ 'MD_TREE.COPY_LINK' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="copyMdExplorerLink(item)">
+      <mat-icon>share</mat-icon>
+      <span>{{ 'MD_TREE.COPY_MDE_LINK' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="openDocumentSettings(item)">
+      <mat-icon>settings</mat-icon>
+      <span>{{ 'MD_TREE.DOC_SETTINGS' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="moveDocument(item)">
+      <mat-icon>open_with</mat-icon>
+      <span>{{ 'MD_TREE.MOVE' | translate }}</span>
+    </button>
+
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">
+      <mat-icon>folder_open</mat-icon>
+      <span>{{ 'MD_TREE.OPEN_EXPLORER' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="openTocDirectory(item)">
+      <mat-icon>toc</mat-icon>
+      <span>{{ 'MD_TREE.TOC_DIRECTORY' | translate }}</span>
+    </button>
     <button *ngIf="item.type==='folder' && tocFileExists(item)" mat-menu-item (click)="refreshTocDirectory(item)">
       <mat-icon>refresh</mat-icon>
       <span>{{ 'MD_TREE.REFRESH_TOC_AI' | translate }}</span>
@@ -63,7 +113,10 @@
       <span>{{ 'MD_TREE.INDEX_RAG' | translate }}</span>
     </button>
 
-    <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)">{{ 'MD_TREE.ADD_AS_LINK' | translate }}</button>
+    <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)">
+      <mat-icon>add_link</mat-icon>
+      <span>{{ 'MD_TREE.ADD_AS_LINK' | translate }}</span>
+    </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>{{ 'MD_TREE.SET_LANDING_PAGE' | translate }}</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>{{ 'MD_TREE.CLONE_TIMED_DOC' | translate }}</b></button>
     <!-- Add file to share via P2P - only on markdown files -->
