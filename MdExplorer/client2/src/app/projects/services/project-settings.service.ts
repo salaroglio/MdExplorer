@@ -47,6 +47,26 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
+  getPlantUmlKeepOriginalColorsSetting(projectPath: string): Observable<{enabled: boolean}> {
+    const url = '../api/ProjectSettings/GetPlantUmlKeepOriginalColorsSetting';
+    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  }
+
+  setPlantUmlKeepOriginalColorsSetting(enabled: boolean, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetPlantUmlKeepOriginalColorsSetting';
+    return this.http.post<any>(url, { enabled, projectPath });
+  }
+
+  getCopilotCliAutoSelectSetting(projectPath: string): Observable<{enabled: boolean}> {
+    const url = '../api/ProjectSettings/GetCopilotCliAutoSelectSetting';
+    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  }
+
+  setCopilotCliAutoSelectSetting(enabled: boolean, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetCopilotCliAutoSelectSetting';
+    return this.http.post<any>(url, { enabled, projectPath });
+  }
+
   // RAG Settings
   getRagStatus(): Observable<any> {
     const url = '../api/Rag/status';

@@ -26,6 +26,9 @@ using MdExplorer.Services.FileSystemWatcherManager;
 using MdExplorer.Services.Git;
 using MdExplorer.Services.Git.Interfaces;
 using MdExplorer.Service.Services;
+using MdExplorer.Abstractions.Services;
+using MdExplorer.Abstractions.Models.AI;
+using MdExplorer.Features.Services.AI;
 
 namespace MdExplorer.Service.Controllers.MdProjects
 {
@@ -43,6 +46,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly GitCredentialHelperResolver _gitCredentialHelper;
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IProjectMetadataService _projectMetadataService;
+        private readonly IEnumerable<IAiProvider> _aiProviders;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
@@ -53,7 +57,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IGitAccountService gitAccountService,
                 GitCredentialHelperResolver gitCredentialHelper,
                 FoldersIgnoreService foldersIgnoreService,
-                IProjectMetadataService projectMetadataService)
+                IProjectMetadataService projectMetadataService,
+                IEnumerable<IAiProvider> aiProviders)
         {
             _userSettingsDB = userSettingsDB;
             _services = services;
@@ -65,6 +70,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _gitCredentialHelper = gitCredentialHelper;
             _foldersIgnoreService = foldersIgnoreService;
             _projectMetadataService = projectMetadataService;
+            _aiProviders = aiProviders;
         }
 
         [HttpGet]
@@ -371,6 +377,31 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     }
                 }
 
+                // Copilot CLI auto-select probe: if the project prefers it as default AI,
+                // check availability, warm up the provider, and report it in the response.
+                // Frontend decides whether to silently connect or show the "not installed" banner.
+                bool copilotCliAutoSelect = project.UseCopilotCliAsDefault;
+                bool copilotCliAvailable = false;
+                string copilotCliDefaultModel = null;
+                if (copilotCliAutoSelect)
+                {
+                    var copilotProvider = _aiProviders?
+                        .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
+                    if (copilotProvider != null)
+                    {
+                        copilotProvider.WorkingDirectory = request.Path;
+                        copilotCliAvailable = copilotProvider.IsAvailable();
+                        copilotCliDefaultModel = "claude-sonnet-4.6";
+                        logger?.LogInformation(
+                            "🤖 CopilotCli auto-select: enabled={Enabled}, available={Available}, model={Model}, cwd={Cwd}",
+                            copilotCliAutoSelect, copilotCliAvailable, copilotCliDefaultModel, request.Path);
+                    }
+                    else
+                    {
+                        logger?.LogWarning("⚠️ CopilotCli provider not resolved from DI — auto-select skipped");
+                    }
+                }
+
                 return Ok(new {
                     id = project.Id,
                     name = project.Name,
@@ -382,7 +413,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     hasGitAccount = hasGitAccount,
                     needsManualCredentials = needsManualCredentials,
                     remoteUrl = detectedRemoteUrl,
-                    detectedProvider = detectedProvider
+                    detectedProvider = detectedProvider,
+                    copilotCliAutoSelect = copilotCliAutoSelect,
+                    copilotCliAvailable = copilotCliAvailable,
+                    copilotCliDefaultModel = copilotCliDefaultModel
                 });
             }
             catch (Exception ex)

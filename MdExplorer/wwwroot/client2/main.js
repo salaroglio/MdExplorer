@@ -8576,6 +8576,11 @@ class ProjectsService {
     this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
     // RAG enabled status for current project
     this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
+    // Copilot CLI auto-select state for the freshly opened project.
+    // Emits the tuple from SetFolderProject response: { autoSelect, available, defaultModel }.
+    // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
+    // or to disable the chat with a "not installed" banner.
+    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
     this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
@@ -8619,6 +8624,10 @@ class ProjectsService {
         _this2.notifyProjectOpened(path);
         // Refresh RAG enabled status
         _this2.refreshRagStatus();
+        // Apply PlantUML dark-mode preference for this project
+        _this2.applyPlantUmlKeepOriginalClass(path);
+        // Emit Copilot CLI auto-select hint for ai-chat to consume
+        _this2.emitCopilotCliAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -8655,6 +8664,10 @@ class ProjectsService {
         _this3.notifyProjectOpened(config.projectPath);
         // Refresh RAG enabled status
         _this3.refreshRagStatus();
+        // Apply PlantUML dark-mode preference for this project
+        _this3.applyPlantUmlKeepOriginalClass(config.projectPath);
+        // Emit Copilot CLI auto-select hint for ai-chat to consume
+        _this3.emitCopilotCliAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -8686,6 +8699,10 @@ class ProjectsService {
       callback(data, objectThis);
     });
   }
+  updateProject(payload) {
+    const url = '../api/MdProjects/UpdateProject';
+    return this.http.post(url, payload);
+  }
   /**
    * Closes the current project and deallocates backend resources (FileSystemWatcher, database contexts).
    * Should be called when navigating back to the projects list.
@@ -8695,6 +8712,8 @@ class ProjectsService {
     this.notifyProjectClosed();
     // Reset window title
     this.updateWindowTitle(null);
+    // Reset PlantUML dark-mode override (scoped to the closing project)
+    document.body.classList.remove('plantuml-keep-original');
     return this.http.post('../api/MdProjects/CloseProject', {});
   }
   /**
@@ -8715,12 +8734,30 @@ class ProjectsService {
         this.currentProjects$.next(response);
         // Update window title
         this.updateWindowTitle(response.name);
+        // Re-apply PlantUML dark-mode preference
+        this.applyPlantUmlKeepOriginalClass(currentProject.path);
       }, error => {
         console.error('[ProjectsService] Failed to re-register project:', error);
       });
     } else {
       console.log('[ProjectsService] No current project to re-register');
     }
+  }
+  /**
+   * Emits Copilot CLI auto-select configuration from the SetFolderProject response
+   * so that ai-chat can decide whether to silently connect or disable the chat.
+   */
+  emitCopilotCliAutoConfig(response) {
+    if (response == null) return;
+    if (typeof response.copilotCliAutoSelect !== 'boolean') {
+      this.copilotCliAutoConfig$.next(null);
+      return;
+    }
+    this.copilotCliAutoConfig$.next({
+      autoSelect: response.copilotCliAutoSelect === true,
+      available: response.copilotCliAvailable === true,
+      defaultModel: response.copilotCliDefaultModel ?? null
+    });
   }
   /**
    * Fetches RAG enabled status for the current project and updates ragEnabled$.
@@ -8731,6 +8768,22 @@ class ProjectsService {
     }, error => {
       console.warn('[ProjectsService] Failed to fetch RAG status:', error);
       this.ragEnabled$.next(false);
+    });
+  }
+  /**
+   * Fetches the PlantUmlKeepOriginalColorsInDarkMode project setting and toggles
+   * the body class used by dark-theme.css to suppress the dark-mode invert filter.
+   */
+  applyPlantUmlKeepOriginalClass(projectPath) {
+    this.http.get('../api/ProjectSettings/GetPlantUmlKeepOriginalColorsSetting', {
+      params: {
+        projectPath
+      }
+    }).subscribe(response => {
+      document.body.classList.toggle('plantuml-keep-original', !!response?.enabled);
+    }, error => {
+      console.warn('[ProjectsService] Failed to fetch PlantUML keep-original setting:', error);
+      document.body.classList.remove('plantuml-keep-original');
     });
   }
   /**
@@ -10035,6 +10088,8 @@ class AiChatService {
     this.currentModel$ = this._currentModel$.asObservable();
     this._isModelLoaded$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     this.isModelLoaded$ = this._isModelLoaded$.asObservable();
+    this._isConfiguringProvider$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this.isConfiguringProvider$ = this._isConfiguringProvider$.asObservable();
     this._streamingMessage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     this.streamingMessage$ = this._streamingMessage$.asObservable();
     this._gpuInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
@@ -10053,6 +10108,10 @@ class AiChatService {
     // Current document context for AI
     this._currentDocument$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.currentDocument$ = this._currentDocument$.asObservable();
+    // Captures a SetChatMode attempted before the SignalR hub was connected.
+    // Replayed in startConnection() BEFORE getModelStatus() so the backend
+    // answers with the correct provider instead of "None".
+    this._pendingChatMode = null;
     /** Cached models from DB — populated by getCachedModels() */
     this._cachedModels = null;
     this._refreshInFlight = null;
@@ -10146,6 +10205,20 @@ class AiChatService {
         console.log('SignalR connection established');
         // Send the MonitorMDHub connectionId so AiChatHub can resolve the project path
         _this.sendProjectConnectionId();
+        // Flush any SetChatMode queued while the hub was still connecting.
+        // Must run BEFORE getModelStatus() — otherwise the backend answers with
+        // ProviderType=null and the client overrides the locally-set state back to
+        // isModelLoaded=false, currentModel="None".
+        if (_this._pendingChatMode) {
+          const pending = _this._pendingChatMode;
+          _this._pendingChatMode = null;
+          try {
+            yield _this.hubConnection.invoke('SetChatMode', pending.provider, pending.modelId);
+            console.log('[AiChatService] Flushed pending SetChatMode on connect:', pending.provider, pending.modelId);
+          } catch (err) {
+            console.error('[AiChatService] Error flushing pending SetChatMode:', err);
+          }
+        }
         yield _this.getModelStatus();
       } catch (err) {
         console.error('Error establishing SignalR connection:', err);
@@ -10234,7 +10307,7 @@ class AiChatService {
     }
     // Send to server
     if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('SendMessage', message).catch(err => {
+      this.hubConnection.invoke('SendMessage', message, 'default').catch(err => {
         console.error('Error sending message:', err);
         this.addMessage('system', `Failed to send message: ${err}`);
       });
@@ -10329,7 +10402,7 @@ class AiChatService {
     this._messages$.next([]);
     // Clear backend conversation history too
     if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('ClearHistory').catch(err => {
+      this.hubConnection.invoke('ClearHistory', null).catch(err => {
         console.error('[AiChatService] Error clearing history:', err);
       });
     }
@@ -10470,10 +10543,21 @@ class AiChatService {
       }).catch(err => {
         console.error('[AiChatService] Error calling SetChatMode:', err);
       });
+    } else {
+      // Hub not connected yet (boot-time race): queue so startConnection() replays it
+      // before getModelStatus() — otherwise the backend reports no provider and wipes
+      // the locally-updated state back to not-loaded.
+      this._pendingChatMode = {
+        provider,
+        modelId
+      };
+      console.log('[AiChatService] Hub not connected — queued SetChatMode:', provider, modelId);
     }
   }
   /**
    * Async version of setProvider — awaits the hub invoke before returning.
+   * Sets `isConfiguringProvider$` to true while the hub invoke is in flight
+   * so the UI can show a spinner until the backend has registered the provider.
    */
   setProviderAsync(provider, modelId) {
     var _this3 = this;
@@ -10487,9 +10571,15 @@ class AiChatService {
       } else {
         _this3._useGemini$.next(false);
       }
-      if (_this3.hubConnection.state === 'Connected') {
+      if (_this3.hubConnection.state !== 'Connected') {
+        return;
+      }
+      _this3._isConfiguringProvider$.next(true);
+      try {
         yield _this3.hubConnection.invoke('SetChatMode', provider, modelId);
         console.log('[AiChatService] SetChatMode completed for:', provider, modelId);
+      } finally {
+        _this3._isConfiguringProvider$.next(false);
       }
     })();
   }
@@ -12909,8 +12999,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.04.17.6',
-  buildTime: '2026.04.17 17:43:54'
+  version: '2026.04.21.8',
+  buildTime: '2026.04.21 18:08:17'
 };
 
 /***/ }),

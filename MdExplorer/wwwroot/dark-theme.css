@@ -248,12 +248,14 @@ body.dark-theme .resizableImg {
   border-color: #555;
 }
 
-/* === PlantUML / SVG Diagrams Dark Mode === */
-body.dark-theme svg[id^="plantuml"],
-body.dark-theme .plantuml-diagram,
-body.dark-theme div[id^="plantuml-container"] svg,
-body.dark-theme svg.interactive-svg,
-body.dark-theme .svg-zoom-viewport svg {
+/* === PlantUML / SVG Diagrams Dark Mode ===
+   Filter is suppressed when body.plantuml-keep-original is set
+   (project-level setting PlantUmlKeepOriginalColorsInDarkMode). */
+body.dark-theme:not(.plantuml-keep-original) svg[id^="plantuml"],
+body.dark-theme:not(.plantuml-keep-original) .plantuml-diagram,
+body.dark-theme:not(.plantuml-keep-original) div[id^="plantuml-container"] svg,
+body.dark-theme:not(.plantuml-keep-original) svg.interactive-svg,
+body.dark-theme:not(.plantuml-keep-original) .svg-zoom-viewport svg {
   filter: invert(0.88) hue-rotate(180deg);
 }
 

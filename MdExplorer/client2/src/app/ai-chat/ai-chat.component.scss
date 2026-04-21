@@ -416,14 +416,68 @@
     }
   }
 
+  .copilot-cli-unavailable-banner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #fff3e0;
+    border-top: 1px solid #ffcc80;
+    border-bottom: 1px solid #ffcc80;
+    color: #e65100;
+
+    mat-icon {
+      flex-shrink: 0;
+    }
+
+    .banner-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 12px;
+
+      strong {
+        font-size: 13px;
+      }
+
+      .banner-hint {
+        opacity: 0.85;
+      }
+    }
+
+    button {
+      flex-shrink: 0;
+    }
+  }
+
   .chat-input-container {
     flex-shrink: 0;
     display: flex;
+    flex-wrap: wrap;
     padding: 16px;
     background: #e8eaf6;
     border-top: 2px solid #c5cae9;
     gap: 10px;
     align-items: flex-end;
+
+    .configuring-provider-banner {
+      flex-basis: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
+      background: rgba(63, 81, 181, 0.08);
+      border: 1px solid rgba(63, 81, 181, 0.2);
+      border-radius: 4px;
+      font-size: 12px;
+      color: #3f51b5;
+
+      mat-progress-spinner {
+        flex-shrink: 0;
+      }
+    }
 
     .chat-input {
       flex: 1;
@@ -452,6 +506,191 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+// === DARK MODE OVERRIDES ===
+:host-context(body.dark-theme) {
+  .ai-chat-container {
+    background: var(--mde-bg-primary);
+    border-color: var(--mde-border-color);
+
+    .chat-header {
+      // .chat-header IS the mat-toolbar element. In light mode Material paints it
+      // with color="primary"/"accent" (dark blue). In dark mode that stays dark
+      // blue and the white header title + icons look ok, but when Chrome renders
+      // the MDC button icons they inherit the toolbar's foreground token which
+      // falls back to near-black on the CDK overlay — icons disappear.
+      // Force the toolbar to the app's dark surface + readable foreground.
+      background-color: var(--mde-bg-secondary) !important;
+      color: var(--mde-text-primary) !important;
+      border-bottom-color: var(--mde-border-color);
+
+      .header-title {
+        color: var(--mde-text-primary);
+      }
+
+      button.mat-mdc-icon-button,
+      .mat-mdc-icon-button {
+        color: var(--mde-text-primary);
+
+        mat-icon {
+          color: var(--mde-text-primary);
+        }
+
+        &:hover {
+          background-color: var(--mde-bg-hover);
+        }
+
+        &[disabled],
+        &.mat-mdc-button-disabled {
+          color: var(--mde-text-hint);
+
+          mat-icon {
+            color: var(--mde-text-hint);
+          }
+        }
+      }
+
+      // The leading "smart_toy" icon (not a button) in the full-size header
+      > mat-icon {
+        color: var(--mde-text-primary);
+      }
+    }
+
+    .model-manager-panel {
+      background: var(--mde-bg-primary);
+      border-bottom-color: var(--mde-border-color);
+
+      &::-webkit-scrollbar-track {
+        background: var(--mde-scrollbar-track);
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--mde-scrollbar-thumb);
+      }
+      &::-webkit-scrollbar-thumb:hover {
+        background: var(--mde-scrollbar-hover);
+      }
+    }
+
+    .chat-messages {
+      background: var(--mde-bg-primary);
+
+      .no-messages {
+        color: var(--mde-text-hint);
+      }
+
+      .message {
+        &:hover {
+          background-color: var(--mde-bg-hover);
+        }
+
+        .message-content {
+          .message-header .message-time {
+            color: var(--mde-text-hint);
+          }
+
+          .message-text {
+            color: var(--mde-text-primary);
+
+            code {
+              background: var(--mde-bg-tertiary);
+              color: var(--mde-text-primary);
+            }
+
+            table {
+              th, td {
+                border-color: var(--mde-border-color);
+              }
+              th {
+                background: var(--mde-bg-tertiary);
+              }
+              tr:nth-child(even) {
+                background: var(--mde-bg-secondary);
+              }
+              tr:hover {
+                background: var(--mde-bg-hover);
+              }
+            }
+
+            blockquote {
+              background: var(--mde-bg-tertiary);
+              color: var(--mde-text-secondary);
+              border-left-color: var(--mde-accent-secondary);
+            }
+
+            hr {
+              border-top-color: var(--mde-border-color);
+            }
+
+            a {
+              color: var(--mde-accent-primary);
+            }
+          }
+
+          .thinking-section {
+            .thinking-header {
+              background: rgba(156, 39, 176, 0.18);
+              color: #ce93d8;
+
+              &:hover {
+                background: rgba(156, 39, 176, 0.28);
+              }
+            }
+
+            .thinking-body {
+              background: rgba(156, 39, 176, 0.08);
+              border-left-color: rgba(206, 147, 216, 0.5);
+              color: var(--mde-text-secondary);
+            }
+          }
+        }
+
+        &.message-user {
+          background-color: rgba(121, 134, 203, 0.15);
+
+          &:hover {
+            background-color: rgba(121, 134, 203, 0.25);
+          }
+        }
+
+        &.message-assistant {
+          background-color: var(--mde-bg-primary);
+
+          &:hover {
+            background-color: var(--mde-bg-hover);
+          }
+        }
+
+        &.message-system {
+          background-color: rgba(255, 152, 0, 0.12);
+        }
+      }
+    }
+
+    .chat-input-container {
+      background: var(--mde-bg-secondary);
+      border-top-color: var(--mde-border-color);
+
+      .configuring-provider-banner {
+        background: rgba(79, 195, 247, 0.1);
+        border-color: rgba(79, 195, 247, 0.3);
+        color: var(--mde-accent-primary);
+      }
+
+      .chat-input {
+        ::ng-deep textarea {
+          background: var(--mde-bg-tertiary);
+          color: var(--mde-text-primary);
+        }
+      }
+    }
+  }
+
+  .ai-chat-container.compact-mode {
+    .chat-messages {
+      background: var(--mde-bg-secondary);
+    }
   }
 }
 

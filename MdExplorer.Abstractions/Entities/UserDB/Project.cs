@@ -16,6 +16,8 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual int? SidenavWidth {  get; set; }
         public virtual string SelectedIde { get; set; }
         public virtual bool LinkIndexingEnabled { get; set; } = true;
+        public virtual bool PlantUmlKeepOriginalColorsInDarkMode { get; set; } = false;
+        public virtual bool UseCopilotCliAsDefault { get; set; } = true;
 
     }
 }

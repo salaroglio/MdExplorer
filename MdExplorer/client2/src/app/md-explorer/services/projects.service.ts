@@ -24,6 +24,12 @@ export class ProjectsService {
   // RAG enabled status for current project
   ragEnabled$ = new BehaviorSubject<boolean>(false);
 
+  // Copilot CLI auto-select state for the freshly opened project.
+  // Emits the tuple from SetFolderProject response: { autoSelect, available, defaultModel }.
+  // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
+  // or to disable the chat with a "not installed" banner.
+  copilotCliAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -86,6 +92,9 @@ export class ProjectsService {
       // Apply PlantUML dark-mode preference for this project
       this.applyPlantUmlKeepOriginalClass(path);
 
+      // Emit Copilot CLI auto-select hint for ai-chat to consume
+      this.emitCopilotCliAutoConfig(response);
+
       // Update compatibility mode from response
       if (response.compatibilityMode) {
         const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
@@ -128,6 +137,9 @@ export class ProjectsService {
 
       // Apply PlantUML dark-mode preference for this project
       this.applyPlantUmlKeepOriginalClass(config.projectPath);
+
+      // Emit Copilot CLI auto-select hint for ai-chat to consume
+      this.emitCopilotCliAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -207,6 +219,23 @@ export class ProjectsService {
     } else {
       console.log('[ProjectsService] No current project to re-register');
     }
+  }
+
+  /**
+   * Emits Copilot CLI auto-select configuration from the SetFolderProject response
+   * so that ai-chat can decide whether to silently connect or disable the chat.
+   */
+  private emitCopilotCliAutoConfig(response: any): void {
+    if (response == null) return;
+    if (typeof response.copilotCliAutoSelect !== 'boolean') {
+      this.copilotCliAutoConfig$.next(null);
+      return;
+    }
+    this.copilotCliAutoConfig$.next({
+      autoSelect: response.copilotCliAutoSelect === true,
+      available: response.copilotCliAvailable === true,
+      defaultModel: response.copilotCliDefaultModel ?? null
+    });
   }
 
   /**

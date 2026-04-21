@@ -236,6 +236,138 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 return StatusCode(500, new { error = "Failed to save LinkIndexing setting" });
             }
         }
+
+        [HttpGet]
+        public IActionResult GetPlantUmlKeepOriginalColorsSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return Ok(new
+                {
+                    enabled = project?.PlantUmlKeepOriginalColorsInDarkMode ?? false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting PlantUmlKeepOriginalColors setting");
+                return StatusCode(500, new { error = "Failed to get PlantUmlKeepOriginalColors setting" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetPlantUmlKeepOriginalColorsSetting([FromBody] SetPlantUmlKeepOriginalColorsRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == request.ProjectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetPlantUmlKeepOriginalColorsSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.PlantUmlKeepOriginalColorsInDarkMode = request.Enabled;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "PlantUmlKeepOriginalColors setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving PlantUmlKeepOriginalColors setting");
+                return StatusCode(500, new { error = "Failed to save PlantUmlKeepOriginalColors setting" });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult GetCopilotCliAutoSelectSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return Ok(new
+                {
+                    enabled = project?.UseCopilotCliAsDefault ?? true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting CopilotCliAutoSelect setting");
+                return StatusCode(500, new { error = "Failed to get CopilotCliAutoSelect setting" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetCopilotCliAutoSelectSetting([FromBody] SetCopilotCliAutoSelectRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == request.ProjectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetCopilotCliAutoSelectSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.UseCopilotCliAsDefault = request.Enabled;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "CopilotCliAutoSelect setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving CopilotCliAutoSelect setting");
+                return StatusCode(500, new { error = "Failed to save CopilotCliAutoSelect setting" });
+            }
+        }
     }
 
     public class SaveProjectSettingRequest
@@ -255,6 +387,18 @@ namespace MdExplorer.Service.Controllers.MdProjects
     }
 
     public class SetLinkIndexingRequest
+    {
+        public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    public class SetPlantUmlKeepOriginalColorsRequest
+    {
+        public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    public class SetCopilotCliAutoSelectRequest
     {
         public bool Enabled { get; set; }
         public string ProjectPath { get; set; }
