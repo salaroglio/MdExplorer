@@ -20,6 +20,7 @@ using MdExplorer.Service.Controllers.MdProjects;
 using AutoMapper;
 using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
+using MdExplorer.Services;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
 using MdExplorer.Services.Git;
@@ -41,6 +42,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IGitAccountService _gitAccountService;
         private readonly GitCredentialHelperResolver _gitCredentialHelper;
         private readonly FoldersIgnoreService _foldersIgnoreService;
+        private readonly IProjectMetadataService _projectMetadataService;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
@@ -50,7 +52,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IFileSystemWatcherManager fileSystemWatcherManager,
                 IGitAccountService gitAccountService,
                 GitCredentialHelperResolver gitCredentialHelper,
-                FoldersIgnoreService foldersIgnoreService)
+                FoldersIgnoreService foldersIgnoreService,
+                IProjectMetadataService projectMetadataService)
         {
             _userSettingsDB = userSettingsDB;
             _services = services;
@@ -61,6 +64,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _gitAccountService = gitAccountService;
             _gitCredentialHelper = gitCredentialHelper;
             _foldersIgnoreService = foldersIgnoreService;
+            _projectMetadataService = projectMetadataService;
         }
 
         [HttpGet]
@@ -71,8 +75,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             var projectDal = _userSettingsDB.GetDal<Project>();
             var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
-            var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list);
+            var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list).ToList();
 
+            // Enrich each project with its shared description from .development.yml
+            foreach (var dto in listToReturn)
+            {
+                dto.Description = _projectMetadataService.GetDescription(dto.Path);
+            }
 
             return Ok(listToReturn);
         }
@@ -125,6 +134,82 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public class DeleteProjectRequest
         {
             public Guid Id { get; set; }
+        }
+
+        [HttpPost]
+        public IActionResult UpdateProject([FromBody] UpdateProjectRequest request)
+        {
+            var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+
+            if (request == null || request.Id == Guid.Empty)
+            {
+                return BadRequest(new { message = "Project id is required" });
+            }
+
+            var name = (request.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return BadRequest(new { message = "Project name is required" });
+            }
+            if (name.Length > 255)
+            {
+                return BadRequest(new { message = "Project name exceeds 255 characters" });
+            }
+
+            var description = request.Description?.Trim();
+            if (!string.IsNullOrEmpty(description) && description.Length > 200)
+            {
+                return BadRequest(new { message = "Description exceeds 200 characters" });
+            }
+
+            try
+            {
+                // Name → per-user label in UserDB
+                _userSettingsDB.BeginTransaction();
+
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var projectFromDb = projectDal.GetList().Where(_ => _.Id == request.Id).FirstOrDefault();
+
+                if (projectFromDb == null)
+                {
+                    _userSettingsDB.Rollback();
+                    return NotFound(new { message = "Project not found" });
+                }
+
+                projectFromDb.Name = name;
+                projectDal.Save(projectFromDb);
+
+                _userSettingsDB.Commit();
+
+                // Description → shared across users in .development.yml
+                try
+                {
+                    _projectMetadataService.SetDescription(projectFromDb.Path, description);
+                }
+                catch (Exception yamlEx)
+                {
+                    // Name was saved successfully; surface YAML failure explicitly so the user can retry.
+                    logger?.LogError(yamlEx, "Failed to persist description to .development.yml for project {ProjectId}", request.Id);
+                    return StatusCode(500, new { message = "Project name saved but description could not be written to .development.yml", error = yamlEx.Message });
+                }
+
+                var dto = _mapper.Map<ProjectWithoutBookmarks>(projectFromDb);
+                dto.Description = _projectMetadataService.GetDescription(projectFromDb.Path);
+                return Ok(dto);
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                logger?.LogError(ex, "Error updating project with ID: {ProjectId}", request.Id);
+                return StatusCode(500, new { message = "Error updating project", error = ex.Message });
+            }
+        }
+
+        public class UpdateProjectRequest
+        {
+            public Guid Id { get; set; }
+            public string Name { get; set; }
+            public string Description { get; set; }
         }
 
         [HttpPost]

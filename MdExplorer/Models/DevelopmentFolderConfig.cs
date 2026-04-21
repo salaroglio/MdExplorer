@@ -30,6 +30,23 @@ namespace MdExplorer.Service.Models
         /// Allows backward compatibility with .development.yml files that contain this section
         /// </summary>
         public ExternalBrowserConfig ExternalBrowser { get; set; } = new ExternalBrowserConfig();
+
+        /// <summary>
+        /// Project metadata shared across users (e.g., description).
+        /// Name is intentionally NOT stored here — it is a per-user local label in UserDB.
+        /// </summary>
+        public ProjectConfig Project { get; set; } = new ProjectConfig();
+    }
+
+    /// <summary>
+    /// Project-level metadata committed with the repository (.development.yml).
+    /// </summary>
+    public class ProjectConfig
+    {
+        /// <summary>
+        /// Shared description explaining purpose, context, participants and goals.
+        /// </summary>
+        public string Description { get; set; }
     }
 
     /// <summary>

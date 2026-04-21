@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">edit</mat-icon>
+  {{ 'PROJECTS.EDIT_PROJECT_TITLE' | translate }}
+</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSave()" class="project-edit-form">
+  <mat-dialog-content>
+    <p class="path-readonly" [matTooltip]="data.path">
+      <mat-icon>folder</mat-icon>
+      <span class="path-text">{{ data.path }}</span>
+    </p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'PROJECTS.NAME' | translate }}</mat-label>
+      <input matInput
+             formControlName="name"
+             [maxlength]="nameMaxLength"
+             required>
+      <mat-error *ngIf="form.get('name').hasError('required')">
+        {{ 'PROJECTS.NAME_REQUIRED' | translate }}
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'PROJECTS.DESCRIPTION' | translate }}</mat-label>
+      <textarea matInput
+                formControlName="description"
+                [maxlength]="descriptionMaxLength"
+                [placeholder]="'PROJECTS.DESCRIPTION_PLACEHOLDER' | translate"
+                rows="4"></textarea>
+      <mat-hint align="end">{{ descriptionLength }}/{{ descriptionMaxLength }}</mat-hint>
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="onCancel()">
+      {{ 'PROJECTS.CANCEL' | translate }}
+    </button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">
+      {{ 'PROJECTS.SAVE' | translate }}
+    </button>
+  </mat-dialog-actions>
+</form>

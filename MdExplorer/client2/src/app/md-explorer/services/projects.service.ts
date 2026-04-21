@@ -83,6 +83,9 @@ export class ProjectsService {
       // Refresh RAG enabled status
       this.refreshRagStatus();
 
+      // Apply PlantUML dark-mode preference for this project
+      this.applyPlantUmlKeepOriginalClass(path);
+
       // Update compatibility mode from response
       if (response.compatibilityMode) {
         const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
@@ -123,6 +126,9 @@ export class ProjectsService {
       // Refresh RAG enabled status
       this.refreshRagStatus();
 
+      // Apply PlantUML dark-mode preference for this project
+      this.applyPlantUmlKeepOriginalClass(config.projectPath);
+
       // Update compatibility mode from response
       if (response.compatibilityMode) {
         const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
@@ -154,6 +160,11 @@ export class ProjectsService {
     });
   }
 
+  updateProject(payload: { id: string; name: string; description?: string }): Observable<MdProject> {
+    const url = '../api/MdProjects/UpdateProject';
+    return this.http.post<MdProject>(url, payload);
+  }
+
   /**
    * Closes the current project and deallocates backend resources (FileSystemWatcher, database contexts).
    * Should be called when navigating back to the projects list.
@@ -163,6 +174,8 @@ export class ProjectsService {
     this.notifyProjectClosed();
     // Reset window title
     this.updateWindowTitle(null);
+    // Reset PlantUML dark-mode override (scoped to the closing project)
+    document.body.classList.remove('plantuml-keep-original');
     return this.http.post<any>('../api/MdProjects/CloseProject', {});
   }
 
@@ -184,6 +197,8 @@ export class ProjectsService {
           this.currentProjects$.next(response);
           // Update window title
           this.updateWindowTitle(response.name);
+          // Re-apply PlantUML dark-mode preference
+          this.applyPlantUmlKeepOriginalClass(currentProject.path);
         },
         error => {
           console.error('[ProjectsService] Failed to re-register project:', error);
@@ -205,6 +220,25 @@ export class ProjectsService {
       error => {
         console.warn('[ProjectsService] Failed to fetch RAG status:', error);
         this.ragEnabled$.next(false);
+      }
+    );
+  }
+
+  /**
+   * Fetches the PlantUmlKeepOriginalColorsInDarkMode project setting and toggles
+   * the body class used by dark-theme.css to suppress the dark-mode invert filter.
+   */
+  private applyPlantUmlKeepOriginalClass(projectPath: string): void {
+    this.http.get<{enabled: boolean}>(
+      '../api/ProjectSettings/GetPlantUmlKeepOriginalColorsSetting',
+      { params: { projectPath } }
+    ).subscribe(
+      response => {
+        document.body.classList.toggle('plantuml-keep-original', !!response?.enabled);
+      },
+      error => {
+        console.warn('[ProjectsService] Failed to fetch PlantUML keep-original setting:', error);
+        document.body.classList.remove('plantuml-keep-original');
       }
     );
   }

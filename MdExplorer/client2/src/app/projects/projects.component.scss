@@ -332,19 +332,75 @@
 
   .project-card-content {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    gap: 12px;
+    align-items: stretch;
+    padding: 12px 16px;
+    gap: 14px;
   }
 
   .project-info {
     display: flex;
     align-items: center;
     gap: 12px;
-    flex: 1;
+    flex: 0 0 auto;
+    width: clamp(220px, 34%, 340px);
     min-width: 0;
     cursor: pointer;
+  }
+
+  .project-description-box {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid var(--mde-border-color);
+    border-radius: 8px;
+    background: var(--mde-bg-secondary);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+
+    &:hover {
+      border-color: rgba(102, 126, 234, 0.5);
+    }
+
+    .project-description {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--mde-text-primary);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+      width: 100%;
+    }
+
+    &.empty {
+      border-style: dashed;
+      background: transparent;
+
+      &:hover {
+        background: rgba(102, 126, 234, 0.04);
+      }
+
+      .empty-placeholder {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--mde-text-secondary);
+        opacity: 0.6;
+        font-size: 0.78rem;
+        font-style: italic;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
   }
 
   .project-icon-wrapper {
@@ -376,7 +432,14 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+
+    .project-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
 
     .project-name {
       margin: 0;
@@ -386,6 +449,8 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
+      flex-shrink: 1;
     }
 
     .project-path {
@@ -397,53 +462,58 @@
       text-overflow: ellipsis;
     }
 
-    .project-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 4px;
-    }
-
     .last-opened-badge {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 0.6rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       white-space: nowrap;
       box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
       animation: fadeInScale 0.5s ease-out;
       flex-shrink: 0;
 
       .badge-icon {
-        font-size: 12px;
-        width: 12px;
-        height: 12px;
+        font-size: 11px;
+        width: 11px;
+        height: 11px;
       }
-    }
-
-    .project-date {
-      margin: 0;
-      font-size: 0.7rem;
-      color: #a0aec0;
-      font-style: italic;
-      flex: 1;
     }
   }
 
   .project-actions {
-    display: flex;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: repeat(2, 32px);
+    grid-auto-rows: 32px;
+    gap: 2px;
     flex-shrink: 0;
+    align-self: center;
 
     .action-btn {
       transition: all 0.2s ease;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      padding: 0;
+
+      // Shrink the Material ripple container so hover/focus stays inside the 32x32 box
+      ::ng-deep .mat-mdc-button-touch-target {
+        width: 32px !important;
+        height: 32px !important;
+      }
+
+      &.edit-btn:hover {
+        background-color: rgba(255, 152, 0, 0.12);
+        mat-icon {
+          color: #ff9800;
+        }
+      }
 
       &.share-btn:hover {
         background-color: rgba(76, 175, 80, 0.1);
@@ -467,9 +537,10 @@
       }
 
       mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
         color: #a0aec0;
         transition: color 0.2s ease;
       }

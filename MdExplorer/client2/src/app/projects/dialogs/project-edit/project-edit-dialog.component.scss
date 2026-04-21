@@ -1,0 +1,70 @@
+:host {
+  display: block;
+  min-width: 480px;
+  max-width: 560px;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mde-text-primary);
+  margin: 0;
+
+  .title-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    color: #667eea;
+  }
+}
+
+.project-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.path-readonly {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--mde-bg-secondary);
+  border: 1px solid var(--mde-border-color);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--mde-text-secondary);
+  margin: 0 0 16px 0;
+  overflow: hidden;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #a0aec0;
+    flex-shrink: 0;
+  }
+
+  .path-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+mat-dialog-actions {
+  padding-top: 8px;
+  gap: 8px;
+}

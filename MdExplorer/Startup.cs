@@ -65,6 +65,9 @@ namespace MdExplorer
             // Add FoldersIgnoreService
             services.AddSingleton<FoldersIgnoreService>();
 
+            // Project-level metadata stored in .development.yml (shared across users)
+            services.AddSingleton<Services.IProjectMetadataService, Services.ProjectMetadataService>();
+
             // Add ServerCache for command factories
             services.AddSingleton<IServerCache, ServerCache>();
 
