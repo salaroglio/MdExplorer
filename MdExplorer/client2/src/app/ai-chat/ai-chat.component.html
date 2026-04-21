@@ -129,8 +129,25 @@
     </div>
   </div>
 
+  <!-- Copilot CLI unavailable banner -->
+  <div *ngIf="copilotCliUnavailable" class="copilot-cli-unavailable-banner">
+    <mat-icon>warning</mat-icon>
+    <div class="banner-text">
+      <strong>{{ 'AI_CHAT.COPILOT_CLI_UNAVAILABLE' | translate }}</strong>
+      <span class="banner-hint">{{ 'AI_CHAT.COPILOT_CLI_UNAVAILABLE_HINT' | translate }}</span>
+    </div>
+    <button mat-stroked-button (click)="toggleModelManager()">
+      <mat-icon>settings</mat-icon>
+      {{ 'AI_CHAT.MODEL_MANAGER' | translate }}
+    </button>
+  </div>
+
   <!-- Input Area -->
   <div class="chat-input-container">
+    <div *ngIf="isConfiguringProvider" class="configuring-provider-banner">
+      <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
+      <span>{{ 'AI_CHAT.CONFIGURING_PROVIDER' | translate }}</span>
+    </div>
     <mat-form-field [appearance]="compactMode ? 'fill' : 'outline'" class="chat-input">
       <textarea
         matInput
@@ -139,9 +156,9 @@
         (keydown)="handleKeyDown($event)"
         [placeholder]="compactMode ? ('AI_CHAT.PLACEHOLDER_COMPACT' | translate) : ('AI_CHAT.PLACEHOLDER_FULL' | translate)"
         [rows]="compactMode ? 2 : 3"
-        [disabled]="!isModelLoaded">
+        [disabled]="!isModelLoaded || isConfiguringProvider">
       </textarea>
-      <mat-hint *ngIf="!isModelLoaded && !compactMode">{{ 'AI_CHAT.LOAD_MODEL_TO_CHAT' | translate }}</mat-hint>
+      <mat-hint *ngIf="!isModelLoaded && !isConfiguringProvider && !compactMode">{{ 'AI_CHAT.LOAD_MODEL_TO_CHAT' | translate }}</mat-hint>
     </mat-form-field>
 
     <button
@@ -149,7 +166,7 @@
       mat-fab
       color="primary"
       (click)="sendMessage()"
-      [disabled]="!inputMessage.trim() || !isModelLoaded"
+      [disabled]="!inputMessage.trim() || !isModelLoaded || isConfiguringProvider"
       class="send-button">
       <mat-icon>send</mat-icon>
     </button>
@@ -158,7 +175,7 @@
       mat-mini-fab
       color="primary"
       (click)="sendMessage()"
-      [disabled]="!inputMessage.trim() || !isModelLoaded"
+      [disabled]="!inputMessage.trim() || !isModelLoaded || isConfiguringProvider"
       class="send-button">
       <mat-icon>send</mat-icon>
     </button>

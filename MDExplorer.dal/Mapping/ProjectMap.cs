@@ -20,6 +20,8 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.SidenavWidth).Nullable();
             Map(_ => _.SelectedIde).Length(50).Nullable();
             Map(_ => _.LinkIndexingEnabled).Not.Nullable().Default("1");
+            Map(_ => _.PlantUmlKeepOriginalColorsInDarkMode).Not.Nullable().Default("0");
+            Map(_ => _.UseCopilotCliAsDefault).Not.Nullable().Default("1");
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();
         }
     }

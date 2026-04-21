@@ -20,11 +20,15 @@ using MdExplorer.Service.Controllers.MdProjects;
 using AutoMapper;
 using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
+using MdExplorer.Services;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
 using MdExplorer.Services.Git;
 using MdExplorer.Services.Git.Interfaces;
 using MdExplorer.Service.Services;
+using MdExplorer.Abstractions.Services;
+using MdExplorer.Abstractions.Models.AI;
+using MdExplorer.Features.Services.AI;
 
 namespace MdExplorer.Service.Controllers.MdProjects
 {
@@ -41,6 +45,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IGitAccountService _gitAccountService;
         private readonly GitCredentialHelperResolver _gitCredentialHelper;
         private readonly FoldersIgnoreService _foldersIgnoreService;
+        private readonly IProjectMetadataService _projectMetadataService;
+        private readonly IEnumerable<IAiProvider> _aiProviders;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
@@ -50,7 +56,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IFileSystemWatcherManager fileSystemWatcherManager,
                 IGitAccountService gitAccountService,
                 GitCredentialHelperResolver gitCredentialHelper,
-                FoldersIgnoreService foldersIgnoreService)
+                FoldersIgnoreService foldersIgnoreService,
+                IProjectMetadataService projectMetadataService,
+                IEnumerable<IAiProvider> aiProviders)
         {
             _userSettingsDB = userSettingsDB;
             _services = services;
@@ -61,6 +69,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _gitAccountService = gitAccountService;
             _gitCredentialHelper = gitCredentialHelper;
             _foldersIgnoreService = foldersIgnoreService;
+            _projectMetadataService = projectMetadataService;
+            _aiProviders = aiProviders;
         }
 
         [HttpGet]
@@ -71,8 +81,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             var projectDal = _userSettingsDB.GetDal<Project>();
             var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
-            var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list);
+            var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list).ToList();
 
+            // Enrich each project with its shared description from .development.yml
+            foreach (var dto in listToReturn)
+            {
+                dto.Description = _projectMetadataService.GetDescription(dto.Path);
+            }
 
             return Ok(listToReturn);
         }
@@ -125,6 +140,82 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public class DeleteProjectRequest
         {
             public Guid Id { get; set; }
+        }
+
+        [HttpPost]
+        public IActionResult UpdateProject([FromBody] UpdateProjectRequest request)
+        {
+            var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+
+            if (request == null || request.Id == Guid.Empty)
+            {
+                return BadRequest(new { message = "Project id is required" });
+            }
+
+            var name = (request.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return BadRequest(new { message = "Project name is required" });
+            }
+            if (name.Length > 255)
+            {
+                return BadRequest(new { message = "Project name exceeds 255 characters" });
+            }
+
+            var description = request.Description?.Trim();
+            if (!string.IsNullOrEmpty(description) && description.Length > 200)
+            {
+                return BadRequest(new { message = "Description exceeds 200 characters" });
+            }
+
+            try
+            {
+                // Name → per-user label in UserDB
+                _userSettingsDB.BeginTransaction();
+
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var projectFromDb = projectDal.GetList().Where(_ => _.Id == request.Id).FirstOrDefault();
+
+                if (projectFromDb == null)
+                {
+                    _userSettingsDB.Rollback();
+                    return NotFound(new { message = "Project not found" });
+                }
+
+                projectFromDb.Name = name;
+                projectDal.Save(projectFromDb);
+
+                _userSettingsDB.Commit();
+
+                // Description → shared across users in .development.yml
+                try
+                {
+                    _projectMetadataService.SetDescription(projectFromDb.Path, description);
+                }
+                catch (Exception yamlEx)
+                {
+                    // Name was saved successfully; surface YAML failure explicitly so the user can retry.
+                    logger?.LogError(yamlEx, "Failed to persist description to .development.yml for project {ProjectId}", request.Id);
+                    return StatusCode(500, new { message = "Project name saved but description could not be written to .development.yml", error = yamlEx.Message });
+                }
+
+                var dto = _mapper.Map<ProjectWithoutBookmarks>(projectFromDb);
+                dto.Description = _projectMetadataService.GetDescription(projectFromDb.Path);
+                return Ok(dto);
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                logger?.LogError(ex, "Error updating project with ID: {ProjectId}", request.Id);
+                return StatusCode(500, new { message = "Error updating project", error = ex.Message });
+            }
+        }
+
+        public class UpdateProjectRequest
+        {
+            public Guid Id { get; set; }
+            public string Name { get; set; }
+            public string Description { get; set; }
         }
 
         [HttpPost]
@@ -286,6 +377,31 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     }
                 }
 
+                // Copilot CLI auto-select probe: if the project prefers it as default AI,
+                // check availability, warm up the provider, and report it in the response.
+                // Frontend decides whether to silently connect or show the "not installed" banner.
+                bool copilotCliAutoSelect = project.UseCopilotCliAsDefault;
+                bool copilotCliAvailable = false;
+                string copilotCliDefaultModel = null;
+                if (copilotCliAutoSelect)
+                {
+                    var copilotProvider = _aiProviders?
+                        .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
+                    if (copilotProvider != null)
+                    {
+                        copilotProvider.WorkingDirectory = request.Path;
+                        copilotCliAvailable = copilotProvider.IsAvailable();
+                        copilotCliDefaultModel = "claude-sonnet-4.6";
+                        logger?.LogInformation(
+                            "🤖 CopilotCli auto-select: enabled={Enabled}, available={Available}, model={Model}, cwd={Cwd}",
+                            copilotCliAutoSelect, copilotCliAvailable, copilotCliDefaultModel, request.Path);
+                    }
+                    else
+                    {
+                        logger?.LogWarning("⚠️ CopilotCli provider not resolved from DI — auto-select skipped");
+                    }
+                }
+
                 return Ok(new {
                     id = project.Id,
                     name = project.Name,
@@ -297,7 +413,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     hasGitAccount = hasGitAccount,
                     needsManualCredentials = needsManualCredentials,
                     remoteUrl = detectedRemoteUrl,
-                    detectedProvider = detectedProvider
+                    detectedProvider = detectedProvider,
+                    copilotCliAutoSelect = copilotCliAutoSelect,
+                    copilotCliAvailable = copilotCliAvailable,
+                    copilotCliDefaultModel = copilotCliDefaultModel
                 });
             }
             catch (Exception ex)

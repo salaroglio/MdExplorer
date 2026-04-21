@@ -98,6 +98,18 @@
                 {{ 'PROJECT_SETTINGS.STICKY_SCROLL_DESC' | translate }}
               </p>
             </div>
+
+            <div class="setting-item" *ngIf="!loading">
+              <mat-checkbox
+                [(ngModel)]="plantUmlKeepOriginalColorsEnabled"
+                (change)="onPlantUmlKeepOriginalColorsChange()"
+                [disabled]="saving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.PLANTUML_KEEP_ORIGINAL' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.PLANTUML_KEEP_ORIGINAL_DESC' | translate }}
+              </p>
+            </div>
           </mat-card-content>
         </mat-card>
 
@@ -165,6 +177,26 @@
     <!-- Tab 3: AI & RAG Settings -->
     <mat-tab [label]="'PROJECT_SETTINGS.AI_RAG' | translate">
       <div class="tab-content">
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.COPILOT_CLI_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!loading">
+              <mat-checkbox
+                [(ngModel)]="copilotCliAutoSelectEnabled"
+                (change)="onCopilotCliAutoSelectChange()"
+                [disabled]="saving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT_DESC' | translate }}
+              </p>
+            </div>
+          </mat-card-content>
+        </mat-card>
 
         <mat-card class="settings-section">
           <mat-card-header>

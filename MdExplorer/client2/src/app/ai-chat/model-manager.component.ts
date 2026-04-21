@@ -821,7 +821,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.contentChanged.emit();
   }
 
-  connectCopilotCliModel(modelId: string): void {
+  async connectCopilotCliModel(modelId: string): Promise<void> {
     console.log('[ModelManager] Connecting to Copilot CLI model:', modelId);
     this.selectedCopilotCliModel = modelId;
     this.useCopilotCli = true;
@@ -835,10 +835,18 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       this.disconnectOpenAi();
     }
 
-    // Set provider
-    this.aiService.setProvider('copilotcli', modelId);
+    // Set provider and wait for backend to acknowledge SetChatMode.
+    // setProviderAsync toggles aiService.isConfiguringProvider$ so the chat UI
+    // can show a spinner until the provider is actually registered server-side.
+    try {
+      await this.aiService.setProviderAsync('copilotcli', modelId);
+    } catch (err) {
+      console.error('[ModelManager] Error setting Copilot CLI provider:', err);
+      alert(this.translate.instant('MODEL_MANAGER.CONNECT_COPILOT_FAILED', { name: modelId }));
+      return;
+    }
 
-    // Notify that a model is now connected
+    // Only mark the model as loaded AFTER the backend has registered it.
     this.aiService.notifyCopilotCliConnected(modelId);
 
     // Save as default preference

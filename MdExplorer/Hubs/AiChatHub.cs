@@ -406,7 +406,7 @@ namespace MdExplorer.Hubs
                     break;
                 case "copilotcli":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.CopilotCli;
-                    chatMode.ModelId = modelId ?? "claude-sonnet-4";
+                    chatMode.ModelId = modelId ?? "claude-sonnet-4.6";
                     break;
                 default:
                     chatMode.ProviderType = null; // Local model

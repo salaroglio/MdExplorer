@@ -28,6 +28,8 @@
           <div class="projects-grid">
         <mat-card class="project-card"
                   [class.last-opened]="isLastOpened(project)"
+                  [matTooltip]="project.lastUpdate ? (('PROJECTS.LAST_ACCESSED' | translate) + ' ' + (project.lastUpdate | date:'short')) : null"
+                  matTooltipPosition="below"
                   *ngFor="let project of recentProjects | async">
           <mat-card-content class="project-card-content">
             <div class="project-info" (click)="openProject(project.path)">
@@ -35,32 +37,44 @@
                 <img src="assets/icons/files-stack.svg" class="project-icon-svg" alt="Project">
               </div>
               <div class="project-details">
-                <h3 class="project-name">{{project.name}}</h3>
-                <p class="project-path">{{project.path}}</p>
-                <div class="project-meta">
+                <div class="project-name-row">
+                  <h3 class="project-name">{{project.name}}</h3>
                   <span class="last-opened-badge" *ngIf="isLastOpened(project)">
                     <mat-icon class="badge-icon">schedule</mat-icon>
                     {{ 'PROJECTS.LAST_OPENED' | translate }}
                   </span>
-                  <p class="project-date" *ngIf="project.lastUpdate">
-                    {{ 'PROJECTS.LAST_ACCESSED' | translate }} {{project.lastUpdate | date:'short'}}
-                  </p>
                 </div>
+                <p class="project-path">{{project.path}}</p>
               </div>
+            </div>
+            <div class="project-description-box"
+                 [class.empty]="!project.description"
+                 (click)="openProject(project.path)">
+              <p class="project-description" *ngIf="project.description">{{project.description}}</p>
+              <span class="empty-placeholder" *ngIf="!project.description">
+                <mat-icon>edit_note</mat-icon>
+                {{ 'PROJECTS.ADD_DESCRIPTION' | translate }}
+              </span>
             </div>
             <div class="project-actions">
               <button mat-icon-button
-                      [matTooltip]="'PROJECTS.SHARE_URL' | translate"
-                      *ngIf="projectHasRemote(project)"
-                      (click)="shareProject(project, $event)"
-                      class="action-btn share-btn">
-                <mat-icon>share</mat-icon>
+                      [matTooltip]="'PROJECTS.EDIT_PROJECT' | translate"
+                      (click)="openProjectEdit(project)"
+                      class="action-btn edit-btn">
+                <mat-icon>edit</mat-icon>
               </button>
               <button mat-icon-button
                       [matTooltip]="'PROJECTS.PROJECT_SETTINGS' | translate"
                       (click)="openProjectSettings(project)"
                       class="action-btn settings-btn">
                 <mat-icon>settings</mat-icon>
+              </button>
+              <button mat-icon-button
+                      [matTooltip]="'PROJECTS.SHARE_URL' | translate"
+                      *ngIf="projectHasRemote(project)"
+                      (click)="shareProject(project, $event)"
+                      class="action-btn share-btn">
+                <mat-icon>share</mat-icon>
               </button>
               <button mat-icon-button
                       [matTooltip]="'PROJECTS.DELETE_PROJECT' | translate"

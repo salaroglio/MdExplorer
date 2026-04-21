@@ -164,8 +164,23 @@ function showImageToolbar(referenceId) {
         var $sibling = $element.next();
         var hasSvg = $sibling.find('svg').length > 0 || $sibling.find('.svg-zoom-viewport').length > 0;
         if (hasSvg) {
-            var $btn = $('<button alt="light mode" title="Turn on the light (view in light mode)" onclick="toggleSvgLightMode(this)">' +
-                '<span class="svg-light-toggle-icon" style="font-size:18px;line-height:1;display:inline-block;">💡</span>' +
+            // Reflect current filter state so the button starts consistent with the
+            // project setting PlantUmlKeepOriginalColorsInDarkMode (body.plantuml-keep-original).
+            var $svg = $sibling.find('svg').first();
+            if (!$svg.length) $svg = $sibling.filter('svg');
+            var filterActive = false;
+            if ($svg.length) {
+                var computed = window.getComputedStyle($svg[0]).filter;
+                filterActive = !!computed && computed !== 'none';
+            }
+            var initialTitle = filterActive
+                ? 'Turn on the light (view in light mode)'
+                : 'Turn off the light (back to dark mode)';
+            var iconStyle = filterActive
+                ? 'font-size:18px;line-height:1;display:inline-block;filter:grayscale(1) brightness(0.6);opacity:0.5;'
+                : 'font-size:18px;line-height:1;display:inline-block;';
+            var $btn = $('<button alt="light mode" title="' + initialTitle + '" onclick="toggleSvgLightMode(this)">' +
+                '<span class="svg-light-toggle-icon" style="' + iconStyle + '">💡</span>' +
                 '</button>');
             $element.append($btn);
             $element.data('light-toggle-added', true);

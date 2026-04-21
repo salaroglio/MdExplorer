@@ -5464,6 +5464,36 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  getPlantUmlKeepOriginalColorsSetting(projectPath) {
+    const url = '../api/ProjectSettings/GetPlantUmlKeepOriginalColorsSetting';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setPlantUmlKeepOriginalColorsSetting(enabled, projectPath) {
+    const url = '../api/ProjectSettings/SetPlantUmlKeepOriginalColorsSetting';
+    return this.http.post(url, {
+      enabled,
+      projectPath
+    });
+  }
+  getCopilotCliAutoSelectSetting(projectPath) {
+    const url = '../api/ProjectSettings/GetCopilotCliAutoSelectSetting';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setCopilotCliAutoSelectSetting(enabled, projectPath) {
+    const url = '../api/ProjectSettings/SetCopilotCliAutoSelectSetting';
+    return this.http.post(url, {
+      enabled,
+      projectPath
+    });
+  }
   // RAG Settings
   getRagStatus() {
     const url = '../api/Rag/status';

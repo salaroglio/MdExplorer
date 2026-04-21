@@ -16,6 +16,7 @@ import { NewProjectComponent } from './new-project/new-project.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
+import { ProjectEditDialogComponent, ProjectEditDialogResult } from './dialogs/project-edit/project-edit-dialog.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
@@ -149,6 +150,34 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         projectName: project.name,
         projectPath: project.path
       }
+    });
+  }
+
+  openProjectEdit(project: MdProject): void {
+    const dialogRef = this.dialog.open<ProjectEditDialogComponent, any, ProjectEditDialogResult>(ProjectEditDialogComponent, {
+      width: '520px',
+      data: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        path: project.path
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) {
+        return;
+      }
+      this.projectService.updateProject(result).subscribe({
+        next: () => {
+          this.projectService.fetchProjects();
+          this.snackBar.open(this.translate.instant('PROJECTS.PROJECT_UPDATED'), 'OK', { duration: 2500 });
+        },
+        error: (err) => {
+          console.error('[Projects] Error updating project:', err);
+          this.snackBar.open(this.translate.instant('PROJECTS.ERROR_UPDATING_PROJECT'), 'OK', { duration: 4000 });
+        }
+      });
     });
   }
 

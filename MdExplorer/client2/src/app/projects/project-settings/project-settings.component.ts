@@ -21,6 +21,8 @@ import { TranslateService } from '@ngx-translate/core';
 export class ProjectSettingsComponent implements OnInit, OnDestroy {
   rule1Enabled: boolean = false;
   linkIndexingEnabled: boolean = true;
+  plantUmlKeepOriginalColorsEnabled: boolean = false;
+  copilotCliAutoSelectEnabled: boolean = true;
   githubModeEnabled: boolean = false;
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
@@ -101,9 +103,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let ideConfigLoaded = false;
     let ragLoaded = false;
     let stickyScrollLoaded = false;
+    let plantUmlKeepOriginalColorsLoaded = false;
+    let copilotCliAutoSelectLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded) {
         this.loading = false;
       }
     };
@@ -132,6 +136,34 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading Link Indexing setting:', error);
         linkIndexingLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load PlantUML Keep Original Colors setting
+    this.projectSettingsService.getPlantUmlKeepOriginalColorsSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.plantUmlKeepOriginalColorsEnabled = response.enabled;
+        plantUmlKeepOriginalColorsLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading PlantUML Keep Original Colors setting:', error);
+        plantUmlKeepOriginalColorsLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load Copilot CLI Auto-Select setting
+    this.projectSettingsService.getCopilotCliAutoSelectSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.copilotCliAutoSelectEnabled = response.enabled;
+        copilotCliAutoSelectLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Copilot CLI Auto-Select setting:', error);
+        copilotCliAutoSelectLoaded = true;
         checkIfDone();
       }
     });
@@ -253,6 +285,35 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         console.error('Error saving Link Indexing setting:', error);
         this.saving = false;
         this.linkIndexingEnabled = !this.linkIndexingEnabled;
+      }
+    });
+  }
+
+  onPlantUmlKeepOriginalColorsChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setPlantUmlKeepOriginalColorsSetting(this.plantUmlKeepOriginalColorsEnabled, this.projectPath).subscribe({
+      next: () => {
+        document.body.classList.toggle('plantuml-keep-original', this.plantUmlKeepOriginalColorsEnabled);
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving PlantUML Keep Original Colors setting:', error);
+        this.saving = false;
+        this.plantUmlKeepOriginalColorsEnabled = !this.plantUmlKeepOriginalColorsEnabled;
+      }
+    });
+  }
+
+  onCopilotCliAutoSelectChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setCopilotCliAutoSelectSetting(this.copilotCliAutoSelectEnabled, this.projectPath).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Copilot CLI Auto-Select setting:', error);
+        this.saving = false;
+        this.copilotCliAutoSelectEnabled = !this.copilotCliAutoSelectEnabled;
       }
     });
   }
