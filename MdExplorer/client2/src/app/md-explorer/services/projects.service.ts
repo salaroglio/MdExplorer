@@ -1,6 +1,7 @@
 import { Injectable, Injector } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
+import { Participant, GitAuthor, CurrentGitUser } from '../models/participant';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
@@ -175,6 +176,29 @@ export class ProjectsService {
   updateProject(payload: { id: string; name: string; description?: string }): Observable<MdProject> {
     const url = '../api/MdProjects/UpdateProject';
     return this.http.post<MdProject>(url, payload);
+  }
+
+  getParticipants(projectPath: string): Observable<Participant[]> {
+    const params = new HttpParams().set('path', projectPath);
+    return this.http.get<Participant[]>('../api/MdProjects/GetParticipants', { params });
+  }
+
+  saveParticipants(projectPath: string, participants: Participant[]): Observable<Participant[]> {
+    const params = new HttpParams().set('path', projectPath);
+    return this.http.put<Participant[]>('../api/MdProjects/Participants', participants, { params });
+  }
+
+  getGitAuthors(projectPath: string): Observable<GitAuthor[]> {
+    const params = new HttpParams().set('path', projectPath);
+    return this.http.get<GitAuthor[]>('../api/MdProjects/GitAuthors', { params });
+  }
+
+  getCurrentGitUser(projectPath: string | null): Observable<CurrentGitUser> {
+    let params = new HttpParams();
+    if (projectPath) {
+      params = params.set('path', projectPath);
+    }
+    return this.http.get<CurrentGitUser>('../api/MdProjects/CurrentGitUser', { params });
   }
 
   /**

@@ -30,6 +30,7 @@ import { SearchBoxComponent } from './components/search-box/search-box.component
 import { CompatibilityModeBadgeComponent } from './md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component';
 import { UnifiedSettingsDialogComponent } from './components/unified-settings-dialog/unified-settings-dialog.component';
 import { AppStoreSettingsDialogComponent } from './components/app-store-settings-dialog/app-store-settings-dialog.component';
+import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
 
 
 const routes: Routes = [
@@ -75,6 +76,7 @@ const routes: Routes = [
         deps: [HttpClient]
       }
     }),
+    ParticipantGemsModule,
   ],
   providers: [
     ParsingProjectProvider,

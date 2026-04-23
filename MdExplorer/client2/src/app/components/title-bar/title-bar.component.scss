@@ -14,6 +14,12 @@
   transition: background-color 0.3s ease;
 }
 
+.title-bar-gems {
+  display: inline-flex;
+  margin: 0 12px;
+  -webkit-app-region: no-drag;
+}
+
 .app-info {
   display: flex;
   align-items: center;

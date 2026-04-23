@@ -24,6 +24,14 @@
 
   <app-compatibility-mode-badge *ngIf="isProjectOpened"></app-compatibility-mode-badge>
 
+  <app-participant-gems *ngIf="isProjectOpened && teamParticipants?.length > 0"
+                        class="title-bar-gems"
+                        size="medium"
+                        [participants]="teamParticipants"
+                        [currentUserEmail]="teamCurrentUserEmail"
+                        [maxVisible]="5">
+  </app-participant-gems>
+
   <div class="drag-region">
     <div class="welcome-message" *ngIf="isProjectsPage && !ragIndexing">
       <span class="welcome-text">{{ 'TITLE_BAR.WELCOME' | translate }}</span>

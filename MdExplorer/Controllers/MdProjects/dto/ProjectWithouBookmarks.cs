@@ -6,7 +6,9 @@ using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdFiles;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Controllers.MdProjects.dto;
+using MdExplorer.Service.Models;
 using System;
+using System.Collections.Generic;
 
 namespace MdExplorer.Service.Controllers.MdProjects.dto
 {
@@ -18,5 +20,8 @@ namespace MdExplorer.Service.Controllers.MdProjects.dto
         public string Path { get; set; }
         public DateTime LastUpdate { get; set; }
 
+        // MdE Team participants, read from .development.yml — eager-loaded so the
+        // projects grid can render gems without an extra round-trip per card.
+        public IList<ProjectParticipant> Participants { get; set; } = new List<ProjectParticipant>();
     }
 }

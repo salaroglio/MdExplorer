@@ -68,6 +68,9 @@ namespace MdExplorer
             // Project-level metadata stored in .development.yml (shared across users)
             services.AddSingleton<Services.IProjectMetadataService, Services.ProjectMetadataService>();
 
+            // Git authors discovery for MdE Team participants
+            services.AddSingleton<Services.Git.IGitAuthorsService, Services.Git.GitAuthorsService>();
+
             // Add ServerCache for command factories
             services.AddSingleton<IServerCache, ServerCache>();
 
