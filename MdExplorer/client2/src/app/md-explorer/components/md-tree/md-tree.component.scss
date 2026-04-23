@@ -14,8 +14,9 @@
   height: auto;
 }
 
-// Dark mode: override backgrounds and text colors
-:host-context(body.dark-theme) {
+// Dark-based themes (dark + milan): override backgrounds and text colors
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
   .tree-scroll-container {
     background-color: var(--mde-bg-primary);
     color: var(--mde-text-primary);
@@ -79,7 +80,8 @@
   min-height: 40px !important;
 }
 
-:host-context(body.dark-theme) .mat-tree-node {
+:host-context(body.dark-theme) .mat-tree-node,
+:host-context(body.milan-theme) .mat-tree-node {
   color: var(--mde-text-primary);
 
   .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {

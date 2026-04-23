@@ -582,9 +582,10 @@
 }
 
 // ═══════════════════════════════════════════════════════
-//   DARK MODE OVERRIDES
+//   DARK-BASED THEME OVERRIDES (dark + milan)
 // ═══════════════════════════════════════════════════════
-:host-context(body.dark-theme) {
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
   background-color: var(--mde-bg-primary);
 
   .app-store-container {
