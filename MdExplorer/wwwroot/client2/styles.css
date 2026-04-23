@@ -120,6 +120,48 @@ body.dark-theme .gold-icon {
   background: var(--mde-bg-primary) !important;
 }
 
+button.mat-menu-item,
+button.mat-mdc-menu-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+.mat-menu-panel .mat-icon.history-icon,
+.mat-menu-panel .mat-icon.retry-icon,
+.mat-mdc-menu-panel .mat-icon.history-icon,
+.mat-mdc-menu-panel .mat-icon.retry-icon {
+  color: #1976d2 !important;
+}
+
+.mat-menu-panel .mat-icon.branch-icon,
+.mat-mdc-menu-panel .mat-icon.branch-icon {
+  color: #388e3c !important;
+}
+
+.mat-menu-panel .mat-icon.manage-remote-icon,
+.mat-mdc-menu-panel .mat-icon.manage-remote-icon {
+  color: #f57c00 !important;
+}
+
+body.dark-theme .mat-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-menu-panel .mat-icon.retry-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.retry-icon {
+  color: #64b5f6 !important;
+}
+
+body.dark-theme .mat-menu-panel .mat-icon.branch-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.branch-icon {
+  color: #81c784 !important;
+}
+
+body.dark-theme .mat-menu-panel .mat-icon.manage-remote-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon {
+  color: #ffb74d !important;
+}
+
 .mat-menu-content,
 .mat-mdc-menu-content {
   background-color: var(--mde-bg-primary) !important;
@@ -986,11 +1028,24 @@ body.dark-theme .mat-nested-tree-node button.mat-icon-button:not(.mat-primary),
 body.dark-theme .mat-nested-tree-node button.mat-mdc-icon-button:not(.mat-primary) {
   color: var(--mde-text-primary) !important;
 }
+body.dark-theme .mat-mdc-menu-panel,
+body.dark-theme .mat-menu-panel,
+body.dark-theme .cdk-overlay-pane .mat-mdc-menu-panel,
+body.dark-theme .cdk-overlay-pane .mat-menu-panel {
+  background-color: var(--mde-bg-primary) !important;
+  background: var(--mde-bg-primary) !important;
+}
+body.dark-theme .mat-mdc-menu-content,
+body.dark-theme .mat-menu-content,
+body.dark-theme .cdk-overlay-pane .mat-mdc-menu-content,
+body.dark-theme .cdk-overlay-pane .mat-menu-content {
+  background-color: var(--mde-bg-primary) !important;
+}
 body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
 body.dark-theme .mat-mdc-menu-panel .mat-menu-item:not([style*="color:"]),
 body.dark-theme .mat-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
 body.dark-theme .mat-menu-panel .mat-menu-item:not([style*="color:"]) {
-  color: #000 !important;
+  color: #ffffff !important;
 }
 body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item .mdc-list-item__primary-text,
 body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item > span,

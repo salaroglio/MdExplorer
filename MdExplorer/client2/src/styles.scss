@@ -114,6 +114,39 @@ body.dark-theme .gold-icon {
   background: var(--mde-bg-primary) !important;
 }
 
+// Reset degli stili nativi del browser sui <button mat-menu-item>.
+// Material 15 prebuilt theme stila solo i button MDC; l'app usa MatLegacyMenu,
+// quindi senza reset spunta l'appearance di default del browser (bg #f0f0f0,
+// border bianco, font Arial). Così ereditano il bg del panel e la tipografia.
+button.mat-menu-item,
+button.mat-mdc-menu-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+// Icone colorate menu git toolbar — classi usate solo in toolbar.component.html
+// Coprono entrambe le varianti panel (legacy .mat-menu-panel e MDC .mat-mdc-menu-panel)
+// per sicurezza, ma al momento l'app usa MatLegacyMenuModule.
+.mat-menu-panel .mat-icon.history-icon,
+.mat-menu-panel .mat-icon.retry-icon,
+.mat-mdc-menu-panel .mat-icon.history-icon,
+.mat-mdc-menu-panel .mat-icon.retry-icon { color: #1976d2 !important; }
+.mat-menu-panel .mat-icon.branch-icon,
+.mat-mdc-menu-panel .mat-icon.branch-icon { color: #388e3c !important; }
+.mat-menu-panel .mat-icon.manage-remote-icon,
+.mat-mdc-menu-panel .mat-icon.manage-remote-icon { color: #f57c00 !important; }
+
+body.dark-theme .mat-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-menu-panel .mat-icon.retry-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.retry-icon { color: #64b5f6 !important; }
+body.dark-theme .mat-menu-panel .mat-icon.branch-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.branch-icon { color: #81c784 !important; }
+body.dark-theme .mat-menu-panel .mat-icon.manage-remote-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon { color: #ffb74d !important; }
+
 .mat-menu-content,
 .mat-mdc-menu-content {
   background-color: var(--mde-bg-primary) !important;
@@ -983,16 +1016,28 @@ body.dark-theme {
     }
   }
 
-  // Menu contestuale: testo nero come Material default (com'era prima del fix
-  // icone). Bg e hover lasciati alle regole globali. Solo icone primary/accent
-  // e warn colorate per visibilità.
+  // Menu contestuale in dark mode: forza bg scuro + testo bianco con specificità
+  // alta (body.dark-theme + cdk-overlay-pane) per battere eventuali override del
+  // theme Material. Preserva inline "color:" custom (viola RAG, teal P2P, arancione).
+  .mat-mdc-menu-panel,
+  .mat-menu-panel,
+  .cdk-overlay-pane .mat-mdc-menu-panel,
+  .cdk-overlay-pane .mat-menu-panel {
+    background-color: var(--mde-bg-primary) !important;
+    background: var(--mde-bg-primary) !important;
+  }
+  .mat-mdc-menu-content,
+  .mat-menu-content,
+  .cdk-overlay-pane .mat-mdc-menu-content,
+  .cdk-overlay-pane .mat-menu-content {
+    background-color: var(--mde-bg-primary) !important;
+  }
+
   .mat-mdc-menu-panel,
   .mat-menu-panel {
-    // Testo nero secco sui menu-item SENZA inline-style "color:"
-    // (preserva viola RAG #7c4dff, teal P2P #11998e, arancione force-open).
     .mat-mdc-menu-item:not([style*="color:"]),
     .mat-menu-item:not([style*="color:"]) {
-      color: #000 !important;
+      color: #ffffff !important;
     }
 
     // Material 15 MDC avvolge la label in <span class="mdc-list-item__primary-text">.

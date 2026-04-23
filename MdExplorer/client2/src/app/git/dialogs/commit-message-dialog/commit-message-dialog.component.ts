@@ -47,7 +47,8 @@ export class CommitMessageDialogComponent {
     this.aiError = null;
 
     this.http.post<any>('/api/GitAi/generate-commit-message', {
-      projectPath: this.data.projectPath
+      projectPath: this.data.projectPath,
+      language: this.translate.currentLang || this.translate.defaultLang || 'en'
     }).subscribe({
       next: (response) => {
         this.isGeneratingMessage = false;

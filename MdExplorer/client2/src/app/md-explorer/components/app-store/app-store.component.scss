@@ -580,3 +580,146 @@
   object-fit: contain;
   border-radius: 2px;
 }
+
+// ═══════════════════════════════════════════════════════
+//   DARK MODE OVERRIDES
+// ═══════════════════════════════════════════════════════
+:host-context(body.dark-theme) {
+  background-color: var(--mde-bg-primary);
+
+  .app-store-container {
+    background-color: var(--mde-bg-primary);
+    color: var(--mde-text-primary);
+  }
+
+  .settings-card {
+    background-color: var(--mde-bg-secondary) !important;
+    color: var(--mde-text-primary);
+  }
+
+  .section-header h3,
+  .section-header h4,
+  .store-actions h4,
+  .catalog-card-title,
+  .repo-name {
+    color: var(--mde-text-primary);
+  }
+
+  .repo-company {
+    color: var(--mde-accent-primary);
+  }
+
+  .repo-description,
+  .app-desc,
+  .app-changelog,
+  .loading-row,
+  .empty-state,
+  .publish-hint,
+  .publish-progress-phase,
+  .not-available-hint {
+    color: var(--mde-text-secondary);
+  }
+
+  .catalog-item {
+    background-color: var(--mde-bg-secondary) !important;
+    color: var(--mde-text-primary) !important;
+    border-bottom-color: var(--mde-border-color);
+  }
+
+  .catalog-card,
+  .manage-list-item,
+  .publish-metadata,
+  .update-installer-section {
+    border-bottom-color: var(--mde-border-color);
+    border-top-color: var(--mde-border-color);
+  }
+
+  .repo-header {
+    background: var(--mde-accent-light);
+    border-color: var(--mde-border-color);
+  }
+
+  .file-name {
+    color: var(--mde-text-secondary);
+
+    mat-icon {
+      color: var(--mde-accent-primary);
+    }
+  }
+
+  .publish-progress-pct {
+    color: var(--mde-accent-primary);
+  }
+
+  .version-chip,
+  .repos-count {
+    background: var(--mde-chip-bg);
+    color: var(--mde-text-secondary);
+  }
+
+  .publish-hint code {
+    background: var(--mde-hover-overlay);
+  }
+
+  .icon-placeholder {
+    color: var(--mde-text-hint);
+  }
+
+  .icon-label,
+  .icon-hint,
+  .platform-selector-label {
+    color: var(--mde-text-secondary);
+  }
+
+  .icon-preview-area {
+    border-color: var(--mde-border-color);
+    background: var(--mde-hover-overlay);
+  }
+
+  // Form field overrides in dark
+  ::ng-deep .app-store-container {
+    .mat-form-field-appearance-outline {
+      .mat-form-field-outline {
+        background-color: var(--mde-bg-secondary) !important;
+      }
+      .mat-form-field-outline-start,
+      .mat-form-field-outline-end,
+      .mat-form-field-outline-gap {
+        border-color: var(--mde-input-border) !important;
+      }
+      &.mat-focused {
+        .mat-form-field-outline-start,
+        .mat-form-field-outline-gap,
+        .mat-form-field-outline-end {
+          border-color: var(--mde-accent-primary) !important;
+        }
+      }
+    }
+
+    .mat-form-field-label {
+      color: var(--mde-text-secondary) !important;
+    }
+
+    .mat-input-element {
+      color: var(--mde-text-primary) !important;
+      caret-color: var(--mde-accent-primary) !important;
+    }
+
+    .mat-hint {
+      color: var(--mde-text-hint) !important;
+    }
+  }
+
+  // Tabs
+  .store-tabs {
+    ::ng-deep .mat-tab-label {
+      color: var(--mde-text-secondary);
+    }
+    ::ng-deep .mat-tab-label-active {
+      color: var(--mde-accent-primary);
+    }
+    ::ng-deep .mat-ink-bar {
+      background-color: var(--mde-accent-primary);
+    }
+  }
+}

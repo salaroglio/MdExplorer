@@ -144,14 +144,14 @@
          mat-menu-item (click)="$event.stopPropagation()">
       <span>{{ 'TOOLBAR.MANAGE_REMOTE' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right">settings</mat-icon>
+        <mat-icon style="text-align:right" class="manage-remote-icon">settings</mat-icon>
       </button>
     </div>
     <div (click)="openHistory()" class="container"
          mat-menu-item (click)="$event.stopPropagation()">
       <span>{{ 'TOOLBAR.HISTORY' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right">history</mat-icon>
+        <mat-icon style="text-align:right" class="history-icon">history</mat-icon>
       </button>
     </div>
     <div (click)="openBranchDialog()"
@@ -159,7 +159,7 @@
          mat-menu-item (click)="$event.stopPropagation()">
       <span>{{ 'TOOLBAR.BRANCH' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
-        <mat-icon style="text-align:right">account_tree</mat-icon>
+        <mat-icon style="text-align:right" class="branch-icon">account_tree</mat-icon>
       </button>
     </div>
   </div>
@@ -191,7 +191,7 @@
     <span>{{ 'TOOLBAR.RECONFIGURE_CREDENTIALS' | translate }}</span>
   </button>
   <button mat-menu-item (click)="checkConnection()">
-    <mat-icon>refresh</mat-icon>
+    <mat-icon class="retry-icon">refresh</mat-icon>
     <span>{{ 'TOOLBAR.RETRY_CONNECTION' | translate }}</span>
   </button>
 </mat-menu>
