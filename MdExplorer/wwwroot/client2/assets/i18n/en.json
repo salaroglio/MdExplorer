@@ -35,7 +35,8 @@
     "THEME_HINT": "Select the application appearance",
     "THEME_LIGHT": "Light",
     "THEME_DARK": "Dark",
-    "THEME_SYSTEM": "Follow system"
+    "THEME_SYSTEM": "Follow system",
+    "THEME_MILAN": "Milan (ruby red)"
   },
   "PROJECTS": {
     "RECENT_PROJECTS": "Recent Projects",

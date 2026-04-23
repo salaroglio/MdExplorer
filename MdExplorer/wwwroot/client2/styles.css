@@ -54,6 +54,50 @@
   --mde-error-bg: #ffebee;
 }
 
+body.milan-theme {
+  --mde-bg-primary: #fffbfb;
+  --mde-bg-secondary: #fdf5f5;
+  --mde-bg-tertiary: #f8ebeb;
+  --mde-bg-hover: #f4dede;
+  --mde-bg-selected: #f0cdcd;
+  --mde-text-primary: #2b0a14;
+  --mde-text-secondary: #6b2a38;
+  --mde-text-hint: #9e6672;
+  --mde-text-on-primary: #ffffff;
+  --mde-border-color: #ecd1d1;
+  --mde-border-strong: #c99aa3;
+  --mde-accent-primary: #a0142f;
+  --mde-accent-hover: #7a0f23;
+  --mde-accent-light: #fbe0e0;
+  --mde-accent-secondary: #c5a66b;
+  --mde-accent-secondary-hover: #a88953;
+  --mde-shadow-color: rgba(120, 15, 30, 0.12);
+  --mde-titlebar-bg: #8b0e24;
+  --mde-titlebar-border: #6b0b1c;
+  --mde-scrollbar-track: #fbeded;
+  --mde-scrollbar-thumb: #c99aa3;
+  --mde-scrollbar-hover: #a0142f;
+  --mde-input-border: #c99aa3;
+  --mde-icon-color: #8b3a4a;
+  --mde-checkbox-border: #8b3a4a;
+  --mde-toggle-track: #d8b8be;
+  --mde-toggle-thumb: #fffbfb;
+  --mde-chip-bg: #f4dede;
+  --mde-progress-bg: #f4dede;
+  --mde-progress-buffer: #f0cdcd;
+  --mde-disabled-bg: #d8b8be;
+  --mde-disabled-text: #a8868e;
+  --mde-hover-overlay: rgba(160, 20, 47, 0.06);
+  --mde-slider-track-bg: rgba(160, 20, 47, 0.26);
+  --mde-outline-color: rgba(160, 20, 47, 0.15);
+  --mde-success-fg: #2e7d32;
+  --mde-success-bg: #e8f5e9;
+  --mde-warning-fg: #e68900;
+  --mde-warning-bg: #fff3e0;
+  --mde-error-fg: #b71c1c;
+  --mde-error-bg: #ffebee;
+}
+
 body.dark-theme {
   --mde-bg-primary: #1e1e1e;
   --mde-bg-secondary: #252526;

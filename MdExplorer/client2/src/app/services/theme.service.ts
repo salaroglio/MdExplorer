@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
-export type ResolvedTheme = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'milan';
+export type ResolvedTheme = 'light' | 'dark' | 'milan';
 
 interface SettingsResponse {
   settings: { name: string; valueString?: string }[];
@@ -12,6 +12,7 @@ interface SettingsResponse {
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private readonly DARK_CLASS = 'dark-theme';
+  private readonly MILAN_CLASS = 'milan-theme';
 
   private readonly resolvedThemeSubject = new BehaviorSubject<ResolvedTheme>('light');
   public currentTheme$: Observable<ResolvedTheme> = this.resolvedThemeSubject.asObservable();
@@ -41,7 +42,7 @@ export class ThemeService {
     this.http.get<SettingsResponse>('../api/AppSettings/GetSettings').subscribe({
       next: (data) => {
         const themeSetting = data?.settings?.find(s => s.name === 'ThemeMode');
-        if (themeSetting?.valueString && ['light', 'dark', 'system'].includes(themeSetting.valueString)) {
+        if (themeSetting?.valueString && ['light', 'dark', 'system', 'milan'].includes(themeSetting.valueString)) {
           this.applyMode(themeSetting.valueString as ThemeMode);
         }
       },
@@ -69,7 +70,8 @@ export class ThemeService {
     return [
       { code: 'light', label: 'Light', icon: 'light_mode' },
       { code: 'dark', label: 'Dark', icon: 'dark_mode' },
-      { code: 'system', label: 'System', icon: 'settings_brightness' }
+      { code: 'system', label: 'System', icon: 'settings_brightness' },
+      { code: 'milan', label: 'Milan', icon: 'favorite' }
     ];
   }
 
@@ -93,10 +95,11 @@ export class ThemeService {
   }
 
   private applyResolved(theme: ResolvedTheme): void {
+    document.body.classList.remove(this.DARK_CLASS, this.MILAN_CLASS);
     if (theme === 'dark') {
       document.body.classList.add(this.DARK_CLASS);
-    } else {
-      document.body.classList.remove(this.DARK_CLASS);
+    } else if (theme === 'milan') {
+      document.body.classList.add(this.MILAN_CLASS);
     }
     this.resolvedThemeSubject.next(theme);
   }

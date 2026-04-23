@@ -35,7 +35,8 @@
     "THEME_HINT": "Seleziona l'aspetto dell'applicazione",
     "THEME_LIGHT": "Chiaro",
     "THEME_DARK": "Scuro",
-    "THEME_SYSTEM": "Segui il sistema"
+    "THEME_SYSTEM": "Segui il sistema",
+    "THEME_MILAN": "Milan (rosso rubino)"
   },
   "PROJECTS": {
     "RECENT_PROJECTS": "Progetti Recenti",

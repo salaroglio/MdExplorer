@@ -11868,6 +11868,7 @@ class ThemeService {
   constructor(http) {
     this.http = http;
     this.DARK_CLASS = 'dark-theme';
+    this.MILAN_CLASS = 'milan-theme';
     this.resolvedThemeSubject = new rxjs__WEBPACK_IMPORTED_MODULE_0__.BehaviorSubject('light');
     this.currentTheme$ = this.resolvedThemeSubject.asObservable();
     this.currentMode = 'light';
@@ -11889,7 +11890,7 @@ class ThemeService {
     this.http.get('../api/AppSettings/GetSettings').subscribe({
       next: data => {
         const themeSetting = data?.settings?.find(s => s.name === 'ThemeMode');
-        if (themeSetting?.valueString && ['light', 'dark', 'system'].includes(themeSetting.valueString)) {
+        if (themeSetting?.valueString && ['light', 'dark', 'system', 'milan'].includes(themeSetting.valueString)) {
           this.applyMode(themeSetting.valueString);
         }
       },
@@ -11921,6 +11922,10 @@ class ThemeService {
       code: 'system',
       label: 'System',
       icon: 'settings_brightness'
+    }, {
+      code: 'milan',
+      label: 'Milan',
+      icon: 'favorite'
     }];
   }
   applyMode(mode) {
@@ -11940,10 +11945,11 @@ class ThemeService {
     }
   }
   applyResolved(theme) {
+    document.body.classList.remove(this.DARK_CLASS, this.MILAN_CLASS);
     if (theme === 'dark') {
       document.body.classList.add(this.DARK_CLASS);
-    } else {
-      document.body.classList.remove(this.DARK_CLASS);
+    } else if (theme === 'milan') {
+      document.body.classList.add(this.MILAN_CLASS);
     }
     this.resolvedThemeSubject.next(theme);
   }
@@ -13380,8 +13386,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.04.23.5',
-  buildTime: '2026.04.23 16:45:27'
+  version: '2026.04.23.6',
+  buildTime: '2026.04.23 17:17:11'
 };
 
 /***/ }),
