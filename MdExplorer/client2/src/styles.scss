@@ -38,6 +38,12 @@
   --mde-hover-overlay: rgba(0, 0, 0, 0.04);
   --mde-slider-track-bg: rgba(0, 0, 0, 0.26);
   --mde-outline-color: rgba(0, 0, 0, 0.12);
+  --mde-success-fg: #2e7d32;
+  --mde-success-bg: #e8f5e9;
+  --mde-warning-fg: #ff9800;
+  --mde-warning-bg: #fff3e0;
+  --mde-error-fg: #f44336;
+  --mde-error-bg: #ffebee;
 }
 
 body.dark-theme {
@@ -76,6 +82,12 @@ body.dark-theme {
   --mde-hover-overlay: rgba(255, 255, 255, 0.06);
   --mde-slider-track-bg: rgba(255, 255, 255, 0.3);
   --mde-outline-color: rgba(255, 255, 255, 0.15);
+  --mde-success-fg: #81c784;
+  --mde-success-bg: #1b3a1e;
+  --mde-warning-fg: #ffb74d;
+  --mde-warning-bg: #3a2c14;
+  --mde-error-fg: #ef5350;
+  --mde-error-bg: #3a1a1a;
 }
 
 html, body {
