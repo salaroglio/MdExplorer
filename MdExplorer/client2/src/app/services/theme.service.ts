@@ -71,7 +71,7 @@ export class ThemeService {
       { code: 'light', label: 'Light', icon: 'light_mode' },
       { code: 'dark', label: 'Dark', icon: 'dark_mode' },
       { code: 'system', label: 'System', icon: 'settings_brightness' },
-      { code: 'milan', label: 'Milan', icon: 'favorite' }
+      { code: 'milan', label: 'Red', icon: 'favorite' }
     ];
   }
 

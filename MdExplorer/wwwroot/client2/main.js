@@ -11924,7 +11924,7 @@ class ThemeService {
       icon: 'settings_brightness'
     }, {
       code: 'milan',
-      label: 'Milan',
+      label: 'Red',
       icon: 'favorite'
     }];
   }
@@ -13386,8 +13386,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.04.23.8',
-  buildTime: '2026.04.23 17:30:13'
+  version: '2026.04.23.9',
+  buildTime: '2026.04.23 17:35:16'
 };
 
 /***/ }),
