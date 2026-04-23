@@ -34,6 +34,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   javaPath: string = '';
   localGraphvizDotPath: string = '';
   fileChangeNotificationEnabled: boolean = true;
+  teamsChatEnabled: boolean = true;
   isElectronEnvironment: boolean = false;
   appSaving: boolean = false;
 
@@ -170,6 +171,8 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.plantumlLocalPath = settings.find(_ => _.name === 'PlantumlLocalPath')?.valueString || '';
         this.javaPath = settings.find(_ => _.name === 'JavaPath')?.valueString || '';
         this.localGraphvizDotPath = settings.find(_ => _.name === 'LocalGraphvizDotPath')?.valueString || '';
+        // Teams chat defaults to enabled when the setting is missing.
+        this.teamsChatEnabled = (settings.find(_ => _.name === 'TeamsChatEnabled')?.valueInt ?? 1) === 1;
 
         const savedTheme = settings.find(_ => _.name === 'ThemeMode')?.valueString;
         if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
@@ -193,6 +196,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.updateSetting('PlantumlLocalPath', this.plantumlLocalPath);
     this.updateSetting('JavaPath', this.javaPath);
     this.updateSetting('LocalGraphvizDotPath', this.localGraphvizDotPath);
+    this.updateSettingInt('TeamsChatEnabled', this.teamsChatEnabled ? 1 : 0);
     this.updateSetting('ThemeMode', this.currentThemeMode);
 
     this.appMetadataService.saveSettings(this._settings).subscribe(() => {

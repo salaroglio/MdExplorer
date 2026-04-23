@@ -87,6 +87,15 @@
               <mat-hint>{{ 'UNIFIED_SETTINGS.JIRA_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
+            <div class="jira-settings-row">
+              <mat-slide-toggle
+                [(ngModel)]="teamsChatEnabled"
+                color="primary">
+                {{ 'UNIFIED_SETTINGS.TEAMS_CHAT_ENABLED' | translate }}
+              </mat-slide-toggle>
+              <p class="hint-text">{{ 'UNIFIED_SETTINGS.TEAMS_CHAT_ENABLED_HINT' | translate }}</p>
+            </div>
+
           </div>
         </mat-card-content>
       </mat-card>

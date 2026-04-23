@@ -2,17 +2,22 @@ import {
   Component,
   Input,
   OnChanges,
+  OnInit,
+  OnDestroy,
   SimpleChanges,
   HostBinding
 } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { Participant } from '../../md-explorer/models/participant';
+import { AppCurrentMetadataService } from '../../services/app-current-metadata.service';
+import { IMdSetting } from '../../models/IMdSetting';
 
 @Component({
   selector: 'app-participant-gems',
   templateUrl: './participant-gems.component.html',
   styleUrls: ['./participant-gems.component.scss']
 })
-export class ParticipantGemsComponent implements OnChanges {
+export class ParticipantGemsComponent implements OnInit, OnChanges, OnDestroy {
   @Input() participants: Participant[] | null | undefined = [];
   @Input() currentUserEmail: string | null = null;
   @Input() maxVisible = 4;
@@ -22,10 +27,35 @@ export class ParticipantGemsComponent implements OnChanges {
   get sizeMedium(): boolean { return this.size === 'medium'; }
 
   @HostBinding('class.is-empty')
-  get isEmpty(): boolean { return this.visible.length === 0 && this.overflow.length === 0; }
+  get isEmpty(): boolean {
+    return !this.teamsChatEnabled ||
+           (this.visible.length === 0 && this.overflow.length === 0);
+  }
 
   visible: Participant[] = [];
   overflow: Participant[] = [];
+  // The gems only exist to launch Teams, so when the Application setting
+  // TeamsChatEnabled is false we hide the whole strip. Default true mirrors
+  // the backend default (missing setting → enabled).
+  teamsChatEnabled = true;
+  private settingsSub: Subscription | null = null;
+
+  constructor(private appMetadataService: AppCurrentMetadataService) {}
+
+  ngOnInit(): void {
+    // Kick a load in case nobody else has yet; subsequent open/save cycles of
+    // the settings dialog push fresh values through settings$ automatically.
+    this.appMetadataService.loadSettings();
+    this.settingsSub = this.appMetadataService.settings.subscribe((settings: IMdSetting[]) => {
+      if (!settings || settings.length === 0) return;
+      const raw = settings.find(s => s.name === 'TeamsChatEnabled')?.valueInt;
+      this.teamsChatEnabled = raw == null ? true : raw === 1;
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.settingsSub?.unsubscribe();
+  }
 
   // Fixed palette — keeps gems visually distinct but consistent across the app
   // regardless of light/dark theme. Deterministic per email.
