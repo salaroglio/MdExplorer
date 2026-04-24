@@ -38,6 +38,59 @@
   --mde-hover-overlay: rgba(0, 0, 0, 0.04);
   --mde-slider-track-bg: rgba(0, 0, 0, 0.26);
   --mde-outline-color: rgba(0, 0, 0, 0.12);
+  --mde-success-fg: #2e7d32;
+  --mde-success-bg: #e8f5e9;
+  --mde-warning-fg: #ff9800;
+  --mde-warning-bg: #fff3e0;
+  --mde-error-fg: #f44336;
+  --mde-error-bg: #ffebee;
+}
+
+// === MILAN THEME ===
+// Base scura con tonalità bordeaux e accenti rosso rubino / oro sommesso.
+// Chrome (titlebar + toolbar Angular) in borgogna profondo.
+body.milan-theme {
+  --mde-bg-primary: #1a0d10;
+  --mde-bg-secondary: #221014;
+  --mde-bg-tertiary: #2a1418;
+  --mde-bg-hover: #3a1c22;
+  --mde-bg-selected: #5a1e28;
+  --mde-text-primary: #ffffff;
+  --mde-text-secondary: #cccccc;
+  --mde-text-hint: #999999;
+  --mde-text-on-primary: #ffffff;
+  --mde-border-color: #3a1c22;
+  --mde-border-strong: #5a2a30;
+  --mde-accent-primary: #ff1744;
+  --mde-accent-hover: #ff4d60;
+  --mde-accent-light: #3a1419;
+  --mde-accent-secondary: #d4a25c;
+  --mde-accent-secondary-hover: #e5b76e;
+  --mde-shadow-color: rgba(0, 0, 0, 0.5);
+  --mde-titlebar-bg: #c8102e;
+  --mde-titlebar-border: #8b0a1f;
+  --mde-scrollbar-track: #2a1418;
+  --mde-scrollbar-thumb: #5a2a30;
+  --mde-scrollbar-hover: #c8102e;
+  --mde-input-border: #5a2a30;
+  --mde-icon-color: #cccccc;
+  --mde-checkbox-border: #a06a70;
+  --mde-toggle-track: #5a2a30;
+  --mde-toggle-thumb: #ffffff;
+  --mde-chip-bg: #3a1c22;
+  --mde-progress-bg: #3a1c22;
+  --mde-progress-buffer: #5a1e28;
+  --mde-disabled-bg: #5a2a30;
+  --mde-disabled-text: #8a6060;
+  --mde-hover-overlay: rgba(230, 57, 80, 0.1);
+  --mde-slider-track-bg: rgba(230, 57, 80, 0.3);
+  --mde-outline-color: rgba(230, 57, 80, 0.15);
+  --mde-success-fg: #81c784;
+  --mde-success-bg: #1b3a1e;
+  --mde-warning-fg: #ffb74d;
+  --mde-warning-bg: #3a2c14;
+  --mde-error-fg: #ff6b6b;
+  --mde-error-bg: #4a1a1a;
 }
 
 body.dark-theme {
@@ -76,6 +129,12 @@ body.dark-theme {
   --mde-hover-overlay: rgba(255, 255, 255, 0.06);
   --mde-slider-track-bg: rgba(255, 255, 255, 0.3);
   --mde-outline-color: rgba(255, 255, 255, 0.15);
+  --mde-success-fg: #81c784;
+  --mde-success-bg: #1b3a1e;
+  --mde-warning-fg: #ffb74d;
+  --mde-warning-bg: #3a2c14;
+  --mde-error-fg: #ef5350;
+  --mde-error-bg: #3a1a1a;
 }
 
 html, body {
@@ -101,7 +160,12 @@ body.dark-theme mat-icon.folder-icon,
 body.dark-theme .mat-icon.folder-icon,
 body.dark-theme mat-icon.gold-icon,
 body.dark-theme .mat-icon.gold-icon,
-body.dark-theme .gold-icon {
+body.dark-theme .gold-icon,
+body.milan-theme mat-icon.folder-icon,
+body.milan-theme .mat-icon.folder-icon,
+body.milan-theme mat-icon.gold-icon,
+body.milan-theme .mat-icon.gold-icon,
+body.milan-theme .gold-icon {
   color: #E69500 !important;
 }
 
@@ -113,6 +177,47 @@ body.dark-theme .gold-icon {
   background-color: var(--mde-bg-primary) !important;
   background: var(--mde-bg-primary) !important;
 }
+
+// Reset degli stili nativi del browser sui <button mat-menu-item>.
+// Material 15 prebuilt theme stila solo i button MDC; l'app usa MatLegacyMenu,
+// quindi senza reset spunta l'appearance di default del browser (bg #f0f0f0,
+// border bianco, font Arial). Così ereditano il bg del panel e la tipografia.
+button.mat-menu-item,
+button.mat-mdc-menu-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+// Icone colorate menu git toolbar — classi usate solo in toolbar.component.html
+// Coprono entrambe le varianti panel (legacy .mat-menu-panel e MDC .mat-mdc-menu-panel)
+// per sicurezza, ma al momento l'app usa MatLegacyMenuModule.
+.mat-menu-panel .mat-icon.history-icon,
+.mat-menu-panel .mat-icon.retry-icon,
+.mat-mdc-menu-panel .mat-icon.history-icon,
+.mat-mdc-menu-panel .mat-icon.retry-icon { color: #1976d2 !important; }
+.mat-menu-panel .mat-icon.branch-icon,
+.mat-mdc-menu-panel .mat-icon.branch-icon { color: #388e3c !important; }
+.mat-menu-panel .mat-icon.manage-remote-icon,
+.mat-mdc-menu-panel .mat-icon.manage-remote-icon { color: #f57c00 !important; }
+
+body.dark-theme .mat-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-menu-panel .mat-icon.retry-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.retry-icon,
+body.milan-theme .mat-menu-panel .mat-icon.history-icon,
+body.milan-theme .mat-menu-panel .mat-icon.retry-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.history-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.retry-icon { color: #64b5f6 !important; }
+body.dark-theme .mat-menu-panel .mat-icon.branch-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.branch-icon,
+body.milan-theme .mat-menu-panel .mat-icon.branch-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.branch-icon { color: #81c784 !important; }
+body.dark-theme .mat-menu-panel .mat-icon.manage-remote-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon,
+body.milan-theme .mat-menu-panel .mat-icon.manage-remote-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon { color: #ffb74d !important; }
 
 .mat-menu-content,
 .mat-mdc-menu-content {
@@ -956,8 +1061,11 @@ textarea.mat-input-element {
   }
 }
 
-// --- MAT-TREE / MAT-SIDENAV / MAT-TOOLBAR: dark mode only ---
-body.dark-theme {
+// --- MAT-TREE / MAT-SIDENAV / MAT-TOOLBAR: dark-based themes ---
+// Shared between dark-theme and milan-theme (both are dark-based and need
+// Material's light default chrome to be overridden on tree/sidenav/menu/toolbar).
+body.dark-theme,
+body.milan-theme {
   .mat-tree {
     background-color: var(--mde-bg-primary) !important;
     color: var(--mde-text-primary) !important;
@@ -983,16 +1091,28 @@ body.dark-theme {
     }
   }
 
-  // Menu contestuale: testo nero come Material default (com'era prima del fix
-  // icone). Bg e hover lasciati alle regole globali. Solo icone primary/accent
-  // e warn colorate per visibilità.
+  // Menu contestuale in dark mode: forza bg scuro + testo bianco con specificità
+  // alta (body.dark-theme + cdk-overlay-pane) per battere eventuali override del
+  // theme Material. Preserva inline "color:" custom (viola RAG, teal P2P, arancione).
+  .mat-mdc-menu-panel,
+  .mat-menu-panel,
+  .cdk-overlay-pane .mat-mdc-menu-panel,
+  .cdk-overlay-pane .mat-menu-panel {
+    background-color: var(--mde-bg-primary) !important;
+    background: var(--mde-bg-primary) !important;
+  }
+  .mat-mdc-menu-content,
+  .mat-menu-content,
+  .cdk-overlay-pane .mat-mdc-menu-content,
+  .cdk-overlay-pane .mat-menu-content {
+    background-color: var(--mde-bg-primary) !important;
+  }
+
   .mat-mdc-menu-panel,
   .mat-menu-panel {
-    // Testo nero secco sui menu-item SENZA inline-style "color:"
-    // (preserva viola RAG #7c4dff, teal P2P #11998e, arancione force-open).
     .mat-mdc-menu-item:not([style*="color:"]),
     .mat-menu-item:not([style*="color:"]) {
-      color: #000 !important;
+      color: #ffffff !important;
     }
 
     // Material 15 MDC avvolge la label in <span class="mdc-list-item__primary-text">.
@@ -1037,6 +1157,33 @@ body.dark-theme {
   .mat-mdc-toolbar {
     background-color: var(--mde-bg-tertiary) !important;
     color: var(--mde-text-primary) !important;
+  }
+}
+
+// === MILAN CHROME: titlebar already red via --mde-titlebar-bg; here we
+// paint the Angular mat-toolbar instances with the same burgundy signature
+// and swap their inner text/icons to champagne-white for contrast. ===
+body.milan-theme {
+  .mat-toolbar,
+  .mat-mdc-toolbar {
+    background-color: var(--mde-titlebar-bg) !important;
+    color: var(--mde-text-on-primary) !important;
+
+    .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+      color: var(--mde-text-on-primary) !important;
+    }
+
+    button.mat-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn),
+    button.mat-mdc-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
+      color: var(--mde-text-on-primary) !important;
+    }
+
+    // Slightly lift icon buttons on hover so they read as clickable
+    // against the burgundy chrome.
+    button.mat-icon-button:hover,
+    button.mat-mdc-icon-button:hover {
+      background-color: rgba(255, 255, 255, 0.08) !important;
+    }
   }
 }
 

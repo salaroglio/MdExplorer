@@ -25,6 +25,7 @@ using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
 using MdExplorer.Services.Git;
 using MdExplorer.Services.Git.Interfaces;
+using MdExplorer.Service.Models;
 using MdExplorer.Service.Services;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Abstractions.Models.AI;
@@ -46,6 +47,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly GitCredentialHelperResolver _gitCredentialHelper;
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IProjectMetadataService _projectMetadataService;
+        private readonly IGitAuthorsService _gitAuthorsService;
         private readonly IEnumerable<IAiProvider> _aiProviders;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
@@ -58,6 +60,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 GitCredentialHelperResolver gitCredentialHelper,
                 FoldersIgnoreService foldersIgnoreService,
                 IProjectMetadataService projectMetadataService,
+                IGitAuthorsService gitAuthorsService,
                 IEnumerable<IAiProvider> aiProviders)
         {
             _userSettingsDB = userSettingsDB;
@@ -70,6 +73,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _gitCredentialHelper = gitCredentialHelper;
             _foldersIgnoreService = foldersIgnoreService;
             _projectMetadataService = projectMetadataService;
+            _gitAuthorsService = gitAuthorsService;
             _aiProviders = aiProviders;
         }
 
@@ -83,13 +87,131 @@ namespace MdExplorer.Service.Controllers.MdProjects
             var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
             var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list).ToList();
 
-            // Enrich each project with its shared description from .development.yml
+            // Enrich each project with its shared description and MdE Team participants
+            // from .development.yml. Participants are eager-loaded so the projects grid
+            // renders the gem strip without N additional HTTP calls.
             foreach (var dto in listToReturn)
             {
                 dto.Description = _projectMetadataService.GetDescription(dto.Path);
+                dto.Participants = BuildMergedParticipants(dto.Path);
             }
 
             return Ok(listToReturn);
+        }
+
+        /// <summary>
+        /// Merges participants stored in .development.yml with the fresh list of
+        /// git authors. Saved overrides (ChatEmail, DisplayName) are preserved;
+        /// new git authors are surfaced as non-manual entries defaulting ChatEmail
+        /// to GitEmail. Ordering follows commit count desc, with manual entries last.
+        /// </summary>
+        private IList<ProjectParticipant> BuildMergedParticipants(string projectPath)
+        {
+            var saved = _projectMetadataService.GetParticipants(projectPath) ?? new List<ProjectParticipant>();
+            var savedByKey = saved
+                .Where(p => !string.IsNullOrWhiteSpace(p?.GitEmail))
+                .GroupBy(p => p.GitEmail.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => g.Last());
+
+            var authors = _gitAuthorsService.GetAuthors(projectPath) ?? new List<GitAuthorInfo>();
+            var merged = new List<(ProjectParticipant p, int commitCount, bool manual)>();
+            var usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var author in authors)
+            {
+                var key = author.Email;
+                usedKeys.Add(key);
+                if (savedByKey.TryGetValue(key, out var storedP))
+                {
+                    // Refresh GitName from the latest commit but preserve overrides.
+                    storedP.GitName = author.Name ?? storedP.GitName;
+                    storedP.Manual = false;
+                    if (string.IsNullOrWhiteSpace(storedP.ChatEmail))
+                    {
+                        storedP.ChatEmail = storedP.GitEmail;
+                    }
+                    merged.Add((storedP, author.CommitCount, false));
+                }
+                else
+                {
+                    merged.Add((new ProjectParticipant
+                    {
+                        GitEmail = key,
+                        GitName = author.Name,
+                        DisplayName = author.Name,
+                        ChatEmail = key,
+                        Manual = false
+                    }, author.CommitCount, false));
+                }
+            }
+
+            // Manual-only participants (no matching git author) go after git authors,
+            // preserving their saved order.
+            foreach (var stored in saved)
+            {
+                if (string.IsNullOrWhiteSpace(stored?.GitEmail)) continue;
+                var key = stored.GitEmail.Trim().ToLowerInvariant();
+                if (usedKeys.Contains(key)) continue;
+                stored.Manual = true;
+                merged.Add((stored, 0, true));
+            }
+
+            return merged
+                .OrderBy(t => t.manual ? 1 : 0)
+                .ThenByDescending(t => t.commitCount)
+                .Select(t => t.p)
+                .ToList();
+        }
+
+        [HttpGet]
+        public IActionResult GetParticipants([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return BadRequest(new { message = "path is required" });
+            }
+            return Ok(BuildMergedParticipants(path));
+        }
+
+        [HttpPut]
+        public IActionResult Participants([FromQuery] string path, [FromBody] IList<ProjectParticipant> participants)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return BadRequest(new { message = "path is required" });
+            }
+            try
+            {
+                _projectMetadataService.SetParticipants(path, participants ?? new List<ProjectParticipant>());
+                return Ok(BuildMergedParticipants(path));
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save participants for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save participants", error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult GitAuthors([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return BadRequest(new { message = "path is required" });
+            }
+            return Ok(_gitAuthorsService.GetAuthors(path));
+        }
+
+        [HttpGet]
+        public IActionResult CurrentGitUser([FromQuery] string path)
+        {
+            var user = _gitAuthorsService.GetCurrentUser(path);
+            if (user == null)
+            {
+                return Ok(new { email = (string)null, name = (string)null });
+            }
+            return Ok(new { email = user.Email, name = user.Name });
         }
 
         [HttpPost]

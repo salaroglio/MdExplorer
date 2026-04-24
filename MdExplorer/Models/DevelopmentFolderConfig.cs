@@ -47,6 +47,52 @@ namespace MdExplorer.Service.Models
         /// Shared description explaining purpose, context, participants and goals.
         /// </summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// Team participants — shared across users so that MdE Team gems and
+        /// Teams chat shortcuts are consistent regardless of who opens the project.
+        /// The canonical key is GitEmail (lowercased); ChatEmail may differ when
+        /// the git commit email is not the company Teams address.
+        /// </summary>
+        public List<ProjectParticipant> Participants { get; set; } = new List<ProjectParticipant>();
+    }
+
+    /// <summary>
+    /// A single project participant. GitEmail is the stable identity key;
+    /// ChatEmail is what the MdE Team button opens in MS Teams.
+    /// </summary>
+    public class ProjectParticipant
+    {
+        /// <summary>
+        /// Canonical identity (lowercased). For manual entries it may coincide
+        /// with ChatEmail when there is no matching git author.
+        /// </summary>
+        public string GitEmail { get; set; }
+
+        /// <summary>
+        /// Last known display name from git log (informational only).
+        /// </summary>
+        public string GitName { get; set; }
+
+        /// <summary>
+        /// User-editable display name for the participant strip / popovers.
+        /// Falls back to GitName when empty.
+        /// </summary>
+        public string DisplayName { get; set; }
+
+        /// <summary>
+        /// Email used to open the Teams chat (msteams://.../users=...).
+        /// Defaults to GitEmail until the user overrides it with the
+        /// actual company email.
+        /// </summary>
+        public string ChatEmail { get; set; }
+
+        /// <summary>
+        /// True when the entry was added manually (no matching git author).
+        /// Manual entries can be removed from the UI; git-matched entries
+        /// stay because the commit history keeps carrying them.
+        /// </summary>
+        public bool Manual { get; set; }
     }
 
     /// <summary>

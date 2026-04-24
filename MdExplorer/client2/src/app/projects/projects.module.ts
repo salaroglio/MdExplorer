@@ -16,6 +16,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { GitModule } from '../git/git.module';
 import { ProjectSettingsService } from './services/project-settings.service';
+import { ParticipantGemsModule } from '../components/participant-gems/participant-gems.module';
 
 const routes: Routes = [
   {
@@ -49,6 +50,7 @@ const routes: Routes = [
     ReactiveFormsModule,
     GitModule,
     TranslateModule,
+    ParticipantGemsModule,
   ],
   providers: [
     ProjectSettingsService

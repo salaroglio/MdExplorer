@@ -269,10 +269,12 @@
 .projects-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
+  // Extra right/bottom padding so team gems sitting on the bottom border of
+  // each card don't get clipped by the scroll container.
+  padding: 0 8px 16px 0;
   min-height: 0;
 
   // Custom scrollbar
@@ -304,6 +306,22 @@
   background: var(--mde-bg-primary);
   position: relative;
   overflow: visible;
+
+  // Team gems are absolute-positioned so they sit half-embedded on the bottom
+  // border of the card without changing its height. overflow: visible above
+  // already lets them render outside the card bounds.
+  .card-gems {
+    position: absolute;
+    bottom: -11px;
+    left: 20px;
+    z-index: 3;
+    pointer-events: auto;
+  }
+
+  &.has-gems {
+    // Small extra margin on the grid row so gems from adjacent cards never overlap.
+    margin-bottom: 4px;
+  }
 
   &:hover {
     transform: translateY(-2px);

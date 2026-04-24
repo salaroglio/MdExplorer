@@ -509,8 +509,9 @@
   }
 }
 
-// === DARK MODE OVERRIDES ===
-:host-context(body.dark-theme) {
+// === DARK-BASED THEME OVERRIDES (dark + milan) ===
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
   .ai-chat-container {
     background: var(--mde-bg-primary);
     border-color: var(--mde-border-color);

@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { Subscription } from 'rxjs';
 import { versionInfo } from '../../../environments/version';
 import { MdNavigationService } from '../../md-explorer/services/md-navigation.service';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
@@ -9,6 +10,8 @@ import { MdFile } from '../../md-explorer/models/md-file';
 import { UnifiedSettingsDialogComponent } from '../unified-settings-dialog/unified-settings-dialog.component';
 import { AppStoreSettingsDialogComponent } from '../app-store-settings-dialog/app-store-settings-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
+import { ProjectsService } from '../../md-explorer/services/projects.service';
+import { Participant } from '../../md-explorer/models/participant';
 
 @Component({
   selector: 'app-title-bar',
@@ -30,13 +33,19 @@ export class TitleBarComponent implements OnInit, OnDestroy {
   ragMessage = '';
   private ragDismissTimer: any = null;
 
+  // MdE Team gems for the currently open project
+  teamParticipants: Participant[] = [];
+  teamCurrentUserEmail: string | null = null;
+  private currentProjectSub: Subscription | null = null;
+
   constructor(
     public navService: MdNavigationService,
     private mdFileService: MdFileService,
     private router: Router,
     private monitorMDService: MdServerMessagesService,
     private dialog: MatDialog,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private projectsService: ProjectsService
   ) {
     // Check if running in Electron
     this.isElectron = !!(window && (window as any).electronAPI);
@@ -55,6 +64,25 @@ export class TitleBarComponent implements OnInit, OnDestroy {
 
     // Subscribe to document navigation events from iframe links
     this.monitorMDService.addDocumentNavigatedListener(this.onDocumentNavigated, this);
+
+    // Follow the currently open project to populate the team gems strip.
+    // currentProjects$ emits the SetFolderProject response, which includes path.
+    this.currentProjectSub = this.projectsService.currentProjects$.subscribe(proj => {
+      const path = (proj as any)?.path;
+      if (!path) {
+        this.teamParticipants = [];
+        this.teamCurrentUserEmail = null;
+        return;
+      }
+      this.projectsService.getParticipants(path).subscribe({
+        next: list => this.teamParticipants = list || [],
+        error: () => this.teamParticipants = []
+      });
+      this.projectsService.getCurrentGitUser(path).subscribe({
+        next: u => this.teamCurrentUserEmail = u?.email ? u.email.toLowerCase() : null,
+        error: () => this.teamCurrentUserEmail = null
+      });
+    });
 
     // Subscribe to RAG indexing progress
     this.monitorMDService.ragIndexingProgress$.subscribe(data => {
@@ -87,6 +115,7 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     if (this.ragDismissTimer) {
       clearTimeout(this.ragDismissTimer);
     }
+    this.currentProjectSub?.unsubscribe();
   }
 
   private onDocumentNavigated(data: any, objectThis: TitleBarComponent): void {

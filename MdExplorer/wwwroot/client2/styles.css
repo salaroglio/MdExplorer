@@ -46,6 +46,56 @@
   --mde-hover-overlay: rgba(0, 0, 0, 0.04);
   --mde-slider-track-bg: rgba(0, 0, 0, 0.26);
   --mde-outline-color: rgba(0, 0, 0, 0.12);
+  --mde-success-fg: #2e7d32;
+  --mde-success-bg: #e8f5e9;
+  --mde-warning-fg: #ff9800;
+  --mde-warning-bg: #fff3e0;
+  --mde-error-fg: #f44336;
+  --mde-error-bg: #ffebee;
+}
+
+body.milan-theme {
+  --mde-bg-primary: #1a0d10;
+  --mde-bg-secondary: #221014;
+  --mde-bg-tertiary: #2a1418;
+  --mde-bg-hover: #3a1c22;
+  --mde-bg-selected: #5a1e28;
+  --mde-text-primary: #ffffff;
+  --mde-text-secondary: #cccccc;
+  --mde-text-hint: #999999;
+  --mde-text-on-primary: #ffffff;
+  --mde-border-color: #3a1c22;
+  --mde-border-strong: #5a2a30;
+  --mde-accent-primary: #ff1744;
+  --mde-accent-hover: #ff4d60;
+  --mde-accent-light: #3a1419;
+  --mde-accent-secondary: #d4a25c;
+  --mde-accent-secondary-hover: #e5b76e;
+  --mde-shadow-color: rgba(0, 0, 0, 0.5);
+  --mde-titlebar-bg: #c8102e;
+  --mde-titlebar-border: #8b0a1f;
+  --mde-scrollbar-track: #2a1418;
+  --mde-scrollbar-thumb: #5a2a30;
+  --mde-scrollbar-hover: #c8102e;
+  --mde-input-border: #5a2a30;
+  --mde-icon-color: #cccccc;
+  --mde-checkbox-border: #a06a70;
+  --mde-toggle-track: #5a2a30;
+  --mde-toggle-thumb: #ffffff;
+  --mde-chip-bg: #3a1c22;
+  --mde-progress-bg: #3a1c22;
+  --mde-progress-buffer: #5a1e28;
+  --mde-disabled-bg: #5a2a30;
+  --mde-disabled-text: #8a6060;
+  --mde-hover-overlay: rgba(230, 57, 80, 0.1);
+  --mde-slider-track-bg: rgba(230, 57, 80, 0.3);
+  --mde-outline-color: rgba(230, 57, 80, 0.15);
+  --mde-success-fg: #81c784;
+  --mde-success-bg: #1b3a1e;
+  --mde-warning-fg: #ffb74d;
+  --mde-warning-bg: #3a2c14;
+  --mde-error-fg: #ff6b6b;
+  --mde-error-bg: #4a1a1a;
 }
 
 body.dark-theme {
@@ -84,6 +134,12 @@ body.dark-theme {
   --mde-hover-overlay: rgba(255, 255, 255, 0.06);
   --mde-slider-track-bg: rgba(255, 255, 255, 0.3);
   --mde-outline-color: rgba(255, 255, 255, 0.15);
+  --mde-success-fg: #81c784;
+  --mde-success-bg: #1b3a1e;
+  --mde-warning-fg: #ffb74d;
+  --mde-warning-bg: #3a2c14;
+  --mde-error-fg: #ef5350;
+  --mde-error-bg: #3a1a1a;
 }
 
 html, body {
@@ -108,7 +164,12 @@ body.dark-theme mat-icon.folder-icon,
 body.dark-theme .mat-icon.folder-icon,
 body.dark-theme mat-icon.gold-icon,
 body.dark-theme .mat-icon.gold-icon,
-body.dark-theme .gold-icon {
+body.dark-theme .gold-icon,
+body.milan-theme mat-icon.folder-icon,
+body.milan-theme .mat-icon.folder-icon,
+body.milan-theme mat-icon.gold-icon,
+body.milan-theme .mat-icon.gold-icon,
+body.milan-theme .gold-icon {
   color: #E69500 !important;
 }
 
@@ -118,6 +179,56 @@ body.dark-theme .gold-icon {
 .cdk-overlay-pane .mat-mdc-menu-panel {
   background-color: var(--mde-bg-primary) !important;
   background: var(--mde-bg-primary) !important;
+}
+
+button.mat-menu-item,
+button.mat-mdc-menu-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+.mat-menu-panel .mat-icon.history-icon,
+.mat-menu-panel .mat-icon.retry-icon,
+.mat-mdc-menu-panel .mat-icon.history-icon,
+.mat-mdc-menu-panel .mat-icon.retry-icon {
+  color: #1976d2 !important;
+}
+
+.mat-menu-panel .mat-icon.branch-icon,
+.mat-mdc-menu-panel .mat-icon.branch-icon {
+  color: #388e3c !important;
+}
+
+.mat-menu-panel .mat-icon.manage-remote-icon,
+.mat-mdc-menu-panel .mat-icon.manage-remote-icon {
+  color: #f57c00 !important;
+}
+
+body.dark-theme .mat-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-menu-panel .mat-icon.retry-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.history-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.retry-icon,
+body.milan-theme .mat-menu-panel .mat-icon.history-icon,
+body.milan-theme .mat-menu-panel .mat-icon.retry-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.history-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.retry-icon {
+  color: #64b5f6 !important;
+}
+
+body.dark-theme .mat-menu-panel .mat-icon.branch-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.branch-icon,
+body.milan-theme .mat-menu-panel .mat-icon.branch-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.branch-icon {
+  color: #81c784 !important;
+}
+
+body.dark-theme .mat-menu-panel .mat-icon.manage-remote-icon,
+body.dark-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon,
+body.milan-theme .mat-menu-panel .mat-icon.manage-remote-icon,
+body.milan-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon {
+  color: #ffb74d !important;
 }
 
 .mat-menu-content,
@@ -962,35 +1073,73 @@ textarea.mat-input-element::placeholder {
   background: var(--mde-scrollbar-hover);
 }
 
-body.dark-theme .mat-tree {
+body.dark-theme .mat-tree,
+body.milan-theme .mat-tree {
   background-color: var(--mde-bg-primary) !important;
   color: var(--mde-text-primary) !important;
 }
 body.dark-theme .mat-tree-node,
-body.dark-theme .mat-nested-tree-node {
+body.dark-theme .mat-nested-tree-node,
+body.milan-theme .mat-tree-node,
+body.milan-theme .mat-nested-tree-node {
   color: var(--mde-text-primary) !important;
 }
 body.dark-theme .mat-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
-body.dark-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+body.dark-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
+body.milan-theme .mat-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
+body.milan-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
   color: var(--mde-icon-color) !important;
 }
 body.dark-theme .mat-tree-node button.mat-primary .mat-icon,
 body.dark-theme .mat-tree-node button.mat-mdc-icon-button.mat-primary .mat-icon,
 body.dark-theme .mat-nested-tree-node button.mat-primary .mat-icon,
-body.dark-theme .mat-nested-tree-node button.mat-mdc-icon-button.mat-primary .mat-icon {
+body.dark-theme .mat-nested-tree-node button.mat-mdc-icon-button.mat-primary .mat-icon,
+body.milan-theme .mat-tree-node button.mat-primary .mat-icon,
+body.milan-theme .mat-tree-node button.mat-mdc-icon-button.mat-primary .mat-icon,
+body.milan-theme .mat-nested-tree-node button.mat-primary .mat-icon,
+body.milan-theme .mat-nested-tree-node button.mat-mdc-icon-button.mat-primary .mat-icon {
   color: var(--mde-accent-primary) !important;
 }
 body.dark-theme .mat-tree-node button.mat-icon-button:not(.mat-primary),
 body.dark-theme .mat-tree-node button.mat-mdc-icon-button:not(.mat-primary),
 body.dark-theme .mat-nested-tree-node button.mat-icon-button:not(.mat-primary),
-body.dark-theme .mat-nested-tree-node button.mat-mdc-icon-button:not(.mat-primary) {
+body.dark-theme .mat-nested-tree-node button.mat-mdc-icon-button:not(.mat-primary),
+body.milan-theme .mat-tree-node button.mat-icon-button:not(.mat-primary),
+body.milan-theme .mat-tree-node button.mat-mdc-icon-button:not(.mat-primary),
+body.milan-theme .mat-nested-tree-node button.mat-icon-button:not(.mat-primary),
+body.milan-theme .mat-nested-tree-node button.mat-mdc-icon-button:not(.mat-primary) {
   color: var(--mde-text-primary) !important;
+}
+body.dark-theme .mat-mdc-menu-panel,
+body.dark-theme .mat-menu-panel,
+body.dark-theme .cdk-overlay-pane .mat-mdc-menu-panel,
+body.dark-theme .cdk-overlay-pane .mat-menu-panel,
+body.milan-theme .mat-mdc-menu-panel,
+body.milan-theme .mat-menu-panel,
+body.milan-theme .cdk-overlay-pane .mat-mdc-menu-panel,
+body.milan-theme .cdk-overlay-pane .mat-menu-panel {
+  background-color: var(--mde-bg-primary) !important;
+  background: var(--mde-bg-primary) !important;
+}
+body.dark-theme .mat-mdc-menu-content,
+body.dark-theme .mat-menu-content,
+body.dark-theme .cdk-overlay-pane .mat-mdc-menu-content,
+body.dark-theme .cdk-overlay-pane .mat-menu-content,
+body.milan-theme .mat-mdc-menu-content,
+body.milan-theme .mat-menu-content,
+body.milan-theme .cdk-overlay-pane .mat-mdc-menu-content,
+body.milan-theme .cdk-overlay-pane .mat-menu-content {
+  background-color: var(--mde-bg-primary) !important;
 }
 body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
 body.dark-theme .mat-mdc-menu-panel .mat-menu-item:not([style*="color:"]),
 body.dark-theme .mat-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
-body.dark-theme .mat-menu-panel .mat-menu-item:not([style*="color:"]) {
-  color: #000 !important;
+body.dark-theme .mat-menu-panel .mat-menu-item:not([style*="color:"]),
+body.milan-theme .mat-mdc-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
+body.milan-theme .mat-mdc-menu-panel .mat-menu-item:not([style*="color:"]),
+body.milan-theme .mat-menu-panel .mat-mdc-menu-item:not([style*="color:"]),
+body.milan-theme .mat-menu-panel .mat-menu-item:not([style*="color:"]) {
+  color: #ffffff !important;
 }
 body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item .mdc-list-item__primary-text,
 body.dark-theme .mat-mdc-menu-panel .mat-mdc-menu-item > span,
@@ -1007,7 +1156,23 @@ body.dark-theme .mat-menu-panel .mat-mdc-menu-item > span > b,
 body.dark-theme .mat-menu-panel .mat-menu-item .mdc-list-item__primary-text,
 body.dark-theme .mat-menu-panel .mat-menu-item > span,
 body.dark-theme .mat-menu-panel .mat-menu-item > b,
-body.dark-theme .mat-menu-panel .mat-menu-item > span > b {
+body.dark-theme .mat-menu-panel .mat-menu-item > span > b,
+body.milan-theme .mat-mdc-menu-panel .mat-mdc-menu-item .mdc-list-item__primary-text,
+body.milan-theme .mat-mdc-menu-panel .mat-mdc-menu-item > span,
+body.milan-theme .mat-mdc-menu-panel .mat-mdc-menu-item > b,
+body.milan-theme .mat-mdc-menu-panel .mat-mdc-menu-item > span > b,
+body.milan-theme .mat-mdc-menu-panel .mat-menu-item .mdc-list-item__primary-text,
+body.milan-theme .mat-mdc-menu-panel .mat-menu-item > span,
+body.milan-theme .mat-mdc-menu-panel .mat-menu-item > b,
+body.milan-theme .mat-mdc-menu-panel .mat-menu-item > span > b,
+body.milan-theme .mat-menu-panel .mat-mdc-menu-item .mdc-list-item__primary-text,
+body.milan-theme .mat-menu-panel .mat-mdc-menu-item > span,
+body.milan-theme .mat-menu-panel .mat-mdc-menu-item > b,
+body.milan-theme .mat-menu-panel .mat-mdc-menu-item > span > b,
+body.milan-theme .mat-menu-panel .mat-menu-item .mdc-list-item__primary-text,
+body.milan-theme .mat-menu-panel .mat-menu-item > span,
+body.milan-theme .mat-menu-panel .mat-menu-item > b,
+body.milan-theme .mat-menu-panel .mat-menu-item > span > b {
   color: inherit !important;
 }
 body.dark-theme .mat-mdc-menu-panel button.mat-primary .mat-icon,
@@ -1017,30 +1182,71 @@ body.dark-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-accent .mat-i
 body.dark-theme .mat-menu-panel button.mat-primary .mat-icon,
 body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-primary .mat-icon,
 body.dark-theme .mat-menu-panel button.mat-accent .mat-icon,
-body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-accent .mat-icon {
+body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-accent .mat-icon,
+body.milan-theme .mat-mdc-menu-panel button.mat-primary .mat-icon,
+body.milan-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-primary .mat-icon,
+body.milan-theme .mat-mdc-menu-panel button.mat-accent .mat-icon,
+body.milan-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-accent .mat-icon,
+body.milan-theme .mat-menu-panel button.mat-primary .mat-icon,
+body.milan-theme .mat-menu-panel button.mat-mdc-icon-button.mat-primary .mat-icon,
+body.milan-theme .mat-menu-panel button.mat-accent .mat-icon,
+body.milan-theme .mat-menu-panel button.mat-mdc-icon-button.mat-accent .mat-icon {
   color: var(--mde-accent-primary);
 }
 body.dark-theme .mat-mdc-menu-panel button.mat-warn .mat-icon,
 body.dark-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon,
 body.dark-theme .mat-menu-panel button.mat-warn .mat-icon,
-body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon {
+body.dark-theme .mat-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon,
+body.milan-theme .mat-mdc-menu-panel button.mat-warn .mat-icon,
+body.milan-theme .mat-mdc-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon,
+body.milan-theme .mat-menu-panel button.mat-warn .mat-icon,
+body.milan-theme .mat-menu-panel button.mat-mdc-icon-button.mat-warn .mat-icon {
   color: #ef5350;
 }
 body.dark-theme .mat-sidenav,
 body.dark-theme .mat-drawer,
-body.dark-theme .mat-mdc-sidenav {
+body.dark-theme .mat-mdc-sidenav,
+body.milan-theme .mat-sidenav,
+body.milan-theme .mat-drawer,
+body.milan-theme .mat-mdc-sidenav {
   background-color: var(--mde-bg-primary) !important;
   color: var(--mde-text-primary) !important;
 }
 body.dark-theme .mat-sidenav-container,
-body.dark-theme .mat-drawer-container {
+body.dark-theme .mat-drawer-container,
+body.milan-theme .mat-sidenav-container,
+body.milan-theme .mat-drawer-container {
   background-color: var(--mde-bg-primary) !important;
   color: var(--mde-text-primary) !important;
 }
 body.dark-theme .mat-toolbar,
-body.dark-theme .mat-mdc-toolbar {
+body.dark-theme .mat-mdc-toolbar,
+body.milan-theme .mat-toolbar,
+body.milan-theme .mat-mdc-toolbar {
   background-color: var(--mde-bg-tertiary) !important;
   color: var(--mde-text-primary) !important;
+}
+
+body.milan-theme .mat-toolbar,
+body.milan-theme .mat-mdc-toolbar {
+  background-color: var(--mde-titlebar-bg) !important;
+  color: var(--mde-text-on-primary) !important;
+}
+body.milan-theme .mat-toolbar .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
+body.milan-theme .mat-mdc-toolbar .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+  color: var(--mde-text-on-primary) !important;
+}
+body.milan-theme .mat-toolbar button.mat-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn),
+body.milan-theme .mat-toolbar button.mat-mdc-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn),
+body.milan-theme .mat-mdc-toolbar button.mat-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn),
+body.milan-theme .mat-mdc-toolbar button.mat-mdc-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
+  color: var(--mde-text-on-primary) !important;
+}
+body.milan-theme .mat-toolbar button.mat-icon-button:hover,
+body.milan-theme .mat-toolbar button.mat-mdc-icon-button:hover,
+body.milan-theme .mat-mdc-toolbar button.mat-icon-button:hover,
+body.milan-theme .mat-mdc-toolbar button.mat-mdc-icon-button:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .cdk-overlay-pane .mat-select-panel,

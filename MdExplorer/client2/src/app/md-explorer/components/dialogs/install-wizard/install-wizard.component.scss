@@ -17,7 +17,7 @@
   font-size: 48px;
   width: 48px;
   height: 48px;
-  color: #1976d2;
+  color: var(--mde-accent-primary);
   flex-shrink: 0;
 }
 
@@ -30,7 +30,7 @@
 
 .app-version {
   font-size: 13px;
-  color: rgba(0, 0, 0, 0.54);
+  color: var(--mde-text-secondary);
 }
 
 .version-info {
@@ -40,18 +40,18 @@
 
   .old-version {
     text-decoration: line-through;
-    color: rgba(0, 0, 0, 0.38);
+    color: var(--mde-text-hint);
   }
 
   .version-arrow {
     font-size: 16px;
     width: 16px;
     height: 16px;
-    color: rgba(0, 0, 0, 0.38);
+    color: var(--mde-text-hint);
   }
 
   .new-version {
-    color: #2e7d32;
+    color: var(--mde-success-fg);
     font-weight: 500;
   }
 }
@@ -63,7 +63,7 @@
     margin: 0 0 6px;
     font-size: 13px;
     font-weight: 500;
-    color: rgba(0, 0, 0, 0.54);
+    color: var(--mde-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -71,7 +71,7 @@
   .changelog-text {
     margin: 0;
     font-size: 13px;
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--mde-text-primary);
     white-space: pre-line;
     max-height: 120px;
     overflow-y: auto;
@@ -81,12 +81,12 @@
 .app-description {
   margin: 8px 0 4px;
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.7);
+  color: var(--mde-text-primary);
 }
 
 .app-platform {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--mde-text-hint);
 }
 
 .not-found {
@@ -100,7 +100,7 @@
     font-size: 48px;
     width: 48px;
     height: 48px;
-    color: #ff9800;
+    color: var(--mde-warning-fg);
     margin-bottom: 8px;
   }
 
@@ -110,7 +110,7 @@
 
   .hint {
     font-size: 13px;
-    color: rgba(0, 0, 0, 0.54);
+    color: var(--mde-text-secondary);
   }
 }
 
@@ -125,7 +125,7 @@
     margin-bottom: 10px;
     font-size: 14px;
     font-weight: 500;
-    color: #1976d2;
+    color: var(--mde-accent-primary);
 
     mat-icon {
       font-size: 20px;
@@ -142,7 +142,7 @@
     display: block;
     text-align: right;
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.54);
+    color: var(--mde-text-secondary);
     margin-top: 4px;
   }
 }
@@ -153,9 +153,9 @@
   gap: 8px;
   padding: 12px 16px;
   margin-top: 12px;
-  background: #e8f5e9;
+  background: var(--mde-success-bg);
   border-radius: 4px;
-  color: #2e7d32;
+  color: var(--mde-success-fg);
   font-weight: 500;
 }
 
@@ -165,5 +165,5 @@
   gap: 8px;
   padding: 12px 16px;
   margin-top: 12px;
-  color: #f44336;
+  color: var(--mde-error-fg);
 }

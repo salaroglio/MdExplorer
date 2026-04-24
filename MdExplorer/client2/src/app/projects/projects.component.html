@@ -28,6 +28,7 @@
           <div class="projects-grid">
         <mat-card class="project-card"
                   [class.last-opened]="isLastOpened(project)"
+                  [class.has-gems]="(project.participants?.length || 0) > 0"
                   [matTooltip]="project.lastUpdate ? (('PROJECTS.LAST_ACCESSED' | translate) + ' ' + (project.lastUpdate | date:'short')) : null"
                   matTooltipPosition="below"
                   *ngFor="let project of recentProjects | async">
@@ -84,6 +85,12 @@
               </button>
             </div>
           </mat-card-content>
+          <app-participant-gems class="card-gems"
+                                *ngIf="(project.participants?.length || 0) > 0"
+                                [participants]="project.participants"
+                                [currentUserEmail]="currentUserEmail"
+                                [maxVisible]="4">
+          </app-participant-gems>
         </mat-card>
       </div>
         </div>

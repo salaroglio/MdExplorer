@@ -349,8 +349,9 @@
   }
 }
 
-// === DARK MODE OVERRIDES ===
-:host-context(body.dark-theme) {
+// === DARK-BASED THEME OVERRIDES (dark + milan) ===
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
   &::-webkit-scrollbar-track {
     background: var(--mde-scrollbar-track);
   }

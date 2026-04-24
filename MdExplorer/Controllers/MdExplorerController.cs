@@ -647,7 +647,7 @@ namespace MdExplorer.Controllers
 
         private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light")
         {
-            var isDark = theme == "dark";
+            var isDark = theme == "dark" || theme == "milan";
             var html = doc1.CreateElement("html");
             var htmlStyle = doc1.CreateAttribute("style");
             htmlStyle.Value = "overflow: auto; height: auto; min-height: 100%;";

@@ -1,0 +1,32 @@
+<div class="gems-strip" *ngIf="!isEmpty">
+  <button *ngFor="let p of visible; trackBy: trackByEmail"
+          type="button"
+          class="gem"
+          [style.background]="color(p)"
+          [matTooltip]="tooltip(p)"
+          matTooltipPosition="above"
+          matTooltipClass="participant-gem-tooltip"
+          (click)="open(p, $event)">
+    <span class="initials">{{ initials(p) }}</span>
+  </button>
+
+  <button *ngIf="overflow.length > 0"
+          type="button"
+          class="gem overflow"
+          [matMenuTriggerFor]="overflowMenu"
+          (click)="$event.stopPropagation()">
+    +{{ overflow.length }}
+  </button>
+
+  <mat-menu #overflowMenu="matMenu" xPosition="before" class="participant-overflow-menu">
+    <button *ngFor="let p of overflow; trackBy: trackByEmail"
+            mat-menu-item
+            (click)="open(p, $event)">
+      <span class="mini-gem" [style.background]="color(p)">{{ initials(p) }}</span>
+      <span class="mini-info">
+        <span class="mini-name">{{ p.displayName || p.gitName || p.chatEmail }}</span>
+        <span class="mini-email">{{ p.chatEmail }}</span>
+      </span>
+    </button>
+  </mat-menu>
+</div>

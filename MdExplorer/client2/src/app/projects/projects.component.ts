@@ -38,6 +38,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public searchQuery: string = '';
   public lastOpenedProjectId: string = null;
   public isP2PAvailable: boolean = false;
+  // Current git user email (lowercase) — used to hide "me" from the gem strip
+  public currentUserEmail: string | null = null;
 
   // Flag to prevent multiple clicks when opening a project
   private isOpeningProject = false;
@@ -71,6 +73,17 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       this.isP2PAvailable = available;
     });
     this.p2pService.checkAvailability();
+
+    // Fetch the current git user's email so the team gems can hide "me".
+    // Fallback: no path → backend returns the global git config.
+    this.projectService.getCurrentGitUser(null).subscribe({
+      next: user => {
+        this.currentUserEmail = user?.email ? user.email.toLowerCase() : null;
+      },
+      error: () => {
+        this.currentUserEmail = null;
+      }
+    });
 
     // Load recent projects and sort by lastUpdate descending (most recent first)
     this.projectService.fetchProjects();
@@ -155,7 +168,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   openProjectEdit(project: MdProject): void {
     const dialogRef = this.dialog.open<ProjectEditDialogComponent, any, ProjectEditDialogResult>(ProjectEditDialogComponent, {
-      width: '520px',
+      width: '620px',
+      maxHeight: '90vh',
       data: {
         id: project.id,
         name: project.name,
@@ -168,10 +182,26 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       if (!result) {
         return;
       }
-      this.projectService.updateProject(result).subscribe({
+      // Sequential saves: first name/description (UserDB + .development.yml),
+      // then participants (.development.yml). Both must succeed for the user
+      // to see "updated" — a partial failure surfaces to the snackbar.
+      this.projectService.updateProject({
+        id: result.id,
+        name: result.name,
+        description: result.description
+      }).subscribe({
         next: () => {
-          this.projectService.fetchProjects();
-          this.snackBar.open(this.translate.instant('PROJECTS.PROJECT_UPDATED'), 'OK', { duration: 2500 });
+          this.projectService.saveParticipants(result.path, result.participants || []).subscribe({
+            next: () => {
+              this.projectService.fetchProjects();
+              this.snackBar.open(this.translate.instant('PROJECTS.PROJECT_UPDATED'), 'OK', { duration: 2500 });
+            },
+            error: (err) => {
+              console.error('[Projects] Error saving participants:', err);
+              this.projectService.fetchProjects();
+              this.snackBar.open(this.translate.instant('PROJECTS.ERROR_SAVING_PARTICIPANTS'), 'OK', { duration: 4000 });
+            }
+          });
         },
         error: (err) => {
           console.error('[Projects] Error updating project:', err);
