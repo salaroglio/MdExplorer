@@ -1,0 +1,158 @@
+/* Runnable fenced code blocks — toolbar, Run button, streaming output pane. */
+
+.mde-exec-block {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin: 1em 0;
+    background: #fff;
+    overflow: hidden;
+}
+
+.mde-exec-block.is-running {
+    border-color: #6aa8ff;
+    box-shadow: 0 0 0 1px #6aa8ff inset;
+}
+
+.mde-exec-block.is-error {
+    border-color: #dc3545;
+}
+
+.mde-exec-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.3em 0.7em;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 0.82em;
+}
+
+.mde-exec-lang {
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    font-size: 0.75em;
+}
+
+.mde-run-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.2em 0.7em;
+    border: 1px solid #198754;
+    border-radius: 3px;
+    background: #fff;
+    color: #198754;
+    cursor: pointer;
+    font-size: 0.85em;
+    line-height: 1.3;
+    transition: background 0.1s, color 0.1s;
+}
+
+.mde-run-btn:hover:not(:disabled) {
+    background: #198754;
+    color: #fff;
+}
+
+.mde-run-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.mde-run-icon {
+    font-size: 0.7em;
+    transform: translateY(-1px);
+}
+
+/* Keep the existing <pre><code> styling from Prism; just remove the margin
+   since we already have a container border. */
+.mde-exec-block > pre {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+.mde-exec-output {
+    border-top: 1px solid #dee2e6;
+    background: #0f1117;
+    color: #d7dde5;
+    max-height: 420px;
+    overflow: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.82em;
+}
+
+.mde-exec-output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25em 0.7em;
+    background: #151823;
+    color: #9aa4b2;
+    font-size: 0.9em;
+    border-bottom: 1px solid #222634;
+}
+
+.mde-exec-output-label {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75em;
+}
+
+.mde-exec-output-status {
+    font-variant-numeric: tabular-nums;
+    color: #9aa4b2;
+}
+
+.mde-exec-output-content {
+    margin: 0;
+    padding: 0.6em 0.8em;
+    background: transparent;
+    color: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: none;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.mde-exec-stderr {
+    color: #ff7b7b;
+}
+
+/* Dark theme: the toolbar must blend with the rest of the dark UI. */
+body.dark-theme .mde-exec-block {
+    background: #1e2028;
+    border-color: #363a45;
+}
+
+body.dark-theme .mde-exec-toolbar {
+    background: #252833;
+    border-bottom-color: #363a45;
+}
+
+body.dark-theme .mde-exec-lang {
+    color: #9aa4b2;
+}
+
+body.dark-theme .mde-run-btn {
+    background: transparent;
+    border-color: #34a853;
+    color: #6fcc86;
+}
+
+body.dark-theme .mde-run-btn:hover:not(:disabled) {
+    background: #34a853;
+    color: #0f1117;
+}
+
+body.dark-theme .mde-exec-block.is-running {
+    border-color: #4b8bf5;
+    box-shadow: 0 0 0 1px #4b8bf5 inset;
+}
+
+body.dark-theme .mde-exec-block.is-error {
+    border-color: #ef6f6f;
+}

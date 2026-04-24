@@ -1,6 +1,6 @@
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 export const versionInfo = {
-  version: '2026.04.23.9',
-  buildTime: '2026.04.23 17:35:16'
+  version: '2026.04.24.1',
+  buildTime: '2026.04.24 10:49:01'
 };
