@@ -7,6 +7,7 @@ import { map } from 'rxjs/operators';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../md-explorer/models/md-project';
+import { Participant } from '../md-explorer/models/participant';
 import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
@@ -46,6 +47,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   // Cache for remote URL status per project path
   private remoteUrlCache: Map<string, { hasRemote: boolean; remoteUrl?: string; loading?: boolean }> = new Map();
+
+  // Participants are fetched asynchronously per-project after the grid renders,
+  // so a slow repo does not block the others. Key = project.path.
+  private participantsByPath: Map<string, Participant[]> = new Map();
 
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
@@ -102,6 +107,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
           this.lastOpenedProjectId = sorted[0].id;
         }
 
+        // Kick off parallel participant fetches — cards render immediately,
+        // each card's gem strip fills in as its own response arrives.
+        this.loadParticipantsFor(sorted);
+
         // Apply search filter
         if (this.searchQuery && this.searchQuery.trim() !== '') {
           const query = this.searchQuery.toLowerCase();
@@ -129,6 +138,22 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   isLastOpened(project: MdProject): boolean {
     return project.id === this.lastOpenedProjectId;
+  }
+
+  getParticipantsFor(path: string): Participant[] {
+    return this.participantsByPath.get(path) || [];
+  }
+
+  private loadParticipantsFor(projects: MdProject[]): void {
+    for (const p of projects) {
+      if (!p?.path) continue;
+      if (this.participantsByPath.has(p.path)) continue; // already loaded or in-flight
+      this.participantsByPath.set(p.path, []); // placeholder prevents duplicate requests
+      this.projectService.getParticipants(p.path).subscribe({
+        next: list => this.participantsByPath.set(p.path, list || []),
+        error: () => this.participantsByPath.set(p.path, [])
+      });
+    }
   }
 
   openProject(path: string): void {

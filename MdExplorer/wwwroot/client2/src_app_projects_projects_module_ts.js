@@ -4566,7 +4566,7 @@ function ProjectsComponent_div_4_mat_card_14_app_participant_gems_31_Template(rf
   if (rf & 2) {
     const project_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵnextContext"]().$implicit;
     const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵproperty"]("participants", project_r8.participants)("currentUserEmail", ctx_r13.currentUserEmail)("maxVisible", 4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵproperty"]("participants", ctx_r13.getParticipantsFor(project_r8.path))("currentUserEmail", ctx_r13.currentUserEmail)("maxVisible", 4);
   }
 }
 function ProjectsComponent_div_4_mat_card_14_Template(rf, ctx) {
@@ -4643,7 +4643,9 @@ function ProjectsComponent_div_4_mat_card_14_Template(rf, ctx) {
   if (rf & 2) {
     const project_r8 = ctx.$implicit;
     const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵclassProp"]("last-opened", ctx_r5.isLastOpened(project_r8))("has-gems", ((project_r8.participants == null ? null : project_r8.participants.length) || 0) > 0);
+    let tmp_1_0;
+    let tmp_13_0;
+    _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵclassProp"]("last-opened", ctx_r5.isLastOpened(project_r8))("has-gems", (((tmp_1_0 = ctx_r5.getParticipantsFor(project_r8.path)) == null ? null : tmp_1_0.length) || 0) > 0);
     _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵproperty"]("matTooltip", project_r8.lastUpdate ? _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵpipeBind1"](1, 17, "PROJECTS.LAST_ACCESSED") + " " + _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵpipeBind2"](2, 19, project_r8.lastUpdate, "short") : null);
     _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵadvance"](10);
     _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵtextInterpolate"](project_r8.name);
@@ -4666,7 +4668,7 @@ function ProjectsComponent_div_4_mat_card_14_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵpipeBind1"](28, 26, "PROJECTS.DELETE_PROJECT"));
     _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵproperty"]("ngIf", ((project_r8.participants == null ? null : project_r8.participants.length) || 0) > 0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵproperty"]("ngIf", (((tmp_13_0 = ctx_r5.getParticipantsFor(project_r8.path)) == null ? null : tmp_13_0.length) || 0) > 0);
   }
 }
 function ProjectsComponent_div_4_Template(rf, ctx) {
@@ -4811,6 +4813,9 @@ class ProjectsComponent {
     this.isOpeningProject = false;
     // Cache for remote URL status per project path
     this.remoteUrlCache = new Map();
+    // Participants are fetched asynchronously per-project after the grid renders,
+    // so a slow repo does not block the others. Key = project.path.
+    this.participantsByPath = new Map();
     this.dataSource1 = [{
       name: 'Nome progetto',
       path: 'c:\folder\folder\folder'
@@ -4848,6 +4853,9 @@ class ProjectsComponent {
       if (sorted.length > 0 && !this.lastOpenedProjectId) {
         this.lastOpenedProjectId = sorted[0].id;
       }
+      // Kick off parallel participant fetches — cards render immediately,
+      // each card's gem strip fills in as its own response arrives.
+      this.loadParticipantsFor(sorted);
       // Apply search filter
       if (this.searchQuery && this.searchQuery.trim() !== '') {
         const query = this.searchQuery.toLowerCase();
@@ -4867,6 +4875,20 @@ class ProjectsComponent {
   }
   isLastOpened(project) {
     return project.id === this.lastOpenedProjectId;
+  }
+  getParticipantsFor(path) {
+    return this.participantsByPath.get(path) || [];
+  }
+  loadParticipantsFor(projects) {
+    for (const p of projects) {
+      if (!p?.path) continue;
+      if (this.participantsByPath.has(p.path)) continue; // already loaded or in-flight
+      this.participantsByPath.set(p.path, []); // placeholder prevents duplicate requests
+      this.projectService.getParticipants(p.path).subscribe({
+        next: list => this.participantsByPath.set(p.path, list || []),
+        error: () => this.participantsByPath.set(p.path, [])
+      });
+    }
   }
   openProject(path) {
     // Prevent multiple clicks while project is opening
