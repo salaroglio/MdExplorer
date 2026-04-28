@@ -59,6 +59,21 @@ namespace MdExplorer.Features.Services.AI
 
         public ProviderType GetProviderType() => ProviderType.CopilotCli;
 
+        /// <summary>
+        /// Returns the cached availability if fresh, null if cache is cold/expired.
+        /// Non-blocking: never spawns a subprocess. Callers on hot paths should use
+        /// this and fire-and-forget <see cref="IsAvailable"/> in the background to
+        /// warm the cache for next time.
+        /// </summary>
+        public bool? TryGetCachedAvailability()
+        {
+            if (_cachedAvailability.HasValue && DateTime.UtcNow < _availabilityCacheExpiry)
+            {
+                return _cachedAvailability.Value;
+            }
+            return null;
+        }
+
         public bool IsAvailable()
         {
             if (_cachedAvailability.HasValue && DateTime.UtcNow < _availabilityCacheExpiry)

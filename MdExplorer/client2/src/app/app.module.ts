@@ -23,6 +23,7 @@ import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plan
 import { ShowFileSystemComponent } from './commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/waiting-dialog.component';
 import { NewDirectoryComponent } from './commons/components/new-directory/new-directory.component';
+import { RunCommandDialogComponent } from './commons/components/run-command-dialog/run-command-dialog.component';
 import { OpeningApplicationComponent } from './signalR/dialogs/opening-application/opening-application.component';
 import { OpeningApplicationProvider } from './signalR/dialogs/opening-application/opening-application.provider';
 import { TitleBarComponent } from './components/title-bar/title-bar.component';
@@ -58,7 +59,8 @@ const routes: Routes = [
     SearchBoxComponent,
     CompatibilityModeBadgeComponent,
     UnifiedSettingsDialogComponent,
-    AppStoreSettingsDialogComponent
+    AppStoreSettingsDialogComponent,
+    RunCommandDialogComponent
   ],
   imports: [
     BrowserModule,

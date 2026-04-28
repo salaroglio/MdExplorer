@@ -80,6 +80,10 @@ namespace MdExplorer
             // Add FileSystemWatcherManager for multi-client support
             services.AddSingleton<Services.FileSystemWatcherManager.IFileSystemWatcherManager, Services.FileSystemWatcherManager.FileSystemWatcherManager>();
 
+            // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
+            services.AddSingleton<Services.Execution.ShellRegistry>();
+            services.AddTransient<Services.Execution.ShellRunner>();
+
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
             

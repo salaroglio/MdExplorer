@@ -39,6 +39,9 @@ export class ProjectsService {
   private currentRoomId: string | null = null;
   private currentOderId: string | null = null;
 
+  // Retry handle for the Copilot CLI availability re-check (see emitCopilotCliAutoConfig).
+  private copilotCliRetryTimer: any = null;
+
   get mdProjects() {
     return this._mdProjects.asObservable();
   }
@@ -267,18 +270,48 @@ export class ProjectsService {
   /**
    * Emits Copilot CLI auto-select configuration from the SetFolderProject response
    * so that ai-chat can decide whether to silently connect or disable the chat.
+   *
+   * When the backend's availability cache is cold, SetFolderProject returns
+   * available=false provisionally and warms the probe in background (~1s).
+   * To recover from that race we schedule a short re-check against the
+   * dedicated availability endpoint and re-emit the updated value if Copilot
+   * turns out to be installed.
    */
   private emitCopilotCliAutoConfig(response: any): void {
+    // Cancel any pending re-check from a previous project switch.
+    if (this.copilotCliRetryTimer) {
+      clearTimeout(this.copilotCliRetryTimer);
+      this.copilotCliRetryTimer = null;
+    }
+
     if (response == null) return;
     if (typeof response.copilotCliAutoSelect !== 'boolean') {
       this.copilotCliAutoConfig$.next(null);
       return;
     }
-    this.copilotCliAutoConfig$.next({
-      autoSelect: response.copilotCliAutoSelect === true,
-      available: response.copilotCliAvailable === true,
-      defaultModel: response.copilotCliDefaultModel ?? null
-    });
+
+    const autoSelect = response.copilotCliAutoSelect === true;
+    const available = response.copilotCliAvailable === true;
+    const defaultModel = response.copilotCliDefaultModel ?? null;
+
+    this.copilotCliAutoConfig$.next({ autoSelect, available, defaultModel });
+
+    // If auto-select is on but the backend reported unavailable, it might just
+    // be that the probe cache was cold. Re-check once after the background
+    // warm-up has had time to finish.
+    if (autoSelect && !available) {
+      this.copilotCliRetryTimer = setTimeout(() => {
+        this.copilotCliRetryTimer = null;
+        this.http.get<{ configured: boolean }>('../api/CopilotCli/configured').subscribe({
+          next: r => {
+            if (r?.configured === true) {
+              this.copilotCliAutoConfig$.next({ autoSelect: true, available: true, defaultModel });
+            }
+          },
+          error: () => { /* silent — leave provisional unavailable state */ }
+        });
+      }, 2000);
+    }
   }
 
   /**

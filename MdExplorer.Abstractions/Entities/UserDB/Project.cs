@@ -18,6 +18,7 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool LinkIndexingEnabled { get; set; } = true;
         public virtual bool PlantUmlKeepOriginalColorsInDarkMode { get; set; } = false;
         public virtual bool UseCopilotCliAsDefault { get; set; } = true;
+        public virtual bool ExecutionTrusted { get; set; } = false;
 
     }
 }

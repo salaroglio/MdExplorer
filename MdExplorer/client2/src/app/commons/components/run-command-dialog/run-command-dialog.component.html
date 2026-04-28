@@ -1,0 +1,51 @@
+<div mat-dialog-title>
+  Run {{ data.language }} command
+</div>
+
+<mat-dialog-content>
+  <div *ngIf="data.needsTrust" class="trust-banner">
+    <mat-icon>warning</mat-icon>
+    <div class="trust-text">
+      <div class="trust-title">First run in this project</div>
+      <div class="trust-body">
+        Executing will run arbitrary commands on your machine, in the project folder.
+        Only enable this for projects you trust.
+      </div>
+      <mat-checkbox [(ngModel)]="trustProject" color="primary" class="trust-checkbox">
+        Enable execution in this project
+      </mat-checkbox>
+    </div>
+  </div>
+
+  <div *ngIf="data.params?.length" class="params-section">
+    <div class="section-label">Parameters</div>
+    <div *ngFor="let p of data.params" class="param-row">
+      <mat-form-field appearance="outline" class="param-field">
+        <mat-label>{{ p.name }}</mat-label>
+        <input matInput
+               [type]="p.isSecret && !showSecret[p.name] ? 'password' : 'text'"
+               [(ngModel)]="values[p.name]"
+               [placeholder]="p.description || ''">
+        <button *ngIf="p.isSecret" mat-icon-button matSuffix (click)="toggleSecret(p.name)"
+                type="button" tabindex="-1" aria-label="Toggle visibility">
+          <mat-icon>{{ showSecret[p.name] ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+        <mat-hint *ngIf="p.description">{{ p.description }}</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <div class="preview-section">
+    <div class="section-label">Script</div>
+    <pre class="preview-code">{{ data.code }}</pre>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="run()" [disabled]="!canRun()">
+    <mat-icon>play_arrow</mat-icon>
+    <span *ngIf="data.needsTrust">Enable &amp; Run</span>
+    <span *ngIf="!data.needsTrust">Run</span>
+  </button>
+</mat-dialog-actions>

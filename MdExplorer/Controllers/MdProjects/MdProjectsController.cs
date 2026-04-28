@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -87,13 +88,16 @@ namespace MdExplorer.Service.Controllers.MdProjects
             var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
             var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list).ToList();
 
-            // Enrich each project with its shared description and MdE Team participants
-            // from .development.yml. Participants are eager-loaded so the projects grid
-            // renders the gem strip without N additional HTTP calls.
+            // Enrich each project with its shared description from .development.yml.
+            // Participants are intentionally NOT eager-loaded here: BuildMergedParticipants
+            // enumerates git commits (LibGit2Sharp) which can be slow for large repos and
+            // would block the initial projects grid render. The client fetches participants
+            // per-card in parallel so a single slow repo does not block the others.
             foreach (var dto in listToReturn)
             {
                 dto.Description = _projectMetadataService.GetDescription(dto.Path);
-                dto.Participants = BuildMergedParticipants(dto.Path);
+                // Custom icon metadata: cheap to read (yaml + file existence check),
+                // safe to keep eager — unlike participants which walk the git log.
                 var icon = _projectMetadataService.GetIcon(dto.Path);
                 dto.HasCustomIcon = icon != null;
                 dto.IconUpdatedAt = icon?.UpdatedAt;
@@ -496,23 +500,37 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             logger?.LogInformation($"📁 Opening project for connection {connectionId}: {request.Path}");
 
+            // [PERF] Temporary phase timing to localize where SetFolderProject spends its time.
+            var __perfTotal = Stopwatch.StartNew();
+            var __perfPhase = Stopwatch.StartNew();
+            Action<string> logPhase = name =>
+            {
+                __perfPhase.Stop();
+                logger?.LogWarning("⏱️ [SetFolderProject PERF] {Phase}: {Ms} ms", name, __perfPhase.ElapsedMilliseconds);
+                __perfPhase.Restart();
+            };
+
             try
             {
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
                 _foldersIgnoreService.InvalidateCache(request.Path);
+                logPhase("InvalidateCache");
 
                 // IMPORTANT: Run migrations FIRST, before opening database sessions
                 // This prevents "database is locked" errors because NHibernate holds the file open
                 bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
                 logger?.LogInformation($"✅ Database migrations completed for project: {request.Path}");
+                logPhase("ProjectsManager.SetNewProject (migrations+init)");
 
                 // NOW register database contexts (after migrations are complete)
                 _databaseManager.RegisterConnection(connectionId, request.Path);
                 logger?.LogInformation($"✅ Database contexts registered for connection {connectionId}");
+                logPhase("DatabaseManager.RegisterConnection");
 
                 // Register FileSystemWatcher for this connection
                 _fileSystemWatcherManager.RegisterWatcher(connectionId, request.Path);
                 logger?.LogInformation($"✅ FileSystemWatcher registered for connection {connectionId}");
+                logPhase("FileSystemWatcherManager.RegisterWatcher");
 
                 // NOTE: We no longer modify the global FileSystemWatcher singleton
                 // Each client now has its own dedicated FileSystemWatcher via FileSystemWatcherManager
@@ -539,6 +557,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 projectDal.Save(project);
                 _userSettingsDB.Commit();
                 logger?.LogInformation($"📝 Project saved. LinkIndexingEnabled={project.LinkIndexingEnabled}");
+                logPhase("UserSettingsDB Project upsert");
 
                 // Log Git initialization status
                 if (gitInitialized)
@@ -583,6 +602,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     logger?.LogInformation($"📖 No .development.yml file found at {devConfigPath}, using default mode: {compatibilityMode}");
                 }
+                logPhase("CompatibilityMode YAML parse");
 
                 // Check if it's a Git repository and if it has an account configured
                 var isGitRepository = Directory.Exists(Path.Combine(request.Path, ".git"));
@@ -602,6 +622,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     {
                         logger?.LogWarning(ex, "Could not check Git account status");
                     }
+                    logPhase("HasAccountForRepositoryAsync");
 
                     // Auto-detect credentials from Git Credential Manager if no account configured
                     if (!hasGitAccount)
@@ -637,11 +658,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
                             logger?.LogWarning(ex, "[CredentialAutoDetect] Auto-credential detection failed (non-fatal)");
                             needsManualCredentials = !string.IsNullOrEmpty(detectedRemoteUrl);
                         }
+                        logPhase("DetectAndSaveCredentialsForRepository (GCM subprocess)");
                     }
                 }
 
                 // Copilot CLI auto-select probe: if the project prefers it as default AI,
-                // check availability, warm up the provider, and report it in the response.
+                // use the cached availability (never blocks). Calling IsAvailable() here used to
+                // spawn `copilot --version` synchronously (~1s on Windows) and dominated the
+                // SetFolderProject latency. Now:
+                //   - cache hot → return the cached value immediately
+                //   - cache cold → return false provisionally AND fire-and-forget a warm-up so
+                //     the next call (or the actual chat interaction) finds the cache ready
                 // Frontend decides whether to silently connect or show the "not installed" banner.
                 bool copilotCliAutoSelect = project.UseCopilotCliAsDefault;
                 bool copilotCliAvailable = false;
@@ -653,17 +680,38 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     if (copilotProvider != null)
                     {
                         copilotProvider.WorkingDirectory = request.Path;
-                        copilotCliAvailable = copilotProvider.IsAvailable();
                         copilotCliDefaultModel = "claude-sonnet-4.6";
-                        logger?.LogInformation(
-                            "🤖 CopilotCli auto-select: enabled={Enabled}, available={Available}, model={Model}, cwd={Cwd}",
-                            copilotCliAutoSelect, copilotCliAvailable, copilotCliDefaultModel, request.Path);
+
+                        var cached = copilotProvider.TryGetCachedAvailability();
+                        if (cached.HasValue)
+                        {
+                            copilotCliAvailable = cached.Value;
+                            logger?.LogInformation(
+                                "🤖 CopilotCli auto-select (cache hit): enabled={Enabled}, available={Available}, model={Model}, cwd={Cwd}",
+                                copilotCliAutoSelect, copilotCliAvailable, copilotCliDefaultModel, request.Path);
+                        }
+                        else
+                        {
+                            // Fire-and-forget warm-up; don't await.
+                            _ = Task.Run(() =>
+                            {
+                                try { copilotProvider.IsAvailable(); }
+                                catch (Exception ex) { logger?.LogWarning(ex, "CopilotCli warm-up failed"); }
+                            });
+                            logger?.LogInformation(
+                                "🤖 CopilotCli auto-select (cache cold, warming in background): enabled={Enabled}, model={Model}, cwd={Cwd}",
+                                copilotCliAutoSelect, copilotCliDefaultModel, request.Path);
+                        }
                     }
                     else
                     {
                         logger?.LogWarning("⚠️ CopilotCli provider not resolved from DI — auto-select skipped");
                     }
                 }
+                logPhase("CopilotCli availability (cached lookup)");
+
+                __perfTotal.Stop();
+                logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
 
                 return Ok(new {
                     id = project.Id,
