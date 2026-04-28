@@ -178,6 +178,25 @@ export class ProjectsService {
     return this.http.post<MdProject>(url, payload);
   }
 
+  setProjectIcon(id: string, pngBase64: string): Observable<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }> {
+    const url = '../api/MdProjects/SetProjectIcon';
+    return this.http.post<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }>(url, { id, pngBase64 });
+  }
+
+  removeProjectIcon(id: string): Observable<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }> {
+    const url = '../api/MdProjects/RemoveProjectIcon';
+    return this.http.post<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }>(url, { id });
+  }
+
+  /**
+   * Builds the URL for the project icon PNG. The updatedAt timestamp is appended
+   * as a query string to bust the browser cache after the user re-saves the icon.
+   */
+  getProjectIconUrl(id: string, updatedAt?: string | null): string {
+    const v = updatedAt ? encodeURIComponent(updatedAt) : Date.now().toString();
+    return `../api/MdProjects/ProjectIcon?id=${encodeURIComponent(id)}&v=${v}`;
+  }
+
   getParticipants(projectPath: string): Observable<Participant[]> {
     const params = new HttpParams().set('path', projectPath);
     return this.http.get<Participant[]>('../api/MdProjects/GetParticipants', { params });

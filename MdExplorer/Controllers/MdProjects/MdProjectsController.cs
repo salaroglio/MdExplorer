@@ -94,6 +94,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
             {
                 dto.Description = _projectMetadataService.GetDescription(dto.Path);
                 dto.Participants = BuildMergedParticipants(dto.Path);
+                var icon = _projectMetadataService.GetIcon(dto.Path);
+                dto.HasCustomIcon = icon != null;
+                dto.IconUpdatedAt = icon?.UpdatedAt;
             }
 
             return Ok(listToReturn);
@@ -338,6 +341,144 @@ namespace MdExplorer.Service.Controllers.MdProjects
             public Guid Id { get; set; }
             public string Name { get; set; }
             public string Description { get; set; }
+        }
+
+        /// <summary>
+        /// Serves the custom project icon as a PNG. Returns 404 when the project
+        /// has no custom icon (the client falls back to the default SVG).
+        /// </summary>
+        [HttpGet]
+        public IActionResult ProjectIcon([FromQuery] Guid id)
+        {
+            if (id == Guid.Empty)
+            {
+                return BadRequest(new { message = "Project id is required" });
+            }
+
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            var project = projectDal.GetList().FirstOrDefault(p => p.Id == id);
+            if (project == null)
+            {
+                return NotFound();
+            }
+
+            var iconPath = _projectMetadataService.GetIconAbsolutePath(project.Path);
+            if (string.IsNullOrEmpty(iconPath) || !System.IO.File.Exists(iconPath))
+            {
+                return NotFound();
+            }
+
+            // No-cache here: the client is expected to bust via ?v=updatedAt;
+            // long-lived caching would defeat that.
+            var bytes = System.IO.File.ReadAllBytes(iconPath);
+            return File(bytes, "image/png");
+        }
+
+        public class SetProjectIconRequest
+        {
+            public Guid Id { get; set; }
+            /// <summary>
+            /// Base64-encoded PNG produced by the in-app icon editor.
+            /// May include the "data:image/png;base64," prefix.
+            /// </summary>
+            public string PngBase64 { get; set; }
+        }
+
+        /// <summary>
+        /// Persists a custom icon (PNG) for the project. The PNG lives at
+        /// .md/project-icon.png and a reference is written to .development.yml
+        /// so the icon follows the project across users.
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetProjectIcon([FromBody] SetProjectIconRequest request)
+        {
+            var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+
+            if (request == null || request.Id == Guid.Empty)
+            {
+                return BadRequest(new { message = "Project id is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.PngBase64))
+            {
+                return BadRequest(new { message = "PngBase64 is required" });
+            }
+
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            var project = projectDal.GetList().FirstOrDefault(p => p.Id == request.Id);
+            if (project == null)
+            {
+                return NotFound(new { message = "Project not found" });
+            }
+
+            var payload = request.PngBase64;
+            var commaIdx = payload.IndexOf(',');
+            if (commaIdx >= 0 && payload.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                payload = payload.Substring(commaIdx + 1);
+            }
+
+            byte[] pngBytes;
+            try
+            {
+                pngBytes = Convert.FromBase64String(payload);
+            }
+            catch (FormatException)
+            {
+                return BadRequest(new { message = "PngBase64 is not a valid base64 string" });
+            }
+
+            // Sanity cap: 5 MB is way more than a 256x256 PNG should ever need;
+            // anything larger almost certainly indicates a client bug.
+            if (pngBytes.Length > 5 * 1024 * 1024)
+            {
+                return BadRequest(new { message = "Icon payload exceeds 5 MB" });
+            }
+
+            try
+            {
+                _projectMetadataService.SetIcon(project.Path, pngBytes);
+                var icon = _projectMetadataService.GetIcon(project.Path);
+                return Ok(new { hasCustomIcon = icon != null, iconUpdatedAt = icon?.UpdatedAt });
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to set icon for project {ProjectId}", request.Id);
+                return StatusCode(500, new { message = "Failed to save project icon", error = ex.Message });
+            }
+        }
+
+        public class RemoveProjectIconRequest
+        {
+            public Guid Id { get; set; }
+        }
+
+        [HttpPost]
+        public IActionResult RemoveProjectIcon([FromBody] RemoveProjectIconRequest request)
+        {
+            var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+
+            if (request == null || request.Id == Guid.Empty)
+            {
+                return BadRequest(new { message = "Project id is required" });
+            }
+
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            var project = projectDal.GetList().FirstOrDefault(p => p.Id == request.Id);
+            if (project == null)
+            {
+                return NotFound(new { message = "Project not found" });
+            }
+
+            try
+            {
+                _projectMetadataService.RemoveIcon(project.Path);
+                return Ok(new { hasCustomIcon = false, iconUpdatedAt = (string)null });
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to remove icon for project {ProjectId}", request.Id);
+                return StatusCode(500, new { message = "Failed to remove project icon", error = ex.Message });
+            }
         }
 
         [HttpPost]

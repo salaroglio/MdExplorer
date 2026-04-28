@@ -1,15 +1,20 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
 import { Participant } from '../../../md-explorer/models/participant';
+import { IconEditorComponent } from './icon-editor/icon-editor.component';
 
 export interface ProjectEditDialogData {
   id: string;
   name: string;
   description?: string;
   path: string;
+  hasCustomIcon?: boolean;
+  iconUpdatedAt?: string | null;
 }
+
+export type IconChangeAction = 'none' | 'set' | 'remove';
 
 export interface ProjectEditDialogResult {
   id: string;
@@ -17,6 +22,8 @@ export interface ProjectEditDialogResult {
   description: string;
   path: string;
   participants: Participant[];
+  iconAction: IconChangeAction;
+  iconPngBase64?: string;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,6 +43,30 @@ export class ProjectEditDialogComponent implements OnInit {
   loadingParticipants = false;
   participantsError: string | null = null;
 
+  // Reference to the embedded editor — used in onSave() to auto-apply any
+  // pending paste/drag/zoom that the user did NOT explicitly confirm with the
+  // "Applica" button. This is the safety net that fixes the "non memorizza più
+  // l'icona" issue: the user pastes, tweaks, then clicks dialog Save without
+  // realizing they have to click Applica first.
+  @ViewChild(IconEditorComponent) iconEditor?: IconEditorComponent;
+
+  // Icon editor state — collapsed by default; the editor is non-trivial in
+  // height so we only mount it when the user actually wants to customize.
+  iconEditorOpen = false;
+  // Pending icon change tracked locally so it participates in the dialog's
+  // Save/Cancel flow alongside name/description/participants.
+  pendingIconAction: IconChangeAction = 'none';
+  pendingIconPngBase64: string | null = null;
+  // data URL used for the in-dialog preview (latest applied or current backend icon).
+  iconPreviewUrl: string | null = null;
+  // Tracks whether the project currently has a custom icon, accounting for
+  // pending changes (so "Rimuovi" inside the editor only renders when sensible).
+  get effectiveHasCustomIcon(): boolean {
+    if (this.pendingIconAction === 'remove') return false;
+    if (this.pendingIconAction === 'set') return true;
+    return !!this.data.hasCustomIcon;
+  }
+
   constructor(
     private fb: FormBuilder,
     public dialogRef: MatDialogRef<ProjectEditDialogComponent, ProjectEditDialogResult>,
@@ -46,6 +77,10 @@ export class ProjectEditDialogComponent implements OnInit {
       name: [data.name ?? '', [Validators.required, Validators.maxLength(this.nameMaxLength)]],
       description: [data.description ?? '', [Validators.maxLength(this.descriptionMaxLength)]]
     });
+
+    if (this.data.hasCustomIcon) {
+      this.iconPreviewUrl = this.projectsService.getProjectIconUrl(this.data.id, this.data.iconUpdatedAt);
+    }
   }
 
   ngOnInit(): void {
@@ -132,6 +167,27 @@ export class ProjectEditDialogComponent implements OnInit {
     return this.participants.some(p => this.isChatEmailInvalid(p) || this.isManualInvalid(p));
   }
 
+  toggleIconEditor(): void {
+    this.iconEditorOpen = !this.iconEditorOpen;
+  }
+
+  onIconChanged(event: { pngBase64: string | null }): void {
+    if (event.pngBase64 === null) {
+      this.pendingIconAction = 'remove';
+      this.pendingIconPngBase64 = null;
+      this.iconPreviewUrl = null;
+    } else {
+      this.pendingIconAction = 'set';
+      this.pendingIconPngBase64 = event.pngBase64;
+      this.iconPreviewUrl = event.pngBase64; // data URL is renderable as-is
+    }
+    console.debug('[ProjectEditDialog] icon changed, action=', this.pendingIconAction,
+      'pngLen=', event.pngBase64?.length ?? 0);
+    // Auto-collapse so the user immediately sees the new preview chip;
+    // they can re-open if they want another iteration.
+    this.iconEditorOpen = false;
+  }
+
   onCancel(): void {
     this.dialogRef.close();
   }
@@ -144,6 +200,16 @@ export class ProjectEditDialogComponent implements OnInit {
     if (this.hasInvalidParticipants) {
       return;
     }
+
+    // Safety net: if the editor is still open with an image the user didn't
+    // explicitly Apply, auto-apply now so the icon is not silently dropped.
+    if (this.iconEditorOpen && this.iconEditor && this.iconEditor.hasImage
+        && this.pendingIconAction === 'none') {
+      this.iconEditor.applyAndEmit();
+    }
+
+    console.debug('[ProjectEditDialog] save, iconAction=', this.pendingIconAction,
+      'pngLen=', this.pendingIconPngBase64?.length ?? 0);
     const value = this.form.value;
     const cleaned: Participant[] = this.participants
       .map(p => ({
@@ -160,7 +226,9 @@ export class ProjectEditDialogComponent implements OnInit {
       name: (value.name ?? '').trim(),
       description: (value.description ?? '').trim(),
       path: this.data.path,
-      participants: cleaned
+      participants: cleaned,
+      iconAction: this.pendingIconAction,
+      iconPngBase64: this.pendingIconPngBase64 ?? undefined
     });
   }
 

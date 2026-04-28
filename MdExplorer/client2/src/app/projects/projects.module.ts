@@ -7,6 +7,7 @@ import { CloneProjectComponent } from './dialogs/clone-project/clone-project.com
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
 import { ProjectEditDialogComponent } from './dialogs/project-edit/project-edit-dialog.component';
+import { IconEditorComponent } from './dialogs/project-edit/icon-editor/icon-editor.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { CatalogPickerDialogComponent } from './dialogs/catalog-picker/catalog-picker.component';
@@ -38,6 +39,7 @@ const routes: Routes = [
     ModernCloneProjectComponent,
     ProjectCreateConfigDialogComponent,
     ProjectEditDialogComponent,
+    IconEditorComponent,
     ProjectSettingsComponent,
     P2PManagerComponent,
     CatalogPickerDialogComponent

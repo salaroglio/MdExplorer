@@ -23,5 +23,11 @@ namespace MdExplorer.Service.Controllers.MdProjects.dto
         // MdE Team participants, read from .development.yml — eager-loaded so the
         // projects grid can render gems without an extra round-trip per card.
         public IList<ProjectParticipant> Participants { get; set; } = new List<ProjectParticipant>();
+
+        // Custom project icon metadata (also from .development.yml).
+        // HasCustomIcon tells the card whether to fetch the PNG; IconUpdatedAt
+        // is appended as ?v= query param to bust the browser cache after edits.
+        public bool HasCustomIcon { get; set; }
+        public string IconUpdatedAt { get; set; }
     }
 }
