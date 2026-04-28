@@ -47,6 +47,11 @@ export class MdServerMessagesService {
     platformHint?: string
   }>();
 
+  // Observable streams for runnable fenced code blocks (MdExecutionController)
+  public executionOutput$ = new Subject<{ blockId: string, stream: string, chunk: string }>();
+  public executionCompleted$ = new Subject<{ blockId: string, exitCode: number, durationMs: number, timedOut: boolean }>();
+  public executionError$ = new Subject<{ blockId: string, message: string }>();
+
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
     private plantumlWorkingProvider: PlantumlWorkingProvider,
@@ -125,6 +130,17 @@ export class MdServerMessagesService {
       // App Store publish progress (backend → Nexus upload)
       this.hubConnection.on('publishProgress', (data) => {
         this.publishProgress$.next(data);
+      });
+
+      // Runnable fenced code blocks — streaming output from MdExecutionController
+      this.hubConnection.on('execution.output', (data) => {
+        this.executionOutput$.next(data);
+      });
+      this.hubConnection.on('execution.completed', (data) => {
+        this.executionCompleted$.next(data);
+      });
+      this.hubConnection.on('execution.error', (data) => {
+        this.executionError$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {

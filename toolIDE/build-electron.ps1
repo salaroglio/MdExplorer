@@ -27,6 +27,28 @@ $electronPath = "$PSScriptRoot\..\ElectronMdExplorer"
 Push-Location $electronPath
 
 try {
+    # Ensure NSIS patches (patch-package) are applied. In fresh clones or after
+    # a manual node_modules wipe, the extractAppPackage.nsh template may still
+    # contain the upstream multi-phase extraction that makes the installer
+    # progress bar jump back to zero. Detect the marker and run npm install
+    # (which triggers the postinstall patch-package hook).
+    $extractNsh = Join-Path $electronPath "node_modules\app-builder-lib\templates\nsis\include\extractAppPackage.nsh"
+    $needsInstall = $false
+    if (-not (Test-Path $extractNsh)) {
+        $needsInstall = $true
+    } else {
+        $content = Get-Content $extractNsh -Raw
+        if ($content -match "LoopExtract7za") {
+            $needsInstall = $true
+        }
+    }
+    if ($needsInstall) {
+        Write-Host "`nApplying NSIS patches (running npm install)..." -ForegroundColor Yellow
+        $npmCmd = "$nodePath\npm.cmd"
+        & $npmCmd install
+        if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+    }
+
     # Run prebuild scripts
     Write-Host "`nRunning prebuild scripts..." -ForegroundColor Yellow
     & $nodeExe scripts/check-go-binaries.js

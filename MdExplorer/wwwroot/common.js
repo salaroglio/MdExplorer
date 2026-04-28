@@ -146,6 +146,11 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/html-preview/html-preview.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/html-preview/html-preview.js');
 
+        // EXECUTION: Runnable fenced code blocks (bash/sh/powershell/pwsh/cmd)
+        document.write("<link href='/javascripts/jqueryForFirstPage/execution/mde-exec-blocks.css' rel='stylesheet' />");
+        loadScriptOnce('/ansi_up/ansi_up.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/execution/mde-exec-blocks.js');
+
         // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.js');
