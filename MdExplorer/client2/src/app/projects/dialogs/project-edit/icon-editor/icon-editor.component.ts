@@ -208,9 +208,18 @@ export class IconEditorComponent implements AfterViewInit, OnChanges, OnDestroy 
 
   /** Ctrl + wheel to zoom; zooms toward the canvas center to keep things predictable. */
   onWheel(event: WheelEvent): void {
+    // Block the Electron app-wide zoom regardless of whether we have an image:
+    // ElectronMdExplorer/preload.js listens on `window` for ctrl+wheel and
+    // forwards a `zoom-mouse-wheel` IPC that calls webContents.setZoomFactor.
+    // Without stopPropagation the same gesture would zoom both the local crop
+    // AND the entire app shell. preventDefault alone isn't enough — it stops
+    // the browser default action but not other listeners on ancestor nodes.
+    if (event.ctrlKey) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (!this.img) return;
     if (!event.ctrlKey) return;          // plain wheel keeps page scroll behavior
-    event.preventDefault();
     const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
     const next = Math.min(this.maxScale, Math.max(this.minScale, this.scale * factor));
     this.scale = next;
