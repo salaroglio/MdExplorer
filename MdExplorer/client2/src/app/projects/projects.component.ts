@@ -140,6 +140,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     return project.id === this.lastOpenedProjectId;
   }
 
+  getIconUrl(project: MdProject): string {
+    return this.projectService.getProjectIconUrl(project.id, project.iconUpdatedAt);
+  }
+
   getParticipantsFor(path: string): Participant[] {
     return this.participantsByPath.get(path) || [];
   }
@@ -199,7 +203,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         id: project.id,
         name: project.name,
         description: project.description,
-        path: project.path
+        path: project.path,
+        hasCustomIcon: !!project.hasCustomIcon,
+        iconUpdatedAt: project.iconUpdatedAt
       }
     });
 
@@ -208,8 +214,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         return;
       }
       // Sequential saves: first name/description (UserDB + .development.yml),
-      // then participants (.development.yml). Both must succeed for the user
-      // to see "updated" — a partial failure surfaces to the snackbar.
+      // then participants (.development.yml), then the optional icon change.
+      // Icon is last because it's the heaviest payload and the only one that
+      // can be skipped (iconAction === 'none').
       this.projectService.updateProject({
         id: result.id,
         name: result.name,
@@ -218,8 +225,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         next: () => {
           this.projectService.saveParticipants(result.path, result.participants || []).subscribe({
             next: () => {
-              this.projectService.fetchProjects();
-              this.snackBar.open(this.translate.instant('PROJECTS.PROJECT_UPDATED'), 'OK', { duration: 2500 });
+              this.applyIconChange(result, () => {
+                this.projectService.fetchProjects();
+                this.snackBar.open(this.translate.instant('PROJECTS.PROJECT_UPDATED'), 'OK', { duration: 2500 });
+              });
             },
             error: (err) => {
               console.error('[Projects] Error saving participants:', err);
@@ -234,6 +243,37 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         }
       });
     });
+  }
+
+  /**
+   * Persists a pending icon change (set / remove). No-op when iconAction is 'none'.
+   * Errors are surfaced via the snackbar but do not block the rest of the save flow,
+   * because at this point name/description/participants are already persisted.
+   */
+  private applyIconChange(result: ProjectEditDialogResult, done: () => void): void {
+    console.debug('[Projects] applyIconChange', { iconAction: result.iconAction,
+      pngLen: result.iconPngBase64?.length ?? 0, projectId: result.id });
+    if (result.iconAction === 'set' && result.iconPngBase64) {
+      this.projectService.setProjectIcon(result.id, result.iconPngBase64).subscribe({
+        next: () => done(),
+        error: (err) => {
+          console.error('[Projects] Error saving project icon:', err);
+          this.snackBar.open(this.translate.instant('PROJECTS.ERROR_SAVING_ICON'), 'OK', { duration: 4000 });
+          done();
+        }
+      });
+    } else if (result.iconAction === 'remove') {
+      this.projectService.removeProjectIcon(result.id).subscribe({
+        next: () => done(),
+        error: (err) => {
+          console.error('[Projects] Error removing project icon:', err);
+          this.snackBar.open(this.translate.instant('PROJECTS.ERROR_SAVING_ICON'), 'OK', { duration: 4000 });
+          done();
+        }
+      });
+    } else {
+      done();
+    }
   }
 
 

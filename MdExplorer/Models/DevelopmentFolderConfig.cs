@@ -55,6 +55,30 @@ namespace MdExplorer.Service.Models
         /// the git commit email is not the company Teams address.
         /// </summary>
         public List<ProjectParticipant> Participants { get; set; } = new List<ProjectParticipant>();
+
+        /// <summary>
+        /// Optional custom project icon. The PNG sits beside the project (relative
+        /// path stored in File). UpdatedAt drives URL cache busting on the client.
+        /// </summary>
+        public ProjectIconConfig Icon { get; set; }
+    }
+
+    /// <summary>
+    /// Reference to a custom project icon stored on disk. The PNG file is
+    /// committed with the repository so the icon follows the project across users.
+    /// </summary>
+    public class ProjectIconConfig
+    {
+        /// <summary>
+        /// Relative path of the PNG from project root, e.g. ".md/project-icon.png".
+        /// </summary>
+        public string File { get; set; }
+
+        /// <summary>
+        /// ISO-8601 UTC timestamp of the last save. Used as cache-busting query
+        /// parameter when the client requests the icon.
+        /// </summary>
+        public string UpdatedAt { get; set; }
     }
 
     /// <summary>

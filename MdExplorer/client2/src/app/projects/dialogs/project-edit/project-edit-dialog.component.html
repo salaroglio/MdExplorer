@@ -31,6 +31,40 @@
       <mat-hint align="end">{{ descriptionLength }}/{{ descriptionMaxLength }}</mat-hint>
     </mat-form-field>
 
+    <div class="icon-section">
+      <div class="icon-section-header">
+        <div class="icon-preview-wrapper">
+          <img *ngIf="iconPreviewUrl" [src]="iconPreviewUrl" class="icon-preview" alt="icon preview">
+          <mat-icon *ngIf="!iconPreviewUrl" class="icon-preview-fallback">image</mat-icon>
+        </div>
+        <div class="icon-section-text">
+          <h3 class="section-title">
+            <mat-icon>image</mat-icon>
+            {{ 'PROJECTS.PROJECT_ICON' | translate }}
+          </h3>
+          <p class="section-hint">{{ 'PROJECTS.PROJECT_ICON_HINT' | translate }}</p>
+        </div>
+        <button mat-stroked-button type="button" class="customize-btn" (click)="toggleIconEditor()">
+          <mat-icon>{{ iconEditorOpen ? 'expand_less' : 'edit' }}</mat-icon>
+          {{ (iconEditorOpen ? 'PROJECTS.PROJECT_ICON_CLOSE' : 'PROJECTS.PROJECT_ICON_CUSTOMIZE') | translate }}
+        </button>
+      </div>
+
+      <div class="icon-editor-host" *ngIf="iconEditorOpen">
+        <app-icon-editor
+          [initialIconUrl]="iconPreviewUrl"
+          [hasCustomIcon]="effectiveHasCustomIcon"
+          (iconChanged)="onIconChanged($event)">
+        </app-icon-editor>
+      </div>
+
+      <div class="pending-banner" *ngIf="pendingIconAction !== 'none'">
+        <mat-icon>info</mat-icon>
+        <span *ngIf="pendingIconAction === 'set'">{{ 'PROJECTS.PROJECT_ICON_PENDING_SET' | translate }}</span>
+        <span *ngIf="pendingIconAction === 'remove'">{{ 'PROJECTS.PROJECT_ICON_PENDING_REMOVE' | translate }}</span>
+      </div>
+    </div>
+
     <div class="participants-section">
       <div class="participants-header">
         <h3 class="section-title">

@@ -34,8 +34,15 @@
                   *ngFor="let project of recentProjects | async">
           <mat-card-content class="project-card-content">
             <div class="project-info" (click)="openProject(project.path)">
-              <div class="project-icon-wrapper">
-                <img src="assets/icons/files-stack.svg" class="project-icon-svg" alt="Project">
+              <div class="project-icon-wrapper" [class.has-custom]="project.hasCustomIcon">
+                <img *ngIf="project.hasCustomIcon"
+                     [src]="getIconUrl(project)"
+                     class="project-icon-custom"
+                     alt="Project icon">
+                <img *ngIf="!project.hasCustomIcon"
+                     src="assets/icons/files-stack.svg"
+                     class="project-icon-svg"
+                     alt="Project">
               </div>
               <div class="project-details">
                 <div class="project-name-row">

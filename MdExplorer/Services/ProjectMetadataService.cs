@@ -21,11 +21,23 @@ namespace MdExplorer.Services
         void SetDescription(string projectPath, string description);
         IList<ProjectParticipant> GetParticipants(string projectPath);
         void SetParticipants(string projectPath, IList<ProjectParticipant> participants);
+        ProjectIconConfig GetIcon(string projectPath);
+        string GetIconAbsolutePath(string projectPath);
+        void SetIcon(string projectPath, byte[] pngBytes);
+        void RemoveIcon(string projectPath);
     }
 
     public class ProjectMetadataService : IProjectMetadataService
     {
         private const string FileName = ".development.yml";
+        // Icon lives in .mdMetadata/ (NOT .md/) because .md/ is the working
+        // folder ignored by .gitignore — committable artifacts must live in a
+        // folder that follows the project on clone/share.
+        private const string IconRelativePath = ".mdMetadata/project-icon.png";
+        // Legacy path used by the very first iteration of this feature; kept
+        // as a fallback in GetIcon and cleaned up on Set/Remove so the two
+        // projects that already saved an icon migrate transparently.
+        private const string LegacyIconRelativePath = ".md/project-icon.png";
         private readonly ILogger<ProjectMetadataService> _logger;
 
         public ProjectMetadataService(ILogger<ProjectMetadataService> logger)
@@ -105,6 +117,7 @@ namespace MdExplorer.Services
 
             var serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
                 .Build();
 
             File.WriteAllText(filePath, serializer.Serialize(config));
@@ -198,10 +211,215 @@ namespace MdExplorer.Services
 
             var serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
                 .Build();
 
             File.WriteAllText(filePath, serializer.Serialize(config));
             _logger.LogInformation("Project participants updated in {FilePath} ({Count} entries)", filePath, normalized.Count);
+        }
+
+        public ProjectIconConfig GetIcon(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(projectPath))
+            {
+                return null;
+            }
+
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath))
+            {
+                return null;
+            }
+
+            try
+            {
+                var yaml = File.ReadAllText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml))
+                {
+                    return null;
+                }
+
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .IgnoreUnmatchedProperties()
+                    .Build();
+
+                var config = deserializer.Deserialize<DevelopmentConfig>(yaml);
+                var icon = config?.Project?.Icon;
+                if (icon == null || string.IsNullOrWhiteSpace(icon.File))
+                {
+                    return null;
+                }
+
+                // Drop the reference if the PNG file no longer exists on disk —
+                // a stale yaml would otherwise mislead the client into requesting it.
+                // Resolve via the path stored in yaml first, then fall back to the
+                // current canonical location (handles legacy entries that still
+                // point to .md/project-icon.png).
+                var iconAbs = Path.Combine(projectPath, icon.File.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(iconAbs))
+                {
+                    return icon;
+                }
+                var canonicalAbs = Path.Combine(projectPath, IconRelativePath.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(canonicalAbs))
+                {
+                    icon.File = IconRelativePath;
+                    return icon;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read project icon from {FilePath}", filePath);
+                return null;
+            }
+        }
+
+        public string GetIconAbsolutePath(string projectPath)
+        {
+            var icon = GetIcon(projectPath);
+            if (icon == null) return null;
+            return Path.Combine(projectPath, icon.File.Replace('/', Path.DirectorySeparatorChar));
+        }
+
+        public void SetIcon(string projectPath, byte[] pngBytes)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            }
+            if (!Directory.Exists(projectPath))
+            {
+                throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+            }
+            if (pngBytes == null || pngBytes.Length == 0)
+            {
+                throw new ArgumentException("pngBytes is required", nameof(pngBytes));
+            }
+
+            // Create .mdMetadata/ on demand — it's a new folder introduced for
+            // committable artifacts and most projects won't have it yet.
+            var iconAbs = Path.Combine(projectPath, IconRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            var iconDir = Path.GetDirectoryName(iconAbs);
+            if (!string.IsNullOrEmpty(iconDir) && !Directory.Exists(iconDir))
+            {
+                Directory.CreateDirectory(iconDir);
+            }
+
+            File.WriteAllBytes(iconAbs, pngBytes);
+
+            // Cleanup the legacy location so the project doesn't keep an orphan
+            // icon in the gitignored .md/ folder after migration.
+            TryDeleteLegacyIcon(projectPath);
+
+            var filePath = Path.Combine(projectPath, FileName);
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+
+            DevelopmentConfig config;
+            if (File.Exists(filePath))
+            {
+                var yaml = File.ReadAllText(filePath);
+                config = string.IsNullOrWhiteSpace(yaml)
+                    ? new DevelopmentConfig()
+                    : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
+            }
+            else
+            {
+                config = new DevelopmentConfig();
+            }
+
+            config.Project ??= new ProjectConfig();
+            config.Project.Icon = new ProjectIconConfig
+            {
+                File = IconRelativePath,
+                UpdatedAt = DateTime.UtcNow.ToString("o")
+            };
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
+                .Build();
+            File.WriteAllText(filePath, serializer.Serialize(config));
+            _logger.LogInformation("Project icon updated at {IconPath} ({Bytes} bytes)", iconAbs, pngBytes.Length);
+        }
+
+        private void TryDeleteLegacyIcon(string projectPath)
+        {
+            var legacyAbs = Path.Combine(projectPath, LegacyIconRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(legacyAbs)) return;
+            try
+            {
+                File.Delete(legacyAbs);
+                _logger.LogInformation("Removed legacy icon at {LegacyPath}", legacyAbs);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to remove legacy icon at {LegacyPath}", legacyAbs);
+            }
+        }
+
+        public void RemoveIcon(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            }
+            if (!Directory.Exists(projectPath))
+            {
+                return;
+            }
+
+            var iconAbs = Path.Combine(projectPath, IconRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            try
+            {
+                if (File.Exists(iconAbs))
+                {
+                    File.Delete(iconAbs);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete project icon at {IconPath}", iconAbs);
+            }
+
+            // Also wipe the legacy .md/ copy if it's still there from the
+            // pre-migration version of the feature.
+            TryDeleteLegacyIcon(projectPath);
+
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var yaml = File.ReadAllText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml)) return;
+
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .IgnoreUnmatchedProperties()
+                    .Build();
+                var config = deserializer.Deserialize<DevelopmentConfig>(yaml);
+                if (config?.Project?.Icon == null) return;
+
+                config.Project.Icon = null;
+
+                var serializer = new SerializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .Build();
+                File.WriteAllText(filePath, serializer.Serialize(config));
+                _logger.LogInformation("Project icon reference removed from {FilePath}", filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to clear project icon reference in {FilePath}", filePath);
+            }
         }
     }
 }
