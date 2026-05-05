@@ -71,6 +71,7 @@ using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
+using MdExplorer.Services.IndexingPipeline;
 using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
 
@@ -99,6 +100,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IEmbeddingService _embeddingService;
         private readonly IMarkdownChunkingService _chunkingService;
         private readonly IVectorSearchService _vectorSearchService;
+        private readonly IIndexingPipelineService _indexingPipelineService;
 
 
         public MdFilesController(
@@ -127,7 +129,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         IModelDownloadService downloadService = null,
         IEmbeddingService embeddingService = null,
         IMarkdownChunkingService chunkingService = null,
-        IVectorSearchService vectorSearchService = null
+        IVectorSearchService vectorSearchService = null,
+        IIndexingPipelineService indexingPipelineService = null
             ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
@@ -146,6 +149,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _embeddingService = embeddingService;
             _chunkingService = chunkingService;
             _vectorSearchService = vectorSearchService;
+            _indexingPipelineService = indexingPipelineService;
         }
 
         [HttpGet]
@@ -1668,32 +1672,30 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             var list = new List<IFileInfoNode>();
             var currentPath = GetProjectPath();
-            
+
             if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
                 return Ok(list);
             }
-            
-            // PULIZIA E REINDICIZZAZIONE DEL DATABASE
-            // Disabilita il FileSystemWatcher durante cleanup+reindex per evitare race condition:
-            // gli handler FSW cercherebbero record appena cancellati o creerebbero duplicati
+
+            // ASYNC INDEXING (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
+            //
+            // Cleanup database + IndexAllMarkdownFiles + ParseAllLinks + Embed sono stati
+            // spostati in IIndexingPipelineService.RunAsync, eseguito fire-and-forget dopo
+            // che questa response è tornata al client. Risultato:
+            //   - response: solo costruzione della struttura tree (filesystem walk)
+            //   - background: tutto il lavoro DB e link parsing
+            //
+            // FSW lock: disabilitato qui, riabilitato dalla pipeline al termine.
+            // Se la pipeline non si avvia (servizio non disponibile, link indexing
+            // disabilitato, errore precoce), il finally riabilita FSW come safety net.
             SetFileSystemWatcherEnabled(false);
             var linkIndexingEnabled = IsLinkIndexingEnabled();
+            var pipelineStarted = false;
+
             try
             {
-                // Fase 1: file discovery — sempre, indipendente dal flag LinkIndexingEnabled
-                CleanupDatabaseDuplicates();
-                IndexAllMarkdownFiles();
-                if (!linkIndexingEnabled)
-                {
-                    _logger.LogInformation("[GetShallowStructure] Link indexing disabled - file records indexed, skipping link parsing");
-                }
-            }
-            finally
-            {
-                SetFileSystemWatcherEnabled(true);
-            }
-            
+
             // Carica solo primo livello di cartelle che contengono file markdown
             // Ordina: .github primo, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
@@ -1930,27 +1932,30 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 }
             }
 
-            // Avvia indicizzazione link in background solo se abilitata nel setting di progetto
-            if (linkIndexingEnabled)
+            // Avvia pipeline asincrona: cleanup + IndexAllMarkdownFiles + (link parse + embed se enabled).
+            // Fire-and-forget — la pipeline gira sotto IsolatedEngineDB e re-abilita FSW alla fine.
+            if (_indexingPipelineService != null)
             {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await IndexLinksInBackground(connectionId);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error during background indexing");
-                    }
-                });
+                _ = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                pipelineStarted = true;
             }
             else
             {
-                _logger.LogInformation("[GetShallowStructure] Link indexing is disabled for this project");
+                _logger.LogWarning("[GetShallowStructure] IIndexingPipelineService not available, indexing skipped");
             }
-            
+
             return Ok(list);
+
+            } // end try
+            finally
+            {
+                // Safety net: se la pipeline non è partita, FSW resterebbe disabilitato per sempre.
+                // Se è partita, sarà la pipeline a riabilitarlo (vedi IndexingPipelineService.RunAsync finally).
+                if (!pipelineStarted)
+                {
+                    SetFileSystemWatcherEnabled(true);
+                }
+            }
         }
 
         /// <summary>
@@ -2837,6 +2842,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         }
 
+        // Variante "silent" usata da GetShallowStructure: preserva la ricorsione full-depth
+        // (per la UX del tree frontend invariato) MA rimuove gli emit SignalR
+        // folderIndexingStart/Complete e il Task.Delay(50ms) per cartella.
+        // Quei segnali ora arrivano dal IIndexingPipelineService che gira in background,
+        // dopo che la response del controller è già tornata al client.
+        // Vedi docs-internal/md-tree-evolution2/passo-async-indexing.md
         private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
         {
             var isEmpty = true;
@@ -2856,24 +2867,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     continue;
                 }
 
-                // Send folderIndexingStart event for subfolder
-                await _hubContext.Clients.Client(signalRConnectionId)
-                    .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
-
                 var result = await CreateNodeFolder(itemFolder);
                 var node = result.Item1;
                 var isempty = result.Item2;
                 if (!isempty)
                 {
                     fileInfoNode.Childrens.Add(node);
-
-                    // Small delay to make progress visible
-                    await Task.Delay(50);
                 }
-
-                // Send folderIndexingComplete event (sempre, anche se vuota)
-                await _hubContext.Clients.Client(signalRConnectionId)
-                    .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
 
                 isEmpty = isEmpty && isempty;
             }
