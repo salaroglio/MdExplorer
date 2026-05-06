@@ -32,6 +32,7 @@ import { CompatibilityModeBadgeComponent } from './md-explorer/components/compat
 import { UnifiedSettingsDialogComponent } from './components/unified-settings-dialog/unified-settings-dialog.component';
 import { AppStoreSettingsDialogComponent } from './components/app-store-settings-dialog/app-store-settings-dialog.component';
 import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
+import { MarkAssistantModule } from './mark-assistant/mark-assistant.module';
 
 
 const routes: Routes = [
@@ -79,6 +80,7 @@ const routes: Routes = [
       }
     }),
     ParticipantGemsModule,
+    MarkAssistantModule,
   ],
   providers: [
     ParsingProjectProvider,

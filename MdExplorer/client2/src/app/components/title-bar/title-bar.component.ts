@@ -12,6 +12,7 @@ import { AppStoreSettingsDialogComponent } from '../app-store-settings-dialog/ap
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
 import { Participant } from '../../md-explorer/models/participant';
+import { MarkAssistantService } from '../../mark-assistant/mark-assistant.service';
 
 @Component({
   selector: 'app-title-bar',
@@ -45,7 +46,8 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     private monitorMDService: MdServerMessagesService,
     private dialog: MatDialog,
     private translate: TranslateService,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private markAssistant: MarkAssistantService
   ) {
     // Check if running in Electron
     this.isElectron = !!(window && (window as any).electronAPI);
@@ -223,5 +225,9 @@ export class TitleBarComponent implements OnInit, OnDestroy {
 
   navigateToAppStore(): void {
     this.router.navigate(['/main/app-store']);
+  }
+
+  launchMarkAssistant(): void {
+    this.markAssistant.launch('welcome-tour');
   }
 }

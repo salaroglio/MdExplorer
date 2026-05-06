@@ -1,0 +1,97 @@
+<!-- Mark assistant overlay. Renders nothing until launched.
+
+     IMPORTANT: spotlight, dim, and pointer arrow are NOT wrapped by the
+     'isUndocked' check — they have to stay visible on top of the MDE
+     window even when Mark himself is detached into a separate Electron
+     BrowserWindow, so the user still sees which card he's talking about.
+     Only the dialog box (Mark's "voice") is suppressed when undocked.
+-->
+
+<!-- Full-screen dim — only shown for steps WITHOUT a spotlight target
+     (intro, closing). When a spotlight is active, the spotlight's own
+     box-shadow draws the dim around the target, so we suppress this layer
+     to avoid a double-overlay (otherwise dark mode looks washed out). -->
+<div class="mark-dim" [class.on]="(dim$ | async) && !(spotlight$ | async)"></div>
+
+<!-- Spotlight cutout over current target -->
+<ng-container *ngIf="spotlight$ | async as spot">
+  <div class="mark-spotlight"
+       [style.top.px]="spot.top - 10"
+       [style.left.px]="spot.left - 10"
+       [style.width.px]="spot.width + 20"
+       [style.height.px]="spot.height + 20"></div>
+  <div class="mark-pointer"
+       [style.top.px]="spot.top + spot.height/2 - 18"
+       [style.left.px]="spot.right + 14">►</div>
+</ng-container>
+
+<!-- Mark's radio panel — hidden when undocked (Mark lives in a separate window) -->
+<ng-container *ngIf="!(isUndocked$ | async)">
+<div #wrapRef
+     class="mark-dialog-wrap"
+     [class.on]="((state$ | async) === 'playing') || ((state$ | async) === 'minimized')"
+     [class.minimized]="(state$ | async) === 'minimized'"
+     [class.dragging]="isDragging"
+     [class.has-custom-position]="position !== null"
+     [style.left.px]="position?.left"
+     [style.top.px]="position?.top"
+     (mousedown)="onDragStart($event)"
+     (click)="onDialogClick()">
+
+  <div class="antenna"></div>
+
+  <div class="mark-dialog-box">
+    <div class="rivet rivet-tl"></div>
+    <div class="rivet rivet-tr"></div>
+    <div class="rivet rivet-bl"></div>
+    <div class="rivet rivet-br"></div>
+
+    <div class="led-area">
+      <div class="led"></div>
+      <div class="led-label">{{ 'MARK.TRANSMITTING' | translate }}</div>
+      <div class="freq-display">CH-7.42 MHz</div>
+      <button class="skip-btn undock-btn"
+              *ngIf="canUndock && (state$ | async) === 'playing'"
+              (click)="onUndockClick($event)"
+              [title]="'MARK.UNDOCK' | translate">⤴</button>
+      <button class="skip-btn"
+              *ngIf="(state$ | async) === 'playing'"
+              (click)="onSkipClick($event)"
+              title="Skip">✕</button>
+    </div>
+
+    <div class="dialog-content">
+      <img class="face-portrait" src="/assets/mark.png" alt="Mark" draggable="false">
+      <div class="dialog-text-area">
+        <div class="dialog-name">MARK</div>
+        <div class="dialog-text" [class.static]="(staticMode$ | async)">{{ text$ | async }}<span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span></div>
+      </div>
+    </div>
+
+    <!-- User input area: textbox + send. The conversation channel is
+         architecturally ready; V0 has only the EchoHandler ("still learning"),
+         V3 will plug in an AI conversation handler without touching this UI. -->
+    <div class="user-input-area" *ngIf="(state$ | async) === 'playing'">
+      <span class="prompt-prefix">&gt;</span>
+      <input type="text"
+             class="user-input"
+             [(ngModel)]="userInput"
+             [placeholder]="'MARK.INPUT.PLACEHOLDER' | translate"
+             [disabled]="(isResponding$ | async)"
+             (keydown.enter)="onSubmitInput($event)"
+             (click)="$event.stopPropagation()"
+             autocomplete="off"
+             spellcheck="false"
+             aria-label="Mark input">
+      <button type="button"
+              class="send-btn"
+              [disabled]="(isResponding$ | async) || !userInput?.trim()"
+              [title]="'MARK.INPUT.SEND' | translate"
+              (click)="onSubmitInput($event)">▶</button>
+    </div>
+
+    <div class="continue-arrow" [class.on]="(continueArrow$ | async)">▼</div>
+  </div>
+</div>
+
+</ng-container>

@@ -48,6 +48,13 @@
     </div>
   </div>
 
+  <button mat-icon-button
+          (click)="launchMarkAssistant()"
+          [matTooltip]="'TITLE_BAR.MARK_ASSISTANT_TOOLTIP' | translate"
+          class="mark-help-trigger">
+    <mat-icon>help_outline</mat-icon>
+  </button>
+
   <button mat-icon-button [matMenuTriggerFor]="settingsMenu" class="settings-trigger">
     <mat-icon>settings</mat-icon>
   </button>

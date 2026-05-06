@@ -7,7 +7,12 @@
 
       <!-- Left Column: Recent Projects -->
       <div class="left-column">
-        <div class="recent-projects-section" *ngIf="(recentProjects | async)?.length > 0">
+        <!-- Section visible whenever there is at least one registered project,
+             regardless of the current search filter result. This keeps the
+             search-field reachable even when the user types a query that
+             matches nothing — otherwise they'd be stuck with no input to
+             clear the filter. -->
+        <div class="recent-projects-section" *ngIf="hasAnyProject$ | async">
           <div class="section-header">
             <h2 class="section-title">
               <mat-icon class="section-icon">history</mat-icon>
@@ -25,7 +30,22 @@
             </mat-form-field>
           </div>
 
-          <div class="projects-grid">
+          <!-- "no match" message — shown only when the filter is active and
+               yields zero results. The cleared search restores the grid. -->
+          <div class="no-match-message"
+               *ngIf="searchQuery && (recentProjects | async)?.length === 0">
+            <mat-icon class="empty-icon">search_off</mat-icon>
+            <h3>{{ 'PROJECTS.NO_MATCH_TITLE' | translate }}</h3>
+            <p>{{ 'PROJECTS.NO_MATCH_HINT' | translate }}</p>
+            <button mat-stroked-button color="primary"
+                    (click)="searchQuery=''; onSearchChange()">
+              <mat-icon>clear</mat-icon>
+              {{ 'PROJECTS.CLEAR_SEARCH' | translate }}
+            </button>
+          </div>
+
+          <div class="projects-grid"
+               *ngIf="(recentProjects | async)?.length > 0">
         <mat-card class="project-card"
                   [class.last-opened]="isLastOpened(project)"
                   [class.has-gems]="(getParticipantsFor(project.path)?.length || 0) > 0"
@@ -103,7 +123,9 @@
         </div>
 
         <!-- Message when no projects -->
-        <div class="no-projects-message" *ngIf="!(recentProjects | async)?.length">
+        <!-- Empty-state for "no projects ever registered" — distinct from
+             "search filter has no match" (handled inside the section above). -->
+        <div class="no-projects-message" *ngIf="!(hasAnyProject$ | async)">
           <mat-icon class="empty-icon">folder_open</mat-icon>
           <h3>{{ 'PROJECTS.NO_RECENT' | translate }}</h3>
           <p>{{ 'PROJECTS.NO_RECENT_HINT' | translate }}</p>

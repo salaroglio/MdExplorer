@@ -36,6 +36,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public appVersion = versionInfo.version; // Rendi la versione disponibile nel template
   public buildTime = versionInfo.buildTime; // Rendi il timestamp di build disponibile nel template
   public recentProjects: Observable<MdProject[]>;
+  /** True iff there is at least one registered project, BEFORE the search filter. */
+  public hasAnyProject$: Observable<boolean>;
   public searchQuery: string = '';
   public lastOpenedProjectId: string = null;
   public isP2PAvailable: boolean = false;
@@ -92,6 +94,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     // Load recent projects and sort by lastUpdate descending (most recent first)
     this.projectService.fetchProjects();
+    // Pre-filter signal: are there ANY projects registered? Drives the
+    // visibility of the "Recent Projects" section header + search field,
+    // independently of the search filter result.
+    this.hasAnyProject$ = this.projectService.mdProjects.pipe(
+      map(projects => !!projects && projects.length > 0)
+    );
     this.recentProjects = this.projectService.mdProjects.pipe(
       map(projects => {
         if (!projects || projects.length === 0) return [];

@@ -41,6 +41,9 @@
   "PROJECTS": {
     "RECENT_PROJECTS": "Recent Projects",
     "SEARCH_PROJECTS": "Search projects...",
+    "NO_MATCH_TITLE": "No results",
+    "NO_MATCH_HINT": "No projects match your search.",
+    "CLEAR_SEARCH": "Clear search",
     "LAST_OPENED": "Last Opened",
     "LAST_ACCESSED": "Last accessed:",
     "SHARE_URL": "Share Project URL",
@@ -1632,7 +1635,30 @@
     "PROJECTS": "Projects",
     "APP_STORE": "App Store",
     "COMPLETED": "Completed",
-    "ERROR_STATUS": "Error"
+    "ERROR_STATUS": "Error",
+    "MARK_ASSISTANT_TOOLTIP": "Open Mark's guide"
+  },
+  "MARK": {
+    "TRANSMITTING": "▌ TRANSMITTING",
+    "TOUR": {
+      "WELCOME": {
+        "INTRO": "Hi! I'm Mark. Three buttons to know right away...",
+        "CREATE": "THIS one creates a project from scratch — an empty folder ready for your markdown.",
+        "CLONE": "THIS one downloads an existing project from a remote Git repo.",
+        "SETTINGS": "And HERE you customize everything: theme, AI, shortcuts. Change it whenever.",
+        "CLOSING": "Ready? I'm here whenever you need me. Have fun!",
+        "STATIC": "krsshhh..."
+      }
+    },
+    "INPUT": {
+      "PLACEHOLDER": "Say something to Mark...",
+      "SEND": "Send"
+    },
+    "RESPONSE": {
+      "LEARNING": "I'm still learning! For now I only respond to the tour. You'll see soon..."
+    },
+    "UNDOCK": "Detach into floating window",
+    "REDOCK": "Re-attach to app"
   },
   "UNIFIED_SETTINGS": {
     "TITLE": "Settings",
