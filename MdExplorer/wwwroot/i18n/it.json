@@ -41,6 +41,9 @@
   "PROJECTS": {
     "RECENT_PROJECTS": "Progetti Recenti",
     "SEARCH_PROJECTS": "Cerca progetti...",
+    "NO_MATCH_TITLE": "Nessun risultato",
+    "NO_MATCH_HINT": "Nessun progetto corrisponde al testo cercato.",
+    "CLEAR_SEARCH": "Cancella ricerca",
     "LAST_OPENED": "Ultimo Aperto",
     "LAST_ACCESSED": "Ultimo accesso:",
     "SHARE_URL": "Condividi URL Progetto",
@@ -1632,7 +1635,30 @@
     "PROJECTS": "Progetti",
     "APP_STORE": "App Store",
     "COMPLETED": "Completato",
-    "ERROR_STATUS": "Errore"
+    "ERROR_STATUS": "Errore",
+    "MARK_ASSISTANT_TOOLTIP": "Apri la guida di Mark"
+  },
+  "MARK": {
+    "TRANSMITTING": "▌ IN ONDA",
+    "TOUR": {
+      "WELCOME": {
+        "INTRO": "Ciao! Sono Mark. Tre tasti da sapere subito...",
+        "CREATE": "Da QUESTO crei un progetto da zero — una cartella vuota pronta per i tuoi markdown.",
+        "CLONE": "Con QUESTO scarichi un progetto esistente da un repo Git remoto.",
+        "SETTINGS": "E QUI personalizzi tutto: tema, AI, scorciatoie. Cambialo quando vuoi.",
+        "CLOSING": "Pronto? Ci sono io quando ti serve. Buon lavoro!",
+        "STATIC": "krsshhh..."
+      }
+    },
+    "INPUT": {
+      "PLACEHOLDER": "Scrivi qualcosa a Mark...",
+      "SEND": "Invia"
+    },
+    "RESPONSE": {
+      "LEARNING": "Sto ancora imparando! Per ora rispondo solo al tour. Vedrai presto..."
+    },
+    "UNDOCK": "Sgancia in finestra separata",
+    "REDOCK": "Riaggancia all'app"
   },
   "UNIFIED_SETTINGS": {
     "TITLE": "Impostazioni",
