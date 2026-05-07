@@ -7,3 +7,6 @@
 [submodule "docs-internal"]
 	path = docs-internal
 	url = https://github.com/salaroglio/mdexplorer-internal-docs.git
+[submodule "mdexplorer-demo"]
+	path = mdexplorer-demo
+	url = https://github.com/salaroglio/mdexplorer-demo.git
