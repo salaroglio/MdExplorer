@@ -40,6 +40,14 @@
 
   <div class="antenna"></div>
 
+  <!-- Tiny dismiss button — visible only when minimized (icon mode).
+       Click on the icon itself opens the idle menu; this X kills Mark. -->
+  <button class="close-mini"
+          *ngIf="(state$ | async) === 'minimized'"
+          (click)="onCloseMiniClick($event)"
+          (mousedown)="$event.stopPropagation()"
+          [title]="'MARK.CLOSE_COMM' | translate">✕</button>
+
   <div class="mark-dialog-box">
     <div class="rivet rivet-tl"></div>
     <div class="rivet rivet-tr"></div>
@@ -66,6 +74,22 @@
         <div class="dialog-name">MARK</div>
         <div class="dialog-text" [class.static]="(staticMode$ | async)">{{ text$ | async }}<span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span></div>
       </div>
+    </div>
+
+    <!-- Action buttons. When the current step exposes actions, the lesson
+         loop is paused waiting for the user to pick one. The buttons appear
+         above the input area in arcade-style. -->
+    <div class="user-actions-area"
+         *ngIf="(actions$ | async) as actions"
+         (click)="$event.stopPropagation()">
+      <button type="button"
+              class="action-btn"
+              *ngFor="let act of actions; let i = index"
+              [disabled]="(isResponding$ | async)"
+              (click)="onActionClick(i, $event)">
+        <span class="action-icon" *ngIf="act.icon">{{ act.icon }}</span>
+        <span class="action-label">{{ act.labelKey | translate }}</span>
+      </button>
     </div>
 
     <!-- User input area: textbox + send. The conversation channel is

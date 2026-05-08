@@ -4188,7 +4188,10 @@ class TitleBarComponent {
     this.router.navigate(['/main/app-store']);
   }
   launchMarkAssistant() {
-    this.markAssistant.launch('welcome-tour');
+    // Note: this opens the idle MENU (action buttons), NOT a replay of the
+    // welcome tour. The welcome tour is reserved for the very first launch
+    // of MDE — re-running it on demand would feel "stuck on rewind".
+    this.markAssistant.openMenu();
   }
   static {
     this.ɵfac = function TitleBarComponent_Factory(t) {
@@ -7885,6 +7888,381 @@ const INPUT_HANDLER_TYPES = [_echo_handler__WEBPACK_IMPORTED_MODULE_0__.EchoHand
 
 /***/ }),
 
+/***/ 9448:
+/*!******************************************************!*\
+  !*** ./src/app/mark-assistant/lessons/auto-utils.ts ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "buildDemoClonePath": () => (/* binding */ buildDemoClonePath),
+/* harmony export */   "clickElement": () => (/* binding */ clickElement),
+/* harmony export */   "setInputValue": () => (/* binding */ setInputValue),
+/* harmony export */   "sleep": () => (/* binding */ sleep),
+/* harmony export */   "waitForElement": () => (/* binding */ waitForElement),
+/* harmony export */   "waitForElementGone": () => (/* binding */ waitForElementGone),
+/* harmony export */   "waitForRoute": () => (/* binding */ waitForRoute)
+/* harmony export */ });
+/* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+
+/**
+ * Auto-play utilities for lessons that drive the MDE UI on the user's behalf.
+ *
+ * These helpers are used by autoExecute steps (e.g. demo-clone-tour) to
+ * click buttons, fill form inputs, wait for dialogs to open, and detect
+ * route changes — all via direct DOM manipulation.
+ *
+ * Two notes on the model:
+ *  - We don't reach into Angular components: we work on the rendered DOM
+ *    using selectors. That keeps these helpers reusable across any UI bit.
+ *  - For ngModel-bound inputs, setting `value` is not enough — we must
+ *    `dispatchEvent(new Event('input', { bubbles: true }))` so Angular
+ *    notices the change. That's what setInputValue() does.
+ */
+const POLL_INTERVAL_MS = 100;
+const DEFAULT_WAIT_TIMEOUT_MS = 8000;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+/**
+ * Wait for an element matching the selector to appear in the DOM.
+ * Resolves with the element, rejects if not found within the timeout.
+ */
+function waitForElement(_x) {
+  return _waitForElement.apply(this, arguments);
+}
+/**
+ * Wait until at least one element matching `selector` is GONE from the DOM.
+ * Useful to wait for a dialog to close.
+ */
+function _waitForElement() {
+  _waitForElement = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (selector, timeoutMs = DEFAULT_WAIT_TIMEOUT_MS) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const el = document.querySelector(selector);
+      if (el) return el;
+      yield sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error(`[Mark/auto] Element not found within ${timeoutMs}ms: ${selector}`);
+  });
+  return _waitForElement.apply(this, arguments);
+}
+function waitForElementGone(_x2) {
+  return _waitForElementGone.apply(this, arguments);
+}
+/** Click the first element matching the selector (must exist). */
+function _waitForElementGone() {
+  _waitForElementGone = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (selector, timeoutMs = DEFAULT_WAIT_TIMEOUT_MS) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (!document.querySelector(selector)) return;
+      yield sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error(`[Mark/auto] Element still present after ${timeoutMs}ms: ${selector}`);
+  });
+  return _waitForElementGone.apply(this, arguments);
+}
+function clickElement(_x3) {
+  return _clickElement.apply(this, arguments);
+}
+/**
+ * Set the value of a ngModel-bound input/textarea.
+ * Optionally bypasses `readonly` (used for the clone dialog's localPath
+ * which is rendered readonly because the picker normally fills it).
+ */
+function _clickElement() {
+  _clickElement = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (selector) {
+    const el = yield waitForElement(selector);
+    el.click();
+  });
+  return _clickElement.apply(this, arguments);
+}
+function setInputValue(_x4, _x5) {
+  return _setInputValue.apply(this, arguments);
+}
+/**
+ * Wait for the router to navigate to a URL starting with `prefix`.
+ * Resolves true on match within timeout, false otherwise. Non-throwing —
+ * the caller decides what to do (autoExecute continues regardless).
+ */
+function _setInputValue() {
+  _setInputValue = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (selector, value, options = {}) {
+    const el = yield waitForElement(selector);
+    const wasReadOnly = el.readOnly;
+    if (wasReadOnly && options.bypassReadonly) {
+      el.readOnly = false;
+    }
+    // focus first — some Material directives require it for proper change detection
+    el.focus();
+    // Use the native setter so Angular's ngModel picks up the change
+    const proto = Object.getPrototypeOf(el);
+    const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (nativeSetter) nativeSetter.call(el, value);else el.value = value;
+    el.dispatchEvent(new Event('input', {
+      bubbles: true
+    }));
+    el.dispatchEvent(new Event('change', {
+      bubbles: true
+    }));
+    if (wasReadOnly && options.bypassReadonly) {
+      el.readOnly = true;
+    }
+    el.blur();
+  });
+  return _setInputValue.apply(this, arguments);
+}
+function waitForRoute(_x6) {
+  return _waitForRoute.apply(this, arguments);
+}
+/**
+ * Build a default destination path for the demo clone. Uses Electron's
+ * userData/temp dirs when available, otherwise a Windows-friendly fallback.
+ * The path includes a timestamp so multiple runs don't collide.
+ */
+function _waitForRoute() {
+  _waitForRoute = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (prefix, timeoutMs = DEFAULT_WAIT_TIMEOUT_MS) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (window.location.hash.includes(prefix) || window.location.pathname.startsWith(prefix)) {
+        return true;
+      }
+      // Angular may use hash routing or path routing — check both.
+      yield sleep(POLL_INTERVAL_MS);
+    }
+    return false;
+  });
+  return _waitForRoute.apply(this, arguments);
+}
+function buildDemoClonePath(repoName = 'mdexplorer-demo') {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  // Electron exposes via process.env.USERPROFILE on Windows
+  const home = typeof process !== 'undefined' && process?.env?.USERPROFILE || 'C:\\Users\\Public';
+  return `${home}\\Documents\\${repoName}-${stamp}`;
+}
+
+/***/ }),
+
+/***/ 9556:
+/*!***********************************************************!*\
+  !*** ./src/app/mark-assistant/lessons/demo-clone-tour.ts ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "DEMO_CLONE_TOUR": () => (/* binding */ DEMO_CLONE_TOUR)
+/* harmony export */ });
+/* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _auto_utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./auto-utils */ 9448);
+
+
+/**
+ * Demo project clone tour — Mark talks while MDE drives itself: opens
+ * the clone dialog, fills the URL, sets the destination path, presses
+ * Clone, and waits for the project to be loaded. The user just watches.
+ *
+ * Why this works without a GitHub account:
+ *   public Git repos are clonable over HTTPS anonymously. Our default
+ *   demo URL (DEMO_REPO_URL below) points to a small public repository
+ *   so the demo always works on a fresh install.
+ *
+ * Implementation notes:
+ *   - autoExecute drives the UI via direct DOM manipulation (see
+ *     lessons/auto-utils.ts). For ngModel inputs we set value via the
+ *     native setter and dispatch 'input'/'change' events so Angular's
+ *     change detection picks up the new value.
+ *   - The localPath input is `readonly` (the clone dialog normally fills
+ *     it via a folder picker). We bypass readonly temporarily.
+ *   - We wait for navigation to /main/* as the "clone success" signal —
+ *     ModernCloneProjectComponent navigates there once the clone backend
+ *     completes.
+ */
+/**
+ * Default demo repository — purpose-built for MDE onboarding (multiple
+ * .md files, cross-references, plantuml, runnable code blocks, ...).
+ * Owned by the MDE author so its content can evolve with the product.
+ *
+ * To change the demo target, edit just this constant.
+ */
+const DEMO_REPO_URL = 'https://github.com/salaroglio/mdexplorer-demo.git';
+/**
+ * Selector helpers — all relative to the open Modern Clone dialog.
+ * The dialog uses .modern-clone-dialog as the root class.
+ */
+const ROOT = '.modern-clone-dialog';
+const URL_INPUT = `${ROOT} mat-form-field:nth-of-type(1) input[matInput]`; // first form field = repo URL
+const PATH_INPUT = `${ROOT} input[readonly]`; // localPath is the only readonly one
+const CLONE_BTN = `${ROOT} mat-dialog-actions button[color="primary"]`; // primary action button
+const DEMO_CLONE_TOUR = {
+  id: 'demo-clone-tour',
+  // 'always' on purpose: the auto-clone step navigates the app to /main/...
+  // mid-lesson. With context='projects-page' the route guard would hide
+  // Mark just before the closing "Eccoci! Il progetto è aperto." step.
+  context: 'always',
+  withStatic: true,
+  markAsCompleted: false,
+  // Watch-along tour: Mark pilots the clone dialog himself, the user just
+  // observes. We suppress dim + spotlight so the dialog stays fully readable
+  // while it's being auto-filled.
+  dim: false,
+  steps: [
+  // Step 1 — narrative intro
+  {
+    textKey: 'MARK.TOUR.DEMO_CLONE.INTRO',
+    targetSelector: null,
+    durationMs: 2200
+  },
+  // Step 2 — open the Clone dialog by clicking the card
+  {
+    textKey: 'MARK.TOUR.DEMO_CLONE.OPEN_DIALOG',
+    targetSelector: '[data-test="clone-button"]',
+    durationMs: 0,
+    autoExecute: function () {
+      var _ref = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(900); // let the user read the message
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.clickElement)('[data-test="clone-button"]');
+        // wait for the dialog to render
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForElement)(ROOT);
+      });
+      return function autoExecute() {
+        return _ref.apply(this, arguments);
+      };
+    }()
+  },
+  // Step 3 — fill the URL
+  {
+    textKey: 'MARK.TOUR.DEMO_CLONE.FILL_URL',
+    targetSelector: URL_INPUT,
+    durationMs: 0,
+    autoExecute: function () {
+      var _ref2 = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.setInputValue)(URL_INPUT, DEMO_REPO_URL);
+        // ngModelChange triggers detectProviderFromUrl → "GitHub" badge appears
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
+      });
+      return function autoExecute() {
+        return _ref2.apply(this, arguments);
+      };
+    }()
+  },
+  // Step 4 — set the destination path
+  {
+    textKey: 'MARK.TOUR.DEMO_CLONE.SET_PATH',
+    targetSelector: PATH_INPUT,
+    durationMs: 0,
+    autoExecute: function () {
+      var _ref3 = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(600);
+        const target = (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.buildDemoClonePath)('mdexplorer-demo');
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.setInputValue)(PATH_INPUT, target, {
+          bypassReadonly: true
+        });
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
+      });
+      return function autoExecute() {
+        return _ref3.apply(this, arguments);
+      };
+    }()
+  },
+  // Step 5 — press Clone
+  {
+    textKey: 'MARK.TOUR.DEMO_CLONE.PRESS_CLONE',
+    targetSelector: CLONE_BTN,
+    durationMs: 0,
+    autoExecute: function () {
+      var _ref4 = (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+        yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
+        // The button might be disabled briefly while ngModel propagates —
+        // poll until it's enabled, then click. Before clicking we scroll
+        // it into view: the clone dialog can be taller than the viewport
+        // on smaller screens, leaving the primary action below the fold.
+        const start = Date.now();
+        while (Date.now() - start < 3000) {
+          const btn = document.querySelector(CLONE_BTN);
+          if (btn && !btn.disabled) {
+            try {
+              btn.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end',
+                inline: 'nearest'
+              });
+              yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(250);
+            } catch {/* older engines: silently skip */}
+            btn.click();
+            break;
+          }
+          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(120);
+        }
+        // Wait either for the dialog to close (clone success path) or for
+        // the route to switch to /main/* (project opened).
+        yield Promise.race([(0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForElementGone)(ROOT, 30000), (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForRoute)('/main', 30000)]).catch(() => {});
+      });
+      return function autoExecute() {
+        return _ref4.apply(this, arguments);
+      };
+    }()
+  },
+  // Step 6 — closing
+  {
+    textKey: 'MARK.TOUR.DEMO_CLONE.DONE',
+    targetSelector: null,
+    durationMs: 2500
+  }]
+};
+
+/***/ }),
+
+/***/ 482:
+/*!*****************************************************!*\
+  !*** ./src/app/mark-assistant/lessons/idle-menu.ts ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "buildIdleMenu": () => (/* binding */ buildIdleMenu)
+/* harmony export */ });
+/**
+ * Idle menu lesson — shown when the user clicks the "?" button in the
+ * Angular title-bar. Replaces the previous behaviour (which auto-replayed
+ * the welcome-tour every time): now the welcome-tour is reserved for the
+ * very first launch only, and the manual button surfaces a quiet,
+ * action-oriented menu.
+ *
+ * The lesson has a single step that pauses on action buttons — it never
+ * auto-completes, only progresses when the user clicks one of the choices.
+ *
+ * Built via factory because the action handlers need to call methods on
+ * MarkAssistantService (launch / launchNextMicroTip) without a circular
+ * import — the service passes the callbacks explicitly at construction.
+ */
+function buildIdleMenu(deps) {
+  return {
+    id: 'idle-menu',
+    context: 'always',
+    withStatic: false,
+    markAsCompleted: false,
+    steps: [{
+      textKey: 'MARK.MENU.PROMPT',
+      targetSelector: null,
+      actions: [{
+        labelKey: 'MARK.MENU.DEMO_CLONE',
+        icon: '🪐',
+        handler: () => deps.launch('demo-clone-tour')
+      }, {
+        // Same label as the in-lesson "Continue" button: pressing
+        // either advances the micro-tip stream. The two are the same
+        // semantic action ("show me the next suggestion").
+        labelKey: 'MARK.PROSEGUI',
+        icon: '▶',
+        handler: () => deps.launchNextMicroTip()
+      }]
+    }]
+  };
+}
+
+/***/ }),
+
 /***/ 6708:
 /*!*************************************************!*\
   !*** ./src/app/mark-assistant/lessons/index.ts ***!
@@ -7893,16 +8271,23 @@ const INPUT_HANDLER_TYPES = [_echo_handler__WEBPACK_IMPORTED_MODULE_0__.EchoHand
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "LESSONS": () => (/* binding */ LESSONS),
-/* harmony export */   "WELCOME_TOUR": () => (/* reexport safe */ _welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR)
+/* harmony export */   "MICRO_TIPS": () => (/* reexport safe */ _micro_tips__WEBPACK_IMPORTED_MODULE_3__.MICRO_TIPS),
+/* harmony export */   "MICRO_TIPS_DONE": () => (/* reexport safe */ _micro_tips__WEBPACK_IMPORTED_MODULE_3__.MICRO_TIPS_DONE),
+/* harmony export */   "WELCOME_TOUR": () => (/* reexport safe */ _welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR),
+/* harmony export */   "buildLessonRegistry": () => (/* binding */ buildLessonRegistry)
 /* harmony export */ });
 /* harmony import */ var _welcome_tour__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./welcome-tour */ 5791);
+/* harmony import */ var _idle_menu__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./idle-menu */ 482);
+/* harmony import */ var _demo_clone_tour__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./demo-clone-tour */ 9556);
+/* harmony import */ var _micro_tips__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./micro-tips */ 2514);
 /**
  * Lesson registry — central index of all lessons Mark can play.
  *
  * ─── How to add a new lesson ───────────────────────────────────────────
  *  1. Create `lessons/your-lesson.ts` exporting a `MarkLesson` constant.
- *  2. Add an entry below in LESSONS keyed by lesson.id.
+ *  2. Add an entry below in STATIC_LESSONS keyed by lesson.id (or, if the
+ *     lesson needs callbacks into the service, expose a buildXxx() factory
+ *     and wire it in `buildLessonRegistry()` below).
  *  3. Add the matching i18n keys under MARK.TOUR.* in it.json and en.json.
  *  4. (Optional) Add a trigger somewhere that calls
  *     markAssistant.launch('your-lesson-id') when appropriate.
@@ -7910,15 +8295,154 @@ __webpack_require__.r(__webpack_exports__);
  * Lessons can declare a `context` ('projects-page' | 'main' | 'always')
  * to control where Mark is allowed to appear. Outside that context,
  * Mark goes to 'hidden' on navigation.
+ *
+ * Some lessons are "dynamic" — their steps reference the service itself
+ * (e.g. action handlers calling launch). They can't be plain constants
+ * without circular imports, so they're built via factory functions that
+ * receive the necessary callbacks as parameters.
  */
 
-const LESSONS = {
-  [_welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR.id]: _welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR
-  // ← future lessons go here
-  //   [PROJECT_OPENED_TOUR.id]: PROJECT_OPENED_TOUR,
-  //   [FIRST_FILE_SAVED.id]:    FIRST_FILE_SAVED,
-};
 
+
+
+/** Pure / static lessons — safe to import as constants. */
+const STATIC_LESSONS = (() => {
+  const out = {
+    [_welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR.id]: _welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR,
+    [_demo_clone_tour__WEBPACK_IMPORTED_MODULE_2__.DEMO_CLONE_TOUR.id]: _demo_clone_tour__WEBPACK_IMPORTED_MODULE_2__.DEMO_CLONE_TOUR,
+    [_micro_tips__WEBPACK_IMPORTED_MODULE_3__.MICRO_TIPS_DONE.id]: _micro_tips__WEBPACK_IMPORTED_MODULE_3__.MICRO_TIPS_DONE
+  };
+  for (const tip of _micro_tips__WEBPACK_IMPORTED_MODULE_3__.MICRO_TIPS) {
+    out[tip.id] = tip;
+  }
+  return out;
+})();
+/**
+ * Builds the full lesson registry, wiring dynamic lessons (those that need
+ * to call back into the service) via callbacks. Called once by the service
+ * in its constructor.
+ */
+function buildLessonRegistry(deps) {
+  const idleMenu = (0,_idle_menu__WEBPACK_IMPORTED_MODULE_1__.buildIdleMenu)(deps);
+  return {
+    ...STATIC_LESSONS,
+    [idleMenu.id]: idleMenu
+  };
+}
+
+
+/***/ }),
+
+/***/ 2514:
+/*!******************************************************!*\
+  !*** ./src/app/mark-assistant/lessons/micro-tips.ts ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "MICRO_TIPS": () => (/* binding */ MICRO_TIPS),
+/* harmony export */   "MICRO_TIPS_DONE": () => (/* binding */ MICRO_TIPS_DONE)
+/* harmony export */ });
+/* harmony import */ var _welcome_tour__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./welcome-tour */ 5791);
+
+/**
+ * Micropillole — short single-step lessons surfaced one at a time when
+ * the user clicks "Prosegui" in the idle menu (or in any narrative step).
+ * The service tracks an index in localStorage (`mark.nextTipIndex`) and
+ * cycles through them; once exhausted, MICRO_TIPS_DONE is shown and the
+ * cursor resets to 0.
+ *
+ * Adding a tip = creating an entry below + adding the i18n key under
+ * MARK.TIPS.* in it.json/en.json. No code change required.
+ *
+ * All tips have `markAsCompleted: false` so each click on "Prosegui" can
+ * surface them in order without permanently locking any of them.
+ *
+ * Note on WELCOME_TOUR at index 0: it's documentation about the 3 cards
+ * on the projects page, equally worth re-surfacing in the rotation. The
+ * autostart code in MarkAssistantService bumps `nextTipIndex` past it
+ * after the very-first auto-show so the user doesn't see it twice in a
+ * row at boot.
+ */
+const MICRO_TIPS = [
+// 1. Welcome (3 cards explanation) — only on /projects
+_welcome_tour__WEBPACK_IMPORTED_MODULE_0__.WELCOME_TOUR,
+// 2. Search field — only on /projects (the field exists only there)
+{
+  id: 'micro-tip-search',
+  context: 'projects-page',
+  withStatic: false,
+  markAsCompleted: false,
+  onCompleteNext: 'next-tip',
+  steps: [{
+    textKey: 'MARK.TIPS.SEARCH',
+    targetSelector: 'mat-form-field.search-field',
+    durationMs: 2400
+  }]
+},
+// 3. Drag the panel — works in any context (Mark is everywhere)
+{
+  id: 'micro-tip-drag',
+  context: 'always',
+  withStatic: false,
+  markAsCompleted: false,
+  onCompleteNext: 'next-tip',
+  steps: [{
+    textKey: 'MARK.TIPS.DRAG',
+    targetSelector: null,
+    durationMs: 2400
+  }]
+},
+// 4. Undock to a separate window — works in any context.
+// Self-spotlight on Mark's own wrap (gold halo around the panel) since
+// the actual undock button (⤴) lives INSIDE the wrap and the spotlight
+// z-index (9001) sits below the wrap (9100) — illuminating the button
+// directly would require a wider z-index refactor we'll do if/when needed.
+{
+  id: 'micro-tip-undock',
+  context: 'always',
+  withStatic: false,
+  markAsCompleted: false,
+  onCompleteNext: 'next-tip',
+  steps: [{
+    textKey: 'MARK.TIPS.UNDOCK',
+    targetSelector: '.mark-dialog-wrap',
+    durationMs: 2400
+  }]
+}
+// 5. (Hidden for V1) AI commit — feature still flaky, plus only relevant
+// when a project is open. Re-enable when stable.
+// {
+//   id: 'micro-tip-ai-commit',
+//   context: 'main',
+//   withStatic: false,
+//   markAsCompleted: false,
+//   onCompleteNext: 'next-tip',
+//   steps: [
+//     {
+//       textKey: 'MARK.TIPS.AI_COMMIT',
+//       targetSelector: null,
+//       durationMs: 2400,
+//     },
+//   ],
+// },
+];
+/**
+ * "Nothing more for now" lesson — shown after all micro-tips are exhausted,
+ * cursor wraps to 0 right after.
+ */
+const MICRO_TIPS_DONE = {
+  id: 'micro-tips-done',
+  context: 'always',
+  withStatic: false,
+  markAsCompleted: false,
+  steps: [{
+    textKey: 'MARK.TIPS.DONE',
+    targetSelector: null,
+    durationMs: 2400
+  }]
+};
 
 /***/ }),
 
@@ -7942,6 +8466,16 @@ const WELCOME_TOUR = {
   id: 'welcome-tour',
   context: 'projects-page',
   withStatic: true,
+  // markAsCompleted=false so this lesson can re-appear in the micro-tip
+  // rotation (the spotlight on the 3 cards is documentation worth seeing
+  // again after a while). The "auto-show on first launch" guard uses a
+  // SEPARATE flag (mark.welcomeAutoShown) to avoid replaying it on boot.
+  markAsCompleted: false,
+  // After the user finishes the very-first welcome, hand off to the micro-tip
+  // chain — pressing "Prosegui" on the closing step rolls into pill N of
+  // the suggestions queue (the autostart code bumps nextTipIndex past the
+  // welcome itself so it doesn't replay immediately).
+  onCompleteNext: 'next-tip',
   steps: [{
     textKey: 'MARK.TOUR.WELCOME.INTRO',
     targetSelector: null,
@@ -8010,14 +8544,33 @@ function MarkAssistantComponent_ng_container_3_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵstyleProp"]("top", spot_r2.top + spot_r2.height / 2 - 18, "px")("left", spot_r2.right + 14, "px");
   }
 }
-function MarkAssistantComponent_ng_container_5_button_19_Template(rf, ctx) {
+function MarkAssistantComponent_ng_container_5_button_7_Template(rf, ctx) {
   if (rf & 1) {
-    const _r9 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 26);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_button_19_Template_button_click_0_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r9);
-      const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r8.onUndockClick($event));
+    const _r11 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_button_7_Template_button_click_0_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r11);
+      const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r10.onCloseMiniClick($event));
+    })("mousedown", function MarkAssistantComponent_ng_container_5_button_7_Template_button_mousedown_0_listener($event) {
+      return $event.stopPropagation();
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "\u2715");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](1, 1, "MARK.CLOSE_COMM"));
+  }
+}
+function MarkAssistantComponent_ng_container_5_button_21_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r14 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 29);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_button_21_Template_button_click_0_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r14);
+      const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r13.onUndockClick($event));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](1, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "\u2934");
@@ -8027,50 +8580,104 @@ function MarkAssistantComponent_ng_container_5_button_19_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](1, 1, "MARK.UNDOCK"));
   }
 }
-function MarkAssistantComponent_ng_container_5_button_21_Template(rf, ctx) {
+function MarkAssistantComponent_ng_container_5_button_23_Template(rf, ctx) {
   if (rf & 1) {
-    const _r11 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_button_21_Template_button_click_0_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r11);
-      const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r10.onSkipClick($event));
+    const _r16 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_button_23_Template_button_click_0_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r16);
+      const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r15.onSkipClick($event));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1, "\u2715");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
   }
 }
-function MarkAssistantComponent_ng_container_5_span_32_Template(rf, ctx) {
+function MarkAssistantComponent_ng_container_5_span_34_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "span", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "span", 31);
   }
 }
-function MarkAssistantComponent_ng_container_5_div_35_Template(rf, ctx) {
+function MarkAssistantComponent_ng_container_5_div_37_button_1_span_2_Template(rf, ctx) {
   if (rf & 1) {
-    const _r13 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 29)(1, "span", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "span", 37);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const act_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](act_r19.icon);
+  }
+}
+function MarkAssistantComponent_ng_container_5_div_37_button_1_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r24 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "button", 34);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_div_37_button_1_Template_button_click_0_listener($event) {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r24);
+      const i_r20 = restoredCtx.index;
+      const ctx_r23 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r23.onActionClick(i_r20, $event));
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](1, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](2, MarkAssistantComponent_ng_container_5_div_37_button_1_span_2_Template, 2, 1, "span", 35);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "span", 36);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+  }
+  if (rf & 2) {
+    const act_r19 = ctx.$implicit;
+    const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](1, 3, ctx_r18.isResponding$));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", act_r19.icon);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 5, act_r19.labelKey));
+  }
+}
+function MarkAssistantComponent_ng_container_5_div_37_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_div_37_Template_div_click_0_listener($event) {
+      return $event.stopPropagation();
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](1, MarkAssistantComponent_ng_container_5_div_37_button_1_Template, 6, 7, "button", 33);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const actions_r17 = ctx.ngIf;
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngForOf", actions_r17);
+  }
+}
+function MarkAssistantComponent_ng_container_5_div_39_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r27 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 38)(1, "span", 39);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, ">");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "input", 31);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function MarkAssistantComponent_ng_container_5_div_35_Template_input_ngModelChange_3_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r13);
-      const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r12.userInput = $event);
-    })("keydown.enter", function MarkAssistantComponent_ng_container_5_div_35_Template_input_keydown_enter_3_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r13);
-      const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r14.onSubmitInput($event));
-    })("click", function MarkAssistantComponent_ng_container_5_div_35_Template_input_click_3_listener($event) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "input", 40);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function MarkAssistantComponent_ng_container_5_div_39_Template_input_ngModelChange_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r27);
+      const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r26.userInput = $event);
+    })("keydown.enter", function MarkAssistantComponent_ng_container_5_div_39_Template_input_keydown_enter_3_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r27);
+      const ctx_r28 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r28.onSubmitInput($event));
+    })("click", function MarkAssistantComponent_ng_container_5_div_39_Template_input_click_3_listener($event) {
       return $event.stopPropagation();
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](4, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](6, "button", 32);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_div_35_Template_button_click_6_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r13);
-      const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r16.onSubmitInput($event));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](6, "button", 41);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_div_39_Template_button_click_6_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r27);
+      const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r30.onSubmitInput($event));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](7, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](8, "translate");
@@ -8078,90 +8685,98 @@ function MarkAssistantComponent_ng_container_5_div_35_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx_r7.userInput)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 5, "MARK.INPUT.PLACEHOLDER"))("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 7, ctx_r7.isResponding$));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx_r9.userInput)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 5, "MARK.INPUT.PLACEHOLDER"))("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 7, ctx_r9.isResponding$));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](7, 9, ctx_r7.isResponding$) || !(ctx_r7.userInput == null ? null : ctx_r7.userInput.trim()))("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](8, 11, "MARK.INPUT.SEND"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](7, 9, ctx_r9.isResponding$) || !(ctx_r9.userInput == null ? null : ctx_r9.userInput.trim()))("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](8, 11, "MARK.INPUT.SEND"));
   }
 }
 function MarkAssistantComponent_ng_container_5_Template(rf, ctx) {
   if (rf & 1) {
-    const _r18 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    const _r32 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](0);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](1, "div", 4, 5);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("mousedown", function MarkAssistantComponent_ng_container_5_Template_div_mousedown_1_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r18);
-      const ctx_r17 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r17.onDragStart($event));
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r32);
+      const ctx_r31 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r31.onDragStart($event));
     })("click", function MarkAssistantComponent_ng_container_5_Template_div_click_1_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r18);
-      const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r19.onDialogClick());
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r32);
+      const ctx_r33 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r33.onDialogClick());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](3, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](4, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](6, "div", 6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](7, "div", 7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](8, "div", 8)(9, "div", 9)(10, "div", 10)(11, "div", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](12, "div", 12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](13, "div", 13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](14, "div", 14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](15);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](16, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](7, MarkAssistantComponent_ng_container_5_button_7_Template, 3, 3, "button", 7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](8, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](9, "div", 8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](10, "div", 9)(11, "div", 10)(12, "div", 11)(13, "div", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](14, "div", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](15, "div", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](16, "div", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](18, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](17, "div", 15);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](18, "CH-7.42 MHz");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](19, "div", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](20, "CH-7.42 MHz");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](19, MarkAssistantComponent_ng_container_5_button_19_Template, 3, 3, "button", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](20, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](21, MarkAssistantComponent_ng_container_5_button_21_Template, 2, 0, "button", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](21, MarkAssistantComponent_ng_container_5_button_21_Template, 3, 3, "button", 17);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](22, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](23, MarkAssistantComponent_ng_container_5_button_23_Template, 2, 0, "button", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](24, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](23, "div", 18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](24, "img", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](25, "div", 20)(26, "div", 21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](27, "MARK");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](25, "div", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](26, "img", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](27, "div", 21)(28, "div", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](29, "MARK");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](28, "div", 22);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](29, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](30, "div", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](31, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](32, MarkAssistantComponent_ng_container_5_span_32_Template, 1, 0, "span", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](32);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](33, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](34, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](35, MarkAssistantComponent_ng_container_5_div_35_Template, 10, 13, "div", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](34, MarkAssistantComponent_ng_container_5_span_34_Template, 1, 0, "span", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](35, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](36, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](37, "div", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](37, MarkAssistantComponent_ng_container_5_div_37_Template, 2, 1, "div", 25);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](38, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](39, "\u25BC");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](39, MarkAssistantComponent_ng_container_5_div_39_Template, 10, 13, "div", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](40, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](41, "div", 27);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](42, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](43, "\u25BC");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerEnd"]();
   }
   if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-    let tmp_11_0;
+    let tmp_12_0;
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵstyleProp"]("left", ctx_r1.position == null ? null : ctx_r1.position.left, "px")("top", ctx_r1.position == null ? null : ctx_r1.position.top, "px");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("on", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](3, 22, ctx_r1.state$) === "playing" || _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 24, ctx_r1.state$) === "minimized")("minimized", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 26, ctx_r1.state$) === "minimized")("dragging", ctx_r1.isDragging)("has-custom-position", ctx_r1.position !== null);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](16, 28, "MARK.TRANSMITTING"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("on", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](3, 24, ctx_r1.state$) === "playing" || _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 26, ctx_r1.state$) === "minimized")("minimized", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 28, ctx_r1.state$) === "minimized")("dragging", ctx_r1.isDragging)("has-custom-position", ctx_r1.position !== null);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](8, 30, ctx_r1.state$) === "minimized");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](18, 32, "MARK.TRANSMITTING"));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r1.canUndock && _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](20, 30, ctx_r1.state$) === "playing");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r1.canUndock && _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](22, 34, ctx_r1.state$) === "playing");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](22, 32, ctx_r1.state$) === "playing");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](24, 36, ctx_r1.state$) === "playing");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("static", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](29, 34, ctx_r1.staticMode$));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("static", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](31, 38, ctx_r1.staticMode$));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](31, 36, ctx_r1.text$));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](33, 40, ctx_r1.text$));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](33, 38, ctx_r1.continueArrow$) === false && ((tmp_11_0 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](34, 40, ctx_r1.text$)) == null ? null : tmp_11_0.length) > 0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](35, 42, ctx_r1.continueArrow$) === false && ((tmp_12_0 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](36, 44, ctx_r1.text$)) == null ? null : tmp_12_0.length) > 0);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](36, 42, ctx_r1.state$) === "playing");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](38, 46, ctx_r1.actions$));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("on", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](38, 44, ctx_r1.continueArrow$));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](40, 48, ctx_r1.state$) === "playing");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("on", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](42, 50, ctx_r1.continueArrow$));
   }
 }
 const POSITION_KEY = 'mark.dialog.position';
@@ -8206,6 +8821,7 @@ class MarkAssistantComponent {
     this.continueArrow$ = this.mark.continueArrow$;
     this.isResponding$ = this.mark.isResponding$;
     this.isUndocked$ = this.mark.isUndocked$;
+    this.actions$ = this.mark.actions$;
     this.canUndock = this.mark.canUndock;
     this.loadPosition();
   }
@@ -8219,14 +8835,22 @@ class MarkAssistantComponent {
   }
   onDialogClick() {
     // Suppress the click if a drag just happened — otherwise dragging the
-    // minimized badge would always re-launch the tour.
+    // minimized badge would always re-summon Mark.
     if (this.dragMoveDistance > DRAG_CLICK_THRESHOLD) {
       this.dragMoveDistance = 0;
       return;
     }
+    // Click on the minimized icon → open the idle menu (the action chooser),
+    // NOT a replay of the welcome tour. The welcome tour is reserved to the
+    // very-first launch; re-running it on click would feel "stuck on rewind".
     if (this.mark.currentState === 'minimized') {
-      this.mark.launch('welcome-tour');
+      this.mark.openMenu();
     }
+  }
+  /** Tiny X button on the minimized icon → dismiss Mark entirely. */
+  onCloseMiniClick(event) {
+    event.stopPropagation();
+    this.mark.hide();
   }
   onSkipClick(event) {
     event.stopPropagation();
@@ -8241,6 +8865,14 @@ class MarkAssistantComponent {
       if (!text || !text.trim()) return;
       _this.userInput = '';
       yield _this.mark.submitUserInput(text);
+    })();
+  }
+  /** User clicked one of the action buttons exposed by the current step. */
+  onActionClick(index, event) {
+    var _this2 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      event.stopPropagation();
+      yield _this2.mark.submitAction(index);
     })();
   }
   // ── Drag and drop ────────────────────────────────────────────────────────
@@ -8330,7 +8962,7 @@ class MarkAssistantComponent {
       },
       decls: 7,
       vars: 12,
-      consts: [[1, "mark-dim"], [4, "ngIf"], [1, "mark-spotlight"], [1, "mark-pointer"], [1, "mark-dialog-wrap", 3, "mousedown", "click"], ["wrapRef", ""], [1, "antenna"], [1, "mark-dialog-box"], [1, "rivet", "rivet-tl"], [1, "rivet", "rivet-tr"], [1, "rivet", "rivet-bl"], [1, "rivet", "rivet-br"], [1, "led-area"], [1, "led"], [1, "led-label"], [1, "freq-display"], ["class", "skip-btn undock-btn", 3, "title", "click", 4, "ngIf"], ["class", "skip-btn", "title", "Skip", 3, "click", 4, "ngIf"], [1, "dialog-content"], ["src", "/assets/mark.png", "alt", "Mark", "draggable", "false", 1, "face-portrait"], [1, "dialog-text-area"], [1, "dialog-name"], [1, "dialog-text"], ["class", "cursor", 4, "ngIf"], ["class", "user-input-area", 4, "ngIf"], [1, "continue-arrow"], [1, "skip-btn", "undock-btn", 3, "title", "click"], ["title", "Skip", 1, "skip-btn", 3, "click"], [1, "cursor"], [1, "user-input-area"], [1, "prompt-prefix"], ["type", "text", "autocomplete", "off", "spellcheck", "false", "aria-label", "Mark input", 1, "user-input", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter", "click"], ["type", "button", 1, "send-btn", 3, "disabled", "title", "click"]],
+      consts: [[1, "mark-dim"], [4, "ngIf"], [1, "mark-spotlight"], [1, "mark-pointer"], [1, "mark-dialog-wrap", 3, "mousedown", "click"], ["wrapRef", ""], [1, "antenna"], ["class", "close-mini", 3, "title", "click", "mousedown", 4, "ngIf"], [1, "mark-dialog-box"], [1, "rivet", "rivet-tl"], [1, "rivet", "rivet-tr"], [1, "rivet", "rivet-bl"], [1, "rivet", "rivet-br"], [1, "led-area"], [1, "led"], [1, "led-label"], [1, "freq-display"], ["class", "skip-btn undock-btn", 3, "title", "click", 4, "ngIf"], ["class", "skip-btn", "title", "Skip", 3, "click", 4, "ngIf"], [1, "dialog-content"], ["src", "/assets/mark.png", "alt", "Mark", "draggable", "false", 1, "face-portrait"], [1, "dialog-text-area"], [1, "dialog-name"], [1, "dialog-text"], ["class", "cursor", 4, "ngIf"], ["class", "user-actions-area", 3, "click", 4, "ngIf"], ["class", "user-input-area", 4, "ngIf"], [1, "continue-arrow"], [1, "close-mini", 3, "title", "click", "mousedown"], [1, "skip-btn", "undock-btn", 3, "title", "click"], ["title", "Skip", 1, "skip-btn", 3, "click"], [1, "cursor"], [1, "user-actions-area", 3, "click"], ["type", "button", "class", "action-btn", 3, "disabled", "click", 4, "ngFor", "ngForOf"], ["type", "button", 1, "action-btn", 3, "disabled", "click"], ["class", "action-icon", 4, "ngIf"], [1, "action-label"], [1, "action-icon"], [1, "user-input-area"], [1, "prompt-prefix"], ["type", "text", "autocomplete", "off", "spellcheck", "false", "aria-label", "Mark input", 1, "user-input", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter", "click"], ["type", "button", 1, "send-btn", 3, "disabled", "title", "click"]],
       template: function MarkAssistantComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "div", 0);
@@ -8338,7 +8970,7 @@ class MarkAssistantComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "async");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](3, MarkAssistantComponent_ng_container_3_Template, 4, 12, "ng-container", 1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](4, "async");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](5, MarkAssistantComponent_ng_container_5_Template, 40, 46, "ng-container", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](5, MarkAssistantComponent_ng_container_5_Template, 44, 52, "ng-container", 1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](6, "async");
         }
         if (rf & 2) {
@@ -8349,8 +8981,8 @@ class MarkAssistantComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", !_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](6, 10, ctx.isUndocked$));
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_3__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgModel, _angular_common__WEBPACK_IMPORTED_MODULE_3__.AsyncPipe, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslatePipe],
-      styles: ["@import url(https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap);[_nghost-%COMP%] {\n  display: contents;\n}\n\n.mark-dim[_ngcontent-%COMP%] {\n  position: fixed;\n  inset: 0;\n  background: rgba(8, 12, 24, 0.78);\n  opacity: 0;\n  transition: opacity 0.6s ease;\n  pointer-events: none;\n  z-index: 9000;\n}\n.mark-dim.on[_ngcontent-%COMP%] {\n  opacity: 1;\n}\n\n.mark-spotlight[_ngcontent-%COMP%] {\n  position: fixed;\n  pointer-events: none;\n  z-index: 9001;\n  border-radius: 14px;\n  background: transparent;\n  border: 3px solid #FFD700;\n  box-shadow: 0 0 0 9999px rgba(8, 12, 24, 0.78);\n  transition: top 0.55s ease, left 0.55s ease, width 0.55s ease, height 0.55s ease;\n  animation: _ngcontent-%COMP%_mark-blink-border 0.6s steps(2) infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-blink-border {\n  0% {\n    border-color: #FFD700;\n  }\n  50% {\n    border-color: #fff8b0;\n  }\n  100% {\n    border-color: #FFD700;\n  }\n}\n.mark-pointer[_ngcontent-%COMP%] {\n  position: fixed;\n  z-index: 9002;\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 28px;\n  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8), 2px 2px 0 #000;\n  transition: top 0.55s ease, left 0.55s ease;\n  animation: _ngcontent-%COMP%_mark-arrow-bounce 0.5s steps(2) infinite;\n  pointer-events: none;\n}\n\n@keyframes _ngcontent-%COMP%_mark-arrow-bounce {\n  0%, 100% {\n    transform: translateX(0);\n  }\n  50% {\n    transform: translateX(-6px);\n  }\n}\n.mark-dialog-wrap[_ngcontent-%COMP%] {\n  position: fixed;\n  bottom: 32px;\n  right: 32px;\n  z-index: 9100;\n  width: 540px;\n  transform: translateY(140%);\n  transition: transform 0.55s cubic-bezier(0.25, 1.5, 0.5, 1), bottom 0.6s ease, right 0.6s ease, width 0.6s ease;\n  pointer-events: none;\n}\n.mark-dialog-wrap.on[_ngcontent-%COMP%] {\n  transform: translateY(0);\n  pointer-events: auto;\n}\n.mark-dialog-wrap.has-custom-position[_ngcontent-%COMP%] {\n  bottom: auto;\n  right: auto;\n  transition: transform 0.55s cubic-bezier(0.25, 1.5, 0.5, 1), width 0.6s ease;\n}\n.mark-dialog-wrap.dragging[_ngcontent-%COMP%] {\n  cursor: grabbing;\n  -webkit-user-select: none;\n          user-select: none;\n  transition: none;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%] {\n  width: 96px;\n  bottom: 24px;\n  right: 24px;\n  cursor: grab;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .dialog-text-area[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .led-area[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .antenna[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .continue-arrow[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .user-input-area[_ngcontent-%COMP%] {\n  display: none;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .mark-dialog-box[_ngcontent-%COMP%] {\n  padding: 8px;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .face-portrait[_ngcontent-%COMP%] {\n  width: 80px;\n  height: 80px;\n}\n\n.mark-dialog-box[_ngcontent-%COMP%] {\n  cursor: grab;\n}\n.mark-dialog-box[_ngcontent-%COMP%]   input[_ngcontent-%COMP%], .mark-dialog-box[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  cursor: auto;\n}\n.mark-dialog-box[_ngcontent-%COMP%]   input[_ngcontent-%COMP%] {\n  cursor: text;\n}\n.mark-dialog-box[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]:not(:disabled) {\n  cursor: pointer;\n}\n\n.mark-dialog-wrap.dragging[_ngcontent-%COMP%]   .mark-dialog-box[_ngcontent-%COMP%] {\n  cursor: grabbing;\n}\n\n.antenna[_ngcontent-%COMP%] {\n  position: absolute;\n  top: -28px;\n  right: 24px;\n  width: 4px;\n  height: 28px;\n  background: #c0c0c0;\n  box-shadow: 2px 0 0 #888, -2px 0 0 #f0f0f0;\n}\n.antenna[_ngcontent-%COMP%]::after {\n  content: \"\";\n  position: absolute;\n  top: -8px;\n  left: -4px;\n  width: 12px;\n  height: 8px;\n  background: #FF3B3B;\n  border: 2px solid #1a1a1a;\n  box-shadow: 0 0 12px rgba(255, 59, 59, 0.9);\n  animation: _ngcontent-%COMP%_mark-antenna-blink 1s steps(2) infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-antenna-blink {\n  0%, 100% {\n    background: #FF3B3B;\n    box-shadow: 0 0 14px rgba(255, 59, 59, 0.9);\n  }\n  50% {\n    background: #5a0000;\n    box-shadow: 0 0 4px rgba(255, 59, 59, 0.3);\n  }\n}\n.mark-dialog-box[_ngcontent-%COMP%] {\n  position: relative;\n  background: linear-gradient(180deg, #0d2755 0%, #08183b 100%);\n  border: 4px solid #1a1a1a;\n  box-shadow: inset 0 0 0 2px #FFD700, inset 0 0 0 5px #08183b, inset 0 0 0 7px #c0c0c0, inset 0 0 0 9px #1a1a1a, 0 8px 0 0 #000, 0 12px 30px rgba(0, 0, 0, 0.4);\n  padding: 18px 22px 22px 22px;\n  color: white;\n  image-rendering: pixelated;\n}\n\n.rivet[_ngcontent-%COMP%] {\n  position: absolute;\n  width: 8px;\n  height: 8px;\n  background: radial-gradient(circle at 30% 30%, #fff 10%, #888 60%, #2a2a2a 100%);\n  border-radius: 50%;\n  z-index: 2;\n}\n.rivet.rivet-tl[_ngcontent-%COMP%] {\n  top: 6px;\n  left: 6px;\n}\n.rivet.rivet-tr[_ngcontent-%COMP%] {\n  top: 6px;\n  right: 6px;\n}\n.rivet.rivet-bl[_ngcontent-%COMP%] {\n  bottom: 6px;\n  left: 6px;\n}\n.rivet.rivet-br[_ngcontent-%COMP%] {\n  bottom: 6px;\n  right: 6px;\n}\n\n.led-area[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n  padding-left: 4px;\n}\n\n.led[_ngcontent-%COMP%] {\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: #00ff66;\n  box-shadow: 0 0 10px rgba(0, 255, 102, 0.9), inset 0 0 3px rgba(255, 255, 255, 0.6);\n  animation: _ngcontent-%COMP%_mark-led-pulse 1.2s ease-in-out infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-led-pulse {\n  0%, 100% {\n    opacity: 1;\n  }\n  50% {\n    opacity: 0.4;\n  }\n}\n.led-label[_ngcontent-%COMP%] {\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 8px;\n  color: #00ff66;\n  letter-spacing: 1px;\n  white-space: nowrap;\n}\n\n.freq-display[_ngcontent-%COMP%] {\n  margin-left: auto;\n  font-family: \"VT323\", monospace;\n  font-size: 16px;\n  color: #FFD700;\n  letter-spacing: 1px;\n}\n\n.skip-btn[_ngcontent-%COMP%] {\n  background: transparent;\n  border: 2px solid #FFD700;\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 8px;\n  padding: 4px 6px;\n  cursor: pointer;\n  margin-left: 8px;\n}\n.skip-btn[_ngcontent-%COMP%]:hover {\n  background: #FFD700;\n  color: #1a1a1a;\n}\n\n.dialog-content[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 18px;\n  align-items: flex-start;\n}\n\n.face-portrait[_ngcontent-%COMP%] {\n  width: 128px;\n  height: 128px;\n  background: #000;\n  border: 3px solid #FFD700;\n  box-shadow: inset 0 0 0 1px #000, 0 0 12px rgba(255, 215, 0, 0.3);\n  flex-shrink: 0;\n  display: block;\n  image-rendering: pixelated;\n  -ms-interpolation-mode: nearest-neighbor;\n  object-fit: cover;\n  -webkit-user-select: none;\n          user-select: none;\n}\n\n.dialog-text-area[_ngcontent-%COMP%] {\n  flex: 1;\n  min-width: 0;\n  padding-top: 2px;\n}\n\n.dialog-name[_ngcontent-%COMP%] {\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 12px;\n  color: #FFD700;\n  margin-bottom: 8px;\n  text-shadow: 2px 2px 0 #000;\n  letter-spacing: 1px;\n}\n\n.dialog-text[_ngcontent-%COMP%] {\n  font-family: \"VT323\", monospace;\n  font-size: 22px;\n  line-height: 1.25;\n  color: #fff;\n  text-shadow: 1px 1px 0 #000;\n  min-height: 56px;\n}\n.dialog-text.static[_ngcontent-%COMP%] {\n  color: #888;\n  font-style: italic;\n}\n\n.cursor[_ngcontent-%COMP%] {\n  display: inline-block;\n  width: 10px;\n  height: 18px;\n  background: #FFD700;\n  margin-left: 2px;\n  vertical-align: -2px;\n  animation: _ngcontent-%COMP%_mark-cursor-blink 0.4s steps(2) infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-cursor-blink {\n  0%, 100% {\n    opacity: 1;\n  }\n  50% {\n    opacity: 0;\n  }\n}\n.continue-arrow[_ngcontent-%COMP%] {\n  position: absolute;\n  bottom: 14px;\n  right: 24px;\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 14px;\n  text-shadow: 2px 2px 0 #000;\n  opacity: 0;\n  animation: _ngcontent-%COMP%_mark-arrow-blink 0.6s steps(2) infinite;\n}\n.continue-arrow.on[_ngcontent-%COMP%] {\n  opacity: 1;\n}\n\n@keyframes _ngcontent-%COMP%_mark-arrow-blink {\n  0%, 100% {\n    transform: translateY(0);\n  }\n  50% {\n    transform: translateY(3px);\n  }\n}\n.user-input-area[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-top: 12px;\n  padding: 6px 8px;\n  background: #050d22;\n  border: 2px solid #FFD700;\n  box-shadow: inset 0 0 0 1px #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .prompt-prefix[_ngcontent-%COMP%] {\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 12px;\n  margin-left: 2px;\n  text-shadow: 1px 1px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .user-input[_ngcontent-%COMP%] {\n  flex: 1;\n  min-width: 0;\n  background: transparent;\n  border: none;\n  outline: none;\n  color: #fff8b0;\n  font-family: \"VT323\", monospace;\n  font-size: 18px;\n  letter-spacing: 0.5px;\n  padding: 4px 6px;\n  caret-color: #FFD700;\n}\n.user-input-area[_ngcontent-%COMP%]   .user-input[_ngcontent-%COMP%]::placeholder {\n  color: #6a7a99;\n  font-style: italic;\n}\n.user-input-area[_ngcontent-%COMP%]   .user-input[_ngcontent-%COMP%]:disabled {\n  color: #555;\n  cursor: not-allowed;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%] {\n  background: #FFD700;\n  color: #1a1a1a;\n  border: 2px solid #1a1a1a;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 10px;\n  padding: 4px 8px;\n  cursor: pointer;\n  min-width: 32px;\n  box-shadow: 2px 2px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%]:hover:not(:disabled) {\n  background: #fff8b0;\n  transform: translate(-1px, -1px);\n  box-shadow: 3px 3px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%]:active:not(:disabled) {\n  transform: translate(1px, 1px);\n  box-shadow: 1px 1px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%]:disabled {\n  background: #555;\n  color: #888;\n  cursor: not-allowed;\n  box-shadow: 2px 2px 0 #000;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWFyay1hc3Npc3RhbnQvbWFyay1hc3Npc3RhbnQuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBT0E7RUFFRSxpQkFBQTtBQU5GOztBQVVBO0VBQ0UsZUFBQTtFQUNBLFFBQUE7RUFDQSxpQ0FBQTtFQUNBLFVBQUE7RUFDQSw2QkFBQTtFQUNBLG9CQUFBO0VBQ0EsYUFBQTtBQVBGO0FBUUU7RUFBTyxVQUFBO0FBTFQ7O0FBWUE7RUFDRSxlQUFBO0VBQ0Esb0JBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLHlCQUFBO0VBQ0EsOENBQUE7RUFDQSxnRkFDRTtFQUNGLG1EQUFBO0FBVkY7O0FBWUE7RUFDRTtJQUFPLHFCQUFBO0VBUlA7RUFTQTtJQUFPLHFCQUFBO0VBTlA7RUFPQTtJQUFPLHFCQUFBO0VBSlA7QUFDRjtBQU1BO0VBQ0UsZUFBQTtFQUNBLGFBQUE7RUFDQSxjQUFBO0VBQ0Esd0NBQUE7RUFDQSxlQUFBO0VBQ0EsMkRBQUE7RUFDQSwyQ0FBQTtFQUNBLG1EQUFBO0VBQ0Esb0JBQUE7QUFKRjs7QUFNQTtFQUNFO0lBQVcsd0JBQUE7RUFGWDtFQUdBO0lBQVcsMkJBQUE7RUFBWDtBQUNGO0FBR0E7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0EsWUFBQTtFQUNBLDJCQUFBO0VBQ0EsK0dBQ0U7RUFJRixvQkFBQTtBQUxGO0FBT0U7RUFDRSx3QkFBQTtFQUNBLG9CQUFBO0FBTEo7QUFXRTtFQUNFLFlBQUE7RUFDQSxXQUFBO0VBRUEsNEVBQ0U7QUFYTjtBQWVFO0VBQ0UsZ0JBQUE7RUFDQSx5QkFBQTtVQUFBLGlCQUFBO0VBQ0EsZ0JBQUE7QUFiSjtBQWdCRTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7QUFkSjtBQWdCSTs7Ozs7RUFLRSxhQUFBO0FBZE47QUFnQkk7RUFDRSxZQUFBO0FBZE47QUFnQkk7RUFDRSxXQUFBO0VBQ0EsWUFBQTtBQWROOztBQXFCQTtFQUNFLFlBQUE7QUFsQkY7QUFvQkU7RUFDRSxZQUFBO0FBbEJKO0FBb0JFO0VBQVEsWUFBQTtBQWpCVjtBQWtCRTtFQUF3QixlQUFBO0FBZjFCOztBQWlCQTtFQUNFLGdCQUFBO0FBZEY7O0FBa0JBO0VBQ0Usa0JBQUE7RUFDQSxVQUFBO0VBQ0EsV0FBQTtFQUNBLFVBQUE7RUFDQSxZQUFBO0VBQ0EsbUJBQUE7RUFDQSwwQ0FBQTtBQWZGO0FBaUJFO0VBQ0UsV0FBQTtFQUNBLGtCQUFBO0VBQ0EsU0FBQTtFQUNBLFVBQUE7RUFDQSxXQUFBO0VBQ0EsV0FBQTtFQUNBLG1CQUFBO0VBQ0EseUJBQUE7RUFDQSwyQ0FBQTtFQUNBLGtEQUFBO0FBZko7O0FBa0JBO0VBQ0U7SUFBVyxtQkFBQTtJQUFxQiwyQ0FBQTtFQWJoQztFQWNBO0lBQVcsbUJBQUE7SUFBcUIsMENBQUE7RUFWaEM7QUFDRjtBQWFBO0VBQ0Usa0JBQUE7RUFDQSw2REFBQTtFQUNBLHlCQUFBO0VBQ0EsOEpBQ0U7RUFNRiw0QkFBQTtFQUNBLFlBQUE7RUFDQSwwQkFBQTtBQWpCRjs7QUFvQkE7RUFDRSxrQkFBQTtFQUNBLFVBQUE7RUFDQSxXQUFBO0VBQ0EsZ0ZBQUE7RUFDQSxrQkFBQTtFQUNBLFVBQUE7QUFqQkY7QUFrQkU7RUFBYSxRQUFBO0VBQVUsU0FBQTtBQWR6QjtBQWVFO0VBQWEsUUFBQTtFQUFVLFVBQUE7QUFYekI7QUFZRTtFQUFhLFdBQUE7RUFBYSxTQUFBO0FBUjVCO0FBU0U7RUFBYSxXQUFBO0VBQWEsVUFBQTtBQUw1Qjs7QUFTQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxtQkFBQTtFQUNBLGlCQUFBO0FBTkY7O0FBU0E7RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGtCQUFBO0VBQ0EsbUJBQUE7RUFDQSxtRkFBQTtFQUNBLG1EQUFBO0FBTkY7O0FBUUE7RUFDRTtJQUFXLFVBQUE7RUFKWDtFQUtBO0lBQVcsWUFBQTtFQUZYO0FBQ0Y7QUFJQTtFQUNFLHdDQUFBO0VBQ0EsY0FBQTtFQUNBLGNBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0FBRkY7O0FBS0E7RUFDRSxpQkFBQTtFQUNBLCtCQUFBO0VBQ0EsZUFBQTtFQUNBLGNBQUE7RUFDQSxtQkFBQTtBQUZGOztBQUtBO0VBQ0UsdUJBQUE7RUFDQSx5QkFBQTtFQUNBLGNBQUE7RUFDQSx3Q0FBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtBQUZGO0FBR0U7RUFBVSxtQkFBQTtFQUFxQixjQUFBO0FBQ2pDOztBQUdBO0VBQ0UsYUFBQTtFQUNBLFNBQUE7RUFDQSx1QkFBQTtBQUFGOztBQUdBO0VBQ0UsWUFBQTtFQUNBLGFBQUE7RUFDQSxnQkFBQTtFQUNBLHlCQUFBO0VBQ0EsaUVBQUE7RUFDQSxjQUFBO0VBQ0EsY0FBQTtFQUVBLDBCQUFBO0VBQ0Esd0NBQUE7RUFDQSxpQkFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7QUFERjs7QUFJQTtFQUNFLE9BQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7QUFERjs7QUFJQTtFQUNFLHdDQUFBO0VBQ0EsZUFBQTtFQUNBLGNBQUE7RUFDQSxrQkFBQTtFQUNBLDJCQUFBO0VBQ0EsbUJBQUE7QUFERjs7QUFJQTtFQUNFLCtCQUFBO0VBQ0EsZUFBQTtFQUNBLGlCQUFBO0VBQ0EsV0FBQTtFQUNBLDJCQUFBO0VBQ0EsZ0JBQUE7QUFERjtBQUdFO0VBQ0UsV0FBQTtFQUNBLGtCQUFBO0FBREo7O0FBS0E7RUFDRSxxQkFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsbUJBQUE7RUFDQSxnQkFBQTtFQUNBLG9CQUFBO0VBQ0EsbURBQUE7QUFGRjs7QUFJQTtFQUNFO0lBQVcsVUFBQTtFQUFYO0VBQ0E7SUFBVyxVQUFBO0VBRVg7QUFDRjtBQUFBO0VBQ0Usa0JBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLGNBQUE7RUFDQSx3Q0FBQTtFQUNBLGVBQUE7RUFDQSwyQkFBQTtFQUNBLFVBQUE7RUFDQSxrREFBQTtBQUVGO0FBQUU7RUFBTyxVQUFBO0FBR1Q7O0FBREE7RUFDRTtJQUFXLHdCQUFBO0VBS1g7RUFKQTtJQUFXLDBCQUFBO0VBT1g7QUFDRjtBQURBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxtQkFBQTtFQUNBLHlCQUFBO0VBQ0EsZ0NBQUE7QUFHRjtBQURFO0VBQ0UsY0FBQTtFQUNBLHdDQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0VBQ0EsMkJBQUE7QUFHSjtBQUFFO0VBQ0UsT0FBQTtFQUNBLFlBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSxhQUFBO0VBQ0EsY0FBQTtFQUNBLCtCQUFBO0VBQ0EsZUFBQTtFQUNBLHFCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxvQkFBQTtBQUVKO0FBQUk7RUFDRSxjQUFBO0VBQ0Esa0JBQUE7QUFFTjtBQUNJO0VBQ0UsV0FBQTtFQUNBLG1CQUFBO0FBQ047QUFHRTtFQUNFLG1CQUFBO0VBQ0EsY0FBQTtFQUNBLHlCQUFBO0VBQ0Esd0NBQUE7RUFDQSxlQUFBO0VBQ0EsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsZUFBQTtFQUNBLDBCQUFBO0FBREo7QUFHSTtFQUNFLG1CQUFBO0VBQ0EsZ0NBQUE7RUFDQSwwQkFBQTtBQUROO0FBSUk7RUFDRSw4QkFBQTtFQUNBLDBCQUFBO0FBRk47QUFLSTtFQUNFLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLG1CQUFBO0VBQ0EsMEJBQUE7QUFITiIsInNvdXJjZXNDb250ZW50IjpbIkBpbXBvcnQgdXJsKCdodHRwczovL2ZvbnRzLmdvb2dsZWFwaXMuY29tL2NzczI/ZmFtaWx5PVByZXNzK1N0YXJ0KzJQJmZhbWlseT1WVDMyMyZkaXNwbGF5PXN3YXAnKTtcblxuLy8gPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT1cbi8vIE1hcmsgQXNzaXN0YW50IMOiwoDClCBOZW8tR2VvIHJhZGlvIHBhbmVsICjDjsKyIEtPRiBwYWxldHRlKVxuLy8gUG9ydGVkIGZyb20gZG9jcy1pbnRlcm5hbC9tYXJrLWFzc2lzdGFudC9wcm90b3R5cGUtdjAuaHRtbFxuLy8gPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT1cblxuOmhvc3Qge1xuICAvLyBDb21wb25lbnQgaXMgYSBwb3NpdGlvbmVkIG92ZXJsYXk7IG5vdGhpbmcgaGVyZSByZW5kZXJzIGlubGluZVxuICBkaXNwbGF5OiBjb250ZW50cztcbn1cblxuLy8gw6LClMKAw6LClMKAIERpbSBvdmVybGF5IMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgFxuLm1hcmstZGltIHtcbiAgcG9zaXRpb246IGZpeGVkO1xuICBpbnNldDogMDtcbiAgYmFja2dyb3VuZDogcmdiYSg4LCAxMiwgMjQsIDAuNzgpO1xuICBvcGFjaXR5OiAwO1xuICB0cmFuc2l0aW9uOiBvcGFjaXR5IDAuNnMgZWFzZTtcbiAgcG9pbnRlci1ldmVudHM6IG5vbmU7XG4gIHotaW5kZXg6IDkwMDA7XG4gICYub24geyBvcGFjaXR5OiAxOyB9XG59XG5cbi8vIMOiwpTCgMOiwpTCgCBTcG90bGlnaHQgKGJvcmRlciBhcm91bmQgdGFyZ2V0KSDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcbi8vIE91dGVyIGRpbSBpcyBkcmF3biBoZXJlIHZpYSBhIGh1Z2UgYm94LXNoYWRvdyBzcHJlYWQgc28gdGhlIGluc2lkZVxuLy8gb2YgdGhlIGJveCBzdGF5cyBmdWxseSB0cmFuc3BhcmVudCDDosKAwpQgdGhlIGhpZ2hsaWdodGVkIGNhcmQgc2hvd3MgYXRcbi8vIGl0cyByZWFsIGNvbG9ycyAobGlnaHQgb3IgZGFyayBtb2RlKSwgbm8geWVsbG93IGhhbG8sIG5vIGRvdWJsZSBkaW0uXG4ubWFyay1zcG90bGlnaHQge1xuICBwb3NpdGlvbjogZml4ZWQ7XG4gIHBvaW50ZXItZXZlbnRzOiBub25lO1xuICB6LWluZGV4OiA5MDAxO1xuICBib3JkZXItcmFkaXVzOiAxNHB4O1xuICBiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcbiAgYm9yZGVyOiAzcHggc29saWQgI0ZGRDcwMDtcbiAgYm94LXNoYWRvdzogMCAwIDAgOTk5OXB4IHJnYmEoOCwgMTIsIDI0LCAwLjc4KTtcbiAgdHJhbnNpdGlvbjpcbiAgICB0b3AgLjU1cyBlYXNlLCBsZWZ0IC41NXMgZWFzZSwgd2lkdGggLjU1cyBlYXNlLCBoZWlnaHQgLjU1cyBlYXNlO1xuICBhbmltYXRpb246IG1hcmstYmxpbmstYm9yZGVyIDAuNnMgc3RlcHMoMikgaW5maW5pdGU7XG59XG5Aa2V5ZnJhbWVzIG1hcmstYmxpbmstYm9yZGVyIHtcbiAgMCUgICB7IGJvcmRlci1jb2xvcjogI0ZGRDcwMDsgfVxuICA1MCUgIHsgYm9yZGVyLWNvbG9yOiAjZmZmOGIwOyB9XG4gIDEwMCUgeyBib3JkZXItY29sb3I6ICNGRkQ3MDA7IH1cbn1cblxuLm1hcmstcG9pbnRlciB7XG4gIHBvc2l0aW9uOiBmaXhlZDtcbiAgei1pbmRleDogOTAwMjtcbiAgY29sb3I6ICNGRkQ3MDA7XG4gIGZvbnQtZmFtaWx5OiAnUHJlc3MgU3RhcnQgMlAnLCBtb25vc3BhY2U7XG4gIGZvbnQtc2l6ZTogMjhweDtcbiAgdGV4dC1zaGFkb3c6IDAgMCA4cHggcmdiYSgyNTUsIDIxNSwgMCwgMC44KSwgMnB4IDJweCAwICMwMDA7XG4gIHRyYW5zaXRpb246IHRvcCAuNTVzIGVhc2UsIGxlZnQgLjU1cyBlYXNlO1xuICBhbmltYXRpb246IG1hcmstYXJyb3ctYm91bmNlIDAuNXMgc3RlcHMoMikgaW5maW5pdGU7XG4gIHBvaW50ZXItZXZlbnRzOiBub25lO1xufVxuQGtleWZyYW1lcyBtYXJrLWFycm93LWJvdW5jZSB7XG4gIDAlLCAxMDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVYKDApOyB9XG4gIDUwJSAgICAgIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVYKC02cHgpOyB9XG59XG5cbi8vIMOiwpTCgMOiwpTCgCBEaWFsb2cgd3JhcHBlciAoc2xpZGUtaW4gY29udGFpbmVyKSDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcbi5tYXJrLWRpYWxvZy13cmFwIHtcbiAgcG9zaXRpb246IGZpeGVkO1xuICBib3R0b206IDMycHg7XG4gIHJpZ2h0OiAzMnB4O1xuICB6LWluZGV4OiA5MTAwO1xuICB3aWR0aDogNTQwcHg7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgxNDAlKTtcbiAgdHJhbnNpdGlvbjpcbiAgICB0cmFuc2Zvcm0gLjU1cyBjdWJpYy1iZXppZXIoLjI1LCAxLjUsIC41LCAxKSxcbiAgICBib3R0b20gLjZzIGVhc2UsXG4gICAgcmlnaHQgLjZzIGVhc2UsXG4gICAgd2lkdGggLjZzIGVhc2U7XG4gIHBvaW50ZXItZXZlbnRzOiBub25lO1xuXG4gICYub24ge1xuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTtcbiAgICBwb2ludGVyLWV2ZW50czogYXV0bztcbiAgfVxuXG4gIC8vIFdoZW4gdGhlIHVzZXIgaGFzIGRyYWdnZWQgdGhlIGRpYWxvZyB0byBhIGN1c3RvbSBwb3NpdGlvbiwgdG9wL2xlZnRcbiAgLy8gKHNldCBpbmxpbmUgYXMgW3N0eWxlLnRvcC5weF0vW3N0eWxlLmxlZnQucHhdKSB0YWtlIG92ZXIgYW5kIHdlXG4gIC8vIG5ldXRyYWxpemUgdGhlIGRlZmF1bHQgYm90dG9tL3JpZ2h0IGFuY2hvcnMuXG4gICYuaGFzLWN1c3RvbS1wb3NpdGlvbiB7XG4gICAgYm90dG9tOiBhdXRvO1xuICAgIHJpZ2h0OiBhdXRvO1xuICAgIC8vIGFsc28gc21vb3RoIHBvc2l0aW9uIHRyYW5zaXRpb25zIGRpc2FibGVkIGZvciBzbmFwcHkgZm9sbG93IGR1cmluZyBkcmFnXG4gICAgdHJhbnNpdGlvbjpcbiAgICAgIHRyYW5zZm9ybSAuNTVzIGN1YmljLWJlemllciguMjUsIDEuNSwgLjUsIDEpLFxuICAgICAgd2lkdGggLjZzIGVhc2U7XG4gIH1cblxuICAmLmRyYWdnaW5nIHtcbiAgICBjdXJzb3I6IGdyYWJiaW5nO1xuICAgIHVzZXItc2VsZWN0OiBub25lO1xuICAgIHRyYW5zaXRpb246IG5vbmU7ICAgICAvLyBzbmFwIHRvIG1vdXNlLCBubyBlYXNpbmcgZHVyaW5nIGFjdGl2ZSBkcmFnXG4gIH1cblxuICAmLm1pbmltaXplZCB7XG4gICAgd2lkdGg6IDk2cHg7XG4gICAgYm90dG9tOiAyNHB4O1xuICAgIHJpZ2h0OiAyNHB4O1xuICAgIGN1cnNvcjogZ3JhYjtcblxuICAgIC5kaWFsb2ctdGV4dC1hcmVhLFxuICAgIC5sZWQtYXJlYSxcbiAgICAuYW50ZW5uYSxcbiAgICAuY29udGludWUtYXJyb3csXG4gICAgLnVzZXItaW5wdXQtYXJlYSB7XG4gICAgICBkaXNwbGF5OiBub25lO1xuICAgIH1cbiAgICAubWFyay1kaWFsb2ctYm94IHtcbiAgICAgIHBhZGRpbmc6IDhweDtcbiAgICB9XG4gICAgLmZhY2UtcG9ydHJhaXQge1xuICAgICAgd2lkdGg6IDgwcHg7XG4gICAgICBoZWlnaHQ6IDgwcHg7XG4gICAgfVxuICB9XG59XG5cbi8vIERlZmF1bHQgY3Vyc29yIG9uIHRoZSBib3ggaXRzZWxmOiBncmFiIMOiwoDClCBzaWduYWxzIGRyYWdnYWJpbGl0eS5cbi8vIEludGVyYWN0aXZlIGNoaWxkcmVuIChpbnB1dCwgYnV0dG9ucykgcmVzdG9yZSB0aGVpciBvd24gY3Vyc29yIGJlbG93LlxuLm1hcmstZGlhbG9nLWJveCB7XG4gIGN1cnNvcjogZ3JhYjtcblxuICBpbnB1dCwgYnV0dG9uIHtcbiAgICBjdXJzb3I6IGF1dG87XG4gIH1cbiAgaW5wdXQgeyBjdXJzb3I6IHRleHQ7IH1cbiAgYnV0dG9uOm5vdCg6ZGlzYWJsZWQpIHsgY3Vyc29yOiBwb2ludGVyOyB9XG59XG4ubWFyay1kaWFsb2ctd3JhcC5kcmFnZ2luZyAubWFyay1kaWFsb2ctYm94IHtcbiAgY3Vyc29yOiBncmFiYmluZztcbn1cblxuLy8gw6LClMKAw6LClMKAIEFudGVubmEgw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAXG4uYW50ZW5uYSB7XG4gIHBvc2l0aW9uOiBhYnNvbHV0ZTtcbiAgdG9wOiAtMjhweDtcbiAgcmlnaHQ6IDI0cHg7XG4gIHdpZHRoOiA0cHg7XG4gIGhlaWdodDogMjhweDtcbiAgYmFja2dyb3VuZDogI2MwYzBjMDtcbiAgYm94LXNoYWRvdzogMnB4IDAgMCAjODg4LCAtMnB4IDAgMCAjZjBmMGYwO1xuXG4gICY6OmFmdGVyIHtcbiAgICBjb250ZW50OiAnJztcbiAgICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gICAgdG9wOiAtOHB4O1xuICAgIGxlZnQ6IC00cHg7XG4gICAgd2lkdGg6IDEycHg7XG4gICAgaGVpZ2h0OiA4cHg7XG4gICAgYmFja2dyb3VuZDogI0ZGM0IzQjtcbiAgICBib3JkZXI6IDJweCBzb2xpZCAjMWExYTFhO1xuICAgIGJveC1zaGFkb3c6IDAgMCAxMnB4IHJnYmEoMjU1LCA1OSwgNTksIC45KTtcbiAgICBhbmltYXRpb246IG1hcmstYW50ZW5uYS1ibGluayAxcyBzdGVwcygyKSBpbmZpbml0ZTtcbiAgfVxufVxuQGtleWZyYW1lcyBtYXJrLWFudGVubmEtYmxpbmsge1xuICAwJSwgMTAwJSB7IGJhY2tncm91bmQ6ICNGRjNCM0I7IGJveC1zaGFkb3c6IDAgMCAxNHB4IHJnYmEoMjU1LCA1OSwgNTksIC45KTsgfVxuICA1MCUgICAgICB7IGJhY2tncm91bmQ6ICM1YTAwMDA7IGJveC1zaGFkb3c6IDAgMCA0cHggcmdiYSgyNTUsIDU5LCA1OSwgLjMpOyB9XG59XG5cbi8vIMOiwpTCgMOiwpTCgCBEaWFsb2cgYm94IGl0c2VsZiDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcbi5tYXJrLWRpYWxvZy1ib3gge1xuICBwb3NpdGlvbjogcmVsYXRpdmU7XG4gIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxODBkZWcsICMwZDI3NTUgMCUsICMwODE4M2IgMTAwJSk7XG4gIGJvcmRlcjogNHB4IHNvbGlkICMxYTFhMWE7XG4gIGJveC1zaGFkb3c6XG4gICAgaW5zZXQgMCAwIDAgMnB4ICNGRkQ3MDAsXG4gICAgaW5zZXQgMCAwIDAgNXB4ICMwODE4M2IsXG4gICAgaW5zZXQgMCAwIDAgN3B4ICNjMGMwYzAsXG4gICAgaW5zZXQgMCAwIDAgOXB4ICMxYTFhMWEsXG4gICAgMCA4cHggMCAwICMwMDAsXG4gICAgMCAxMnB4IDMwcHggcmdiYSgwLDAsMCwwLjQpO1xuICBwYWRkaW5nOiAxOHB4IDIycHggMjJweCAyMnB4O1xuICBjb2xvcjogd2hpdGU7XG4gIGltYWdlLXJlbmRlcmluZzogcGl4ZWxhdGVkO1xufVxuXG4ucml2ZXQge1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIHdpZHRoOiA4cHg7XG4gIGhlaWdodDogOHB4O1xuICBiYWNrZ3JvdW5kOiByYWRpYWwtZ3JhZGllbnQoY2lyY2xlIGF0IDMwJSAzMCUsICNmZmYgMTAlLCAjODg4IDYwJSwgIzJhMmEyYSAxMDAlKTtcbiAgYm9yZGVyLXJhZGl1czogNTAlO1xuICB6LWluZGV4OiAyO1xuICAmLnJpdmV0LXRsIHsgdG9wOiA2cHg7IGxlZnQ6IDZweDsgfVxuICAmLnJpdmV0LXRyIHsgdG9wOiA2cHg7IHJpZ2h0OiA2cHg7IH1cbiAgJi5yaXZldC1ibCB7IGJvdHRvbTogNnB4OyBsZWZ0OiA2cHg7IH1cbiAgJi5yaXZldC1iciB7IGJvdHRvbTogNnB4OyByaWdodDogNnB4OyB9XG59XG5cbi8vIMOiwpTCgMOiwpTCgCBTdGF0dXMgTEVEICsgZnJlcXVlbmN5IMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgFxuLmxlZC1hcmVhIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG4gIG1hcmdpbi1ib3R0b206IDEwcHg7XG4gIHBhZGRpbmctbGVmdDogNHB4O1xufVxuXG4ubGVkIHtcbiAgd2lkdGg6IDEwcHg7XG4gIGhlaWdodDogMTBweDtcbiAgYm9yZGVyLXJhZGl1czogNTAlO1xuICBiYWNrZ3JvdW5kOiAjMDBmZjY2O1xuICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDI1NSwgMTAyLCAwLjkpLCBpbnNldCAwIDAgM3B4IHJnYmEoMjU1LCAyNTUsIDI1NSwgMC42KTtcbiAgYW5pbWF0aW9uOiBtYXJrLWxlZC1wdWxzZSAxLjJzIGVhc2UtaW4tb3V0IGluZmluaXRlO1xufVxuQGtleWZyYW1lcyBtYXJrLWxlZC1wdWxzZSB7XG4gIDAlLCAxMDAlIHsgb3BhY2l0eTogMTsgfVxuICA1MCUgICAgICB7IG9wYWNpdHk6IDAuNDsgfVxufVxuXG4ubGVkLWxhYmVsIHtcbiAgZm9udC1mYW1pbHk6ICdQcmVzcyBTdGFydCAyUCcsIG1vbm9zcGFjZTtcbiAgZm9udC1zaXplOiA4cHg7XG4gIGNvbG9yOiAjMDBmZjY2O1xuICBsZXR0ZXItc3BhY2luZzogMXB4O1xuICB3aGl0ZS1zcGFjZTogbm93cmFwO1xufVxuXG4uZnJlcS1kaXNwbGF5IHtcbiAgbWFyZ2luLWxlZnQ6IGF1dG87XG4gIGZvbnQtZmFtaWx5OiAnVlQzMjMnLCBtb25vc3BhY2U7XG4gIGZvbnQtc2l6ZTogMTZweDtcbiAgY29sb3I6ICNGRkQ3MDA7XG4gIGxldHRlci1zcGFjaW5nOiAxcHg7XG59XG5cbi5za2lwLWJ0biB7XG4gIGJhY2tncm91bmQ6IHRyYW5zcGFyZW50O1xuICBib3JkZXI6IDJweCBzb2xpZCAjRkZENzAwO1xuICBjb2xvcjogI0ZGRDcwMDtcbiAgZm9udC1mYW1pbHk6ICdQcmVzcyBTdGFydCAyUCcsIG1vbm9zcGFjZTtcbiAgZm9udC1zaXplOiA4cHg7XG4gIHBhZGRpbmc6IDRweCA2cHg7XG4gIGN1cnNvcjogcG9pbnRlcjtcbiAgbWFyZ2luLWxlZnQ6IDhweDtcbiAgJjpob3ZlciB7IGJhY2tncm91bmQ6ICNGRkQ3MDA7IGNvbG9yOiAjMWExYTFhOyB9XG59XG5cbi8vIMOiwpTCgMOiwpTCgCBDb250ZW50IHJvdzogcG9ydHJhaXQgKyB0ZXh0IMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgFxuLmRpYWxvZy1jb250ZW50IHtcbiAgZGlzcGxheTogZmxleDtcbiAgZ2FwOiAxOHB4O1xuICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcbn1cblxuLmZhY2UtcG9ydHJhaXQge1xuICB3aWR0aDogMTI4cHg7XG4gIGhlaWdodDogMTI4cHg7XG4gIGJhY2tncm91bmQ6ICMwMDA7XG4gIGJvcmRlcjogM3B4IHNvbGlkICNGRkQ3MDA7XG4gIGJveC1zaGFkb3c6IGluc2V0IDAgMCAwIDFweCAjMDAwLCAwIDAgMTJweCByZ2JhKDI1NSwgMjE1LCAwLCAwLjMpO1xuICBmbGV4LXNocmluazogMDtcbiAgZGlzcGxheTogYmxvY2s7XG4gIC8vIHBpeGVsLWFydCBjcmlzcG5lc3MgcHJlc2VydmVkIHdoZW4gc2NhbGluZyBkb3duIHRoZSAxMjU0w4PClzEyNTQgc291cmNlXG4gIGltYWdlLXJlbmRlcmluZzogcGl4ZWxhdGVkO1xuICAtbXMtaW50ZXJwb2xhdGlvbi1tb2RlOiBuZWFyZXN0LW5laWdoYm9yO1xuICBvYmplY3QtZml0OiBjb3ZlcjtcbiAgdXNlci1zZWxlY3Q6IG5vbmU7XG59XG5cbi5kaWFsb2ctdGV4dC1hcmVhIHtcbiAgZmxleDogMTtcbiAgbWluLXdpZHRoOiAwO1xuICBwYWRkaW5nLXRvcDogMnB4O1xufVxuXG4uZGlhbG9nLW5hbWUge1xuICBmb250LWZhbWlseTogJ1ByZXNzIFN0YXJ0IDJQJywgbW9ub3NwYWNlO1xuICBmb250LXNpemU6IDEycHg7XG4gIGNvbG9yOiAjRkZENzAwO1xuICBtYXJnaW4tYm90dG9tOiA4cHg7XG4gIHRleHQtc2hhZG93OiAycHggMnB4IDAgIzAwMDtcbiAgbGV0dGVyLXNwYWNpbmc6IDFweDtcbn1cblxuLmRpYWxvZy10ZXh0IHtcbiAgZm9udC1mYW1pbHk6ICdWVDMyMycsIG1vbm9zcGFjZTtcbiAgZm9udC1zaXplOiAyMnB4O1xuICBsaW5lLWhlaWdodDogMS4yNTtcbiAgY29sb3I6ICNmZmY7XG4gIHRleHQtc2hhZG93OiAxcHggMXB4IDAgIzAwMDtcbiAgbWluLWhlaWdodDogNTZweDtcblxuICAmLnN0YXRpYyB7XG4gICAgY29sb3I6ICM4ODg7XG4gICAgZm9udC1zdHlsZTogaXRhbGljO1xuICB9XG59XG5cbi5jdXJzb3Ige1xuICBkaXNwbGF5OiBpbmxpbmUtYmxvY2s7XG4gIHdpZHRoOiAxMHB4O1xuICBoZWlnaHQ6IDE4cHg7XG4gIGJhY2tncm91bmQ6ICNGRkQ3MDA7XG4gIG1hcmdpbi1sZWZ0OiAycHg7XG4gIHZlcnRpY2FsLWFsaWduOiAtMnB4O1xuICBhbmltYXRpb246IG1hcmstY3Vyc29yLWJsaW5rIDAuNHMgc3RlcHMoMikgaW5maW5pdGU7XG59XG5Aa2V5ZnJhbWVzIG1hcmstY3Vyc29yLWJsaW5rIHtcbiAgMCUsIDEwMCUgeyBvcGFjaXR5OiAxOyB9XG4gIDUwJSAgICAgIHsgb3BhY2l0eTogMDsgfVxufVxuXG4uY29udGludWUtYXJyb3cge1xuICBwb3NpdGlvbjogYWJzb2x1dGU7XG4gIGJvdHRvbTogMTRweDtcbiAgcmlnaHQ6IDI0cHg7XG4gIGNvbG9yOiAjRkZENzAwO1xuICBmb250LWZhbWlseTogJ1ByZXNzIFN0YXJ0IDJQJywgbW9ub3NwYWNlO1xuICBmb250LXNpemU6IDE0cHg7XG4gIHRleHQtc2hhZG93OiAycHggMnB4IDAgIzAwMDtcbiAgb3BhY2l0eTogMDtcbiAgYW5pbWF0aW9uOiBtYXJrLWFycm93LWJsaW5rIDAuNnMgc3RlcHMoMikgaW5maW5pdGU7XG5cbiAgJi5vbiB7IG9wYWNpdHk6IDE7IH1cbn1cbkBrZXlmcmFtZXMgbWFyay1hcnJvdy1ibGluayB7XG4gIDAlLCAxMDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9XG4gIDUwJSAgICAgIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDNweCk7IH1cbn1cblxuLy8gw6LClMKAw6LClMKAIFVzZXIgaW5wdXQgYXJlYSDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcbi8vIFNpdHMgYmVsb3cgZGlhbG9nLWNvbnRlbnQuIEtPRi1zdHlsZWQ6IG5hdnkgKyBnb2xkIGJvcmRlciwgVlQzMjMgZm9udCxcbi8vIGdvbGQgcHJvbXB0IHByZWZpeCwgZ29sZCBzZW5kIGJ1dHRvbi4gVGhlIGFyY2hpdGVjdHVyZSBpcyByZWFkeSBmb3IgVjNcbi8vIChBSSBjb252ZXJzYXRpb24pIMOiwoDClCBWMCBqdXN0IHJvdXRlcyB0aHJvdWdoIEVjaG9IYW5kbGVyLlxuLnVzZXItaW5wdXQtYXJlYSB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogNnB4O1xuICBtYXJnaW4tdG9wOiAxMnB4O1xuICBwYWRkaW5nOiA2cHggOHB4O1xuICBiYWNrZ3JvdW5kOiAjMDUwZDIyO1xuICBib3JkZXI6IDJweCBzb2xpZCAjRkZENzAwO1xuICBib3gtc2hhZG93OiBpbnNldCAwIDAgMCAxcHggIzAwMDtcblxuICAucHJvbXB0LXByZWZpeCB7XG4gICAgY29sb3I6ICNGRkQ3MDA7XG4gICAgZm9udC1mYW1pbHk6ICdQcmVzcyBTdGFydCAyUCcsIG1vbm9zcGFjZTtcbiAgICBmb250LXNpemU6IDEycHg7XG4gICAgbWFyZ2luLWxlZnQ6IDJweDtcbiAgICB0ZXh0LXNoYWRvdzogMXB4IDFweCAwICMwMDA7XG4gIH1cblxuICAudXNlci1pbnB1dCB7XG4gICAgZmxleDogMTtcbiAgICBtaW4td2lkdGg6IDA7XG4gICAgYmFja2dyb3VuZDogdHJhbnNwYXJlbnQ7XG4gICAgYm9yZGVyOiBub25lO1xuICAgIG91dGxpbmU6IG5vbmU7XG4gICAgY29sb3I6ICNmZmY4YjA7XG4gICAgZm9udC1mYW1pbHk6ICdWVDMyMycsIG1vbm9zcGFjZTtcbiAgICBmb250LXNpemU6IDE4cHg7XG4gICAgbGV0dGVyLXNwYWNpbmc6IDAuNXB4O1xuICAgIHBhZGRpbmc6IDRweCA2cHg7XG4gICAgY2FyZXQtY29sb3I6ICNGRkQ3MDA7XG5cbiAgICAmOjpwbGFjZWhvbGRlciB7XG4gICAgICBjb2xvcjogIzZhN2E5OTtcbiAgICAgIGZvbnQtc3R5bGU6IGl0YWxpYztcbiAgICB9XG5cbiAgICAmOmRpc2FibGVkIHtcbiAgICAgIGNvbG9yOiAjNTU1O1xuICAgICAgY3Vyc29yOiBub3QtYWxsb3dlZDtcbiAgICB9XG4gIH1cblxuICAuc2VuZC1idG4ge1xuICAgIGJhY2tncm91bmQ6ICNGRkQ3MDA7XG4gICAgY29sb3I6ICMxYTFhMWE7XG4gICAgYm9yZGVyOiAycHggc29saWQgIzFhMWExYTtcbiAgICBmb250LWZhbWlseTogJ1ByZXNzIFN0YXJ0IDJQJywgbW9ub3NwYWNlO1xuICAgIGZvbnQtc2l6ZTogMTBweDtcbiAgICBwYWRkaW5nOiA0cHggOHB4O1xuICAgIGN1cnNvcjogcG9pbnRlcjtcbiAgICBtaW4td2lkdGg6IDMycHg7XG4gICAgYm94LXNoYWRvdzogMnB4IDJweCAwICMwMDA7XG5cbiAgICAmOmhvdmVyOm5vdCg6ZGlzYWJsZWQpIHtcbiAgICAgIGJhY2tncm91bmQ6ICNmZmY4YjA7XG4gICAgICB0cmFuc2Zvcm06IHRyYW5zbGF0ZSgtMXB4LCAtMXB4KTtcbiAgICAgIGJveC1zaGFkb3c6IDNweCAzcHggMCAjMDAwO1xuICAgIH1cblxuICAgICY6YWN0aXZlOm5vdCg6ZGlzYWJsZWQpIHtcbiAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKDFweCwgMXB4KTtcbiAgICAgIGJveC1zaGFkb3c6IDFweCAxcHggMCAjMDAwO1xuICAgIH1cblxuICAgICY6ZGlzYWJsZWQge1xuICAgICAgYmFja2dyb3VuZDogIzU1NTtcbiAgICAgIGNvbG9yOiAjODg4O1xuICAgICAgY3Vyc29yOiBub3QtYWxsb3dlZDtcbiAgICAgIGJveC1zaGFkb3c6IDJweCAycHggMCAjMDAwO1xuICAgIH1cbiAgfVxufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_3__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_3__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_4__.NgModel, _angular_common__WEBPACK_IMPORTED_MODULE_3__.AsyncPipe, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslatePipe],
+      styles: ["@import url(https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap);[_nghost-%COMP%] {\n  display: contents;\n}\n\n.mark-dim[_ngcontent-%COMP%] {\n  position: fixed;\n  inset: 0;\n  background: rgba(8, 12, 24, 0.78);\n  opacity: 0;\n  transition: opacity 0.6s ease;\n  pointer-events: none;\n  z-index: 9000;\n}\n.mark-dim.on[_ngcontent-%COMP%] {\n  opacity: 1;\n}\n\n.mark-spotlight[_ngcontent-%COMP%] {\n  position: fixed;\n  pointer-events: none;\n  z-index: 9001;\n  border-radius: 14px;\n  background: transparent;\n  border: 3px solid #FFD700;\n  box-shadow: 0 0 0 9999px rgba(8, 12, 24, 0.78);\n  transition: top 0.55s ease, left 0.55s ease, width 0.55s ease, height 0.55s ease;\n  animation: _ngcontent-%COMP%_mark-blink-border 0.6s steps(2) infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-blink-border {\n  0% {\n    border-color: #FFD700;\n  }\n  50% {\n    border-color: #fff8b0;\n  }\n  100% {\n    border-color: #FFD700;\n  }\n}\n.mark-pointer[_ngcontent-%COMP%] {\n  position: fixed;\n  z-index: 9002;\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 28px;\n  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8), 2px 2px 0 #000;\n  transition: top 0.55s ease, left 0.55s ease;\n  animation: _ngcontent-%COMP%_mark-arrow-bounce 0.5s steps(2) infinite;\n  pointer-events: none;\n}\n\n@keyframes _ngcontent-%COMP%_mark-arrow-bounce {\n  0%, 100% {\n    transform: translateX(0);\n  }\n  50% {\n    transform: translateX(-6px);\n  }\n}\n.mark-dialog-wrap[_ngcontent-%COMP%] {\n  position: fixed;\n  bottom: 32px;\n  right: 32px;\n  z-index: 9100;\n  width: 540px;\n  transform: translateY(140%);\n  opacity: 0;\n  visibility: hidden;\n  transition: transform 0.55s cubic-bezier(0.25, 1.5, 0.5, 1), opacity 0.35s ease, visibility 0s linear 0.35s, bottom 0.6s ease, right 0.6s ease, width 0.6s ease;\n  pointer-events: none;\n}\n.mark-dialog-wrap.on[_ngcontent-%COMP%] {\n  transform: translateY(0);\n  opacity: 1;\n  visibility: visible;\n  pointer-events: auto;\n  transition: transform 0.55s cubic-bezier(0.25, 1.5, 0.5, 1), opacity 0.35s ease, visibility 0s linear 0s, bottom 0.6s ease, right 0.6s ease, width 0.6s ease;\n}\n.mark-dialog-wrap.has-custom-position[_ngcontent-%COMP%] {\n  bottom: auto;\n  right: auto;\n  transition: transform 0.55s cubic-bezier(0.25, 1.5, 0.5, 1), width 0.6s ease;\n}\n.mark-dialog-wrap.dragging[_ngcontent-%COMP%] {\n  cursor: grabbing;\n  -webkit-user-select: none;\n          user-select: none;\n  transition: none;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%] {\n  width: 96px;\n  bottom: 24px;\n  right: 24px;\n  cursor: grab;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .close-mini[_ngcontent-%COMP%] {\n  position: absolute;\n  top: -6px;\n  right: -6px;\n  width: 22px;\n  height: 22px;\n  border-radius: 50%;\n  background: #1a1a1a;\n  color: #FFD700;\n  border: 2px solid #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 9px;\n  line-height: 1;\n  padding: 0;\n  cursor: pointer;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  box-shadow: 2px 2px 0 #000;\n  z-index: 5;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .close-mini[_ngcontent-%COMP%]:hover {\n  background: #c0392b;\n  color: #fff;\n  border-color: #fff;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .close-mini[_ngcontent-%COMP%]:active {\n  transform: translate(1px, 1px);\n  box-shadow: 1px 1px 0 #000;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .dialog-text-area[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .led-area[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .antenna[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .continue-arrow[_ngcontent-%COMP%], .mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .user-input-area[_ngcontent-%COMP%] {\n  display: none;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .mark-dialog-box[_ngcontent-%COMP%] {\n  padding: 8px;\n}\n.mark-dialog-wrap.minimized[_ngcontent-%COMP%]   .face-portrait[_ngcontent-%COMP%] {\n  width: 80px;\n  height: 80px;\n}\n.mark-dialog-wrap[_ngcontent-%COMP%]:not(.minimized)    > .close-mini[_ngcontent-%COMP%] {\n  display: none;\n}\n\n.mark-dialog-box[_ngcontent-%COMP%] {\n  cursor: grab;\n}\n.mark-dialog-box[_ngcontent-%COMP%]   input[_ngcontent-%COMP%], .mark-dialog-box[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  cursor: auto;\n}\n.mark-dialog-box[_ngcontent-%COMP%]   input[_ngcontent-%COMP%] {\n  cursor: text;\n}\n.mark-dialog-box[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]:not(:disabled) {\n  cursor: pointer;\n}\n\n.mark-dialog-wrap.dragging[_ngcontent-%COMP%]   .mark-dialog-box[_ngcontent-%COMP%] {\n  cursor: grabbing;\n}\n\n.antenna[_ngcontent-%COMP%] {\n  position: absolute;\n  top: -28px;\n  right: 24px;\n  width: 4px;\n  height: 28px;\n  background: #c0c0c0;\n  box-shadow: 2px 0 0 #888, -2px 0 0 #f0f0f0;\n}\n.antenna[_ngcontent-%COMP%]::after {\n  content: \"\";\n  position: absolute;\n  top: -8px;\n  left: -4px;\n  width: 12px;\n  height: 8px;\n  background: #FF3B3B;\n  border: 2px solid #1a1a1a;\n  box-shadow: 0 0 12px rgba(255, 59, 59, 0.9);\n  animation: _ngcontent-%COMP%_mark-antenna-blink 1s steps(2) infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-antenna-blink {\n  0%, 100% {\n    background: #FF3B3B;\n    box-shadow: 0 0 14px rgba(255, 59, 59, 0.9);\n  }\n  50% {\n    background: #5a0000;\n    box-shadow: 0 0 4px rgba(255, 59, 59, 0.3);\n  }\n}\n.mark-dialog-box[_ngcontent-%COMP%] {\n  position: relative;\n  background: linear-gradient(180deg, #0d2755 0%, #08183b 100%);\n  border: 4px solid #1a1a1a;\n  box-shadow: inset 0 0 0 2px #FFD700, inset 0 0 0 5px #08183b, inset 0 0 0 7px #c0c0c0, inset 0 0 0 9px #1a1a1a, 0 8px 0 0 #000, 0 12px 30px rgba(0, 0, 0, 0.4);\n  padding: 18px 22px 22px 22px;\n  color: white;\n  image-rendering: pixelated;\n}\n\n.rivet[_ngcontent-%COMP%] {\n  position: absolute;\n  width: 8px;\n  height: 8px;\n  background: radial-gradient(circle at 30% 30%, #fff 10%, #888 60%, #2a2a2a 100%);\n  border-radius: 50%;\n  z-index: 2;\n}\n.rivet.rivet-tl[_ngcontent-%COMP%] {\n  top: 6px;\n  left: 6px;\n}\n.rivet.rivet-tr[_ngcontent-%COMP%] {\n  top: 6px;\n  right: 6px;\n}\n.rivet.rivet-bl[_ngcontent-%COMP%] {\n  bottom: 6px;\n  left: 6px;\n}\n.rivet.rivet-br[_ngcontent-%COMP%] {\n  bottom: 6px;\n  right: 6px;\n}\n\n.led-area[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n  padding-left: 4px;\n}\n\n.led[_ngcontent-%COMP%] {\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: #00ff66;\n  box-shadow: 0 0 10px rgba(0, 255, 102, 0.9), inset 0 0 3px rgba(255, 255, 255, 0.6);\n  animation: _ngcontent-%COMP%_mark-led-pulse 1.2s ease-in-out infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-led-pulse {\n  0%, 100% {\n    opacity: 1;\n  }\n  50% {\n    opacity: 0.4;\n  }\n}\n.led-label[_ngcontent-%COMP%] {\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 8px;\n  color: #00ff66;\n  letter-spacing: 1px;\n  white-space: nowrap;\n}\n\n.freq-display[_ngcontent-%COMP%] {\n  margin-left: auto;\n  font-family: \"VT323\", monospace;\n  font-size: 16px;\n  color: #FFD700;\n  letter-spacing: 1px;\n}\n\n.skip-btn[_ngcontent-%COMP%] {\n  background: transparent;\n  border: 2px solid #FFD700;\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 8px;\n  padding: 4px 6px;\n  cursor: pointer;\n  margin-left: 8px;\n}\n.skip-btn[_ngcontent-%COMP%]:hover {\n  background: #FFD700;\n  color: #1a1a1a;\n}\n\n.dialog-content[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 18px;\n  align-items: flex-start;\n}\n\n.face-portrait[_ngcontent-%COMP%] {\n  width: 128px;\n  height: 128px;\n  background: #000;\n  border: 3px solid #FFD700;\n  box-shadow: inset 0 0 0 1px #000, 0 0 12px rgba(255, 215, 0, 0.3);\n  flex-shrink: 0;\n  display: block;\n  image-rendering: pixelated;\n  -ms-interpolation-mode: nearest-neighbor;\n  object-fit: cover;\n  -webkit-user-select: none;\n          user-select: none;\n}\n\n.dialog-text-area[_ngcontent-%COMP%] {\n  flex: 1;\n  min-width: 0;\n  padding-top: 2px;\n}\n\n.dialog-name[_ngcontent-%COMP%] {\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 12px;\n  color: #FFD700;\n  margin-bottom: 8px;\n  text-shadow: 2px 2px 0 #000;\n  letter-spacing: 1px;\n}\n\n.dialog-text[_ngcontent-%COMP%] {\n  font-family: \"VT323\", monospace;\n  font-size: 22px;\n  line-height: 1.25;\n  color: #fff;\n  text-shadow: 1px 1px 0 #000;\n  min-height: 56px;\n}\n.dialog-text.static[_ngcontent-%COMP%] {\n  color: #888;\n  font-style: italic;\n}\n\n.cursor[_ngcontent-%COMP%] {\n  display: inline-block;\n  width: 10px;\n  height: 18px;\n  background: #FFD700;\n  margin-left: 2px;\n  vertical-align: -2px;\n  animation: _ngcontent-%COMP%_mark-cursor-blink 0.4s steps(2) infinite;\n}\n\n@keyframes _ngcontent-%COMP%_mark-cursor-blink {\n  0%, 100% {\n    opacity: 1;\n  }\n  50% {\n    opacity: 0;\n  }\n}\n.continue-arrow[_ngcontent-%COMP%] {\n  position: absolute;\n  bottom: 14px;\n  right: 24px;\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 14px;\n  text-shadow: 2px 2px 0 #000;\n  opacity: 0;\n  animation: _ngcontent-%COMP%_mark-arrow-blink 0.6s steps(2) infinite;\n}\n.continue-arrow.on[_ngcontent-%COMP%] {\n  opacity: 1;\n}\n\n@keyframes _ngcontent-%COMP%_mark-arrow-blink {\n  0%, 100% {\n    transform: translateY(0);\n  }\n  50% {\n    transform: translateY(3px);\n  }\n}\n.user-actions-area[_ngcontent-%COMP%] {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 10px;\n  margin-top: 14px;\n  padding-top: 4px;\n}\n.user-actions-area[_ngcontent-%COMP%]   .action-btn[_ngcontent-%COMP%] {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  background: linear-gradient(180deg, #FFD700 0%, #e6b800 100%);\n  color: #1a1a1a;\n  border: 3px solid #1a1a1a;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 10px;\n  line-height: 1;\n  padding: 10px 14px;\n  cursor: pointer;\n  letter-spacing: 1px;\n  box-shadow: 3px 3px 0 #000;\n  transition: transform 0.06s, box-shadow 0.06s;\n}\n.user-actions-area[_ngcontent-%COMP%]   .action-btn[_ngcontent-%COMP%]:hover:not(:disabled) {\n  background: linear-gradient(180deg, #fff8b0 0%, #FFD700 100%);\n  transform: translate(-1px, -1px);\n  box-shadow: 4px 4px 0 #000;\n}\n.user-actions-area[_ngcontent-%COMP%]   .action-btn[_ngcontent-%COMP%]:active:not(:disabled) {\n  transform: translate(2px, 2px);\n  box-shadow: 1px 1px 0 #000;\n}\n.user-actions-area[_ngcontent-%COMP%]   .action-btn[_ngcontent-%COMP%]:disabled {\n  background: #555;\n  color: #888;\n  border-color: #2a2a2a;\n  cursor: not-allowed;\n  box-shadow: 3px 3px 0 #000;\n}\n.user-actions-area[_ngcontent-%COMP%]   .action-btn[_ngcontent-%COMP%]   .action-icon[_ngcontent-%COMP%] {\n  font-size: 14px;\n  line-height: 1;\n}\n.user-actions-area[_ngcontent-%COMP%]   .action-btn[_ngcontent-%COMP%]   .action-label[_ngcontent-%COMP%] {\n  line-height: 1;\n}\n\n.user-input-area[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-top: 12px;\n  padding: 6px 8px;\n  background: #050d22;\n  border: 2px solid #FFD700;\n  box-shadow: inset 0 0 0 1px #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .prompt-prefix[_ngcontent-%COMP%] {\n  color: #FFD700;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 12px;\n  margin-left: 2px;\n  text-shadow: 1px 1px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .user-input[_ngcontent-%COMP%] {\n  flex: 1;\n  min-width: 0;\n  background: transparent;\n  border: none;\n  outline: none;\n  color: #fff8b0;\n  font-family: \"VT323\", monospace;\n  font-size: 18px;\n  letter-spacing: 0.5px;\n  padding: 4px 6px;\n  caret-color: #FFD700;\n}\n.user-input-area[_ngcontent-%COMP%]   .user-input[_ngcontent-%COMP%]::placeholder {\n  color: #6a7a99;\n  font-style: italic;\n}\n.user-input-area[_ngcontent-%COMP%]   .user-input[_ngcontent-%COMP%]:disabled {\n  color: #555;\n  cursor: not-allowed;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%] {\n  background: #FFD700;\n  color: #1a1a1a;\n  border: 2px solid #1a1a1a;\n  font-family: \"Press Start 2P\", monospace;\n  font-size: 10px;\n  padding: 4px 8px;\n  cursor: pointer;\n  min-width: 32px;\n  box-shadow: 2px 2px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%]:hover:not(:disabled) {\n  background: #fff8b0;\n  transform: translate(-1px, -1px);\n  box-shadow: 3px 3px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%]:active:not(:disabled) {\n  transform: translate(1px, 1px);\n  box-shadow: 1px 1px 0 #000;\n}\n.user-input-area[_ngcontent-%COMP%]   .send-btn[_ngcontent-%COMP%]:disabled {\n  background: #555;\n  color: #888;\n  cursor: not-allowed;\n  box-shadow: 2px 2px 0 #000;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWFyay1hc3Npc3RhbnQvbWFyay1hc3Npc3RhbnQuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBT0E7RUFFRSxpQkFBQTtBQU5GOztBQVVBO0VBQ0UsZUFBQTtFQUNBLFFBQUE7RUFDQSxpQ0FBQTtFQUNBLFVBQUE7RUFDQSw2QkFBQTtFQUNBLG9CQUFBO0VBQ0EsYUFBQTtBQVBGO0FBUUU7RUFBTyxVQUFBO0FBTFQ7O0FBWUE7RUFDRSxlQUFBO0VBQ0Esb0JBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLHlCQUFBO0VBQ0EsOENBQUE7RUFDQSxnRkFDRTtFQUNGLG1EQUFBO0FBVkY7O0FBWUE7RUFDRTtJQUFPLHFCQUFBO0VBUlA7RUFTQTtJQUFPLHFCQUFBO0VBTlA7RUFPQTtJQUFPLHFCQUFBO0VBSlA7QUFDRjtBQU1BO0VBQ0UsZUFBQTtFQUNBLGFBQUE7RUFDQSxjQUFBO0VBQ0Esd0NBQUE7RUFDQSxlQUFBO0VBQ0EsMkRBQUE7RUFDQSwyQ0FBQTtFQUNBLG1EQUFBO0VBQ0Esb0JBQUE7QUFKRjs7QUFNQTtFQUNFO0lBQVcsd0JBQUE7RUFGWDtFQUdBO0lBQVcsMkJBQUE7RUFBWDtBQUNGO0FBU0E7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxhQUFBO0VBQ0EsWUFBQTtFQUtBLDJCQUFBO0VBQ0EsVUFBQTtFQUNBLGtCQUFBO0VBQ0EsK0pBQ0U7RUFNRixvQkFBQTtBQWpCRjtBQW1CRTtFQUNFLHdCQUFBO0VBQ0EsVUFBQTtFQUNBLG1CQUFBO0VBQ0Esb0JBQUE7RUFFQSw0SkFDRTtBQW5CTjtBQThCRTtFQUNFLFlBQUE7RUFDQSxXQUFBO0VBRUEsNEVBQ0U7QUE5Qk47QUFrQ0U7RUFDRSxnQkFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7RUFDQSxnQkFBQTtBQWhDSjtBQW1DRTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7QUFqQ0o7QUFtQ0k7RUFDRSxrQkFBQTtFQUNBLFNBQUE7RUFDQSxXQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxrQkFBQTtFQUNBLG1CQUFBO0VBQ0EsY0FBQTtFQUNBLHlCQUFBO0VBQ0Esd0NBQUE7RUFDQSxjQUFBO0VBQ0EsY0FBQTtFQUNBLFVBQUE7RUFDQSxlQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSwwQkFBQTtFQUNBLFVBQUE7QUFqQ047QUFtQ007RUFDRSxtQkFBQTtFQUNBLFdBQUE7RUFDQSxrQkFBQTtBQWpDUjtBQW1DTTtFQUNFLDhCQUFBO0VBQ0EsMEJBQUE7QUFqQ1I7QUFxQ0k7Ozs7O0VBS0UsYUFBQTtBQW5DTjtBQXFDSTtFQUNFLFlBQUE7QUFuQ047QUFxQ0k7RUFDRSxXQUFBO0VBQ0EsWUFBQTtBQW5DTjtBQXdDRTtFQUNFLGFBQUE7QUF0Q0o7O0FBNENBO0VBQ0UsWUFBQTtBQXpDRjtBQTJDRTtFQUNFLFlBQUE7QUF6Q0o7QUEyQ0U7RUFBUSxZQUFBO0FBeENWO0FBeUNFO0VBQXdCLGVBQUE7QUF0QzFCOztBQXdDQTtFQUNFLGdCQUFBO0FBckNGOztBQXlDQTtFQUNFLGtCQUFBO0VBQ0EsVUFBQTtFQUNBLFdBQUE7RUFDQSxVQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0EsMENBQUE7QUF0Q0Y7QUF3Q0U7RUFDRSxXQUFBO0VBQ0Esa0JBQUE7RUFDQSxTQUFBO0VBQ0EsVUFBQTtFQUNBLFdBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7RUFDQSx5QkFBQTtFQUNBLDJDQUFBO0VBQ0Esa0RBQUE7QUF0Q0o7O0FBeUNBO0VBQ0U7SUFBVyxtQkFBQTtJQUFxQiwyQ0FBQTtFQXBDaEM7RUFxQ0E7SUFBVyxtQkFBQTtJQUFxQiwwQ0FBQTtFQWpDaEM7QUFDRjtBQW9DQTtFQUNFLGtCQUFBO0VBQ0EsNkRBQUE7RUFDQSx5QkFBQTtFQUNBLDhKQUNFO0VBTUYsNEJBQUE7RUFDQSxZQUFBO0VBQ0EsMEJBQUE7QUF4Q0Y7O0FBMkNBO0VBQ0Usa0JBQUE7RUFDQSxVQUFBO0VBQ0EsV0FBQTtFQUNBLGdGQUFBO0VBQ0Esa0JBQUE7RUFDQSxVQUFBO0FBeENGO0FBeUNFO0VBQWEsUUFBQTtFQUFVLFNBQUE7QUFyQ3pCO0FBc0NFO0VBQWEsUUFBQTtFQUFVLFVBQUE7QUFsQ3pCO0FBbUNFO0VBQWEsV0FBQTtFQUFhLFNBQUE7QUEvQjVCO0FBZ0NFO0VBQWEsV0FBQTtFQUFhLFVBQUE7QUE1QjVCOztBQWdDQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxtQkFBQTtFQUNBLGlCQUFBO0FBN0JGOztBQWdDQTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0Esa0JBQUE7RUFDQSxtQkFBQTtFQUNBLG1GQUFBO0VBQ0EsbURBQUE7QUE3QkY7O0FBK0JBO0VBQ0U7SUFBVyxVQUFBO0VBM0JYO0VBNEJBO0lBQVcsWUFBQTtFQXpCWDtBQUNGO0FBMkJBO0VBQ0Usd0NBQUE7RUFDQSxjQUFBO0VBQ0EsY0FBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7QUF6QkY7O0FBNEJBO0VBQ0UsaUJBQUE7RUFDQSwrQkFBQTtFQUNBLGVBQUE7RUFDQSxjQUFBO0VBQ0EsbUJBQUE7QUF6QkY7O0FBNEJBO0VBQ0UsdUJBQUE7RUFDQSx5QkFBQTtFQUNBLGNBQUE7RUFDQSx3Q0FBQTtFQUNBLGNBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtBQXpCRjtBQTBCRTtFQUFVLG1CQUFBO0VBQXFCLGNBQUE7QUF0QmpDOztBQTBCQTtFQUNFLGFBQUE7RUFDQSxTQUFBO0VBQ0EsdUJBQUE7QUF2QkY7O0FBMEJBO0VBQ0UsWUFBQTtFQUNBLGFBQUE7RUFDQSxnQkFBQTtFQUNBLHlCQUFBO0VBQ0EsaUVBQUE7RUFDQSxjQUFBO0VBQ0EsY0FBQTtFQUVBLDBCQUFBO0VBQ0Esd0NBQUE7RUFDQSxpQkFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7QUF4QkY7O0FBMkJBO0VBQ0UsT0FBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtBQXhCRjs7QUEyQkE7RUFDRSx3Q0FBQTtFQUNBLGVBQUE7RUFDQSxjQUFBO0VBQ0Esa0JBQUE7RUFDQSwyQkFBQTtFQUNBLG1CQUFBO0FBeEJGOztBQTJCQTtFQUNFLCtCQUFBO0VBQ0EsZUFBQTtFQUNBLGlCQUFBO0VBQ0EsV0FBQTtFQUNBLDJCQUFBO0VBQ0EsZ0JBQUE7QUF4QkY7QUEwQkU7RUFDRSxXQUFBO0VBQ0Esa0JBQUE7QUF4Qko7O0FBNEJBO0VBQ0UscUJBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0EsZ0JBQUE7RUFDQSxvQkFBQTtFQUNBLG1EQUFBO0FBekJGOztBQTJCQTtFQUNFO0lBQVcsVUFBQTtFQXZCWDtFQXdCQTtJQUFXLFVBQUE7RUFyQlg7QUFDRjtBQXVCQTtFQUNFLGtCQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7RUFDQSxjQUFBO0VBQ0Esd0NBQUE7RUFDQSxlQUFBO0VBQ0EsMkJBQUE7RUFDQSxVQUFBO0VBQ0Esa0RBQUE7QUFyQkY7QUF1QkU7RUFBTyxVQUFBO0FBcEJUOztBQXNCQTtFQUNFO0lBQVcsd0JBQUE7RUFsQlg7RUFtQkE7SUFBVywwQkFBQTtFQWhCWDtBQUNGO0FBcUJBO0VBQ0UsYUFBQTtFQUNBLGVBQUE7RUFDQSxTQUFBO0VBQ0EsZ0JBQUE7RUFDQSxnQkFBQTtBQW5CRjtBQXFCRTtFQUNFLG9CQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsNkRBQUE7RUFDQSxjQUFBO0VBQ0EseUJBQUE7RUFDQSx3Q0FBQTtFQUNBLGVBQUE7RUFDQSxjQUFBO0VBQ0Esa0JBQUE7RUFDQSxlQUFBO0VBQ0EsbUJBQUE7RUFDQSwwQkFBQTtFQUNBLDZDQUFBO0FBbkJKO0FBcUJJO0VBQ0UsNkRBQUE7RUFDQSxnQ0FBQTtFQUNBLDBCQUFBO0FBbkJOO0FBc0JJO0VBQ0UsOEJBQUE7RUFDQSwwQkFBQTtBQXBCTjtBQXVCSTtFQUNFLGdCQUFBO0VBQ0EsV0FBQTtFQUNBLHFCQUFBO0VBQ0EsbUJBQUE7RUFDQSwwQkFBQTtBQXJCTjtBQXdCSTtFQUNFLGVBQUE7RUFDQSxjQUFBO0FBdEJOO0FBd0JJO0VBQWdCLGNBQUE7QUFyQnBCOztBQTZCQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsbUJBQUE7RUFDQSx5QkFBQTtFQUNBLGdDQUFBO0FBMUJGO0FBNEJFO0VBQ0UsY0FBQTtFQUNBLHdDQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0VBQ0EsMkJBQUE7QUExQko7QUE2QkU7RUFDRSxPQUFBO0VBQ0EsWUFBQTtFQUNBLHVCQUFBO0VBQ0EsWUFBQTtFQUNBLGFBQUE7RUFDQSxjQUFBO0VBQ0EsK0JBQUE7RUFDQSxlQUFBO0VBQ0EscUJBQUE7RUFDQSxnQkFBQTtFQUNBLG9CQUFBO0FBM0JKO0FBNkJJO0VBQ0UsY0FBQTtFQUNBLGtCQUFBO0FBM0JOO0FBOEJJO0VBQ0UsV0FBQTtFQUNBLG1CQUFBO0FBNUJOO0FBZ0NFO0VBQ0UsbUJBQUE7RUFDQSxjQUFBO0VBQ0EseUJBQUE7RUFDQSx3Q0FBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxlQUFBO0VBQ0EsMEJBQUE7QUE5Qko7QUFnQ0k7RUFDRSxtQkFBQTtFQUNBLGdDQUFBO0VBQ0EsMEJBQUE7QUE5Qk47QUFpQ0k7RUFDRSw4QkFBQTtFQUNBLDBCQUFBO0FBL0JOO0FBa0NJO0VBQ0UsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7RUFDQSwwQkFBQTtBQWhDTiIsInNvdXJjZXNDb250ZW50IjpbIkBpbXBvcnQgdXJsKCdodHRwczovL2ZvbnRzLmdvb2dsZWFwaXMuY29tL2NzczI/ZmFtaWx5PVByZXNzK1N0YXJ0KzJQJmZhbWlseT1WVDMyMyZkaXNwbGF5PXN3YXAnKTtcclxuXHJcbi8vID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09XHJcbi8vIE1hcmsgQXNzaXN0YW50IMOiwoDClCBOZW8tR2VvIHJhZGlvIHBhbmVsICjDjsKyIEtPRiBwYWxldHRlKVxyXG4vLyBQb3J0ZWQgZnJvbSBkb2NzLWludGVybmFsL21hcmstYXNzaXN0YW50L3Byb3RvdHlwZS12MC5odG1sXHJcbi8vID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09XHJcblxyXG46aG9zdCB7XHJcbiAgLy8gQ29tcG9uZW50IGlzIGEgcG9zaXRpb25lZCBvdmVybGF5OyBub3RoaW5nIGhlcmUgcmVuZGVycyBpbmxpbmVcclxuICBkaXNwbGF5OiBjb250ZW50cztcclxufVxyXG5cclxuLy8gw6LClMKAw6LClMKAIERpbSBvdmVybGF5IMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgFxyXG4ubWFyay1kaW0ge1xyXG4gIHBvc2l0aW9uOiBmaXhlZDtcclxuICBpbnNldDogMDtcclxuICBiYWNrZ3JvdW5kOiByZ2JhKDgsIDEyLCAyNCwgMC43OCk7XHJcbiAgb3BhY2l0eTogMDtcclxuICB0cmFuc2l0aW9uOiBvcGFjaXR5IDAuNnMgZWFzZTtcclxuICBwb2ludGVyLWV2ZW50czogbm9uZTtcclxuICB6LWluZGV4OiA5MDAwO1xyXG4gICYub24geyBvcGFjaXR5OiAxOyB9XHJcbn1cclxuXHJcbi8vIMOiwpTCgMOiwpTCgCBTcG90bGlnaHQgKGJvcmRlciBhcm91bmQgdGFyZ2V0KSDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcclxuLy8gT3V0ZXIgZGltIGlzIGRyYXduIGhlcmUgdmlhIGEgaHVnZSBib3gtc2hhZG93IHNwcmVhZCBzbyB0aGUgaW5zaWRlXHJcbi8vIG9mIHRoZSBib3ggc3RheXMgZnVsbHkgdHJhbnNwYXJlbnQgw6LCgMKUIHRoZSBoaWdobGlnaHRlZCBjYXJkIHNob3dzIGF0XHJcbi8vIGl0cyByZWFsIGNvbG9ycyAobGlnaHQgb3IgZGFyayBtb2RlKSwgbm8geWVsbG93IGhhbG8sIG5vIGRvdWJsZSBkaW0uXHJcbi5tYXJrLXNwb3RsaWdodCB7XHJcbiAgcG9zaXRpb246IGZpeGVkO1xyXG4gIHBvaW50ZXItZXZlbnRzOiBub25lO1xyXG4gIHotaW5kZXg6IDkwMDE7XHJcbiAgYm9yZGVyLXJhZGl1czogMTRweDtcclxuICBiYWNrZ3JvdW5kOiB0cmFuc3BhcmVudDtcclxuICBib3JkZXI6IDNweCBzb2xpZCAjRkZENzAwO1xyXG4gIGJveC1zaGFkb3c6IDAgMCAwIDk5OTlweCByZ2JhKDgsIDEyLCAyNCwgMC43OCk7XHJcbiAgdHJhbnNpdGlvbjpcclxuICAgIHRvcCAuNTVzIGVhc2UsIGxlZnQgLjU1cyBlYXNlLCB3aWR0aCAuNTVzIGVhc2UsIGhlaWdodCAuNTVzIGVhc2U7XHJcbiAgYW5pbWF0aW9uOiBtYXJrLWJsaW5rLWJvcmRlciAwLjZzIHN0ZXBzKDIpIGluZmluaXRlO1xyXG59XHJcbkBrZXlmcmFtZXMgbWFyay1ibGluay1ib3JkZXIge1xyXG4gIDAlICAgeyBib3JkZXItY29sb3I6ICNGRkQ3MDA7IH1cclxuICA1MCUgIHsgYm9yZGVyLWNvbG9yOiAjZmZmOGIwOyB9XHJcbiAgMTAwJSB7IGJvcmRlci1jb2xvcjogI0ZGRDcwMDsgfVxyXG59XHJcblxyXG4ubWFyay1wb2ludGVyIHtcclxuICBwb3NpdGlvbjogZml4ZWQ7XHJcbiAgei1pbmRleDogOTAwMjtcclxuICBjb2xvcjogI0ZGRDcwMDtcclxuICBmb250LWZhbWlseTogJ1ByZXNzIFN0YXJ0IDJQJywgbW9ub3NwYWNlO1xyXG4gIGZvbnQtc2l6ZTogMjhweDtcclxuICB0ZXh0LXNoYWRvdzogMCAwIDhweCByZ2JhKDI1NSwgMjE1LCAwLCAwLjgpLCAycHggMnB4IDAgIzAwMDtcclxuICB0cmFuc2l0aW9uOiB0b3AgLjU1cyBlYXNlLCBsZWZ0IC41NXMgZWFzZTtcclxuICBhbmltYXRpb246IG1hcmstYXJyb3ctYm91bmNlIDAuNXMgc3RlcHMoMikgaW5maW5pdGU7XHJcbiAgcG9pbnRlci1ldmVudHM6IG5vbmU7XHJcbn1cclxuQGtleWZyYW1lcyBtYXJrLWFycm93LWJvdW5jZSB7XHJcbiAgMCUsIDEwMCUgeyB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoMCk7IH1cclxuICA1MCUgICAgICB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWCgtNnB4KTsgfVxyXG59XHJcblxyXG4vLyDDosKUwoDDosKUwoAgRGlhbG9nIHdyYXBwZXIgKHNsaWRlLWluIGNvbnRhaW5lcikgw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAXHJcbi8vIHotaW5kZXggYWJvdmUgdGhlIGRpbSAoOTAwMCkgc28gTWFyayBzdGF5cyB2aXNpYmxlIGR1cmluZyBkaW1tZWRcclxuLy8gbGVzc29ucy4gQWJvdmUgTWF0RGlhbG9nIGRlZmF1bHQgKDEwMDApIHNvIHRoZSBwYW5lbCBuZXZlciBnZXRzXHJcbi8vIGNvdmVyZWQuIFRyYWRlLW9mZjogTWFyayBDQU4gbWFzayBvdGhlciBNYXREaWFsb2cgcG9wdXBzIG9wZW5lZCBieVxyXG4vLyBNREUgKGNvbm5lY3Rpb24tbG9zdCwgcGFyc2luZy1wcm9qZWN0LCAuLi4pLiBJZiB0aGF0IGJlY29tZXMgYSByZWFsXHJcbi8vIHByb2JsZW0gd2UnbGwgc3Vic2NyaWJlIHRvIE1hdERpYWxvZy5vcGVuRGlhbG9ncyBhbmQgdHdlYWsgei1pbmRleFxyXG4vLyBkeW5hbWljYWxseSDDosKAwpQgZm9yIG5vdyBpdCdzIGEga25vd24gbGltaXRhdGlvbi5cclxuLm1hcmstZGlhbG9nLXdyYXAge1xyXG4gIHBvc2l0aW9uOiBmaXhlZDtcclxuICBib3R0b206IDMycHg7XHJcbiAgcmlnaHQ6IDMycHg7XHJcbiAgei1pbmRleDogOTEwMDtcclxuICB3aWR0aDogNTQwcHg7XHJcbiAgLy8gT2ZmIHN0YXRlOiBjb21wbGV0ZWx5IGludmlzaWJsZS4gdHJhbnNmb3JtIGFsb25lIGlzIG5vdCBlbm91Z2ggw6LCgMKUIGlmIHRoZVxyXG4gIC8vIHVzZXIgZHJhZ2dlZCBNYXJrIHRvIGEgY3VzdG9tIHRvcC9sZWZ0LCB0cmFuc2xhdGVZKDE0MCUpIG9ubHkgc2hpZnRzIGJ5XHJcbiAgLy8gfjE0MCUgb2YgdGhlIGJveCBoZWlnaHQsIHdoaWNoIGNhbiBzdGlsbCBsZWF2ZSBpdCBpbnNpZGUgdGhlIHZpZXdwb3J0LlxyXG4gIC8vIG9wYWNpdHkgKyB2aXNpYmlsaXR5IGNsb3NlIHRoZSBnYXAgdW5jb25kaXRpb25hbGx5LlxyXG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgxNDAlKTtcclxuICBvcGFjaXR5OiAwO1xyXG4gIHZpc2liaWxpdHk6IGhpZGRlbjtcclxuICB0cmFuc2l0aW9uOlxyXG4gICAgdHJhbnNmb3JtIC41NXMgY3ViaWMtYmV6aWVyKC4yNSwgMS41LCAuNSwgMSksXHJcbiAgICBvcGFjaXR5IC4zNXMgZWFzZSxcclxuICAgIHZpc2liaWxpdHkgMHMgbGluZWFyIC4zNXMsICAgIC8vIGRlbGF5IGhpZGUgdW50aWwgb3BhY2l0eSBmaW5pc2hlcyBmYWRpbmdcclxuICAgIGJvdHRvbSAuNnMgZWFzZSxcclxuICAgIHJpZ2h0IC42cyBlYXNlLFxyXG4gICAgd2lkdGggLjZzIGVhc2U7XHJcbiAgcG9pbnRlci1ldmVudHM6IG5vbmU7XHJcblxyXG4gICYub24ge1xyXG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApO1xyXG4gICAgb3BhY2l0eTogMTtcclxuICAgIHZpc2liaWxpdHk6IHZpc2libGU7XHJcbiAgICBwb2ludGVyLWV2ZW50czogYXV0bztcclxuICAgIC8vIFdoZW4gc2hvd2luZywgc25hcCB2aXNpYmlsaXR5IGltbWVkaWF0ZWx5IHNvIHRoZSBzbGlkZS1pbiBpcyB2aXNpYmxlXHJcbiAgICB0cmFuc2l0aW9uOlxyXG4gICAgICB0cmFuc2Zvcm0gLjU1cyBjdWJpYy1iZXppZXIoLjI1LCAxLjUsIC41LCAxKSxcclxuICAgICAgb3BhY2l0eSAuMzVzIGVhc2UsXHJcbiAgICAgIHZpc2liaWxpdHkgMHMgbGluZWFyIDBzLFxyXG4gICAgICBib3R0b20gLjZzIGVhc2UsXHJcbiAgICAgIHJpZ2h0IC42cyBlYXNlLFxyXG4gICAgICB3aWR0aCAuNnMgZWFzZTtcclxuICB9XHJcblxyXG4gIC8vIFdoZW4gdGhlIHVzZXIgaGFzIGRyYWdnZWQgdGhlIGRpYWxvZyB0byBhIGN1c3RvbSBwb3NpdGlvbiwgdG9wL2xlZnRcclxuICAvLyAoc2V0IGlubGluZSBhcyBbc3R5bGUudG9wLnB4XS9bc3R5bGUubGVmdC5weF0pIHRha2Ugb3ZlciBhbmQgd2VcclxuICAvLyBuZXV0cmFsaXplIHRoZSBkZWZhdWx0IGJvdHRvbS9yaWdodCBhbmNob3JzLlxyXG4gICYuaGFzLWN1c3RvbS1wb3NpdGlvbiB7XHJcbiAgICBib3R0b206IGF1dG87XHJcbiAgICByaWdodDogYXV0bztcclxuICAgIC8vIGFsc28gc21vb3RoIHBvc2l0aW9uIHRyYW5zaXRpb25zIGRpc2FibGVkIGZvciBzbmFwcHkgZm9sbG93IGR1cmluZyBkcmFnXHJcbiAgICB0cmFuc2l0aW9uOlxyXG4gICAgICB0cmFuc2Zvcm0gLjU1cyBjdWJpYy1iZXppZXIoLjI1LCAxLjUsIC41LCAxKSxcclxuICAgICAgd2lkdGggLjZzIGVhc2U7XHJcbiAgfVxyXG5cclxuICAmLmRyYWdnaW5nIHtcclxuICAgIGN1cnNvcjogZ3JhYmJpbmc7XHJcbiAgICB1c2VyLXNlbGVjdDogbm9uZTtcclxuICAgIHRyYW5zaXRpb246IG5vbmU7ICAgICAvLyBzbmFwIHRvIG1vdXNlLCBubyBlYXNpbmcgZHVyaW5nIGFjdGl2ZSBkcmFnXHJcbiAgfVxyXG5cclxuICAmLm1pbmltaXplZCB7XHJcbiAgICB3aWR0aDogOTZweDtcclxuICAgIGJvdHRvbTogMjRweDtcclxuICAgIHJpZ2h0OiAyNHB4O1xyXG4gICAgY3Vyc29yOiBncmFiO1xyXG5cclxuICAgIC5jbG9zZS1taW5pIHtcclxuICAgICAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gICAgICB0b3A6IC02cHg7XHJcbiAgICAgIHJpZ2h0OiAtNnB4O1xyXG4gICAgICB3aWR0aDogMjJweDtcclxuICAgICAgaGVpZ2h0OiAyMnB4O1xyXG4gICAgICBib3JkZXItcmFkaXVzOiA1MCU7XHJcbiAgICAgIGJhY2tncm91bmQ6ICMxYTFhMWE7XHJcbiAgICAgIGNvbG9yOiAjRkZENzAwO1xyXG4gICAgICBib3JkZXI6IDJweCBzb2xpZCAjRkZENzAwO1xyXG4gICAgICBmb250LWZhbWlseTogJ1ByZXNzIFN0YXJ0IDJQJywgbW9ub3NwYWNlO1xyXG4gICAgICBmb250LXNpemU6IDlweDtcclxuICAgICAgbGluZS1oZWlnaHQ6IDE7XHJcbiAgICAgIHBhZGRpbmc6IDA7XHJcbiAgICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgICAgZGlzcGxheTogZmxleDtcclxuICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XHJcbiAgICAgIGJveC1zaGFkb3c6IDJweCAycHggMCAjMDAwO1xyXG4gICAgICB6LWluZGV4OiA1O1xyXG5cclxuICAgICAgJjpob3ZlciB7XHJcbiAgICAgICAgYmFja2dyb3VuZDogI2MwMzkyYjtcclxuICAgICAgICBjb2xvcjogI2ZmZjtcclxuICAgICAgICBib3JkZXItY29sb3I6ICNmZmY7XHJcbiAgICAgIH1cclxuICAgICAgJjphY3RpdmUge1xyXG4gICAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKDFweCwgMXB4KTtcclxuICAgICAgICBib3gtc2hhZG93OiAxcHggMXB4IDAgIzAwMDtcclxuICAgICAgfVxyXG4gICAgfVxyXG5cclxuICAgIC5kaWFsb2ctdGV4dC1hcmVhLFxyXG4gICAgLmxlZC1hcmVhLFxyXG4gICAgLmFudGVubmEsXHJcbiAgICAuY29udGludWUtYXJyb3csXHJcbiAgICAudXNlci1pbnB1dC1hcmVhIHtcclxuICAgICAgZGlzcGxheTogbm9uZTtcclxuICAgIH1cclxuICAgIC5tYXJrLWRpYWxvZy1ib3gge1xyXG4gICAgICBwYWRkaW5nOiA4cHg7XHJcbiAgICB9XHJcbiAgICAuZmFjZS1wb3J0cmFpdCB7XHJcbiAgICAgIHdpZHRoOiA4MHB4O1xyXG4gICAgICBoZWlnaHQ6IDgwcHg7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAvLyBIaWRlIHRoZSBjbG9zZS1taW5pIGJ1dHRvbiB3aGVuIE5PVCBtaW5pbWl6ZWQgKGl0IGxpdmVzIGluc2lkZSB0aGUgd3JhcClcclxuICAmOm5vdCgubWluaW1pemVkKSA+IC5jbG9zZS1taW5pIHtcclxuICAgIGRpc3BsYXk6IG5vbmU7XHJcbiAgfVxyXG59XHJcblxyXG4vLyBEZWZhdWx0IGN1cnNvciBvbiB0aGUgYm94IGl0c2VsZjogZ3JhYiDDosKAwpQgc2lnbmFscyBkcmFnZ2FiaWxpdHkuXHJcbi8vIEludGVyYWN0aXZlIGNoaWxkcmVuIChpbnB1dCwgYnV0dG9ucykgcmVzdG9yZSB0aGVpciBvd24gY3Vyc29yIGJlbG93LlxyXG4ubWFyay1kaWFsb2ctYm94IHtcclxuICBjdXJzb3I6IGdyYWI7XHJcblxyXG4gIGlucHV0LCBidXR0b24ge1xyXG4gICAgY3Vyc29yOiBhdXRvO1xyXG4gIH1cclxuICBpbnB1dCB7IGN1cnNvcjogdGV4dDsgfVxyXG4gIGJ1dHRvbjpub3QoOmRpc2FibGVkKSB7IGN1cnNvcjogcG9pbnRlcjsgfVxyXG59XHJcbi5tYXJrLWRpYWxvZy13cmFwLmRyYWdnaW5nIC5tYXJrLWRpYWxvZy1ib3gge1xyXG4gIGN1cnNvcjogZ3JhYmJpbmc7XHJcbn1cclxuXHJcbi8vIMOiwpTCgMOiwpTCgCBBbnRlbm5hIMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgFxyXG4uYW50ZW5uYSB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIHRvcDogLTI4cHg7XHJcbiAgcmlnaHQ6IDI0cHg7XHJcbiAgd2lkdGg6IDRweDtcclxuICBoZWlnaHQ6IDI4cHg7XHJcbiAgYmFja2dyb3VuZDogI2MwYzBjMDtcclxuICBib3gtc2hhZG93OiAycHggMCAwICM4ODgsIC0ycHggMCAwICNmMGYwZjA7XHJcblxyXG4gICY6OmFmdGVyIHtcclxuICAgIGNvbnRlbnQ6ICcnO1xyXG4gICAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gICAgdG9wOiAtOHB4O1xyXG4gICAgbGVmdDogLTRweDtcclxuICAgIHdpZHRoOiAxMnB4O1xyXG4gICAgaGVpZ2h0OiA4cHg7XHJcbiAgICBiYWNrZ3JvdW5kOiAjRkYzQjNCO1xyXG4gICAgYm9yZGVyOiAycHggc29saWQgIzFhMWExYTtcclxuICAgIGJveC1zaGFkb3c6IDAgMCAxMnB4IHJnYmEoMjU1LCA1OSwgNTksIC45KTtcclxuICAgIGFuaW1hdGlvbjogbWFyay1hbnRlbm5hLWJsaW5rIDFzIHN0ZXBzKDIpIGluZmluaXRlO1xyXG4gIH1cclxufVxyXG5Aa2V5ZnJhbWVzIG1hcmstYW50ZW5uYS1ibGluayB7XHJcbiAgMCUsIDEwMCUgeyBiYWNrZ3JvdW5kOiAjRkYzQjNCOyBib3gtc2hhZG93OiAwIDAgMTRweCByZ2JhKDI1NSwgNTksIDU5LCAuOSk7IH1cclxuICA1MCUgICAgICB7IGJhY2tncm91bmQ6ICM1YTAwMDA7IGJveC1zaGFkb3c6IDAgMCA0cHggcmdiYSgyNTUsIDU5LCA1OSwgLjMpOyB9XHJcbn1cclxuXHJcbi8vIMOiwpTCgMOiwpTCgCBEaWFsb2cgYm94IGl0c2VsZiDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcclxuLm1hcmstZGlhbG9nLWJveCB7XHJcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xyXG4gIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxODBkZWcsICMwZDI3NTUgMCUsICMwODE4M2IgMTAwJSk7XHJcbiAgYm9yZGVyOiA0cHggc29saWQgIzFhMWExYTtcclxuICBib3gtc2hhZG93OlxyXG4gICAgaW5zZXQgMCAwIDAgMnB4ICNGRkQ3MDAsXHJcbiAgICBpbnNldCAwIDAgMCA1cHggIzA4MTgzYixcclxuICAgIGluc2V0IDAgMCAwIDdweCAjYzBjMGMwLFxyXG4gICAgaW5zZXQgMCAwIDAgOXB4ICMxYTFhMWEsXHJcbiAgICAwIDhweCAwIDAgIzAwMCxcclxuICAgIDAgMTJweCAzMHB4IHJnYmEoMCwwLDAsMC40KTtcclxuICBwYWRkaW5nOiAxOHB4IDIycHggMjJweCAyMnB4O1xyXG4gIGNvbG9yOiB3aGl0ZTtcclxuICBpbWFnZS1yZW5kZXJpbmc6IHBpeGVsYXRlZDtcclxufVxyXG5cclxuLnJpdmV0IHtcclxuICBwb3NpdGlvbjogYWJzb2x1dGU7XHJcbiAgd2lkdGg6IDhweDtcclxuICBoZWlnaHQ6IDhweDtcclxuICBiYWNrZ3JvdW5kOiByYWRpYWwtZ3JhZGllbnQoY2lyY2xlIGF0IDMwJSAzMCUsICNmZmYgMTAlLCAjODg4IDYwJSwgIzJhMmEyYSAxMDAlKTtcclxuICBib3JkZXItcmFkaXVzOiA1MCU7XHJcbiAgei1pbmRleDogMjtcclxuICAmLnJpdmV0LXRsIHsgdG9wOiA2cHg7IGxlZnQ6IDZweDsgfVxyXG4gICYucml2ZXQtdHIgeyB0b3A6IDZweDsgcmlnaHQ6IDZweDsgfVxyXG4gICYucml2ZXQtYmwgeyBib3R0b206IDZweDsgbGVmdDogNnB4OyB9XHJcbiAgJi5yaXZldC1iciB7IGJvdHRvbTogNnB4OyByaWdodDogNnB4OyB9XHJcbn1cclxuXHJcbi8vIMOiwpTCgMOiwpTCgCBTdGF0dXMgTEVEICsgZnJlcXVlbmN5IMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgMOiwpTCgFxyXG4ubGVkLWFyZWEge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICBnYXA6IDhweDtcclxuICBtYXJnaW4tYm90dG9tOiAxMHB4O1xyXG4gIHBhZGRpbmctbGVmdDogNHB4O1xyXG59XHJcblxyXG4ubGVkIHtcclxuICB3aWR0aDogMTBweDtcclxuICBoZWlnaHQ6IDEwcHg7XHJcbiAgYm9yZGVyLXJhZGl1czogNTAlO1xyXG4gIGJhY2tncm91bmQ6ICMwMGZmNjY7XHJcbiAgYm94LXNoYWRvdzogMCAwIDEwcHggcmdiYSgwLCAyNTUsIDEwMiwgMC45KSwgaW5zZXQgMCAwIDNweCByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuNik7XHJcbiAgYW5pbWF0aW9uOiBtYXJrLWxlZC1wdWxzZSAxLjJzIGVhc2UtaW4tb3V0IGluZmluaXRlO1xyXG59XHJcbkBrZXlmcmFtZXMgbWFyay1sZWQtcHVsc2Uge1xyXG4gIDAlLCAxMDAlIHsgb3BhY2l0eTogMTsgfVxyXG4gIDUwJSAgICAgIHsgb3BhY2l0eTogMC40OyB9XHJcbn1cclxuXHJcbi5sZWQtbGFiZWwge1xyXG4gIGZvbnQtZmFtaWx5OiAnUHJlc3MgU3RhcnQgMlAnLCBtb25vc3BhY2U7XHJcbiAgZm9udC1zaXplOiA4cHg7XHJcbiAgY29sb3I6ICMwMGZmNjY7XHJcbiAgbGV0dGVyLXNwYWNpbmc6IDFweDtcclxuICB3aGl0ZS1zcGFjZTogbm93cmFwO1xyXG59XHJcblxyXG4uZnJlcS1kaXNwbGF5IHtcclxuICBtYXJnaW4tbGVmdDogYXV0bztcclxuICBmb250LWZhbWlseTogJ1ZUMzIzJywgbW9ub3NwYWNlO1xyXG4gIGZvbnQtc2l6ZTogMTZweDtcclxuICBjb2xvcjogI0ZGRDcwMDtcclxuICBsZXR0ZXItc3BhY2luZzogMXB4O1xyXG59XHJcblxyXG4uc2tpcC1idG4ge1xyXG4gIGJhY2tncm91bmQ6IHRyYW5zcGFyZW50O1xyXG4gIGJvcmRlcjogMnB4IHNvbGlkICNGRkQ3MDA7XHJcbiAgY29sb3I6ICNGRkQ3MDA7XHJcbiAgZm9udC1mYW1pbHk6ICdQcmVzcyBTdGFydCAyUCcsIG1vbm9zcGFjZTtcclxuICBmb250LXNpemU6IDhweDtcclxuICBwYWRkaW5nOiA0cHggNnB4O1xyXG4gIGN1cnNvcjogcG9pbnRlcjtcclxuICBtYXJnaW4tbGVmdDogOHB4O1xyXG4gICY6aG92ZXIgeyBiYWNrZ3JvdW5kOiAjRkZENzAwOyBjb2xvcjogIzFhMWExYTsgfVxyXG59XHJcblxyXG4vLyDDosKUwoDDosKUwoAgQ29udGVudCByb3c6IHBvcnRyYWl0ICsgdGV4dCDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoDDosKUwoBcclxuLmRpYWxvZy1jb250ZW50IHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGdhcDogMThweDtcclxuICBhbGlnbi1pdGVtczogZmxleC1zdGFydDtcclxufVxyXG5cclxuLmZhY2UtcG9ydHJhaXQge1xyXG4gIHdpZHRoOiAxMjhweDtcclxuICBoZWlnaHQ6IDEyOHB4O1xyXG4gIGJhY2tncm91bmQ6ICMwMDA7XHJcbiAgYm9yZGVyOiAzcHggc29saWQgI0ZGRDcwMDtcclxuICBib3gtc2hhZG93OiBpbnNldCAwIDAgMCAxcHggIzAwMCwgMCAwIDEycHggcmdiYSgyNTUsIDIxNSwgMCwgMC4zKTtcclxuICBmbGV4LXNocmluazogMDtcclxuICBkaXNwbGF5OiBibG9jaztcclxuICAvLyBwaXhlbC1hcnQgY3Jpc3BuZXNzIHByZXNlcnZlZCB3aGVuIHNjYWxpbmcgZG93biB0aGUgMTI1NMODwpcxMjU0IHNvdXJjZVxyXG4gIGltYWdlLXJlbmRlcmluZzogcGl4ZWxhdGVkO1xyXG4gIC1tcy1pbnRlcnBvbGF0aW9uLW1vZGU6IG5lYXJlc3QtbmVpZ2hib3I7XHJcbiAgb2JqZWN0LWZpdDogY292ZXI7XHJcbiAgdXNlci1zZWxlY3Q6IG5vbmU7XHJcbn1cclxuXHJcbi5kaWFsb2ctdGV4dC1hcmVhIHtcclxuICBmbGV4OiAxO1xyXG4gIG1pbi13aWR0aDogMDtcclxuICBwYWRkaW5nLXRvcDogMnB4O1xyXG59XHJcblxyXG4uZGlhbG9nLW5hbWUge1xyXG4gIGZvbnQtZmFtaWx5OiAnUHJlc3MgU3RhcnQgMlAnLCBtb25vc3BhY2U7XHJcbiAgZm9udC1zaXplOiAxMnB4O1xyXG4gIGNvbG9yOiAjRkZENzAwO1xyXG4gIG1hcmdpbi1ib3R0b206IDhweDtcclxuICB0ZXh0LXNoYWRvdzogMnB4IDJweCAwICMwMDA7XHJcbiAgbGV0dGVyLXNwYWNpbmc6IDFweDtcclxufVxyXG5cclxuLmRpYWxvZy10ZXh0IHtcclxuICBmb250LWZhbWlseTogJ1ZUMzIzJywgbW9ub3NwYWNlO1xyXG4gIGZvbnQtc2l6ZTogMjJweDtcclxuICBsaW5lLWhlaWdodDogMS4yNTtcclxuICBjb2xvcjogI2ZmZjtcclxuICB0ZXh0LXNoYWRvdzogMXB4IDFweCAwICMwMDA7XHJcbiAgbWluLWhlaWdodDogNTZweDtcclxuXHJcbiAgJi5zdGF0aWMge1xyXG4gICAgY29sb3I6ICM4ODg7XHJcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XHJcbiAgfVxyXG59XHJcblxyXG4uY3Vyc29yIHtcclxuICBkaXNwbGF5OiBpbmxpbmUtYmxvY2s7XHJcbiAgd2lkdGg6IDEwcHg7XHJcbiAgaGVpZ2h0OiAxOHB4O1xyXG4gIGJhY2tncm91bmQ6ICNGRkQ3MDA7XHJcbiAgbWFyZ2luLWxlZnQ6IDJweDtcclxuICB2ZXJ0aWNhbC1hbGlnbjogLTJweDtcclxuICBhbmltYXRpb246IG1hcmstY3Vyc29yLWJsaW5rIDAuNHMgc3RlcHMoMikgaW5maW5pdGU7XHJcbn1cclxuQGtleWZyYW1lcyBtYXJrLWN1cnNvci1ibGluayB7XHJcbiAgMCUsIDEwMCUgeyBvcGFjaXR5OiAxOyB9XHJcbiAgNTAlICAgICAgeyBvcGFjaXR5OiAwOyB9XHJcbn1cclxuXHJcbi5jb250aW51ZS1hcnJvdyB7XHJcbiAgcG9zaXRpb246IGFic29sdXRlO1xyXG4gIGJvdHRvbTogMTRweDtcclxuICByaWdodDogMjRweDtcclxuICBjb2xvcjogI0ZGRDcwMDtcclxuICBmb250LWZhbWlseTogJ1ByZXNzIFN0YXJ0IDJQJywgbW9ub3NwYWNlO1xyXG4gIGZvbnQtc2l6ZTogMTRweDtcclxuICB0ZXh0LXNoYWRvdzogMnB4IDJweCAwICMwMDA7XHJcbiAgb3BhY2l0eTogMDtcclxuICBhbmltYXRpb246IG1hcmstYXJyb3ctYmxpbmsgMC42cyBzdGVwcygyKSBpbmZpbml0ZTtcclxuXHJcbiAgJi5vbiB7IG9wYWNpdHk6IDE7IH1cclxufVxyXG5Aa2V5ZnJhbWVzIG1hcmstYXJyb3ctYmxpbmsge1xyXG4gIDAlLCAxMDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9XHJcbiAgNTAlICAgICAgeyB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoM3B4KTsgfVxyXG59XHJcblxyXG4vLyDDosKUwoDDosKUwoAgQWN0aW9uIGJ1dHRvbnMgKHN0ZXAuYWN0aW9ucykgw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAXHJcbi8vIFJlbmRlcmVkIHdoZW4gdGhlIGN1cnJlbnQgc3RlcCBhc2tzIHRoZSB1c2VyIHRvIHBpY2sgYSBwYXRoIMOiwoDClFxyXG4vLyBlLmcuIHRoZSBpZGxlLW1lbnUgb2ZmZXJzIFwiQ3JlYXRlIGRlbW8gcHJvamVjdFwiIC8gXCJOZXh0IHRpcFwiLlxyXG4udXNlci1hY3Rpb25zLWFyZWEge1xyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC13cmFwOiB3cmFwO1xyXG4gIGdhcDogMTBweDtcclxuICBtYXJnaW4tdG9wOiAxNHB4O1xyXG4gIHBhZGRpbmctdG9wOiA0cHg7XHJcblxyXG4gIC5hY3Rpb24tYnRuIHtcclxuICAgIGRpc3BsYXk6IGlubGluZS1mbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGdhcDogOHB4O1xyXG4gICAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDE4MGRlZywgI0ZGRDcwMCAwJSwgI2U2YjgwMCAxMDAlKTtcclxuICAgIGNvbG9yOiAjMWExYTFhO1xyXG4gICAgYm9yZGVyOiAzcHggc29saWQgIzFhMWExYTtcclxuICAgIGZvbnQtZmFtaWx5OiAnUHJlc3MgU3RhcnQgMlAnLCBtb25vc3BhY2U7XHJcbiAgICBmb250LXNpemU6IDEwcHg7XHJcbiAgICBsaW5lLWhlaWdodDogMTtcclxuICAgIHBhZGRpbmc6IDEwcHggMTRweDtcclxuICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgIGxldHRlci1zcGFjaW5nOiAxcHg7XHJcbiAgICBib3gtc2hhZG93OiAzcHggM3B4IDAgIzAwMDtcclxuICAgIHRyYW5zaXRpb246IHRyYW5zZm9ybSAuMDZzLCBib3gtc2hhZG93IC4wNnM7XHJcblxyXG4gICAgJjpob3Zlcjpub3QoOmRpc2FibGVkKSB7XHJcbiAgICAgIGJhY2tncm91bmQ6IGxpbmVhci1ncmFkaWVudCgxODBkZWcsICNmZmY4YjAgMCUsICNGRkQ3MDAgMTAwJSk7XHJcbiAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKC0xcHgsIC0xcHgpO1xyXG4gICAgICBib3gtc2hhZG93OiA0cHggNHB4IDAgIzAwMDtcclxuICAgIH1cclxuXHJcbiAgICAmOmFjdGl2ZTpub3QoOmRpc2FibGVkKSB7XHJcbiAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKDJweCwgMnB4KTtcclxuICAgICAgYm94LXNoYWRvdzogMXB4IDFweCAwICMwMDA7XHJcbiAgICB9XHJcblxyXG4gICAgJjpkaXNhYmxlZCB7XHJcbiAgICAgIGJhY2tncm91bmQ6ICM1NTU7XHJcbiAgICAgIGNvbG9yOiAjODg4O1xyXG4gICAgICBib3JkZXItY29sb3I6ICMyYTJhMmE7XHJcbiAgICAgIGN1cnNvcjogbm90LWFsbG93ZWQ7XHJcbiAgICAgIGJveC1zaGFkb3c6IDNweCAzcHggMCAjMDAwO1xyXG4gICAgfVxyXG5cclxuICAgIC5hY3Rpb24taWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMTRweDtcclxuICAgICAgbGluZS1oZWlnaHQ6IDE7XHJcbiAgICB9XHJcbiAgICAuYWN0aW9uLWxhYmVsIHsgbGluZS1oZWlnaHQ6IDE7IH1cclxuICB9XHJcbn1cclxuXHJcbi8vIMOiwpTCgMOiwpTCgCBVc2VyIGlucHV0IGFyZWEgw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAw6LClMKAXHJcbi8vIFNpdHMgYmVsb3cgZGlhbG9nLWNvbnRlbnQuIEtPRi1zdHlsZWQ6IG5hdnkgKyBnb2xkIGJvcmRlciwgVlQzMjMgZm9udCxcclxuLy8gZ29sZCBwcm9tcHQgcHJlZml4LCBnb2xkIHNlbmQgYnV0dG9uLiBUaGUgYXJjaGl0ZWN0dXJlIGlzIHJlYWR5IGZvciBWM1xyXG4vLyAoQUkgY29udmVyc2F0aW9uKSDDosKAwpQgVjAganVzdCByb3V0ZXMgdGhyb3VnaCBFY2hvSGFuZGxlci5cclxuLnVzZXItaW5wdXQtYXJlYSB7XHJcbiAgZGlzcGxheTogZmxleDtcclxuICBhbGlnbi1pdGVtczogY2VudGVyO1xyXG4gIGdhcDogNnB4O1xyXG4gIG1hcmdpbi10b3A6IDEycHg7XHJcbiAgcGFkZGluZzogNnB4IDhweDtcclxuICBiYWNrZ3JvdW5kOiAjMDUwZDIyO1xyXG4gIGJvcmRlcjogMnB4IHNvbGlkICNGRkQ3MDA7XHJcbiAgYm94LXNoYWRvdzogaW5zZXQgMCAwIDAgMXB4ICMwMDA7XHJcblxyXG4gIC5wcm9tcHQtcHJlZml4IHtcclxuICAgIGNvbG9yOiAjRkZENzAwO1xyXG4gICAgZm9udC1mYW1pbHk6ICdQcmVzcyBTdGFydCAyUCcsIG1vbm9zcGFjZTtcclxuICAgIGZvbnQtc2l6ZTogMTJweDtcclxuICAgIG1hcmdpbi1sZWZ0OiAycHg7XHJcbiAgICB0ZXh0LXNoYWRvdzogMXB4IDFweCAwICMwMDA7XHJcbiAgfVxyXG5cclxuICAudXNlci1pbnB1dCB7XHJcbiAgICBmbGV4OiAxO1xyXG4gICAgbWluLXdpZHRoOiAwO1xyXG4gICAgYmFja2dyb3VuZDogdHJhbnNwYXJlbnQ7XHJcbiAgICBib3JkZXI6IG5vbmU7XHJcbiAgICBvdXRsaW5lOiBub25lO1xyXG4gICAgY29sb3I6ICNmZmY4YjA7XHJcbiAgICBmb250LWZhbWlseTogJ1ZUMzIzJywgbW9ub3NwYWNlO1xyXG4gICAgZm9udC1zaXplOiAxOHB4O1xyXG4gICAgbGV0dGVyLXNwYWNpbmc6IDAuNXB4O1xyXG4gICAgcGFkZGluZzogNHB4IDZweDtcclxuICAgIGNhcmV0LWNvbG9yOiAjRkZENzAwO1xyXG5cclxuICAgICY6OnBsYWNlaG9sZGVyIHtcclxuICAgICAgY29sb3I6ICM2YTdhOTk7XHJcbiAgICAgIGZvbnQtc3R5bGU6IGl0YWxpYztcclxuICAgIH1cclxuXHJcbiAgICAmOmRpc2FibGVkIHtcclxuICAgICAgY29sb3I6ICM1NTU7XHJcbiAgICAgIGN1cnNvcjogbm90LWFsbG93ZWQ7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAuc2VuZC1idG4ge1xyXG4gICAgYmFja2dyb3VuZDogI0ZGRDcwMDtcclxuICAgIGNvbG9yOiAjMWExYTFhO1xyXG4gICAgYm9yZGVyOiAycHggc29saWQgIzFhMWExYTtcclxuICAgIGZvbnQtZmFtaWx5OiAnUHJlc3MgU3RhcnQgMlAnLCBtb25vc3BhY2U7XHJcbiAgICBmb250LXNpemU6IDEwcHg7XHJcbiAgICBwYWRkaW5nOiA0cHggOHB4O1xyXG4gICAgY3Vyc29yOiBwb2ludGVyO1xyXG4gICAgbWluLXdpZHRoOiAzMnB4O1xyXG4gICAgYm94LXNoYWRvdzogMnB4IDJweCAwICMwMDA7XHJcblxyXG4gICAgJjpob3Zlcjpub3QoOmRpc2FibGVkKSB7XHJcbiAgICAgIGJhY2tncm91bmQ6ICNmZmY4YjA7XHJcbiAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKC0xcHgsIC0xcHgpO1xyXG4gICAgICBib3gtc2hhZG93OiAzcHggM3B4IDAgIzAwMDtcclxuICAgIH1cclxuXHJcbiAgICAmOmFjdGl2ZTpub3QoOmRpc2FibGVkKSB7XHJcbiAgICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlKDFweCwgMXB4KTtcclxuICAgICAgYm94LXNoYWRvdzogMXB4IDFweCAwICMwMDA7XHJcbiAgICB9XHJcblxyXG4gICAgJjpkaXNhYmxlZCB7XHJcbiAgICAgIGJhY2tncm91bmQ6ICM1NTU7XHJcbiAgICAgIGNvbG9yOiAjODg4O1xyXG4gICAgICBjdXJzb3I6IG5vdC1hbGxvd2VkO1xyXG4gICAgICBib3gtc2hhZG93OiAycHggMnB4IDAgIzAwMDtcclxuICAgIH1cclxuICB9XHJcbn1cclxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }
 }
@@ -8439,6 +9071,14 @@ __webpack_require__.r(__webpack_exports__);
 
 const COMPLETED_KEY_PREFIX = 'mark.lesson.';
 const DEFAULT_STEP_DURATION_MS = 1700;
+const NEXT_TIP_INDEX_KEY = 'mark.nextTipIndex';
+/**
+ * Independent flag for the welcome-tour autostart guard. Kept SEPARATE
+ * from the markLessonCompleted flags because the welcome-tour now lives
+ * in the micro-tip rotation (so it must remain re-surfaceable), but it
+ * still must auto-play exactly once on the very-first MDE launch.
+ */
+const WELCOME_AUTO_SHOWN_KEY = 'mark.welcomeAutoShown';
 /**
  * MarkAssistantService — Mark's brain.
  *
@@ -8478,6 +9118,13 @@ class MarkAssistantService {
     this._isResponding = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     this.isResponding$ = this._isResponding.asObservable();
     /**
+     * Action buttons for the current step (when set, the lesson loop is paused
+     * waiting for the user to click one). The component renders these below
+     * the dialog text.
+     */
+    this._actions = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this.actions$ = this._actions.asObservable();
+    /**
      * True when Mark is detached into a separate Electron BrowserWindow.
      * While undocked, the in-app overlay hides itself and the service
      * forwards every state emit to the floating window via Electron IPC.
@@ -8497,6 +9144,8 @@ class MarkAssistantService {
     this.undockSubs = [];
     /** Cleanup callbacks for Electron IPC listeners. */
     this.undockCleanups = [];
+    /** Resolver for the in-flight "wait for the user to click an action" promise. */
+    this.actionResolve = null;
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -8506,6 +9155,10 @@ class MarkAssistantService {
         this.recomputeSpotlight();
       });
     };
+    this.lessonRegistry = (0,_lessons__WEBPACK_IMPORTED_MODULE_1__.buildLessonRegistry)({
+      launch: id => this.launch(id),
+      launchNextMicroTip: () => this.launchNextMicroTip()
+    });
     this.registerInputHandlers();
     this.subscribeRouteChanges();
     this.subscribeViewportChanges();
@@ -8531,8 +9184,14 @@ class MarkAssistantService {
       // Open the floating window with an initial state snapshot
       yield api.undock(_this.snapshotState());
       _this._isUndocked.next(true);
-      // Forward every subsequent state change to the mark-window
-      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$]).subscribe(() => {
+      // Forward every subsequent state change to the mark-window. We watch all
+      // observables that drive a visible piece of the dialog UI (text, static
+      // mode, responding flag, action buttons, continue arrow, state) so the
+      // floating window stays in lock-step with what would be on screen if Mark
+      // were still docked. Without actions$/continueArrow$/state$ in this list
+      // an undock during an active "Prosegui" step would strand the user — the
+      // dialog text would be there but the button to advance wouldn't.
+      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$, _this.actions$, _this.continueArrow$, _this.state$]).subscribe(() => {
         api.pushState(_this.snapshotState());
       });
       _this.undockSubs.push(sub);
@@ -8540,6 +9199,13 @@ class MarkAssistantService {
       _this.undockCleanups.push(api.onUserInput(text => {
         _this.submitUserInput(text);
       }));
+      // Action button clicks in the mark-window come back here so the lesson
+      // loop's waitForAction() resolves and the handler runs.
+      if (typeof api.onActionSubmit === 'function') {
+        _this.undockCleanups.push(api.onActionSubmit(index => {
+          _this.submitAction(index);
+        }));
+      }
       // If the mark-window is closed externally (Alt+F4, OS gesture, redock btn).
       // Idempotent — multiple firings are silently ignored.
       _this.undockCleanups.push(api.onClose(() => {
@@ -8567,12 +9233,26 @@ class MarkAssistantService {
     });
     this.undockCleanups = [];
   }
-  /** Serialize the visible state for the standalone mark-window. */
+  /** Serialize the visible state for the standalone mark-window.
+   *
+   * Action labels are pre-translated here because the mark-window is a static
+   * HTML page without ngx-translate — it just renders whatever strings the
+   * snapshot carries. The handler stays on this side; the window only
+   * reports back the picked index.
+   */
   snapshotState() {
+    const rawActions = this._actions.getValue();
+    const actions = rawActions ? rawActions.map(a => ({
+      label: this.translate.instant(a.labelKey),
+      icon: a.icon
+    })) : null;
     return {
       text: this._text.getValue(),
       staticMode: this._staticMode.getValue(),
       isResponding: this._isResponding.getValue(),
+      state: this._state.getValue(),
+      continueArrow: this._continueArrow.getValue(),
+      actions,
       transmittingLabel: this.translate.instant('MARK.TRANSMITTING'),
       inputPlaceholder: this.translate.instant('MARK.INPUT.PLACEHOLDER')
     };
@@ -8647,10 +9327,12 @@ class MarkAssistantService {
   // ── Auto-start on first MDE launch ────────────────────────────────────────
   /**
    * Auto-start the welcome tour the very first time the user lands on
-   * the projects page with zero projects and no completion flag.
+   * the projects page with zero projects. Uses the dedicated
+   * WELCOME_AUTO_SHOWN_KEY flag (NOT the per-lesson completion key)
+   * because welcome-tour is re-runnable from the micro-tip rotation.
    */
   checkAutoStart() {
-    if (this.isLessonCompleted(_lessons__WEBPACK_IMPORTED_MODULE_1__.WELCOME_TOUR.id)) return;
+    if (localStorage.getItem(WELCOME_AUTO_SHOWN_KEY) === 'true') return;
     // mdProjects is a BehaviorSubject seeded with [] at service construction.
     // skip(1) ignores that init emit and waits for the first real fetch result
     // (triggered by ProjectsComponent.ngOnInit -> fetchProjects()).
@@ -8662,6 +9344,14 @@ class MarkAssistantService {
       // Wait a moment for the projects page to be fully rendered so [data-test] anchors exist
       setTimeout(() => {
         if (document.querySelector('[data-test="new-folder-button"]')) {
+          // Mark the welcome as auto-shown BEFORE launching so it doesn't
+          // re-trigger on a second mdProjects emit, and bump nextTipIndex
+          // past the welcome itself so the very-first "Prosegui" surfaces
+          // the next pill, not a replay of the tour the user just saw.
+          localStorage.setItem(WELCOME_AUTO_SHOWN_KEY, 'true');
+          if (this.readNextTipIndex() === 0) {
+            this.writeNextTipIndex(1);
+          }
           this.launch(_lessons__WEBPACK_IMPORTED_MODULE_1__.WELCOME_TOUR.id);
         }
       }, 1000);
@@ -8681,7 +9371,7 @@ class MarkAssistantService {
   launch(lessonId) {
     var _this2 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      const lesson = _lessons__WEBPACK_IMPORTED_MODULE_1__.LESSONS[lessonId];
+      const lesson = _this2.lessonRegistry[lessonId];
       if (!lesson) {
         console.warn('[Mark] Unknown lesson id:', lessonId);
         return;
@@ -8698,9 +9388,13 @@ class MarkAssistantService {
       _this2._staticMode.next(false);
       _this2._continueArrow.next(false);
       _this2._isResponding.next(false);
-      // 1. Dim
+      _this2._actions.next(null);
+      _this2.actionResolve = null;
+      // 1. Dim — opt-out for "watch-along" lessons (e.g. demo-clone-tour) so
+      // the spotlight cutout doesn't obscure the dialog Mark is auto-filling.
+      const useDim = lesson.dim !== false;
       _this2._state.next('playing');
-      _this2._dim.next(true);
+      _this2._dim.next(useDim);
       yield _this2.sleep(500);
       if (_this2.abortFlag) return;
       // 2. Slide-in (CSS transition is triggered by state change)
@@ -8719,9 +9413,13 @@ class MarkAssistantService {
       for (const step of lesson.steps) {
         if (_this2.abortFlag) return;
         // Place spotlight (anchored — recomputeSpotlight() will keep it in sync
-        // with the target as the user scrolls or resizes the window)
-        _this2.currentSpotlightSelector = step.targetSelector ?? null;
-        if (step.targetSelector) {
+        // with the target as the user scrolls or resizes the window).
+        // For lessons opted out of dim (watch-along tours) we suppress the
+        // spotlight entirely — its huge box-shadow IS the darkening, and on
+        // a Material dialog with single-input targets it would also produce
+        // tiny off-centre highlights.
+        _this2.currentSpotlightSelector = useDim ? step.targetSelector ?? null : null;
+        if (useDim && step.targetSelector) {
           if (!document.querySelector(step.targetSelector)) {
             console.warn('[Mark] Spotlight target not found:', step.targetSelector);
           }
@@ -8733,23 +9431,132 @@ class MarkAssistantService {
         const text = yield _this2.translateKey(step.textKey);
         yield _this2.typewriter(text);
         if (_this2.abortFlag) return;
-        // Pause before next step
-        yield _this2.sleep(step.durationMs ?? DEFAULT_STEP_DURATION_MS);
+        // 3 cases for advancing past a step:
+        //   (a) step.actions defined  → pause, render the buttons, wait for click
+        //   (b) step.autoExecute      → run side-effect, then time-based advance
+        //   (c) plain narrative step  → synthesize a "Continue" button
+        //                                so the user paces the reading himself
+        if (step.actions && step.actions.length > 0) {
+          _this2._actions.next(step.actions);
+          yield _this2.waitForAction();
+          _this2._actions.next(null);
+          if (_this2.abortFlag) return;
+          // Note: action handlers often call launch(otherLessonId) which sets
+          // abortFlag → next iteration's check exits the loop. Skip trailing sleep.
+          continue;
+        }
+        if (step.autoExecute) {
+          try {
+            yield step.autoExecute();
+          } catch (err) {
+            console.warn('[Mark] autoExecute failed for step', step.textKey, err);
+          }
+          if (_this2.abortFlag) return;
+          yield _this2.sleep(step.durationMs ?? DEFAULT_STEP_DURATION_MS);
+          continue;
+        }
+        // Narrative step (no actions, no autoExecute) — wait for user click on
+        // a synthesized "Prosegui" button. No time-based advance: the user
+        // reads at his own pace.
+        _this2._actions.next([{
+          labelKey: 'MARK.PROSEGUI',
+          icon: '▶',
+          handler: () => {}
+        }]);
+        yield _this2.waitForAction();
+        _this2._actions.next(null);
+        if (_this2.abortFlag) return;
       }
-      // 5. Done — minimize and remember
+      // 5. Done — apply onCompleteNext transition.
+      // Welcome and micro-tips chain into 'next-tip' (so Prosegui keeps
+      // surfacing new pills); demo / done / menu fall back to 'minimize'.
       _this2.currentSpotlightSelector = null;
       _this2._spotlight.next(null);
       _this2._dim.next(false);
-      _this2._state.next('minimized');
       _this2._text.next('');
       _this2._continueArrow.next(false);
-      _this2.markLessonCompleted(lesson.id);
+      _this2._actions.next(null);
+      if (lesson.markAsCompleted !== false) {
+        _this2.markLessonCompleted(lesson.id);
+      }
       if (lesson.onComplete) lesson.onComplete();
+      const next = lesson.onCompleteNext ?? 'minimize';
+      switch (next) {
+        case 'next-tip':
+          // Fire-and-forget — launchNextMicroTip() will pick the right tip
+          // (or the "all done" closing lesson) and run it.
+          _this2.launchNextMicroTip();
+          break;
+        case 'hide':
+          _this2._state.next('hidden');
+          break;
+        case 'minimize':
+        default:
+          _this2._state.next('minimized');
+          break;
+      }
     })();
   }
   /**
+   * Open Mark in idle/menu mode — shows the menu lesson where the user picks
+   * what to do next (demo project clone, micro-tip "next", etc.).
+   * Wired to the `?` button in the title-bar.
+   */
+  openMenu() {
+    var _this3 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      return _this3.launch('idle-menu');
+    })();
+  }
+  /**
+   * Plays the "next" applicable micro-tip in the queue.
+   *
+   * The pointer (mark.nextTipIndex) is incremented on each call and wraps
+   * when the queue is exhausted (playing the "all done" closing lesson
+   * and resetting to 0). Tips whose `context` doesn't match the current
+   * route are SKIPPED — e.g. if the user is on /main, welcome and search
+   * (both 'projects-page') are silently jumped, and only drag / undock
+   * play; once those are exhausted the closing lesson is shown.
+   *
+   * This means the user gets a context-relevant stream of suggestions
+   * without ever seeing a tip that talks about a UI element that's not
+   * on screen.
+   */
+  launchNextMicroTip() {
+    var _this4 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      let idx = _this4.readNextTipIndex();
+      const url = _this4.router.url;
+      // Skip tips whose context doesn't match the current route
+      while (idx < _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS.length) {
+        const tip = _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS[idx];
+        const ctx = tip.context ?? 'always';
+        if (_this4.isContextActive(ctx, url)) break;
+        idx++;
+      }
+      if (idx >= _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS.length) {
+        // No more applicable tips → "all done" message + reset cursor
+        _this4.writeNextTipIndex(0);
+        return _this4.launch(_lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS_DONE.id);
+      }
+      const tip = _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS[idx];
+      _this4.writeNextTipIndex(idx + 1);
+      return _this4.launch(tip.id);
+    })();
+  }
+  readNextTipIndex() {
+    const raw = localStorage.getItem(NEXT_TIP_INDEX_KEY);
+    const n = raw ? parseInt(raw, 10) : 0;
+    return isNaN(n) || n < 0 ? 0 : n;
+  }
+  writeNextTipIndex(n) {
+    localStorage.setItem(NEXT_TIP_INDEX_KEY, String(n));
+  }
+  /**
    * Skip the current run. Mark gets minimized and the lesson is recorded as
-   * "seen" so it does not auto-restart next time.
+   * "seen" only if the lesson opted into completion tracking. Skipping the
+   * idle-menu, the demo-clone-tour or a micro-tip should not lock those
+   * out — only the welcome-tour gets that treatment.
    */
   skip() {
     this.abortFlag = true;
@@ -8760,8 +9567,42 @@ class MarkAssistantService {
     this._text.next('');
     this._continueArrow.next(false);
     this._isResponding.next(false);
-    if (this.currentLesson) {
+    this._actions.next(null);
+    this.resolveAction(null);
+    if (this.currentLesson && this.currentLesson.markAsCompleted !== false) {
       this.markLessonCompleted(this.currentLesson.id);
+    }
+  }
+  /**
+   * Called by the component when the user clicks one of the action buttons.
+   * The lesson loop awaits inside waitForAction() — resolving here lets it
+   * proceed (or the action handler can transition to a different lesson).
+   */
+  submitAction(index) {
+    var _this5 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const actions = _this5._actions.getValue();
+      if (!actions || index < 0 || index >= actions.length) return;
+      const picked = actions[index];
+      _this5._actions.next(null);
+      _this5.resolveAction(picked);
+      try {
+        yield picked.handler();
+      } catch (err) {
+        console.warn('[Mark] action handler failed:', err);
+      }
+    })();
+  }
+  waitForAction() {
+    return new Promise(resolve => {
+      this.actionResolve = resolve;
+    });
+  }
+  resolveAction(value) {
+    if (this.actionResolve) {
+      const r = this.actionResolve;
+      this.actionResolve = null;
+      r(value);
     }
   }
   /** Hide Mark completely (also wired to context-mismatch route changes). */
@@ -8774,6 +9615,8 @@ class MarkAssistantService {
     this._text.next('');
     this._continueArrow.next(false);
     this._isResponding.next(false);
+    this._actions.next(null);
+    this.resolveAction(null);
     this.currentLesson = null;
   }
   /**
@@ -8782,56 +9625,58 @@ class MarkAssistantService {
    * back as Mark's reply.
    */
   submitUserInput(text) {
-    var _this3 = this;
+    var _this6 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       const trimmed = (text ?? '').trim();
       if (!trimmed) return;
-      if (_this3._isResponding.getValue()) return; // ignore re-entry while responding
+      if (_this6._isResponding.getValue()) return; // ignore re-entry while responding
       const ctx = {
-        routeUrl: _this3.router.url,
-        activeLessonId: _this3.currentLesson?.id ?? null
+        routeUrl: _this6.router.url,
+        activeLessonId: _this6.currentLesson?.id ?? null
       };
-      const handler = _this3.inputHandlers.find(h => h.canHandle(trimmed, ctx));
+      const handler = _this6.inputHandlers.find(h => h.canHandle(trimmed, ctx));
       if (!handler) return;
       // Abort any running lesson playback so the answer takes the stage
-      _this3.abortFlag = true;
-      yield _this3.sleep(60);
-      _this3.abortFlag = false;
-      _this3._isResponding.next(true);
-      _this3.currentSpotlightSelector = null;
-      _this3._spotlight.next(null);
-      _this3._continueArrow.next(false);
-      _this3._staticMode.next(false);
+      _this6.abortFlag = true;
+      yield _this6.sleep(60);
+      _this6.abortFlag = false;
+      _this6._isResponding.next(true);
+      _this6.currentSpotlightSelector = null;
+      _this6._spotlight.next(null);
+      _this6._continueArrow.next(false);
+      _this6._staticMode.next(false);
+      _this6._actions.next(null);
+      _this6.resolveAction(null);
       // Make sure Mark is visible (if minimized → expand; if hidden → playing)
-      if (_this3.currentState !== 'playing') {
-        _this3._state.next('playing');
-        _this3._dim.next(false);
-        yield _this3.sleep(300);
+      if (_this6.currentState !== 'playing') {
+        _this6._state.next('playing');
+        _this6._dim.next(false);
+        yield _this6.sleep(300);
       }
       try {
         const reply = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_10__.firstValueFrom)(handler.handle(trimmed, ctx));
-        yield _this3.typewriter(reply);
+        yield _this6.typewriter(reply);
       } catch (err) {
         console.warn('[Mark] Input handler error:', err);
       } finally {
-        _this3._isResponding.next(false);
+        _this6._isResponding.next(false);
       }
     })();
   }
   // ── helpers ──────────────────────────────────────────────────────────────
   typewriter(_x) {
-    var _this4 = this;
+    var _this7 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (text, charDelay = 32) {
-      _this4._text.next('');
-      _this4._continueArrow.next(false);
+      _this7._text.next('');
+      _this7._continueArrow.next(false);
       let buf = '';
       for (const ch of text) {
-        if (_this4.abortFlag) return;
+        if (_this7.abortFlag) return;
         buf += ch;
-        _this4._text.next(buf);
-        yield _this4.sleep(ch === ' ' ? charDelay / 2 : charDelay);
+        _this7._text.next(buf);
+        yield _this7.sleep(ch === ' ' ? charDelay / 2 : charDelay);
       }
-      _this4._continueArrow.next(true);
+      _this7._continueArrow.next(true);
     }).apply(this, arguments);
   }
   translateKey(key) {
@@ -15040,8 +15885,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.05.06.10',
-  buildTime: '2026.05.06 11:19:26'
+  version: '2026.05.08.2',
+  buildTime: '2026.05.08 08:09:23'
 };
 
 /***/ }),

@@ -1640,16 +1640,6 @@
   },
   "MARK": {
     "TRANSMITTING": "▌ IN ONDA",
-    "TOUR": {
-      "WELCOME": {
-        "INTRO": "Ciao! Sono Mark. Tre tasti da sapere subito...",
-        "CREATE": "Da QUESTO crei un progetto da zero — una cartella vuota pronta per i tuoi markdown.",
-        "CLONE": "Con QUESTO scarichi un progetto esistente da un repo Git remoto.",
-        "SETTINGS": "E QUI personalizzi tutto: tema, AI, scorciatoie. Cambialo quando vuoi.",
-        "CLOSING": "Pronto? Ci sono io quando ti serve. Buon lavoro!",
-        "STATIC": "krsshhh..."
-      }
-    },
     "INPUT": {
       "PLACEHOLDER": "Scrivi qualcosa a Mark...",
       "SEND": "Invia"
@@ -1658,7 +1648,39 @@
       "LEARNING": "Sto ancora imparando! Per ora rispondo solo al tour. Vedrai presto..."
     },
     "UNDOCK": "Sgancia in finestra separata",
-    "REDOCK": "Riaggancia all'app"
+    "REDOCK": "Riaggancia all'app",
+    "PROSEGUI": "Prosegui",
+    "CLOSE_COMM": "Chiudi comunicazione",
+    "MENU": {
+      "PROMPT": "Sono qui. Cosa ti va di fare?",
+      "DEMO_CLONE": "Crea progetto demo"
+    },
+    "TOUR": {
+      "WELCOME": {
+        "INTRO": "Ciao! Sono Mark. Tre tasti da sapere subito...",
+        "CREATE": "Da QUESTO crei un progetto da zero — una cartella vuota pronta per i tuoi markdown.",
+        "CLONE": "Con QUESTO scarichi un progetto esistente da un repo Git remoto.",
+        "SETTINGS": "E QUI personalizzi tutto: tema, AI, scorciatoie. Cambialo quando vuoi.",
+        "CLOSING": "Pronto? Ci sono io quando ti serve. Buon lavoro!",
+        "STATIC": "krsshhh..."
+      },
+      "DEMO_CLONE": {
+        "INTRO": "Adesso ti faccio vedere come si clona un repo pubblico — non serve un account GitHub: i repo pubblici si scaricano in anonimo.",
+        "OPEN_DIALOG": "Apro io il dialog di clone... eccolo!",
+        "FILL_URL": "Inserisco l'URL del repo demo (un piccolo progetto markdown pubblico)...",
+        "SET_PATH": "Scelgo io una cartella locale dove salvarlo, sotto Documenti.",
+        "PRESS_CLONE": "Premo Clone... aspettiamo che il backend faccia il download.",
+        "DONE": "Eccoci! Il progetto è aperto. Da qui puoi navigare i markdown a piacere."
+      }
+    },
+    "TIPS": {
+      "PLACEHOLDER": "Le pillole arrivano tra poco. Resta sintonizzato!",
+      "SEARCH": "Lo sapevi? Nella pagina dei progetti c'è un campo cerca: digiti e filtri al volo.",
+      "DRAG": "Puoi trascinarmi dove vuoi: clicca sul bordo del mio pannello e spostami. La posizione resta tra una sessione e l'altra.",
+      "UNDOCK": "Vedi il pulsante ⤴ in cima al mio pannello? Premilo e divento una finestra separata, anche su un secondo schermo.",
+      "AI_COMMIT": "Quando fai commit, MdE può scrivere il messaggio per te con l'AI. Configura un provider in Impostazioni e prova.",
+      "DONE": "Per ora ti ho detto tutto. Torna se ti serve!"
+    }
   },
   "UNIFIED_SETTINGS": {
     "TITLE": "Impostazioni",

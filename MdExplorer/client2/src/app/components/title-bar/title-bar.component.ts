@@ -228,6 +228,9 @@ export class TitleBarComponent implements OnInit, OnDestroy {
   }
 
   launchMarkAssistant(): void {
-    this.markAssistant.launch('welcome-tour');
+    // Note: this opens the idle MENU (action buttons), NOT a replay of the
+    // welcome tour. The welcome tour is reserved for the very first launch
+    // of MDE — re-running it on demand would feel "stuck on rewind".
+    this.markAssistant.openMenu();
   }
 }

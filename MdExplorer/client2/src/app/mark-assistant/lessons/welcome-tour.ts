@@ -10,6 +10,16 @@ export const WELCOME_TOUR: MarkLesson = {
   id: 'welcome-tour',
   context: 'projects-page',
   withStatic: true,
+  // markAsCompleted=false so this lesson can re-appear in the micro-tip
+  // rotation (the spotlight on the 3 cards is documentation worth seeing
+  // again after a while). The "auto-show on first launch" guard uses a
+  // SEPARATE flag (mark.welcomeAutoShown) to avoid replaying it on boot.
+  markAsCompleted: false,
+  // After the user finishes the very-first welcome, hand off to the micro-tip
+  // chain — pressing "Prosegui" on the closing step rolls into pill N of
+  // the suggestions queue (the autostart code bumps nextTipIndex past the
+  // welcome itself so it doesn't replay immediately).
+  onCompleteNext: 'next-tip',
   steps: [
     {
       textKey: 'MARK.TOUR.WELCOME.INTRO',

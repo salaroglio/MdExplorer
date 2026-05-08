@@ -1,7 +1,7 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Observable } from 'rxjs';
 import { MarkAssistantService } from './mark-assistant.service';
-import { MarkState, SpotlightRect } from './mark-types';
+import { MarkAction, MarkState, SpotlightRect } from './mark-types';
 
 interface DialogPosition { left: number; top: number; }
 
@@ -25,6 +25,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   continueArrow$!: Observable<boolean>;
   isResponding$!: Observable<boolean>;
   isUndocked$!: Observable<boolean>;
+  actions$!: Observable<MarkAction[] | null>;
 
   /** True only when running in Electron with the undock IPC bridge available. */
   canUndock = false;
@@ -53,6 +54,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     this.continueArrow$ = this.mark.continueArrow$;
     this.isResponding$ = this.mark.isResponding$;
     this.isUndocked$ = this.mark.isUndocked$;
+    this.actions$ = this.mark.actions$;
     this.canUndock = this.mark.canUndock;
 
     this.loadPosition();
@@ -70,14 +72,23 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
 
   onDialogClick(): void {
     // Suppress the click if a drag just happened — otherwise dragging the
-    // minimized badge would always re-launch the tour.
+    // minimized badge would always re-summon Mark.
     if (this.dragMoveDistance > DRAG_CLICK_THRESHOLD) {
       this.dragMoveDistance = 0;
       return;
     }
+    // Click on the minimized icon → open the idle menu (the action chooser),
+    // NOT a replay of the welcome tour. The welcome tour is reserved to the
+    // very-first launch; re-running it on click would feel "stuck on rewind".
     if (this.mark.currentState === 'minimized') {
-      this.mark.launch('welcome-tour');
+      this.mark.openMenu();
     }
+  }
+
+  /** Tiny X button on the minimized icon → dismiss Mark entirely. */
+  onCloseMiniClick(event: Event): void {
+    event.stopPropagation();
+    this.mark.hide();
   }
 
   onSkipClick(event: Event): void {
@@ -92,6 +103,12 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     if (!text || !text.trim()) return;
     this.userInput = '';
     await this.mark.submitUserInput(text);
+  }
+
+  /** User clicked one of the action buttons exposed by the current step. */
+  async onActionClick(index: number, event: Event): Promise<void> {
+    event.stopPropagation();
+    await this.mark.submitAction(index);
   }
 
   // ── Drag and drop ────────────────────────────────────────────────────────

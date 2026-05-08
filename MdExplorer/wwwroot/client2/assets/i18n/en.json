@@ -1648,6 +1648,14 @@
         "SETTINGS": "And HERE you customize everything: theme, AI, shortcuts. Change it whenever.",
         "CLOSING": "Ready? I'm here whenever you need me. Have fun!",
         "STATIC": "krsshhh..."
+      },
+      "DEMO_CLONE": {
+        "INTRO": "Let me show you how to clone a public repo — no GitHub account needed: public repos are anonymously downloadable.",
+        "OPEN_DIALOG": "I'll open the clone dialog for you... here it is!",
+        "FILL_URL": "Filling in the URL of a small public markdown demo repo...",
+        "SET_PATH": "Picking a local folder under your Documents directory.",
+        "PRESS_CLONE": "Pressing Clone... let's wait for the backend to download.",
+        "DONE": "Done! The project is open. From here you can navigate the markdown files at will."
       }
     },
     "INPUT": {
@@ -1658,7 +1666,21 @@
       "LEARNING": "I'm still learning! For now I only respond to the tour. You'll see soon..."
     },
     "UNDOCK": "Detach into floating window",
-    "REDOCK": "Re-attach to app"
+    "REDOCK": "Re-attach to app",
+    "PROSEGUI": "Continue",
+    "CLOSE_COMM": "Close comm",
+    "MENU": {
+      "PROMPT": "I'm here. What's up?",
+      "DEMO_CLONE": "Create demo project"
+    },
+    "TIPS": {
+      "PLACEHOLDER": "Tips coming soon. Stay tuned!",
+      "SEARCH": "Did you know? The projects page has a search field — type to filter on the fly.",
+      "DRAG": "You can drag me anywhere: click the panel border and move me. Position is remembered across sessions.",
+      "UNDOCK": "See the ⤴ button on my panel? Press it and I become a separate window, even on a second monitor.",
+      "AI_COMMIT": "When you commit, MdE can write the message for you with AI. Set up a provider in Settings and try it.",
+      "DONE": "Told you everything for now. Come back if you need me!"
+    }
   },
   "UNIFIED_SETTINGS": {
     "TITLE": "Settings",

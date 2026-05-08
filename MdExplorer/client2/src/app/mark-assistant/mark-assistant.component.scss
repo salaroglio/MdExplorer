@@ -61,15 +61,29 @@
 }
 
 // ── Dialog wrapper (slide-in container) ─────────────────
+// z-index above the dim (9000) so Mark stays visible during dimmed
+// lessons. Above MatDialog default (1000) so the panel never gets
+// covered. Trade-off: Mark CAN mask other MatDialog popups opened by
+// MDE (connection-lost, parsing-project, ...). If that becomes a real
+// problem we'll subscribe to MatDialog.openDialogs and tweak z-index
+// dynamically — for now it's a known limitation.
 .mark-dialog-wrap {
   position: fixed;
   bottom: 32px;
   right: 32px;
   z-index: 9100;
   width: 540px;
+  // Off state: completely invisible. transform alone is not enough — if the
+  // user dragged Mark to a custom top/left, translateY(140%) only shifts by
+  // ~140% of the box height, which can still leave it inside the viewport.
+  // opacity + visibility close the gap unconditionally.
   transform: translateY(140%);
+  opacity: 0;
+  visibility: hidden;
   transition:
     transform .55s cubic-bezier(.25, 1.5, .5, 1),
+    opacity .35s ease,
+    visibility 0s linear .35s,    // delay hide until opacity finishes fading
     bottom .6s ease,
     right .6s ease,
     width .6s ease;
@@ -77,7 +91,17 @@
 
   &.on {
     transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
+    // When showing, snap visibility immediately so the slide-in is visible
+    transition:
+      transform .55s cubic-bezier(.25, 1.5, .5, 1),
+      opacity .35s ease,
+      visibility 0s linear 0s,
+      bottom .6s ease,
+      right .6s ease,
+      width .6s ease;
   }
 
   // When the user has dragged the dialog to a custom position, top/left
@@ -104,6 +128,38 @@
     right: 24px;
     cursor: grab;
 
+    .close-mini {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      color: #FFD700;
+      border: 2px solid #FFD700;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 2px 2px 0 #000;
+      z-index: 5;
+
+      &:hover {
+        background: #c0392b;
+        color: #fff;
+        border-color: #fff;
+      }
+      &:active {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0 #000;
+      }
+    }
+
     .dialog-text-area,
     .led-area,
     .antenna,
@@ -118,6 +174,11 @@
       width: 80px;
       height: 80px;
     }
+  }
+
+  // Hide the close-mini button when NOT minimized (it lives inside the wrap)
+  &:not(.minimized) > .close-mini {
+    display: none;
   }
 }
 
@@ -325,6 +386,59 @@
 @keyframes mark-arrow-blink {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(3px); }
+}
+
+// ── Action buttons (step.actions) ───────────────────────
+// Rendered when the current step asks the user to pick a path —
+// e.g. the idle-menu offers "Create demo project" / "Next tip".
+.user-actions-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 4px;
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, #FFD700 0%, #e6b800 100%);
+    color: #1a1a1a;
+    border: 3px solid #1a1a1a;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    line-height: 1;
+    padding: 10px 14px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: 3px 3px 0 #000;
+    transition: transform .06s, box-shadow .06s;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(180deg, #fff8b0 0%, #FFD700 100%);
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 #000;
+    }
+
+    &:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    &:disabled {
+      background: #555;
+      color: #888;
+      border-color: #2a2a2a;
+      cursor: not-allowed;
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    .action-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+    .action-label { line-height: 1; }
+  }
 }
 
 // ── User input area ─────────────────────────────────────
