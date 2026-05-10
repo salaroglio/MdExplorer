@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use MdExplorer in your research, project, or publication, please cite it as below."
+title: "MdExplorer"
+abstract: "Professional Markdown editor and project management application for Spec Driven Development. Combines a Markdown editor with Git integration, PlantUML diagrams, AI-powered features (with local LLM support), and PDF/Word export. Cross-platform desktop application for Windows, macOS, and Linux."
+type: software
+authors:
+  - family-names: Salaroglio
+    given-names: Carlo
+    email: info@mdexplorer.net
+    # orcid: "https://orcid.org/0000-0000-0000-0000"  # Add your ORCID iD here if you create one (free at orcid.org)
+repository-code: "https://github.com/salaroglio/MdExplorer"
+url: "https://www.mdexplorer.net"
+license: MIT
+version: "2.1.6"
+date-released: 2025-10-08
+keywords:
+  - markdown
+  - editor
+  - documentation
+  - spec-driven-development
+  - sdd
+  - plantuml
+  - git
+  - electron
+  - dotnet
+  - angular
+  - llamasharp

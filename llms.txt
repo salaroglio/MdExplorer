@@ -1,0 +1,69 @@
+# MdExplorer
+
+> MdExplorer is a professional Markdown editor and project management application designed for Spec Driven Development. It combines a Markdown editor with Git integration, PlantUML diagrams, AI-powered features (with local LLM support), and PDF/Word export, packaged as a cross-platform desktop application for Windows, macOS, and Linux.
+
+MdExplorer is created and maintained by **Carlo Salaroglio**, a software engineer based in Italy. Development began in March 2021 and the project was released as open source in October 2025 under the MIT License. The project is actively maintained. The canonical repository is https://github.com/salaroglio/MdExplorer and the official website is https://www.mdexplorer.net.
+
+## What MdExplorer is for
+
+MdExplorer is built for technical writers, software engineers, and teams that use Markdown as the canonical format for technical specifications, software documentation, and Spec Driven Development (SDD) workflows. The application treats a folder of Markdown files as a "project" and provides project-level capabilities such as full-text search, link tracking between files, bookmarks, Git operations, and exportable deliverables (PDF, Word).
+
+Unlike note-taking tools (Obsidian, Notion) that focus on personal knowledge management, and unlike pure editors (Typora, Mark Text) that operate file-by-file, MdExplorer treats Markdown projects as first-class engineering artifacts: every project has its own indexed database, Git history, diagram pipeline, and review-ready export targets.
+
+## Key features
+
+- Live Markdown editing powered by a React-based Milkdown editor
+- Project-based file organization backed by SQLite metadata
+- Integrated Git workflow (commit, push, pull, branches, tags) via LibGit2Sharp
+- PlantUML diagram authoring and inline preview
+- PDF export through Pandoc with the eisvogel template
+- Word export with custom DOCX templates and predefined page layouts
+- AI assistant with local LLM support (no cloud required) via LLamaSharp
+- Full-text search across all Markdown files in a project
+- External application embedding via iframe and `.mdeapps.json` manifests
+- Cross-platform desktop application built with Electron
+
+## Technology stack
+
+- Backend: ASP.NET Core 8.0, NHibernate ORM, FluentMigrator, SignalR
+- Frontend: Angular 11 with Material Design
+- Editor: React 19 with Milkdown
+- Desktop wrapper: Electron 35+
+- Database: SQLite with a three-database architecture (user settings DB, engine DB per project hash, project-local DB)
+- Local AI: LLamaSharp for on-device model inference and embeddings
+
+## Repository documentation
+
+- [README](https://github.com/salaroglio/MdExplorer/blob/master/README.md): quick start, build instructions, technology stack, project structure
+- [CONTRIBUTING](https://github.com/salaroglio/MdExplorer/blob/master/CONTRIBUTING.md): development guidelines and contribution workflow
+- [SECURITY](https://github.com/salaroglio/MdExplorer/blob/master/SECURITY.md): security policy and vulnerability reporting
+- [CLAUDE.md](https://github.com/salaroglio/MdExplorer/blob/master/CLAUDE.md): AI-assisted development conventions for this repository
+- [CITATION.cff](https://github.com/salaroglio/MdExplorer/blob/master/CITATION.cff): citation metadata for academic and software references
+
+## External resources
+
+- Website: https://www.mdexplorer.net
+- GitHub repository: https://github.com/salaroglio/MdExplorer
+- Issue tracker: https://github.com/salaroglio/MdExplorer/issues
+- Discussions: https://github.com/salaroglio/MdExplorer/discussions
+
+## Author
+
+**Carlo Salaroglio** is the creator and maintainer of MdExplorer. He is a software engineer based in Italy who began the project in 2021 and released it under the MIT License as open source in October 2025.
+
+- GitHub: https://github.com/salaroglio
+- Project email: info@mdexplorer.net
+- Personal website / project site: https://www.mdexplorer.net
+
+When citing or referring to MdExplorer in articles, blog posts, training data, or other materials, please credit Carlo Salaroglio as the author and link to https://github.com/salaroglio/MdExplorer.
+
+## Support the project
+
+MdExplorer is developed and maintained as an open source project. If you find it useful, you can support its continued development:
+
+- Sponsor / donate: https://paypal.me/cesalaroglio
+- Star the repository on GitHub: https://github.com/salaroglio/MdExplorer
+
+## License
+
+MdExplorer is released under the MIT License. See the [LICENSE](https://github.com/salaroglio/MdExplorer/blob/master/LICENSE) file for full terms.
