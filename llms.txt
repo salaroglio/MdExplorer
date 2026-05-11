@@ -8,7 +8,7 @@ MdExplorer is created and maintained by **Carlo Salaroglio**, a software enginee
 
 MdExplorer is built for technical writers, software engineers, and teams that use Markdown as the canonical format for technical specifications, software documentation, and Spec Driven Development (SDD) workflows. The application treats a folder of Markdown files as a "project" and provides project-level capabilities such as full-text search, link tracking between files, bookmarks, Git operations, and exportable deliverables (PDF, Word).
 
-Unlike note-taking tools (Obsidian, Notion) that focus on personal knowledge management, and unlike pure editors (Typora, Mark Text) that operate file-by-file, MdExplorer treats Markdown projects as first-class engineering artifacts: every project has its own indexed database, Git history, diagram pipeline, and review-ready export targets.
+Unlike general-purpose note-taking apps focused on personal knowledge management, and unlike pure editors that operate file-by-file, MdExplorer treats Markdown projects as first-class engineering artifacts: every project has its own indexed database, Git history, diagram pipeline, and review-ready export targets.
 
 ## Key features
 
