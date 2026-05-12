@@ -33,6 +33,7 @@ function openReferences() {
     window.currentDocumentSetting.showTOC = false;
     window.currentDocumentSetting.showRefs = true;
     _savePanelState();
+
 }
 
 /**

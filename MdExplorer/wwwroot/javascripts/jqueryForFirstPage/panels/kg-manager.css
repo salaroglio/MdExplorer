@@ -1,0 +1,227 @@
+/* MdExplorer - Knowledge Graph fullscreen overlay */
+
+.kgOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #f0fdfa 100%);
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 180ms ease-out;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+.kgOverlay.kgOpen { opacity: 1; }
+.kgOverlay.kgDark {
+    background: linear-gradient(135deg, #0b1220 0%, #111827 50%, #0b1220 100%);
+    color: #e6edf3;
+}
+
+/* ---- Header ------------------------------------------------------------- */
+.kgHeader {
+    display: flex;
+    align-items: center;
+    padding: 14px 22px;
+    border-bottom: 1px solid rgba(15,23,42,0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.55));
+    backdrop-filter: blur(8px);
+}
+.kgDark .kgHeader {
+    border-bottom-color: rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, rgba(17,24,39,0.85), rgba(17,24,39,0.5));
+}
+.kgTitle {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(90deg, #6366f1, #0ea5e9, #22c55e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+.kgTitleIcon {
+    font-size: 18px;
+    -webkit-text-fill-color: #6366f1;
+    color: #6366f1;
+}
+.kgDark .kgTitleIcon { -webkit-text-fill-color: #818cf8; color: #818cf8; }
+
+.kgHeaderSpacer { flex: 1 1 auto; }
+.kgActions { display: flex; gap: 8px; }
+
+/* ---- View mode tabs (2D / 3D) ----------------------------------------- */
+.kgViewTabs {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 18px;
+    padding: 3px;
+    background: rgba(15,23,42,0.06);
+    border-radius: 10px;
+    gap: 2px;
+}
+.kgDark .kgViewTabs { background: rgba(255,255,255,0.06); }
+
+.kgViewTab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 140ms ease-out;
+    line-height: 1;
+}
+.kgViewTab:hover { color: #0f172a; }
+.kgDark .kgViewTab { color: #94a3b8; }
+.kgDark .kgViewTab:hover { color: #e6edf3; }
+
+.kgViewTabActive {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.12), 0 0 0 1px rgba(15,23,42,0.05);
+}
+.kgDark .kgViewTabActive {
+    background: #1f2937;
+    color: #e6edf3;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.kgBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    min-width: 36px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(15,23,42,0.12);
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 120ms ease-out;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.05);
+}
+.kgBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,0.08); }
+.kgBtnIcon { font-weight: 700; }
+.kgBtnClose { background: #fff; color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.kgBtnClose:hover { background: #fef2f2; }
+.kgDark .kgBtn { background: #1f2937; border-color: rgba(255,255,255,0.12); color: #e6edf3; }
+.kgDark .kgBtnClose { color: #fca5a5; border-color: rgba(252,165,165,0.3); }
+.kgDark .kgBtnClose:hover { background: rgba(127,29,29,0.35); }
+
+/* ---- Body --------------------------------------------------------------- */
+.kgBody {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.kgEmpty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: #475569;
+    font-size: 15px;
+    text-align: center;
+}
+.kgDark .kgEmpty { color: #94a3b8; }
+.kgEmptyIcon { font-size: 40px; opacity: 0.7; }
+
+.kgLoading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: #475569;
+    font-size: 14px;
+    pointer-events: none;
+    background: rgba(248,250,252,0.6);
+    backdrop-filter: blur(2px);
+}
+.kgDark .kgLoading { color: #94a3b8; background: rgba(15,23,42,0.4); }
+.kgSpinner {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 3px solid rgba(99,102,241,0.18);
+    border-top-color: #6366f1;
+    animation: kgspin 0.8s linear infinite;
+}
+@keyframes kgspin { to { transform: rotate(360deg); } }
+
+/* ---- Footer / legend ---------------------------------------------------- */
+.kgFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 22px 12px;
+    border-top: 1px solid rgba(15,23,42,0.08);
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(8px);
+}
+.kgDark .kgFooter {
+    border-top-color: rgba(255,255,255,0.08);
+    background: rgba(17,24,39,0.5);
+}
+
+.kgLegend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+    font-size: 12px;
+    color: #475569;
+}
+.kgDark .kgLegend { color: #b1bac4; }
+.kgLegendGroup { display: inline-flex; align-items: center; gap: 12px; }
+.kgLegendGroup strong { color: #334155; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; font-size: 11px; }
+.kgDark .kgLegendGroup strong { color: #cbd5e1; }
+.kgLegendGroup span { display: inline-flex; align-items: center; gap: 6px; }
+.kgLegendDivider {
+    width: 1px;
+    height: 18px;
+    background: rgba(15,23,42,0.12);
+}
+.kgDark .kgLegendDivider { background: rgba(255,255,255,0.12); }
+
+.kgDot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.6); }
+.kgDotCenter { background: #facc15; }
+.kgDotByFolder {
+    background: conic-gradient(
+        from 0deg,
+        #0ea5e9, #22c55e, #f97316, #a855f7, #ec4899, #06b6d4, #84cc16, #eab308, #ef4444, #14b8a6, #0ea5e9
+    );
+}
+
+.kgLine { display: inline-block; width: 22px; height: 3px; border-radius: 2px; }
+.kgLineLink { background: #3b82f6; }
+.kgLinePub  { background: #db2777; }
+.kgLineExc  { background: #d97706; }
+.kgLinePum  { background: #059669; }
+
+.kgHint {
+    font-size: 12px;
+    color: #64748b;
+    font-style: italic;
+    white-space: nowrap;
+}
+.kgDark .kgHint { color: #94a3b8; }
