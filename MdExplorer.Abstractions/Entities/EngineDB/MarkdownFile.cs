@@ -15,6 +15,11 @@ namespace MdExplorer.Abstractions.Entities.EngineDB
         public virtual string FileName { get; set; }
         public virtual string Path { get; set; }
         public virtual string FileType { get; set; }
+        /// <summary>
+        /// Short summary block (TLDR;) extracted from the document during indexing.
+        /// Used by the Knowledge Graph hover tooltip. Null if the file has no TLDR; section.
+        /// </summary>
+        public virtual string Tldr { get; set; }
         public virtual IList<LinkInsideMarkdown> Links { get; set; } = new List<LinkInsideMarkdown>();
 
     }

@@ -22,6 +22,7 @@ namespace MdExplorer.Service.Controllers.TabBar.Automapper
         public bool IsExternal { get; set; }
         public string ExternalUrl { get; set; }
         public string Cluster { get; set; }
+        public string Tldr { get; set; }
     }
 
     public class KnowledgeGraphLinkDto

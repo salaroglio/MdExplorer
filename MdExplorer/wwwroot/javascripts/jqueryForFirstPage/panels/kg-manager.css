@@ -1,5 +1,73 @@
 /* MdExplorer - Knowledge Graph fullscreen overlay */
 
+/* ---- Hover tooltip (force-graph nodeLabel) -------------------------------
+   force-graph injects the nodeLabel HTML inside its own positioning wrapper,
+   so we only need to style the inner .kgTooltip element. */
+.kgTooltip {
+    max-width: 380px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid rgba(15,23,42,0.10);
+    box-shadow: 0 6px 20px rgba(15,23,42,0.15), 0 2px 4px rgba(15,23,42,0.06);
+    font: 12.5px/1.45 -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    pointer-events: none;
+}
+.kgDark .kgTooltip,
+.dark-theme .kgTooltip {
+    background: #111827;
+    color: #e6edf3;
+    border-color: rgba(255,255,255,0.10);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.25);
+}
+.kgTipHead {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-weight: 700;
+    font-size: 13px;
+}
+.kgTipIcon { font-size: 13px; }
+.kgTipLabel { word-break: break-word; }
+.kgTipMeta {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.kgDark .kgTipMeta,
+.dark-theme .kgTipMeta { color: #94a3b8; }
+.kgTipTldr {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(15,23,42,0.08);
+}
+.kgDark .kgTipTldr,
+.dark-theme .kgTipTldr { border-top-color: rgba(255,255,255,0.10); }
+.kgTipTldr p { margin: 0 0 6px; }
+.kgTipTldr p:last-child { margin-bottom: 0; }
+.kgTipTldr ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+}
+.kgTipTldr li { margin: 2px 0; }
+.kgTipNote {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(15,23,42,0.12);
+    font-style: italic;
+    color: #94a3b8;
+    font-size: 11.5px;
+}
+.kgDark .kgTipNote,
+.dark-theme .kgTipNote {
+    border-top-color: rgba(255,255,255,0.10);
+    color: #6b7280;
+}
+
+
 .kgOverlay {
     position: fixed;
     inset: 0;

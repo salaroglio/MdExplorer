@@ -77,6 +77,73 @@
         return !!(document.body && document.body.classList && document.body.classList.contains('dark-theme'));
     }
 
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // Render minimal markdown inside the TLDR (paragraphs + unordered/ordered list items
+    // starting with - * or 1.). Anything else is treated as plain text and escaped.
+    function renderTldrHtml(tldr) {
+        if (!tldr) return '';
+        const lines = String(tldr).split(/\n/);
+        const html = [];
+        let inList = false;
+        const paraBuf = [];
+        function flushPara() {
+            if (paraBuf.length) {
+                html.push('<p>' + escapeHtml(paraBuf.join(' ')) + '</p>');
+                paraBuf.length = 0;
+            }
+        }
+        function flushList() {
+            if (inList) { html.push('</ul>'); inList = false; }
+        }
+        for (let i = 0; i < lines.length; i++) {
+            const raw = lines[i];
+            const line = raw.trim();
+            if (!line) { flushPara(); flushList(); continue; }
+            const li = line.match(/^(?:[-*]|\d+\.)\s+(.*)$/);
+            if (li) {
+                flushPara();
+                if (!inList) { html.push('<ul>'); inList = true; }
+                html.push('<li>' + escapeHtml(li[1]) + '</li>');
+            } else {
+                flushList();
+                paraBuf.push(line);
+            }
+        }
+        flushPara();
+        flushList();
+        return html.join('');
+    }
+
+    function buildNodeTooltip(node) {
+        const label = escapeHtml(node.label || node.id || '');
+        const isExt = !!node.isExternal;
+        const meta = isExt
+            ? (node.cluster ? escapeHtml(node.cluster) : 'external')
+            : (node.mdContext ? escapeHtml(node.mdContext) : 'root');
+        const icon = isExt ? '🌐 ' : (node.isCenter ? '◈ ' : '📄 ');
+        const tldrHtml = renderTldrHtml(node.tldr);
+        const tldrBlock = tldrHtml
+            ? '<div class="kgTipTldr">' + tldrHtml + '</div>'
+            : (isExt ? '' : '<div class="kgTipNote">No TLDR; available</div>');
+        return '<div class="kgTooltip">' +
+            '<div class="kgTipHead">' +
+                '<span class="kgTipIcon">' + icon + '</span>' +
+                '<span class="kgTipLabel">' + label + '</span>' +
+            '</div>' +
+            '<div class="kgTipMeta">' + meta + '</div>' +
+            tldrBlock +
+        '</div>';
+    }
+
     // ---- Cluster layout: assign each folder a slot on a ring ---------------
     function computeLayout(data) {
         const buckets = [];
@@ -226,6 +293,7 @@
                     isCenter: !!n.isCenter,
                     isExternal: !!n.isExternal,
                     externalUrl: n.externalUrl,
+                    tldr: n.tldr,
                     inDegree: n.inDegree || 0,
                     outDegree: n.outDegree || 0
                 };
@@ -309,6 +377,7 @@
             .width(w).height(h)
             .backgroundColor(_isDark ? '#0b1220' : '#f8fafc')
             .showNavInfo(false)
+            .nodeLabel(buildNodeTooltip)
             .nodeColor(nodeColor)
             .nodeVal(function (n) { return n.isCenter ? 14 : 3 + Math.min(10, (n.inDegree || 0) + (n.outDegree || 0)); })
             .nodeOpacity(1)
@@ -354,6 +423,7 @@
             .width(w).height(h)
             .backgroundColor('rgba(0,0,0,0)') // transparent over our CSS gradient
             .nodeRelSize(6)
+            .nodeLabel(buildNodeTooltip)
             .nodeColor(nodeColor)
             .nodeVal(function (n) { return n.isCenter ? 14 : 3 + Math.min(10, (n.inDegree || 0) + (n.outDegree || 0)); })
             .nodeCanvasObjectMode(function () { return 'replace'; })

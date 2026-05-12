@@ -247,6 +247,17 @@ namespace MdExplorer.Service.Controllers.TabBar
             var dal = GetEngineDB().GetDal<LinkInsideMarkdown>();
             var allLinks = dal.GetList().ToList();
 
+            // Build a path -> TLDR lookup so we can attach TLDR text to every local node.
+            // Uses normalized paths (deduped backslashes) as keys; falls back to case-insensitive comparison.
+            var mdFiles = GetEngineDB().GetDal<MarkdownFile>().GetList().ToList();
+            var tldrByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var mf in mdFiles)
+            {
+                if (string.IsNullOrWhiteSpace(mf.Path) || string.IsNullOrWhiteSpace(mf.Tldr)) continue;
+                var k = NormPath(mf.Path);
+                tldrByPath[k] = mf.Tldr;
+            }
+
             string ToRelative(string full)
             {
                 if (string.IsNullOrEmpty(full)) return full;
@@ -270,6 +281,7 @@ namespace MdExplorer.Service.Controllers.TabBar
                 var key = fullPath;
                 if (!nodeMap.TryGetValue(key, out var node))
                 {
+                    tldrByPath.TryGetValue(fullPath, out var tldr);
                     node = new KnowledgeGraphNodeDto
                     {
                         Id = key,
@@ -278,6 +290,7 @@ namespace MdExplorer.Service.Controllers.TabBar
                         MdContext = mdContext,
                         IsCenter = isCenter,
                         RelativePath = ToRelative(fullPath),
+                        Tldr = tldr,
                     };
                     nodeMap[key] = node;
                 }
