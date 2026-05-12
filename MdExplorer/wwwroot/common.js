@@ -125,9 +125,14 @@ if (window.commonJsLoaded) {
         // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
 
-        // PANELS: TOC, references, and resize functionality
+        // PANELS: TOC, knowledge graph, and resize functionality
+        document.write("<link href='/javascripts/jqueryForFirstPage/panels/kg-manager.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/lib/three.min.js');
+        loadScriptOnce('/javascripts/lib/3d-force-graph.min.js');
+        loadScriptOnce('/javascripts/lib/force-graph.min.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/toc-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/references-manager.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/panels/kg-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/panel-resize.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/panels-initialization.js');
 

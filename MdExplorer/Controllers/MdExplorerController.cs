@@ -543,7 +543,7 @@ namespace MdExplorer.Controllers
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
             var btnTOC = AddButtonTextOnVerticalBar("toggleTOC()", "TOC", "btnToc");
-            var btnRefs = AddButtonTextOnVerticalBar("toggleReferences()", "Refs", "btnRefs");
+            var btnRefs = AddButtonTextOnVerticalBar("openKnowledgeGraph()", "K.G.", "btnRefs");
             var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
@@ -556,15 +556,7 @@ namespace MdExplorer.Controllers
                                 </nav>
                             </div>
                         </div>
-                        <div id=""Refs"" class=""refsNavigation"" mdeFullPathDocument=""{fullPathFile}"">
-                            <div class=""mdeRefsTitle"">References</div>
-                            <div class=""mdeNavigationMain"">
-                                <div class=""tocSeparator"" onmousedown=""resizeRefs()""></div>
-                                <nav class=""refsNavNavigation"">
-                                    <div id=""references"" class=""refsMain""></div>                                    
-                                </nav>
-                            </div>
-                        </div>
+                        <div id=""KGAnchor"" mdeFullPathDocument=""{fullPathFile}"" style=""display:none;""></div>
                         <div class=""mdeVerticalTab"">
                             <div class=""buttonTabToc"">
                                 {btnTOC}                             
