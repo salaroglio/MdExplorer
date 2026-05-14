@@ -25,7 +25,6 @@ using MdExplorer.Features.snippets.workflow;
 using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using PlantUml.Net;
 using System;
 using System.Collections.Generic;
 using MdExplorer.Features.Refactoring;
@@ -50,7 +49,6 @@ namespace MdExplorer.Features
             services.AddTransient<ICommandRunnerHtml, CommandRunnerHtml>();
             services.AddTransient<ICommandRunnerPdf, CommandRunnerPdf>();
             services.AddTransient<ICommandRunnerMD, CommandRunnerMD>();
-            services.AddSingleton<RendererFactory>();
             services.AddSingleton<PlantumlServer>();
             services.AddTransient<IHelper, Helper>();
             services.AddTransient<IHelperPdf, HelperPdf>();
