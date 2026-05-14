@@ -1358,6 +1358,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             try
             {
+                // Docker headless mode: DriveInfo on Linux enumerates every mount
+                // point (/, /proc, /workspace, /data, ...), which is meaningless
+                // to the user and pollutes the project picker. Expose only the
+                // bind-mounted workspace folder. Gated by MDE_DOCKER so native
+                // Windows/Linux installs are unaffected.
+                if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
+                {
+                    return Ok(GetDockerWorkspaceDriveEntry());
+                }
+
                 var drives = DriveInfo.GetDrives()
                     .Where(d => d.IsReady && (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Network))
                     .Select(d => new {
@@ -1378,13 +1388,47 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Docker-only: returns a single synthetic "drive" entry pointing at
+        /// the container workspace bind mount, so the project picker doesn't
+        /// list /proc, /sys, /, etc. Returns empty if the workspace folder
+        /// doesn't exist.
+        /// </summary>
+        private static object[] GetDockerWorkspaceDriveEntry()
+        {
+            var ws = Environment.GetEnvironmentVariable("MDE_CONTAINER_WORKSPACE") ?? "/workspace";
+            if (!Directory.Exists(ws)) return Array.Empty<object>();
+            return new object[]
+            {
+                new
+                {
+                    name = ws,
+                    path = ws,
+                    icon = "folder_open",
+                    label = "workspace",
+                    totalSize = 0L,
+                    freeSpace = 0L,
+                    driveType = "Fixed"
+                }
+            };
+        }
+
         [HttpGet]
         public IActionResult GetNetworkShares()
         {
             try
             {
+                // Docker headless mode: there's no concept of "network share" inside
+                // a container; the bind-mounted folders are already surfaced by
+                // GetDrives. Return empty so the "RETE" section in the picker
+                // disappears entirely instead of mirroring the local mounts.
+                if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
+                {
+                    return Ok(new object[0]);
+                }
+
                 var networkShares = new List<object>();
-                
+
                 // Get all network drives (mapped drives on Windows)
                 var networkDrives = DriveInfo.GetDrives()
                     .Where(d => d.DriveType == DriveType.Network && d.IsReady);

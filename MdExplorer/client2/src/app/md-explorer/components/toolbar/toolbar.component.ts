@@ -450,7 +450,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   OpenEditor() {
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
-    this.http.get(url).subscribe(data => { console.log(data) });
+    this.http.get<any>(url).subscribe(data => {
+      // Docker mode: backend can't spawn the host's editor process, so it
+      // returns a "vscode://file/..." (or jetbrains://) URL. Hand it to the
+      // browser, which forwards it to the OS, which launches the editor on
+      // the host. On native Windows/Linux this branch is never taken.
+      if (data && data.openUrl) {
+        window.location.href = data.openUrl;
+        return;
+      }
+      console.log(data);
+    });
   }
 
   Export() {
