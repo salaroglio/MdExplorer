@@ -699,3 +699,174 @@
     display: none; // Nasconde hint su mobile per risparmiare spazio
   }
 }
+
+// ============================================
+// DARK MODE — overrides only, light styles above stay untouched
+// ============================================
+// Angular ViewEncapsulation scopes every element selector with the component's
+// `[_ngcontent-…]` attribute. Writing `body.dark-theme .foo` ends up compiled as
+// `body.dark-theme[_ngcontent-…] .foo[_ngcontent-…]` — and <body> never has that
+// attribute, so the rule silently does nothing. `:host-context(body.dark-theme)`
+// tells Angular this is an ancestor lookup, not a child-template element, so
+// only the descendant selectors get scoped.
+:host-context(body.dark-theme) {
+  .file-explorer-container {
+    background-color: #1e1e1e;
+    color: #d7dde5;
+  }
+
+  // Left navigation panel
+  .left-panel {
+    background: #252526;
+  }
+
+  .section-title {
+    color: #b0b8c4;
+  }
+
+  .nav-item {
+    color: #e0e0e0;
+
+    &:hover {
+      background: #2d3a4f;
+    }
+
+    &:focus {
+      background: #2d3a4f;
+    }
+
+    &.active {
+      background: #1976d2;
+      box-shadow: 0 2px 4px rgba(25, 118, 210, 0.4);
+    }
+  }
+
+  .nav-icon {
+    color: #c0c7d4;
+  }
+
+  .nav-label {
+    color: #e8ecef;
+  }
+
+  // Right panel (file list area)
+  .right-panel {
+    background: #1e1e1e;
+  }
+
+  .breadcrumb {
+    background: #252526;
+    border-bottom-color: #3a3e48;
+  }
+
+  .breadcrumb-segment {
+    color: #d7dde5;
+
+    &:not([disabled]):hover {
+      background: #2d3a4f;
+      color: #6fa8ff;
+    }
+
+    &.current {
+      color: #6fa8ff;
+    }
+  }
+
+  .breadcrumb-separator {
+    color: #6a7280;
+  }
+
+  .current-path {
+    color: #b0b8c4;
+  }
+
+  .loading-indicator {
+    color: #b0b8c4;
+  }
+
+  .content-item {
+    color: #e0e0e0;
+
+    &:hover {
+      background: #2d2d30;
+    }
+
+    &:focus {
+      background: #2d2d30;
+    }
+
+    &.selected {
+      background: #264f78;
+      border-color: #4fc3f7;
+    }
+  }
+
+  .item-icon {
+    color: #c0c7d4;
+
+    .content-item:hover & {
+      color: #6fa8ff;
+    }
+  }
+
+  .item-name {
+    color: #e8ecef;
+  }
+
+  .empty-state {
+    color: #9aa4b2;
+  }
+
+  // Bottom panel (selected-folder info + action buttons)
+  .bottom-panel {
+    background: #252526;
+    border-top-color: #3a3e48;
+  }
+
+  .selected-folder-info {
+    mat-card-title {
+      color: #e8ecef;
+    }
+
+    mat-card-subtitle {
+      color: #b0b8c4;
+    }
+  }
+
+  .save-as-row {
+    color: #e0e0e0;
+  }
+
+  .save-as-path {
+    color: #9aa4b2;
+  }
+
+  .save-as-input {
+    background: #1e1e1e;
+    border-color: #3a3e48;
+    color: #e8ecef;
+
+    &:focus {
+      border-color: #4fc3f7;
+      box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.18);
+    }
+  }
+
+  // Context menu (right-click) header
+  .context-menu-header {
+    background: #2d2d30;
+    border-bottom-color: #3a3e48;
+  }
+
+  .context-menu-name {
+    color: #e8ecef;
+  }
+
+  .context-menu-path {
+    color: #b0b8c4;
+  }
+
+  .menu-hint {
+    color: #9aa4b2;
+  }
+}

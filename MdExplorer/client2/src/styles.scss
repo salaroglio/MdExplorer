@@ -371,6 +371,67 @@ app-promptlab {
 }
 
 
+// RunCommandDialog: dark-mode overrides for Material 15 legacy form-field +
+// checkbox. The dialog component scss can't reach Material-generated DOM (it's
+// outside the component's ViewEncapsulation scope), so the rules live here.
+body.dark-theme app-run-command-dialog {
+  .mat-form-field {
+    input.mat-input-element,
+    .mat-input-element {
+      color: #f0f3f9 !important;
+      caret-color: #f0f3f9 !important;
+    }
+
+    .mat-form-field-label,
+    .mat-form-field-label-wrapper label {
+      color: #b0b8c4 !important;
+    }
+
+    .mat-hint {
+      color: #9aa4b2 !important;
+    }
+
+    .mat-form-field-outline {
+      color: rgba(255, 255, 255, 0.18) !important;
+    }
+
+    &.mat-focused {
+      .mat-form-field-outline-thick {
+        color: #4b8bf5 !important;
+      }
+      .mat-form-field-label {
+        color: #8ab9ff !important;
+      }
+    }
+  }
+
+  // Eye toggle (secret) inside the param row
+  .param-row button.mat-icon-button .mat-icon {
+    color: #b0b8c4;
+  }
+
+  // Checkbox label inside the trust banner
+  .mat-checkbox .mat-checkbox-layout .mat-checkbox-label,
+  .mat-checkbox-label {
+    color: #e0ceac !important;
+  }
+
+  .mat-checkbox-frame {
+    border-color: #b37400 !important;
+  }
+}
+
+// Dialog action buttons in dark mode — Cancel button stays readable.
+body.dark-theme .mat-dialog-container app-run-command-dialog ~ * .mat-button,
+body.dark-theme app-run-command-dialog + .mat-dialog-actions .mat-button,
+body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
+  color: #c0c7d4 !important;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+  }
+}
+
 // Fix ShowFileSystem dialog filter input - white text on green header
 .resizable-dialog-container .explorer-header,
 .mat-dialog-container .explorer-header {

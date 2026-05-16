@@ -1,6 +1,7 @@
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Features.Execution;
 using MdExplorer.Hubs;
 using MdExplorer.Services.Execution;
 using Microsoft.AspNetCore.Http;
@@ -131,7 +132,18 @@ namespace MdExplorer.Service.Controllers.MdExecution
 
             try
             {
-                var environment = request.Parameters ?? new Dictionary<string, string>();
+                var userValues = request.Parameters ?? new Dictionary<string, string>();
+
+                // Re-detect parameters server-side from the received code and substitute the user-provided
+                // values into the script body. We also keep env vars set so scripts that internally read
+                // $VAR (e.g. via `read -p`) still find the value. The substitution is what makes
+                // `<placeholder>` tokens work — they would otherwise stay literal in the script.
+                var detected = ParameterExtractor.Extract(request.Code ?? string.Empty, request.Language);
+                var rewrittenCode = ParameterSubstitution.Apply(
+                    request.Code ?? string.Empty,
+                    request.Language,
+                    detected,
+                    userValues);
 
                 Task OnStdout(string chunk) => _hubContext.Clients.Client(connectionId).SendAsync(
                     "execution.output",
@@ -144,10 +156,10 @@ namespace MdExplorer.Service.Controllers.MdExecution
                     cancellationToken);
 
                 var result = await _shellRunner.RunAsync(
-                    code: request.Code,
+                    code: rewrittenCode,
                     language: request.Language,
                     workingDirectory: request.ProjectPath,
-                    environment: environment,
+                    environment: userValues,
                     onStdout: OnStdout,
                     onStderr: OnStderr,
                     timeout: DefaultTimeout,

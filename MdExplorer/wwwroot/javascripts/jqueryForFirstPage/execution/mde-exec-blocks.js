@@ -66,6 +66,35 @@
             if (!parsed.blockId) return;
             blocksById.set(parsed.blockId, parsed);
 
+            // Wire secret-toggle buttons next to password inputs.
+            element.querySelectorAll('.mde-param-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function (evt) {
+                    evt.preventDefault();
+                    var input = btn.parentElement && btn.parentElement.querySelector('input.mde-param-input');
+                    if (!input) return;
+                    input.type = input.type === 'password' ? 'text' : 'password';
+                });
+            });
+
+            // Wire path-picker buttons: click → ask parent Angular to open the project file browser.
+            element.querySelectorAll('.mde-param-picker').forEach(function (btn) {
+                btn.addEventListener('click', function (evt) {
+                    evt.preventDefault();
+                    requestPathPicker(parsed, btn);
+                });
+            });
+
+            // Pressing Enter inside a param input triggers Run.
+            element.querySelectorAll('input.mde-param-input').forEach(function (inp) {
+                inp.addEventListener('keydown', function (evt) {
+                    if (evt.key === 'Enter') {
+                        evt.preventDefault();
+                        var runBtn = element.querySelector('.mde-run-btn');
+                        if (runBtn && !runBtn.disabled) runBtn.click();
+                    }
+                });
+            });
+
             var runBtn = element.querySelector('.mde-run-btn');
             if (runBtn) {
                 runBtn.addEventListener('click', function (evt) {
@@ -76,18 +105,93 @@
         });
     }
 
+    function harvestInlineValues(element, declaredParams) {
+        // If the toolbar renders param inputs, harvest current values; otherwise
+        // fall back to the server-declared defaults.
+        var inputs = element.querySelectorAll('.mde-exec-params input[data-param-name]');
+        if (!inputs.length) return { params: declaredParams, inline: false };
+        var byName = {};
+        inputs.forEach(function (inp) {
+            byName[inp.getAttribute('data-param-name')] = inp.value;
+        });
+        var merged = (declaredParams || []).map(function (p) {
+            return {
+                name: p.name,
+                defaultValue: Object.prototype.hasOwnProperty.call(byName, p.name) ? byName[p.name] : (p.defaultValue || ''),
+                isSecret: p.isSecret,
+                description: p.description,
+                kind: p.kind,
+            };
+        });
+        return { params: merged, inline: true };
+    }
+
+    function requestPathPicker(parsed, btn) {
+        var paramName = btn.getAttribute('data-param-name');
+        var mode = btn.getAttribute('data-picker-type') || 'file';
+        var hidden = parsed.element.querySelector('input.mde-param-input[data-param-name="' + cssEscape(paramName) + '"]');
+        var currentValue = hidden ? hidden.value : '';
+        try {
+            var projectPath = document.body ? (document.body.getAttribute('ProjectPath') || '') : '';
+            window.parent.postMessage({
+                type: 'mde-exec.requestPathPicker',
+                blockId: parsed.blockId,
+                paramName: paramName,
+                mode: mode,
+                projectPath: projectPath,
+                currentValue: currentValue,
+            }, '*');
+        } catch (e) {
+            console.error('[mde-exec] path-picker postMessage failed:', e);
+        }
+    }
+
+    function applyPickedPath(parsed, paramName, path) {
+        var hidden = parsed.element.querySelector('input.mde-param-input[data-param-name="' + cssEscape(paramName) + '"]');
+        if (hidden) hidden.value = path || '';
+        var btn = parsed.element.querySelector('.mde-param-picker[data-param-name="' + cssEscape(paramName) + '"]');
+        if (btn) {
+            var label = btn.querySelector('.mde-param-picker-label');
+            if (label) {
+                if (path) {
+                    label.textContent = shortenPath(path);
+                    btn.setAttribute('title', path);
+                } else {
+                    var mode = btn.getAttribute('data-picker-type') || 'file';
+                    label.textContent = mode === 'dir' ? 'Choose folder…' : 'Choose file…';
+                    btn.removeAttribute('title');
+                }
+            }
+        }
+    }
+
+    function shortenPath(p) {
+        if (!p) return '';
+        if (p.length <= 38) return p;
+        return '…' + p.substring(p.length - 37);
+    }
+
+    // Minimal CSS.escape polyfill subset — we only need to escape characters that appear in
+    // parameter names (already validated by the backend as `[A-Za-z][A-Za-z0-9_-]*`), so the
+    // identity is fine. Wrapper kept for clarity if the rules ever relax.
+    function cssEscape(s) {
+        return (s || '').replace(/(["\\])/g, '\\$1');
+    }
+
     function requestRun(parsed) {
         markRunning(parsed);
         try {
             // Project path is written on <body ProjectPath="..."> by the server when the iframe
             // is rendered. The Angular parent still validates it.
             var projectPath = document.body ? (document.body.getAttribute('ProjectPath') || '') : '';
+            var harvested = harvestInlineValues(parsed.element, parsed.params);
             window.parent.postMessage({
                 type: 'mde-exec.requestRun',
                 blockId: parsed.blockId,
                 lang: parsed.lang,
                 code: parsed.code,
-                params: parsed.params,
+                params: harvested.params,
+                paramsInline: harvested.inline,
                 projectPath: projectPath,
             }, '*');
         } catch (e) {
@@ -175,6 +279,12 @@
             case 'mde-exec.denied':
                 appendOutput(parsed, 'stderr', (data.reason || 'execution denied') + '\n');
                 markIdle(parsed, 'denied', true);
+                break;
+            case 'mde-exec.pathPicked':
+                // path === null/'' means the picker dialog was cancelled — leave current value as-is.
+                if (data.path && data.paramName) {
+                    applyPickedPath(parsed, data.paramName, data.path);
+                }
                 break;
         }
     });

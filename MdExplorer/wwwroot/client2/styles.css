@@ -379,6 +379,49 @@ app-promptlab {
   overflow: hidden;
 }
 
+body.dark-theme app-run-command-dialog .mat-form-field input.mat-input-element,
+body.dark-theme app-run-command-dialog .mat-form-field .mat-input-element {
+  color: #f0f3f9 !important;
+  caret-color: #f0f3f9 !important;
+}
+body.dark-theme app-run-command-dialog .mat-form-field .mat-form-field-label,
+body.dark-theme app-run-command-dialog .mat-form-field .mat-form-field-label-wrapper label {
+  color: #b0b8c4 !important;
+}
+body.dark-theme app-run-command-dialog .mat-form-field .mat-hint {
+  color: #9aa4b2 !important;
+}
+body.dark-theme app-run-command-dialog .mat-form-field .mat-form-field-outline {
+  color: rgba(255, 255, 255, 0.18) !important;
+}
+body.dark-theme app-run-command-dialog .mat-form-field.mat-focused .mat-form-field-outline-thick {
+  color: #4b8bf5 !important;
+}
+body.dark-theme app-run-command-dialog .mat-form-field.mat-focused .mat-form-field-label {
+  color: #8ab9ff !important;
+}
+body.dark-theme app-run-command-dialog .param-row button.mat-icon-button .mat-icon {
+  color: #b0b8c4;
+}
+body.dark-theme app-run-command-dialog .mat-checkbox .mat-checkbox-layout .mat-checkbox-label,
+body.dark-theme app-run-command-dialog .mat-checkbox-label {
+  color: #e0ceac !important;
+}
+body.dark-theme app-run-command-dialog .mat-checkbox-frame {
+  border-color: #b37400 !important;
+}
+
+body.dark-theme .mat-dialog-container app-run-command-dialog ~ * .mat-button,
+body.dark-theme app-run-command-dialog + .mat-dialog-actions .mat-button,
+body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
+  color: #c0c7d4 !important;
+}
+body.dark-theme .mat-dialog-container app-run-command-dialog ~ * .mat-button:hover,
+body.dark-theme app-run-command-dialog + .mat-dialog-actions .mat-button:hover,
+body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
 .resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mat-form-field-outline,
 .resizable-dialog-container .explorer-header .mat-form-field-appearance-outline .mdc-notched-outline,
 .resizable-dialog-container .explorer-header .mat-mdc-form-field .mat-form-field-outline,

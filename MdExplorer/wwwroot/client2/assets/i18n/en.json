@@ -1590,6 +1590,7 @@
     "FILTER_PLACEHOLDER": "Type to filter...",
     "CLEAR_FILTER": "Clear filter",
     "QUICK_ACCESS": "Quick Access",
+    "CURRENT_PROJECT": "Current project",
     "THIS_PC": "This PC",
     "NETWORK": "Network",
     "GO_BACK": "Go back",

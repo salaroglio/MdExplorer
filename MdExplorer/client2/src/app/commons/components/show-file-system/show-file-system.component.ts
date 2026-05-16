@@ -13,6 +13,7 @@ import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ShowFileMetadata, BreadcrumbSegment, NewDirectoryDialogData } from './show-file-metadata';
 import { SpecialFolder, Drive, FileExplorerState } from './file-explorer.models';
 import { TranslateService } from '@ngx-translate/core';
+import { ProjectsService } from '../../../md-explorer/services/projects.service';
 
 
 
@@ -225,7 +226,8 @@ export class ShowFileSystemComponent implements OnInit {
     private mdFileService: MdFileService,
     private dialogRef: MatDialogRef<ShowFileSystemComponent>,
     private snackBar: MatSnackBar,
-    private translate: TranslateService) {
+    private translate: TranslateService,
+    private projectsService: ProjectsService) {
 
     // Inizializza legacy tree control per compatibilità
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
@@ -289,7 +291,7 @@ export class ShowFileSystemComponent implements OnInit {
       networkShares: this.mdFileService.getNetworkShares()
     }).subscribe({
       next: ({folders, drives, networkShares}) => {
-        this.specialFolders = folders;
+        this.specialFolders = this.prependCurrentProjectShortcut(folders);
         this.drives = drives;
         this.networkShares = networkShares;
 
@@ -402,6 +404,27 @@ export class ShowFileSystemComponent implements OnInit {
         this.folderCache.delete(entries[i][0]);
       }
     }
+  }
+
+  /**
+   * Prepends the current MdExplorer project as the first Quick Access shortcut so the
+   * user can jump straight to the doc-project root from any file picker invocation.
+   * No-op if no project is open.
+   */
+  private prependCurrentProjectShortcut(folders: SpecialFolder[]): SpecialFolder[] {
+    const project = this.projectsService.currentProjects$.value;
+    if (!project || !project.path) return folders;
+
+    const label = this.translate.instant('FILE_SYSTEM.CURRENT_PROJECT');
+    const projectShortcut: SpecialFolder = {
+      name: `${label}: ${project.name}`,
+      path: project.path,
+      icon: 'folder_special',
+    };
+    // De-duplicate: if the platform already exposes a folder pointing at the project
+    // path (unlikely but defensive), drop it so we keep a single, distinctive entry.
+    const filtered = (folders || []).filter(f => f.path !== project.path);
+    return [projectShortcut, ...filtered];
   }
 
   private formatDisplayPath(path: string): string {

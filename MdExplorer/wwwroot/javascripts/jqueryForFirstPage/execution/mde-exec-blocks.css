@@ -35,6 +35,109 @@
     font-size: 0.75em;
 }
 
+.mde-exec-params {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35em;
+    flex: 1 1 auto;
+    margin: 0 0.7em;
+    min-width: 0;
+}
+
+.mde-param {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    padding: 0 0.35em 0 0.5em;
+    gap: 0.35em;
+    line-height: 1.3;
+}
+
+.mde-param-name {
+    color: #495057;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.78em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.mde-param-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 0.18em 0;
+    min-width: 5em;
+    width: 8em;
+    font-family: inherit;
+    font-size: 0.85em;
+    color: #212529;
+}
+
+.mde-param-input:focus {
+    outline: none;
+}
+
+.mde-param:focus-within {
+    border-color: #6aa8ff;
+    box-shadow: 0 0 0 2px rgba(106, 168, 255, 0.18);
+}
+
+.mde-param-toggle {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0 0.15em;
+    font-size: 0.95em;
+    color: #6c757d;
+    line-height: 1;
+}
+
+.mde-param-toggle:hover {
+    color: #212529;
+}
+
+/* Path-picker variant: a single button (file/folder browser) that replaces the text input. */
+.mde-param-path {
+    padding: 0 0 0 0.5em;
+}
+
+.mde-param-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    background: transparent;
+    border: none;
+    padding: 0.15em 0.4em;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85em;
+    color: #0d6efd;
+    max-width: 22em;
+}
+
+.mde-param-picker:hover {
+    color: #0a58ca;
+    text-decoration: underline;
+}
+
+.mde-param-picker-icon {
+    flex-shrink: 0;
+    font-size: 0.95em;
+    line-height: 1;
+    color: #6c757d;
+}
+
+.mde-param-picker-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl; /* keep the end of long paths visible */
+    text-align: left;
+}
+
 .mde-run-btn {
     display: inline-flex;
     align-items: center;
@@ -48,6 +151,7 @@
     font-size: 0.85em;
     line-height: 1.3;
     transition: background 0.1s, color 0.1s;
+    flex-shrink: 0;
 }
 
 .mde-run-btn:hover:not(:disabled) {
@@ -122,30 +226,91 @@
     color: #ff7b7b;
 }
 
-/* Dark theme: the toolbar must blend with the rest of the dark UI. */
+/* Dark theme: the toolbar must blend with the rest of the dark UI.
+   Important: dark-theme.css applies a global `body.dark-theme button:not([alt])`
+   override (specificity 0,2,1) — so every selector below that targets a button
+   chains the ancestor `.mde-exec-block` to reach specificity 0,3,0 and win. */
 body.dark-theme .mde-exec-block {
     background: #1e2028;
     border-color: #363a45;
+    color: #d7dde5;
 }
 
-body.dark-theme .mde-exec-toolbar {
+body.dark-theme .mde-exec-block .mde-exec-toolbar {
     background: #252833;
     border-bottom-color: #363a45;
 }
 
-body.dark-theme .mde-exec-lang {
+body.dark-theme .mde-exec-block .mde-exec-lang {
     color: #9aa4b2;
 }
 
-body.dark-theme .mde-run-btn {
-    background: transparent;
-    border-color: #34a853;
-    color: #6fcc86;
+body.dark-theme .mde-exec-block .mde-param {
+    background: #2a2d38;
+    border-color: #3d4250;
+    color: #d7dde5;
 }
 
-body.dark-theme .mde-run-btn:hover:not(:disabled) {
-    background: #34a853;
-    color: #0f1117;
+body.dark-theme .mde-exec-block .mde-param-name {
+    color: #c0c7d4;
+}
+
+body.dark-theme .mde-exec-block .mde-param-input {
+    color: #f0f3f9;
+    background: transparent;
+    border: none;
+}
+
+body.dark-theme .mde-exec-block .mde-param-input::placeholder {
+    color: #6a7280;
+}
+
+body.dark-theme .mde-exec-block .mde-param:focus-within {
+    border-color: #4b8bf5;
+    box-shadow: 0 0 0 2px rgba(75, 139, 245, 0.22);
+}
+
+body.dark-theme .mde-exec-block .mde-param-toggle {
+    background: transparent;
+    border: none;
+    color: #b0b8c4;
+}
+
+body.dark-theme .mde-exec-block .mde-param-toggle:hover {
+    background: transparent;
+    color: #f0f3f9;
+}
+
+body.dark-theme .mde-exec-block .mde-param-picker {
+    background: transparent;
+    border: none;
+    color: #8ab9ff;
+}
+
+body.dark-theme .mde-exec-block .mde-param-picker:hover {
+    background: transparent;
+    color: #b8d3ff;
+    text-decoration: underline;
+}
+
+body.dark-theme .mde-exec-block .mde-param-picker-icon {
+    color: #c0c7d4;
+}
+
+body.dark-theme .mde-exec-block .mde-param-picker-label {
+    color: inherit;
+}
+
+body.dark-theme .mde-exec-block .mde-run-btn {
+    background: transparent;
+    border: 1px solid #4ec27a;
+    color: #8de3a6;
+}
+
+body.dark-theme .mde-exec-block .mde-run-btn:hover:not(:disabled) {
+    background: #2d6a3f;
+    border-color: #5fd28a;
+    color: #ffffff;
 }
 
 body.dark-theme .mde-exec-block.is-running {

@@ -353,6 +353,12 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         FileUtil.ExtractResFile("MdExplorer.Service.copilot-instructions.md", copilotInstructionsPath);
                         Console.WriteLine($"Created GitHub Copilot instructions file: {copilotInstructionsPath}");
                     }
+
+                    // Copilot agent skills — version-aware install/update.
+                    // Each MdE-managed skill has an `mde:` block in its frontmatter; the updater
+                    // upgrades it on every project open if the embedded version is newer, but
+                    // leaves user-customized skills alone (when `origin` differs or is missing).
+                    MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath);
                 }
 
                 // Create .vscode folder with MCP server configuration

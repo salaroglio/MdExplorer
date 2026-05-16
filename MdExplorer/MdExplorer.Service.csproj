@@ -179,6 +179,7 @@
     <EmbeddedResource Include="copilot-instructions.md" />
     <EmbeddedResource Include="external-apps\MdE-Dual-Mode-App-Guide.md" />
     <EmbeddedResource Include="external-apps\MdE-External-App-Protocol.md" />
+    <EmbeddedResource Include="skills\mde-readme\SKILL.md" />
     </ItemGroup>
 
   <ItemGroup>
