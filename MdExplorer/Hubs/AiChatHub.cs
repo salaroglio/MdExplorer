@@ -13,6 +13,7 @@ using MdExplorer.Abstractions.Services;
 using MdExplorer.bll.Services.AI;
 using MdExplorer.bll.Models.AI;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Features.Services.AI.CopilotAcp;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
 
@@ -30,6 +31,7 @@ namespace MdExplorer.Hubs
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _watcherManager;
         private readonly Features.Services.AI.LocalLlamaProvider _localProvider;
+        private readonly CopilotAcpSessionPool _copilotAcpPool;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -77,7 +79,8 @@ namespace MdExplorer.Hubs
             Features.Services.ChatInteractionLogger chatLogger,
             IDatabaseManager databaseManager,
             IFileSystemWatcherManager watcherManager,
-            Features.Services.AI.LocalLlamaProvider localProvider)
+            Features.Services.AI.LocalLlamaProvider localProvider,
+            CopilotAcpSessionPool copilotAcpPool)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -89,6 +92,7 @@ namespace MdExplorer.Hubs
             _databaseManager = databaseManager;
             _watcherManager = watcherManager;
             _localProvider = localProvider;
+            _copilotAcpPool = copilotAcpPool;
         }
 
         /// <summary>
@@ -172,7 +176,23 @@ namespace MdExplorer.Hubs
                     // CopilotCli: use streaming for progressive output
                     if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
                     {
-                        var response = await StreamCopilotCliResponseAsync(provider, message, chatMode.ModelId, currentDoc, history, channelId);
+                        string response;
+                        try
+                        {
+                            response = await StreamCopilotCliAcpResponseAsync(message, chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (CopilotAcpMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[SendMessage] ACP failed mid-stream; not falling back to avoid duplicate output");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Copilot stream interrupted: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                            response = string.Empty;
+                        }
+                        catch (Exception acpEx)
+                        {
+                            _logger.LogWarning(acpEx, "[SendMessage] ACP path failed before streaming, falling back to one-shot copilot -p");
+                            response = await StreamCopilotCliResponseAsync(provider, message, chatMode.ModelId, currentDoc, history, channelId);
+                        }
                         _logger.LogInformation($"[SendMessage] CopilotCli streaming complete, response length: {response?.Length ?? 0}");
                     }
                     else
@@ -365,6 +385,12 @@ namespace MdExplorer.Hubs
             _connectionDocumentContexts.TryRemove(Context.ConnectionId, out _);
             _connectionHistories.TryRemove(Context.ConnectionId, out _);
             _connectionProjectConnectionIds.TryRemove(Context.ConnectionId, out _);
+            // Kill any persistent Copilot ACP process attached to this connection.
+            if (_copilotAcpPool != null)
+            {
+                try { await _copilotAcpPool.ReleaseAsync(Context.ConnectionId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "ACP pool release failed for {ConnectionId}", Context.ConnectionId); }
+            }
             await base.OnDisconnectedAsync(exception);
         }
         
@@ -478,6 +504,84 @@ namespace MdExplorer.Hubs
         /// then streams the output chunk by chunk via SignalR.
         /// Parses the CLI output to separate thinking from response content.
         /// </summary>
+        /// <summary>
+        /// Streams a Copilot CLI response through the persistent ACP session for this
+        /// connection. The ACP session retains conversation memory server-side, so we
+        /// pass only the user message (plus a once-per-prompt current-document hint).
+        /// </summary>
+        /// <summary>
+        /// Thrown by the ACP streamer when at least one chunk has been sent to the
+        /// client. The caller MUST NOT fall back to the legacy path in this case,
+        /// otherwise the client receives duplicated/corrupted output.
+        /// </summary>
+        private sealed class CopilotAcpMidStreamException : Exception
+        {
+            public CopilotAcpMidStreamException(Exception inner) : base("ACP stream failed after first chunk", inner) { }
+        }
+
+        private async Task<string> StreamCopilotCliAcpResponseAsync(
+            string userMessage,
+            string modelId,
+            string currentDoc,
+            ConversationHistory history,
+            string channelId = "default")
+        {
+            if (_copilotAcpPool == null)
+            {
+                throw new InvalidOperationException("CopilotAcpSessionPool not registered");
+            }
+
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                throw new InvalidOperationException("Project path is unknown; cannot start Copilot ACP session");
+            }
+
+            var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-4.6" : modelId;
+            var session = await _copilotAcpPool.GetOrCreateAsync(
+                Context.ConnectionId, projectPath, effectiveModel);
+
+            await Clients.Caller.SendAsync("ReceiveStreamMeta",
+                new { providerType = "copilotcli", modelId = effectiveModel, transport = "acp" }, channelId);
+
+            var promptText = string.IsNullOrEmpty(currentDoc)
+                ? userMessage
+                : $"[Current document: {currentDoc}]\n\n{userMessage}";
+
+            var responseText = new StringBuilder();
+            int chunksSent = 0;
+            try
+            {
+                await foreach (var chunk in session.PromptAsync(promptText, Context.ConnectionAborted))
+                {
+                    if (chunk.Kind == CopilotAcpChunk.KindMessage)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        responseText.Append(chunk.Text);
+                        chunksSent++;
+                    }
+                    else if (chunk.Kind == CopilotAcpChunk.KindThinking)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                    }
+                }
+            }
+            catch (Exception ex) when (chunksSent > 0)
+            {
+                // Already streamed text to the client; do NOT let the caller retry via
+                // the legacy path (would double-stream).
+                throw new CopilotAcpMidStreamException(ex);
+            }
+
+            var finalResponse = responseText.ToString().TrimEnd();
+            history.Messages.Add(new bll.Models.AI.ConversationMessage
+            {
+                Role = "model",
+                Content = finalResponse
+            });
+            return finalResponse;
+        }
+
         private async Task<string> StreamCopilotCliResponseAsync(
             IAiProvider provider,
             string userMessage,
@@ -909,7 +1013,21 @@ namespace MdExplorer.Hubs
                     // CopilotCli: use streaming for progressive output
                     if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
                     {
-                        await StreamCopilotCliResponseAsync(provider, lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                        try
+                        {
+                            await StreamCopilotCliAcpResponseAsync(lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (CopilotAcpMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[RegenerateAiResponse] ACP failed mid-stream; not falling back to avoid duplicate output");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Copilot stream interrupted: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                        }
+                        catch (Exception acpEx)
+                        {
+                            _logger.LogWarning(acpEx, "[RegenerateAiResponse] ACP path failed before streaming, falling back to one-shot copilot -p");
+                            await StreamCopilotCliResponseAsync(provider, lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                        }
                     }
                     else
                     {
