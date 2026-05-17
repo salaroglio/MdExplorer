@@ -131,6 +131,9 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, GeminiProvider>();
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
 
+            // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
+            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
+
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();

@@ -101,6 +101,12 @@ namespace MdExplorer.Features.Services.AI
                     return false;
                 }
 
+                // Drain stdout/stderr concurrently — the WinGet copilot.exe launcher
+                // keeps the pipes open until they are read, so WaitForExit alone
+                // times out even though the process is otherwise idle.
+                var stdoutTask = process.StandardOutput.ReadToEndAsync();
+                var stderrTask = process.StandardError.ReadToEndAsync();
+
                 var completed = process.WaitForExit(AVAILABILITY_CHECK_TIMEOUT_MS);
                 if (!completed)
                 {
@@ -109,6 +115,8 @@ namespace MdExplorer.Features.Services.AI
                     _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
                     return false;
                 }
+
+                try { Task.WaitAll(new Task[] { stdoutTask, stderrTask }, 1000); } catch { }
 
                 _cachedAvailability = process.ExitCode == 0;
                 _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
