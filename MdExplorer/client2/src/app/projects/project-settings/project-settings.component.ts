@@ -43,6 +43,28 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   editingCategoryName = '';
   appsSavedMessage = '';
 
+  // Knowledge Graph (Neo4j) settings
+  kgLoading: boolean = false;
+  kgSaving: boolean = false;
+  kgEnabled: boolean = false;
+  kgUri: string = 'bolt://localhost:7687';
+  kgDatabase: string = 'neo4j';
+  kgUsername: string = 'neo4j';
+  kgPassword: string = '';
+  kgHasPassword: boolean = false;
+  kgSyncOnTocGeneration: boolean = true;
+  kgSyncOnKgFileSave: boolean = true;
+  kgTesting: boolean = false;
+  kgTestMessage: string = '';
+  kgTestSuccess: boolean = false;
+  kgSyncing: boolean = false;
+  kgResetting: boolean = false;
+  kgSyncMessage: string = '';
+  kgSyncErrors: any[] = [];
+  kgStateLoaded: boolean = false;
+  kgStateTotals: any = null;
+  kgPerNamespace: any[] = [];
+
   // RAG settings
   ragEnabled: boolean = false;
   ragModelInstalled: boolean = false;
@@ -77,6 +99,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadSettings();
     this.loadAppsConfig();
+    this.loadKgSettings();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -620,5 +643,163 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
 
   close(): void {
     this.dialogRef.close();
+  }
+
+  // ============================================================
+  //   Knowledge Graph (Neo4j) — tab logic
+  // ============================================================
+  loadKgSettings(): void {
+    if (!this.projectId) return;
+    this.kgLoading = true;
+    this.projectSettingsService.getKgSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.kgEnabled = !!r.enabled;
+        this.kgUri = r.uri || 'bolt://localhost:7687';
+        this.kgDatabase = r.database || 'neo4j';
+        this.kgUsername = r.username || 'neo4j';
+        this.kgHasPassword = !!r.hasPassword;
+        this.kgPassword = '';
+        this.kgSyncOnTocGeneration = r.syncOnTocGeneration !== false;
+        this.kgSyncOnKgFileSave = r.syncOnKgFileSave !== false;
+        if (r.lastTestSuccess === true) {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_OK_PREVIOUS');
+          this.kgTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_FAIL_PREVIOUS');
+          this.kgTestSuccess = false;
+        }
+        this.kgLoading = false;
+        if (this.kgEnabled && this.kgHasPassword) {
+          this.loadKgState();
+        }
+      },
+      error: (err) => {
+        console.error('Error loading KG settings:', err);
+        this.kgLoading = false;
+      }
+    });
+  }
+
+  onKgEnabledChange(): void {
+    // No immediate save — user must click Save to apply (so password and other fields go together).
+    // If user just turned it off, persist immediately (no other state to gather).
+    if (!this.kgEnabled) {
+      this.onSaveKgSettings();
+    }
+  }
+
+  onTestKgConnection(): void {
+    this.kgTesting = true;
+    this.kgTestMessage = '';
+    this.projectSettingsService.testKgConnection({
+      projectId: this.projectId,
+      uri: this.kgUri,
+      database: this.kgDatabase,
+      username: this.kgUsername,
+      password: this.kgPassword || (this.kgHasPassword ? '********' : '')
+    }).subscribe({
+      next: (r) => {
+        this.kgTesting = false;
+        this.kgTestSuccess = !!r.success;
+        if (r.success) {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_OK', { ms: r.latencyMs });
+        } else {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_FAIL', { error: r.error || 'unknown' });
+        }
+      },
+      error: (err) => {
+        this.kgTesting = false;
+        this.kgTestSuccess = false;
+        this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_FAIL', { error: err?.message || 'http error' });
+      }
+    });
+  }
+
+  onSaveKgSettings(): void {
+    this.kgSaving = true;
+    this.projectSettingsService.saveKgSettings(this.projectId, {
+      enabled: this.kgEnabled,
+      uri: this.kgUri,
+      database: this.kgDatabase,
+      username: this.kgUsername,
+      password: this.kgPassword || '',
+      syncOnTocGeneration: this.kgSyncOnTocGeneration,
+      syncOnKgFileSave: this.kgSyncOnKgFileSave
+    }).subscribe({
+      next: () => {
+        this.kgSaving = false;
+        if (this.kgPassword) {
+          this.kgHasPassword = true;
+          this.kgPassword = '';
+        }
+        if (this.kgEnabled && this.kgHasPassword) {
+          this.loadKgState();
+        }
+      },
+      error: (err) => {
+        this.kgSaving = false;
+        console.error('Error saving KG settings:', err);
+      }
+    });
+  }
+
+  loadKgState(): void {
+    this.projectSettingsService.getKgState(this.projectId).subscribe({
+      next: (r) => {
+        this.kgStateTotals = r.totals;
+        this.kgPerNamespace = r.perNamespace || [];
+        this.kgStateLoaded = true;
+      },
+      error: (err) => {
+        console.error('Error loading KG state:', err);
+        this.kgStateLoaded = false;
+      }
+    });
+  }
+
+  onSyncKgProject(): void {
+    this.kgSyncing = true;
+    this.kgSyncMessage = '';
+    this.kgSyncErrors = [];
+    this.projectSettingsService.syncKgProject(this.projectId).subscribe({
+      next: (r) => {
+        this.kgSyncing = false;
+        const results = r.results || [];
+        const ok = results.filter((x: any) => !x.error && !x.skipped).length;
+        const skipped = results.filter((x: any) => x.skipped).length;
+        const failed = results.filter((x: any) => x.error).length;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_SYNC_DONE', {
+          ok, skipped, failed, total: results.length
+        });
+        this.kgSyncErrors = results.filter((x: any) => x.error);
+        this.loadKgState();
+      },
+      error: (err) => {
+        this.kgSyncing = false;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_SYNC_FAILED', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onResetKg(): void {
+    if (!confirm(this.translate.instant('PROJECT_SETTINGS.KG_RESET_CONFIRM'))) return;
+    this.kgResetting = true;
+    this.kgSyncMessage = '';
+    this.projectSettingsService.resetKg(this.projectId).subscribe({
+      next: () => {
+        this.kgResetting = false;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_RESET_DONE');
+        this.kgSyncErrors = [];
+        this.loadKgState();
+      },
+      error: (err) => {
+        this.kgResetting = false;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_RESET_FAILED', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
   }
 }

@@ -3,7 +3,7 @@ name: mde-doc
 description: Write technical and analysis documents using MdExplorer conventions. Use whenever you author or update an analysis, design, sprint, how-to, or any narrative `.md` document (NOT a README — see the mde-readme skill for that). Each document gets a TL;DR header, a link to a co-located knowledge graph file, and a sibling `.mde-doc/<docname>.kg.md` containing a PlantUML graph + Neo4j-ready concept tables. MdExplorer aggregates these payloads into the folder's table-of-contents file.
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -209,6 +209,7 @@ Hard constraints:
 | `DEPENDS_ON` | A requires B to exist or function. |
 | `REQUIRES` | A explicitly demands B (stronger than `DEPENDS_ON`). |
 | `MITIGATES` | A reduces the impact of B (typically when B is a problem, risk, or bug). |
+| `REFERENCES` | A references B as a known entity (typically used cross-graph — see "Cross-graph references" below). |
 | `RELATED_TO` | Fallback when no other type fits. |
 
 - Do **not** invent new types. Use `RELATED_TO` when none of the eight specific types fit.
@@ -221,6 +222,52 @@ Hard constraints:
 - Title-case-ish, with lowercase technical terms preserved where natural (e.g., `nomic-embed-text model`, not `Nomic-Embed-Text Model`).
 - Avoid generic placeholders like "the system", "the user", "the file" — they cannot be merged meaningfully across documents.
 
+## Granularità: cosa modellare nel grafo
+
+The knowledge graph models **domain knowledge** (entities of the problem space) and **intent** (things to do / requirements). It does **NOT** model implementation artifacts — functions, classes, modules, files, commits, PRs.
+
+Examples for a COBOL-to-modern migration project:
+
+- ✅ **`cobol-domain` graph** — `COMP-3`, `PERFORM`, `COPY`, `REDEFINES` (entities of the COBOL language).
+- ✅ **`impl-plan` graph** — `Migrate COMP-3 to decimal`, `Inline PERFORM blocks` (functional intent / tasks).
+- ❌ **NEVER** — `(:Function {name:"ParseComp3"})`, `(:Class {name:"Comp3Field"})`, `(:File {name:"AuthService.cs"})` — the code is the **output** of generation, not a node in the graph. The AST is already a graph; do not duplicate it here.
+
+When the AI generates code from a concept in `impl-plan`, it adds a provenance comment in the generated code (kept short, one line):
+```
+// Implements impl-plan concept "<concept name>" (<.mde-doc/...kg.md source>)
+```
+This is the **only** link between code and graph; it is reconstructable with `grep` and survives refactors better than a graph node would.
+
+## Cross-graph references
+
+A single project can contain **multiple graph namespaces** (one per folder, declared via `knowledgeGraph.namespace` in `.development.yml`). Concepts in one namespace can reference concepts in another using the `REFERENCES` relationship type.
+
+Example: a document in `docs/impl-plan/` (namespace `impl-plan`) declares the task `Migrate COMP-3 to decimal` and references the domain concept `COMP-3` that lives in `docs/cobol-concepts/` (namespace `cobol-domain`):
+
+```
+| From                       | Type       | To       |
+|----------------------------|------------|----------|
+| Migrate COMP-3 to decimal  | REFERENCES | COMP-3   |
+```
+
+**MdExplorer enforces a rigid rule for cross-graph edges**: the target concept (`COMP-3` above) MUST already exist in some namespace of the project before the ingest can persist the edge. If the target is missing, the ingest fails for the whole `.kg.md` file with an actionable error. **There is no auto-create of cross-graph placeholders** — this is by design, so that typos and hallucinated names surface as errors instead of silently creating ghost nodes.
+
+### Rule: reuse, do not invent
+
+When you are about to introduce a concept name that might already exist elsewhere in the project (either in your folder or in another namespace), you MUST verify it first via MCP tools instead of guessing:
+
+- **`GetGraphNamespaces(project)`** — shows you what graph namespaces exist and how many concepts each contains.
+- **`FindConcepts(query, project)`** — case-insensitive substring search across all concepts of the project. Returns each match with its namespace and the source documents that declared it. Use this BEFORE writing a concept name that could conflict.
+- **`GetRelatedConcepts(name, project)`** — explores the neighborhood of an existing concept (1-3 hops). Useful to ground your writing in what's already modeled.
+- **`GetGraphSchema(project, namespace)`** — high-level overview of one graph (total concepts, relationship type breakdown, top concepts by degree).
+- **`RunCypher(query, project)`** — read-only Cypher escape hatch when the four tools above are not enough.
+
+If `FindConcepts` returns a match in another namespace, **reuse the verbatim name** (character-for-character) in your `.kg.md`. Do NOT invent a slight variation like `Comp-3` or `COMP-3 type`.
+
+### When the AI does NOT need to query
+
+The first `.kg.md` of a project, by definition, has no prior concepts to reuse — querying is a no-op but harmless. As the graph grows, the rule becomes important: every new `.kg.md` should be authored AFTER a quick `GetGraphNamespaces` + targeted `FindConcepts` calls for the concepts you are about to introduce.
+
 ## Workflow: creating or updating a document
 
 For a **NEW** document:
@@ -228,7 +275,9 @@ For a **NEW** document:
 2. Write the TL;DR section + the knowledge graph link line under it.
 3. Write the document body.
 4. Create the `.mde-doc/` folder if it doesn't exist in the document's parent directory.
-5. Write `.mde-doc/<docname>.kg.md` with the two graph sections, using concept names that are consistent with sibling documents in the same folder.
+5. **Before** writing concept names that might exist elsewhere in the project, call `GetGraphNamespaces(project)` and `FindConcepts(query, project)` via MCP. Reuse verbatim any concept that already exists; only invent a new name when the search returns no match. (See "Cross-graph references" above.)
+6. Write `.mde-doc/<docname>.kg.md` with the two graph sections, using concept names that are consistent with sibling documents in the same folder AND with concepts already present in other namespaces of the project.
+7. After saving, MdExplorer auto-syncs the file into Neo4j (if the project has the KG enabled). If the sync fails with a cross-graph error, MdExplorer surfaces the error and the file's hash is not updated — fix the concept name and save again.
 
 For an **UPDATE**:
 1. Adjust the TL;DR if the document's gist has changed.

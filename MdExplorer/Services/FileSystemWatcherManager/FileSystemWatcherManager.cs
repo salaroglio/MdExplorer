@@ -10,6 +10,7 @@ using MdExplorer.Service.Models;
 using MdExplorer.Service.Services;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Features.Services.KnowledgeGraph;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
@@ -731,6 +732,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 _logger.LogInformation($"✅ [{context.ConnectionId}] Markdown file changed: {e.FullPath}");
 
+                // KG auto-sync hook — fire-and-forget for .mde-doc/*.kg.md payloads.
+                // The orchestrator honors ProjectNeo4jSettings.Enabled + SyncOnKgFileSave and
+                // swallows all errors; failed files keep their old hash so the next save retries.
+                if (IsKgPayloadFile(e.FullPath))
+                {
+                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
+                }
+
                 // Serialize DB access: NHibernate session is NOT thread-safe
                 await context.DbSemaphore.WaitAsync();
                 try
@@ -965,6 +974,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 _logger.LogInformation($"🎯 [{context.ConnectionId}] Processing new markdown file: {e.FullPath}");
+
+                // KG auto-sync hook — fire-and-forget for newly created .kg.md payloads.
+                if (IsKgPayloadFile(e.FullPath))
+                {
+                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
+                }
 
                 // Serialize DB access: NHibernate session is NOT thread-safe
                 await context.DbSemaphore.WaitAsync();
@@ -1499,6 +1514,48 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error in RemoveFileFromDB");
                 // Don't throw - we still want to notify the client even if DB cleanup fails
+            }
+        }
+
+        // ============================================================
+        //   KG auto-sync helpers
+        // ============================================================
+
+        private static bool IsKgPayloadFile(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return false;
+            if (!fullPath.EndsWith(".kg.md", StringComparison.OrdinalIgnoreCase)) return false;
+            // Skip the auto-generated aggregate — it's a derived artifact, not a source.
+            if (string.Equals(Path.GetFileName(fullPath), "_aggregate.kg.md", StringComparison.OrdinalIgnoreCase)) return false;
+            var parent = Path.GetFileName(Path.GetDirectoryName(fullPath));
+            return string.Equals(parent, ".mde-doc", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task SyncKgFileBestEffortAsync(string fullPath, string connectionId)
+        {
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var orchestrator = scope.ServiceProvider.GetRequiredService<IKgSyncOrchestrator>();
+                var outcome = await orchestrator.SyncFileAsync(fullPath, KgSyncTrigger.KgFileSave);
+                if (!outcome.Triggered)
+                {
+                    _logger.LogDebug($"[{connectionId}] KG auto-sync skipped for {fullPath}: {outcome.Reason}");
+                    return;
+                }
+                if (outcome.FailedFiles > 0)
+                {
+                    _logger.LogWarning($"[{connectionId}] KG auto-sync FAILED for {fullPath}: {outcome.FirstError}");
+                    // TODO (M3.4 follow-up): emit a SignalR notification so the UI surfaces the error.
+                }
+                else
+                {
+                    _logger.LogInformation($"[{connectionId}] KG auto-synced: {fullPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{connectionId}] KG auto-sync threw for {fullPath}");
             }
         }
 

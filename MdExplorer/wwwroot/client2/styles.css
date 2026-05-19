@@ -411,6 +411,74 @@ body.dark-theme app-run-command-dialog .mat-checkbox-frame {
   border-color: #b37400 !important;
 }
 
+body.dark-theme .mat-form-field input.mat-input-element,
+body.dark-theme .mat-form-field input.mat-mdc-input-element,
+body.dark-theme .mat-form-field .mat-input-element,
+body.dark-theme .mat-form-field .mat-mdc-input-element,
+body.dark-theme .mat-mdc-form-field input.mat-input-element,
+body.dark-theme .mat-mdc-form-field input.mat-mdc-input-element,
+body.dark-theme .mat-mdc-form-field .mat-input-element,
+body.dark-theme .mat-mdc-form-field .mat-mdc-input-element {
+  color: var(--mde-text-primary);
+  caret-color: var(--mde-text-primary);
+}
+body.dark-theme .mat-form-field .mat-form-field-label,
+body.dark-theme .mat-form-field .mat-mdc-floating-label,
+body.dark-theme .mat-form-field .mdc-floating-label,
+body.dark-theme .mat-form-field .mat-form-field-label-wrapper label,
+body.dark-theme .mat-mdc-form-field .mat-form-field-label,
+body.dark-theme .mat-mdc-form-field .mat-mdc-floating-label,
+body.dark-theme .mat-mdc-form-field .mdc-floating-label,
+body.dark-theme .mat-mdc-form-field .mat-form-field-label-wrapper label {
+  color: var(--mde-text-secondary);
+}
+body.dark-theme .mat-form-field .mat-mdc-form-field-hint,
+body.dark-theme .mat-form-field .mat-hint,
+body.dark-theme .mat-mdc-form-field .mat-mdc-form-field-hint,
+body.dark-theme .mat-mdc-form-field .mat-hint {
+  color: var(--mde-text-hint);
+}
+body.dark-theme .mat-form-field .mat-form-field-outline,
+body.dark-theme .mat-form-field .mdc-notched-outline__leading,
+body.dark-theme .mat-form-field .mdc-notched-outline__notch,
+body.dark-theme .mat-form-field .mdc-notched-outline__trailing,
+body.dark-theme .mat-mdc-form-field .mat-form-field-outline,
+body.dark-theme .mat-mdc-form-field .mdc-notched-outline__leading,
+body.dark-theme .mat-mdc-form-field .mdc-notched-outline__notch,
+body.dark-theme .mat-mdc-form-field .mdc-notched-outline__trailing {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+body.dark-theme .mat-form-field.mat-focused .mat-form-field-outline-thick,
+body.dark-theme .mat-form-field.mat-focused .mdc-notched-outline__leading,
+body.dark-theme .mat-form-field.mat-focused .mdc-notched-outline__notch,
+body.dark-theme .mat-form-field.mat-focused .mdc-notched-outline__trailing, body.dark-theme .mat-form-field.mdc-text-field--focused .mat-form-field-outline-thick,
+body.dark-theme .mat-form-field.mdc-text-field--focused .mdc-notched-outline__leading,
+body.dark-theme .mat-form-field.mdc-text-field--focused .mdc-notched-outline__notch,
+body.dark-theme .mat-form-field.mdc-text-field--focused .mdc-notched-outline__trailing,
+body.dark-theme .mat-mdc-form-field.mat-focused .mat-form-field-outline-thick,
+body.dark-theme .mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+body.dark-theme .mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+body.dark-theme .mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mat-form-field-outline-thick,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mdc-notched-outline__leading,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mdc-notched-outline__notch,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mdc-notched-outline__trailing {
+  border-color: #4b8bf5;
+}
+body.dark-theme .mat-form-field.mat-focused .mat-form-field-label,
+body.dark-theme .mat-form-field.mat-focused .mat-mdc-floating-label,
+body.dark-theme .mat-form-field.mat-focused .mdc-floating-label, body.dark-theme .mat-form-field.mdc-text-field--focused .mat-form-field-label,
+body.dark-theme .mat-form-field.mdc-text-field--focused .mat-mdc-floating-label,
+body.dark-theme .mat-form-field.mdc-text-field--focused .mdc-floating-label,
+body.dark-theme .mat-mdc-form-field.mat-focused .mat-form-field-label,
+body.dark-theme .mat-mdc-form-field.mat-focused .mat-mdc-floating-label,
+body.dark-theme .mat-mdc-form-field.mat-focused .mdc-floating-label,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mat-form-field-label,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mat-mdc-floating-label,
+body.dark-theme .mat-mdc-form-field.mdc-text-field--focused .mdc-floating-label {
+  color: #8ab9ff;
+}
+
 body.dark-theme .mat-dialog-container app-run-command-dialog ~ * .mat-button,
 body.dark-theme app-run-command-dialog + .mat-dialog-actions .mat-button,
 body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {

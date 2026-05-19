@@ -80,6 +80,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Neo4j.Driver" Version="6.1.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
     <PackageReference Include="NHibernate" Version="5.3.9" />
     <PackageReference Include="PlantUml.Net" Version="1.4.80" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />

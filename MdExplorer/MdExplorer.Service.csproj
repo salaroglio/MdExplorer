@@ -181,6 +181,7 @@
     <EmbeddedResource Include="external-apps\MdE-External-App-Protocol.md" />
     <EmbeddedResource Include="skills\mde-readme\SKILL.md" />
     <EmbeddedResource Include="skills\mde-doc\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-skillcreator\agent.md" />
     </ItemGroup>
 
   <ItemGroup>

@@ -273,3 +273,112 @@
     }
   }
 }
+
+// ── Knowledge Graph tab ───────────────────
+
+.kg-field-group {
+  margin: 14px 0;
+}
+
+.kg-field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--mde-text-primary);
+  letter-spacing: 0.2px;
+}
+
+.kg-field {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.kg-row {
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  &.kg-actions {
+    margin-top: 16px;
+  }
+}
+
+.kg-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.kg-status-ok {
+  color: #4caf50;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.kg-status-fail {
+  color: #f44336;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.kg-state {
+  margin: 8px 0 16px 0;
+  font-size: 14px;
+}
+
+.kg-namespaces {
+  margin-top: 12px;
+
+  h4 {
+    margin: 8px 0 6px;
+    font-size: 13px;
+    color: var(--mde-text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+}
+
+.kg-message {
+  margin: 12px 0;
+  color: var(--mde-accent-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.kg-errors {
+  margin-top: 16px;
+
+  h4 {
+    margin: 8px 0;
+    color: #f44336;
+    font-size: 14px;
+  }
+}
+
+.kg-error-row {
+  background: var(--mde-bg-tertiary);
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin: 8px 0;
+  font-size: 13px;
+  border-left: 3px solid #f44336;
+
+  strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mde-text-primary);
+  }
+
+  ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+    color: var(--mde-text-secondary);
+  }
+}

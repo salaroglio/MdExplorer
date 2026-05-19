@@ -5536,6 +5536,44 @@ class ProjectSettingsService {
       forceReindex
     });
   }
+  // ============================================================
+  //   Knowledge Graph (Neo4j) settings + sync
+  // ============================================================
+  getKgSettings(projectId) {
+    return this.http.get(`../api/kg/settings/${encodeURIComponent(projectId)}`);
+  }
+  saveKgSettings(projectId, body) {
+    return this.http.put(`../api/kg/settings/${encodeURIComponent(projectId)}`, body);
+  }
+  testKgConnection(body) {
+    return this.http.post('../api/kg/test-connection', body);
+  }
+  syncKgProject(projectId) {
+    return this.http.post('../api/kg/ingest/project', {
+      projectId
+    });
+  }
+  syncKgFolder(projectId, relativeFolderPath) {
+    return this.http.post('../api/kg/ingest/folder', {
+      projectId,
+      relativeFolderPath
+    });
+  }
+  syncKgFile(projectId, relativeKgPath) {
+    return this.http.post('../api/kg/ingest/file', {
+      projectId,
+      relativeKgPath
+    });
+  }
+  resetKg(projectId) {
+    return this.http.post('../api/kg/reset', {
+      projectId,
+      confirm: true
+    });
+  }
+  getKgState(projectId) {
+    return this.http.get(`../api/kg/state/${encodeURIComponent(projectId)}`);
+  }
   static {
     this.ɵfac = function ProjectSettingsService_Factory(t) {
       return new (t || ProjectSettingsService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient));

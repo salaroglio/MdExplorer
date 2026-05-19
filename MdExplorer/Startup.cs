@@ -155,6 +155,13 @@ namespace MdExplorer
             services.AddScoped<Features.Services.TocGenerationService>();
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
 
+            // Knowledge Graph (Neo4j) ingest pipeline
+            services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            services.AddSingleton<Features.Services.KnowledgeGraph.INeo4jConnectionPool, Features.Services.KnowledgeGraph.Neo4jConnectionPool>();
+            services.AddSingleton<Features.Services.KnowledgeGraph.IKgIngestService, Features.Services.KnowledgeGraph.KgIngestService>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigResolver, Features.Services.KnowledgeGraph.FolderKgConfigResolver>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IKgSyncOrchestrator, Features.Services.KnowledgeGraph.KgSyncOrchestrator>();
+
             // Register Team Chat services
             services.AddHttpClient("MdChat");
             // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat

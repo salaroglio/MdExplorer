@@ -421,6 +421,57 @@ body.dark-theme app-run-command-dialog {
   }
 }
 
+// Global fix: floating labels of mat-form-field / mat-mdc-form-field are invisible
+// in dark mode (Angular Material 15 MDC defaults the label color to a near-black
+// that disappears on dark backgrounds). Same root cause as the menu-panel fix
+// recorded in memory (dark_mode_menu_styling). Component-scoped overrides for
+// app-run-command-dialog and .explorer-header still win by specificity where they
+// apply; everywhere else, these rules provide a sensible default.
+body.dark-theme .mat-form-field,
+body.dark-theme .mat-mdc-form-field {
+  input.mat-input-element,
+  input.mat-mdc-input-element,
+  .mat-input-element,
+  .mat-mdc-input-element {
+    color: var(--mde-text-primary);
+    caret-color: var(--mde-text-primary);
+  }
+
+  .mat-form-field-label,
+  .mat-mdc-floating-label,
+  .mdc-floating-label,
+  .mat-form-field-label-wrapper label {
+    color: var(--mde-text-secondary);
+  }
+
+  .mat-mdc-form-field-hint,
+  .mat-hint {
+    color: var(--mde-text-hint);
+  }
+
+  .mat-form-field-outline,
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  &.mat-focused,
+  &.mdc-text-field--focused {
+    .mat-form-field-outline-thick,
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: #4b8bf5;
+    }
+    .mat-form-field-label,
+    .mat-mdc-floating-label,
+    .mdc-floating-label {
+      color: #8ab9ff;
+    }
+  }
+}
+
 // Dialog action buttons in dark mode — Cancel button stays readable.
 body.dark-theme .mat-dialog-container app-run-command-dialog ~ * .mat-button,
 body.dark-theme app-run-command-dialog + .mat-dialog-actions .mat-button,

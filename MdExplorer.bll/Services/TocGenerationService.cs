@@ -43,16 +43,19 @@ namespace MdExplorer.Features.Services
     {
         private readonly ILogger<TocGenerationService> _logger;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
+        private readonly KnowledgeGraph.IKgSyncOrchestrator _kgSyncOrchestrator;
 
         public event EventHandler<TocGenerationProgress> ProgressChanged;
         public event EventHandler<string> GenerationCompleted;
 
         public TocGenerationService(
             ILogger<TocGenerationService> logger,
-            IYamlDefaultGenerator yamlDefaultGenerator)
+            IYamlDefaultGenerator yamlDefaultGenerator,
+            KnowledgeGraph.IKgSyncOrchestrator kgSyncOrchestrator)
         {
             _logger = logger;
             _yamlDefaultGenerator = yamlDefaultGenerator;
+            _kgSyncOrchestrator = kgSyncOrchestrator;
         }
 
         public async Task<bool> GenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
@@ -107,6 +110,22 @@ namespace MdExplorer.Features.Services
 
                 var aggregateRelativePath = await WriteAggregateKgFileAsync(directoryPath, ct);
                 await WriteTocFileAsync(tocFilePath, directoryPath, mdFiles.Count, tableContent.ToString(), aggregateRelativePath, ct);
+
+                // Auto-sync hook into Neo4j (best-effort; orchestrator swallows errors and
+                // honors ProjectNeo4jSettings.Enabled + SyncOnTocGeneration).
+                try
+                {
+                    var outcome = await _kgSyncOrchestrator.SyncFolderAsync(directoryPath, KnowledgeGraph.KgSyncTrigger.TocGeneration, ct);
+                    if (outcome.Triggered)
+                    {
+                        _logger.LogInformation("[TocGeneration] KG auto-sync: {Ok} ok, {Sk} skipped, {Fail} failed",
+                            outcome.SucceededFiles, outcome.SkippedFiles, outcome.FailedFiles);
+                    }
+                }
+                catch (Exception kgEx)
+                {
+                    _logger.LogWarning(kgEx, "[TocGeneration] KG auto-sync threw — TOC generation considered successful");
+                }
 
                 NotifyCompletion(directoryPath);
                 _logger.LogInformation($"[TocGeneration] TOC generation completed for: {directoryPath}");
@@ -299,11 +318,6 @@ namespace MdExplorer.Features.Services
 
         // ============================ Aggregated concepts from .mde-doc/*.kg.md ============================
 
-        // Matches PlantUML component-diagram arrows like:  [Concept A] --> [Concept B] : free-form label
-        private static readonly Regex PlantUmlArrowRegex = new(
-            @"^\s*\[([^\]]+)\]\s*-->\s*\[([^\]]+)\]\s*(?::\s*(.+?))?\s*$",
-            RegexOptions.Compiled);
-
         private const string AggregateKgFileName = "_aggregate.kg.md";
 
         /// <summary>
@@ -391,127 +405,39 @@ namespace MdExplorer.Features.Services
             Dictionary<string, SortedSet<string>> concepts,
             Dictionary<(string From, string Type, string To), SortedSet<string>> relationships)
         {
-            var lines = content.Split('\n');
+            // Delegate parsing to the shared KgFileParser, then accumulate into the per-folder dicts.
+            var parsed = KnowledgeGraph.KgFileParser.Parse(content);
 
-            bool inPlantumlFence = false;
-            string currentTable = null;       // "concepts" | "relationships" | null
-            bool tableHeaderConsumed = false;
-
-            foreach (var rawLine in lines)
+            foreach (var edge in parsed.PlantUmlEdges)
             {
-                var line = rawLine.TrimEnd('\r');
-                var trimmed = line.Trim();
-
-                if (trimmed.StartsWith("```plantuml", StringComparison.OrdinalIgnoreCase))
+                var key = (edge.From, edge.To);
+                if (!plantumlEdges.TryGetValue(key, out var labels))
                 {
-                    inPlantumlFence = true;
-                    continue;
+                    labels = new HashSet<string>(StringComparer.Ordinal);
+                    plantumlEdges[key] = labels;
                 }
-                if (inPlantumlFence && trimmed.StartsWith("```"))
-                {
-                    inPlantumlFence = false;
-                    continue;
-                }
-                if (inPlantumlFence)
-                {
-                    var m = PlantUmlArrowRegex.Match(line);
-                    if (m.Success)
-                    {
-                        var from = m.Groups[1].Value.Trim();
-                        var to = m.Groups[2].Value.Trim();
-                        var label = m.Groups[3].Success ? m.Groups[3].Value.Trim() : string.Empty;
+                if (!string.IsNullOrEmpty(edge.Label)) labels.Add(edge.Label);
+            }
 
-                        var key = (from, to);
-                        if (!plantumlEdges.TryGetValue(key, out var labels))
-                        {
-                            labels = new HashSet<string>(StringComparer.Ordinal);
-                            plantumlEdges[key] = labels;
-                        }
-                        if (!string.IsNullOrEmpty(label)) labels.Add(label);
-                    }
-                    continue;
-                }
-
-                if (trimmed.StartsWith("## ") || trimmed == "##")
+            foreach (var c in parsed.Concepts)
+            {
+                if (!concepts.TryGetValue(c.Name, out var docs))
                 {
-                    currentTable = null;
-                    tableHeaderConsumed = false;
-                    continue;
+                    docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                    concepts[c.Name] = docs;
                 }
-                if (trimmed.StartsWith("### "))
+                docs.Add(sourceDoc);
+            }
+
+            foreach (var r in parsed.Relationships)
+            {
+                var key = (r.From, r.Type, r.To);
+                if (!relationships.TryGetValue(key, out var docs))
                 {
-                    var headingText = trimmed.TrimStart('#').Trim();
-                    if (headingText.Equals("Concepts", StringComparison.OrdinalIgnoreCase) ||
-                        headingText.Equals("Concetti", StringComparison.OrdinalIgnoreCase))
-                    {
-                        currentTable = "concepts";
-                        tableHeaderConsumed = false;
-                    }
-                    else if (headingText.Equals("Relationships", StringComparison.OrdinalIgnoreCase) ||
-                             headingText.Equals("Relazioni", StringComparison.OrdinalIgnoreCase))
-                    {
-                        currentTable = "relationships";
-                        tableHeaderConsumed = false;
-                    }
-                    else
-                    {
-                        currentTable = null;
-                    }
-                    continue;
+                    docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                    relationships[key] = docs;
                 }
-
-                if (currentTable != null && trimmed.StartsWith("|") && trimmed.EndsWith("|"))
-                {
-                    bool isSeparator = trimmed.All(c => c == '-' || c == '|' || c == ' ' || c == ':');
-                    if (isSeparator) continue;
-
-                    if (!tableHeaderConsumed)
-                    {
-                        tableHeaderConsumed = true;
-                        continue;
-                    }
-
-                    var cells = trimmed
-                        .Trim('|')
-                        .Split('|')
-                        .Select(c => c.Trim().Replace("\\|", "|"))
-                        .ToList();
-
-                    if (currentTable == "concepts" && cells.Count >= 1)
-                    {
-                        var name = cells[0];
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            if (!concepts.TryGetValue(name, out var docs))
-                            {
-                                docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                                concepts[name] = docs;
-                            }
-                            docs.Add(sourceDoc);
-                        }
-                    }
-                    else if (currentTable == "relationships" && cells.Count >= 3)
-                    {
-                        var from = cells[0];
-                        var type = cells[1];
-                        var to = cells[2];
-                        if (!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(type) && !string.IsNullOrEmpty(to))
-                        {
-                            var key = (from, type, to);
-                            if (!relationships.TryGetValue(key, out var docs))
-                            {
-                                docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                                relationships[key] = docs;
-                            }
-                            docs.Add(sourceDoc);
-                        }
-                    }
-                }
-                else if (currentTable != null && !string.IsNullOrEmpty(trimmed))
-                {
-                    currentTable = null;
-                    tableHeaderConsumed = false;
-                }
+                docs.Add(sourceDoc);
             }
         }
 
