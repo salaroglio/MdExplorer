@@ -14,6 +14,7 @@ using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.bll.Models.AI;
+using MdExplorer.Features.Services.AI.CopilotAcp;
 
 namespace MdExplorer.Features.Services.AI
 {
@@ -28,7 +29,6 @@ namespace MdExplorer.Features.Services.AI
         private readonly IServiceProvider _serviceProvider;
         private string _systemPrompt;
 
-        private const string COPILOT_EXECUTABLE = "copilot";
         private const string USAGE_SEPARATOR = "Total usage est:";
         private const int PROCESS_TIMEOUT_MS = 300000; // 5 minutes
         private const int AVAILABILITY_CHECK_TIMEOUT_MS = 5000;
@@ -83,15 +83,11 @@ namespace MdExplorer.Features.Services.AI
 
             try
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = COPILOT_EXECUTABLE,
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                var psi = CopilotProcessLauncher.BuildStartInfo("--version");
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
 
                 using var process = Process.Start(psi);
                 if (process == null)
@@ -403,15 +399,11 @@ Always provide clear, concise, and well-formatted responses using proper markdow
         {
             try
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = COPILOT_EXECUTABLE,
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                var psi = CopilotProcessLauncher.BuildStartInfo("--version");
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
 
                 using var process = Process.Start(psi);
                 if (process == null) return null;
@@ -472,55 +464,45 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
         private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming)
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = COPILOT_EXECUTABLE,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            };
+            var useStdin = ShouldUseStdin(prompt);
 
-            // Set working directory to the current project path if available
+            // Build the argument string first; CopilotProcessLauncher.BuildStartInfo will splice it
+            // into the right wrapper (direct copilot.exe, cmd.exe /c copilot.cmd, or powershell -File copilot.ps1).
+            var args = new StringBuilder();
+            if (useStdin)
+            {
+                args.Append("-p - "); // Read prompt from stdin
+            }
+            else
+            {
+                var escapedPrompt = prompt.Replace("\"", "\\\"");
+                args.Append($"-p \"{escapedPrompt}\" ");
+            }
+            args.Append("--no-color ");
+            args.Append("--screen-reader ");
+            args.Append("--allow-all-tools ");
+            args.Append($"--model {model}");
+            if (!streaming)
+            {
+                args.Append(" --stream off");
+            }
+
+            var psi = CopilotProcessLauncher.BuildStartInfo(args.ToString());
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            psi.StandardOutputEncoding = Encoding.UTF8;
+            psi.StandardErrorEncoding = Encoding.UTF8;
+            if (useStdin)
+            {
+                psi.RedirectStandardInput = true;
+            }
+
             if (!string.IsNullOrEmpty(WorkingDirectory) && System.IO.Directory.Exists(WorkingDirectory))
             {
                 psi.WorkingDirectory = WorkingDirectory;
                 _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", WorkingDirectory);
-            }
-
-            if (ShouldUseStdin(prompt))
-            {
-                // Use stdin for long prompts (Windows has 32767 char command-line limit)
-                psi.RedirectStandardInput = true;
-                var args = new StringBuilder();
-                args.Append("-p - "); // Read prompt from stdin
-                args.Append("--no-color ");
-                args.Append("--screen-reader ");
-                args.Append("--allow-all-tools ");
-                args.Append($"--model {model}");
-                if (!streaming)
-                {
-                    args.Append(" --stream off");
-                }
-                psi.Arguments = args.ToString();
-            }
-            else
-            {
-                var args = new StringBuilder();
-                // Escape the prompt for command line
-                var escapedPrompt = prompt.Replace("\"", "\\\"");
-                args.Append($"-p \"{escapedPrompt}\" ");
-                args.Append("--no-color ");
-                args.Append("--screen-reader ");
-                args.Append("--allow-all-tools ");
-                args.Append($"--model {model}");
-                if (!streaming)
-                {
-                    args.Append(" --stream off");
-                }
-                psi.Arguments = args.ToString();
             }
 
             return psi;

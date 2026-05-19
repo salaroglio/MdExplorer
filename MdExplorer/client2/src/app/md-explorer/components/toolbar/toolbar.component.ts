@@ -1076,7 +1076,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const directoryPath = tocPath.substring(0, tocPath.lastIndexOf('/')) || tocPath.substring(0, tocPath.lastIndexOf('\\'));
     this.tocProgressService.showProgress(directoryPath);
 
-    this.tocService.refreshToc(tocPath).subscribe({
+    this.tocService.generateToc(directoryPath).subscribe({
       next: (result) => {
         // Progress dialog will be closed by SignalR event
         if (result.success) {

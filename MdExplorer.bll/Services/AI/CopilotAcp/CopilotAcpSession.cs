@@ -92,7 +92,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         {
             if (_process != null) throw new InvalidOperationException("Session already started");
 
-            var psi = BuildCopilotStartInfo("--acp --allow-all-tools --no-color --log-level error");
+            var psi = CopilotProcessLauncher.BuildStartInfo("--acp --allow-all-tools --no-color --log-level error");
             psi.RedirectStandardInput = true;
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;
@@ -550,62 +550,5 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         private static string Truncate(string s, int max) => s.Length <= max ? s : s.Substring(0, max) + "…";
 
-        /// <summary>
-        /// Builds a ProcessStartInfo that invokes the copilot CLI with the given args.
-        /// On Windows, `Process.Start` with `UseShellExecute=false` does NOT honor
-        /// PATHEXT for `.cmd`/`.bat`, so:
-        ///   - prefer an absolute path to `copilot.exe` if one exists on PATH;
-        ///   - else fall back to a `cmd.exe /d /s /c "..."` wrapper for `copilot.cmd`;
-        ///   - else hand "copilot" to the OS and hope PATH resolution works.
-        /// </summary>
-        private static ProcessStartInfo BuildCopilotStartInfo(string copilotArgs)
-        {
-            if (!OperatingSystem.IsWindows())
-            {
-                return new ProcessStartInfo { FileName = "copilot", Arguments = copilotArgs };
-            }
-
-            string exeMatch = null;
-            string cmdMatch = null;
-            var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-            foreach (var raw in pathEnv.Split(Path.PathSeparator))
-            {
-                if (string.IsNullOrWhiteSpace(raw)) continue;
-                var dir = raw.Trim().Trim('"');
-                if (dir.Length == 0) continue;
-                if (exeMatch == null)
-                {
-                    var p = Path.Combine(dir, "copilot.exe");
-                    if (File.Exists(p)) exeMatch = p;
-                }
-                if (cmdMatch == null)
-                {
-                    var p = Path.Combine(dir, "copilot.cmd");
-                    if (File.Exists(p)) cmdMatch = p;
-                }
-                if (exeMatch != null) break; // .exe wins; stop scanning
-            }
-
-            if (exeMatch != null)
-            {
-                return new ProcessStartInfo { FileName = exeMatch, Arguments = copilotArgs };
-            }
-            if (cmdMatch != null)
-            {
-                // cmd.exe /d /s /c "<argstring>" — with /s, the FIRST and LAST quote of
-                // the argstring are the delimiters, so we wrap the whole "<cmdPath> <args>"
-                // in one set of outer quotes and double-quote the path within.
-                var comspec = Environment.GetEnvironmentVariable("ComSpec");
-                if (string.IsNullOrEmpty(comspec)) comspec = "cmd.exe";
-                var inner = $"\"{cmdMatch}\" {copilotArgs}";
-                return new ProcessStartInfo
-                {
-                    FileName = comspec,
-                    Arguments = $"/d /s /c \"{inner}\""
-                };
-            }
-
-            return new ProcessStartInfo { FileName = "copilot", Arguments = copilotArgs };
-        }
     }
 }

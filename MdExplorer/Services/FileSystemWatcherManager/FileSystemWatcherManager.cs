@@ -311,7 +311,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     var config = deserializer.Deserialize<FileChangeIgnoreConfiguration>(yamlContent);
                     _logger.LogInformation($"Loaded file change ignore configuration from {configFilePath}");
-                    return config ?? GetDefaultIgnoreConfiguration();
+                    return EnsureMdeManagedIgnores(config ?? GetDefaultIgnoreConfiguration());
                 }
                 catch (Exception ex)
                 {
@@ -323,19 +323,36 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 _logger.LogWarning($".mdchangeignore file not found at {configFilePath}. Using default values.");
             }
 
-            return GetDefaultIgnoreConfiguration();
+            return EnsureMdeManagedIgnores(GetDefaultIgnoreConfiguration());
         }
 
         private FileChangeIgnoreConfiguration GetDefaultIgnoreConfiguration()
         {
             return new FileChangeIgnoreConfiguration
             {
-                IgnoredDirectories = new List<string> { ".md" },
+                IgnoredDirectories = new List<string> { ".md", ".mde-doc" },
                 IgnoredExtensions = new List<string> { ".pptx", ".docx", ".xlsx", ".xls", ".ppt", ".xlsb", ".bmpr", ".tmp" },
                 IgnoredPatterns = new List<string> { ".md", ".0.pdnSave" },
                 GitIgnoredFiles = new List<string> { "FETCH_HEAD", "COMMIT_EDITMSG", ".git/" },
                 IgnoreFilesWithoutExtension = true
             };
+        }
+
+        // Defensive: MdExplorer-managed directories must ALWAYS be in the ignore list, even if the
+        // user's `.mdchangeignore` predates the directory (e.g. legacy projects opened with a build
+        // that introduced new managed folders). Without this, FileSystemWatcher would index files
+        // under `.mde-doc/` and contend on the engine DB while user docs are being rendered.
+        private static FileChangeIgnoreConfiguration EnsureMdeManagedIgnores(FileChangeIgnoreConfiguration config)
+        {
+            config.IgnoredDirectories ??= new List<string>();
+            foreach (var managed in new[] { ".md", ".mde-doc" })
+            {
+                if (!config.IgnoredDirectories.Any(d => string.Equals(d, managed, StringComparison.OrdinalIgnoreCase)))
+                {
+                    config.IgnoredDirectories.Add(managed);
+                }
+            }
+            return config;
         }
 
         #region Storm Detection

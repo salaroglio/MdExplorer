@@ -42,6 +42,10 @@ namespace MdExplorer.Utilities
                 "mde-readme",
                 "MdExplorer.Service.skills.mde_readme.SKILL.md"
             ),
+            (
+                "mde-doc",
+                "MdExplorer.Service.skills.mde_doc.SKILL.md"
+            ),
         };
 
         private const string OriginMarker = "mdexplorer";

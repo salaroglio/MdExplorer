@@ -70,18 +70,6 @@
       <mat-icon>toc</mat-icon>
       <span>{{ 'MD_TREE.TOC_DIRECTORY' | translate }}</span>
     </button>
-    <button *ngIf="item.type==='folder' && tocFileExists(item)" mat-menu-item (click)="refreshTocDirectory(item)">
-      <mat-icon>refresh</mat-icon>
-      <span>{{ 'MD_TREE.REFRESH_TOC_AI' | translate }}</span>
-    </button>
-    <button *ngIf="item.type==='folder' && tocFileExists(item)" mat-menu-item (click)="forceRegenerateTocDirectory(item)">
-      <mat-icon>autorenew</mat-icon>
-      <span>{{ 'MD_TREE.REGENERATE_TOC' | translate }}</span>
-    </button>
-    <button *ngIf="item.type==='folder'" mat-menu-item (click)="quickTocDirectory(item)">
-      <mat-icon>list</mat-icon>
-      <span>{{ 'MD_TREE.QUICK_TOC' | translate }}</span>
-    </button>
 
     <!-- Mark as Development Environment -->
     <button *ngIf="item.type==='folder'"

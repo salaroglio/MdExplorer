@@ -4,14 +4,12 @@ using System.Threading.Tasks;
 using MdExplorer.Features.Services;
 using MdExplorer.Hubs;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Services
 {
     /// <summary>
-    /// Wrapper service that bridges TocGenerationService events with SignalR notifications
+    /// Wrapper that forwards TocGenerationService progress/completion events to SignalR clients.
     /// </summary>
     public class TocGenerationHubService : ITocGenerationService
     {
@@ -40,35 +38,13 @@ namespace MdExplorer.Services
             _hubContext = hubContext;
             _logger = logger;
 
-            // Subscribe to events and forward to SignalR
             _innerService.ProgressChanged += OnProgressChanged;
             _innerService.GenerationCompleted += OnGenerationCompleted;
         }
 
-        public Task<bool> GenerateTocWithAIAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
+        public Task<bool> GenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
         {
-            return _innerService.GenerateTocWithAIAsync(directoryPath, tocFilePath, ct);
-        }
-
-        public Task<bool> ForceRegenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
-        {
-            return _innerService.ForceRegenerateTocAsync(directoryPath, tocFilePath, ct);
-        }
-
-        public Task<bool> RefreshTocAsync(string tocFilePath, CancellationToken ct = default)
-        {
-            return _innerService.RefreshTocAsync(tocFilePath, ct);
-        }
-
-        public Task<string> GenerateQuickTocAsync(string directoryPath, string tocFilePath)
-        {
-            return _innerService.GenerateQuickTocAsync(directoryPath, tocFilePath);
-        }
-        
-        public void SetAiMode(bool useGemini, string geminiModel = null)
-        {
-            _logger.LogInformation($"[TocGenerationHubService] SetAiMode called - forwarding to inner service");
-            _innerService.SetAiMode(useGemini, geminiModel);
+            return _innerService.GenerateTocAsync(directoryPath, tocFilePath, ct);
         }
 
         private async void OnProgressChanged(object sender, TocGenerationProgress e)

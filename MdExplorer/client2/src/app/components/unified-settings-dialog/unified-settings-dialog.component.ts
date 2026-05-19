@@ -285,7 +285,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
           this.gpuEnabled = response.gpuEnabled;
           this.gpuLayerCount = response.gpuLayerCount || 0;
         }
-        this.tocService.setAiMode(false).subscribe();
         this.aiService.saveDefaultAiPreferences('local', model.id).subscribe();
         this.loadAiModels();
       },
@@ -374,7 +373,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.selectedProvider = 'gemini';
     this.aiService.setProvider('gemini', modelId);
     this.aiService.notifyGeminiConnected(modelId);
-    this.tocService.setAiMode(true, modelId).subscribe();
     this.aiService.saveDefaultAiPreferences('gemini', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_GEMINI', { model: modelId }), '', { duration: 2000 });
   }
@@ -382,7 +380,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   disconnectGemini(): void {
     this.useGemini = false;
     this.aiService.setUseGemini(false, null);
-    this.tocService.setAiMode(false).subscribe();
     this.aiService.notifyGeminiDisconnected();
   }
 

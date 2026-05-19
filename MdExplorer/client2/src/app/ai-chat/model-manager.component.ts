@@ -186,12 +186,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.currentModelId = model.id;
 
-        // Sync TOC generation service to use local model
-        this.tocService.setAiMode(false).subscribe({
-          next: () => console.log('[ModelManager] TOC service synced to use local model'),
-          error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
-        });
-
         // Load system prompt if provided in response
         if (response && response.systemPrompt) {
           this.systemPrompt = response.systemPrompt;
@@ -423,12 +417,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.selectedProvider = 'gemini';
     this.aiService.setProvider('gemini', modelId);
 
-    // Sync TOC generation service to use Gemini
-    this.tocService.setAiMode(true, modelId).subscribe({
-      next: () => console.log('[ModelManager] TOC service synced to use Gemini'),
-      error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
-    });
-
     // Notify that a model is now "loaded" (connected)
     console.log('[ModelManager] Calling notifyGeminiConnected for model:', modelId);
     this.aiService.notifyGeminiConnected(modelId);
@@ -445,13 +433,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.useGemini = false;
     this.selectedGeminiModel = null;
     this.aiService.setUseGemini(false, null);
-    
-    // Sync TOC generation service to use local model
-    this.tocService.setAiMode(false).subscribe({
-      next: () => console.log('[ModelManager] TOC service synced to use local model'),
-      error: (err) => console.error('[ModelManager] Error syncing TOC service:', err)
-    });
-    
+
     // Notify that Gemini is disconnected
     this.aiService.notifyGeminiDisconnected();
   }

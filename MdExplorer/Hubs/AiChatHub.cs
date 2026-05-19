@@ -183,15 +183,17 @@ namespace MdExplorer.Hubs
                         }
                         catch (CopilotAcpMidStreamException midEx)
                         {
-                            _logger.LogError(midEx, "[SendMessage] ACP failed mid-stream; not falling back to avoid duplicate output");
+                            _logger.LogError(midEx, "[SendMessage] ACP failed mid-stream");
                             await Clients.Caller.SendAsync("ReceiveError",
                                 "Copilot stream interrupted: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                             response = string.Empty;
                         }
                         catch (Exception acpEx)
                         {
-                            _logger.LogWarning(acpEx, "[SendMessage] ACP path failed before streaming, falling back to one-shot copilot -p");
-                            response = await StreamCopilotCliResponseAsync(provider, message, chatMode.ModelId, currentDoc, history, channelId);
+                            _logger.LogError(acpEx, "[SendMessage] ACP path failed before streaming");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Copilot ACP failed: " + acpEx.Message, channelId);
+                            response = string.Empty;
                         }
                         _logger.LogInformation($"[SendMessage] CopilotCli streaming complete, response length: {response?.Length ?? 0}");
                     }
@@ -1019,14 +1021,15 @@ namespace MdExplorer.Hubs
                         }
                         catch (CopilotAcpMidStreamException midEx)
                         {
-                            _logger.LogError(midEx, "[RegenerateAiResponse] ACP failed mid-stream; not falling back to avoid duplicate output");
+                            _logger.LogError(midEx, "[RegenerateAiResponse] ACP failed mid-stream");
                             await Clients.Caller.SendAsync("ReceiveError",
                                 "Copilot stream interrupted: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                         }
                         catch (Exception acpEx)
                         {
-                            _logger.LogWarning(acpEx, "[RegenerateAiResponse] ACP path failed before streaming, falling back to one-shot copilot -p");
-                            await StreamCopilotCliResponseAsync(provider, lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                            _logger.LogError(acpEx, "[RegenerateAiResponse] ACP path failed before streaming");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Copilot ACP failed: " + acpEx.Message, channelId);
                         }
                     }
                     else

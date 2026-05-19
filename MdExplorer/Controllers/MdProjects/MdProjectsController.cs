@@ -662,14 +662,11 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     }
                 }
 
-                // Copilot CLI auto-select probe: if the project prefers it as default AI,
-                // use the cached availability (never blocks). Calling IsAvailable() here used to
-                // spawn `copilot --version` synchronously (~1s on Windows) and dominated the
-                // SetFolderProject latency. Now:
-                //   - cache hot → return the cached value immediately
-                //   - cache cold → return false provisionally AND fire-and-forget a warm-up so
-                //     the next call (or the actual chat interaction) finds the cache ready
-                // Frontend decides whether to silently connect or show the "not installed" banner.
+                // Copilot CLI auto-select probe: synchronous, deterministic. If the project prefers
+                // Copilot CLI as default AI, we MUST return a real availability — no provisional
+                // values, no fire-and-forget warm-up. Worst case is one `copilot --version` spawn
+                // (~1-2s on Windows) at the first open after a restart; subsequent opens hit the
+                // 5-minute availability cache inside the provider.
                 bool copilotCliAutoSelect = project.UseCopilotCliAsDefault;
                 bool copilotCliAvailable = false;
                 string copilotCliDefaultModel = null;
@@ -677,38 +674,20 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     var copilotProvider = _aiProviders?
                         .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
-                    if (copilotProvider != null)
+                    if (copilotProvider == null)
                     {
-                        copilotProvider.WorkingDirectory = request.Path;
-                        copilotCliDefaultModel = "claude-sonnet-4.6";
-
-                        var cached = copilotProvider.TryGetCachedAvailability();
-                        if (cached.HasValue)
-                        {
-                            copilotCliAvailable = cached.Value;
-                            logger?.LogInformation(
-                                "🤖 CopilotCli auto-select (cache hit): enabled={Enabled}, available={Available}, model={Model}, cwd={Cwd}",
-                                copilotCliAutoSelect, copilotCliAvailable, copilotCliDefaultModel, request.Path);
-                        }
-                        else
-                        {
-                            // Fire-and-forget warm-up; don't await.
-                            _ = Task.Run(() =>
-                            {
-                                try { copilotProvider.IsAvailable(); }
-                                catch (Exception ex) { logger?.LogWarning(ex, "CopilotCli warm-up failed"); }
-                            });
-                            logger?.LogInformation(
-                                "🤖 CopilotCli auto-select (cache cold, warming in background): enabled={Enabled}, model={Model}, cwd={Cwd}",
-                                copilotCliAutoSelect, copilotCliDefaultModel, request.Path);
-                        }
+                        throw new InvalidOperationException(
+                            "Project has UseCopilotCliAsDefault=true but CopilotCliProvider was not resolved from DI. " +
+                            "Check Startup.cs IAiProvider registrations.");
                     }
-                    else
-                    {
-                        logger?.LogWarning("⚠️ CopilotCli provider not resolved from DI — auto-select skipped");
-                    }
+                    copilotProvider.WorkingDirectory = request.Path;
+                    copilotCliDefaultModel = "claude-sonnet-4.6";
+                    copilotCliAvailable = copilotProvider.IsAvailable();
+                    logger?.LogInformation(
+                        "🤖 CopilotCli auto-select: available={Available}, model={Model}, cwd={Cwd}",
+                        copilotCliAvailable, copilotCliDefaultModel, request.Path);
                 }
-                logPhase("CopilotCli availability (cached lookup)");
+                logPhase("CopilotCli availability (sync probe)");
 
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);

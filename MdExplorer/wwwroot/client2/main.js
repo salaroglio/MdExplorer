@@ -6160,7 +6160,6 @@ class UnifiedSettingsDialogComponent {
           this.gpuEnabled = response.gpuEnabled;
           this.gpuLayerCount = response.gpuLayerCount || 0;
         }
-        this.tocService.setAiMode(false).subscribe();
         this.aiService.saveDefaultAiPreferences('local', model.id).subscribe();
         this.loadAiModels();
       },
@@ -6255,7 +6254,6 @@ class UnifiedSettingsDialogComponent {
     this.selectedProvider = 'gemini';
     this.aiService.setProvider('gemini', modelId);
     this.aiService.notifyGeminiConnected(modelId);
-    this.tocService.setAiMode(true, modelId).subscribe();
     this.aiService.saveDefaultAiPreferences('gemini', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_GEMINI', {
       model: modelId
@@ -6266,7 +6264,6 @@ class UnifiedSettingsDialogComponent {
   disconnectGemini() {
     this.useGemini = false;
     this.aiService.setUseGemini(false, null);
-    this.tocService.setAiMode(false).subscribe();
     this.aiService.notifyGeminiDisconnected();
   }
   // OpenAI
@@ -11538,29 +11535,8 @@ class TocGenerationService {
       directoryPath: directoryPath
     });
   }
-  forceRegenerateToc(directoryPath) {
-    return this.http.post(`${this.baseUrl}/force-regenerate`, {
-      directoryPath: directoryPath
-    });
-  }
-  refreshToc(tocFilePath) {
-    return this.http.post(`${this.baseUrl}/refresh`, {
-      tocFilePath: tocFilePath
-    });
-  }
-  generateQuickToc(directoryPath) {
-    return this.http.post(`${this.baseUrl}/quick`, {
-      directoryPath: directoryPath
-    });
-  }
   getTocStatus(directoryPath) {
     return this.http.get(`${this.baseUrl}/status/${encodeURIComponent(directoryPath)}`);
-  }
-  setAiMode(useGemini, geminiModel) {
-    return this.http.post(`${this.baseUrl}/set-ai-mode`, {
-      useGemini: useGemini,
-      geminiModel: geminiModel || 'gemini-1.5-flash'
-    });
   }
   static {
     this.ɵfac = function TocGenerationService_Factory(t) {
@@ -15979,8 +15955,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.05.16.6',
-  buildTime: '2026.05.16 10:35:38'
+  version: '2026.05.17.2',
+  buildTime: '2026.05.17 17:03:24'
 };
 
 /***/ }),
