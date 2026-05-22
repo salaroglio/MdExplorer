@@ -24,6 +24,7 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
         private readonly INeo4jConnectionPool _connectionPool;
         private readonly IKgIngestService _kgIngestService;
         private readonly IFolderKgConfigResolver _folderKgConfigResolver;
+        private readonly IFolderKgConfigWriter _folderKgConfigWriter;
         private readonly ILogger<KgController> _logger;
 
         private const string PasswordMask = "********";
@@ -34,6 +35,7 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             INeo4jConnectionPool connectionPool,
             IKgIngestService kgIngestService,
             IFolderKgConfigResolver folderKgConfigResolver,
+            IFolderKgConfigWriter folderKgConfigWriter,
             ILogger<KgController> logger)
         {
             _userSettingsDB = userSettingsDB;
@@ -41,6 +43,7 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             _connectionPool = connectionPool;
             _kgIngestService = kgIngestService;
             _folderKgConfigResolver = folderKgConfigResolver;
+            _folderKgConfigWriter = folderKgConfigWriter;
             _logger = logger;
         }
 
@@ -231,9 +234,12 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
                 return BadRequest(new { error = $"kg file not found: {req.RelativeKgPath}" });
 
             // Resolve namespace from parent folder of .mde-doc/ (.mde-doc is sibling of the document folder).
+            // Auto-create a default namespace when the folder has none, so a manual
+            // ingest never dead-ends on missing .development.yml configuration.
             var mdeDocDir = Path.GetDirectoryName(kgAbs);
             var folderAbs = Path.GetDirectoryName(mdeDocDir);
-            var cfg = _folderKgConfigResolver.Resolve(ctx.ProjectPath, folderAbs);
+            var cfg = _folderKgConfigResolver.Resolve(ctx.ProjectPath, folderAbs)
+                      ?? _folderKgConfigWriter.EnsureFolderConfig(ctx.ProjectPath, folderAbs);
             if (cfg == null || !cfg.Enabled || string.IsNullOrWhiteSpace(cfg.Namespace))
                 return BadRequest(new { error = "folder has no knowledgeGraph.namespace in .development.yml" });
 
@@ -264,13 +270,14 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             if (!Directory.Exists(folderAbs))
                 return BadRequest(new { error = $"folder not found: {req.RelativeFolderPath}" });
 
-            var cfg = _folderKgConfigResolver.Resolve(ctx.ProjectPath, folderAbs);
+            var cfg = _folderKgConfigResolver.Resolve(ctx.ProjectPath, folderAbs)
+                      ?? _folderKgConfigWriter.EnsureFolderConfig(ctx.ProjectPath, folderAbs);
             if (cfg == null || !cfg.Enabled || string.IsNullOrWhiteSpace(cfg.Namespace))
                 return BadRequest(new { error = "folder has no knowledgeGraph.namespace in .development.yml" });
 
             var batch = EnumerateBatchForFolder(ctx.ProjectPath, folderAbs, cfg.Namespace, req.ProjectId);
             if (batch.Count == 0)
-                return Ok(new { results = Array.Empty<object>(), message = "no .kg.md files in folder" });
+                return Ok(new { results = Array.Empty<object>(), message = "no .kg.cypher files in folder" });
 
             await using var session = ctx.OpenSession();
             var results = await _kgIngestService.IngestKgFilesAsync(req.ProjectId, ctx.ProjectPath, batch, session);
@@ -298,7 +305,7 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
                 batch.AddRange(EnumerateBatchForFolder(ctx.ProjectPath, folderCfg.FolderAbsolutePath, folderCfg.Namespace, req.ProjectId));
             }
             if (batch.Count == 0)
-                return Ok(new { results = Array.Empty<object>(), message = "no .kg.md files found" });
+                return Ok(new { results = Array.Empty<object>(), message = "no .kg.cypher files found" });
 
             await using var session = ctx.OpenSession();
             var results = await _kgIngestService.IngestKgFilesAsync(req.ProjectId, ctx.ProjectPath, batch, session);
@@ -521,7 +528,10 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             }
         }
 
-        public class CypherRequest { public Guid ProjectId { get; set; } public string Query { get; set; } public Dictionary<string, object> Parameters { get; set; } }
+        // Query/Parameters are nullable so the model binder does not mark them
+        // "required" (nullable-reference-types). QueryCypher validates them
+        // itself and returns a clean message; callers may omit Parameters.
+        public class CypherRequest { public Guid ProjectId { get; set; } public string? Query { get; set; } public Dictionary<string, object>? Parameters { get; set; } }
 
         // ============================================================
         //   POST /api/kg/query/cypher (read-only)
@@ -578,43 +588,53 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             try
             {
                 await using var session = ctx.OpenReadSession();
+                // coalesce(sourceDocs, [sourceDoc]) bridges both schemas: the old
+                // closed-vocab nodes carried a sourceDocs list, the new .kg.cypher
+                // nodes carry a single sourceDoc scalar.
+                var nodeReturn = @"
+                        RETURN n.graph + '::' + n.name AS id, n.name AS name, n.graph AS graph,
+                               [lbl IN labels(n) WHERE lbl <> 'Concept'][0] AS type,
+                               n.kind AS kind, n.rule AS rule,
+                               n.description AS description,
+                               n.docPath AS docPath, n.lineStart AS lineStart, n.lineEnd AS lineEnd,
+                               coalesce(n.sourceDocs, [n.sourceDoc]) AS sourceDocs";
                 var nodeCypher = string.IsNullOrWhiteSpace(ns)
-                    ? @"
-                        MATCH (n:Concept {projectId: $pid})
-                        RETURN n.graph + '::' + n.name AS id, n.name AS name, n.graph AS graph, n.sourceDocs AS sourceDocs
-                        ORDER BY graph, name"
-                    : @"
-                        MATCH (n:Concept {projectId: $pid, graph: $ns})
-                        RETURN n.graph + '::' + n.name AS id, n.name AS name, n.graph AS graph, n.sourceDocs AS sourceDocs
-                        ORDER BY name";
+                    ? @"MATCH (n:Concept {projectId: $pid})" + nodeReturn + " ORDER BY graph, name"
+                    : @"MATCH (n:Concept {projectId: $pid, graph: $ns})" + nodeReturn + " ORDER BY name";
                 var nodeCursor = await session.RunAsync(nodeCypher, new { pid = projectId.ToString(), ns });
                 var nodes = await nodeCursor.ToListAsync(r => new
                 {
                     id = r["id"].As<string>(),
                     name = r["name"].As<string>(),
                     graph = r["graph"].As<string>(),
+                    type = r["type"].As<string>(),
+                    kind = r["kind"].As<string>(),
+                    rule = r["rule"].As<string>(),
+                    description = r["description"].As<string>(),
+                    docPath = r["docPath"].As<string>(),
+                    lineStart = r["lineStart"].As<long?>(),
+                    lineEnd = r["lineEnd"].As<long?>(),
                     sourceDocs = r["sourceDocs"].As<List<object>>()
                 });
 
+                var linkReturn = @"
+                        RETURN from.graph + '::' + from.name AS source,
+                               to.graph   + '::' + to.name   AS target,
+                               type(r) AS type,
+                               r.role AS role,
+                               r.description AS description,
+                               coalesce(r.sourceDocs, [r.sourceDoc]) AS sourceDocs";
                 var linkCypher = string.IsNullOrWhiteSpace(ns)
-                    ? @"
-                        MATCH (from:Concept {projectId: $pid})-[r {projectId: $pid}]->(to:Concept {projectId: $pid})
-                        RETURN from.graph + '::' + from.name AS source,
-                               to.graph   + '::' + to.name   AS target,
-                               type(r) AS type,
-                               r.sourceDocs AS sourceDocs"
-                    : @"
-                        MATCH (from:Concept {projectId: $pid, graph: $ns})-[r {projectId: $pid}]->(to:Concept {projectId: $pid})
-                        RETURN from.graph + '::' + from.name AS source,
-                               to.graph   + '::' + to.name   AS target,
-                               type(r) AS type,
-                               r.sourceDocs AS sourceDocs";
+                    ? @"MATCH (from:Concept {projectId: $pid})-[r {projectId: $pid}]->(to:Concept {projectId: $pid})" + linkReturn
+                    : @"MATCH (from:Concept {projectId: $pid, graph: $ns})-[r {projectId: $pid}]->(to:Concept {projectId: $pid})" + linkReturn;
                 var linkCursor = await session.RunAsync(linkCypher, new { pid = projectId.ToString(), ns });
                 var links = await linkCursor.ToListAsync(r => new
                 {
                     source = r["source"].As<string>(),
                     target = r["target"].As<string>(),
                     type = r["type"].As<string>(),
+                    role = r["role"].As<string>(),
+                    description = r["description"].As<string>(),
                     sourceDocs = r["sourceDocs"].As<List<object>>()
                 });
 
@@ -742,71 +762,6 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             }
         }
 
-        public class RoundTripRequest { public Guid ProjectId { get; set; } public string KgFileRelativePath { get; set; } }
-
-        // ============================================================
-        //   POST /api/kg/verify-roundtrip
-        //   Re-builds the expected ParsedKgFile from Neo4j (filtered by sourceDoc) and
-        //   diffs it against the on-disk .kg.md. Zero diff = loader is faithful.
-        // ============================================================
-        [HttpPost("verify-roundtrip")]
-        public async Task<IActionResult> VerifyRoundTrip([FromBody] RoundTripRequest req)
-        {
-            if (req == null || string.IsNullOrEmpty(req.KgFileRelativePath))
-                return BadRequest(new { error = "kgFileRelativePath required" });
-            var ctx = OpenContext(req.ProjectId);
-            if (ctx.ErrorResult != null) return ctx.ErrorResult;
-
-            // Load on-disk content + parse.
-            var kgAbs = Path.Combine(ctx.ProjectPath, req.KgFileRelativePath.Replace('/', Path.DirectorySeparatorChar));
-            if (!System.IO.File.Exists(kgAbs))
-                return BadRequest(new { error = $"file not found: {req.KgFileRelativePath}" });
-            var content = await System.IO.File.ReadAllTextAsync(kgAbs);
-            var diskParsed = KgFileParser.Parse(content);
-            var diskConcepts = diskParsed.Concepts.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
-            var diskRelationships = diskParsed.Relationships
-                .Select(r => $"{r.From}|{r.Type}|{r.To}")
-                .ToHashSet(StringComparer.Ordinal);
-
-            // Pull from Neo4j what we expect this sourceDoc to have produced.
-            await using var session = ctx.OpenReadSession();
-            var nodeCursor = await session.RunAsync(@"
-                MATCH (n:Concept {projectId: $pid})
-                WHERE $doc IN n.sourceDocs
-                RETURN n.name AS name, n.graph AS graph
-            ", new { pid = req.ProjectId.ToString(), doc = req.KgFileRelativePath });
-            var neoConceptRows = await nodeCursor.ToListAsync(r => new { name = r["name"].As<string>(), graph = r["graph"].As<string>() });
-            var neoConcepts = neoConceptRows.Select(x => x.name).ToHashSet(StringComparer.Ordinal);
-
-            var edgeCursor = await session.RunAsync(@"
-                MATCH (from:Concept {projectId: $pid})-[r {projectId: $pid}]->(to:Concept {projectId: $pid})
-                WHERE $doc IN r.sourceDocs
-                RETURN from.name AS f, type(r) AS t, to.name AS dst
-            ", new { pid = req.ProjectId.ToString(), doc = req.KgFileRelativePath });
-            var neoEdgeRows = await edgeCursor.ToListAsync(r => $"{r["f"].As<string>()}|{r["t"].As<string>()}|{r["dst"].As<string>()}");
-            var neoEdges = neoEdgeRows.ToHashSet(StringComparer.Ordinal);
-
-            var conceptsMissingInNeo = diskConcepts.Except(neoConcepts).ToList();
-            var conceptsExtraInNeo = neoConcepts.Except(diskConcepts).ToList();
-            var edgesMissingInNeo = diskRelationships.Except(neoEdges).ToList();
-            var edgesExtraInNeo = neoEdges.Except(diskRelationships).ToList();
-            bool faithful = conceptsMissingInNeo.Count == 0 && conceptsExtraInNeo.Count == 0
-                         && edgesMissingInNeo.Count == 0 && edgesExtraInNeo.Count == 0;
-
-            return Ok(new
-            {
-                req.ProjectId,
-                kgFile = req.KgFileRelativePath,
-                faithful,
-                conceptsMissingInNeo,
-                conceptsExtraInNeo,
-                edgesMissingInNeo,
-                edgesExtraInNeo,
-                diskCounts = new { concepts = diskConcepts.Count, relationships = diskRelationships.Count },
-                neoCounts = new { concepts = neoConcepts.Count, relationships = neoEdges.Count }
-            });
-        }
-
         // ============================================================
         //   GET /api/kg/state/{projectId}
         // ============================================================
@@ -921,8 +876,7 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             var batch = new List<KgBatchFile>();
             var mdeDocDir = Path.Combine(folderAbs, ".mde-doc");
             if (!Directory.Exists(mdeDocDir)) return batch;
-            var files = Directory.GetFiles(mdeDocDir, "*.kg.md", SearchOption.TopDirectoryOnly)
-                .Where(f => !string.Equals(Path.GetFileName(f), "_aggregate.kg.md", StringComparison.OrdinalIgnoreCase));
+            var files = Directory.GetFiles(mdeDocDir, "*.kg.cypher", SearchOption.TopDirectoryOnly);
             foreach (var f in files)
             {
                 var rel = MakeRelative(projectPath, f);
@@ -988,8 +942,8 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
                     row.ContentHash = r.ContentHash;
                     row.GraphNamespace = r.GraphNamespace ?? row.GraphNamespace ?? string.Empty;
                     row.LastIngestedAt = DateTime.UtcNow;
-                    row.NodeCount = r.ConceptCount;
-                    row.EdgeCount = r.RelationshipCount;
+                    row.NodeCount = r.NodeCount;
+                    row.EdgeCount = r.EdgeCount;
                     dal.Save(row);
                 }
                 _userSettingsDB.Commit();

@@ -456,10 +456,27 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Store the selected segment for use in create operations
     this.selectedCompactSegment = segment;
 
-    // Create a temporary item with the segment's path for the context menu
+    // Build a synthetic MdFile representing the clicked segment. Downstream
+    // consumers (openTocDirectory → navigateToTocFile, createDirectoryOn, etc.)
+    // rely on relativePath being populated; without it they hit the no-prefix
+    // fallback and end up writing files at the project root.
     const segmentItem = new MdFile(segment.name, segment.fullPath, segment.level, true);
     segmentItem.fullPath = segment.fullPath;
     segmentItem.type = 'folder';
+
+    if (node.isCompacted && node.compactedSegments && node.relativePath != null) {
+      // The compact node's own relativePath is the FIRST segment of the chain
+      // (compactSingleNode never reassigns it). Extend it forward by appending
+      // the names of the segments between index 1 and the clicked segment.
+      const idx = node.compactedSegments.findIndex(s => s.fullPath === segment.fullPath);
+      const baseRel = node.relativePath.replace(/\\/g, '/');
+      if (idx === 0) {
+        segmentItem.relativePath = node.relativePath;
+      } else if (idx > 0) {
+        const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
+        segmentItem.relativePath = `${baseRel}/${extra}`;
+      }
+    }
 
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
@@ -851,17 +868,23 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private generateTocWithAI(node: MdFile, navigateAfter: boolean) {
-    // Remove leading backslash if present
-    let directoryPath = node.relativePath || node.name;
-    if (directoryPath.startsWith('\\')) {
-      directoryPath = directoryPath.substring(1);
-    }
-    console.log('[MdTreeComponent] generateTocWithAI - directoryPath:', directoryPath);
-    
+    // For compact folders node.fullPath points to the FIRST segment of the chain
+    // (compactSingleNode never reassigns it — see the TODO comment in md-file.service.ts).
+    // The folder whose children the user is actually looking at is the LAST segment;
+    // findFolderInDataStore follows the same convention.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const displayPath = node.isCompacted && node.compactedSegments
+      ? node.compactedSegments.map(s => s.name).join('/')
+      : (node.relativePath || node.name);
+    console.log('[MdTreeComponent] generateTocWithAI - folderFullPath:', folderFullPath);
+
     // Mostra il progress dialog
-    this.tocProgressService.showProgress(directoryPath);
-    
-    this.tocService.generateToc(directoryPath).subscribe({
+    this.tocProgressService.showProgress(displayPath);
+
+    this.tocService.generateToc(folderFullPath).subscribe({
       next: (result) => {
         console.log('[MdTreeComponent] TOC generation result:', result);
         
@@ -911,16 +934,28 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   private async navigateToTocFile(node: MdFile) {
-    const directoryName = node.name;
-    const relativePath = node.relativePath ? 
-      `${node.relativePath}/${directoryName}.md.directory` : 
-      `${directoryName}.md.directory`;
-    
+    // For compact folders node.name/relativePath/fullPath all freeze at the
+    // FIRST segment of the chain (compactSingleNode never reassigns them).
+    // The backend names the TOC file after the LAST segment (Path.GetFileName
+    // of the absolute folder), so the frontend must match or it would point at
+    // a stale <firstSegment>.md.directory.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const directoryName = lastSeg ? lastSeg.name : node.name;
+    const folderRelativePath = node.isCompacted && node.compactedSegments
+      ? node.compactedSegments.map(s => s.name).join('/')
+      : node.relativePath;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const relativePath = folderRelativePath
+      ? `${folderRelativePath}/${directoryName}.md.directory`
+      : `${directoryName}.md.directory`;
+
     // Crea un oggetto MdFile per il file .md.directory
     const tocFile: MdFile = {
       name: `${directoryName}.md.directory`,
       relativePath: relativePath,
-      fullPath: node.fullPath ? `${node.fullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
+      fullPath: folderFullPath ? `${folderFullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
       path: node.path,
       type: 'mdFile',
       index: 0,

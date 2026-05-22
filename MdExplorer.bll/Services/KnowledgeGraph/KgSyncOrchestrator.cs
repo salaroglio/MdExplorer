@@ -19,6 +19,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         private readonly INeo4jConnectionPool _connectionPool;
         private readonly IKgIngestService _ingestService;
         private readonly IFolderKgConfigResolver _folderResolver;
+        private readonly IFolderKgConfigWriter _folderWriter;
         private readonly ILogger<KgSyncOrchestrator> _logger;
 
         public KgSyncOrchestrator(
@@ -27,6 +28,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             INeo4jConnectionPool connectionPool,
             IKgIngestService ingestService,
             IFolderKgConfigResolver folderResolver,
+            IFolderKgConfigWriter folderWriter,
             ILogger<KgSyncOrchestrator> logger)
         {
             _userSettingsDB = userSettingsDB;
@@ -34,6 +36,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             _connectionPool = connectionPool;
             _ingestService = ingestService;
             _folderResolver = folderResolver;
+            _folderWriter = folderWriter;
             _logger = logger;
         }
 
@@ -92,11 +95,24 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                 }
                 else
                 {
-                    // .kg.md lives in <folder>/.mde-doc/<name>.kg.md  → folder is the grandparent
+                    // .kg.cypher lives in <folder>/.mde-doc/<name>.kg.cypher  → folder is the grandparent
                     var mdeDocDir = Path.GetDirectoryName(absolutePath);
                     folderAbs = Path.GetDirectoryName(mdeDocDir);
                 }
                 var folderCfg = _folderResolver.Resolve(project.Path, folderAbs);
+                if (folderCfg == null)
+                {
+                    // KG is enabled for the project (checked above) but this folder has
+                    // no namespace yet. Rather than silently skip, create one with a
+                    // deterministic default so the .kg.cypher always has somewhere to go.
+                    folderCfg = _folderWriter.EnsureFolderConfig(project.Path, folderAbs);
+                    if (folderCfg != null && !string.IsNullOrWhiteSpace(folderCfg.Namespace))
+                    {
+                        outcome.AutoCreatedNamespace = folderCfg.Namespace;
+                        _logger.LogInformation("[KgSync] auto-created KG namespace '{Ns}' for folder {Folder}",
+                            folderCfg.Namespace, folderAbs);
+                    }
+                }
                 if (folderCfg == null || !folderCfg.Enabled || string.IsNullOrWhiteSpace(folderCfg.Namespace))
                 {
                     outcome.Reason = "folder has no knowledgeGraph.namespace";
@@ -109,8 +125,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                 {
                     var mdeDocDir = Path.Combine(folderAbs, ".mde-doc");
                     if (!Directory.Exists(mdeDocDir)) { outcome.Reason = "no .mde-doc/ folder"; return outcome; }
-                    var kgFiles = Directory.GetFiles(mdeDocDir, "*.kg.md", SearchOption.TopDirectoryOnly)
-                        .Where(f => !string.Equals(Path.GetFileName(f), "_aggregate.kg.md", StringComparison.OrdinalIgnoreCase));
+                    var kgFiles = Directory.GetFiles(mdeDocDir, "*.kg.cypher", SearchOption.TopDirectoryOnly);
                     foreach (var f in kgFiles)
                     {
                         batch.Add(new KgBatchFile
@@ -130,7 +145,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                         PreviousHash = LookupHash(project.Id, MakeRelative(project.Path, absolutePath))
                     });
                 }
-                if (batch.Count == 0) { outcome.Reason = "no .kg.md files in scope"; return outcome; }
+                if (batch.Count == 0) { outcome.Reason = "no .kg.cypher files in scope"; return outcome; }
 
                 // ---- 5) Decrypt password, open session, run ingest ----
                 var password = _passwordProtector.Unprotect(settings.PasswordEncrypted);
@@ -219,8 +234,8 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                     row.ContentHash = r.ContentHash;
                     row.GraphNamespace = r.GraphNamespace ?? row.GraphNamespace ?? string.Empty;
                     row.LastIngestedAt = DateTime.UtcNow;
-                    row.NodeCount = r.ConceptCount;
-                    row.EdgeCount = r.RelationshipCount;
+                    row.NodeCount = r.NodeCount;
+                    row.EdgeCount = r.EdgeCount;
                     dal.Save(row);
                 }
                 _userSettingsDB.Commit();

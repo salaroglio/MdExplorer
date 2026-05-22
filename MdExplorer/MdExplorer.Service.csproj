@@ -182,6 +182,7 @@
     <EmbeddedResource Include="skills\mde-readme\SKILL.md" />
     <EmbeddedResource Include="skills\mde-doc\SKILL.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.md" />
+    <EmbeddedResource Include="skills\mde-codegen-graph\prompt.md" />
     </ItemGroup>
 
   <ItemGroup>

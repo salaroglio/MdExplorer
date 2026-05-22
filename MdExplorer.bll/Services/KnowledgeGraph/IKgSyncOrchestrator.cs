@@ -18,6 +18,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
     {
         public bool Triggered { get; set; }    // true when the sync ran (else: disabled / no settings / no namespace)
         public string Reason { get; set; }     // when Triggered=false, why we skipped
+        public string AutoCreatedNamespace { get; set; }  // set when this sync had to create the folder's KG namespace
         public int SucceededFiles { get; set; }
         public int SkippedFiles { get; set; }
         public int FailedFiles { get; set; }
@@ -34,7 +35,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
     public interface IKgSyncOrchestrator
     {
         /// <summary>
-        /// Sync all <c>.kg.md</c> files in a single folder (its <c>.mde-doc/</c> subfolder)
+        /// Sync all <c>.kg.cypher</c> files in a single folder (its <c>.mde-doc/</c> subfolder)
         /// against Neo4j. Short-circuits when KG is disabled for the project or when the
         /// trigger's setting is off. Errors are caught and reported in the outcome — never
         /// thrown, so callers can use this from non-critical code paths (e.g. TOC hook).
@@ -42,7 +43,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         Task<KgSyncOutcome> SyncFolderAsync(string folderAbsolutePath, KgSyncTrigger trigger, CancellationToken ct = default);
 
         /// <summary>
-        /// Sync a single <c>.kg.md</c> file (incremental, hash-based). Same trigger/flag semantics.
+        /// Sync a single <c>.kg.cypher</c> file (incremental, hash-based). Same trigger/flag semantics.
         /// </summary>
         Task<KgSyncOutcome> SyncFileAsync(string kgFileAbsolutePath, KgSyncTrigger trigger, CancellationToken ct = default);
     }

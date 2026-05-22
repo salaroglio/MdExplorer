@@ -40,41 +40,27 @@ namespace MdExplorer.Features.Tests.KnowledgeGraph
             Directory.CreateDirectory(cobolDir);
             Directory.CreateDirectory(planDir);
 
-            var cobolKg = Path.Combine(cobolDir, "comp3.kg.md");
+            var cobolKg = Path.Combine(cobolDir, "comp3.kg.cypher");
             File.WriteAllText(cobolKg, @"
-# Knowledge graph — comp3.md
-## 🖼️ Graph (PlantUML)
-```plantuml
-@startuml
-[COMP-3] --> [Packed decimal] : encodes
-@enduml
-```
-## 🗃️ Graph (Neo4j)
-### Concepts
-| Name |
-|------|
-| COMP-3 |
-| Packed decimal |
+// comp3 in the cobol-domain graph
+MERGE (a:Concept {name: 'COMP-3', projectId: $pid, graph: $graph, sourceDoc: $doc})
+  ON CREATE SET a.description = 'COBOL packed-decimal numeric storage format.';
 
-### Relationships
-| From | Type | To |
-|------|------|----|
-| COMP-3 | USES | Packed decimal |
+MERGE (b:Concept {name: 'Packed decimal', projectId: $pid, graph: $graph, sourceDoc: $doc})
+  ON CREATE SET b.description = 'Generic packed-decimal encoding used by COMP-3 and similar formats.';
+
+MERGE (a)-[r:USES {sourceDoc: $doc, projectId: $pid}]->(b)
+  ON CREATE SET r.description = 'COMP-3 leverages packed decimal as its underlying encoding.';
 ");
 
-            var planKg = Path.Combine(planDir, "migrazione.kg.md");
+            var planKg = Path.Combine(planDir, "migrazione.kg.cypher");
             File.WriteAllText(planKg, @"
-# Knowledge graph — migrazione.md
-## 🗃️ Graph (Neo4j)
-### Concepts
-| Name |
-|------|
-| Migrate COMP-3 to decimal |
-
-### Relationships
-| From | Type | To |
-|------|------|----|
-| Migrate COMP-3 to decimal | REFERENCES | COMP-3 |
+// Cross-graph reference: a plan task targets the COMP-3 concept from cobol-domain.
+MATCH (target:Concept {name: 'COMP-3', projectId: $pid})
+MERGE (task:Concept {name: 'Migrate COMP-3 to decimal', projectId: $pid, graph: $graph, sourceDoc: $doc})
+  ON CREATE SET task.description = 'Plan task to migrate COMP-3 fields to native decimal in the modernized code base.';
+MERGE (task)-[r:REFERENCES {sourceDoc: $doc, projectId: $pid}]->(target)
+  ON CREATE SET r.description = 'The migration task acts on the COMP-3 concept.';
 ");
 
             var projectId = Guid.NewGuid();
@@ -87,7 +73,7 @@ namespace MdExplorer.Features.Tests.KnowledgeGraph
                 // ---- Reset for this fresh projectId ----
                 await ingest.ResetProjectAsync(projectId, session);
 
-                // ---- Batch ingest of both files (global two-pass) ----
+                // ---- Ingest both files (cobol first so plan's MATCH can resolve COMP-3) ----
                 var batch = new List<KgBatchFile>
                 {
                     new() { KgFileAbsolutePath = cobolKg, GraphNamespace = "cobol-domain" },
@@ -102,18 +88,24 @@ namespace MdExplorer.Features.Tests.KnowledgeGraph
                     Assert.IsFalse(r.Skipped);
                 }
 
-                // ---- Verify nodes + cross-graph edge ----
+                // ---- Verify nodes (3 concepts across both graphs) ----
                 var verifyCursor = await session.RunAsync(@"
                     MATCH (n:Concept {projectId: $pid})
-                    RETURN n.name AS name, n.graph AS graph, n.sourceDocs AS docs
+                    RETURN n.name AS name, n.graph AS graph, n.description AS description
                     ORDER BY graph, name
                 ", new { pid = projectId.ToString() });
                 var rows = await verifyCursor.ToListAsync();
                 Assert.AreEqual(3, rows.Count, "expected 3 concepts");
+                foreach (var row in rows)
+                {
+                    Assert.IsFalse(string.IsNullOrWhiteSpace(row["description"].As<string>()),
+                        $"concept {row["name"]} is missing description");
+                }
 
+                // ---- Verify cross-graph edge ----
                 var crossEdgeCursor = await session.RunAsync(@"
                     MATCH (from:Concept {projectId: $pid, graph: 'impl-plan', name: 'Migrate COMP-3 to decimal'})
-                          -[r:REFERENCES]->
+                          -[r:REFERENCES {projectId: $pid}]->
                           (to:Concept {projectId: $pid, graph: 'cobol-domain', name: 'COMP-3'})
                     RETURN count(r) AS c
                 ", new { pid = projectId.ToString() });
@@ -131,25 +123,24 @@ namespace MdExplorer.Features.Tests.KnowledgeGraph
                 Assert.IsTrue(second[0].Skipped);
                 Assert.IsTrue(second[1].Skipped);
 
-                // ---- Rigid cross-graph: ingest with missing target ----
-                var badDir = Path.Combine(projectRoot, "docs", "bad", ".mde-doc");
-                Directory.CreateDirectory(badDir);
-                var badKg = Path.Combine(badDir, "bad.kg.md");
-                File.WriteAllText(badKg, @"
-# bad
-### Concepts
-| Name |
-|------|
-| Bad Source |
-### Relationships
-| From | Type | To |
-|------|------|----|
-| Bad Source | REFERENCES | DOES_NOT_EXIST |
+                // ---- Re-ingest with modified content: cleanup pass removes the old node ----
+                File.WriteAllText(cobolKg, @"
+// comp3 — rewritten with a different shape; the old 'Packed decimal' node must be cleaned up.
+MERGE (a:Concept {name: 'COMP-3', projectId: $pid, graph: $graph, sourceDoc: $doc})
+  ON CREATE SET a.description = 'COBOL packed-decimal numeric storage format (revised).';
 ");
-                var badResults = await ingest.IngestKgFilesAsync(projectId, projectRoot,
-                    new List<KgBatchFile> { new() { KgFileAbsolutePath = badKg, GraphNamespace = "bad-graph" } },
+                var third = await ingest.IngestKgFilesAsync(projectId, projectRoot,
+                    new List<KgBatchFile> { new() { KgFileAbsolutePath = cobolKg, GraphNamespace = "cobol-domain" } },
                     session);
-                Assert.IsTrue(badResults[0].HasError, "missing cross-graph target must fail file");
+                Assert.IsFalse(third[0].HasError, third[0].Error);
+                var afterCursor = await session.RunAsync(@"
+                    MATCH (n:Concept {projectId: $pid, graph: 'cobol-domain'})
+                    RETURN n.name AS name
+                    ORDER BY name
+                ", new { pid = projectId.ToString() });
+                var afterRows = await afterCursor.ToListAsync();
+                Assert.AreEqual(1, afterRows.Count, "after re-ingest the old 'Packed decimal' node must be gone");
+                Assert.AreEqual("COMP-3", afterRows[0]["name"].As<string>());
 
                 // ---- Cleanup ----
                 await ingest.ResetProjectAsync(projectId, session);

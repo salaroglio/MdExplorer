@@ -680,6 +680,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                // .kg.cypher files trigger only the KG sync hook (no markdown DB
+                // parsing, no RAG embedding, no SignalR notify). They live under
+                // .mde-doc/ and are the source-of-truth for Neo4j.
+                if (IsKgPayloadFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧠 [{context.ConnectionId}] KG cypher file changed: {e.FullPath}");
+                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
+                    return;
+                }
+
                 // Only process markdown files — skip non-md files BEFORE storm detection
                 // so that .git/FETCH_HEAD, .lock files, etc. don't trigger false storms
                 if (!isMarkdown)
@@ -731,14 +741,6 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 context.LastProcessedPerFile[e.FullPath] = now;
 
                 _logger.LogInformation($"✅ [{context.ConnectionId}] Markdown file changed: {e.FullPath}");
-
-                // KG auto-sync hook — fire-and-forget for .mde-doc/*.kg.md payloads.
-                // The orchestrator honors ProjectNeo4jSettings.Enabled + SyncOnKgFileSave and
-                // swallows all errors; failed files keep their old hash so the next save retries.
-                if (IsKgPayloadFile(e.FullPath))
-                {
-                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
-                }
 
                 // Serialize DB access: NHibernate session is NOT thread-safe
                 await context.DbSemaphore.WaitAsync();
@@ -918,6 +920,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
                 var isDirectory = Directory.Exists(e.FullPath);
 
+                // .kg.cypher files trigger only the KG sync hook (no markdown DB
+                // parsing, no SignalR fileCreated event for the tree).
+                if (IsKgPayloadFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧠 [{context.ConnectionId}] KG cypher file created: {e.FullPath}");
+                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
+                    return;
+                }
+
                 // Skip non-markdown, non-directory files BEFORE storm detection
                 // (prevents .git/FETCH_HEAD, .lock files etc. from triggering false storms)
                 if (!isMarkdown && !isDirectory)
@@ -974,12 +985,6 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 _logger.LogInformation($"🎯 [{context.ConnectionId}] Processing new markdown file: {e.FullPath}");
-
-                // KG auto-sync hook — fire-and-forget for newly created .kg.md payloads.
-                if (IsKgPayloadFile(e.FullPath))
-                {
-                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
-                }
 
                 // Serialize DB access: NHibernate session is NOT thread-safe
                 await context.DbSemaphore.WaitAsync();
@@ -1524,9 +1529,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private static bool IsKgPayloadFile(string fullPath)
         {
             if (string.IsNullOrEmpty(fullPath)) return false;
-            if (!fullPath.EndsWith(".kg.md", StringComparison.OrdinalIgnoreCase)) return false;
-            // Skip the auto-generated aggregate — it's a derived artifact, not a source.
-            if (string.Equals(Path.GetFileName(fullPath), "_aggregate.kg.md", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!fullPath.EndsWith(".kg.cypher", StringComparison.OrdinalIgnoreCase)) return false;
             var parent = Path.GetFileName(Path.GetDirectoryName(fullPath));
             return string.Equals(parent, ".mde-doc", StringComparison.OrdinalIgnoreCase);
         }
@@ -1538,9 +1541,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 using var scope = _serviceScopeFactory.CreateScope();
                 var orchestrator = scope.ServiceProvider.GetRequiredService<IKgSyncOrchestrator>();
                 var outcome = await orchestrator.SyncFileAsync(fullPath, KgSyncTrigger.KgFileSave);
+                if (!string.IsNullOrEmpty(outcome.AutoCreatedNamespace))
+                {
+                    _logger.LogInformation($"🧠 [{connectionId}] KG namespace auto-created: '{outcome.AutoCreatedNamespace}' (folder had none in .development.yml)");
+                }
                 if (!outcome.Triggered)
                 {
-                    _logger.LogDebug($"[{connectionId}] KG auto-sync skipped for {fullPath}: {outcome.Reason}");
+                    _logger.LogInformation($"[{connectionId}] KG auto-sync skipped for {fullPath}: {outcome.Reason}");
                     return;
                 }
                 if (outcome.FailedFiles > 0)

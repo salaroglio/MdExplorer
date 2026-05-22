@@ -396,24 +396,36 @@ namespace MdExplorer.Hubs
             await base.OnDisconnectedAsync(exception);
         }
         
-        public Task ClearHistory(string channelId = null)
+        public async Task ClearHistory(string channelId = null)
         {
             if (string.IsNullOrEmpty(channelId))
             {
                 // Clear all channels for this connection (backwards compat)
                 _logger.LogInformation($"[ClearHistory] Clearing ALL conversation history for connection {Context.ConnectionId}");
                 _connectionHistories.TryRemove(Context.ConnectionId, out _);
+
+                // Recycle the persistent Copilot ACP session too. The ACP process keeps
+                // server-side conversation memory across turns; a "new chat" must start
+                // from zero, otherwise a fresh (possibly heavy) task inherits the full
+                // history of prior interactions and can saturate the model context window.
+                // The next prompt lazily spawns a clean copilot --acp process.
+                if (_copilotAcpPool != null)
+                {
+                    try { await _copilotAcpPool.ReleaseAsync(Context.ConnectionId); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] ACP pool release failed for {ConnectionId}", Context.ConnectionId); }
+                }
             }
             else
             {
-                // Clear only the specified channel
+                // Clear only the specified channel. The ACP session is per-connection
+                // (shared across channels), so it is NOT recycled here — other channels
+                // on the same connection may be mid-conversation.
                 _logger.LogInformation($"[ClearHistory] Clearing conversation history for connection {Context.ConnectionId}, channel {channelId}");
                 if (_connectionHistories.TryGetValue(Context.ConnectionId, out var channels))
                 {
                     channels.TryRemove(channelId, out _);
                 }
             }
-            return Task.CompletedTask;
         }
 
         public Task SetChatMode(string mode, string modelId)

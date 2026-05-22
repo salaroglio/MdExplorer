@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -10,24 +11,33 @@ using Neo4j.Driver;
 
 namespace MdExplorer.Features.Services.KnowledgeGraph
 {
+    /// <summary>
+    /// Executes per-document <c>.kg.cypher</c> scripts against a Neo4j instance.
+    ///
+    /// Contract with the skill that emits the file:
+    /// - Every <c>MERGE</c>/<c>CREATE</c> of a node or edge MUST include the
+    ///   properties <c>{sourceDoc: $doc, projectId: $pid, graph: $graph}</c>
+    ///   so this service can locate and remove the document's previous
+    ///   contribution before re-running the file. Nodes/edges WITHOUT these
+    ///   tags are not tracked and will accumulate stale state.
+    /// - Every <c>MERGE</c>/<c>CREATE</c> should set a <c>description</c>
+    ///   property (free-text, in the project language) explaining the
+    ///   semantic meaning of the node/edge for AI consumers.
+    /// - Statements are separated by <c>;</c>. Skill authors should keep
+    ///   <c>;</c> out of string literals.
+    ///
+    /// This service does NOT validate the Cypher — it trusts the skill. The
+    /// only guard is the cleanup-before-execute pass that keeps Neo4j in sync
+    /// with the latest version of each .kg.cypher file.
+    /// </summary>
     public class KgIngestService : IKgIngestService
     {
-        private static readonly HashSet<string> AllowedRelationshipTypes = new(StringComparer.Ordinal)
-        {
-            "USES", "EXTENDS", "CONTRADICTS", "DERIVES_FROM", "IS_INSTANCE_OF",
-            "DEPENDS_ON", "REQUIRES", "MITIGATES", "RELATED_TO", "REFERENCES"
-        };
-
         private readonly ILogger<KgIngestService> _logger;
 
         public KgIngestService(ILogger<KgIngestService> logger)
         {
             _logger = logger;
         }
-
-        // ===================================================================
-        //   Public API
-        // ===================================================================
 
         public async Task<KgIngestResult> IngestKgFileAsync(
             Guid projectId,
@@ -38,11 +48,15 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             IAsyncSession session,
             CancellationToken ct = default)
         {
-            var batch = new[] { new KgBatchFile {
-                KgFileAbsolutePath = kgFileAbsolutePath,
-                PreviousHash = previousHash,
-                GraphNamespace = graphNamespace
-            }};
+            var batch = new[]
+            {
+                new KgBatchFile
+                {
+                    KgFileAbsolutePath = kgFileAbsolutePath,
+                    PreviousHash = previousHash,
+                    GraphNamespace = graphNamespace
+                }
+            };
             var results = await IngestKgFilesAsync(projectId, projectRootPath, batch, session, ct).ConfigureAwait(false);
             return results[0];
         }
@@ -58,131 +72,93 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             if (string.IsNullOrEmpty(projectRootPath)) throw new ArgumentException("projectRootPath is required", nameof(projectRootPath));
             if (session == null) throw new ArgumentNullException(nameof(session));
 
-            // ---- Phase A: read, hash, parse, validate types ----
-            var prepared = new List<PreparedFile>();
             var results = new List<KgIngestResult>();
             foreach (var f in files ?? Array.Empty<KgBatchFile>())
             {
                 if (f == null || string.IsNullOrEmpty(f.KgFileAbsolutePath)) continue;
+                ct.ThrowIfCancellationRequested();
+
+                var sourceDoc = MakeSourceDocPath(projectRootPath, f.KgFileAbsolutePath);
+                var result = new KgIngestResult
+                {
+                    SourceDocPath = sourceDoc,
+                    GraphNamespace = f.GraphNamespace
+                };
+
                 if (!File.Exists(f.KgFileAbsolutePath))
                 {
-                    results.Add(new KgIngestResult
-                    {
-                        SourceDocPath = MakeSourceDocPath(projectRootPath, f.KgFileAbsolutePath),
-                        GraphNamespace = f.GraphNamespace,
-                        Error = "File not found on disk"
-                    });
+                    result.Error = "File not found on disk";
+                    results.Add(result);
                     continue;
                 }
 
                 var content = await File.ReadAllTextAsync(f.KgFileAbsolutePath, ct).ConfigureAwait(false);
                 var hash = ComputeMd5(content);
-                var sourceDoc = MakeSourceDocPath(projectRootPath, f.KgFileAbsolutePath);
+                result.ContentHash = hash;
 
                 if (!string.IsNullOrEmpty(f.PreviousHash) && string.Equals(f.PreviousHash, hash, StringComparison.Ordinal))
                 {
-                    results.Add(new KgIngestResult
-                    {
-                        SourceDocPath = sourceDoc,
-                        ContentHash = hash,
-                        GraphNamespace = f.GraphNamespace,
-                        Skipped = true
-                    });
-                    continue;
-                }
-
-                var parsed = KgFileParser.Parse(content);
-                var invalidTypes = parsed.Relationships
-                    .Where(r => !AllowedRelationshipTypes.Contains(r.Type))
-                    .Select(r => $"'{r.Type}' (in edge {r.From} -> {r.To})")
-                    .Distinct()
-                    .ToList();
-                if (invalidTypes.Count > 0)
-                {
-                    results.Add(new KgIngestResult
-                    {
-                        SourceDocPath = sourceDoc,
-                        ContentHash = hash,
-                        GraphNamespace = f.GraphNamespace,
-                        Error = $"Invalid relationship type(s) — closed vocabulary is USES/EXTENDS/CONTRADICTS/DERIVES_FROM/IS_INSTANCE_OF/DEPENDS_ON/REQUIRES/MITIGATES/RELATED_TO/REFERENCES.",
-                        ErrorDetails = invalidTypes
-                    });
+                    result.Skipped = true;
+                    results.Add(result);
                     continue;
                 }
 
                 if (string.IsNullOrWhiteSpace(f.GraphNamespace))
                 {
-                    results.Add(new KgIngestResult
-                    {
-                        SourceDocPath = sourceDoc,
-                        ContentHash = hash,
-                        Error = "Folder has no knowledgeGraph.namespace in .development.yml; cannot ingest."
-                    });
+                    result.Error = "Folder has no knowledgeGraph.namespace in .development.yml; cannot ingest.";
+                    results.Add(result);
                     continue;
                 }
 
-                prepared.Add(new PreparedFile
+                var statements = SplitCypherStatements(content);
+                var parameters = new Dictionary<string, object>
                 {
-                    SourceDoc = sourceDoc,
-                    Hash = hash,
-                    GraphNamespace = f.GraphNamespace,
-                    Concepts = parsed.Concepts,
-                    Relationships = parsed.Relationships
-                });
-            }
-
-            if (prepared.Count == 0)
-            {
-                return results;
-            }
-
-            // ---- Phase B: Pass 1 — global cleanup + MERGE all concepts in a single tx ----
-            await session.ExecuteWriteAsync<bool>(async tx =>
-            {
-                foreach (var p in prepared)
-                {
-                    await CleanupSourceDocAsync(tx, projectId, p.SourceDoc).ConfigureAwait(false);
-                    await MergeConceptsAsync(tx, projectId, p.GraphNamespace, p.SourceDoc, p.Concepts).ConfigureAwait(false);
-                }
-                return true;
-            }).ConfigureAwait(false);
-
-            // ---- Phase C: Pass 2 per-file (separate tx for isolation) ----
-            foreach (var p in prepared)
-            {
-                var fileResult = new KgIngestResult
-                {
-                    SourceDocPath = p.SourceDoc,
-                    ContentHash = p.Hash,
-                    GraphNamespace = p.GraphNamespace,
-                    ConceptCount = p.Concepts.Count
+                    ["doc"] = sourceDoc,
+                    ["pid"] = projectId.ToString(),
+                    ["graph"] = f.GraphNamespace
                 };
 
                 try
                 {
-                    await session.ExecuteWriteAsync<bool>(async tx =>
+                    var counts = await session.ExecuteWriteAsync(async tx =>
                     {
-                        var validation = await ValidateRelationshipTargetsAsync(tx, projectId, p.Relationships).ConfigureAwait(false);
-                        if (validation.Count > 0)
+                        // Cleanup: drop everything previously tagged with this sourceDoc
+                        // so re-execution produces a clean state, even when concepts
+                        // were renamed/removed between versions.
+                        await tx.RunAsync(@"
+                            MATCH (n {sourceDoc: $doc, projectId: $pid})
+                            DETACH DELETE n
+                        ", parameters).ConfigureAwait(false);
+
+                        await tx.RunAsync(@"
+                            MATCH ()-[r {sourceDoc: $doc, projectId: $pid}]->()
+                            DELETE r
+                        ", parameters).ConfigureAwait(false);
+
+                        int nodes = 0;
+                        int edges = 0;
+                        foreach (var stmt in statements)
                         {
-                            throw new KgIngestException(
-                                $"{p.SourceDoc}: {validation.Count} cross-graph reference issue(s). Sync target graph(s) first or fix concept names.",
-                                validation);
+                            var cursor = await tx.RunAsync(stmt, parameters).ConfigureAwait(false);
+                            var summary = await cursor.ConsumeAsync().ConfigureAwait(false);
+                            nodes += summary.Counters.NodesCreated;
+                            edges += summary.Counters.RelationshipsCreated;
                         }
-                        await MergeRelationshipsAsync(tx, projectId, p.GraphNamespace, p.SourceDoc, p.Relationships).ConfigureAwait(false);
-                        return true;
+                        return (nodes, edges);
                     }).ConfigureAwait(false);
 
-                    fileResult.RelationshipCount = p.Relationships.Count;
+                    result.NodeCount = counts.nodes;
+                    result.EdgeCount = counts.edges;
+                    _logger.LogInformation("[KgIngest] {Doc} (graph={Graph}): +{N} nodes, +{E} edges",
+                        sourceDoc, f.GraphNamespace, counts.nodes, counts.edges);
                 }
-                catch (KgIngestException ex)
+                catch (Exception ex)
                 {
-                    fileResult.Error = ex.Message;
-                    fileResult.ErrorDetails = ex.Details.ToList();
-                    _logger.LogWarning("[KgIngest] {Doc}: {Err}", p.SourceDoc, ex.Message);
+                    result.Error = ex.Message;
+                    _logger.LogWarning(ex, "[KgIngest] {Doc} failed", sourceDoc);
                 }
 
-                results.Add(fileResult);
+                results.Add(result);
             }
 
             return results;
@@ -196,9 +172,9 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             await session.ExecuteWriteAsync<bool>(async tx =>
             {
                 await tx.RunAsync(@"
-                    MATCH (n:Concept {projectId: $pid})
+                    MATCH (n {projectId: $pid})
                     DETACH DELETE n
-                ", new { pid = projectId.ToString() });
+                ", new { pid = projectId.ToString() }).ConfigureAwait(false);
                 return true;
             }).ConfigureAwait(false);
             _logger.LogInformation("[KgIngest] Reset project {ProjectId}", projectId);
@@ -208,94 +184,76 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         //   Private helpers
         // ===================================================================
 
-        private class PreparedFile
+        /// <summary>
+        /// Splits a Cypher script into statements on <c>;</c> boundaries, with a
+        /// state machine that ignores semicolons appearing inside string literals
+        /// (<c>'...'</c> / <c>"..."</c>, honoring backslash escapes), inside
+        /// <c>//</c> line comments, and inside <c>/* ... *\/</c> block comments.
+        /// Comments are stripped; empty statements are dropped.
+        /// A naive <c>Split(';')</c> is NOT safe here: skill-generated
+        /// <c>description</c> values routinely contain natural-language semicolons.
+        /// </summary>
+        private static List<string> SplitCypherStatements(string content)
         {
-            public string SourceDoc { get; set; }
-            public string Hash { get; set; }
-            public string GraphNamespace { get; set; }
-            public List<KgConceptRow> Concepts { get; set; }
-            public List<KgRelationshipRow> Relationships { get; set; }
-        }
+            var statements = new List<string>();
+            if (string.IsNullOrEmpty(content)) return statements;
 
-        private static async Task CleanupSourceDocAsync(IAsyncQueryRunner tx, Guid projectId, string sourceDoc)
-        {
-            // Concepts: shrink sourceDocs, drop orphans with no relations.
-            await tx.RunAsync(@"
-                MATCH (n:Concept {projectId: $pid})
-                WHERE $doc IN n.sourceDocs
-                SET n.sourceDocs = [d IN n.sourceDocs WHERE d <> $doc]
-                WITH n
-                WHERE size(n.sourceDocs) = 0 AND NOT (n)--()
-                DETACH DELETE n
-            ", new { pid = projectId.ToString(), doc = sourceDoc });
-
-            // Relationships: shrink sourceDocs, drop empty edges.
-            await tx.RunAsync(@"
-                MATCH (:Concept {projectId: $pid})-[r {projectId: $pid}]->(:Concept {projectId: $pid})
-                WHERE $doc IN r.sourceDocs
-                SET r.sourceDocs = [d IN r.sourceDocs WHERE d <> $doc]
-                WITH r
-                WHERE size(r.sourceDocs) = 0
-                DELETE r
-            ", new { pid = projectId.ToString(), doc = sourceDoc });
-        }
-
-        private static async Task MergeConceptsAsync(IAsyncQueryRunner tx, Guid projectId, string graphNamespace, string sourceDoc, List<KgConceptRow> concepts)
-        {
-            if (concepts == null || concepts.Count == 0) return;
-            var rows = concepts.Select(c => new Dictionary<string, object> { ["name"] = c.Name }).ToList();
-            await tx.RunAsync(@"
-                UNWIND $rows AS row
-                MERGE (n:Concept {projectId: $pid, graph: $graph, name: row.name})
-                ON CREATE SET n.sourceDocs = [$doc]
-                ON MATCH  SET n.sourceDocs = CASE WHEN $doc IN coalesce(n.sourceDocs, []) THEN n.sourceDocs ELSE coalesce(n.sourceDocs, []) + $doc END
-            ", new { pid = projectId.ToString(), graph = graphNamespace, doc = sourceDoc, rows });
-        }
-
-        private static async Task<List<string>> ValidateRelationshipTargetsAsync(IAsyncQueryRunner tx, Guid projectId, List<KgRelationshipRow> relationships)
-        {
-            var issues = new List<string>();
-            foreach (var r in relationships)
+            var sb = new StringBuilder();
+            int i = 0, n = content.Length;
+            while (i < n)
             {
-                var cursor = await tx.RunAsync(@"
-                    MATCH (to:Concept {projectId: $pid, name: $name})
-                    RETURN collect(to.graph) AS graphs
-                ", new { pid = projectId.ToString(), name = r.To });
-                var record = await cursor.SingleAsync();
-                var graphs = record["graphs"].As<List<object>>();
-                if (graphs.Count == 0)
-                {
-                    issues.Add($"missing target: {r.From} -[{r.Type}]-> {r.To}");
-                }
-                else if (graphs.Count > 1)
-                {
-                    issues.Add($"ambiguous target '{r.To}' (in graphs [{string.Join(", ", graphs)}]) for edge {r.From} -[{r.Type}]-> {r.To}");
-                }
-            }
-            return issues;
-        }
+                char c = content[i];
 
-        private static async Task MergeRelationshipsAsync(IAsyncQueryRunner tx, Guid projectId, string graphNamespace, string sourceDoc, List<KgRelationshipRow> relationships)
-        {
-            foreach (var r in relationships)
-            {
-                // Relationship type interpolation is safe — every type was whitelisted in Phase A.
-                var cypher = $@"
-                    MATCH (from:Concept {{projectId: $pid, graph: $graph, name: $from}})
-                    MATCH (to:Concept   {{projectId: $pid, name: $to}})
-                    MERGE (from)-[edge:{r.Type} {{projectId: $pid}}]->(to)
-                    ON CREATE SET edge.sourceDocs = [$doc]
-                    ON MATCH  SET edge.sourceDocs = CASE WHEN $doc IN coalesce(edge.sourceDocs, []) THEN edge.sourceDocs ELSE coalesce(edge.sourceDocs, []) + $doc END
-                ";
-                await tx.RunAsync(cypher, new
+                // Line comment: // ... up to end of line
+                if (c == '/' && i + 1 < n && content[i + 1] == '/')
                 {
-                    pid = projectId.ToString(),
-                    graph = graphNamespace,
-                    from = r.From,
-                    to = r.To,
-                    doc = sourceDoc
-                });
+                    while (i < n && content[i] != '\n') i++;
+                    continue;
+                }
+                // Block comment: /* ... */
+                if (c == '/' && i + 1 < n && content[i + 1] == '*')
+                {
+                    i += 2;
+                    while (i + 1 < n && !(content[i] == '*' && content[i + 1] == '/')) i++;
+                    i = Math.Min(i + 2, n);
+                    continue;
+                }
+                // String literal: ' ... ' or " ... " — semicolons inside are literal text
+                if (c == '\'' || c == '"')
+                {
+                    char quote = c;
+                    sb.Append(c);
+                    i++;
+                    while (i < n)
+                    {
+                        char s = content[i];
+                        if (s == '\\' && i + 1 < n)
+                        {
+                            sb.Append(s).Append(content[i + 1]);
+                            i += 2;
+                            continue;
+                        }
+                        sb.Append(s);
+                        i++;
+                        if (s == quote) break;
+                    }
+                    continue;
+                }
+                // Statement terminator (only reached when outside string/comment)
+                if (c == ';')
+                {
+                    var stmt = sb.ToString().Trim();
+                    if (stmt.Length > 0) statements.Add(stmt);
+                    sb.Clear();
+                    i++;
+                    continue;
+                }
+                sb.Append(c);
+                i++;
             }
+            var tail = sb.ToString().Trim();
+            if (tail.Length > 0) statements.Add(tail);
+            return statements;
         }
 
         private static string ComputeMd5(string content)

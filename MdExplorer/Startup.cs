@@ -160,6 +160,7 @@ namespace MdExplorer
             services.AddSingleton<Features.Services.KnowledgeGraph.INeo4jConnectionPool, Features.Services.KnowledgeGraph.Neo4jConnectionPool>();
             services.AddSingleton<Features.Services.KnowledgeGraph.IKgIngestService, Features.Services.KnowledgeGraph.KgIngestService>();
             services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigResolver, Features.Services.KnowledgeGraph.FolderKgConfigResolver>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigWriter, Services.FolderKgConfigWriter>();
             services.AddScoped<Features.Services.KnowledgeGraph.IKgSyncOrchestrator, Features.Services.KnowledgeGraph.KgSyncOrchestrator>();
 
             // Register Team Chat services

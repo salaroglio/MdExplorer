@@ -11530,9 +11530,9 @@ class TocGenerationService {
     this.http = http;
     this.baseUrl = '/api/toc';
   }
-  generateToc(directoryPath) {
+  generateToc(folderFullPath) {
     return this.http.post(`${this.baseUrl}/generate`, {
-      directoryPath: directoryPath
+      folderFullPath: folderFullPath
     });
   }
   getTocStatus(directoryPath) {
@@ -15955,8 +15955,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.05.19.4',
-  buildTime: '2026.05.19 10:25:00'
+  version: '2026.05.19.8',
+  buildTime: '2026.05.19 23:06:26'
 };
 
 /***/ }),

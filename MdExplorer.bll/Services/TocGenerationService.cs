@@ -34,10 +34,10 @@ namespace MdExplorer.Features.Services
     /// <list type="bullet">
     /// <item><description>the file system (list of *.md);</description></item>
     /// <item><description>each document's <c>## TL;DR</c> block (parsed in-process);</description></item>
-    /// <item><description>each document's MD5 hash;</description></item>
-    /// <item><description>the sibling <c>.mde-doc/*.kg.md</c> payloads aggregated into the
-    ///   "Grafo aggregato" sections.</description></item>
+    /// <item><description>each document's MD5 hash.</description></item>
     /// </list>
+    /// After writing the TOC, fires <c>IKgSyncOrchestrator.SyncFolderAsync</c> so any
+    /// <c>.mde-doc/*.kg.cypher</c> scripts in the folder get pushed to Neo4j.
     /// </summary>
     public class TocGenerationService : ITocGenerationService
     {
@@ -89,6 +89,7 @@ namespace MdExplorer.Features.Services
                         var fileName = Path.GetFileName(file);
                         var title = GetFileTitle(file);
                         var relativePath = GetRelativePath(directoryPath, file);
+                        var urlPath = EncodePathForMarkdownUrl(relativePath);
                         var fileHash = ComputeFileHash(file);
                         var hashShort = fileHash.Substring(0, Math.Min(8, fileHash.Length));
                         var tldr = ExtractTldrFromFile(file);
@@ -97,7 +98,7 @@ namespace MdExplorer.Features.Services
                             ? "*(TL;DR mancante — aggiungi `## TL;DR` al documento secondo la skill mde-doc)*"
                             : tldr;
 
-                        tableContent.AppendLine($"| {title} | {summaryCell} | `{hashShort}` | [{fileName}]({relativePath}) |");
+                        tableContent.AppendLine($"| {title} | {summaryCell} | `{hashShort}` | [{fileName}]({urlPath}) |");
 
                         processed++;
                         NotifyProgress(directoryPath, processed, mdFiles.Count, $"Processing: {fileName}");
@@ -108,8 +109,7 @@ namespace MdExplorer.Features.Services
                     }
                 }
 
-                var aggregateRelativePath = await WriteAggregateKgFileAsync(directoryPath, ct);
-                await WriteTocFileAsync(tocFilePath, directoryPath, mdFiles.Count, tableContent.ToString(), aggregateRelativePath, ct);
+                await WriteTocFileAsync(tocFilePath, directoryPath, mdFiles.Count, tableContent.ToString(), ct);
 
                 // Auto-sync hook into Neo4j (best-effort; orchestrator swallows errors and
                 // honors ProjectNeo4jSettings.Enabled + SyncOnTocGeneration).
@@ -139,7 +139,7 @@ namespace MdExplorer.Features.Services
             }
         }
 
-        private async Task WriteTocFileAsync(string tocFilePath, string directoryPath, int fileCount, string tableContent, string aggregateRelativePath, CancellationToken ct)
+        private async Task WriteTocFileAsync(string tocFilePath, string directoryPath, int fileCount, string tableContent, CancellationToken ct)
         {
             var directoryName = Path.GetFileName(directoryPath);
             var yamlHeader = _yamlDefaultGenerator.GenerateDefaultYaml(directoryPath);
@@ -154,12 +154,6 @@ namespace MdExplorer.Features.Services
             content.AppendLine("## 📑 Indice Rapido");
             content.AppendLine();
             content.Append(tableContent);
-
-            if (!string.IsNullOrEmpty(aggregateRelativePath))
-            {
-                content.AppendLine();
-                content.AppendLine($"> 🧠 **Grafo aggregato dei concetti**: [{aggregateRelativePath}]({aggregateRelativePath})");
-            }
 
             await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8, ct);
         }
@@ -244,10 +238,22 @@ namespace MdExplorer.Features.Services
 
                 var compact = sb.ToString().Replace("|", "\\|");
 
+                // Preview length: text beyond this is moved into a collapsible
+                // <details> block so the table cell stays compact without losing content.
                 const int maxLen = 280;
                 if (compact.Length > maxLen)
                 {
-                    compact = compact.Substring(0, maxLen - 1) + "…";
+                    int cut = compact.LastIndexOf(' ', maxLen - 1);
+                    if (cut < maxLen / 2) cut = maxLen - 1;   // no decent word break → hard cut
+                    var head = compact.Substring(0, cut).TrimEnd();
+                    var tail = compact.Substring(cut).Trim();
+                    // Inline <details> so the collapsed toggle stays on the same line
+                    // as the preview text (block display would push it to a new line).
+                    // The summary is styled blue + pointer cursor so it reads as clickable.
+                    compact = head
+                        + "<details style=\"display:inline\">"
+                        + "<summary style=\"display:inline;color:#0d6efd;cursor:pointer;font-weight:bold\" title=\"Mostra tutto\">…</summary>"
+                        + tail + "</details>";
                 }
 
                 return compact;
@@ -297,6 +303,17 @@ namespace MdExplorer.Features.Services
             return rel.Replace('\\', '/');
         }
 
+        /// <summary>
+        /// Percent-encodes a POSIX-style relative path for use as the URL part of a markdown
+        /// link ([text](url)). Each segment is encoded individually so that '/' is preserved
+        /// as separator while spaces, parentheses, brackets, etc. become %20/%28/...
+        /// </summary>
+        private static string EncodePathForMarkdownUrl(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            return string.Join('/', path.Split('/').Select(Uri.EscapeDataString));
+        }
+
         // ============================ Notification helpers ============================
 
         private void NotifyProgress(string directoryPath, int processed, int total, string status)
@@ -316,238 +333,5 @@ namespace MdExplorer.Features.Services
             GenerationCompleted?.Invoke(this, directoryPath);
         }
 
-        // ============================ Aggregated concepts from .mde-doc/*.kg.md ============================
-
-        private const string AggregateKgFileName = "_aggregate.kg.md";
-
-        /// <summary>
-        /// Scans <c>{directoryPath}/.mde-doc/*.kg.md</c> (excluding <c>_aggregate.kg.md</c> itself to
-        /// avoid self-reference) and writes a deduplicated aggregate to <c>.mde-doc/_aggregate.kg.md</c>.
-        /// The aggregate uses the same schema as the per-document <c>.kg.md</c> files (PlantUML graph +
-        /// Neo4j Concepts/Relationships tables), so the v2 Cypher pipeline can process singles and
-        /// aggregates with one parser. Returns the relative path of the aggregate file (relative to
-        /// <paramref name="directoryPath"/>) if it was written, or <c>null</c> if there were no source
-        /// payloads. If sources disappear, the stale aggregate file is removed.
-        /// </summary>
-        private async Task<string> WriteAggregateKgFileAsync(string directoryPath, CancellationToken ct)
-        {
-            try
-            {
-                var mdeDocDir = Path.Combine(directoryPath, ".mde-doc");
-                var aggregatePath = Path.Combine(mdeDocDir, AggregateKgFileName);
-
-                if (!Directory.Exists(mdeDocDir))
-                {
-                    _logger.LogDebug($"[TocGeneration] No .mde-doc/ folder in {directoryPath}; no aggregate to write");
-                    return null;
-                }
-
-                var kgFiles = Directory.GetFiles(mdeDocDir, "*.kg.md", SearchOption.TopDirectoryOnly)
-                    .Where(f => !string.Equals(Path.GetFileName(f), AggregateKgFileName, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (kgFiles.Count == 0)
-                {
-                    if (File.Exists(aggregatePath))
-                    {
-                        try { File.Delete(aggregatePath); _logger.LogInformation($"[TocGeneration] Removed stale {aggregatePath} (no source .kg.md files)"); }
-                        catch (Exception ex) { _logger.LogWarning($"[TocGeneration] Could not delete stale aggregate: {ex.Message}"); }
-                    }
-                    return null;
-                }
-
-                var plantumlEdges = new Dictionary<(string From, string To), HashSet<string>>();
-                var concepts = new Dictionary<string, SortedSet<string>>(StringComparer.Ordinal);
-                var relationships = new Dictionary<(string From, string Type, string To), SortedSet<string>>();
-
-                foreach (var kgFile in kgFiles)
-                {
-                    if (ct.IsCancellationRequested) return null;
-
-                    try
-                    {
-                        var content = await File.ReadAllTextAsync(kgFile, ct);
-                        // Strip both .md and .kg suffixes:  foo.kg.md -> foo.kg -> foo
-                        var docName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(kgFile));
-                        ParseKgFile(content, docName, plantumlEdges, concepts, relationships);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning($"[TocGeneration] Failed to parse {kgFile}: {ex.Message}");
-                    }
-                }
-
-                if (plantumlEdges.Count == 0 && concepts.Count == 0 && relationships.Count == 0)
-                {
-                    _logger.LogInformation($"[TocGeneration] {kgFiles.Count} .kg.md file(s) yielded no parseable graph; aggregate not written");
-                    return null;
-                }
-
-                var folderName = Path.GetFileName(directoryPath);
-                var aggregateContent = BuildAggregateKgDocument(folderName, plantumlEdges, concepts, relationships);
-                await File.WriteAllTextAsync(aggregatePath, aggregateContent, Encoding.UTF8, ct);
-
-                _logger.LogInformation($"[TocGeneration] Wrote aggregate from {kgFiles.Count} .kg.md file(s) to {aggregatePath}");
-                return $".mde-doc/{AggregateKgFileName}";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Aggregate generation failed for {directoryPath}: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static void ParseKgFile(
-            string content,
-            string sourceDoc,
-            Dictionary<(string From, string To), HashSet<string>> plantumlEdges,
-            Dictionary<string, SortedSet<string>> concepts,
-            Dictionary<(string From, string Type, string To), SortedSet<string>> relationships)
-        {
-            // Delegate parsing to the shared KgFileParser, then accumulate into the per-folder dicts.
-            var parsed = KnowledgeGraph.KgFileParser.Parse(content);
-
-            foreach (var edge in parsed.PlantUmlEdges)
-            {
-                var key = (edge.From, edge.To);
-                if (!plantumlEdges.TryGetValue(key, out var labels))
-                {
-                    labels = new HashSet<string>(StringComparer.Ordinal);
-                    plantumlEdges[key] = labels;
-                }
-                if (!string.IsNullOrEmpty(edge.Label)) labels.Add(edge.Label);
-            }
-
-            foreach (var c in parsed.Concepts)
-            {
-                if (!concepts.TryGetValue(c.Name, out var docs))
-                {
-                    docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                    concepts[c.Name] = docs;
-                }
-                docs.Add(sourceDoc);
-            }
-
-            foreach (var r in parsed.Relationships)
-            {
-                var key = (r.From, r.Type, r.To);
-                if (!relationships.TryGetValue(key, out var docs))
-                {
-                    docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                    relationships[key] = docs;
-                }
-                docs.Add(sourceDoc);
-            }
-        }
-
-        private static string BuildAggregateKgDocument(
-            string folderName,
-            Dictionary<(string From, string To), HashSet<string>> plantumlEdges,
-            Dictionary<string, SortedSet<string>> concepts,
-            Dictionary<(string From, string Type, string To), SortedSet<string>> relationships)
-        {
-            // Schema-compatible with the per-document .kg.md files produced by the mde-doc skill,
-            // plus an extra "Source documents" column that records which siblings each
-            // concept/relationship came from.
-            var sb = new StringBuilder();
-
-            sb.AppendLine($"# Knowledge graph — {folderName} (aggregate)");
-            sb.AppendLine();
-            sb.AppendLine("> *Auto-generated by MdExplorer from sibling `.kg.md` files. Do not edit manually — regenerated on every TOC refresh.*");
-            sb.AppendLine();
-
-            sb.AppendLine("## 🖼️ Graph (PlantUML)");
-            sb.AppendLine();
-            if (plantumlEdges.Count == 0)
-            {
-                sb.AppendLine("*No PlantUML graph found in source `.kg.md` files.*");
-            }
-            else
-            {
-                sb.AppendLine("```plantuml");
-                sb.AppendLine("@startuml");
-                // Mandatory MdExplorer styling preamble — must match the one in
-                // skills/mde-doc/SKILL.md so the aggregated graph looks identical to the
-                // per-document graphs the AI produces.
-                sb.AppendLine("!theme plain");
-                sb.AppendLine("skinparam backgroundColor #FAFAFA");
-                sb.AppendLine("skinparam shadowing false");
-                sb.AppendLine("skinparam roundCorner 8");
-                sb.AppendLine("skinparam DefaultFontName \"Segoe UI\"");
-                sb.AppendLine("skinparam ArrowColor #5B6B7F");
-                sb.AppendLine("skinparam ArrowFontColor #4B5563");
-                sb.AppendLine("skinparam component {");
-                sb.AppendLine("  BackgroundColor #EAF1F8");
-                sb.AppendLine("  BorderColor #5B6B7F");
-                sb.AppendLine("  FontColor #1F2937");
-                sb.AppendLine("}");
-                foreach (var kvp in plantumlEdges
-                    .OrderBy(k => k.Key.From, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(k => k.Key.To, StringComparer.OrdinalIgnoreCase))
-                {
-                    var from = kvp.Key.From;
-                    var to = kvp.Key.To;
-                    var label = kvp.Value.Count == 0
-                        ? string.Empty
-                        : string.Join(" / ", kvp.Value.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-                    sb.AppendLine(string.IsNullOrEmpty(label)
-                        ? $"[{from}] --> [{to}]"
-                        : $"[{from}] --> [{to}] : {label}");
-                }
-                sb.AppendLine("@enduml");
-                sb.AppendLine("```");
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("## 🗃️ Graph (Neo4j)");
-            sb.AppendLine();
-            sb.AppendLine("### Concepts");
-            sb.AppendLine();
-            if (concepts.Count == 0)
-            {
-                sb.AppendLine("*No concepts found.*");
-            }
-            else
-            {
-                sb.AppendLine("| Name | Source documents |");
-                sb.AppendLine("|------|------------------|");
-                foreach (var kvp in concepts.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
-                {
-                    var docs = string.Join(", ", kvp.Value);
-                    sb.AppendLine($"| {EscapeTableCell(kvp.Key)} | {EscapeTableCell(docs)} |");
-                }
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("### Relationships");
-            sb.AppendLine();
-            if (relationships.Count == 0)
-            {
-                sb.AppendLine("*No relationships found.*");
-            }
-            else
-            {
-                sb.AppendLine("| From | Type | To | Source documents |");
-                sb.AppendLine("|------|------|----|------------------|");
-                foreach (var kvp in relationships
-                    .OrderBy(k => k.Key.From, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(k => k.Key.Type, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(k => k.Key.To, StringComparer.OrdinalIgnoreCase))
-                {
-                    var (from, type, to) = kvp.Key;
-                    var docs = string.Join(", ", kvp.Value);
-                    sb.AppendLine($"| {EscapeTableCell(from)} | {EscapeTableCell(type)} | {EscapeTableCell(to)} | {EscapeTableCell(docs)} |");
-                }
-            }
-
-            return sb.ToString();
-        }
-
-        private static string EscapeTableCell(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return s;
-            return s.Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");
-        }
     }
 }

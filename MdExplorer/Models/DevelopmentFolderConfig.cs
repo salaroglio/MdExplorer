@@ -138,6 +138,29 @@ namespace MdExplorer.Service.Models
         /// Optional description of the folder's purpose
         /// </summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// Optional Knowledge Graph configuration for this folder. Preserved on
+        /// .development.yml round-trips so ProjectMetadataService writes
+        /// (description, participants, icon) do not strip the KG namespace.
+        /// </summary>
+        public FolderKnowledgeGraphConfig KnowledgeGraph { get; set; }
+    }
+
+    /// <summary>
+    /// Per-folder Knowledge Graph settings stored in .development.yml.
+    /// </summary>
+    public class FolderKnowledgeGraphConfig
+    {
+        /// <summary>
+        /// Neo4j graph namespace the folder's .kg.cypher files ingest into.
+        /// </summary>
+        public string Namespace { get; set; }
+
+        /// <summary>
+        /// Whether KG sync is enabled for this folder.
+        /// </summary>
+        public bool Enabled { get; set; }
     }
 
     /// <summary>

@@ -15850,10 +15850,26 @@ class MdTreeComponent {
     event.stopPropagation();
     // Store the selected segment for use in create operations
     this.selectedCompactSegment = segment;
-    // Create a temporary item with the segment's path for the context menu
+    // Build a synthetic MdFile representing the clicked segment. Downstream
+    // consumers (openTocDirectory → navigateToTocFile, createDirectoryOn, etc.)
+    // rely on relativePath being populated; without it they hit the no-prefix
+    // fallback and end up writing files at the project root.
     const segmentItem = new _models_md_file__WEBPACK_IMPORTED_MODULE_1__.MdFile(segment.name, segment.fullPath, segment.level, true);
     segmentItem.fullPath = segment.fullPath;
     segmentItem.type = 'folder';
+    if (node.isCompacted && node.compactedSegments && node.relativePath != null) {
+      // The compact node's own relativePath is the FIRST segment of the chain
+      // (compactSingleNode never reassigns it). Extend it forward by appending
+      // the names of the segments between index 1 and the clicked segment.
+      const idx = node.compactedSegments.findIndex(s => s.fullPath === segment.fullPath);
+      const baseRel = node.relativePath.replace(/\\/g, '/');
+      if (idx === 0) {
+        segmentItem.relativePath = node.relativePath;
+      } else if (idx > 0) {
+        const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
+        segmentItem.relativePath = `${baseRel}/${extra}`;
+      }
+    }
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
     this.matMenuTrigger.menuData = {
@@ -16252,15 +16268,17 @@ class MdTreeComponent {
     });
   }
   generateTocWithAI(node, navigateAfter) {
-    // Remove leading backslash if present
-    let directoryPath = node.relativePath || node.name;
-    if (directoryPath.startsWith('\\')) {
-      directoryPath = directoryPath.substring(1);
-    }
-    console.log('[MdTreeComponent] generateTocWithAI - directoryPath:', directoryPath);
+    // For compact folders node.fullPath points to the FIRST segment of the chain
+    // (compactSingleNode never reassigns it — see the TODO comment in md-file.service.ts).
+    // The folder whose children the user is actually looking at is the LAST segment;
+    // findFolderInDataStore follows the same convention.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length ? node.compactedSegments[node.compactedSegments.length - 1] : null;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const displayPath = node.isCompacted && node.compactedSegments ? node.compactedSegments.map(s => s.name).join('/') : node.relativePath || node.name;
+    console.log('[MdTreeComponent] generateTocWithAI - folderFullPath:', folderFullPath);
     // Mostra il progress dialog
-    this.tocProgressService.showProgress(directoryPath);
-    this.tocService.generateToc(directoryPath).subscribe({
+    this.tocProgressService.showProgress(displayPath);
+    this.tocService.generateToc(folderFullPath).subscribe({
       next: result => {
         console.log('[MdTreeComponent] TOC generation result:', result);
         // SEMPRE chiudi il progress dialog quando riceviamo una risposta
@@ -16306,13 +16324,21 @@ class MdTreeComponent {
   navigateToTocFile(node) {
     var _this4 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      const directoryName = node.name;
-      const relativePath = node.relativePath ? `${node.relativePath}/${directoryName}.md.directory` : `${directoryName}.md.directory`;
+      // For compact folders node.name/relativePath/fullPath all freeze at the
+      // FIRST segment of the chain (compactSingleNode never reassigns them).
+      // The backend names the TOC file after the LAST segment (Path.GetFileName
+      // of the absolute folder), so the frontend must match or it would point at
+      // a stale <firstSegment>.md.directory.
+      const lastSeg = node.isCompacted && node.compactedSegments?.length ? node.compactedSegments[node.compactedSegments.length - 1] : null;
+      const directoryName = lastSeg ? lastSeg.name : node.name;
+      const folderRelativePath = node.isCompacted && node.compactedSegments ? node.compactedSegments.map(s => s.name).join('/') : node.relativePath;
+      const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+      const relativePath = folderRelativePath ? `${folderRelativePath}/${directoryName}.md.directory` : `${directoryName}.md.directory`;
       // Crea un oggetto MdFile per il file .md.directory
       const tocFile = {
         name: `${directoryName}.md.directory`,
         relativePath: relativePath,
-        fullPath: node.fullPath ? `${node.fullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
+        fullPath: folderFullPath ? `${folderFullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
         path: node.path,
         type: 'mdFile',
         index: 0,
@@ -20396,16 +20422,22 @@ class ToolbarComponent {
     if (!this.currentMdFile || !this.isTocDirectoryFile()) {
       return;
     }
-    // Get the relative path of the TOC file
-    let tocPath = this.currentMdFile.relativePath || '';
-    // Remove leading backslash if present
-    if (tocPath.startsWith('\\')) {
-      tocPath = tocPath.substring(1);
+    // The .md.directory file is not a folder, so fullPath is a regular absolute
+    // file path; its parent directory is the folder we need to regenerate.
+    const fileFullPath = this.currentMdFile.fullPath || '';
+    const lastSep = Math.max(fileFullPath.lastIndexOf('\\'), fileFullPath.lastIndexOf('/'));
+    const folderFullPath = lastSep > 0 ? fileFullPath.substring(0, lastSep) : fileFullPath;
+    // Display path for the progress dialog: relative form when available.
+    let displayPath = this.currentMdFile.relativePath || '';
+    if (displayPath.startsWith('\\')) {
+      displayPath = displayPath.substring(1);
     }
-    // Show progress dialog
-    const directoryPath = tocPath.substring(0, tocPath.lastIndexOf('/')) || tocPath.substring(0, tocPath.lastIndexOf('\\'));
-    this.tocProgressService.showProgress(directoryPath);
-    this.tocService.generateToc(directoryPath).subscribe({
+    const lastSepRel = Math.max(displayPath.lastIndexOf('/'), displayPath.lastIndexOf('\\'));
+    if (lastSepRel > 0) {
+      displayPath = displayPath.substring(0, lastSepRel);
+    }
+    this.tocProgressService.showProgress(displayPath);
+    this.tocService.generateToc(folderFullPath).subscribe({
       next: result => {
         // Progress dialog will be closed by SignalR event
         if (result.success) {

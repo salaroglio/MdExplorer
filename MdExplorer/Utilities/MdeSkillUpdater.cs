@@ -61,6 +61,19 @@ namespace MdExplorer.Utilities
             ),
         };
 
+        /// <summary>
+        /// Built-in prompt catalog: tuples of (prompt name, embedded resource name).
+        /// Each prompt is installed as <c>.github/prompts/&lt;name&gt;.prompt.md</c>.
+        /// Add an entry here when you add a new MdE-managed prompt.
+        /// </summary>
+        private static readonly (string Name, string ResourceName)[] BuiltInPrompts = new[]
+        {
+            (
+                "mde-codegen-graph",
+                "MdExplorer.Service.skills.mde_codegen_graph.prompt.md"
+            ),
+        };
+
         private const string OriginMarker = "mdexplorer";
 
         // Captures the YAML frontmatter (between the two `---` fences) at the top of the file.
@@ -114,6 +127,22 @@ namespace MdExplorer.Utilities
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[MdeSkillUpdater] Failed to install/update agent '{name}': {ex.Message}");
+                }
+            }
+
+            // Prompts → .github/prompts/<name>.prompt.md (reusable Copilot prompt files)
+            var promptsRoot = Path.Combine(projectPath, ".github", "prompts");
+            Directory.CreateDirectory(promptsRoot);
+            foreach (var (name, resource) in BuiltInPrompts)
+            {
+                try
+                {
+                    var targetPath = Path.Combine(promptsRoot, name + ".prompt.md");
+                    EnsureFileInstalled(targetPath, name, resource, kind: "prompt");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update prompt '{name}': {ex.Message}");
                 }
             }
         }

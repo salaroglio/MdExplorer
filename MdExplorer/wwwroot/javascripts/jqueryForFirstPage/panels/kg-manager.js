@@ -34,6 +34,8 @@
     let _currentProjectId = null;
     let _availableNamespaces = [];
     let _selectedNamespace = ''; // '' = all namespaces (for concept source)
+    let _fullData = null;        // pristine concept graph; _data is the rendered (possibly focused) subset
+    let _focusId = null;         // when set, isolate this node's directed neighborhood
 
     // ---- Palette ------------------------------------------------------------
     const PALETTE = [
@@ -131,21 +133,51 @@
     function buildNodeTooltip(node) {
         const label = escapeHtml(node.label || node.id || '');
         const isExt = !!node.isExternal;
-        const meta = isExt
+        let meta = isExt
             ? (node.cluster ? escapeHtml(node.cluster) : 'external')
             : (node.mdContext ? escapeHtml(node.mdContext) : 'root');
+        if (node.nodeType) meta += ' · ' + escapeHtml(node.nodeType);
+        if (node.kind)     meta += ' · ' + escapeHtml(node.kind);
         const icon = isExt ? '🌐 ' : (node.isCenter ? '◈ ' : '📄 ');
-        const tldrHtml = renderTldrHtml(node.tldr);
-        const tldrBlock = tldrHtml
-            ? '<div class="kgTipTldr">' + tldrHtml + '</div>'
-            : (isExt ? '' : '<div class="kgTipNote">No TLDR; available</div>');
+        let srcBlock = '';
+        if (node.docPath) {
+            let src = escapeHtml(node.docPath);
+            if (node.lineStart != null) {
+                src += ' : ' + node.lineStart +
+                    (node.lineEnd != null && node.lineEnd !== node.lineStart ? '-' + node.lineEnd : '');
+            }
+            srcBlock = '<div class="kgTipMeta">' + src + '</div>';
+        }
+        // The transformation rule is the logic — show it first when present.
+        const ruleHtml = renderTldrHtml(node.rule);
+        const ruleBlock = ruleHtml ? '<div class="kgTipTldr">' + ruleHtml + '</div>' : '';
+        const descHtml = renderTldrHtml(node.tldr);
+        const descBlock = (descHtml && node.tldr !== node.rule)
+            ? '<div class="kgTipTldr">' + descHtml + '</div>'
+            : ((!ruleBlock && !isExt) ? '<div class="kgTipNote">No description</div>' : '');
         return '<div class="kgTooltip">' +
             '<div class="kgTipHead">' +
                 '<span class="kgTipIcon">' + icon + '</span>' +
                 '<span class="kgTipLabel">' + label + '</span>' +
             '</div>' +
             '<div class="kgTipMeta">' + meta + '</div>' +
-            tldrBlock +
+            srcBlock +
+            ruleBlock +
+            descBlock +
+        '</div>';
+    }
+
+    function buildLinkTooltip(link) {
+        const t = escapeHtml((link.relType || link.linkType || 'link').toUpperCase()) +
+            (link.role ? ' · ' + escapeHtml(link.role) : '');
+        const descHtml = renderTldrHtml(link.description);
+        const descBlock = descHtml ? '<div class="kgTipTldr">' + descHtml + '</div>' : '';
+        return '<div class="kgTooltip">' +
+            '<div class="kgTipHead">' +
+                '<span class="kgTipIcon">&rarr; </span>' +
+                '<span class="kgTipLabel">' + t + '</span>' +
+            '</div>' +
+            descBlock +
         '</div>';
     }
 
@@ -389,6 +421,7 @@
             .nodeResolution(24)
             .nodeThreeObjectExtend(true)
             .nodeThreeObject(buildLabelSprite3D)
+            .linkLabel(buildLinkTooltip)
             .linkColor(linkColor)
             .linkOpacity(0.55)
             .linkWidth(1.1)
@@ -400,7 +433,7 @@
             .linkDirectionalParticleSpeed(0.006)
             .linkDirectionalParticleWidth(2)
             .linkDirectionalParticleColor(linkColor)
-            .onNodeClick(navigateToNode)
+            .onNodeClick(handleNodeClick)
             .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
             .graphData(data);
         try {
@@ -493,6 +526,7 @@
                 ctx.fillStyle = color;
                 ctx.fill();
             })
+            .linkLabel(buildLinkTooltip)
             .linkColor(linkColor)
             .linkWidth(function (l) { return 1.4; })
             .linkCurvature(0.08)
@@ -503,7 +537,7 @@
             .linkDirectionalParticleSpeed(0.006)
             .linkDirectionalParticleWidth(2)
             .linkDirectionalParticleColor(linkColor)
-            .onNodeClick(navigateToNode)
+            .onNodeClick(handleNodeClick)
             .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
             .cooldownTicks(120)
             .onRenderFramePre(function (ctx, globalScale) {
@@ -604,6 +638,20 @@
                 '<select class="kgNsPicker" style="margin-left:8px;display:none" title="Namespace filter (concepts only)">' +
                     '<option value="">All namespaces</option>' +
                 '</select>' +
+                '<input type="text" class="kgFocusCtl kgFocusInput" list="kgNodeList" placeholder="Vai al campo…" title="Isola un campo e le sue relazioni" style="display:none">' +
+                '<datalist id="kgNodeList"></datalist>' +
+                '<select class="kgFocusCtl kgFocusDir" title="Direzione del focus" style="display:none">' +
+                    '<option value="up">◄ a monte</option>' +
+                    '<option value="down">► a valle</option>' +
+                    '<option value="both" selected>↔ entrambe</option>' +
+                '</select>' +
+                '<select class="kgFocusCtl kgFocusDepth" title="Profondità" style="display:none">' +
+                    '<option value="1">1 salto</option>' +
+                    '<option value="2">2 salti</option>' +
+                    '<option value="3">3 salti</option>' +
+                    '<option value="0" selected>tutto</option>' +
+                '</select>' +
+                '<button type="button" class="kgBtn kgBtnIcon kgFocusClear" data-act="focus-clear" title="Esci dal focus" style="display:none">✕</button>' +
                 '<div class="kgHeaderSpacer"></div>' +
                 '<div class="kgActions">' +
                     '<button type="button" class="kgBtn kgBtnIcon kgSanityBtn" data-act="sanity" title="Sanity report" style="display:none">⚕</button>' +
@@ -647,6 +695,7 @@
             else if (act === 'refresh') refresh();
             else if (act === 'sanity') toggleSanityPanel();
             else if (act === 'sanity-close') hideSanityPanel();
+            else if (act === 'focus-clear') clearFocus();
             else if (mode) setMode(mode);
             else if (source) setSource(source);
         });
@@ -657,6 +706,12 @@
                 if (_source === 'concepts') refresh();
             });
         }
+        const focusInput = o.querySelector('.kgFocusInput');
+        if (focusInput) focusInput.addEventListener('change', onFocusInputChange);
+        ['.kgFocusDir', '.kgFocusDepth'].forEach(function (sel) {
+            const el = o.querySelector(sel);
+            if (el) el.addEventListener('change', function () { if (_focusId) applyView(); });
+        });
         document.addEventListener('keydown', escClose);
         window.addEventListener('resize', resize);
         return o;
@@ -682,6 +737,13 @@
         }
         const nsPicker = _overlay.querySelector('.kgNsPicker');
         if (nsPicker) nsPicker.style.display = _source === 'concepts' ? '' : 'none';
+        const showFocus = _source === 'concepts';
+        ['.kgFocusInput', '.kgFocusDir', '.kgFocusDepth'].forEach(function (sel) {
+            const el = _overlay.querySelector(sel);
+            if (el) el.style.display = showFocus ? '' : 'none';
+        });
+        const focusClear = _overlay.querySelector('.kgFocusClear');
+        if (focusClear) focusClear.style.display = (showFocus && _focusId) ? '' : 'none';
         const sanityBtn = _overlay.querySelector('.kgSanityBtn');
         if (sanityBtn) sanityBtn.style.display = _source === 'concepts' ? '' : 'none';
         if (_source !== 'concepts') hideSanityPanel();
@@ -819,6 +881,8 @@
         _graph = null;
         _data = null;
         _layout = null;
+        _fullData = null;
+        _focusId = null;
         loadAndRender();
     }
 
@@ -908,11 +972,18 @@
                     cluster: n.graph,       // cluster halo grouped by graph namespace
                     mdContext: n.graph,     // reused for legend / friendly label
                     sourceDocs: n.sourceDocs || [],
+                    nodeType: n.type || '',     // secondary label (TargetField, Transformation, …)
+                    kind: n.kind || '',         // transformation kind (LOOKUP, CONDITIONAL, …)
+                    rule: n.rule || '',         // transformation logic
+                    description: n.description || '',
+                    docPath: n.docPath || '',
+                    lineStart: n.lineStart,
+                    lineEnd: n.lineEnd,
                     isCenter: false,
                     isExternal: false,
                     inDegree: 0,
                     outDegree: 0,
-                    tldr: ''
+                    tldr: n.description || ''   // feed the shared node tooltip
                 };
             }),
             links: (raw.links || []).map(function (l) {
@@ -920,6 +991,9 @@
                     source: l.source,
                     target: l.target,
                     linkType: (l.type || 'link').toLowerCase(),
+                    relType: l.type || 'link',
+                    role: l.role || '',
+                    description: l.description || '',
                     sourceDocs: l.sourceDocs || []
                 };
             })
@@ -977,20 +1051,169 @@
         }).then(function (raw) {
             if (!raw) return;
             const data = normalizeConcepts(raw);
-            _data = data;
-            _layout = computeLayout(data);
             showLoading(false);
             if (!data.nodes.length) {
+                _fullData = null;
                 const body = _overlay && _overlay.querySelector('.kgBody');
                 if (body) body.innerHTML = '<div class="kgEmpty"><div class="kgEmptyIcon">🕸️</div><div>No concepts in Neo4j yet — sync from Project Settings → Knowledge Graph.</div></div>';
                 return;
             }
-            renderActive();
+            _fullData = data;
+            _focusId = null;
+            const fi = _overlay && _overlay.querySelector('.kgFocusInput');
+            if (fi) fi.value = '';
+            populateNodeDatalist(data.nodes);
+            setActiveTab();
+            applyView();
         }).fail(function (xhr) {
             console.error('[KG] concept fetch failed', xhr && xhr.status, xhr && xhr.statusText);
             const errBody = xhr && xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : ('HTTP ' + (xhr ? xhr.status : '?'));
             showError('Failed to load concept graph: ' + errBody);
         });
+    }
+
+    // ---- Focus mode: isolate a node's neighborhood --------------------------
+    // The concept graph is loaded whole into _fullData; _data is the rendered
+    // subset. With _focusId set, only that node's directed neighborhood
+    // (upstream / downstream / both, to a depth) survives — the rest is removed.
+
+    function focusDir() {
+        const s = _overlay && _overlay.querySelector('.kgFocusDir');
+        return s ? s.value : 'up';
+    }
+    function focusDepth() {
+        const s = _overlay && _overlay.querySelector('.kgFocusDepth');
+        return s ? (parseInt(s.value, 10) || 0) : 0;   // 0 = unlimited
+    }
+    function linkEndId(e) { return (e && typeof e === 'object') ? e.id : e; }
+
+    function populateNodeDatalist(nodes) {
+        if (!_overlay) return;
+        const dl = _overlay.querySelector('#kgNodeList');
+        if (!dl) return;
+        const seen = Object.create(null);
+        const opts = [];
+        (nodes || []).forEach(function (n) {
+            const lbl = n.label || n.id;
+            if (!lbl || seen[lbl]) return;
+            seen[lbl] = true;
+            opts.push('<option value="' + escapeHtml(lbl) + '"></option>');
+        });
+        dl.innerHTML = opts.join('');
+    }
+
+    function onFocusInputChange() {
+        const input = _overlay && _overlay.querySelector('.kgFocusInput');
+        if (!input || !_fullData) return;
+        const val = (input.value || '').trim();
+        if (!val) { clearFocus(); return; }
+        const node = _fullData.nodes.find(function (n) {
+            return n.label === val || n.id === val;
+        });
+        if (!node) return;            // typed text matches no node — leave as-is
+        _focusId = node.id;
+        setActiveTab();
+        applyView();
+    }
+
+    function clearFocus() {
+        _focusId = null;
+        const input = _overlay && _overlay.querySelector('.kgFocusInput');
+        if (input) input.value = '';
+        setActiveTab();
+        applyView();
+    }
+
+    // Click a node → focus on it. Direction/depth combos drive the chain.
+    function focusOnNode(node) {
+        if (!node || !node.id) return;
+        _focusId = node.id;
+        const input = _overlay && _overlay.querySelector('.kgFocusInput');
+        if (input) input.value = node.label || node.id;
+        setActiveTab();
+        applyView();
+    }
+
+    function handleNodeClick(node) {
+        if (_source === 'concepts') { focusOnNode(node); return; }
+        navigateToNode(node);
+    }
+
+    function computeFocusSet(focusId, dir, maxDepth) {
+        const succ = Object.create(null), pred = Object.create(null);
+        _fullData.links.forEach(function (l) {
+            const s = linkEndId(l.source), t = linkEndId(l.target);
+            (succ[s] = succ[s] || []).push(t);
+            (pred[t] = pred[t] || []).push(s);
+        });
+        // A walk is MONOTONIC: once it follows a direction it never turns back.
+        // 'down' follows successors only, 'up' follows predecessors only — so
+        // the chain stops at its ends instead of re-spreading from every node.
+        function walk(adj) {
+            const seen = Object.create(null);
+            seen[focusId] = true;
+            let frontier = [focusId];
+            let depth = 0;
+            while (frontier.length && (maxDepth === 0 || depth < maxDepth)) {
+                const next = [];
+                frontier.forEach(function (id) {
+                    (adj[id] || []).forEach(function (nid) {
+                        if (!seen[nid]) { seen[nid] = true; next.push(nid); }
+                    });
+                });
+                frontier = next;
+                depth++;
+            }
+            return seen;
+        }
+        const keep = Object.create(null);
+        keep[focusId] = true;
+        // 'both' = pure-upstream walk UNION pure-downstream walk, never mixed.
+        if (dir === 'down' || dir === 'both') {
+            const d = walk(succ);
+            for (var k1 in d) keep[k1] = true;
+        }
+        if (dir === 'up' || dir === 'both') {
+            const u = walk(pred);
+            for (var k2 in u) keep[k2] = true;
+        }
+        return keep;
+    }
+
+    // Recompute _data from _fullData applying the current focus, then render.
+    // Fresh object copies go to the renderer so _fullData stays pristine
+    // (ForceGraph mutates the node/link objects it is handed).
+    function applyView() {
+        if (!_fullData) return;
+        let nodes = _fullData.nodes;
+        let links = _fullData.links;
+        if (_focusId && nodes.some(function (n) { return n.id === _focusId; })) {
+            const keep = computeFocusSet(_focusId, focusDir(), focusDepth());
+            nodes = nodes.filter(function (n) { return keep[n.id]; });
+            links = links.filter(function (l) {
+                return keep[linkEndId(l.source)] && keep[linkEndId(l.target)];
+            });
+        } else {
+            _focusId = null;
+        }
+        _data = {
+            nodes: nodes.map(function (n) {
+                const c = Object.assign({}, n);
+                if (_focusId && c.id === _focusId) c.isCenter = true;   // highlight the chain's origin
+                return c;
+            }),
+            links: links.map(function (l) {
+                return {
+                    source: linkEndId(l.source),
+                    target: linkEndId(l.target),
+                    linkType: l.linkType,
+                    relType: l.relType,
+                    description: l.description
+                };
+            })
+        };
+        _layout = computeLayout(_data);
+        renderActive();
     }
 
     function resize() {
@@ -1026,6 +1249,8 @@
         _currentProjectId = null;
         _availableNamespaces = [];
         _selectedNamespace = '';
+        _fullData = null;
+        _focusId = null;
         _source = 'files';
     }
 
@@ -1036,6 +1261,8 @@
         _graph = null;
         _data = null;
         _layout = null;
+        _fullData = null;
+        _focusId = null;
         loadAndRender();
     }
 

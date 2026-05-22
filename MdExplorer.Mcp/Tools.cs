@@ -194,8 +194,8 @@ public class MdExplorerTools
     [McpServerTool, Description(
         "Searches concept names across the whole project knowledge graph (or one namespace) via case-" +
         "insensitive substring match. " +
-        "Use this BEFORE introducing a concept name in a new .kg.md: if the concept already exists in " +
-        "another namespace, you MUST reuse the verbatim name from there (closed cross-graph rule). " +
+        "Use this BEFORE introducing a concept name in a new .kg.cypher: if a concept with that name " +
+        "already exists in another namespace, reuse it verbatim so the graphs link up. " +
         "Returns each match with its graph namespace and the source documents that declared it.")]
     public async Task<string> FindConcepts(
         [Description("Substring to search for in concept names (case-insensitive).")] string query,

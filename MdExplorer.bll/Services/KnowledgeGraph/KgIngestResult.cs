@@ -4,7 +4,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
 {
     public class KgIngestResult
     {
-        /// <summary>Forward-slash path of the .kg.md relative to project root, used as sourceDoc identifier in Neo4j.</summary>
+        /// <summary>Forward-slash path of the .kg.cypher relative to project root, used as sourceDoc identifier in Neo4j.</summary>
         public string SourceDocPath { get; set; }
 
         /// <summary>True when the file MD5 matched the previous hash and the file was not re-ingested.</summary>
@@ -16,20 +16,20 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         /// <summary>Logical graph the file belongs to (from .development.yml).</summary>
         public string GraphNamespace { get; set; }
 
-        /// <summary>Number of (:Concept) nodes touched by this ingest (declared by the file).</summary>
-        public int ConceptCount { get; set; }
+        /// <summary>Number of nodes created during this ingest (sum of <c>NodesCreated</c> counters across the file's statements).</summary>
+        public int NodeCount { get; set; }
 
-        /// <summary>Number of relationships touched by this ingest.</summary>
-        public int RelationshipCount { get; set; }
+        /// <summary>Number of relationships created during this ingest (sum of <c>RelationshipsCreated</c> counters).</summary>
+        public int EdgeCount { get; set; }
 
         /// <summary>
-        /// Populated when the file's relationships couldn't all be persisted (missing or
-        /// ambiguous cross-graph target). In that case the caller MUST NOT update
-        /// KgIngestState for this file so the next sync retries.
+        /// Populated when the Cypher script failed to execute. The transaction is
+        /// rolled back; caller MUST NOT update KgIngestState for this file so the
+        /// next sync retries.
         /// </summary>
         public string Error { get; set; }
 
-        /// <summary>Per-edge breakdown when Error is set.</summary>
+        /// <summary>Optional detail list (e.g., per-statement breakdown when applicable).</summary>
         public List<string> ErrorDetails { get; set; }
 
         public bool HasError => !string.IsNullOrEmpty(Error);

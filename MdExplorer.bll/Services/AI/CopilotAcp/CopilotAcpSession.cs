@@ -44,7 +44,11 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         private const int PROTOCOL_VERSION = 1;
         private const int INITIALIZE_TIMEOUT_MS = 30000;
         private const int SESSION_NEW_TIMEOUT_MS = 60000;
-        private const int PROMPT_DEFAULT_TIMEOUT_MS = 300000;
+        // Per-prompt timeouts: the idle deadline resets on every session/update so
+        // a long but continuously-streaming agentic turn never trips it. The hard
+        // cap is the absolute ceiling regardless of activity.
+        private const int PROMPT_IDLE_TIMEOUT_MS = 300000;   // 5 min of silence
+        private const int PROMPT_HARD_TIMEOUT_MS = 1800000;  // 30 min absolute
 
         private readonly ILogger _logger;
         private readonly string _workingDirectory;
@@ -63,6 +67,8 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         // Active prompt streaming channel (one prompt at a time per session)
         private Channel<CopilotAcpChunk> _activeStreamChannel;
+        // Idle-timeout CTS of the active prompt; reset on every session/update.
+        private CancellationTokenSource _activePromptIdleCts;
         private readonly SemaphoreSlim _promptGate = new SemaphoreSlim(1, 1);
 
         // Stdin write lock (writer is single-threaded, but multiple awaits race)
@@ -148,6 +154,8 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         private async Task InitializeAsync(CancellationToken ct)
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(INITIALIZE_TIMEOUT_MS);
             var id = NextId();
             var req = new
             {
@@ -163,7 +171,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                     }
                 }
             };
-            using var doc = await SendRequestAsync(id, req, INITIALIZE_TIMEOUT_MS, ct).ConfigureAwait(false);
+            using var doc = await SendRequestAsync(id, req, timeoutCts.Token).ConfigureAwait(false);
             var result = doc.RootElement.GetProperty("result");
             if (result.TryGetProperty("protocolVersion", out var pvEl) && pvEl.GetInt32() != PROTOCOL_VERSION)
             {
@@ -175,6 +183,8 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         private async Task NewSessionAsync(CancellationToken ct)
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(SESSION_NEW_TIMEOUT_MS);
             var id = NextId();
             var req = new
             {
@@ -187,7 +197,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                     mcpServers = Array.Empty<object>()
                 }
             };
-            using var doc = await SendRequestAsync(id, req, SESSION_NEW_TIMEOUT_MS, ct).ConfigureAwait(false);
+            using var doc = await SendRequestAsync(id, req, timeoutCts.Token).ConfigureAwait(false);
             var result = doc.RootElement.GetProperty("result");
             _sessionId = result.GetProperty("sessionId").GetString();
             _logger.LogInformation("[CopilotAcpSession] session/new OK sessionId={SessionId}", _sessionId);
@@ -239,6 +249,13 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
             });
             _activeStreamChannel = channel;
 
+            // Idle timeout resets on every session/update (see DispatchMessage);
+            // hard cap is the absolute ceiling regardless of activity.
+            var idleCts = new CancellationTokenSource(PROMPT_IDLE_TIMEOUT_MS);
+            var hardCts = new CancellationTokenSource(PROMPT_HARD_TIMEOUT_MS);
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, idleCts.Token, hardCts.Token);
+            _activePromptIdleCts = idleCts;
+
             var requestId = NextId();
             var req = new
             {
@@ -254,7 +271,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
             // Fire the request and let the reader feed the channel until the request
             // resolves (or fails) on a background task; we yield as text arrives.
-            var responseTask = SendRequestAsync(requestId, req, PROMPT_DEFAULT_TIMEOUT_MS, ct);
+            var responseTask = SendRequestAsync(requestId, req, linkedCts.Token);
 
             // When the response arrives (or errors), close the channel.
             _ = responseTask.ContinueWith(t =>
@@ -262,7 +279,17 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 try
                 {
                     if (t.IsFaulted) channel.Writer.TryComplete(t.Exception?.GetBaseException());
-                    else if (t.IsCanceled) channel.Writer.TryComplete(new OperationCanceledException());
+                    else if (t.IsCanceled)
+                    {
+                        string reason;
+                        if (idleCts.IsCancellationRequested)
+                            reason = $"Copilot ACP idle timeout: no activity for {PROMPT_IDLE_TIMEOUT_MS / 1000}s";
+                        else if (hardCts.IsCancellationRequested)
+                            reason = $"Copilot ACP hard timeout: exceeded {PROMPT_HARD_TIMEOUT_MS / 60000} minutes";
+                        else
+                            reason = "Prompt cancelled";
+                        channel.Writer.TryComplete(new OperationCanceledException(reason));
+                    }
                     else channel.Writer.TryComplete();
                 }
                 finally
@@ -277,7 +304,6 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 }
             }, TaskScheduler.Default);
 
-            bool cancelled = false;
             try
             {
                 await foreach (var chunk in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
@@ -287,15 +313,18 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
             }
             finally
             {
+                Interlocked.CompareExchange(ref _activePromptIdleCts, null, idleCts);
                 Interlocked.CompareExchange(ref _activeStreamChannel, null, channel);
-                cancelled = ct.IsCancellationRequested;
-                if (cancelled)
+
+                var timeoutFired = idleCts.IsCancellationRequested || hardCts.IsCancellationRequested;
+                var externalCancel = ct.IsCancellationRequested;
+                if (timeoutFired || externalCancel)
                 {
-                    // Tell the agent to stop generating; otherwise it keeps producing
-                    // output that we silently drop, AND the prompt gate stays held until
-                    // the response timeout (5 min). We wait briefly for responseTask
-                    // to complete so the next prompt isn't queued before the current
-                    // one fully unwinds inside the agent.
+                    // Always tell the agent to stop on any cancellation: otherwise
+                    // it keeps producing content we silently drop AND its session
+                    // memory diverges from what the user actually received. We
+                    // briefly wait for responseTask so the next prompt isn't queued
+                    // before this one fully unwinds inside the agent.
                     try { await CancelAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                     try
                     {
@@ -304,6 +333,10 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                     }
                     catch { /* timed out — release anyway */ }
                 }
+
+                try { idleCts.Dispose(); } catch { }
+                try { hardCts.Dispose(); } catch { }
+                try { linkedCts.Dispose(); } catch { }
                 _promptGate.Release();
             }
         }
@@ -333,7 +366,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         private int NextId() => Interlocked.Increment(ref _nextRequestId);
 
-        private async Task<JsonDocument> SendRequestAsync(int id, object request, int timeoutMs, CancellationToken ct)
+        private async Task<JsonDocument> SendRequestAsync(int id, object request, CancellationToken ct)
         {
             var tcs = new TaskCompletionSource<JsonDocument>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (!_pending.TryAdd(id, tcs))
@@ -345,9 +378,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
             {
                 await SendRawAsync(request, ct).ConfigureAwait(false);
 
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(timeoutMs);
-                using var registration = timeoutCts.Token.Register(() =>
+                using var registration = ct.Register(() =>
                 {
                     if (_pending.TryRemove(id, out var pendingTcs))
                     {
@@ -463,6 +494,8 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 var method = methodEl.GetString();
                 if (method == "session/update")
                 {
+                    // Agent is alive — push the idle deadline forward.
+                    try { _activePromptIdleCts?.CancelAfter(PROMPT_IDLE_TIMEOUT_MS); } catch { }
                     HandleSessionUpdate(root);
                 }
                 doc.Dispose();

@@ -26,10 +26,10 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             if (!File.Exists(ymlPath)) return null;
 
             // Compute the folder path relative to project root in the form used inside
-            // .development.yml (forward slashes, no leading "./").
-            var relative = Path.GetRelativePath(projectPath, folderAbsolutePath).Replace('\\', '/').TrimStart('/');
-            // The root project folder is represented as either "" or "." in some files —
-            // we accept both when matching below.
+            // .development.yml. NormalizeFolderKey collapses the root folder — which
+            // Path.GetRelativePath returns as "." — and an empty/"" entry to the same
+            // key, so a document sitting at the project root can be matched.
+            var relative = NormalizeFolderKey(Path.GetRelativePath(projectPath, folderAbsolutePath));
 
             MinimalDevYaml parsed;
             try
@@ -53,7 +53,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             foreach (var f in parsed.Folders)
             {
                 if (f?.KnowledgeGraph == null) continue;
-                var candidate = (f.Path ?? string.Empty).Replace('\\', '/').TrimStart('/');
+                var candidate = NormalizeFolderKey(f.Path);
                 if (!string.Equals(candidate, relative, StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.IsNullOrWhiteSpace(f.KnowledgeGraph.Namespace)) continue;
                 return new FolderKgConfig
@@ -98,8 +98,10 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                 if (string.IsNullOrWhiteSpace(f.KnowledgeGraph.Namespace)) continue;
                 var enabled = f.KnowledgeGraph.Enabled ?? true;
                 if (!enabled) continue;
-                var rel = (f.Path ?? string.Empty).Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
-                var abs = string.IsNullOrEmpty(rel) ? projectPath : Path.Combine(projectPath, rel);
+                var rel = NormalizeFolderKey(f.Path);
+                var abs = string.IsNullOrEmpty(rel)
+                    ? projectPath
+                    : Path.Combine(projectPath, rel.Replace('/', Path.DirectorySeparatorChar));
                 output.Add(new FolderKgConfig
                 {
                     Namespace = f.KnowledgeGraph.Namespace.Trim(),
@@ -108,6 +110,19 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                 });
             }
             return output;
+        }
+
+        /// <summary>
+        /// Canonical key for a folder path inside .development.yml. The project root —
+        /// returned by Path.GetRelativePath as "." and often written as "" — collapses
+        /// to an empty string so both spellings match. Other paths are forward-slashed
+        /// and trimmed of leading/trailing separators.
+        /// </summary>
+        private static string NormalizeFolderKey(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+            var normalized = path.Replace('\\', '/').Trim('/');
+            return normalized == "." ? string.Empty : normalized;
         }
 
         // ---- minimal local schema; intentionally a subset of MdExplorer.Service.Models.DevelopmentConfig ----

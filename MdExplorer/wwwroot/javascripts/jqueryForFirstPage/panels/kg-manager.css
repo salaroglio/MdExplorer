@@ -306,6 +306,22 @@
 }
 .kgDark .kgNsPicker { background: #1e293b; border-color: #475569; color: #e2e8f0; }
 
+/* Focus controls (concept-source view) */
+.kgFocusCtl {
+    height: 28px;
+    margin-left: 8px;
+    padding: 0 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    font: 13px -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    color: #0f172a;
+}
+.kgFocusInput { min-width: 150px; }
+.kgFocusDir, .kgFocusDepth { margin-left: 4px; }
+.kgDark .kgFocusCtl { background: #1e293b; border-color: #475569; color: #e2e8f0; }
+.kgBtnIcon.kgFocusClear { height: 28px; min-width: 28px; margin-left: 4px; font-size: 13px; }
+
 /* Sanity report drawer (right side, only in concept-graph view) */
 .kgSanityDrawer {
     position: absolute;
