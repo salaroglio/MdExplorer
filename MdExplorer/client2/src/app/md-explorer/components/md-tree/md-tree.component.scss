@@ -365,3 +365,26 @@
   0% { background-color: rgba(255, 193, 7, 0.4); }
   100% { background-color: transparent; }
 }
+
+// Document icon on a folder node when it owns a generated TOC file.
+// Clickable, opens <dirname>.md.directory directly.
+.toc-indicator {
+  cursor: pointer;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  margin-left: 6px;
+  color: #1565c0;
+  vertical-align: middle;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+:host-context(body.dark-theme) .toc-indicator {
+  color: #64b5f6;
+}

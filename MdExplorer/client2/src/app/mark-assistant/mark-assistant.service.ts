@@ -7,6 +7,7 @@ import { ProjectsService } from '../md-explorer/services/projects.service';
 import {
   MarkAction,
   MarkContext,
+  MarkFolderContext,
   MarkInputContext,
   MarkInputHandler,
   MarkLesson,
@@ -15,7 +16,10 @@ import {
   SpotlightRect,
 } from './mark-types';
 import { buildLessonRegistry, MICRO_TIPS, MICRO_TIPS_DONE, WELCOME_TOUR } from './lessons';
+import { buildFolderActions } from './lessons/folder-actions';
 import { INPUT_HANDLER_TYPES } from './handlers';
+import { MdServerMessagesService } from '../signalR/services/server-messages.service';
+import { MarkActionsService } from './mark-actions.service';
 
 const COMPLETED_KEY_PREFIX = 'mark.lesson.';
 const DEFAULT_STEP_DURATION_MS = 1700;
@@ -100,11 +104,16 @@ export class MarkAssistantService {
   /** Lesson registry built once at construction (includes dynamic ones like idle-menu). */
   private readonly lessonRegistry: { [id: string]: MarkLesson };
 
+  /** Subscription to the SignalR folder-summarizer progress stream (active during a job). */
+  private folderProgressSub: Subscription | null = null;
+
   constructor(
     private translate: TranslateService,
     private projectsService: ProjectsService,
     private router: Router,
     private injector: Injector,
+    private serverMessages: MdServerMessagesService,
+    private markActions: MarkActionsService,
   ) {
     this.lessonRegistry = buildLessonRegistry({
       launch: (id: string) => this.launch(id),
@@ -430,7 +439,7 @@ export class MarkAssistantService {
       }
 
       // Typewriter the step text
-      const text = await this.translateKey(step.textKey);
+      const text = await this.translateKey(step.textKey, step.textParams);
       await this.typewriter(text);
       if (this.abortFlag) return;
 
@@ -507,6 +516,118 @@ export class MarkAssistantService {
    */
   async openMenu(): Promise<void> {
     return this.launch('idle-menu');
+  }
+
+  // ── Folder context actions ───────────────────────────────────────────────
+
+  /**
+   * Summons Mark scoped to a folder (invoked from md-tree's context menu).
+   * Builds the folder-actions lesson on demand — it can't be a static
+   * registry entry because it carries the per-invocation folder context.
+   */
+  async launchFolderActions(ctx: MarkFolderContext): Promise<void> {
+    const lesson = buildFolderActions(ctx, {
+      runSummarize: () => this.startFolderSummarize(ctx),
+    });
+    this.lessonRegistry[lesson.id] = lesson;
+    await this.launch(lesson.id);
+  }
+
+  /**
+   * Starts the recursive "Riassumi documentazione" job and turns Mark's window
+   * into a live progress display. Takes manual control of the dialog (aborts
+   * the folder-actions lesson loop, same trick as submitUserInput) so the
+   * lesson's natural completion can't minimize Mark mid-job.
+   */
+  private async startFolderSummarize(ctx: MarkFolderContext): Promise<void> {
+    // Abort the folder-actions lesson loop BEFORE its first await so it bails
+    // out at its abortFlag check instead of running to completion + minimize.
+    this.abortFlag = true;
+    await this.sleep(60);
+    this.abortFlag = false;
+
+    this.currentLesson = null;
+    this.currentSpotlightSelector = null;
+    this._spotlight.next(null);
+    this._dim.next(false);
+    this._staticMode.next(false);
+    this._actions.next(null);
+    this._continueArrow.next(false);
+    this._isResponding.next(false);
+    this.resolveAction(null);
+    this._state.next('playing');
+
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      await this.endFolderSummarize(this.translate.instant('MARK.FOLDER.PROGRESS.ERROR'));
+      return;
+    }
+
+    // Subscribe to the progress stream BEFORE firing the POST so no event is missed.
+    this.folderProgressSub?.unsubscribe();
+    this.folderProgressSub = this.serverMessages.markFolderProgress$.subscribe(p => {
+      this.onFolderProgress(p);
+    });
+
+    this._text.next(this.translate.instant('MARK.FOLDER.PROGRESS.STARTING'));
+
+    this.markActions.summarizeFolder(ctx.folderFullPath, connectionId).subscribe({
+      error: (err) => {
+        console.warn('[Mark] summarize-folder request failed', err);
+        const key = err?.status === 409
+          ? 'MARK.FOLDER.PROGRESS.ALREADY_RUNNING'
+          : 'MARK.FOLDER.PROGRESS.ERROR';
+        this.endFolderSummarize(this.translate.instant(key));
+      },
+    });
+  }
+
+  /** Renders one progress event into Mark's dialog; terminal phases end the job. */
+  private onFolderProgress(p: any): void {
+    if (!p) return;
+    if (p.phase === 'done' || p.phase === 'error' || p.phase === 'cancelled') {
+      this.endFolderSummarize(this.formatFolderProgress(p));
+      return;
+    }
+    this._continueArrow.next(false);
+    this._text.next(this.formatFolderProgress(p));
+  }
+
+  /** Tears down the progress subscription and typewriters the closing message. */
+  private async endFolderSummarize(finalMessage: string): Promise<void> {
+    this.folderProgressSub?.unsubscribe();
+    this.folderProgressSub = null;
+    await this.typewriter(finalMessage);
+  }
+
+  /** Builds the user-facing progress string for a structured progress event. */
+  private formatFolderProgress(p: any): string {
+    const t = (k: string, params?: any) => this.translate.instant(k, params);
+    switch (p.phase) {
+      case 'started':
+        return t('MARK.FOLDER.PROGRESS.STARTING');
+      case 'summarizing-doc':
+        return t('MARK.FOLDER.PROGRESS.SUMMARIZING',
+          { i: p.docIndex, n: p.docTotal, doc: p.docName });
+      case 'skipped-doc':
+        return t('MARK.FOLDER.PROGRESS.SKIPPED',
+          { i: p.docIndex, n: p.docTotal, doc: p.docName });
+      case 'generating-toc':
+        return t('MARK.FOLDER.PROGRESS.GENERATING_TOC', { folder: p.folderName });
+      case 'synthesizing-folder':
+        return t('MARK.FOLDER.PROGRESS.SYNTHESIZING', { folder: p.folderName });
+      case 'done':
+        return t('MARK.FOLDER.PROGRESS.DONE',
+          { summarized: p.summarized, skipped: p.skipped, tocs: p.tocs, synthesized: p.synthesized });
+      case 'cancelled':
+        return t('MARK.FOLDER.PROGRESS.CANCELLED');
+      case 'error':
+        return t(p.message === 'no-provider'
+          ? 'MARK.FOLDER.PROGRESS.NO_PROVIDER'
+          : 'MARK.FOLDER.PROGRESS.ERROR');
+      default:
+        return this._text.getValue();
+    }
   }
 
   /**
@@ -688,8 +809,8 @@ export class MarkAssistantService {
     this._continueArrow.next(true);
   }
 
-  private translateKey(key: string): Promise<string> {
-    return firstValueFrom(this.translate.get(key));
+  private translateKey(key: string, params?: { [k: string]: any }): Promise<string> {
+    return firstValueFrom(this.translate.get(key, params));
   }
 
   private sleep(ms: number): Promise<void> {

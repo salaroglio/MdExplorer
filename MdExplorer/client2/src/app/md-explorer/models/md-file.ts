@@ -25,6 +25,9 @@ export class MdFile implements IFileInfoNode {
   // Development tags per classificare le cartelle
   developmentTags?: string[];
 
+  // True when the folder owns a generated TOC file (<dirname>.md.directory)
+  hasToc?: boolean;
+
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;
   compactedPath?: string;

@@ -602,7 +602,9 @@
     "DOC_SETTINGS": "impostazioni documento",
     "MOVE": "sposta",
     "OPEN_EXPLORER": "Apri directory in Esplora File",
+    "MARK_ASSIST": "Chiedi a Mark",
     "TOC_DIRECTORY": "Toc Directory",
+    "OPEN_TOC": "Apri la Toc Directory di questa cartella",
     "REFRESH_TOC_AI": "Aggiorna Toc con AI",
     "REGENERATE_TOC": "Rigenera Toc (sovrascrive)",
     "QUICK_TOC": "Toc Rapida (senza AI)",
@@ -1690,6 +1692,22 @@
     "MENU": {
       "PROMPT": "Sono qui. Cosa ti va di fare?",
       "DEMO_CLONE": "Crea progetto demo"
+    },
+    "FOLDER": {
+      "PROMPT": "Sono su «{{name}}». Cosa vuoi che faccia?",
+      "SUMMARIZE": "Riassumi documentazione",
+      "PROGRESS": {
+        "STARTING": "Preparo tutto, parto subito...",
+        "SUMMARIZING": "Riassumo {{i}}/{{n}} — {{doc}}...",
+        "SKIPPED": "Salto {{i}}/{{n}} — {{doc}} (già aggiornato)",
+        "GENERATING_TOC": "Genero l'indice di {{folder}}...",
+        "SYNTHESIZING": "Sintetizzo la cartella {{folder}}...",
+        "DONE": "Fatto! {{summarized}} riassunti, {{skipped}} già a posto, {{tocs}} indici, {{synthesized}} sintesi di cartella.",
+        "CANCELLED": "Operazione annullata.",
+        "ERROR": "Qualcosa è andato storto. Controlla i log del server.",
+        "NO_PROVIDER": "Nessun provider AI disponibile: configura un provider o installa Copilot CLI.",
+        "ALREADY_RUNNING": "Ho già un lavoro in corso per questa sessione. Aspetta che finisca."
+      }
     },
     "TOUR": {
       "WELCOME": {

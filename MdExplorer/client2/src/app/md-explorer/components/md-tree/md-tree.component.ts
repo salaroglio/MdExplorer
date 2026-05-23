@@ -35,6 +35,7 @@ import { BulkExportProgressService } from '../../services/bulk-export-progress.s
 import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { MarkAssistantService } from '../../../mark-assistant/mark-assistant.service';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -113,6 +114,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       indexingStatus: node.indexingStatus,
       indexingProgress: node.indexingProgress,
       developmentTags: node.developmentTags,
+      // True when the folder owns a generated TOC file (drives the TOC icon)
+      hasToc: node.hasToc,
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,
@@ -175,7 +178,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private bulkExportProgressService: BulkExportProgressService,
     private fileEventsService: FileEventsService,
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private markAssistant: MarkAssistantService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -837,6 +841,33 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // the aggregated knowledge graph from any .mde-doc/*.kg.md siblings. No AI involved.
     this.generateTocWithAI(node, true);
   }
+
+  /**
+   * Summons the Mark assistant scoped to a folder. Mark opens its window with a
+   * context menu of folder actions (currently just "Riassumi documentazione").
+   * Resolves the folder path through the same compact-folder convention as
+   * generateTocWithAI — for a compacted node the real folder is the LAST segment.
+   */
+  openMarkForFolder(node: MdFile) {
+    if (node == null) return;
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const folderName = lastSeg ? lastSeg.name : node.name;
+    this.markAssistant.launchFolderActions({ folderFullPath, folderName });
+  }
+
+  /**
+   * Opens the folder's existing TOC file (<dirname>.md.directory) directly,
+   * without regenerating it. Wired to the document icon shown on folder nodes
+   * whose node.hasToc === true.
+   */
+  openTocFile(node: MdFile, event: MouseEvent) {
+    // Stop the click from bubbling to the folder row (which would toggle it).
+    event.stopPropagation();
+    this.navigateToTocFile(node);
+  }
   
   exportFolderToWord(node: MdFile) {
     // Use fullPath (absolute) to avoid issues with compact folders
@@ -893,7 +924,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         
         if (result.success) {
           this.snackBar.open(this.translate.instant('MD_TREE.TOC_GENERATED'), 'OK', { duration: 3000 });
-          
+
+          // The folder now owns a TOC file: surface the clickable document icon
+          // right away, without waiting for a full tree reload.
+          node.hasToc = true;
+          this.changeDetectorRef.markForCheck();
+
           if (navigateAfter) {
             // Naviga al file TOC generato
             setTimeout(() => {

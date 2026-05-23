@@ -83,6 +83,9 @@ namespace MdExplorer
             // Pipeline asincrona di indicizzazione (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
             services.AddSingleton<Services.IndexingPipeline.IIndexingPipelineService, Services.IndexingPipeline.IndexingPipelineService>();
 
+            // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
+            services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();

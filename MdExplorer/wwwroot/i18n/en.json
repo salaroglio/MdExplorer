@@ -602,7 +602,9 @@
     "DOC_SETTINGS": "document settings",
     "MOVE": "move",
     "OPEN_EXPLORER": "Open directory on File Explorer",
+    "MARK_ASSIST": "Ask Mark",
     "TOC_DIRECTORY": "Toc Directory",
+    "OPEN_TOC": "Open this folder's Toc Directory",
     "REFRESH_TOC_AI": "Refresh Toc with AI",
     "REGENERATE_TOC": "Regenerate Toc (overwrite)",
     "QUICK_TOC": "Quick Toc (without AI)",
@@ -1676,6 +1678,22 @@
   },
   "MARK": {
     "TRANSMITTING": "▌ TRANSMITTING",
+    "FOLDER": {
+      "PROMPT": "I'm on \"{{name}}\". What would you like me to do?",
+      "SUMMARIZE": "Summarize documentation",
+      "PROGRESS": {
+        "STARTING": "Getting ready, starting now...",
+        "SUMMARIZING": "Summarizing {{i}}/{{n}} — {{doc}}...",
+        "SKIPPED": "Skipping {{i}}/{{n}} — {{doc}} (already up to date)",
+        "GENERATING_TOC": "Generating the index of {{folder}}...",
+        "SYNTHESIZING": "Synthesizing folder {{folder}}...",
+        "DONE": "Done! {{summarized}} summarized, {{skipped}} already fine, {{tocs}} indexes, {{synthesized}} folder syntheses.",
+        "CANCELLED": "Operation cancelled.",
+        "ERROR": "Something went wrong. Check the server logs.",
+        "NO_PROVIDER": "No AI provider available: configure a provider or install Copilot CLI.",
+        "ALREADY_RUNNING": "A job is already running for this session. Wait for it to finish."
+      }
+    },
     "TOUR": {
       "WELCOME": {
         "INTRO": "Hi! I'm Mark. Three buttons to know right away...",

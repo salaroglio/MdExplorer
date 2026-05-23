@@ -414,6 +414,10 @@ export class MdFileService {
       node.compactedSegments = segments;
       // I figli diventano quelli dell'ultimo nodo compresso
       node.childrens = current.childrens as MdFile[];
+      // La riga compattata rappresenta il segmento FINALE della catena: l'icona
+      // TOC e openTocFile() operano sull'ultimo segmento, quindi hasToc deve
+      // riflettere quello, non il primo segmento (dove resta congelato).
+      node.hasToc = current.hasToc;
       // Il fullPath del nodo diventa quello dell'ultimo segmento per le operazioni di default
       // Ma manteniamo il path originale per la visualizzazione
     }

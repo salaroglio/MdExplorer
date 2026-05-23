@@ -72,6 +72,14 @@ namespace MdExplorer.Utilities
                 "mde-codegen-graph",
                 "MdExplorer.Service.skills.mde_codegen_graph.prompt.md"
             ),
+            (
+                "mde-mark-summarize",
+                "MdExplorer.Service.skills.mde_mark_summarize.prompt.md"
+            ),
+            (
+                "mde-mark-folder-synthesis",
+                "MdExplorer.Service.skills.mde_mark_folder_synthesis.prompt.md"
+            ),
         };
 
         private const string OriginMarker = "mdexplorer";

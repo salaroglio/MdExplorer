@@ -54,6 +54,11 @@ namespace MdExplorer.Abstractions.Models
         [JsonPropertyName("developmentTags")]
         public List<string> DevelopmentTags { get; set; } = new List<string>();
 
+        // True when the folder owns a generated TOC file (<dirname>.md.directory).
+        // Drives a clickable document icon on the folder node in the md-tree.
+        [JsonPropertyName("hasToc")]
+        public bool HasToc { get; set; }
+
         // External app embedding
         [JsonPropertyName("appId")]
         public string AppId { get; set; }

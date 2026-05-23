@@ -37,6 +37,9 @@ export class MdServerMessagesService {
   // Observable for App Store publish progress (backend → Nexus upload)
   public publishProgress$ = new Subject<{ appId: string, percent: number, phase: string }>();
 
+  // Observable for the Mark folder-summarizer job progress (MarkActionsController)
+  public markFolderProgress$ = new Subject<any>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -130,6 +133,11 @@ export class MdServerMessagesService {
       // App Store publish progress (backend → Nexus upload)
       this.hubConnection.on('publishProgress', (data) => {
         this.publishProgress$.next(data);
+      });
+
+      // Mark folder-summarizer job progress
+      this.hubConnection.on('markFolderProgress', (data) => {
+        this.markFolderProgress$.next(data);
       });
 
       // Runnable fenced code blocks — streaming output from MdExecutionController

@@ -25,6 +25,9 @@ namespace MdExplorer.Abstractions.Interfaces
         // Development tags per classificare le cartelle
         List<string> DevelopmentTags { get; set; }
 
+        // True when the folder owns a generated TOC file (<dirname>.md.directory)
+        bool HasToc { get; set; }
+
         // External app embedding
         string AppId { get; set; }
         string AppExecutable { get; set; }

@@ -248,14 +248,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
             try
             {
                 var projectBasePath = GetProjectPath();
-                var fromRelativePathFileName = requestMoveMdFile.SourceRelativePath.Substring(1);
+                // SourceRelativePath may or may not start with a path separator: files at
+                // the project root arrive as "file.md" (no leading slash), nested files as
+                // "\folder\file.md". TrimStart handles both — a blind Substring(1) would
+                // eat the first character of a root-level filename.
+                var fromRelativePathFileName = requestMoveMdFile.SourceRelativePath.TrimStart('/', '\\');
                 var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
 
                 _logger.LogInformation($"[MoveMdFile] From: {fromFullPathFileName}");
 
                 var fileName = requestMoveMdFile.SourceFileName;
+                // Same separator caveat as the source path above; TrimStart also avoids a
+                // crash when the destination is the project root (Replace yields "").
                 var relativeDestinationPath = requestMoveMdFile.DestinationPath
-                                        .Replace(GetProjectPath(), "").Substring(1);
+                                        .Replace(GetProjectPath(), "").TrimStart('/', '\\');
                 var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
                 var toFullPathFileName = Path.Combine(GetProjectPath(), toRelativePathFileName);
 
@@ -2643,10 +2649,28 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath),
+                HasToc = FolderHasToc(itemFolder)
             };
             var isEmpty = await ExploreNodes(node, itemFolder, stats);
             return (node, isEmpty);
+        }
+
+        /// <summary>
+        /// True when the folder owns its generated TOC file (<c>&lt;dirname&gt;.md.directory</c>).
+        /// Drives the clickable document icon shown on the folder node in the md-tree.
+        /// </summary>
+        private static bool FolderHasToc(string itemFolder)
+        {
+            try
+            {
+                var tocFileName = Path.GetFileName(itemFolder) + ".md.directory";
+                return System.IO.File.Exists(Path.Combine(itemFolder, tocFileName));
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -2680,7 +2704,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath),
+                HasToc = FolderHasToc(itemFolder)
             };
             var isEmpty = await ExploreNodes(node, itemFolder, connectionId);
             return (node, isEmpty);
@@ -2696,7 +2721,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 FullPath = itemFolder,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectRoot)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectRoot),
+                HasToc = FolderHasToc(itemFolder)
             };
             ExploreNodesFolderOnly(node, itemFolder, projectRoot);
             return node;
