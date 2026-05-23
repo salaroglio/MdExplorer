@@ -88,6 +88,26 @@ namespace MdExplorer.Services.IndexingPipeline
 
         public async Task RunAsync(string connectionId, string projectPath, bool linkIndexingEnabled, CancellationToken ct = default)
         {
+            // FIRE-AND-FORGET CORRECTNESS — vedi diagnosi 2026-05-23 sui log di anagrafica_reale.
+            //
+            // Il chiamante è MdFilesController.GetShallowStructure che usa
+            //   _ = _indexingPipelineService.RunAsync(...);
+            // per "staccare" la pipeline dalla response HTTP.
+            //
+            // Senza Task.Yield qui, l'intero metodo gira sincrono sul thread del controller
+            // finché non incontra un await che effettivamente cede. SignalR SendAsync, cleanup
+            // DB e IndexFiles sono tutti operazioni che spesso completano sincrone
+            // (SignalR torna subito quando il client è connesso e veloce; le DB ops NHibernate
+            // sono sincrone). Risultato osservato sui log:
+            //   - GetShallowStructure CALLED 12:13:09
+            //   - [IndexingPipeline] STARTED  12:13:09  ← gira nel thread del controller
+            //   - [IndexingPipeline] COMPLETED 12:13:36
+            //   - 📊 [ProjectScan] wall: 26819 ms ← response bloccata 27 secondi
+            //
+            // Task.Yield posta la continuazione sul ThreadPool: il chiamante riprende
+            // immediatamente, RunAsync continua su un thread separato.
+            await Task.Yield();
+
             _logger.LogInformation(
                 "[IndexingPipeline] STARTED projectPath='{ProjectPath}' connectionId='{ConnectionId}' linkIndexingEnabled={LinkIndexingEnabled}",
                 projectPath, connectionId, linkIndexingEnabled);
@@ -279,6 +299,17 @@ namespace MdExplorer.Services.IndexingPipeline
 
             var linkDal = engineDB.GetDal<LinkInsideMarkdown>();
             var processedCount = 0;
+            var totalFolders = byFolder.Count;
+            var foldersDone = 0;
+
+            // Emit kickoff progress so the frontend bar shows 0% from the start
+            // (otherwise it would only appear after the first folder completes).
+            await SafeSendAsync(connectionId, "knowledgeProgress", new
+            {
+                processed = 0,
+                total = totalFolders,
+                percent = 0
+            });
 
             foreach (var folderGroup in byFolder)
             {
@@ -352,6 +383,21 @@ namespace MdExplorer.Services.IndexingPipeline
                 }
 
                 await SafeSendAsync(connectionId, "folderIndexingComplete", new { path = folderPath, status = "completed" });
+
+                // Unified knowledge-build progress for the bottom-right bar.
+                // Single 0→100% sweep across all folders (link parsing dominates the runtime,
+                // ~23s su 908 file). Embedding fase, se attiva, viaggia sul proprio
+                // embeddingProgress event esistente — non viene incluso nel calcolo qui.
+                foldersDone++;
+                var percent = totalFolders > 0
+                    ? (int)Math.Round(foldersDone * 100.0 / totalFolders)
+                    : 100;
+                await SafeSendAsync(connectionId, "knowledgeProgress", new
+                {
+                    processed = foldersDone,
+                    total = totalFolders,
+                    percent = percent
+                });
             }
 
             _logger.LogInformation(

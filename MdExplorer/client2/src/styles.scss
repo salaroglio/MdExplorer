@@ -630,6 +630,32 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
   }
 }
 
+// Building knowledge snackbar — UNA sola istanza in basso a destra durante
+// l'indicizzazione del progetto. Hosting: MatSnackBar.openFromComponent
+// con IndexingProgressSnackComponent (vedi md-tree.component.ts).
+// Lo stile interno del componente è in indexing-progress-snack.component.scss;
+// qui modelliamo SOLO il contenitore esterno Material (dimensioni, padding).
+.indexing-progress-snackbar {
+  .mat-snack-bar-container,
+  .mat-mdc-snack-bar-container {
+    background: var(--mde-bg-primary, #fff) !important;
+    color: var(--mde-text-primary, #212121) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+    padding: 14px 18px !important;
+    min-width: 320px !important;
+    border-left: 4px solid #1976d2;
+  }
+}
+
+// Dark theme refinement — usa colori tema esistenti
+body.dark-theme .indexing-progress-snackbar {
+  .mat-snack-bar-container,
+  .mat-mdc-snack-bar-container {
+    border-left-color: #42a5f5;
+  }
+}
+
 // Warning snackbar (for YAML auto-generated)
 .warning-snackbar {
   .mat-snack-bar-container {

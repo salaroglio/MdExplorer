@@ -162,13 +162,19 @@
 <mat-tree *ngIf="!isLoading" [dataSource]="dataSource"
           [treeControl]="treeControl"
           (contextmenu)="onRightClick($event, null)">
-  <!-- This is the tree node template for leaf nodes -->
+  <!-- This is the tree node template for leaf nodes
+       NOTA gating: dopo il fix del 2026-05-23 (pipeline davvero async via Task.Yield),
+       i file non sono più "bloccati" finché non sono indicizzati. Rimossi:
+         - [style.pointer-events]="isFileWaiting(node) ? 'none' : 'auto'"
+         - [style.opacity]="isFileWaiting(node) ? '0.5' : 'inherit'"
+         - [style.background-color] (sfondo giallo)
+         - icona ⏳ accanto al nome
+       Le ngClass 'indexed'/'not-indexed' restano per consentire eventuali hint
+       futuri puramente visivi senza inibire l'interazione. -->
   <mat-tree-node *matTreeNodeDef="let node"
                  matTreeNodePadding
                  style="cursor:pointer"
                  (contextmenu)="onRightClick($event, node)"
-                 [style.opacity]="isFileWaiting(node) ? '0.5' : 'inherit'"
-                 [style.pointer-events]="isFileWaiting(node) ? 'none' : 'auto'"
                  draggable="true"
                  (dragstart)="onDragStart($event, node)"
                  (dragend)="onDragEnd($event)"
@@ -181,18 +187,13 @@
                    'selected': isNodeSelected(node)
                  }">
     <!-- use a disabled button to provide padding for tree leaf -->
-    <button mat-icon-button color="primary" style="cursor:pointer"
-            [ngClass]="{
-              'not-indexed': isFileWaiting(node)
-            }">
+    <button mat-icon-button color="primary" style="cursor:pointer">
       <mat-icon class="mat-icon-rtl-mirror">text_snippet</mat-icon>
     </button>
     <div (click)="getNode(node)"
          style="cursor: pointer; padding: 2px;"
-         class="node-text"
-         [style.background-color]="isFileWaiting(node) ? '#fff3cd' : 'transparent'">
+         class="node-text">
        {{node.name}}
-       <span *ngIf="isFileWaiting(node)" style="color: orange;">⏳</span>
     </div>
   </mat-tree-node>
 

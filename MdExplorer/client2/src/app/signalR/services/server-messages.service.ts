@@ -88,14 +88,14 @@ export class MdServerMessagesService {
       this.hubConnection.on('documentNavigated', (data) => {
         this.processCallBack(data, 'documentNavigated');
       });
-      this.hubConnection.on('parsingProjectStart', (data) => {
-        this.parsingProjectProvider.show(data);
-      });
+      // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
+      // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
+      // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
+      // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
+      // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
+      // addParsingProjectStartListener (sotto).
       this.hubConnection.on('openingApplication', (data) => {
         this.openingApplicationProvider.show(data);
-      });
-      this.hubConnection.on('parsingProjectStop', (data) => {
-        this.parsingProjectProvider.hide(data);
       });
       this.hubConnection.on('plantumlWorkStart', (data) => {
         this.plantumlWorkingProvider.show(data);
@@ -320,6 +320,18 @@ export class MdServerMessagesService {
 
   public addParsingProjectStopListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('parsingProjectStop', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  /**
+   * "Building knowledge" progress event — emesso da IndexingPipelineService
+   * dopo ogni cartella nella fase ParseLinks. Payload:
+   *   { processed: number, total: number, percent: 0..100 }
+   * Pilotato verso IndexingProgressService dalla snackbar custom in md-tree.
+   */
+  public addKnowledgeProgressListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('knowledgeProgress', (data) => {
       callback(data, objectThis);
     });
   }

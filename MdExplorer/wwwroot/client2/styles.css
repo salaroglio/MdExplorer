@@ -638,6 +638,22 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button:hove
   color: #fff !important;
 }
 
+.indexing-progress-snackbar .mat-snack-bar-container,
+.indexing-progress-snackbar .mat-mdc-snack-bar-container {
+  background: var(--mde-bg-primary, #fff) !important;
+  color: var(--mde-text-primary, #212121) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  padding: 14px 18px !important;
+  min-width: 320px !important;
+  border-left: 4px solid #1976d2;
+}
+
+body.dark-theme .indexing-progress-snackbar .mat-snack-bar-container,
+body.dark-theme .indexing-progress-snackbar .mat-mdc-snack-bar-container {
+  border-left-color: #42a5f5;
+}
+
 .warning-snackbar .mat-snack-bar-container {
   background: #fff3cd !important;
   color: #856404 !important;

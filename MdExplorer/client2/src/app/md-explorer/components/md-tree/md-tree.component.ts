@@ -36,6 +36,8 @@ import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { MarkAssistantService } from '../../../mark-assistant/mark-assistant.service';
+import { IndexingProgressService } from '../../services/indexing-progress.service';
+import { IndexingProgressSnackComponent } from '../indexing-progress-snack/indexing-progress-snack.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -179,7 +181,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private fileEventsService: FileEventsService,
     private http: HttpClient,
     private translate: TranslateService,
-    private markAssistant: MarkAssistantService
+    private markAssistant: MarkAssistantService,
+    private indexingProgressService: IndexingProgressService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -214,18 +217,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.changeDetectorRef.detectChanges();
     }, this);
 
-    // Reset contatore quando inizia una nuova indicizzazione
+    // Building knowledge progress — UNA sola snackbar custom (basso a destra) per tutta
+    // l'indicizzazione. Lo stato (percent / processed / total) è pilotato da
+    // IndexingProgressService e popolato dall'evento SignalR knowledgeProgress.
+    // Prima qui c'era un MatSnackBar.open() ripetuto per ogni folderIndexingComplete
+    // → "scoppiettare" di snackbar. Adesso una sola istanza, vive da parsingProjectStart
+    // a parsingProjectStop + 1.5s.
     this.mdServerMessages.addParsingProjectStartListener((data, component) => {
-      this.indexedFoldersCount = 0;
-      // Non chiudiamo la snackbar, la riutilizzeremo per i nuovi aggiornamenti
-      if (this.currentSnackbarRef) {
-        this.updateSnackbarContent('Iniziando indicizzazione...');
-      }
+      this.indexingProgressService.reset();
+      this.openIndexingSnackbar();
     }, this);
 
-    // Aggiungi listener per cartelle in indicizzazione
+    // Folder spinner sulla tree (independent dal progresso globale)
     this.mdServerMessages.addFolderIndexingStartListener((data, component) => {
-      console.warn('🔴 [DIAG] folderIndexingStart received:', { path: data.path, timestamp: new Date().toISOString() });
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'indexing';
@@ -238,23 +242,28 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       if (node) {
         node.indexingStatus = 'completed';
         this.changeDetectorRef.detectChanges();
-        
-        // Mostra snackbar throttled per cartella indicizzata
-        this.showIndexingSnackbar(node.name);
       }
+      // Non aprire più snackbar qui — il progresso ora è unificato via knowledgeProgress
+      // sul componente IndexingProgressSnackComponent.
     }, this);
-    
-    // Listener per fine indicizzazione completa
+
+    // Avanzamento globale "Building knowledge" alimentato dal backend dopo
+    // ogni cartella nella fase ParseLinks.
+    this.mdServerMessages.addKnowledgeProgressListener((data, component) => {
+      const processed = data?.processed ?? 0;
+      const total = data?.total ?? 0;
+      const percent = data?.percent ?? 0;
+      this.indexingProgressService.setProgress(processed, total, percent);
+    }, this);
+
+    // Fine indicizzazione: forza 100% e auto-dismiss dopo 1.5s
     this.mdServerMessages.addParsingProjectStopListener((data, component) => {
-      if (this.currentSnackbarRef) {
-        // Aggiorna con messaggio finale e chiudi dopo 3 secondi
-        this.updateSnackbarContent(`Completato! ${this.indexedFoldersCount} directory indicizzate`);
-        setTimeout(() => {
-          if (this.currentSnackbarRef) {
-            this.currentSnackbarRef.dismiss();
-          }
-        }, 3000);
-      }
+      this.indexingProgressService.setComplete();
+      setTimeout(() => {
+        if (this.currentSnackbarRef) {
+          this.currentSnackbarRef.dismiss();
+        }
+      }, 1500);
     }, this);
 
     // Listener per la creazione di nuovi file markdown (queued + debounced)
@@ -491,11 +500,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== End Compact Folder Methods ====================
 
   public async getNode(node: MdFile) {
-    if (this.isFileWaiting(node)) {
-      // Feedback per file in indicizzazione
-      this.snackBar.open(this.translate.instant('MD_TREE.FILE_INDEXING'), 'OK', { duration: 3000 });
-      return;
-    }
+    // NOTA gating rimosso il 2026-05-23:
+    // Prima qui c'era un early-return per `isFileWaiting(node)` (file non
+    // ancora indicizzato) che apriva una snackbar "FILE_INDEXING" e bloccava
+    // l'apertura. L'indicizzazione popola LinkInsideMarkdown ed embedding RAG,
+    // ma il file in sé è leggibile da subito. Il blocco contraddiceva il
+    // design async della pipeline (vedi IndexingPipelineService + Task.Yield).
 
     // External app: check for updates, then navigate to embedded view
     if (node.type === 'externalApp') {
@@ -1435,57 +1445,38 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   // Gestione intelligente delle notifiche di indicizzazione
-  private showIndexingSnackbar(folderName: string): void {
-    
-    this.indexedFoldersCount++;
-    
-    // Se non c'è una snackbar attiva, creane una nuova
-    if (!this.currentSnackbarRef) {
-      this.currentSnackbarRef = this.snackBar.open(
-        this.translate.instant('MD_TREE.DIR_INDEXED', { count: this.indexedFoldersCount, folder: folderName }),
-        this.translate.instant('COMMON.CLOSE'),
-        {
-          duration: 0, // Non scade automaticamente
-          horizontalPosition: 'right',
-          verticalPosition: 'bottom',
-          panelClass: ['success-snackbar']
-        }
-      );
-      
-      // Cleanup quando viene chiusa manualmente
-      this.currentSnackbarRef.afterDismissed().subscribe(() => {
-        this.currentSnackbarRef = null;
-        this.indexedFoldersCount = 0; // Reset del contatore
-      });
-    } else {
-      // Aggiorna il contenuto della snackbar esistente
-      this.updateSnackbarContent(folderName);
-    }
-  }
-  
-  private updateSnackbarContent(folderName: string): void {
-    if (this.currentSnackbarRef && this.currentSnackbarRef.instance) {
-      try {
-        // Prova ad aggiornare il messaggio della snackbar esistente
-        const newMessage = this.translate.instant('MD_TREE.DIR_INDEXED', { count: this.indexedFoldersCount, folder: folderName });
-        
-        // Accesso diretto al componente della snackbar
-        if (this.currentSnackbarRef.instance.snackBarRef) {
-          this.currentSnackbarRef.instance.snackBarRef._data.message = newMessage;
-        } else if (this.currentSnackbarRef.instance.data) {
-          this.currentSnackbarRef.instance.data.message = newMessage;
-        }
-        
-        // Forza il change detection per aggiornare la vista
-        this.changeDetectorRef.detectChanges();
-      } catch (error) {
-        // Se l'aggiornamento fallisce, chiudi la vecchia e crea una nuova silenziosamente
-        this.currentSnackbarRef.dismiss();
-        this.currentSnackbarRef = null;
-        this.showIndexingSnackbar(folderName);
+  /**
+   * Apre la snackbar custom "Building knowledge" in basso a destra.
+   * No-op se ne esiste già una. Il contenuto (IndexingProgressSnackComponent)
+   * si abbevera da IndexingProgressService — non vanno chiamati update qui:
+   * la progress avanza via setProgress() / setComplete() del service.
+   *
+   * Stile: la classe `.indexing-progress-snackbar` in styles.scss controlla
+   * margine, width e padding del contenitore Material.
+   */
+  private openIndexingSnackbar(): void {
+    if (this.currentSnackbarRef) return;
+
+    this.currentSnackbarRef = this.snackBar.openFromComponent(
+      IndexingProgressSnackComponent,
+      {
+        duration: 0, // Vive finché parsingProjectStop non innesca dismiss
+        horizontalPosition: 'right',
+        verticalPosition: 'bottom',
+        panelClass: ['indexing-progress-snackbar']
       }
-    }
+    );
+
+    this.currentSnackbarRef.afterDismissed().subscribe(() => {
+      this.currentSnackbarRef = null;
+    });
   }
+
+  // RIMOSSI: showIndexingSnackbar e updateSnackbarContent.
+  // Prima venivano chiamati per ogni folderIndexingComplete (1 snackbar nuova
+  // o un update con dismiss+riapri di fallback) → flicker visivo.
+  // Adesso la snackbar è UNA sola, aperta a parsingProjectStart, aggiornata
+  // tramite IndexingProgressService dal knowledgeProgress event.
 
   // ── Event Queue with debounce + batching ──
 
