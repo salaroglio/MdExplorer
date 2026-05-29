@@ -46,6 +46,22 @@ namespace MdExplorer.Utilities
                 "mde-doc",
                 "MdExplorer.Service.skills.mde_doc.SKILL.md"
             ),
+            (
+                "mde-features",
+                "MdExplorer.Service.skills.mde_features.SKILL.md"
+            ),
+            (
+                "mde-tbox",
+                "MdExplorer.Service.skills.mde_tbox.SKILL.md"
+            ),
+            (
+                "mde-abox",
+                "MdExplorer.Service.skills.mde_abox.SKILL.md"
+            ),
+            (
+                "mde-shacl",
+                "MdExplorer.Service.skills.mde_shacl.SKILL.md"
+            ),
         };
 
         /// <summary>

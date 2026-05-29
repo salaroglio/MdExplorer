@@ -166,6 +166,9 @@ namespace MdExplorer
             services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigWriter, Services.FolderKgConfigWriter>();
             services.AddScoped<Features.Services.KnowledgeGraph.IKgSyncOrchestrator, Features.Services.KnowledgeGraph.KgSyncOrchestrator>();
 
+            // Apache Jena Fuseki integration (parallelo a Neo4j, su un triplestore RDF)
+            services.AddSingleton<Features.Services.KnowledgeGraph.IFusekiClient, Features.Services.KnowledgeGraph.FusekiClient>();
+
             // Register Team Chat services
             services.AddHttpClient("MdChat");
             // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat

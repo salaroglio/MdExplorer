@@ -30,6 +30,15 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   isChatFullScreen = false;
   copilotCliUnavailable = false;
 
+  // Copilot CLI auto-select: when active, expose a Sonnet 4.6 / Opus 4.7 picker
+  // next to the injected-file chip. Hidden for every other provider.
+  copilotCliAutoSelected = false;
+  selectedCopilotModel: string | null = null;
+  readonly copilotModelOptions: ReadonlyArray<{ id: string; label: string }> = [
+    { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
+    { id: 'claude-opus-4.7', label: 'Opus 4.7' }
+  ];
+
   // Edit message state
   editingMessageId: string | null = null;
   editedContent: string = '';
@@ -121,20 +130,28 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       .subscribe(config => {
         if (!config) {
           this.copilotCliUnavailable = false;
+          this.copilotCliAutoSelected = false;
+          this.selectedCopilotModel = null;
           return;
         }
         if (config.autoSelect && config.available) {
           const model = config.defaultModel || 'claude-sonnet-4.6';
           console.log('[AiChatComponent] Auto-selecting Copilot CLI with model:', model);
           this.copilotCliUnavailable = false;
+          this.copilotCliAutoSelected = true;
+          this.selectedCopilotModel = model;
           this.aiService.setProvider('copilotcli', model);
           this.aiService.notifyCopilotCliConnected(model);
         } else if (config.autoSelect && !config.available) {
           console.log('[AiChatComponent] Copilot CLI auto-select enabled but CLI not available — locking chat');
           this.copilotCliUnavailable = true;
+          this.copilotCliAutoSelected = false;
+          this.selectedCopilotModel = null;
           this.aiService.notifyCopilotCliDisconnected();
         } else {
           this.copilotCliUnavailable = false;
+          this.copilotCliAutoSelected = false;
+          this.selectedCopilotModel = null;
         }
       });
   }
@@ -172,6 +189,20 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   toggleFullScreen(): void {
     this.layoutService.setChatFullScreen(!this.isChatFullScreen);
+  }
+
+  async selectCopilotModel(modelId: string): Promise<void> {
+    if (!this.copilotCliAutoSelected) return;
+    if (this.selectedCopilotModel === modelId) return;
+    if (this.isConfiguringProvider) return;
+    console.log('[AiChatComponent] User switched Copilot model to:', modelId);
+    this.selectedCopilotModel = modelId;
+    try {
+      await this.aiService.setProviderAsync('copilotcli', modelId);
+      this.aiService.notifyCopilotCliConnected(modelId);
+    } catch (err) {
+      console.error('[AiChatComponent] Failed to switch Copilot model:', err);
+    }
   }
 
   toggleModelManager(): void {

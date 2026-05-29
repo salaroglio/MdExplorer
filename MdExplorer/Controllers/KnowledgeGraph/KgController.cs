@@ -249,7 +249,8 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
             var batch = new[] { new KgBatchFile {
                 KgFileAbsolutePath = kgAbs,
                 PreviousHash = previousHash,
-                GraphNamespace = cfg.Namespace
+                GraphNamespace = cfg.Namespace,
+                SourceMdAbsolutePath = DeriveSourceMdPath(kgAbs)
             }};
             var results = await _kgIngestService.IngestKgFilesAsync(req.ProjectId, ctx.ProjectPath, batch, session);
             PersistIngestState(req.ProjectId, results);
@@ -885,7 +886,8 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
                 {
                     KgFileAbsolutePath = f,
                     PreviousHash = previousHash,
-                    GraphNamespace = graphNamespace
+                    GraphNamespace = graphNamespace,
+                    SourceMdAbsolutePath = DeriveSourceMdPath(f)
                 });
             }
             return batch;
@@ -894,6 +896,24 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
         private static string MakeRelative(string projectPath, string absolutePath)
         {
             return Path.GetRelativePath(projectPath, absolutePath).Replace('\\', '/');
+        }
+
+        /// <summary>
+        /// Mirror of KgSyncOrchestrator.DeriveSourceMdPath. Maps
+        /// <c>&lt;folder&gt;/.mde-doc/&lt;name&gt;.kg.cypher</c> → <c>&lt;folder&gt;/&lt;name&gt;.md</c>.
+        /// </summary>
+        private static string DeriveSourceMdPath(string kgFileAbsolutePath)
+        {
+            if (string.IsNullOrEmpty(kgFileAbsolutePath)) return null;
+            var mdeDocDir = Path.GetDirectoryName(kgFileAbsolutePath);
+            if (string.IsNullOrEmpty(mdeDocDir)) return null;
+            var folderAbs = Path.GetDirectoryName(mdeDocDir);
+            if (string.IsNullOrEmpty(folderAbs)) return null;
+            var fileName = Path.GetFileName(kgFileAbsolutePath);
+            const string kgSuffix = ".kg.cypher";
+            if (!fileName.EndsWith(kgSuffix, StringComparison.OrdinalIgnoreCase)) return null;
+            var baseName = fileName.Substring(0, fileName.Length - kgSuffix.Length);
+            return Path.Combine(folderAbs, baseName + ".md");
         }
 
         private string LookupHash(Guid projectId, string relativeKgPath)

@@ -6,7 +6,7 @@
 
     <span class="spacer"></span>
 
-    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument">
+    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected">
       <mat-chip-list>
         <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
           <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
@@ -19,6 +19,16 @@
         <mat-chip *ngIf="currentDocument" color="primary">
           <mat-icon *ngIf="!compactMode">description</mat-icon>
           {{ compactMode ? getCurrentDocumentName().substring(0, 12) : getCurrentDocumentName() }}
+        </mat-chip>
+      </mat-chip-list>
+      <mat-chip-list *ngIf="copilotCliAutoSelected" class="copilot-model-picker" aria-label="Copilot model">
+        <mat-chip *ngFor="let opt of copilotModelOptions"
+                  [selected]="selectedCopilotModel === opt.id"
+                  [disabled]="isConfiguringProvider"
+                  [color]="selectedCopilotModel === opt.id ? 'accent' : undefined"
+                  (click)="selectCopilotModel(opt.id)"
+                  [matTooltip]="opt.id">
+          {{ opt.label }}
         </mat-chip>
       </mat-chip-list>
     </div>

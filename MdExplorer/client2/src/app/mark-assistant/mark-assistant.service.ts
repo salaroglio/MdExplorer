@@ -585,6 +585,10 @@ export class MarkAssistantService {
   /** Renders one progress event into Mark's dialog; terminal phases end the job. */
   private onFolderProgress(p: any): void {
     if (!p) return;
+    // `toc-ready` is a side-channel only the md-tree consumes (to flip the
+    // folder's hasToc icon live). Don't let it overwrite the dialog text —
+    // the "generating-toc..." line should stay until the next real phase.
+    if (p.phase === 'toc-ready') return;
     if (p.phase === 'done' || p.phase === 'error' || p.phase === 'cancelled') {
       this.endFolderSummarize(this.formatFolderProgress(p));
       return;

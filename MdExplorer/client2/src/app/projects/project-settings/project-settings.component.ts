@@ -65,6 +65,22 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   kgStateTotals: any = null;
   kgPerNamespace: any[] = [];
 
+  // Apache Jena Fuseki settings (specchio del blocco Neo4j)
+  fsLoading: boolean = false;
+  fsSaving: boolean = false;
+  fsEnabled: boolean = false;
+  fsUri: string = 'http://localhost:3030';
+  fsDataset: string = '';           // default dal nome progetto sanitizzato, popolato dal GET
+  fsDefaultDataset: string = '';    // suggerimento del server
+  fsUsername: string = '';
+  fsPassword: string = '';
+  fsHasPassword: boolean = false;
+  fsSyncOnTocGeneration: boolean = true;
+  fsSyncOnKgFileSave: boolean = true;
+  fsTesting: boolean = false;
+  fsTestMessage: string = '';
+  fsTestSuccess: boolean = false;
+
   // RAG settings
   ragEnabled: boolean = false;
   ragModelInstalled: boolean = false;
@@ -100,6 +116,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadSettings();
     this.loadAppsConfig();
     this.loadKgSettings();
+    this.loadFusekiSettings();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -799,6 +816,122 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_RESET_FAILED', {
           error: err?.error?.error || err?.message || 'http error'
         });
+      }
+    });
+  }
+
+  // ============================================================
+  //   Apache Jena Fuseki — tab logic (specchio del blocco KG/Neo4j)
+  // ============================================================
+  loadFusekiSettings(): void {
+    if (!this.projectId) return;
+    this.fsLoading = true;
+    this.projectSettingsService.getFusekiSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.fsEnabled = !!r.enabled;
+        this.fsUri = r.uri || 'http://localhost:3030';
+        this.fsDataset = r.dataset || '';
+        this.fsDefaultDataset = r.defaultDataset || '';
+        this.fsUsername = r.username || '';
+        this.fsHasPassword = !!r.hasPassword;
+        this.fsPassword = '';
+        this.fsSyncOnTocGeneration = r.syncOnTocGeneration !== false;
+        this.fsSyncOnKgFileSave = r.syncOnKgFileSave !== false;
+        if (r.lastTestSuccess === true) {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_OK_PREVIOUS');
+          this.fsTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_FAIL_PREVIOUS');
+          this.fsTestSuccess = false;
+        }
+        this.fsLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading Fuseki settings:', err);
+        this.fsLoading = false;
+      }
+    });
+  }
+
+  onFusekiEnabledChange(): void {
+    if (!this.fsEnabled) {
+      this.onSaveFusekiSettings();
+    }
+  }
+
+  onTestFusekiConnection(autoCreate: boolean = false): void {
+    this.fsTesting = true;
+    this.fsTestMessage = '';
+    this.projectSettingsService.testFusekiConnection({
+      projectId: this.projectId,
+      uri: this.fsUri,
+      dataset: this.fsDataset,
+      username: this.fsUsername,
+      password: this.fsPassword || (this.fsHasPassword ? '********' : ''),
+      autoCreateDataset: autoCreate
+    }).subscribe({
+      next: (r) => {
+        this.fsTesting = false;
+        this.fsTestSuccess = !!r.success;
+        if (r.success) {
+          if (r.datasetCreated) {
+            this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_OK_DATASET_CREATED', {
+              dataset: r.dataset, ms: r.latencyMs
+            });
+          } else {
+            this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_OK', {
+              dataset: r.dataset, ms: r.latencyMs
+            });
+          }
+        } else if (r.serverReachable && !r.datasetExists) {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_DATASET_MISSING', {
+            dataset: r.dataset
+          });
+        } else {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_FAIL', {
+            error: r.error || 'unknown'
+          });
+        }
+      },
+      error: (err) => {
+        this.fsTesting = false;
+        this.fsTestSuccess = false;
+        this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_FAIL', {
+          error: err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onCreateFusekiDataset(): void {
+    // Test + auto-create in un colpo solo
+    this.onTestFusekiConnection(true);
+  }
+
+  onSaveFusekiSettings(): void {
+    this.fsSaving = true;
+    this.projectSettingsService.saveFusekiSettings(this.projectId, {
+      enabled: this.fsEnabled,
+      uri: this.fsUri,
+      dataset: this.fsDataset,
+      username: this.fsUsername,
+      password: this.fsPassword || '',
+      syncOnTocGeneration: this.fsSyncOnTocGeneration,
+      syncOnKgFileSave: this.fsSyncOnKgFileSave
+    }).subscribe({
+      next: (r) => {
+        this.fsSaving = false;
+        if (r.dataset) {
+          this.fsDataset = r.dataset; // server può aver sanitizzato
+        }
+        if (this.fsPassword) {
+          this.fsHasPassword = true;
+          this.fsPassword = '';
+        }
+      },
+      error: (err) => {
+        this.fsSaving = false;
+        console.error('Error saving Fuseki settings:', err);
       }
     });
   }

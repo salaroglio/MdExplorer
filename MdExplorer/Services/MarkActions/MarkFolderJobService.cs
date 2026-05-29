@@ -239,6 +239,19 @@ namespace MdExplorer.Services.MarkActions
                         var toc = scope.ServiceProvider.GetRequiredService<TocGenerationService>();
                         await toc.GenerateTocAsync(folder, tocPath, ct);
                         tocs++;
+
+                        // Side-channel notice for the md-tree: the folder now owns a
+                        // <name>.md.directory → flip its node.hasToc so the document
+                        // icon appears immediately, without waiting for project reopen.
+                        // The Mark dialog ignores this phase (see onFolderProgress).
+                        await SendAsync(connectionId, new
+                        {
+                            phase = "toc-ready",
+                            folderFullPath = folder,
+                            folderName,
+                            folderIndex = fi + 1,
+                            folderTotal = folders.Count
+                        });
                     }
                     catch (OperationCanceledException) { throw; }
                     catch (Exception ex)

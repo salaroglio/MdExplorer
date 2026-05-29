@@ -151,4 +151,46 @@ export class ProjectSettingsService {
   getKgState(projectId: string): Observable<any> {
     return this.http.get<any>(`../api/kg/state/${encodeURIComponent(projectId)}`);
   }
+
+  // ============================================================
+  //   Apache Jena Fuseki settings (parallelo a KG/Neo4j)
+  // ============================================================
+  getFusekiSettings(projectId: string): Observable<any> {
+    return this.http.get<any>(`../api/fs/settings/${encodeURIComponent(projectId)}`);
+  }
+
+  saveFusekiSettings(projectId: string, body: {
+    enabled: boolean;
+    uri: string;
+    dataset: string;
+    username: string;
+    password: string;
+    syncOnTocGeneration: boolean;
+    syncOnKgFileSave: boolean;
+  }): Observable<any> {
+    return this.http.put<any>(`../api/fs/settings/${encodeURIComponent(projectId)}`, body);
+  }
+
+  testFusekiConnection(body: {
+    projectId?: string;
+    uri: string;
+    dataset: string;
+    username: string;
+    password: string;
+    autoCreateDataset?: boolean;
+  }): Observable<{
+    success: boolean;
+    serverReachable: boolean;
+    datasetExists: boolean;
+    datasetCreated: boolean;
+    dataset: string;
+    error?: string;
+    latencyMs: number;
+  }> {
+    return this.http.post<any>('../api/fs/test-connection', body);
+  }
+
+  ensureFusekiDataset(projectId: string): Observable<{ ok: boolean; dataset: string }> {
+    return this.http.post<any>('../api/fs/ensure-dataset', { projectId });
+  }
 }

@@ -266,6 +266,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }, 1500);
     }, this);
 
+    // Mark Actions — recursive "Riassumi documentazione" job emits a `toc-ready`
+    // event per folder right after its <name>.md.directory is (re)generated. We
+    // flip node.hasToc here so the document icon appears on the folder right
+    // away, without waiting for the user to reopen the project. The Mark dialog
+    // ignores this phase (MarkAssistantService.onFolderProgress).
+    this.mdServerMessages.markFolderProgress$.subscribe(p => {
+      if (p?.phase !== 'toc-ready' || !p.folderFullPath) return;
+      const node = this.findNodeByPath(p.folderFullPath);
+      if (node) {
+        node.hasToc = true;
+        this.changeDetectorRef.markForCheck();
+      }
+    });
+
     // Listener per la creazione di nuovi file markdown (queued + debounced)
     this.mdServerMessages.addMarkdownFileCreatedListener((data, component) => {
       this.enqueueEvent(() => this.handleNewMarkdownFileCreated(data), 'fileCreated');

@@ -27,6 +27,44 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
     internal static class CopilotProcessLauncher
     {
         /// <summary>
+        /// Returns <c>true</c> if a <c>copilot.exe</c>, <c>copilot.cmd</c> or <c>copilot.ps1</c>
+        /// exists in <c>PATH</c>. Pure filesystem check, no process spawn — deterministic and
+        /// instant (single-digit ms).
+        /// <para>
+        /// Used by <see cref="CopilotCliProvider.IsAvailable"/> in place of the previous
+        /// <c>copilot --version</c> probe with 5-second timeout: that probe conflated
+        /// "installed" with "starts within 5s" — Copilot CLI's cold start sometimes exceeds
+        /// the timeout (e.g. when the CLI does its own update check) and MDE would conclude
+        /// "not installed" on a perfectly installed system. The path-presence check is the
+        /// answer to "is it installed?" — runtime startup time is a different concern.
+        /// </para>
+        /// </summary>
+        public static bool IsResolvable()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                // POSIX: rely on which-style probe? We don't have one here without spawn.
+                // For now assume non-Windows path resolution is handled by the shell at
+                // launch time. The bool answer for "is installed" returns true and lets
+                // the actual launcher fail later if absent. Refine if a Linux user reports
+                // a false positive.
+                return true;
+            }
+
+            var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var raw in pathEnv.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                var dir = raw.Trim().Trim('"');
+                if (dir.Length == 0) continue;
+                if (File.Exists(Path.Combine(dir, "copilot.exe"))) return true;
+                if (File.Exists(Path.Combine(dir, "copilot.cmd"))) return true;
+                if (File.Exists(Path.Combine(dir, "copilot.ps1"))) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Builds a <see cref="ProcessStartInfo"/> that runs <c>copilot</c> with the given args.
         /// Caller is responsible for additional settings (RedirectStandardOutput, WorkingDirectory, ...).
         /// </summary>

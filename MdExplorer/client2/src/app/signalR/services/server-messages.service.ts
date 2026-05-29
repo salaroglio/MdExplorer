@@ -40,6 +40,16 @@ export class MdServerMessagesService {
   // Observable for the Mark folder-summarizer job progress (MarkActionsController)
   public markFolderProgress$ = new Subject<any>();
 
+  // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
+  // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
+  public kgStale$ = new Subject<{
+    sourceMdPath: string,
+    kgFilePath: string,
+    storedSourceDocHash: string,
+    currentSourceDocHash: string,
+    reason: 'header-missing' | 'hash-mismatch'
+  }>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -138,6 +148,12 @@ export class MdServerMessagesService {
       // Mark folder-summarizer job progress
       this.hubConnection.on('markFolderProgress', (data) => {
         this.markFolderProgress$.next(data);
+      });
+
+      // KG drift detection — .md edited but .kg.cypher is out of sync
+      this.hubConnection.on('kgStale', (data) => {
+        console.warn('⚠️ SignalR event received: kgStale', data);
+        this.kgStale$.next(data);
       });
 
       // Runnable fenced code blocks — streaming output from MdExecutionController

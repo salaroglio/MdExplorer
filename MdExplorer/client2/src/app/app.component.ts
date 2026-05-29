@@ -1,6 +1,7 @@
 import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { slideInAnimation } from './shared/animations';
 import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 import { AiNotificationService } from './services/ai-notification.service';
@@ -9,6 +10,7 @@ import { FileChangeNotificationService } from './services/file-change-notificati
 import { LanguageService } from './services/language.service';
 import { ThemeService } from './services/theme.service';
 import { ExecutionService } from './services/execution.service';
+import { MdServerMessagesService } from './signalR/services/server-messages.service';
 
 @Component({
   selector: 'app-root',
@@ -39,7 +41,9 @@ export class AppComponent {
     private fileChangeNotificationService: FileChangeNotificationService,
     private languageService: LanguageService,
     private themeService: ThemeService,
-    private executionService: ExecutionService) {
+    private executionService: ExecutionService,
+    private serverMessages: MdServerMessagesService,
+    private snackBar: MatSnackBar) {
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);
@@ -51,5 +55,18 @@ export class AppComponent {
 
     // Initialize file change notification service (taskbar flash)
     this.fileChangeNotificationService.initialize();
+
+    // KG drift surface: when a .md edit invalidates the adjacent .kg.cypher, show
+    // a snackbar pointing the user at the file that needs regeneration. The
+    // backend (FileSystemWatcherManager.CheckKgDriftBestEffortAsync) already
+    // throttles by only emitting on actual mismatch.
+    this.serverMessages.kgStale$.subscribe(evt => {
+      const filename = (evt?.sourceMdPath ?? '').split(/[\\\/]/).pop() || 'documento';
+      this.snackBar.open(
+        `⚠️  Knowledge Graph non aggiornato per "${filename}". Rigenera il grafo.`,
+        'OK',
+        { duration: 6000, panelClass: ['kg-stale-snack'] }
+      );
+    });
   }
 }

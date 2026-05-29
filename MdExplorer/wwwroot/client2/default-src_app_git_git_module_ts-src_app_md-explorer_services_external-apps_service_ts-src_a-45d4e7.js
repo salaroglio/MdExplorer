@@ -5574,6 +5574,23 @@ class ProjectSettingsService {
   getKgState(projectId) {
     return this.http.get(`../api/kg/state/${encodeURIComponent(projectId)}`);
   }
+  // ============================================================
+  //   Apache Jena Fuseki settings (parallelo a KG/Neo4j)
+  // ============================================================
+  getFusekiSettings(projectId) {
+    return this.http.get(`../api/fs/settings/${encodeURIComponent(projectId)}`);
+  }
+  saveFusekiSettings(projectId, body) {
+    return this.http.put(`../api/fs/settings/${encodeURIComponent(projectId)}`, body);
+  }
+  testFusekiConnection(body) {
+    return this.http.post('../api/fs/test-connection', body);
+  }
+  ensureFusekiDataset(projectId) {
+    return this.http.post('../api/fs/ensure-dataset', {
+      projectId
+    });
+  }
   static {
     this.ɵfac = function ProjectSettingsService_Factory(t) {
       return new (t || ProjectSettingsService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient));

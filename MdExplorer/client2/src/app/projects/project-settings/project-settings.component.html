@@ -545,6 +545,116 @@
       </div>
     </mat-tab>
 
+    <!-- Tab 6: Apache Jena Fuseki -->
+    <mat-tab [label]="'PROJECT_SETTINGS.FUSEKI_TAB' | translate">
+      <div class="tab-content">
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.FUSEKI_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!fsLoading">
+              <mat-checkbox
+                [(ngModel)]="fsEnabled"
+                (change)="onFusekiEnabledChange()"
+                [disabled]="fsSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.FUSEKI_ENABLE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.FUSEKI_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="fsLoading" class="loading-container">
+              <mat-spinner diameter="30"></mat-spinner>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!fsLoading && fsEnabled">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.FUSEKI_CONNECTION' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.FUSEKI_URI' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="fsUri" placeholder="http://localhost:3030" [disabled]="fsSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">
+                {{ 'PROJECT_SETTINGS.FUSEKI_DATASET' | translate }}
+                <span class="setting-description" *ngIf="fsDefaultDataset && fsDefaultDataset !== fsDataset">
+                  ({{ 'PROJECT_SETTINGS.FUSEKI_DATASET_DEFAULT' | translate }}: <code>{{ fsDefaultDataset }}</code>)
+                </span>
+              </label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="fsDataset" [placeholder]="fsDefaultDataset" [disabled]="fsSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.FUSEKI_DATASET_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">
+                {{ 'PROJECT_SETTINGS.FUSEKI_USERNAME' | translate }}
+                <span class="setting-description">({{ 'PROJECT_SETTINGS.FUSEKI_AUTH_OPTIONAL' | translate }})</span>
+              </label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="fsUsername" placeholder="" [disabled]="fsSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.FUSEKI_PASSWORD' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput type="password" [(ngModel)]="fsPassword"
+                  [placeholder]="fsHasPassword ? ('PROJECT_SETTINGS.KG_PASSWORD_KEEP' | translate) : ''"
+                  [disabled]="fsSaving">
+                <mat-hint *ngIf="fsHasPassword">{{ 'PROJECT_SETTINGS.KG_PASSWORD_HINT_KEEP' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-row kg-actions">
+              <button mat-stroked-button (click)="onTestFusekiConnection(false)" [disabled]="fsSaving || fsTesting">
+                <mat-icon *ngIf="!fsTesting">cable</mat-icon>
+                <mat-spinner *ngIf="fsTesting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ fsTesting ? ('PROJECT_SETTINGS.FUSEKI_TESTING' | translate) : ('PROJECT_SETTINGS.FUSEKI_TEST' | translate) }}
+              </button>
+              <button mat-stroked-button color="accent" (click)="onCreateFusekiDataset()" [disabled]="fsSaving || fsTesting">
+                <mat-icon>add_box</mat-icon>
+                {{ 'PROJECT_SETTINGS.FUSEKI_CREATE_DATASET' | translate }}
+              </button>
+              <button mat-raised-button color="primary" (click)="onSaveFusekiSettings()" [disabled]="fsSaving || fsTesting">
+                <mat-icon>save</mat-icon>
+                {{ 'COMMON.SAVE' | translate }}
+              </button>
+              <mat-spinner *ngIf="fsSaving" diameter="20" class="inline-spinner"></mat-spinner>
+              <span class="kg-status-ok" *ngIf="fsTestMessage && fsTestSuccess">{{ fsTestMessage }}</span>
+              <span class="kg-status-fail" *ngIf="fsTestMessage && !fsTestSuccess">{{ fsTestMessage }}</span>
+            </div>
+
+            <div class="kg-row">
+              <mat-checkbox [(ngModel)]="fsSyncOnTocGeneration" [disabled]="fsSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_SYNC_ON_TOC' | translate }}</span>
+              </mat-checkbox>
+            </div>
+            <div class="kg-row">
+              <mat-checkbox [(ngModel)]="fsSyncOnKgFileSave" [disabled]="fsSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_SYNC_ON_SAVE' | translate }}</span>
+              </mat-checkbox>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+      </div>
+    </mat-tab>
+
   </mat-tab-group>
 </mat-dialog-content>
 

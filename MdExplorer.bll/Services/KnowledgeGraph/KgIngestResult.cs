@@ -49,5 +49,14 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         public string KgFileAbsolutePath { get; set; }
         public string PreviousHash { get; set; }
         public string GraphNamespace { get; set; }
+
+        /// <summary>
+        /// Absolute path of the markdown source document this .kg.cypher was generated
+        /// from. When provided AND the file exists on disk, KgIngestService writes a
+        /// <c>// sourceDocHash: &lt;md5&gt;</c> line at the top of the .kg.cypher after a
+        /// successful ingest. The hash is later compared with MD5(.md) by the drift
+        /// detector to decide whether the graph is still aligned with its source.
+        /// </summary>
+        public string SourceMdAbsolutePath { get; set; }
     }
 }

@@ -181,6 +181,10 @@
     <EmbeddedResource Include="external-apps\MdE-External-App-Protocol.md" />
     <EmbeddedResource Include="skills\mde-readme\SKILL.md" />
     <EmbeddedResource Include="skills\mde-doc\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-features\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-tbox\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-abox\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-shacl\SKILL.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.md" />
     <EmbeddedResource Include="skills\mde-codegen-graph\prompt.md" />
     <EmbeddedResource Include="skills\mde-mark-summarize\prompt.md" />

@@ -132,7 +132,8 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                         {
                             KgFileAbsolutePath = f,
                             GraphNamespace = folderCfg.Namespace,
-                            PreviousHash = LookupHash(project.Id, MakeRelative(project.Path, f))
+                            PreviousHash = LookupHash(project.Id, MakeRelative(project.Path, f)),
+                            SourceMdAbsolutePath = DeriveSourceMdPath(f)
                         });
                     }
                 }
@@ -142,7 +143,8 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                     {
                         KgFileAbsolutePath = absolutePath,
                         GraphNamespace = folderCfg.Namespace,
-                        PreviousHash = LookupHash(project.Id, MakeRelative(project.Path, absolutePath))
+                        PreviousHash = LookupHash(project.Id, MakeRelative(project.Path, absolutePath)),
+                        SourceMdAbsolutePath = DeriveSourceMdPath(absolutePath)
                     });
                 }
                 if (batch.Count == 0) { outcome.Reason = "no .kg.cypher files in scope"; return outcome; }
@@ -193,6 +195,25 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
 
         private static string MakeRelative(string projectPath, string absolutePath)
             => Path.GetRelativePath(projectPath, absolutePath).Replace('\\', '/');
+
+        /// <summary>
+        /// Convention: a <c>&lt;folder&gt;/.mde-doc/&lt;name&gt;.kg.cypher</c> file is
+        /// generated from <c>&lt;folder&gt;/&lt;name&gt;.md</c>. Returns the absolute path
+        /// of that .md (without checking existence — KgIngestService skips writeback if missing).
+        /// </summary>
+        private static string DeriveSourceMdPath(string kgFileAbsolutePath)
+        {
+            if (string.IsNullOrEmpty(kgFileAbsolutePath)) return null;
+            var mdeDocDir = Path.GetDirectoryName(kgFileAbsolutePath);
+            if (string.IsNullOrEmpty(mdeDocDir)) return null;
+            var folderAbs = Path.GetDirectoryName(mdeDocDir);
+            if (string.IsNullOrEmpty(folderAbs)) return null;
+            var fileName = Path.GetFileName(kgFileAbsolutePath);
+            const string kgSuffix = ".kg.cypher";
+            if (!fileName.EndsWith(kgSuffix, StringComparison.OrdinalIgnoreCase)) return null;
+            var baseName = fileName.Substring(0, fileName.Length - kgSuffix.Length);
+            return Path.Combine(folderAbs, baseName + ".md");
+        }
 
         private string LookupHash(Guid projectId, string relativeKgPath)
         {

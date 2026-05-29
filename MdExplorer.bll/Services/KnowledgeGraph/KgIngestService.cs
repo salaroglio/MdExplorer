@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -93,10 +94,10 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                 }
 
                 var content = await File.ReadAllTextAsync(f.KgFileAbsolutePath, ct).ConfigureAwait(false);
-                var hash = ComputeMd5(content);
-                result.ContentHash = hash;
+                var hashPre = ComputeMd5(content);
+                result.ContentHash = hashPre;
 
-                if (!string.IsNullOrEmpty(f.PreviousHash) && string.Equals(f.PreviousHash, hash, StringComparison.Ordinal))
+                if (!string.IsNullOrEmpty(f.PreviousHash) && string.Equals(f.PreviousHash, hashPre, StringComparison.Ordinal))
                 {
                     result.Skipped = true;
                     results.Add(result);
@@ -151,6 +152,34 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                     result.EdgeCount = counts.edges;
                     _logger.LogInformation("[KgIngest] {Doc} (graph={Graph}): +{N} nodes, +{E} edges",
                         sourceDoc, f.GraphNamespace, counts.nodes, counts.edges);
+
+                    // Post-ingest writeback of "// sourceDocHash: <md5>" header.
+                    // Must come AFTER a successful ingest, and the new file MD5
+                    // must overwrite result.ContentHash — that hash is what
+                    // KgSyncOrchestrator persists, and the watcher then uses it
+                    // to gate the self-write event (file MD5 == DB hash → skip).
+                    if (!string.IsNullOrEmpty(f.SourceMdAbsolutePath) && File.Exists(f.SourceMdAbsolutePath))
+                    {
+                        try
+                        {
+                            var mdContent = await File.ReadAllTextAsync(f.SourceMdAbsolutePath, ct).ConfigureAwait(false);
+                            var mdHash = ComputeMd5(mdContent);
+                            var newContent = UpdateSourceDocHashHeader(content, mdHash);
+                            if (!string.Equals(newContent, content, StringComparison.Ordinal))
+                            {
+                                await File.WriteAllTextAsync(f.KgFileAbsolutePath, newContent, ct).ConfigureAwait(false);
+                                result.ContentHash = ComputeMd5(newContent);
+                            }
+                        }
+                        catch (Exception writeEx)
+                        {
+                            // Writeback failure is non-fatal: ingest already succeeded.
+                            // ContentHash stays = hashPre so the next watcher event will
+                            // see "file unchanged" and skip, while the drift detector
+                            // gracefully reports stale (header missing).
+                            _logger.LogWarning(writeEx, "[KgIngest] sourceDocHash writeback failed for {Doc}", sourceDoc);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -264,10 +293,86 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
 
+        /// <summary>Public helper used by the drift detector to compute MD5 of an arbitrary file's content.</summary>
+        public static string ComputeFileMd5(string absolutePath)
+        {
+            if (string.IsNullOrEmpty(absolutePath) || !File.Exists(absolutePath)) return null;
+            var content = File.ReadAllText(absolutePath);
+            return ComputeMd5(content);
+        }
+
         private static string MakeSourceDocPath(string projectRootPath, string kgFileAbsolutePath)
         {
             var rel = Path.GetRelativePath(projectRootPath, kgFileAbsolutePath);
             return rel.Replace('\\', '/');
+        }
+
+        // ===================================================================
+        //   sourceDocHash header — parser + writer
+        // ===================================================================
+        //
+        // We write a single comment line at the very top of every .kg.cypher
+        // after a successful ingest:
+        //
+        //     // sourceDocHash: <md5 of the .md source>
+        //
+        // The drift detector (FileSystemWatcherManager) re-reads this header
+        // whenever the .md changes and compares it with the current MD5 of
+        // the .md to decide whether the graph is still aligned.
+        //
+        // Stored INSIDE the .kg.cypher (not in UserDB) so it travels with the
+        // file across clones and stays accurate on machines that didn't run
+        // the ingest.
+
+        private static readonly Regex SourceDocHashLineRegex = new Regex(
+            @"^\s*//\s*sourceDocHash\s*:\s*(?<hash>[A-Za-z0-9]+)\s*$",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// Returns the hash inside the leading <c>// sourceDocHash: ...</c> line, or null
+        /// if the header is missing/malformed. Inspects only the first ~5 non-empty lines.
+        /// </summary>
+        public static string ExtractSourceDocHash(string kgFileContent)
+        {
+            if (string.IsNullOrEmpty(kgFileContent)) return null;
+            using var reader = new StringReader(kgFileContent);
+            for (int i = 0; i < 5; i++)
+            {
+                var line = reader.ReadLine();
+                if (line == null) break;
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var m = SourceDocHashLineRegex.Match(line);
+                if (m.Success) return m.Groups["hash"].Value.ToLowerInvariant();
+                // First non-empty line is not our header → no header at all (don't scan deeper
+                // to avoid matching a sourceDocHash mention buried inside a description).
+                return null;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Returns <paramref name="content"/> with the leading <c>// sourceDocHash: ...</c>
+        /// line replaced by one containing <paramref name="newHash"/>. If no header is
+        /// present the new one is prepended. Preserves the original line ending style.
+        /// </summary>
+        public static string UpdateSourceDocHashHeader(string content, string newHash)
+        {
+            content ??= string.Empty;
+            var newline = content.Contains("\r\n") ? "\r\n" : "\n";
+            var lines = content.Split(new[] { newline }, StringSplitOptions.None).ToList();
+
+            // Strip any leading sourceDocHash line(s) — defensive: in theory there's at
+            // most one, but a malformed file could have more.
+            while (lines.Count > 0 && SourceDocHashLineRegex.IsMatch(lines[0]))
+                lines.RemoveAt(0);
+
+            // Collapse a single leading blank line if present, so the header sits right
+            // before the original first line of meaningful content.
+            if (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[0]))
+                lines.RemoveAt(0);
+
+            var header = "// sourceDocHash: " + (newHash ?? string.Empty);
+            return header + newline + string.Join(newline, lines);
         }
     }
 }
