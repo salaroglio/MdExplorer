@@ -37,5 +37,20 @@ namespace MdExplorer.Features.Services.Atlassian
 
         /// <summary>Lists the Jira projects the user can see (key + name).</summary>
         Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default);
+
+        /// <summary>Adds a comment (plain text wrapped to ADF). Returns the comment id.</summary>
+        Task<string> AddCommentAsync(JiraConnection conn, string issueKey, string body, CancellationToken ct = default);
+
+        /// <summary>Edits an existing issue's fields (only the provided ones).</summary>
+        Task UpdateIssueAsync(JiraConnection conn, string issueKey, JiraUpdateIssueRequest req, CancellationToken ct = default);
+
+        /// <summary>Lists the workflow transitions currently available for an issue.</summary>
+        Task<IReadOnlyList<JiraTransition>> GetTransitionsAsync(JiraConnection conn, string issueKey, CancellationToken ct = default);
+
+        /// <summary>
+        /// Applies a transition by name or target-status (case-insensitive). Throws
+        /// with the available options if none matches. Returns the resulting status.
+        /// </summary>
+        Task<string> TransitionIssueAsync(JiraConnection conn, string issueKey, string transition, CancellationToken ct = default);
     }
 }

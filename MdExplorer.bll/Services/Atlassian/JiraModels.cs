@@ -77,4 +77,21 @@ namespace MdExplorer.Features.Services.Atlassian
         public string Key { get; set; }
         public string Name { get; set; }
     }
+
+    /// <summary>Fields to change on an existing issue. Only non-null/non-blank ones are sent.</summary>
+    public class JiraUpdateIssueRequest
+    {
+        public string Summary { get; set; }
+        public string Description { get; set; }   // plain text -> ADF
+        public string Priority { get; set; }
+        public string DueDate { get; set; }
+    }
+
+    /// <summary>An available workflow transition for an issue.</summary>
+    public class JiraTransition
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }        // transition name, e.g. "Start Progress"
+        public string ToStatus { get; set; }    // resulting status, e.g. "In Progress"
+    }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -171,6 +172,81 @@ namespace MdExplorer.Features.Services.Atlassian
                 Key = key,
                 Url = string.IsNullOrEmpty(key) ? null : $"{BaseUrl(conn)}/browse/{key}"
             };
+        }
+
+        public async Task<string> AddCommentAsync(JiraConnection conn, string issueKey, string body, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(issueKey)) throw new AtlassianApiException("issueKey is required.");
+            if (string.IsNullOrWhiteSpace(body)) throw new AtlassianApiException("comment body is required.");
+
+            var payload = new JsonObject { ["body"] = JsonNode.Parse(AdfBuilder.FromPlainText(body)) };
+            using var doc = await SendJsonAsync(conn, HttpMethod.Post,
+                $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}/comment", payload, ct);
+            return doc != null && doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
+        }
+
+        public async Task UpdateIssueAsync(JiraConnection conn, string issueKey, JiraUpdateIssueRequest req, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(issueKey)) throw new AtlassianApiException("issueKey is required.");
+            if (req == null) throw new AtlassianApiException("nothing to update.");
+
+            var fields = new JsonObject();
+            if (!string.IsNullOrWhiteSpace(req.Summary)) fields["summary"] = req.Summary.Trim();
+            if (req.Description != null) fields["description"] = JsonNode.Parse(AdfBuilder.FromPlainText(req.Description));
+            if (!string.IsNullOrWhiteSpace(req.Priority)) fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
+            if (!string.IsNullOrWhiteSpace(req.DueDate)) fields["duedate"] = req.DueDate.Trim();
+            if (fields.Count == 0)
+                throw new AtlassianApiException("Nothing to update: provide at least one of summary/description/priority/dueDate.");
+
+            var payload = new JsonObject { ["fields"] = fields };
+            using var _ = await SendJsonAsync(conn, HttpMethod.Put,
+                $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}", payload, ct);
+        }
+
+        public async Task<IReadOnlyList<JiraTransition>> GetTransitionsAsync(JiraConnection conn, string issueKey, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(issueKey)) throw new AtlassianApiException("issueKey is required.");
+
+            using var doc = await GetJsonAsync(conn,
+                $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}/transitions", ct);
+            var list = new List<JiraTransition>();
+            if (doc != null && doc.RootElement.TryGetProperty("transitions", out var ts) && ts.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var t in ts.EnumerateArray())
+                {
+                    list.Add(new JiraTransition
+                    {
+                        Id = GetString(t, "id"),
+                        Name = GetString(t, "name"),
+                        ToStatus = GetNestedString(t, "to", "name")
+                    });
+                }
+            }
+            return list;
+        }
+
+        public async Task<string> TransitionIssueAsync(JiraConnection conn, string issueKey, string transition, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(transition)) throw new AtlassianApiException("transition name is required.");
+            var available = await GetTransitionsAsync(conn, issueKey, ct);
+            var target = transition.Trim();
+            var match = available.FirstOrDefault(t =>
+                string.Equals(t.ToStatus, target, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.Name, target, StringComparison.OrdinalIgnoreCase));
+            if (match == null)
+            {
+                var options = string.Join(", ", available.Select(t => t.ToStatus ?? t.Name));
+                throw new AtlassianApiException(
+                    $"No transition '{transition}' available for {issueKey}. Available: {options}.");
+            }
+
+            var payload = new JsonObject { ["transition"] = new JsonObject { ["id"] = match.Id } };
+            using var _ = await SendJsonAsync(conn, HttpMethod.Post,
+                $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}/transitions", payload, ct);
+            return match.ToStatus ?? match.Name;
         }
 
         public async Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default)

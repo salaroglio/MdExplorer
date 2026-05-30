@@ -407,4 +407,118 @@ public class MdExplorerTools
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
     }
+
+    [McpServerTool, Description(
+        "Adds a comment to a Jira issue (WRITE). Use when the user asks to comment on " +
+        "an issue, e.g. to note that a plan was produced. Body is plain text.")]
+    public async Task<string> JiraAddComment(
+        [Description("Project name.")] string project,
+        [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey,
+        [Description("Comment text (plain text).")] string body)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        try
+        {
+            var payload = new { projectId = pid, body };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync($"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/comment", content);
+            var respBody = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraAddComment", project, $"issueKey={issueKey}", respBody);
+            return respBody;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Edits fields of an existing Jira issue (WRITE): summary, description, " +
+        "priority and/or due date. Only the arguments you pass are changed. Use only " +
+        "when the user explicitly asks to modify an issue.")]
+    public async Task<string> JiraUpdateIssue(
+        [Description("Project name.")] string project,
+        [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey,
+        [Description("New summary (optional).")] string summary = null,
+        [Description("New description, plain text (optional).")] string description = null,
+        [Description("New priority, e.g. 'High' (optional).")] string priority = null,
+        [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        try
+        {
+            var payload = new { projectId = pid, summary, description, priority, dueDate };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Put,
+                $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}") { Content = content };
+            var resp = await client.SendAsync(req);
+            var respBody = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraUpdateIssue", project, $"issueKey={issueKey}", respBody);
+            return respBody;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Lists the workflow transitions currently available for a Jira issue " +
+        "(e.g. 'In Progress', 'Done'). Call this before JiraTransitionIssue to know " +
+        "the valid target states.")]
+    public async Task<string> JiraListTransitions(
+        [Description("Project name.")] string project,
+        [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        try
+        {
+            var resp = await client.GetAsync($"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/transitions?projectId={pid}");
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraListTransitions", project, $"issueKey={issueKey}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Moves a Jira issue to a new workflow state (WRITE), e.g. 'In Progress' or " +
+        "'Done'. Accepts the target status name or transition name (case-insensitive). " +
+        "If unsure of valid values, call JiraListTransitions first.")]
+    public async Task<string> JiraTransitionIssue(
+        [Description("Project name.")] string project,
+        [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey,
+        [Description("Target status or transition name, e.g. 'In Progress' / 'Done'.")] string transition)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        if (string.IsNullOrWhiteSpace(transition)) return "transition is required.";
+        try
+        {
+            var payload = new { projectId = pid, transition };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync($"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/transition", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraTransitionIssue", project, $"issueKey={issueKey}, to={transition}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
 }

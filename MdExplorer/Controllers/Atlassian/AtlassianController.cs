@@ -375,6 +375,96 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        public class CommentRequest
+        {
+            public Guid ProjectId { get; set; }
+            public string Body { get; set; }
+        }
+
+        // POST /api/atlassian/jira/issue/{key}/comment
+        [HttpPost("jira/issue/{key}/comment")]
+        public async Task<IActionResult> AddComment(string key, [FromBody] CommentRequest req)
+        {
+            if (req == null || string.IsNullOrWhiteSpace(req.Body)) return BadRequest(new { error = "comment body required" });
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var id = await _jiraClient.AddCommentAsync(ctx.Connection, key, req.Body);
+                return Ok(new { ok = true, commentId = id });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] AddComment failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        public class UpdateIssueRequest
+        {
+            public Guid ProjectId { get; set; }
+            public string? Summary { get; set; }
+            public string? Description { get; set; }
+            public string? Priority { get; set; }
+            public string? DueDate { get; set; }
+        }
+
+        // PUT /api/atlassian/jira/issue/{key}   (edit fields)
+        [HttpPut("jira/issue/{key}")]
+        public async Task<IActionResult> UpdateIssue(string key, [FromBody] UpdateIssueRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                await _jiraClient.UpdateIssueAsync(ctx.Connection, key, new JiraUpdateIssueRequest
+                {
+                    Summary = req.Summary,
+                    Description = req.Description,
+                    Priority = req.Priority,
+                    DueDate = req.DueDate
+                });
+                return Ok(new { ok = true });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] UpdateIssue failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // GET /api/atlassian/jira/issue/{key}/transitions
+        [HttpGet("jira/issue/{key}/transitions")]
+        public async Task<IActionResult> Transitions(string key, [FromQuery] Guid projectId)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var transitions = await _jiraClient.GetTransitionsAsync(ctx.Connection, key);
+                return Ok(new { key, transitions });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Transitions failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        public class TransitionRequest
+        {
+            public Guid ProjectId { get; set; }
+            public string Transition { get; set; }
+        }
+
+        // POST /api/atlassian/jira/issue/{key}/transition   (apply by name/target status)
+        [HttpPost("jira/issue/{key}/transition")]
+        public async Task<IActionResult> Transition(string key, [FromBody] TransitionRequest req)
+        {
+            if (req == null || string.IsNullOrWhiteSpace(req.Transition)) return BadRequest(new { error = "transition required" });
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var status = await _jiraClient.TransitionIssueAsync(ctx.Connection, key, req.Transition);
+                return Ok(new { ok = true, status });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Transition failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
         // ============================================================
         //   Internal helper
         // ============================================================
