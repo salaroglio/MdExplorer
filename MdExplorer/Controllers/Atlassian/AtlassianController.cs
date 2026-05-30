@@ -299,11 +299,14 @@ namespace MdExplorer.Service.Controllers.Atlassian
         {
             public Guid ProjectId { get; set; }
             public string Summary { get; set; }
-            public string Description { get; set; }
-            public string IssueType { get; set; }
-            public string Priority { get; set; }
-            public string DueDate { get; set; }
-            public string ProjectKey { get; set; }   // optional; default = first configured key
+            // Nullable so the [ApiController] model binder does not mark these
+            // non-nullable strings as required (nullable-reference-types). They
+            // are genuinely optional — see CypherRequest in KgController.
+            public string? Description { get; set; }
+            public string? IssueType { get; set; }
+            public string? Priority { get; set; }
+            public string? DueDate { get; set; }
+            public string? ProjectKey { get; set; }   // optional; default = first configured key
             public bool AssignToSelf { get; set; } = true;
         }
 
