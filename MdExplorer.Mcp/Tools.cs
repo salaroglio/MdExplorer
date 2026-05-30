@@ -340,4 +340,48 @@ public class MdExplorerTools
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
     }
+
+    [McpServerTool, Description(
+        "Creates a Jira issue and assigns it to the current user. This is a WRITE " +
+        "operation — only use it when the user explicitly asks to create/open an " +
+        "issue (e.g. to seed test issues). Returns the created issue key and URL. " +
+        "projectKey defaults to the project's configured key; issueType defaults to " +
+        "'Task'. priority (e.g. 'High') and dueDate ('yyyy-MM-dd') are optional.")]
+    public async Task<string> JiraCreateIssue(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Issue summary (title).")] string summary,
+        [Description("Issue description in plain text (optional).")] string description = null,
+        [Description("Issue type, default 'Task'.")] string issueType = null,
+        [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional).")] string priority = null,
+        [Description("Due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
+        [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(summary)) return "summary is required.";
+        try
+        {
+            var payload = new
+            {
+                projectId = pid,
+                summary,
+                description,
+                issueType,
+                priority,
+                dueDate,
+                projectKey,
+                assignToSelf = true
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync("/api/atlassian/jira/issue", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraCreateIssue", project, $"summary={summary}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
 }

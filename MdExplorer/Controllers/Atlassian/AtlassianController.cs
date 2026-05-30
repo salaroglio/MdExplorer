@@ -295,6 +295,59 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        public class CreateIssueRequest
+        {
+            public Guid ProjectId { get; set; }
+            public string Summary { get; set; }
+            public string Description { get; set; }
+            public string IssueType { get; set; }
+            public string Priority { get; set; }
+            public string DueDate { get; set; }
+            public string ProjectKey { get; set; }   // optional; default = first configured key
+            public bool AssignToSelf { get; set; } = true;
+        }
+
+        // ============================================================
+        //   POST /api/atlassian/jira/issue   (the one write operation)
+        // ============================================================
+        [HttpPost("jira/issue")]
+        public async Task<IActionResult> CreateIssue([FromBody] CreateIssueRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(req.Summary)) return BadRequest(new { error = "summary required" });
+
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            var key = string.IsNullOrWhiteSpace(req.ProjectKey) ? ctx.ProjectKeys.FirstOrDefault() : req.ProjectKey.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                return BadRequest(new { error = "No Jira project key: set one in Project Settings → Atlassian or pass projectKey." });
+
+            try
+            {
+                var created = await _jiraClient.CreateIssueAsync(ctx.Connection, new JiraCreateIssueRequest
+                {
+                    ProjectKey = key,
+                    Summary = req.Summary,
+                    Description = req.Description,
+                    IssueType = req.IssueType,
+                    Priority = req.Priority,
+                    DueDate = req.DueDate,
+                    AssignToSelf = req.AssignToSelf
+                });
+                return Ok(new { projectId = req.ProjectId, created });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] CreateIssue failed for {ProjectId}", req.ProjectId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         // ============================================================
         //   Internal helper
         // ============================================================

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -125,14 +126,72 @@ namespace MdExplorer.Features.Services.Atlassian
             };
         }
 
+        public async Task<JiraCreatedIssue> CreateIssueAsync(
+            JiraConnection conn, JiraCreateIssueRequest req, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (req == null || string.IsNullOrWhiteSpace(req.ProjectKey))
+                throw new AtlassianApiException("A Jira project key is required to create an issue.");
+            if (string.IsNullOrWhiteSpace(req.Summary))
+                throw new AtlassianApiException("A summary is required to create an issue.");
+
+            // Resolve the caller's accountId up-front when assigning to self, so we
+            // can assign via the dedicated /assignee endpoint (unambiguous on Cloud).
+            string accountId = null;
+            if (req.AssignToSelf)
+                accountId = (await VerifyAsync(conn, ct))?.AccountId;
+
+            var fields = new JsonObject
+            {
+                ["project"] = new JsonObject { ["key"] = req.ProjectKey.Trim() },
+                ["summary"] = req.Summary.Trim(),
+                ["issuetype"] = new JsonObject { ["name"] = string.IsNullOrWhiteSpace(req.IssueType) ? "Task" : req.IssueType.Trim() }
+            };
+            if (!string.IsNullOrWhiteSpace(req.Description))
+                fields["description"] = JsonNode.Parse(AdfBuilder.FromPlainText(req.Description));
+            if (!string.IsNullOrWhiteSpace(req.Priority))
+                fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
+            if (!string.IsNullOrWhiteSpace(req.DueDate))
+                fields["duedate"] = req.DueDate.Trim();
+
+            var body = new JsonObject { ["fields"] = fields };
+            using var doc = await SendJsonAsync(conn, HttpMethod.Post, $"{BaseUrl(conn)}/rest/api/3/issue", body, ct);
+
+            var key = doc != null && doc.RootElement.TryGetProperty("key", out var k) ? k.GetString() : null;
+
+            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(accountId))
+            {
+                var assignBody = new JsonObject { ["accountId"] = accountId };
+                using var _ = await SendJsonAsync(conn, HttpMethod.Put,
+                    $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(key)}/assignee", assignBody, ct);
+            }
+
+            return new JiraCreatedIssue
+            {
+                Key = key,
+                Url = string.IsNullOrEmpty(key) ? null : $"{BaseUrl(conn)}/browse/{key}"
+            };
+        }
+
         // ── HTTP plumbing ───────────────────────────────────────────
 
-        private async Task<JsonDocument> GetJsonAsync(JiraConnection conn, string url, CancellationToken ct)
+        private Task<JsonDocument> GetJsonAsync(JiraConnection conn, string url, CancellationToken ct) =>
+            SendJsonAsync(conn, HttpMethod.Get, url, body: null, ct);
+
+        /// <summary>
+        /// Sends an authenticated request (GET/POST/PUT) and returns the parsed
+        /// JSON body, or null on 2xx with no content (e.g. the assignee PUT
+        /// returns 204). Throws <see cref="AtlassianApiException"/> on failure.
+        /// </summary>
+        private async Task<JsonDocument> SendJsonAsync(
+            JiraConnection conn, HttpMethod method, string url, JsonNode body, CancellationToken ct)
         {
             var client = _httpClientFactory.CreateClient();
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            using var req = new HttpRequestMessage(method, url);
             req.Headers.Authorization = new AuthenticationHeaderValue("Basic", BasicToken(conn));
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            if (body != null)
+                req.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
             HttpResponseMessage resp;
             try
@@ -146,22 +205,9 @@ namespace MdExplorer.Features.Services.Atlassian
             }
 
             var content = await resp.Content.ReadAsStringAsync(ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
-                    resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                {
-                    throw new AtlassianApiException(
-                        "Jira rejected the credentials (HTTP " + (int)resp.StatusCode + "). " +
-                        "Your API token may be missing, expired, or lacks permission. " +
-                        "Regenerate it at id.atlassian.com and re-enter it in Project Settings → Atlassian.",
-                        resp.StatusCode);
-                }
-                _logger.LogWarning("[JiraClient] {Status} from {Url}: {Body}", resp.StatusCode, url, Truncate(content, 500));
-                throw new AtlassianApiException(
-                    $"Jira returned HTTP {(int)resp.StatusCode}: {Truncate(content, 300)}", resp.StatusCode);
-            }
+            EnsureSuccessOrThrow(resp, content, url);
 
+            if (string.IsNullOrWhiteSpace(content)) return null;   // 2xx with no body (204)
             try
             {
                 return JsonDocument.Parse(content);
@@ -170,6 +216,28 @@ namespace MdExplorer.Features.Services.Atlassian
             {
                 throw new AtlassianApiException("Jira returned a non-JSON response.", resp.StatusCode, ex);
             }
+        }
+
+        private void EnsureSuccessOrThrow(HttpResponseMessage resp, string content, string url)
+        {
+            if (resp.IsSuccessStatusCode) return;
+
+            _logger.LogWarning("[JiraClient] {Status} from {Url}: {Body}", resp.StatusCode, url, Truncate(content, 500));
+            if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                var reason = ExtractJiraReason(content);
+                throw new AtlassianApiException(
+                    "Jira rejected the request (HTTP " + (int)resp.StatusCode + "). " +
+                    (string.IsNullOrEmpty(reason) ? "" : "Jira says: " + reason + ". ") +
+                    "A scoped API token does not work against the site URL — use a classic " +
+                    "(non-scoped) token, or check the token has not expired and the account has Jira access. " +
+                    "Manage tokens at id.atlassian.com → Project Settings → Atlassian.",
+                    resp.StatusCode);
+            }
+            throw new AtlassianApiException(
+                $"Jira returned HTTP {(int)resp.StatusCode}: {ExtractJiraReason(content) ?? Truncate(content, 300)}",
+                resp.StatusCode);
         }
 
         private static void Validate(JiraConnection conn)
@@ -243,5 +311,39 @@ namespace MdExplorer.Features.Services.Atlassian
 
         private static string Truncate(string s, int max) =>
             string.IsNullOrEmpty(s) || s.Length <= max ? s : s.Substring(0, max) + "…";
+
+        /// <summary>
+        /// Pulls a human reason out of a Jira error body. Jira returns either
+        /// { "errorMessages": [...], "errors": {...} } or { "message": "..." }.
+        /// An empty body (the typical "anonymous/ignored scoped token" 403) yields
+        /// null so the caller can fall back to the generic guidance.
+        /// </summary>
+        private static string ExtractJiraReason(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return null;
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return Truncate(body, 200);
+
+                if (root.TryGetProperty("errorMessages", out var msgs) &&
+                    msgs.ValueKind == JsonValueKind.Array && msgs.GetArrayLength() > 0)
+                {
+                    var parts = new List<string>();
+                    foreach (var m in msgs.EnumerateArray())
+                        if (m.ValueKind == JsonValueKind.String) parts.Add(m.GetString());
+                    if (parts.Count > 0) return string.Join("; ", parts);
+                }
+                if (root.TryGetProperty("message", out var single) && single.ValueKind == JsonValueKind.String)
+                    return single.GetString();
+
+                return Truncate(body, 200);
+            }
+            catch (JsonException)
+            {
+                return Truncate(body, 200);
+            }
+        }
     }
 }

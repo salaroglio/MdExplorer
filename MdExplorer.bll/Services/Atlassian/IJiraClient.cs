@@ -25,5 +25,14 @@ namespace MdExplorer.Features.Services.Atlassian
         /// <see cref="AtlassianApiException"/> on failure (401 = bad token).
         /// </summary>
         Task<JiraMyself> VerifyAsync(JiraConnection conn, CancellationToken ct = default);
+
+        /// <summary>
+        /// Creates an issue (POST /rest/api/3/issue) and, when
+        /// <see cref="JiraCreateIssueRequest.AssignToSelf"/> is set, assigns it to
+        /// the calling user. This is the one WRITE operation; it exists mainly so
+        /// the agent can seed/triage work. Returns the created key + browse URL.
+        /// </summary>
+        Task<JiraCreatedIssue> CreateIssueAsync(
+            JiraConnection conn, JiraCreateIssueRequest req, CancellationToken ct = default);
     }
 }

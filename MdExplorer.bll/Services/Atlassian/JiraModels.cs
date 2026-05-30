@@ -52,4 +52,22 @@ namespace MdExplorer.Features.Services.Atlassian
         public string DisplayName { get; set; }
         public string EmailAddress { get; set; }
     }
+
+    /// <summary>Input for creating an issue. Plain-text Description is wrapped into ADF.</summary>
+    public class JiraCreateIssueRequest
+    {
+        public string ProjectKey { get; set; }
+        public string Summary { get; set; }
+        public string IssueType { get; set; }   // default "Task"
+        public string Description { get; set; } // plain text -> ADF
+        public string Priority { get; set; }    // optional, e.g. "High"
+        public string DueDate { get; set; }     // optional, "yyyy-MM-dd"
+        public bool AssignToSelf { get; set; } = true;
+    }
+
+    public class JiraCreatedIssue
+    {
+        public string Key { get; set; }
+        public string Url { get; set; }
+    }
 }
