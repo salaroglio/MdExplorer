@@ -169,6 +169,10 @@ namespace MdExplorer
             // Apache Jena Fuseki integration (parallelo a Neo4j, su un triplestore RDF)
             services.AddSingleton<Features.Services.KnowledgeGraph.IFusekiClient, Features.Services.KnowledgeGraph.FusekiClient>();
 
+            // Atlassian (Jira/Confluence) integration — read-only triage MVP.
+            services.AddSingleton<Features.Services.Atlassian.IJiraClient, Features.Services.Atlassian.JiraClient>();
+            services.AddSingleton<Services.IAtlassianConfigService, Services.AtlassianConfigService>();
+
             // Register Team Chat services
             services.AddHttpClient("MdChat");
             // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat

@@ -661,6 +661,103 @@
       </div>
     </mat-tab>
 
+    <!-- Tab 7: Atlassian (Jira/Confluence) -->
+    <mat-tab [label]="'PROJECT_SETTINGS.ATLASSIAN_TAB' | translate">
+      <div class="tab-content">
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.ATLASSIAN_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!atlLoading">
+              <mat-checkbox
+                [(ngModel)]="atlEnabled"
+                (change)="onAtlassianEnabledChange()"
+                [disabled]="atlSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_ENABLE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.ATLASSIAN_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="atlLoading" class="loading-container">
+              <mat-spinner diameter="30"></mat-spinner>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!atlLoading && atlEnabled">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.ATLASSIAN_CONNECTION' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_BASE_URL' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlBaseUrl" placeholder="https://acme.atlassian.net" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_SHARED_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_PROJECT_KEYS' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlProjectKeys" placeholder="BCO, OFELIA" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PROJECT_KEYS_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_PLANNING_FOLDER' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlPlanningFolder" placeholder="specs/da-jira" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PLANNING_FOLDER_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_EMAIL' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlEmail" placeholder="you@company.com" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PERSONAL_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_TOKEN' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput type="password" [(ngModel)]="atlToken"
+                  [placeholder]="atlHasToken ? ('PROJECT_SETTINGS.ATLASSIAN_TOKEN_KEEP' | translate) : ''"
+                  [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_TOKEN_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-row kg-actions">
+              <button mat-stroked-button (click)="onTestAtlassianConnection()" [disabled]="atlSaving || atlTesting">
+                <mat-icon *ngIf="!atlTesting">cable</mat-icon>
+                <mat-spinner *ngIf="atlTesting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ atlTesting ? ('PROJECT_SETTINGS.ATLASSIAN_TESTING' | translate) : ('PROJECT_SETTINGS.ATLASSIAN_TEST' | translate) }}
+              </button>
+              <button mat-raised-button color="primary" (click)="onSaveAtlassianSettings()" [disabled]="atlSaving || atlTesting">
+                <mat-icon>save</mat-icon>
+                {{ 'COMMON.SAVE' | translate }}
+              </button>
+              <mat-spinner *ngIf="atlSaving" diameter="20" class="inline-spinner"></mat-spinner>
+              <span class="kg-status-ok" *ngIf="atlTestMessage && atlTestSuccess">{{ atlTestMessage }}</span>
+              <span class="kg-status-fail" *ngIf="atlTestMessage && !atlTestSuccess">{{ atlTestMessage }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+      </div>
+    </mat-tab>
+
   </mat-tab-group>
 </mat-dialog-content>
 

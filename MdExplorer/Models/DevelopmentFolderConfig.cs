@@ -36,6 +36,31 @@ namespace MdExplorer.Service.Models
         /// Name is intentionally NOT stored here — it is a per-user local label in UserDB.
         /// </summary>
         public ProjectConfig Project { get; set; } = new ProjectConfig();
+
+        /// <summary>
+        /// Shared, non-secret Atlassian (Jira/Confluence) configuration. Null when
+        /// the project does not use the integration (omitted from the YAML). The
+        /// per-user API token is NEVER stored here — it lives encrypted in UserDB.
+        /// </summary>
+        public AtlassianConfig Atlassian { get; set; }
+    }
+
+    /// <summary>
+    /// Shared Atlassian config committed in .development.yml. Travels with the
+    /// repo so a colleague who clones the project only has to add their own token.
+    /// </summary>
+    public class AtlassianConfig
+    {
+        /// <summary>Jira/Confluence Cloud site, e.g. https://acme.atlassian.net.</summary>
+        public string JiraBaseUrl { get; set; }
+
+        /// <summary>Project keys the triage search is scoped to, e.g. ["BCO", "OFELIA"].</summary>
+        public List<string> JiraProjectKeys { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Project-relative folder where issue plans are written, e.g. "specs/da-jira".
+        /// </summary>
+        public string PlanningFolder { get; set; }
     }
 
     /// <summary>

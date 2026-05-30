@@ -82,6 +82,22 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   fsTestMessage: string = '';
   fsTestSuccess: boolean = false;
 
+  // Atlassian (Jira/Confluence) settings
+  // Shared (jiraBaseUrl/projectKeys/planningFolder) -> .development.yml.
+  // Token -> UserDB encrypted. Email lives in UserDB (personal).
+  atlLoading: boolean = false;
+  atlSaving: boolean = false;
+  atlEnabled: boolean = false;
+  atlBaseUrl: string = '';
+  atlProjectKeys: string = '';     // comma-separated in the UI, split on save
+  atlPlanningFolder: string = '';
+  atlEmail: string = '';
+  atlToken: string = '';
+  atlHasToken: boolean = false;
+  atlTesting: boolean = false;
+  atlTestMessage: string = '';
+  atlTestSuccess: boolean = false;
+
   // RAG settings
   ragEnabled: boolean = false;
   ragModelInstalled: boolean = false;
@@ -118,6 +134,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadAppsConfig();
     this.loadKgSettings();
     this.loadFusekiSettings();
+    this.loadAtlassianSettings();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -935,6 +952,108 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.fsSaving = false;
         console.error('Error saving Fuseki settings:', err);
+      }
+    });
+  }
+
+  // ============================================================
+  //   Atlassian (Jira/Confluence) — tab logic
+  // ============================================================
+  loadAtlassianSettings(): void {
+    if (!this.projectId) return;
+    this.atlLoading = true;
+    this.projectSettingsService.getAtlassianSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.atlEnabled = !!r.enabled;
+        this.atlBaseUrl = r.jiraBaseUrl || '';
+        this.atlProjectKeys = (r.jiraProjectKeys || []).join(', ');
+        this.atlPlanningFolder = r.planningFolder || '';
+        this.atlEmail = r.email || '';
+        this.atlHasToken = !!r.hasToken;
+        this.atlToken = '';
+        if (r.lastTestSuccess === true) {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_OK_PREVIOUS');
+          this.atlTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_FAIL_PREVIOUS');
+          this.atlTestSuccess = false;
+        }
+        this.atlLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading Atlassian settings:', err);
+        this.atlLoading = false;
+      }
+    });
+  }
+
+  onAtlassianEnabledChange(): void {
+    // Persist immediately when turning off; otherwise wait for explicit Save
+    // so the token and shared config travel together.
+    if (!this.atlEnabled) {
+      this.onSaveAtlassianSettings();
+    }
+  }
+
+  private parseProjectKeys(): string[] {
+    return (this.atlProjectKeys || '')
+      .split(',')
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
+  }
+
+  onTestAtlassianConnection(): void {
+    this.atlTesting = true;
+    this.atlTestMessage = '';
+    this.projectSettingsService.testAtlassianConnection({
+      projectId: this.projectId,
+      jiraBaseUrl: this.atlBaseUrl,
+      email: this.atlEmail,
+      apiToken: this.atlToken || (this.atlHasToken ? '********' : '')
+    }).subscribe({
+      next: (r) => {
+        this.atlTesting = false;
+        this.atlTestSuccess = !!r.success;
+        if (r.success) {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_OK', {
+            name: r.displayName || '', ms: r.latencyMs
+          });
+        } else {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_FAIL', {
+            error: r.error || 'unknown'
+          });
+        }
+      },
+      error: (err) => {
+        this.atlTesting = false;
+        this.atlTestSuccess = false;
+        this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_FAIL', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onSaveAtlassianSettings(): void {
+    this.atlSaving = true;
+    this.projectSettingsService.saveAtlassianSettings(this.projectId, {
+      enabled: this.atlEnabled,
+      jiraBaseUrl: this.atlBaseUrl,
+      jiraProjectKeys: this.parseProjectKeys(),
+      planningFolder: this.atlPlanningFolder,
+      email: this.atlEmail,
+      apiToken: this.atlToken || ''
+    }).subscribe({
+      next: () => {
+        this.atlSaving = false;
+        if (this.atlToken) {
+          this.atlHasToken = true;
+          this.atlToken = '';
+        }
+      },
+      error: (err) => {
+        this.atlSaving = false;
+        console.error('Error saving Atlassian settings:', err);
       }
     });
   }

@@ -281,4 +281,63 @@ public class MdExplorerTools
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
     }
+
+    // ============================================================
+    //   Atlassian (Jira) tools — read-only triage
+    // ============================================================
+
+    [McpServerTool, Description(
+        "Lists the Jira issues assigned to the current user that are still open " +
+        "(not Done), most urgent first (priority desc, due date asc). Use this to " +
+        "answer 'what should I work on next' and to pick the top issue to plan. " +
+        "The response also includes 'planningFolder' — the project-relative folder " +
+        "where the generated plan markdown should be written. Requires the project " +
+        "to have the Atlassian integration enabled and a token configured in " +
+        "MdExplorer (Project Settings → Atlassian).")]
+    public async Task<string> JiraFindMyIssues(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Max issues to return (default 10, cap 50).")] int? maxResults = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        var k = maxResults ?? 10;
+        try
+        {
+            var resp = await client.GetAsync($"/api/atlassian/jira/my-issues?projectId={pid}&maxResults={k}");
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraFindMyIssues", project, $"maxResults={k}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Fetches the full details of a single Jira issue (summary, description, " +
+        "acceptance criteria text, labels, recent comments, and linked issues) so " +
+        "you can write an implementation plan. Call JiraFindMyIssues first to get " +
+        "the issue key. Rich text (description/comments) is flattened to markdown.")]
+    public async Task<string> JiraGetIssue(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The Jira issue key, e.g. 'BCO-123'.")] string issueKey)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        try
+        {
+            var resp = await client.GetAsync($"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}?projectId={pid}");
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraGetIssue", project, $"issueKey={issueKey}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
 }

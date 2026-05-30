@@ -193,4 +193,33 @@ export class ProjectSettingsService {
   ensureFusekiDataset(projectId: string): Observable<{ ok: boolean; dataset: string }> {
     return this.http.post<any>('../api/fs/ensure-dataset', { projectId });
   }
+
+  // ============================================================
+  //   Atlassian (Jira/Confluence) settings
+  //   Shared config (base url, project keys, planning folder) -> .development.yml
+  //   Personal token -> UserDB (encrypted). Both saved in one PUT.
+  // ============================================================
+  getAtlassianSettings(projectId: string): Observable<any> {
+    return this.http.get<any>(`../api/atlassian/settings/${encodeURIComponent(projectId)}`);
+  }
+
+  saveAtlassianSettings(projectId: string, body: {
+    enabled: boolean;
+    jiraBaseUrl: string;
+    jiraProjectKeys: string[];
+    planningFolder: string;
+    email: string;
+    apiToken: string;
+  }): Observable<any> {
+    return this.http.put<any>(`../api/atlassian/settings/${encodeURIComponent(projectId)}`, body);
+  }
+
+  testAtlassianConnection(body: {
+    projectId?: string;
+    jiraBaseUrl: string;
+    email: string;
+    apiToken: string;
+  }): Observable<{ success: boolean; error?: string; displayName?: string; latencyMs: number }> {
+    return this.http.post<any>('../api/atlassian/test-connection', body);
+  }
 }
