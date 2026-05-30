@@ -26,12 +26,13 @@ namespace MdExplorer.Features.Services.Atlassian
         public string DueDate { get; set; }
         public string Assignee { get; set; }
         public string Url { get; set; }
+        /// <summary>Short description snippet (truncated) in lists; full text in <see cref="JiraIssueDetail"/>.</summary>
+        public string Description { get; set; }
     }
 
     /// <summary>Full (but still trimmed) view of one issue for planning.</summary>
     public class JiraIssueDetail : JiraIssueSummary
     {
-        public string Description { get; set; }
         public string Reporter { get; set; }
         public List<string> Labels { get; set; } = new List<string>();
         public List<JiraComment> Comments { get; set; } = new List<JiraComment>();

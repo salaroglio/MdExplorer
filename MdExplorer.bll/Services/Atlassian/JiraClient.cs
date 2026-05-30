@@ -18,7 +18,8 @@ namespace MdExplorer.Features.Services.Atlassian
         private readonly ILogger<JiraClient> _logger;
 
         // Fields requested for triage lists and for the planning detail view.
-        private const string SummaryFields = "summary,status,priority,issuetype,duedate,assignee";
+        private const string SummaryFields = "summary,status,priority,issuetype,duedate,assignee,description";
+        private const int SummaryDescriptionMax = 200;
         private const string DetailFields = "summary,status,priority,issuetype,duedate,assignee,reporter,description,labels,comment,issuelinks";
 
         public JiraClient(IHttpClientFactory httpClientFactory, ILogger<JiraClient> logger)
@@ -360,6 +361,8 @@ namespace MdExplorer.Features.Services.Atlassian
                 s.IssueType = GetNestedName(f, "issuetype");
                 s.DueDate = GetString(f, "duedate");
                 s.Assignee = GetNestedString(f, "assignee", "displayName");
+                if (f.TryGetProperty("description", out var desc) && desc.ValueKind == JsonValueKind.Object)
+                    s.Description = Truncate(AdfRenderer.ToText(desc), SummaryDescriptionMax);
             }
             return s;
         }
