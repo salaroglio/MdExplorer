@@ -16234,8 +16234,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.05.26.1',
-  buildTime: '2026.05.26 11:10:12'
+  version: '2026.05.29.1',
+  buildTime: '2026.05.29 16:27:31'
 };
 
 /***/ }),

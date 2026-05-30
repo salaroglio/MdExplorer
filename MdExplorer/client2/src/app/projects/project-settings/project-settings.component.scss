@@ -90,6 +90,10 @@
   &.intellij-color {
     color: #FF6B00; // IntelliJ orange
   }
+
+  &.copilot-color {
+    color: #6E40C9; // GitHub Copilot purple
+  }
 }
 
 // IDE paths styling removed - now shown in Projects component main page

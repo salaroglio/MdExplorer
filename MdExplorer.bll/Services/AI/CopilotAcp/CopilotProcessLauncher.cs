@@ -24,7 +24,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
     /// (POSIX shells honor the shebang of an extension-less script).
     /// </para>
     /// </summary>
-    internal static class CopilotProcessLauncher
+    public static class CopilotProcessLauncher
     {
         /// <summary>
         /// Returns <c>true</c> if a <c>copilot.exe</c>, <c>copilot.cmd</c> or <c>copilot.ps1</c>

@@ -26,6 +26,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   githubModeEnabled: boolean = false;
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
+  private lastSavedIde: string = 'vscode';
   vscodePath: string = '';
   intellijPath: string = '';
   projectId: string;
@@ -228,6 +229,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (response) => {
         console.log('IDE configuration loaded for project:', this.projectPath, response);
         this.selectedIde = response.selectedIde || 'vscode';
+        this.lastSavedIde = this.selectedIde;
         this.vscodePath = response.vscodePath || '';
         this.intellijPath = response.intellijPath || '';
         ideConfigLoaded = true;
@@ -396,13 +398,14 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (response) => {
         console.log('IDE configuration saved successfully:', this.selectedIde, response);
+        this.lastSavedIde = this.selectedIde;
         this.saving = false;
       },
       error: (error) => {
         console.error('Error saving IDE configuration:', error);
         this.saving = false;
-        // Revert the change on error
-        this.selectedIde = this.selectedIde === 'vscode' ? 'intellij' : 'vscode';
+        // Revert to the last successfully-saved value (works for any number of options)
+        this.selectedIde = this.lastSavedIde;
       }
     });
   }

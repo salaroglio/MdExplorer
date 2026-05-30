@@ -225,6 +225,7 @@
     "IDE_SELECT_DESC": "Seleziona quale IDE deve essere usato per aprire i file dalla toolbar:",
     "VSCODE": "Microsoft Visual Studio Code",
     "INTELLIJ": "IntelliJ IDEA",
+    "COPILOT": "GitHub Copilot CLI",
     "IDE_INFO": "Le impostazioni IDE sono specifiche per questo progetto e salvate nel database. Le modifiche hanno effetto immediato quando si aprono file dalla toolbar.",
     "AI_RAG": "AI & RAG",
     "RAG_TITLE": "RAG (Retrieval-Augmented Generation)",
