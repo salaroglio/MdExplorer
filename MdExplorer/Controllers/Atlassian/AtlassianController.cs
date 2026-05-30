@@ -270,6 +270,32 @@ namespace MdExplorer.Service.Controllers.Atlassian
         }
 
         // ============================================================
+        //   GET /api/atlassian/jira/search?projectId=&jql=&maxResults=
+        //   Free-form JQL search (read-only) for arbitrary filters.
+        // ============================================================
+        [HttpGet("jira/search")]
+        public async Task<IActionResult> Search([FromQuery] Guid projectId, [FromQuery] string jql, [FromQuery] int maxResults = 20)
+        {
+            if (string.IsNullOrWhiteSpace(jql)) return BadRequest(new { error = "jql query param required" });
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults);
+                return Ok(new { projectId, jql, count = issues.Count, issues });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] Search failed for {ProjectId}", projectId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        // ============================================================
         //   GET /api/atlassian/jira/issue/{key}?projectId=
         // ============================================================
         [HttpGet("jira/issue/{key}")]

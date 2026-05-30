@@ -316,6 +316,41 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Searches Jira issues with a free-form JQL query (read-only) — use this for " +
+        "ANY filter the user asks for. Translate natural language into JQL. Each " +
+        "result includes a short description snippet. Useful JQL building blocks: " +
+        "assignee = currentUser(); statusCategory != Done; priority >= High; " +
+        "date functions startOfDay()/endOfDay()/startOfWeek() with offsets like " +
+        "startOfDay(\"+1\"). Examples — due today: 'assignee = currentUser() AND " +
+        "duedate >= startOfDay() AND duedate <= endOfDay() AND statusCategory != Done'; " +
+        "due tomorrow: 'duedate >= startOfDay(\"+1\") AND duedate <= endOfDay(\"+1\")'; " +
+        "overdue: 'duedate < startOfDay() AND statusCategory != Done'. Scope to a " +
+        "project with 'project = SCRUM' (use JiraListProjects to find keys). For the " +
+        "common 'my urgent issues' case prefer JiraFindMyIssues.")]
+    public async Task<string> JiraSearch(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The JQL query, e.g. 'assignee = currentUser() AND duedate <= endOfDay()'.")] string jql,
+        [Description("Max results (default 20, cap 50).")] int? maxResults = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(jql)) return "jql is required.";
+        var k = maxResults ?? 20;
+        try
+        {
+            var resp = await client.GetAsync($"/api/atlassian/jira/search?projectId={pid}&jql={Uri.EscapeDataString(jql)}&maxResults={k}");
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraSearch", project, $"jql={jql}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Fetches the full details of a single Jira issue (summary, description, " +
         "acceptance criteria text, labels, recent comments, and linked issues) so " +
         "you can write an implementation plan. Call JiraFindMyIssues first to get " +
