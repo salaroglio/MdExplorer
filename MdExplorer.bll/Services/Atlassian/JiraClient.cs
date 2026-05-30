@@ -76,6 +76,7 @@ namespace MdExplorer.Features.Services.Atlassian
             {
                 detail.Summary = GetString(f, "summary");
                 detail.Status = GetNestedName(f, "status");
+                detail.StatusCategory = GetStatusCategory(f);
                 detail.Priority = GetNestedName(f, "priority");
                 detail.IssueType = GetNestedName(f, "issuetype");
                 detail.DueDate = GetString(f, "duedate");
@@ -250,6 +251,31 @@ namespace MdExplorer.Features.Services.Atlassian
             return match.ToStatus ?? match.Name;
         }
 
+        public async Task<IReadOnlyList<JiraIssueTypeStatuses>> GetProjectStatusesAsync(JiraConnection conn, string projectKey, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(projectKey)) throw new AtlassianApiException("projectKey is required.");
+            using var doc = await GetJsonAsync(conn,
+                $"{BaseUrl(conn)}/rest/api/3/project/{Uri.EscapeDataString(projectKey.Trim())}/statuses", ct);
+            var result = new List<JiraIssueTypeStatuses>();
+            if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var it in doc.RootElement.EnumerateArray())
+                {
+                    var entry = new JiraIssueTypeStatuses { IssueType = GetString(it, "name") };
+                    if (it.TryGetProperty("statuses", out var sts) && sts.ValueKind == JsonValueKind.Array)
+                        foreach (var s in sts.EnumerateArray())
+                            entry.Statuses.Add(new JiraStatus
+                            {
+                                Name = GetString(s, "name"),
+                                Category = GetNestedString(s, "statusCategory", "name")
+                            });
+                    result.Add(entry);
+                }
+            }
+            return result;
+        }
+
         public async Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default)
         {
             Validate(conn);
@@ -361,6 +387,7 @@ namespace MdExplorer.Features.Services.Atlassian
                 s.IssueType = GetNestedName(f, "issuetype");
                 s.DueDate = GetString(f, "duedate");
                 s.Assignee = GetNestedString(f, "assignee", "displayName");
+                s.StatusCategory = GetStatusCategory(f);
                 if (f.TryGetProperty("description", out var desc) && desc.ValueKind == JsonValueKind.Object)
                     s.Description = Truncate(AdfRenderer.ToText(desc), SummaryDescriptionMax);
             }
@@ -396,6 +423,16 @@ namespace MdExplorer.Features.Services.Atlassian
             if (el.TryGetProperty(prop, out var inner) && inner.ValueKind == JsonValueKind.Object &&
                 inner.TryGetProperty(innerProp, out var v) && v.ValueKind == JsonValueKind.String)
                 return v.GetString();
+            return null;
+        }
+
+        // fields.status.statusCategory.name — three levels deep.
+        private static string GetStatusCategory(JsonElement fields)
+        {
+            if (fields.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.Object &&
+                st.TryGetProperty("statusCategory", out var sc) && sc.ValueKind == JsonValueKind.Object &&
+                sc.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String)
+                return n.GetString();
             return null;
         }
 

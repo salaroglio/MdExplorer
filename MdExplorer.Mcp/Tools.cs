@@ -444,6 +444,35 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Discovers a Jira project's workflow: the statuses (stages) per issue type, " +
+        "each tagged with its category (To Do / In Progress / Done). Use this to " +
+        "understand the process so you can suggest the next step. To know exactly " +
+        "which moves are valid from an issue's CURRENT status, also call " +
+        "JiraListTransitions for that issue; combine the two to recommend what to do " +
+        "next and (with JiraTransitionIssue) to do it.")]
+    public async Task<string> JiraGetWorkflow(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Jira project key, e.g. 'SCRUM' (optional — defaults to the configured key).")] string projectKey = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        try
+        {
+            var url = $"/api/atlassian/jira/statuses?projectId={pid}";
+            if (!string.IsNullOrWhiteSpace(projectKey)) url += $"&projectKey={Uri.EscapeDataString(projectKey.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraGetWorkflow", project, $"projectKey={projectKey}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Adds a comment to a Jira issue (WRITE). Use when the user asks to comment on " +
         "an issue, e.g. to note that a plan was produced. Body is plain text.")]
     public async Task<string> JiraAddComment(

@@ -401,6 +401,27 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        // ============================================================
+        //   GET /api/atlassian/jira/statuses?projectId=&projectKey=
+        //   Workflow discovery: the stages (statuses) of the project.
+        // ============================================================
+        [HttpGet("jira/statuses")]
+        public async Task<IActionResult> Statuses([FromQuery] Guid projectId, [FromQuery] string projectKey = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            var key = string.IsNullOrWhiteSpace(projectKey) ? ctx.ProjectKeys.FirstOrDefault() : projectKey.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                return BadRequest(new { error = "No Jira project key: set one in Project Settings → Atlassian or pass projectKey." });
+            try
+            {
+                var workflow = await _jiraClient.GetProjectStatusesAsync(ctx.Connection, key);
+                return Ok(new { projectId, projectKey = key, workflow });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Statuses failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
         public class CommentRequest
         {
             public Guid ProjectId { get; set; }

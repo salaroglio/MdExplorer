@@ -26,6 +26,8 @@ namespace MdExplorer.Features.Services.Atlassian
         public string DueDate { get; set; }
         public string Assignee { get; set; }
         public string Url { get; set; }
+        /// <summary>Status category: "To Do" / "In Progress" / "Done" — where the issue sits in the flow.</summary>
+        public string StatusCategory { get; set; }
         /// <summary>Short description snippet (truncated) in lists; full text in <see cref="JiraIssueDetail"/>.</summary>
         public string Description { get; set; }
     }
@@ -94,5 +96,19 @@ namespace MdExplorer.Features.Services.Atlassian
         public string Id { get; set; }
         public string Name { get; set; }        // transition name, e.g. "Start Progress"
         public string ToStatus { get; set; }    // resulting status, e.g. "In Progress"
+    }
+
+    /// <summary>One status (stage) in a project's workflow.</summary>
+    public class JiraStatus
+    {
+        public string Name { get; set; }        // e.g. "In Progress"
+        public string Category { get; set; }    // "To Do" / "In Progress" / "Done"
+    }
+
+    /// <summary>The workflow stages available to an issue type within a project.</summary>
+    public class JiraIssueTypeStatuses
+    {
+        public string IssueType { get; set; }
+        public List<JiraStatus> Statuses { get; set; } = new List<JiraStatus>();
     }
 }

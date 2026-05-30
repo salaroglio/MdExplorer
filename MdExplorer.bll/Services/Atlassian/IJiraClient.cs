@@ -48,6 +48,12 @@ namespace MdExplorer.Features.Services.Atlassian
         Task<IReadOnlyList<JiraTransition>> GetTransitionsAsync(JiraConnection conn, string issueKey, CancellationToken ct = default);
 
         /// <summary>
+        /// Discovers a project's workflow: the statuses (stages) available to each
+        /// issue type, with their category (To Do / In Progress / Done).
+        /// </summary>
+        Task<IReadOnlyList<JiraIssueTypeStatuses>> GetProjectStatusesAsync(JiraConnection conn, string projectKey, CancellationToken ct = default);
+
+        /// <summary>
         /// Applies a transition by name or target-status (case-insensitive). Throws
         /// with the available options if none matches. Returns the resulting status.
         /// </summary>
