@@ -34,5 +34,8 @@ namespace MdExplorer.Features.Services.Atlassian
         /// </summary>
         Task<JiraCreatedIssue> CreateIssueAsync(
             JiraConnection conn, JiraCreateIssueRequest req, CancellationToken ct = default);
+
+        /// <summary>Lists the Jira projects the user can see (key + name).</summary>
+        Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default);
     }
 }

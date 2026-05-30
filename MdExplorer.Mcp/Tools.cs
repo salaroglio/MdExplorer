@@ -384,4 +384,27 @@ public class MdExplorerTools
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
     }
+
+    [McpServerTool, Description(
+        "Lists the Jira projects the user can access (key + name). Use this to find " +
+        "the right project key before creating an issue, or when the user is unsure " +
+        "which project key to use.")]
+    public async Task<string> JiraListProjects(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        try
+        {
+            var resp = await client.GetAsync($"/api/atlassian/jira/projects?projectId={pid}");
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraListProjects", project, "", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
 }

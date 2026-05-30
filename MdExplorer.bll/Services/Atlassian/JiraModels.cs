@@ -70,4 +70,11 @@ namespace MdExplorer.Features.Services.Atlassian
         public string Key { get; set; }
         public string Url { get; set; }
     }
+
+    /// <summary>A Jira project as returned by /rest/api/3/project/search.</summary>
+    public class JiraProject
+    {
+        public string Key { get; set; }
+        public string Name { get; set; }
+    }
 }

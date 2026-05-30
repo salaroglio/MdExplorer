@@ -173,6 +173,17 @@ namespace MdExplorer.Features.Services.Atlassian
             };
         }
 
+        public async Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default)
+        {
+            Validate(conn);
+            using var doc = await GetJsonAsync(conn, $"{BaseUrl(conn)}/rest/api/3/project/search?maxResults=50", ct);
+            var list = new List<JiraProject>();
+            if (doc != null && doc.RootElement.TryGetProperty("values", out var vals) && vals.ValueKind == JsonValueKind.Array)
+                foreach (var p in vals.EnumerateArray())
+                    list.Add(new JiraProject { Key = GetString(p, "key"), Name = GetString(p, "name") });
+            return list;
+        }
+
         // ── HTTP plumbing ───────────────────────────────────────────
 
         private Task<JsonDocument> GetJsonAsync(JiraConnection conn, string url, CancellationToken ct) =>

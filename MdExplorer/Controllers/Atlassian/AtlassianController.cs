@@ -295,6 +295,30 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        // ============================================================
+        //   GET /api/atlassian/jira/projects?projectId=   (discovery)
+        // ============================================================
+        [HttpGet("jira/projects")]
+        public async Task<IActionResult> Projects([FromQuery] Guid projectId)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var projects = await _jiraClient.ListProjectsAsync(ctx.Connection);
+                return Ok(new { projectId, count = projects.Count, projects });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] Projects failed for {ProjectId}", projectId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         public class CreateIssueRequest
         {
             public Guid ProjectId { get; set; }
