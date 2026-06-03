@@ -161,6 +161,7 @@
 <!-- Albero reale quando non in caricamento -->
 <mat-tree *ngIf="!isLoading" [dataSource]="dataSource"
           [treeControl]="treeControl"
+          [trackBy]="trackByPath"
           (contextmenu)="onRightClick($event, null)">
   <!-- This is the tree node template for leaf nodes
        NOTA gating: dopo il fix del 2026-05-23 (pipeline davvero async via Task.Yield),

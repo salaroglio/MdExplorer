@@ -15731,7 +15731,7 @@ function MdTreeComponent_mat_tree_8_Template(rf, ctx) {
   }
   if (rf & 2) {
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵproperty"]("dataSource", ctx_r4.dataSource)("treeControl", ctx_r4.treeControl);
+    _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵproperty"]("dataSource", ctx_r4.dataSource)("treeControl", ctx_r4.treeControl)("trackBy", ctx_r4.trackByPath);
     _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵproperty"]("matTreeNodeDefWhen", ctx_r4.isFolder);
     _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵadvance"](1);
@@ -15839,7 +15839,21 @@ class MdTreeComponent {
         appDescription: node.appDescription
       };
     };
-    this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_29__.FlatTreeControl(node => node.level, node => node.expandable);
+    // trackBy per fullPath: l'expansionModel del FlatTreeControl di default usa
+    // l'IDENTITÀ dell'oggetto-nodo. Gli update incrementali (compact-folder break,
+    // createMissingFolderHierarchy, re-fetch) sostituiscono le istanze dei nodi →
+    // l'identità cambia → l'espansione "si stacca" dai nodi correnti (icone e figli
+    // non si aprono più). Chiavando l'espansione per fullPath (stabile e unico),
+    // lo stato di espansione sopravvive al cambio di istanza. Gemello del [trackBy]
+    // sul <mat-tree> che riconcilia le righe DOM.
+    this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_29__.FlatTreeControl(node => node.level, node => node.expandable,
+    // Return tipizzato `any` di proposito: manteniamo K=IFileInfoNode (così i
+    // generics di MatTreeFlatDataSource/Flattener restano invariati e il build
+    // non va in cascata), ma a runtime l'expansionModel usa la stringa fullPath
+    // come chiave — è esattamente ciò che serve per resistere al churn di istanze.
+    {
+      trackBy: node => node.fullPath
+    });
     this.treeFlattener = new _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeFlattener(this._transformer, node => node.level, node => node.expandable, node => node.childrens);
     this.dataSource = new _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
     this.hasChild = (_, node) => node.expandable;
@@ -15855,6 +15869,12 @@ class MdTreeComponent {
     this.isP2PAvailable = false;
     // RAG availability state
     this.isRagEnabled = false;
+    // ── Coalescing del rendering dell'albero ──
+    // Buffer dell'ultima emissione + flag di scheduling. Più emissioni nello stesso
+    // stack sincrono (raffica) collassano in un solo render nel microtask successivo,
+    // evitando il rendering rientrante che corrompe il differ del MatTree.
+    this._pendingTreeData = null;
+    this._treeRenderScheduled = false;
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {
       const myClonedArray = [];
@@ -16018,25 +16038,18 @@ class MdTreeComponent {
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
       // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
-      // Nascondi skeleton solo quando arrivano dati reali
       if (data && data.length > 0) {
-        // Inizializza ricorsivamente tutte le proprietà
-        this.initializeNodeProperties(data);
-        // Crea una NUOVA array per forzare il change detection con OnPush
-        this.dataSource.data = [...data];
-        // Restore expansion state if we have saved state (from branch switch)
-        if (this.expansionStateBeforeRefresh !== null) {
-          console.log('🔄 Restoring expansion state after branch switch');
-          this.restoreExpansionState(this.expansionStateBeforeRefresh);
-          this.expansionStateBeforeRefresh = null; // Clear after use
-        }
-        // Nascondi skeleton loader quando i dati REALI arrivano
-        this.isLoading = false;
-        console.log('📂 Tree data loaded, hiding skeleton');
-        // Con OnPush, forza il re-check del componente
-        this.changeDetectorRef.markForCheck();
-        // Forza anche il detectChanges per sicurezza
-        this.changeDetectorRef.detectChanges();
+        // COALESCE: durante una raffica di update incrementali (es. un agente che
+        // crea molti file) questa subscription emette N volte in un singolo stack
+        // sincrono. Il vecchio codice faceva N volte `dataSource.data=[...]` +
+        // `detectChanges()` rientrante: i render del CDK MatTree si calpestavano,
+        // corrompendo il suo differ e lasciando righe DOM orfane NON più rimovibili
+        // (nemmeno con dataSource.data=[]; solo il reload le sanava).
+        // Ora bufferizziamo l'ultima emissione e applichiamo UN solo render per
+        // microtask → il differ resta consistente. I DATI restano incrementali:
+        // cambia solo la cadenza con cui vengono spinti nella view.
+        this._pendingTreeData = data;
+        this.scheduleTreeRender();
       }
     });
     this.mdFileService.loadAll(this.deferredOpenProject, this);
@@ -16055,6 +16068,34 @@ class MdTreeComponent {
       if (node.childrens && node.childrens.length > 0) {
         this.initializeNodeProperties(node.childrens);
       }
+    });
+  }
+  scheduleTreeRender() {
+    if (this._treeRenderScheduled) {
+      return;
+    }
+    this._treeRenderScheduled = true;
+    Promise.resolve().then(() => {
+      this._treeRenderScheduled = false;
+      const data = this._pendingTreeData;
+      this._pendingTreeData = null;
+      if (!data || data.length === 0) {
+        return;
+      }
+      // Inizializza ricorsivamente tutte le proprietà
+      this.initializeNodeProperties(data);
+      // Una NUOVA array per il change detection con OnPush
+      this.dataSource.data = [...data];
+      // Restore expansion state if we have saved state (from branch switch)
+      if (this.expansionStateBeforeRefresh !== null) {
+        this.restoreExpansionState(this.expansionStateBeforeRefresh);
+        this.expansionStateBeforeRefresh = null; // Clear after use
+      }
+      // Nascondi skeleton loader quando i dati REALI arrivano
+      this.isLoading = false;
+      // OnPush: solo markForCheck. NIENTE detectChanges() sincrono: era la fonte
+      // del rendering rientrante che corrompeva il differ del MatTree.
+      this.changeDetectorRef.markForCheck();
     });
   }
   deferredOpenProject(data, objectThis) {
@@ -17010,12 +17051,15 @@ class MdTreeComponent {
     const isIndexed = this.isFileIndexed(node);
     return isMarkdownFile && !isIndexed;
   }
-  // TrackBy function per ottimizzare il rendering dell'albero
-  // Usa una chiave stabile che non cambia durante i rename
+  // TrackBy function per il rendering dell'albero.
+  // DEVE restituire una chiave STABILE e UNICA per nodo: il fullPath identifica
+  // univocamente ogni nodo dell'albero (verificato: i fullPath sono tutti distinti).
+  // NON includere `index`: lo renderebbe dipendente dalla posizione, e tra
+  // un'emissione di dataSource.data e la successiva Material non riconcilierebbe
+  // le righe → lascerebbe nel DOM le righe vecchie e ne appenderebbe di nuove,
+  // duplicando l'intera struttura (copia "morta" + copia "viva").
   trackByPath(index, node) {
-    // Per i rename, il path della directory rimane lo stesso, solo il nome cambia
-    // Usiamo path + level per creare una chiave stabile
-    return `${node.path || ''}_${node.level || 0}_${index}`;
+    return node.fullPath || `${node.path || ''}_${node.level || 0}`;
   }
   // Helper per verificare se un nodo è selezionato
   isNodeSelected(node) {
@@ -17688,7 +17732,7 @@ class MdTreeComponent {
       },
       decls: 9,
       vars: 8,
-      consts: [[2, "visibility", "hidden", "position", "fixed", 3, "matMenuTriggerFor"], ["rightMenu", "matMenu"], ["matMenuContent", ""], [1, "tree-scroll-container"], ["class", "sticky-ancestors-panel", 4, "ngIf"], [1, "tree-scroll-wrapper"], ["class", "md-tree-skeleton", 4, "ngIf"], [3, "dataSource", "treeControl", "contextmenu", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click", 4, "ngIf"], ["mat-menu-item", "", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "style", "color: #7c4dff;", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "style", "color: #11998e;", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "style", "color: orange;", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click"], ["src", "/assets/rename.png", "alt", "Rename directory"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["src", "/assets/mark.png", "alt", "Mark", 2, "width", "22px", "height", "22px", "border-radius", "4px"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click"], ["mat-menu-item", "", 3, "click"], [2, "color", "#ef5350"], ["mat-menu-item", "", 2, "color", "#7c4dff", 3, "click"], ["mat-menu-item", "", 2, "color", "#11998e", 3, "click"], ["mat-menu-item", "", 2, "color", "orange", 3, "click"], [1, "sticky-ancestors-panel"], ["class", "sticky-ancestor-row", 3, "padding-left", "click", 4, "ngFor", "ngForOf"], [1, "sticky-ancestor-row", 3, "click"], [1, "gold-icon"], ["class", "folder-name", 4, "ngIf"], ["class", "folder-name compacted-folder", 4, "ngIf"], [1, "folder-name"], [1, "folder-name", "compacted-folder"], [4, "ngFor", "ngForOf"], ["class", "compact-separator", 4, "ngIf"], [1, "compact-separator"], [1, "md-tree-skeleton"], ["class", "skeleton-item", 3, "class", 4, "ngFor", "ngForOf"], [1, "skeleton-item"], [1, "skeleton-icon"], [1, "skeleton-text"], [3, "dataSource", "treeControl", "contextmenu"], ["matTreeNodePadding", "", "style", "cursor:pointer", "draggable", "true", 3, "ngClass", "contextmenu", "dragstart", "dragend", 4, "matTreeNodeDef"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "ngClass", "contextmenu", "click", "dragover", "dragleave", "drop", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer; opacity: 0.55;", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "contextmenu", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "draggable", "true", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "dragstart", "dragend"], ["mat-icon-button", "", "color", "primary", 2, "cursor", "pointer"], [1, "mat-icon-rtl-mirror"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px", 3, "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "click", "dragover", "dragleave", "drop"], ["mat-icon-button", "", "matTreeNodeToggle", "", 3, "ngClass"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", "class", "custom-folder-icon github-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", "class", "custom-folder-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["color", "primary", "class", "mat-icon-rtl-mirror terminal-icon", 4, "ngIf"], ["class", "gold-icon mat-icon-rtl-mirror folder-icon", 4, "ngIf"], ["diameter", "20", "class", "folder-spinner", 4, "ngIf"], ["color", "accent", "class", "gold-icon mat-icon-rtl-mirror folder-icon", 3, "ngClass", 4, "ngIf"], ["class", "folder-name node-text", 4, "ngIf"], ["class", "folder-name node-text compacted-folder", 4, "ngIf"], ["class", "toc-indicator", 3, "matTooltip", "click", 4, "ngIf"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", 1, "custom-folder-icon", "github-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", 1, "custom-folder-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], ["color", "primary", 1, "mat-icon-rtl-mirror", "terminal-icon"], [1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon"], ["diameter", "20", 1, "folder-spinner"], ["color", "accent", 1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon", 3, "ngClass"], [1, "folder-name", "node-text"], [1, "folder-name", "node-text", "compacted-folder"], [1, "compact-segment", 3, "mouseenter", "mouseleave", "contextmenu", "dragover", "dragleave", "drop"], [1, "toc-indicator", 3, "matTooltip", "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "click"], ["mat-icon-button", "", "matTreeNodeToggle", ""], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img", 2, "width", "24px", "height", "24px"], [1, "node-text", 2, "font-weight", "500"], [1, "node-text"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 2, "cursor", "pointer"], ["class", "app-icon-img", 3, "src", 4, "ngIf"], ["src", "/assets/apps-rocket.svg", "class", "app-icon-img", 4, "ngIf"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px"], [1, "app-icon-img", 3, "src"], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img"], ["matTreeNodePadding", "", 2, "cursor", "pointer", "opacity", "0.55", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 2, "cursor", "pointer", "color", "#9e9e9e"], ["class", "app-icon-img", "style", "opacity: 0.5; filter: grayscale(100%);", 3, "src", 4, "ngIf"], [4, "ngIf"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px", "color", "#9e9e9e"], [1, "app-icon-img", 2, "opacity", "0.5", "filter", "grayscale(100%)", 3, "src"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "contextmenu"]],
+      consts: [[2, "visibility", "hidden", "position", "fixed", 3, "matMenuTriggerFor"], ["rightMenu", "matMenu"], ["matMenuContent", ""], [1, "tree-scroll-container"], ["class", "sticky-ancestors-panel", 4, "ngIf"], [1, "tree-scroll-wrapper"], ["class", "md-tree-skeleton", 4, "ngIf"], [3, "dataSource", "treeControl", "trackBy", "contextmenu", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click", 4, "ngIf"], ["mat-menu-item", "", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "style", "color: #7c4dff;", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "style", "color: #11998e;", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "style", "color: orange;", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click"], ["src", "/assets/rename.png", "alt", "Rename directory"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["src", "/assets/mark.png", "alt", "Mark", 2, "width", "22px", "height", "22px", "border-radius", "4px"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click"], ["mat-menu-item", "", 3, "click"], [2, "color", "#ef5350"], ["mat-menu-item", "", 2, "color", "#7c4dff", 3, "click"], ["mat-menu-item", "", 2, "color", "#11998e", 3, "click"], ["mat-menu-item", "", 2, "color", "orange", 3, "click"], [1, "sticky-ancestors-panel"], ["class", "sticky-ancestor-row", 3, "padding-left", "click", 4, "ngFor", "ngForOf"], [1, "sticky-ancestor-row", 3, "click"], [1, "gold-icon"], ["class", "folder-name", 4, "ngIf"], ["class", "folder-name compacted-folder", 4, "ngIf"], [1, "folder-name"], [1, "folder-name", "compacted-folder"], [4, "ngFor", "ngForOf"], ["class", "compact-separator", 4, "ngIf"], [1, "compact-separator"], [1, "md-tree-skeleton"], ["class", "skeleton-item", 3, "class", 4, "ngFor", "ngForOf"], [1, "skeleton-item"], [1, "skeleton-icon"], [1, "skeleton-text"], [3, "dataSource", "treeControl", "trackBy", "contextmenu"], ["matTreeNodePadding", "", "style", "cursor:pointer", "draggable", "true", 3, "ngClass", "contextmenu", "dragstart", "dragend", 4, "matTreeNodeDef"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "ngClass", "contextmenu", "click", "dragover", "dragleave", "drop", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer; opacity: 0.55;", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "contextmenu", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "draggable", "true", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "dragstart", "dragend"], ["mat-icon-button", "", "color", "primary", 2, "cursor", "pointer"], [1, "mat-icon-rtl-mirror"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px", 3, "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "click", "dragover", "dragleave", "drop"], ["mat-icon-button", "", "matTreeNodeToggle", "", 3, "ngClass"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", "class", "custom-folder-icon github-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", "class", "custom-folder-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["color", "primary", "class", "mat-icon-rtl-mirror terminal-icon", 4, "ngIf"], ["class", "gold-icon mat-icon-rtl-mirror folder-icon", 4, "ngIf"], ["diameter", "20", "class", "folder-spinner", 4, "ngIf"], ["color", "accent", "class", "gold-icon mat-icon-rtl-mirror folder-icon", 3, "ngClass", 4, "ngIf"], ["class", "folder-name node-text", 4, "ngIf"], ["class", "folder-name node-text compacted-folder", 4, "ngIf"], ["class", "toc-indicator", 3, "matTooltip", "click", 4, "ngIf"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", 1, "custom-folder-icon", "github-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", 1, "custom-folder-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], ["color", "primary", 1, "mat-icon-rtl-mirror", "terminal-icon"], [1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon"], ["diameter", "20", 1, "folder-spinner"], ["color", "accent", 1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon", 3, "ngClass"], [1, "folder-name", "node-text"], [1, "folder-name", "node-text", "compacted-folder"], [1, "compact-segment", 3, "mouseenter", "mouseleave", "contextmenu", "dragover", "dragleave", "drop"], [1, "toc-indicator", 3, "matTooltip", "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "click"], ["mat-icon-button", "", "matTreeNodeToggle", ""], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img", 2, "width", "24px", "height", "24px"], [1, "node-text", 2, "font-weight", "500"], [1, "node-text"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 2, "cursor", "pointer"], ["class", "app-icon-img", 3, "src", 4, "ngIf"], ["src", "/assets/apps-rocket.svg", "class", "app-icon-img", 4, "ngIf"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px"], [1, "app-icon-img", 3, "src"], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img"], ["matTreeNodePadding", "", 2, "cursor", "pointer", "opacity", "0.55", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 2, "cursor", "pointer", "color", "#9e9e9e"], ["class", "app-icon-img", "style", "opacity: 0.5; filter: grayscale(100%);", 3, "src", 4, "ngIf"], [4, "ngIf"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px", "color", "#9e9e9e"], [1, "app-icon-img", 2, "opacity", "0.5", "filter", "grayscale(100%)", 3, "src"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "contextmenu"]],
       template: function MdTreeComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵelement"](0, "div", 0);
@@ -17699,7 +17743,7 @@ class MdTreeComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵtemplate"](5, MdTreeComponent_div_5_Template, 2, 1, "div", 4);
           _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵelementStart"](6, "div", 5);
           _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵtemplate"](7, MdTreeComponent_div_7_Template, 2, 2, "div", 6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵtemplate"](8, MdTreeComponent_mat_tree_8_Template, 8, 8, "mat-tree", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵtemplate"](8, MdTreeComponent_mat_tree_8_Template, 8, 9, "mat-tree", 7);
           _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {

@@ -130,8 +130,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       appDescription: node.appDescription
     };
   }
+  // trackBy per fullPath: l'expansionModel del FlatTreeControl di default usa
+  // l'IDENTITÀ dell'oggetto-nodo. Gli update incrementali (compact-folder break,
+  // createMissingFolderHierarchy, re-fetch) sostituiscono le istanze dei nodi →
+  // l'identità cambia → l'espansione "si stacca" dai nodi correnti (icone e figli
+  // non si aprono più). Chiavando l'espansione per fullPath (stabile e unico),
+  // lo stato di espansione sopravvive al cambio di istanza. Gemello del [trackBy]
+  // sul <mat-tree> che riconcilia le righe DOM.
   treeControl = new FlatTreeControl<IFileInfoNode>(
-    node => node.level, node => node.expandable);
+    node => node.level, node => node.expandable,
+    // Return tipizzato `any` di proposito: manteniamo K=IFileInfoNode (così i
+    // generics di MatTreeFlatDataSource/Flattener restano invariati e il build
+    // non va in cascata), ma a runtime l'expansionModel usa la stringa fullPath
+    // come chiave — è esattamente ciò che serve per resistere al churn di istanze.
+    { trackBy: (node: IFileInfoNode): any => node.fullPath });
 
   treeFlattener = new MatTreeFlattener(
     this._transformer, node => node.level, node => node.expandable, node => node.childrens);
@@ -372,28 +384,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
       // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
-      // Nascondi skeleton solo quando arrivano dati reali
       if (data && data.length > 0) {
-        // Inizializza ricorsivamente tutte le proprietà
-        this.initializeNodeProperties(data);
-        // Crea una NUOVA array per forzare il change detection con OnPush
-        this.dataSource.data = [...data];
-
-        // Restore expansion state if we have saved state (from branch switch)
-        if (this.expansionStateBeforeRefresh !== null) {
-          console.log('🔄 Restoring expansion state after branch switch');
-          this.restoreExpansionState(this.expansionStateBeforeRefresh);
-          this.expansionStateBeforeRefresh = null; // Clear after use
-        }
-
-        // Nascondi skeleton loader quando i dati REALI arrivano
-        this.isLoading = false;
-        console.log('📂 Tree data loaded, hiding skeleton');
-
-        // Con OnPush, forza il re-check del componente
-        this.changeDetectorRef.markForCheck();
-        // Forza anche il detectChanges per sicurezza
-        this.changeDetectorRef.detectChanges();
+        // COALESCE: durante una raffica di update incrementali (es. un agente che
+        // crea molti file) questa subscription emette N volte in un singolo stack
+        // sincrono. Il vecchio codice faceva N volte `dataSource.data=[...]` +
+        // `detectChanges()` rientrante: i render del CDK MatTree si calpestavano,
+        // corrompendo il suo differ e lasciando righe DOM orfane NON più rimovibili
+        // (nemmeno con dataSource.data=[]; solo il reload le sanava).
+        // Ora bufferizziamo l'ultima emissione e applichiamo UN solo render per
+        // microtask → il differ resta consistente. I DATI restano incrementali:
+        // cambia solo la cadenza con cui vengono spinti nella view.
+        this._pendingTreeData = data;
+        this.scheduleTreeRender();
       }
     });
     this.mdFileService.loadAll(this.deferredOpenProject, this);
@@ -413,6 +415,42 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       if (node.childrens && node.childrens.length > 0) {
         this.initializeNodeProperties(node.childrens);
       }
+    });
+  }
+
+  // ── Coalescing del rendering dell'albero ──
+  // Buffer dell'ultima emissione + flag di scheduling. Più emissioni nello stesso
+  // stack sincrono (raffica) collassano in un solo render nel microtask successivo,
+  // evitando il rendering rientrante che corrompe il differ del MatTree.
+  private _pendingTreeData: any[] | null = null;
+  private _treeRenderScheduled = false;
+
+  private scheduleTreeRender(): void {
+    if (this._treeRenderScheduled) { return; }
+    this._treeRenderScheduled = true;
+    Promise.resolve().then(() => {
+      this._treeRenderScheduled = false;
+      const data = this._pendingTreeData;
+      this._pendingTreeData = null;
+      if (!data || data.length === 0) { return; }
+
+      // Inizializza ricorsivamente tutte le proprietà
+      this.initializeNodeProperties(data);
+      // Una NUOVA array per il change detection con OnPush
+      this.dataSource.data = [...data];
+
+      // Restore expansion state if we have saved state (from branch switch)
+      if (this.expansionStateBeforeRefresh !== null) {
+        this.restoreExpansionState(this.expansionStateBeforeRefresh);
+        this.expansionStateBeforeRefresh = null; // Clear after use
+      }
+
+      // Nascondi skeleton loader quando i dati REALI arrivano
+      this.isLoading = false;
+
+      // OnPush: solo markForCheck. NIENTE detectChanges() sincrono: era la fonte
+      // del rendering rientrante che corrompeva il differ del MatTree.
+      this.changeDetectorRef.markForCheck();
     });
   }
 
@@ -1407,12 +1445,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     return isMarkdownFile && !isIndexed;
   }
   
-  // TrackBy function per ottimizzare il rendering dell'albero
-  // Usa una chiave stabile che non cambia durante i rename
+  // TrackBy function per il rendering dell'albero.
+  // DEVE restituire una chiave STABILE e UNICA per nodo: il fullPath identifica
+  // univocamente ogni nodo dell'albero (verificato: i fullPath sono tutti distinti).
+  // NON includere `index`: lo renderebbe dipendente dalla posizione, e tra
+  // un'emissione di dataSource.data e la successiva Material non riconcilierebbe
+  // le righe → lascerebbe nel DOM le righe vecchie e ne appenderebbe di nuove,
+  // duplicando l'intera struttura (copia "morta" + copia "viva").
   trackByPath(index: number, node: MdFile): string {
-    // Per i rename, il path della directory rimane lo stesso, solo il nome cambia
-    // Usiamo path + level per creare una chiave stabile
-    return `${node.path || ''}_${node.level || 0}_${index}`;
+    return node.fullPath || `${node.path || ''}_${node.level || 0}`;
   }
   
   // Helper per verificare se un nodo è selezionato
